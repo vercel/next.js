@@ -1,0 +1,44 @@
+#!/usr/bin/env node
+
+import { resolve, dirname } from 'path'
+import parseArgs from 'minimist'
+import fs from 'mz/fs'
+import mkdirp from 'mkdirp-then';
+import glob from 'glob-promise'
+import { transpile, bundle } from '../server/build'
+
+const argv = parseArgs(process.argv.slice(2), {
+  alias: {
+    h: 'help',
+  },
+  boolean: ['h']
+})
+
+const dir = resolve(argv._[0] || '.')
+
+Promise.resolve()
+.then(async () => {
+  const paths = await glob('**/*.js', { cwd: dir, ignore: 'node_modules/**' })
+  await Promise.all(paths.map(async (p) => {
+    const code = await transpile(resolve(dir, p))
+    const outpath = resolve(dir, '.next', p)
+    await writeFile(outpath, code)
+  }))
+
+  const pagePaths = await glob('.next/pages/**/*.js', { cwd: dir })
+  await Promise.all(pagePaths.map(async (p) => {
+    const code = await bundle(resolve(dir, p))
+    const outpath = resolve(dir, '.next', p)
+    await writeFile(outpath, code)
+  }))
+})
+.catch((err) => {
+  console.error(err)
+  exit(1)
+})
+
+async function writeFile (path, data) {
+  await mkdirp(dirname(path))
+  await fs.writeFile(path, data, { encoding: 'utf8', flag: 'w+' })
+}
+

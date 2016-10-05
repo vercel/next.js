@@ -1,0 +1,52 @@
+{
+  "name": "@zeit/next",
+  "version": "0.0.0",
+  "description": "",
+  "main": "./dist/lib/index.js",
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "next": "./dist/bin/next"
+  },
+  "scripts": {
+    "build": "gulp",
+    "test": "ava"
+  },
+  "dependencies": {
+    "babel-core": "6.17.0",
+    "babel-generator": "6.17.0",
+    "babel-loader": "6.2.5",
+    "babel-plugin-module-alias": "1.6.0",
+    "babel-plugin-transform-async-to-generator": "6.16.0",
+    "babel-plugin-transform-class-properties": "6.16.0",
+    "babel-plugin-transform-object-rest-spread": "6.16.0",
+    "babel-plugin-transform-runtime": "6.15.0",
+    "babel-preset-es2015": "6.16.0",
+    "babel-preset-react": "6.16.0",
+    "babel-runtime": "6.11.6",
+    "cross-spawn": "4.0.2",
+    "glob-promise": "1.0.6",
+    "htmlescape": "1.1.1",
+    "memory-fs": "0.3.0",
+    "minimist": "1.2.0",
+    "mkdirp-then": "1.2.0",
+    "mz": "2.4.0",
+    "path-match": "1.2.4",
+    "react": "15.3.2",
+    "react-dom": "15.3.2",
+    "send": "0.14.1",
+    "url": "0.11.0",
+    "webpack": "1.13.2"
+  },
+  "devDependencies": {
+    "ava": "0.16.0",
+    "gulp": "3.9.1",
+    "gulp-babel": "6.1.2",
+    "gulp-cached": "1.1.0",
+    "gulp-notify": "2.2.0",
+    "gulp-uglify": "2.0.0",
+    "webpack-stream": "3.2.0"
+  },
+  "license": "MIT"
+}
