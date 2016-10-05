@@ -6,7 +6,7 @@
 
 The file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
 
-Populate `pages/index.js` inside your project:
+Populate `./pages/index.js` inside your project:
 
 ```
 import React from 'react'
@@ -21,7 +21,8 @@ So far, we get:
 
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
-- Server rendering and indexing
+- Server rendering and indexing of `./pages`
+- Static file serving. `./static/` is mapped to `/static/`
 
 ### Bundling (code splitting)
 
