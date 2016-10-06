@@ -26,7 +26,8 @@ export function transpile (path) {
           moduleAlias,
           [
             { src: `npm:${babelRuntimePath}`, expose: 'babel-runtime' },
-            { src: `npm:${require.resolve('react')}`, expose: 'react' }
+            { src: `npm:${require.resolve('react')}`, expose: 'react' },
+            { src: `npm:${require.resolve('../lib/link')}`, expose: 'next/link' }
           ]
         ]
       ],
@@ -51,13 +52,9 @@ export function bundle (path) {
     externals: [
       'react',
       'react-dom',
-      'next',
-      'next/head',
-      'next/link',
-      'next/component',
-      'next/app',
       {
-        [require.resolve('react')]: 'react'
+        [require.resolve('react')]: 'react',
+        [require.resolve('../lib/link')]: 'next/link'
       }
     ],
     resolveLoader: {

@@ -1,11 +1,13 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import App from '../lib/app'
+import Link from '../lib/link'
 
 const modules = new Map([
   ['react', React],
   ['react-dom', ReactDOM],
-  ['next/app', App]
+  ['next/app', App],
+  ['next/link', Link]
 ])
 
 /**
