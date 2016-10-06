@@ -2,18 +2,28 @@
 
 import { resolve } from 'path'
 import parseArgs from 'minimist'
+import Server from '../server'
 import build from '../server/build'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
+    p: 'port'
   },
-  boolean: ['h']
+  boolean: ['h'],
+  default: {
+    p: 3000
+  }
 })
 
 const dir = resolve(argv._[0] || '.')
 
 build(dir)
+.then(async () => {
+  const srv = new Server({ dir, dev: true })
+  await srv.start(argv.port)
+  console.log('> Ready on http://localhost:%d', argv.port);
+})
 .catch((err) => {
   console.error(err)
   exit(1)

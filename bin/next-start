@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
 
@@ -14,9 +15,9 @@ const argv = parseArgs(process.argv.slice(2), {
   }
 })
 
-const dir = argv._[0] || '.'
+const dir = resolve(argv._[0] || '.')
 
-const srv = new Server(dir)
+const srv = new Server({ dir })
 srv.start(argv.port)
 .then(() => {
   console.log('> Ready on http://localhost:%d', argv.port);

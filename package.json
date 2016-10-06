@@ -29,7 +29,6 @@
     "cross-spawn": "4.0.2",
     "glob-promise": "1.0.6",
     "htmlescape": "1.1.1",
-    "memory-fs": "0.3.0",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mz": "2.4.0",

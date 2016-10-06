@@ -5,8 +5,9 @@ import Router from './router'
 import { render, renderJSON } from './render'
 
 export default class Server {
-  constructor (root) {
-    this.root = resolve(root)
+  constructor ({ dir = '.', dev = false }) {
+    this.dir = resolve(dir)
+    this.dev = dev
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {
@@ -50,10 +51,10 @@ export default class Server {
   }
 
   async render (req, res, path) {
-    const { root } = this
+    const { dir } = this
     let html
     try {
-      html = await render(path, req, res, { root })
+      html = await render(path, req, res, { dir })
     } catch (err) {
       if ('MODULE_NOT_FOUND' === err.code) {
         return this.render404(req, res)
@@ -66,10 +67,10 @@ export default class Server {
   }
 
   async renderJSON (req, res, path) {
-    const { root } = this
+    const { dir } = this
     let json
     try {
-      json = await renderJSON(path, { root })
+      json = await renderJSON(path, { dir })
     } catch (err) {
       if ('MODULE_NOT_FOUND' === err.code) {
         return this.render404(req, res)
