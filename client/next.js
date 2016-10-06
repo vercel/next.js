@@ -13,6 +13,6 @@ const Component = evalScript(component).default
 
 const router = new Router({ Component, props })
 const container = document.getElementById('__next')
-const appProps = { Component, props, router: {} }
+const appProps = { Component, props, router }
 
 render(createElement(App, { ...appProps }), container)

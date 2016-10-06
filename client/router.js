@@ -6,21 +6,18 @@ export default class Router {
   constructor (initialData) {
     this.subscriptions = []
 
-    const { Component } = initialData
-    const { pathname } = location
-    const route = toRoute(pathname)
+    const id = createUid()
+    const route = toRoute(location.pathname)
 
     this.currentRoute = route
-    this.currentComponent = Component.displayName
-    this.currentComponentData = initialData
+    this.currentComponentData = { ...initialData, id }
 
     // set up the component cache (by route keys)
     this.components = { [route]: initialData }
 
     // in order for `e.state` to work on the `onpopstate` event
     // we have to register the initial route upon initialization
-    const url = pathname + (location.search || '') + (location.hash || '')
-    this.replace(Component, url)
+    this.replace(id, getURL())
 
     this.onPopState = this.onPopState.bind(this)
     window.addEventListener('unload', () => {})
@@ -30,8 +27,7 @@ export default class Router {
   onPopState (e) {
     this.abortComponentLoad()
     const cur = this.currentComponent
-    const pathname = location.pathname
-    const url = pathname + (location.search || '') + (location.hash || '')
+    const url = getURL()
     const { fromComponent, route } = e.state || {}
     if (fromComponent && cur && fromComponent === cur) {
       // if the component has not changed due
@@ -47,7 +43,7 @@ export default class Router {
           // since the URL has already changed
           location.reload()
         } else {
-          this.currentRoute = route || toRoute(pathname)
+          this.currentRoute = route || toRoute(location.pathname)
           this.currentComponent = data.Component.displayName
           this.currentComponentData = data
           this.set(url)
@@ -88,40 +84,31 @@ export default class Router {
     this.change('pushState', fromComponent, url, fn)
   }
 
-  replace (fromComponent, url, fn) {
-    this.change('replaceState', fromComponent, url, fn)
+  replace (id, url, fn) {
+    this.change('replaceState', id, url, fn)
   }
 
-  change (method, component, url, fn) {
+  change (method, id, url, fn) {
     this.abortComponentLoad()
 
-    const set = (name) => {
-      this.currentComponent = name
-      const state = name
-        ? { fromComponent: name, route: this.currentRoute }
-        : {}
+    const set = (id) => {
+      const state = id ? { fromComponent: id, route: this.currentRoute } : {}
       history[method](state, null, url)
       this.set(url)
       if (fn) fn(null)
     }
 
-    const componentName = component && component.displayName
-    if (component && !componentName) {
-      throw new Error('Initial component must have a unique `displayName`')
-    }
-
-    if (this.currentComponent &&
-        componentName !== this.currentComponent) {
+    if (this.currentComponentData && id !== this.currentComponentData.id) {
       this.fetchComponent(url, (err, data) => {
         if (!err) {
           this.currentRoute = toRoute(url)
           this.currentComponentData = data
-          set(data.Component.displayName)
+          set(data.id)
         }
         if (fn) fn(err, data)
       })
     } else {
-      set(componentName)
+      set(id)
     }
   }
 
@@ -139,7 +126,7 @@ export default class Router {
   }
 
   fetchComponent (url, fn) {
-    const pathname = parse(url, true)
+    const { pathname } = parse(url)
     const route = toRoute(pathname)
 
     let cancelled = false
@@ -174,11 +161,12 @@ export default class Router {
       if (err) {
         if (!cancelled) fn(err)
       } else {
+        const d = { data, id: createUid() }
         // we update the cache even if cancelled
         if (!this.components[route]) {
-          this.components[route] = data
+          this.components[route] = d
         }
-        if (!cancelled) fn(null, data)
+        if (!cancelled) fn(null, d)
       }
     })
 
@@ -222,6 +210,14 @@ export function loadComponent (url, fn) {
     const Component = evalScript(component).default
     getInitialProps({ Component, props }, fn)
   })
+}
+
+function getURL () {
+  return location.pathname + (location.search || '') + (location.hash || '')
+}
+
+function createUid () {
+  return Math.floor(Math.random() * 1e16)
 }
 
 function loadJSON (url, fn) {
