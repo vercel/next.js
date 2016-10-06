@@ -26,7 +26,7 @@ export default class Router {
 
   onPopState (e) {
     this.abortComponentLoad()
-    const cur = this.currentComponent
+    const cur = this.currentComponentData.id
     const url = getURL()
     const { fromComponent, route } = e.state || {}
     if (fromComponent && cur && fromComponent === cur) {
@@ -44,7 +44,6 @@ export default class Router {
           location.reload()
         } else {
           this.currentRoute = route || toRoute(location.pathname)
-          this.currentComponent = data.Component.displayName
           this.currentComponentData = data
           this.set(url)
         }
@@ -161,7 +160,7 @@ export default class Router {
       if (err) {
         if (!cancelled) fn(err)
       } else {
-        const d = { data, id: createUid() }
+        const d = { ...data, id: createUid() }
         // we update the cache even if cancelled
         if (!this.components[route]) {
           this.components[route] = d
