@@ -14,7 +14,7 @@ export async function render (path, req, res, { root = process.cwd() } = {}) {
     props = await Component.getInitialProps({ req, res })
   }
 
-  const bundlePath = resolve(root, '.next', '.next', 'pages', path || 'index.js')
+  const bundlePath = resolve(root, '.next', '.next', 'pages', (path || 'index') + '.js')
   const component = await fs.readFile(bundlePath, 'utf8')
 
   const app = createElement(App, {
