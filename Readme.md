@@ -8,7 +8,7 @@ The file-system is the main API. Every `.js` file becomes a route that gets auto
 
 Populate `./pages/index.js` inside your project:
 
-```
+```jsx
 import React from 'react'
 export default () => (
   <div>Welcome to next.js!</div>
@@ -28,7 +28,7 @@ So far, we get:
 
 Every `import` you declare gets bundled and served with each page
 
-```
+```jsx
 import React from 'react'
 import cowsay from 'cowsay'
 export default () => (
@@ -42,7 +42,7 @@ That means pages never load unneccessary code!
 
 We use [Aphrodite](https://github.com/Khan/aphrodite) to provide a great built-in solution for CSS modularization
 
-```
+```jsx
 import React from 'react'
 import { css, StyleSheet } from 'next/css'
 
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
-```
+```jsx
 import React from 'react'
 import Head from 'next/head'
 export default () => (
@@ -82,7 +82,7 @@ export default () => (
 
 When state, lifecycle hooks or initial data population you can export a `React.Component`:
 
-```
+```jsx
 import React from 'react'
 export default class extends React.Component {
   async getInitialProps ({ isServer, req }) {
@@ -105,7 +105,7 @@ Client-side transitions between routes are enabled via a `<Link>` component
 
 #### pages/index.js
 
-```
+```jsx
 import React from 'react'
 import Link from 'next/link'
 export default () => (
@@ -115,7 +115,7 @@ export default () => (
 
 #### pages/about.js
 
-```
+```jsx
 import React from 'react'
 export default () => (
   <p>Welcome to About!</p>
@@ -141,7 +141,7 @@ Each top-level component receives a `url` property with the following API:
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
 
-```
+```jsx
 import React from 'react'
 export default ({ statusCode }) => (
   <p>An error { statusCode } occurred</p>
@@ -152,14 +152,14 @@ export default ({ statusCode }) => (
 
 To deploy, run:
 
-```
+```bash
 next build
 next start
 ```
 
 For example, to deploy with `now` a `package.json` like follows is recommended:
 
-```
+```json
 {
   "name": "my-app",
   "dependencies": {
