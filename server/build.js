@@ -55,7 +55,10 @@ export function bundle (path, { root = process.cwd() } = {}) {
       'next/head',
       'next/link',
       'next/component',
-      'next/app'
+      'next/app',
+      {
+        [require.resolve('react')]: 'react'
+      }
     ],
     resolveLoader: {
       root: resolve(__dirname, '..', '..', 'node_modules')
