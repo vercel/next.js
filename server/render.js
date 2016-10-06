@@ -39,5 +39,8 @@ export async function render (path, req, res, { root = process.cwd() } = {}) {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (path) {
+export async function renderJSON (path, { root = process.cwd() }) {
+  const bundlePath = resolve(root, '.next', '.next', 'pages', (path || 'index') + '.js')
+  const component = await fs.readFile(bundlePath, 'utf8')
+  return { component }
 }

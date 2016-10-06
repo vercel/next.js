@@ -13,7 +13,7 @@ import moduleAlias from 'babel-plugin-module-alias'
 const babelRuntimePath = require.resolve('babel-runtime/package')
 .replace(/[\\\/]package\.json$/, '');
 
-export function transpile (path, { root = process.cwd() } = {}) {
+export function transpile (path) {
   return new Promise((resolve, reject) => {
     transformFile(path, {
       presets: [preset2015, presetReact],
@@ -38,7 +38,7 @@ export function transpile (path, { root = process.cwd() } = {}) {
   })
 }
 
-export function bundle (path, { root = process.cwd() } = {}) {
+export function bundle (path) {
   const fs = new MemoryFS()
 
   const compiler = webpack({

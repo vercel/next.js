@@ -66,6 +66,7 @@ export default class Server {
   }
 
   async renderJSON (req, res, path) {
+    const { root } = this
     let json
     try {
       json = await renderJSON(path, { root })
@@ -75,9 +76,11 @@ export default class Server {
       }
       throw err
     }
+
+    const data = JSON.stringify(json)
     res.setHeader('Content-Type', 'application/json')
-    res.setHeader('Content-Length', Buffer.byteLength(json))
-    res.end(json)
+    res.setHeader('Content-Length', Buffer.byteLength(data))
+    res.end(data)
   }
 
   async render404 (req, res) {
