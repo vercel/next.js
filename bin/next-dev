@@ -3,7 +3,7 @@
 import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
-import build from '../server/build'
+import build from '../server/build/index'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
