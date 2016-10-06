@@ -32,7 +32,7 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
     head: [],
     html: html,
     css: css,
-    data: { component },
+    data: { component, classNames: css.renderedClassNames },
     hotReload: false,
     dev
   })
