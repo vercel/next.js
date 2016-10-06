@@ -3,6 +3,7 @@ const babel = require('gulp-babel')
 const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
 const uglify = require('gulp-uglify')
+const ava = require('gulp-ava')
 const webpack = require('webpack-stream')
 const del = require('del')
 
@@ -53,6 +54,14 @@ gulp.task('compile-client', () => {
   .pipe(babel(babelOptions))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Compiled client files'))
+})
+
+gulp.task('compile-test', () => {
+  return gulp.src('test/**/*.js')
+  .pipe(cache('test'))
+  .pipe(babel(babelOptions))
+  .pipe(gulp.dest('dist/test'))
+  .pipe(notify('Compiled test files'))
 })
 
 gulp.task('build', [
@@ -140,6 +149,13 @@ gulp.task('release', [
   'compile',
   'build-release'
 ])
+
+gulp.task('test', ['compile', 'compile-test'], function () {
+  return gulp.src('dist/test/*.js')
+  .pipe(ava({
+    verbose: true
+  }))
+})
 
 // avoid logging to the console
 // that we created a notification

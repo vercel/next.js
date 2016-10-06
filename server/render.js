@@ -6,8 +6,11 @@ import Document from '../lib/document'
 import App from '../lib/app'
 import { StyleSheetServer } from '../lib/css'
 
-export async function render (path, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const mod = require(resolve(dir, '.next', 'pages', path)) || {}
+export async function render (path, req, res, { dir = process.cwd(), dev = false, test = false } = {}) {
+  const mod = test
+      ? require(resolve(dir, path)) || {}
+      : require(resolve(dir, '.next', 'pages', path)) || {}
+
   const Component = mod.default
 
   let props = {}
@@ -15,7 +18,10 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
     props = await Component.getInitialProps({ req, res })
   }
 
-  const bundlePath = resolve(dir, '.next', '_bundles', 'pages', (path || 'index') + '.js')
+  const bundlePath = test
+  ? resolve(dir, (path || 'index') + '.js')
+  : resolve(dir, '.next', '_bundles', 'pages', (path || 'index') + '.js')
+
   const component = await fs.readFile(bundlePath, 'utf8')
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
