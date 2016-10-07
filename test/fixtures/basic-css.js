@@ -2,8 +2,8 @@
 import React from 'react'
 import { StyleSheet, css } from '../../lib/css'
 
-export default () => <h1 className={css(styles.h1)}>My component!</h1>
+export default () => <div className={css(styles.red)}>This is red</div>
 
 const styles = StyleSheet.create({
-  h1: { color: 'red' }
+  red: { color: 'red' }
 })
