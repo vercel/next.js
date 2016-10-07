@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import fs from 'mz/fs'
 import Document from '../lib/document'
+import Head from '../lib/head'
 import App from '../lib/app'
 import { StyleSheetServer } from '../lib/css'
 
@@ -28,10 +29,12 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
     return renderToString(app)
   })
 
+  const head = Head.rewind() || []
+
   const doc = createElement(Document, {
-    head: [],
-    html: html,
-    css: css,
+    html,
+    head,
+    css,
     data: { component },
     hotReload: false,
     dev
