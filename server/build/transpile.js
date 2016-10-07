@@ -26,7 +26,8 @@ const babelOptions = {
         { src: `npm:${babelRuntimePath}`, expose: 'babel-runtime' },
         { src: `npm:${require.resolve('react')}`, expose: 'react' },
         { src: `npm:${require.resolve('../../lib/link')}`, expose: 'next/link' },
-        { src: `npm:${require.resolve('../../lib/css')}`, expose: 'next/css' }
+        { src: `npm:${require.resolve('../../lib/css')}`, expose: 'next/css' },
+        { src: `npm:${require.resolve('../../lib/head')}`, expose: 'next/head' }
       ]
     ]
   ],

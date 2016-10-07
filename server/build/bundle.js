@@ -15,7 +15,8 @@ export default function bundle (src, dst) {
       {
         [require.resolve('react')]: 'react',
         [require.resolve('../../lib/link')]: 'next/link',
-        [require.resolve('../../lib/css')]: 'next/css'
+        [require.resolve('../../lib/css')]: 'next/css',
+        [require.resolve('../../lib/head')]: 'next/head'
       }
     ],
     resolveLoader: {

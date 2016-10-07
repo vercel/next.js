@@ -51,10 +51,10 @@ export default class Server {
   }
 
   async render (req, res, path) {
-    const { dir } = this
+    const { dir, dev } = this
     let html
     try {
-      html = await render(path, req, res, { dir })
+      html = await render(path, req, res, { dir, dev })
     } catch (err) {
       if ('MODULE_NOT_FOUND' === err.code) {
         return this.render404(req, res)

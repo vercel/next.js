@@ -3,13 +3,15 @@ import ReactDOM from 'react-dom'
 import App from '../lib/app'
 import Link from '../lib/link'
 import Css from '../lib/css'
+import Head from '../lib/head'
 
 const modules = new Map([
   ['react', React],
   ['react-dom', ReactDOM],
   ['next/app', App],
   ['next/link', Link],
-  ['next/css', Css]
+  ['next/css', Css],
+  ['next/head', Head]
 ])
 
 /**
