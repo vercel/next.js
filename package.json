@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "ava"
+    "test": "gulp test"
   },
   "dependencies": {
     "aphrodite": "0.5.0",
@@ -43,6 +43,7 @@
     "ava": "0.16.0",
     "del": "2.2.2",
     "gulp": "3.9.1",
+    "gulp-ava": "^0.14.1",
     "gulp-babel": "6.1.2",
     "gulp-cached": "1.1.0",
     "gulp-notify": "2.2.0",

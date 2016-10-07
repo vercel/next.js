@@ -6,7 +6,7 @@ import HeadManager from './head-manager'
 import DefaultApp from '../lib/app'
 
 const {
-  __NEXT_DATA__: { app, component, props }
+  __NEXT_DATA__: { app, component, props, classNames }
 } = window
 
 const App = app ? evalScript(app).default : DefaultApp
@@ -17,4 +17,5 @@ const headManager = new HeadManager()
 const container = document.getElementById('__next')
 const appProps = { Component, props, router, headManager }
 
+StyleSheet.rehydrate(classNames)
 render(createElement(App, { ...appProps }), container)
