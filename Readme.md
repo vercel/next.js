@@ -85,7 +85,7 @@ When state, lifecycle hooks or initial data population you can export a `React.C
 ```jsx
 import React from 'react'
 export default class extends React.Component {
-  async getInitialProps ({ isServer, req }) {
+  static async getInitialProps ({ isServer, req }) {
     return isServer
       ? { userAgent: req.headers.userAgent }
       : { userAgent: navigator.userAgent }
