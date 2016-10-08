@@ -2,14 +2,15 @@ import { relative, resolve } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import fs from 'mz/fs'
+import Router from '../lib/router'
 import Document from '../lib/document'
 import Head from '../lib/head'
 import App from '../lib/app'
 import { StyleSheetServer } from '../lib/css'
 
 export async function render (path, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const mod = require(resolve(dir, '.next', 'pages', path)) || {}
-  const Component = mod.default
+  const mod = require(resolve(dir, '.next', 'pages', path))
+  const Component = mod.default || mod
 
   let props = {}
   if (Component.getInitialProps) {
@@ -23,7 +24,7 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
     const app = createElement(App, {
       Component,
       props,
-      router: {}
+      router: new Router(req.url)
     })
 
     return renderToString(app)
