@@ -4,119 +4,105 @@ import shallowEquals from './shallow-equals'
 
 export default class Router {
   constructor (initialData) {
-    this.subscriptions = []
-
-    const id = createUid()
-    const route = toRoute(location.pathname)
-
-    this.currentRoute = route
-    this.currentComponentData = { ...initialData, id }
+    // represents the current component key
+    this.route = toRoute(location.pathname)
 
     // set up the component cache (by route keys)
-    this.components = { [route]: initialData }
+    this.components = { [this.route]: initialData }
 
-    // in order for `e.state` to work on the `onpopstate` event
-    // we have to register the initial route upon initialization
-    this.replace(id, getURL())
-
+    this.subscriptions = new Set()
+    this.componentLoadCancel = null
     this.onPopState = this.onPopState.bind(this)
-    window.addEventListener('unload', () => {})
+
     window.addEventListener('popstate', this.onPopState)
   }
 
   onPopState (e) {
     this.abortComponentLoad()
-    const cur = this.currentComponentData.id
-    const url = getURL()
-    const { fromComponent, route } = e.state || {}
-    if (fromComponent && cur && fromComponent === cur) {
-      // if the component has not changed due
-      // to the url change, it means we only
-      // need to notify the subscriber about
-      // the URL change
-      this.set(url)
-    } else {
-      this.fetchComponent(route || url, (err, data) => {
-        if (err) {
-          // the only way we can appropriately handle
-          // this failure is deferring to the browser
-          // since the URL has already changed
-          location.reload()
-        } else {
-          this.currentRoute = route || toRoute(location.pathname)
-          this.currentComponentData = data
-          this.set(url)
-        }
-      })
-    }
+
+    const route = (e.state || {}).route || toRoute(location.pathname)
+
+    Promise.resolve()
+    .then(async () => {
+      const data = await this.fetchComponent(route)
+      let props
+      if (route !== this.route) {
+        props = await this.getInitialProps(data.Component)
+      }
+
+      this.route = route
+      this.set(getURL(), { ...data, props })
+    })
+    .catch((err) => {
+      if (err.cancelled) return
+
+      // the only way we can appropriately handle
+      // this failure is deferring to the browser
+      // since the URL has already changed
+      location.reload()
+    })
   }
 
-  update (route, data) {
+  async update (route, data) {
     data.Component = evalScript(data.component).default
     delete data.component
     this.components[route] = data
-    if (route === this.currentRoute) {
-      let cancelled = false
-      const cancel = () => { cancelled = true }
-      this.componentLoadCancel = cancel
-      getInitialProps(data, (err, dataWithProps) => {
-        if (cancel === this.componentLoadCancel) {
-          this.componentLoadCancel = false
-        }
-        if (cancelled) return
-        if (err) throw err
-        this.currentComponentData = dataWithProps
-        this.notify()
-      })
-    }
-  }
 
-  goTo (url, fn) {
-    this.change('pushState', null, url, fn)
+    if (route === this.route) {
+      let props
+      try {
+        props = await this.getInitialProps(data.Component)
+      } catch (err) {
+        if (err.cancelled) return false
+        throw err
+      }
+      this.notify({ ...data, props })
+    }
+    return true
   }
 
   back () {
     history.back()
   }
 
-  push (fromComponent, url, fn) {
-    this.change('pushState', fromComponent, url, fn)
+  push (route, url) {
+    return this.change('pushState', route, url)
   }
 
-  replace (id, url, fn) {
-    this.change('replaceState', id, url, fn)
+  replace (route, url) {
+    return this.change('replaceState', route, url)
   }
 
-  change (method, id, url, fn) {
+  async change (method, route, url) {
+    if (!route) route = toRoute(parse(url).pathname)
+
     this.abortComponentLoad()
 
-    const set = (id) => {
-      const state = id ? { fromComponent: id, route: this.currentRoute } : {}
-      history[method](state, null, url)
-      this.set(url)
-      if (fn) fn(null)
+    let data
+    let props
+    try {
+      data = await this.fetchComponent(route)
+      if (route !== this.route) {
+        props = await this.getInitialProps(data.Component)
+      }
+    } catch (err) {
+      if (err.cancelled) return false
+      throw err
     }
 
-    if (this.currentComponentData && id !== this.currentComponentData.id) {
-      this.fetchComponent(url, (err, data) => {
-        if (!err) {
-          this.currentRoute = toRoute(url)
-          this.currentComponentData = data
-          set(data.id)
-        }
-        if (fn) fn(err, data)
-      })
-    } else {
-      set(id)
-    }
+    history[method]({ route }, null, url)
+    this.route = route
+    this.set(url, { ...data, props })
+    return true
   }
 
-  set (url) {
+  set (url, data) {
     const parsed = parse(url, true)
+
     if (this.urlIsNew(parsed)) {
       this.pathname = parsed.pathname
       this.query = parsed.query
-      this.notify()
+      this.notify(data)
     }
   }
 
@@ -124,52 +110,66 @@ export default class Router {
     return this.pathname !== pathname || !shallowEquals(query, this.query)
   }
 
-  fetchComponent (url, fn) {
-    const { pathname } = parse(url)
-    const route = toRoute(pathname)
+  async fetchComponent (url) {
+    const route = toRoute(parse(url).pathname)
 
+    let data = this.components[route]
+    if (data) return data
+
+    let cancel
     let cancelled = false
-    let componentXHR = null
-    const cancel = () => {
-      cancelled = true
-
-      if (componentXHR && componentXHR.abort) {
-        componentXHR.abort()
-      }
-    }
-
-    if (this.components[route]) {
-      const data = this.components[route]
-      getInitialProps(data, (err, dataWithProps) => {
-        if (cancel === this.componentLoadCancel) {
-          this.componentLoadCancel = false
-        }
-        if (cancelled) return
-        fn(err, dataWithProps)
-      })
-      this.componentLoadCancel = cancel
-      return
-    }
 
     const componentUrl = toJSONUrl(route)
+    data = await new Promise((resolve, reject) => {
+      this.componentLoadCancel = cancel = () => {
+        cancelled = true
+        if (componentXHR.abort) componentXHR.abort()
 
-    componentXHR = loadComponent(componentUrl, (err, data) => {
-      if (cancel === this.componentLoadCancel) {
-        this.componentLoadCancel = false
+        const err = new Error('Cancelled')
+        err.cancelled = true
+        reject(err)
       }
-      if (err) {
-        if (!cancelled) fn(err)
-      } else {
-        const d = { ...data, id: createUid() }
-        // we update the cache even if cancelled
-        if (!this.components[route]) {
-          this.components[route] = d
-        }
-        if (!cancelled) fn(null, d)
-      }
+
+      const componentXHR = loadComponent(componentUrl, (err, data) => {
+        if (err) return reject(err)
+        resolve(data)
+      })
     })
 
+    if (cancel === this.componentLoadCancel) {
+      this.componentLoadCancel = null
+    }
+
+    // we update the cache even if cancelled
+    if (data) this.components[route] = data
+
+    if (cancelled) {
+      const err = new Error('Cancelled')
+      err.cancelled = true
+      throw err
+    }
+
+    return data
+  }
+
+  async getInitialProps (Component) {
+    let cancelled = false
+    const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
+
+    const props = await (Component.getInitialProps ? Component.getInitialProps({}) : {})
+
+    if (cancel === this.componentLoadCancel) {
+      this.componentLoadCancel = null
+    }
+
+    if (cancelled) {
+      const err = new Error('Cancelled')
+      err.cancelled = true
+      throw err
+    }
+
+    return props
   }
 
   abortComponentLoad () {
@@ -179,44 +179,44 @@ export default class Router {
     }
   }
 
-  notify () {
-    this.subscriptions.forEach(fn => fn())
+  notify (data) {
+    this.subscriptions.forEach((fn) => fn(data))
   }
 
   subscribe (fn) {
-    this.subscriptions.push(fn)
-    return () => {
-      const i = this.subscriptions.indexOf(fn)
-      if (~i) this.subscriptions.splice(i, 1)
-    }
+    this.subscriptions.add(fn)
+    return () => this.subscriptions.delete(fn)
   }
-}
-
-// every route finishing in `/test/` becomes `/test`
-
-export function toRoute (path) {
-  return path.replace(/\/$/, '') || '/'
-}
-
-export function toJSONUrl (route) {
-  return ('/' === route ? '/index' : route) + '.json'
-}
-
-export function loadComponent (url, fn) {
-  return loadJSON(url, (err, data) => {
-    if (err && fn) fn(err)
-    const { component, props } = data
-    const Component = evalScript(component).default
-    getInitialProps({ Component, props }, fn)
-  })
 }
 
 function getURL () {
   return location.pathname + (location.search || '') + (location.hash || '')
 }
 
-function createUid () {
-  return Math.floor(Math.random() * 1e16)
+function toRoute (path) {
+  return path.replace(/\/$/, '') || '/'
+}
+
+function toJSONUrl (route) {
+  return ('/' === route ? '/index' : route) + '.json'
+}
+
+function loadComponent (url, fn) {
+  return loadJSON(url, (err, data) => {
+    if (err) return fn(err)
+
+    const { component } = data
+
+    let module
+    try {
+      module = evalScript(component)
+    } catch (err) {
+      return fn(err)
+    }
+
+    const Component = module.default || module
+    fn(null, { Component })
+  })
 }
 
 function loadJSON (url, fn) {
@@ -234,21 +234,10 @@ function loadJSON (url, fn) {
     fn(null, data)
   }
   xhr.onerror = () => {
-    if (fn) fn(new Error('XHR failed. Status: ' + xhr.status))
+    fn(new Error('XHR failed. Status: ' + xhr.status))
   }
   xhr.open('GET', url)
   xhr.send()
 
   return xhr
-}
-
-function getInitialProps (data, fn) {
-  const { Component: { getInitialProps } } = data
-  if (getInitialProps) {
-    Promise.resolve(getInitialProps({}))
-    .then((props) => fn(null, { ...data, props }))
-    .catch(fn)
-  } else {
-    fn(null, data)
-  }
 }

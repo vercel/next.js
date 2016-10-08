@@ -35,7 +35,7 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
     html,
     head,
     css,
-    data: { component },
+    data: { component, props },
     hotReload: false,
     dev
   })
