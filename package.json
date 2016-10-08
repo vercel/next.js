@@ -35,6 +35,7 @@
     "path-match": "1.2.4",
     "react": "15.3.2",
     "react-dom": "15.3.2",
+    "resolve": "1.1.7",
     "send": "0.14.1",
     "url": "0.11.0",
     "webpack": "1.13.2"

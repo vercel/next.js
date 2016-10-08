@@ -2,6 +2,8 @@ import { relative, resolve } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import fs from 'mz/fs'
+import requireResolve from './resolve'
+import read from './read'
 import Router from '../lib/router'
 import Document from '../lib/document'
 import Head from '../lib/head'
@@ -9,7 +11,8 @@ import App from '../lib/app'
 import { StyleSheetServer } from '../lib/css'
 
 export async function render (path, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const mod = require(resolve(dir, '.next', 'pages', path))
+  const p = await requireResolve(resolve(dir, '.next', 'pages', path))
+  const mod = require(p)
   const Component = mod.default || mod
 
   let props = {}
@@ -17,8 +20,7 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
     props = await Component.getInitialProps({ req, res })
   }
 
-  const bundlePath = resolve(dir, '.next', '_bundles', 'pages', (path || 'index') + '.js')
-  const component = await fs.readFile(bundlePath, 'utf8')
+  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
     const app = createElement(App, {
@@ -45,7 +47,6 @@ export async function render (path, req, res, { dir = process.cwd(), dev = false
 }
 
 export async function renderJSON (path, { dir = process.cwd() }) {
-  const bundlePath = resolve(dir, '.next', '_bundles', 'pages', (path || 'index') + '.js')
-  const component = await fs.readFile(bundlePath, 'utf8')
+  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
   return { component }
 }

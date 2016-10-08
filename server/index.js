@@ -61,7 +61,7 @@ export default class Server {
     try {
       html = await render(path, req, res, { dir, dev })
     } catch (err) {
-      if ('MODULE_NOT_FOUND' === err.code) {
+      if ('ENOENT' === err.code) {
         return this.render404(req, res)
       }
       throw err
@@ -77,7 +77,7 @@ export default class Server {
     try {
       json = await renderJSON(path, { dir })
     } catch (err) {
-      if ('MODULE_NOT_FOUND' === err.code) {
+      if ('ENOENT' === err.code) {
         return this.render404(req, res)
       }
       throw err
