@@ -19,8 +19,13 @@ export default class Server {
 
   async start (port) {
     this.router.get('/_next/:path+', async (req, res, params) => {
-      const path = (params.path || []).join('/')
-      await this.serveStatic(req, res, path)
+      const p = resolve(__dirname, '../client', (params.path || []).join('/'))
+      await this.serveStatic(req, res, p)
+    })
+
+    this.router.get('/static/:path+', async (req, res, params) => {
+      const p = resolve(this.dir, 'static', (params.path || []).join('/'))
+      await this.serveStatic(req, res, p)
     })
 
     this.router.get('/:path+.json', async (req, res, params) => {
@@ -96,9 +101,8 @@ export default class Server {
   }
 
   serveStatic (req, res, path) {
-    const p = resolve(__dirname, '../client', path)
     return new Promise((resolve, reject) => {
-      send(req, p)
+      send(req, path)
       .on('error', (err) => {
         if ('ENOENT' === err.code) {
           this.render404(req, res).then(resolve, reject)
