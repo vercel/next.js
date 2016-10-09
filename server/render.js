@@ -34,7 +34,11 @@ export async function render (path, ctx, { dir = process.cwd(), dev = false } = 
     html,
     head,
     css,
-    data: { component, props },
+    data: {
+      component,
+      props,
+      classNames: css.renderedClassNames
+    },
     hotReload: false,
     dev
   })
