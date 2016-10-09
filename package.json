@@ -47,7 +47,6 @@
     "gulp-babel": "6.1.2",
     "gulp-cached": "1.1.0",
     "gulp-notify": "2.2.0",
-    "gulp-uglify": "2.0.0",
     "webpack-stream": "3.2.0"
   },
   "license": "MIT"

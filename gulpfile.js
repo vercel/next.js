@@ -2,7 +2,6 @@ const gulp = require('gulp')
 const babel = require('gulp-babel')
 const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
-const uglify = require('gulp-uglify')
 const webpack = require('webpack-stream')
 const del = require('del')
 
@@ -85,10 +84,10 @@ gulp.task('build-release-client', ['compile-lib', 'compile-client'], () => {
         'process.env': {
           NODE_ENV: JSON.stringify('production')
         }
-      })
+      }),
+      new webpack.webpack.optimize.UglifyJsPlugin()
     ]
   }))
-  .pipe(uglify({ preserveComments: 'license' }))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release client'))
 })
