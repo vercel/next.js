@@ -5,6 +5,14 @@ import bundle from './bundle'
 
 export default async function build (dir) {
   const dstDir = resolve(dir, '.next')
+  const templateDir = resolve(__dirname, '..', '..', 'lib', 'pages')
+
+  // create `.next/pages/_error.js`
+  // which may be overwriten by the user sciprt, `pages/_error.js`
+  const templatPaths = await glob('**/*.js', { cwd: templateDir })
+  await Promise.all(templatPaths.map(async (p) => {
+    await transpile(resolve(templateDir, p), resolve(dstDir, 'pages', p))
+  }))
 
   const paths = await glob('**/*.js', { cwd: dir, ignore: 'node_modules/**' })
   await Promise.all(paths.map(async (p) => {

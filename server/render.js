@@ -10,23 +10,19 @@ import Head from '../lib/head'
 import App from '../lib/app'
 import { StyleSheetServer } from '../lib/css'
 
-export async function render (path, req, res, { dir = process.cwd(), dev = false } = {}) {
+export async function render (path, ctx, { dir = process.cwd(), dev = false } = {}) {
   const p = await requireResolve(resolve(dir, '.next', 'pages', path))
   const mod = require(p)
   const Component = mod.default || mod
 
-  let props = {}
-  if (Component.getInitialProps) {
-    props = await Component.getInitialProps({ req, res })
-  }
-
+  const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
   const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
     const app = createElement(App, {
       Component,
       props,
-      router: new Router(req.url)
+      router: new Router(ctx.req.url)
     })
 
     return renderToString(app)

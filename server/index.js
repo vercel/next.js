@@ -11,8 +11,11 @@ export default class Server {
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {
-      this.run(req, res).catch((err) => {
-        this.renderError(req, res, err)
+      this.run(req, res)
+      .catch((err) => {
+        console.error(err)
+        res.status(500);
+        res.end('error');
       })
     })
   }
@@ -30,12 +33,12 @@ export default class Server {
 
     this.router.get('/:path+.json', async (req, res, params) => {
       const path = (params.path || []).join('/')
-      await this.renderJSON(req, res, path)
+      await this.renderJSON(path, req, res)
     })
 
     this.router.get('/:path*', async (req, res, params) => {
       const path = (params.path || []).join('/')
-      await this.render(req, res, path)
+      await this.render(path, req, res)
     })
 
     await new Promise((resolve, reject) => {
@@ -55,49 +58,47 @@ export default class Server {
     }
   }
 
-  async render (req, res, path) {
+  async render (path, req, res) {
     const { dir, dev } = this
     let html
     try {
-      html = await render(path, req, res, { dir, dev })
+      html = await render(path, { req, res }, { dir, dev })
     } catch (err) {
+      let statusCode
       if ('ENOENT' === err.code) {
-        return this.render404(req, res)
+        statusCode = 404
+      } else {
+        console.error(err)
+        statusCode = 500
       }
-      throw err
+      res.statusCode = err.statusCode = statusCode
+      html = await render('_error', { req, res, err }, { dir, dev })
     }
+
     res.setHeader('Content-Type', 'text/html')
     res.setHeader('Content-Length', Buffer.byteLength(html))
     res.end(html)
   }
 
-  async renderJSON (req, res, path) {
+  async renderJSON (path, req, res) {
     const { dir } = this
     let json
     try {
       json = await renderJSON(path, { dir })
     } catch (err) {
       if ('ENOENT' === err.code) {
-        return this.render404(req, res)
+        res.statusCode = 404
+      } else {
+        console.error(err)
+        res.statusCode = 500
       }
-      throw err
+      json = await renderJSON('_error', { dir })
     }
 
     const data = JSON.stringify(json)
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Content-Length', Buffer.byteLength(data))
     res.end(data)
-  }
-
-  async render404 (req, res) {
-    res.writeHead(404)
-    res.end('Not Found')
-  }
-
-  async renderError (req, res, err) {
-    console.error(err)
-    res.writeHead(500)
-    res.end('Error')
   }
 
   serveStatic (req, res, path) {
