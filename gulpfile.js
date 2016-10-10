@@ -2,6 +2,8 @@ const gulp = require('gulp')
 const babel = require('gulp-babel')
 const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
+const ava = require('gulp-ava')
+const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
 
@@ -19,7 +21,8 @@ gulp.task('compile', [
   'compile-bin',
   'compile-lib',
   'compile-server',
-  'compile-client'
+  'compile-client',
+  'compile-test'
 ])
 
 gulp.task('compile-bin', () => {
@@ -53,6 +56,19 @@ gulp.task('compile-client', () => {
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Compiled client files'))
 })
+
+gulp.task('compile-test', () => {
+  return gulp.src('test/*.js')
+  .pipe(cache('test'))
+  .pipe(babel(babelOptions))
+  .pipe(gulp.dest('dist/test'))
+  .pipe(notify('Compiled test files'))
+})
+
+gulp.task('copy-test-fixtures', () => {
+  return gulp.src('test/fixtures/**/*')
+  .pipe(gulp.dest('dist/test/fixtures'))
+});
 
 gulp.task('build', [
   'build-dev-client',
@@ -92,6 +108,11 @@ gulp.task('build-release-client', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release client'))
 })
 
+gulp.task('test', ['compile', 'copy-test-fixtures'], () => {
+  return gulp.src('dist/test/*.js')
+  .pipe(ava())
+})
+
 gulp.task('watch', [
   'watch-bin',
   'watch-lib',
@@ -99,26 +120,26 @@ gulp.task('watch', [
   'watch-client'
 ])
 
-gulp.task('watch-bin', function () {
+gulp.task('watch-bin', () => {
   return gulp.watch('bin/*', [
     'compile-bin'
   ])
 })
 
-gulp.task('watch-lib', function () {
+gulp.task('watch-lib', () => {
   return gulp.watch('lib/**/*.js', [
     'compile-lib',
     'build-dev-client'
   ])
 })
 
-gulp.task('watch-server', function () {
+gulp.task('watch-server', () => {
   return gulp.watch('server/**/*.js', [
     'compile-server'
   ])
 })
 
-gulp.task('watch-client', function () {
+gulp.task('watch-client', () => {
   return gulp.watch('client/**/*.js', [
     'compile-client',
     'build-dev-client'
@@ -126,19 +147,27 @@ gulp.task('watch-client', function () {
 })
 
 gulp.task('clean', () => {
-  return del(['dist'])
+  return del('dist')
+})
+
+gulp.task('clean-test', () => {
+  return del('dist/test')
 })
 
 gulp.task('default', [
   'compile',
   'build',
+  'test',
   'watch'
 ])
 
-gulp.task('release', [
-  'compile',
-  'build-release'
-])
+gulp.task('release', (cb) => {
+  sequence('clean', [
+    'compile',
+    'build-release',
+    'test'
+  ], 'clean-test', cb)
+})
 
 // avoid logging to the console
 // that we created a notification

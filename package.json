@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "",
   "main": "./dist/lib/index.js",
+  "license": "MIT",
   "files": [
     "dist"
   ],
@@ -36,18 +37,32 @@
     "react": "15.3.2",
     "react-dom": "15.3.2",
     "resolve": "1.1.7",
+    "run-sequence": "1.2.2",
     "send": "0.14.1",
     "url": "0.11.0",
     "webpack": "1.13.2"
   },
   "devDependencies": {
-    "ava": "0.16.0",
     "del": "2.2.2",
     "gulp": "3.9.1",
+    "gulp-ava": "0.14.1",
     "gulp-babel": "6.1.2",
     "gulp-cached": "1.1.0",
     "gulp-notify": "2.2.0",
     "webpack-stream": "3.2.0"
   },
-  "license": "MIT"
+  "ava": {
+    "babel": {
+      "presets": [
+        "es2015",
+        "react"
+      ],
+      "plugins": [
+        "transform-async-to-generator",
+        "transform-object-rest-spread",
+        "transform-class-properties",
+        "transform-runtime"
+      ]
+    }
+  }
 }
