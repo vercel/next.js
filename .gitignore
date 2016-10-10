@@ -1,3 +1,4 @@
 *.log
 node_modules
 dist
+.next
