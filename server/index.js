@@ -31,14 +31,12 @@ export default class Server {
       await this.serveStatic(req, res, p)
     })
 
-    this.router.get('/:path+.json', async (req, res, params) => {
-      const path = (params.path || []).join('/')
-      await this.renderJSON(path, req, res)
+    this.router.get('/:path+.json', async (req, res) => {
+      await this.renderJSON(req, res)
     })
 
-    this.router.get('/:path*', async (req, res, params) => {
-      const path = (params.path || []).join('/')
-      await this.render(path, req, res)
+    this.router.get('/:path*', async (req, res) => {
+      await this.render(req, res)
     })
 
     await new Promise((resolve, reject) => {
@@ -58,33 +56,11 @@ export default class Server {
     }
   }
 
-  async render (path, req, res) {
+  async render (req, res) {
     const { dir, dev } = this
     let html
     try {
-      html = await render(path, { req, res }, { dir, dev })
-    } catch (err) {
-      let statusCode
-      if ('ENOENT' === err.code) {
-        statusCode = 404
-      } else {
-        console.error(err)
-        statusCode = 500
-      }
-      res.statusCode = err.statusCode = statusCode
-      html = await render('_error', { req, res, err }, { dir, dev })
-    }
-
-    res.setHeader('Content-Type', 'text/html')
-    res.setHeader('Content-Length', Buffer.byteLength(html))
-    res.end(html)
-  }
-
-  async renderJSON (path, req, res) {
-    const { dir } = this
-    let json
-    try {
-      json = await renderJSON(path, { dir })
+      html = await render(req.url, { req, res }, { dir, dev })
     } catch (err) {
       if ('ENOENT' === err.code) {
         res.statusCode = 404
@@ -92,13 +68,39 @@ export default class Server {
         console.error(err)
         res.statusCode = 500
       }
-      json = await renderJSON('_error', { dir })
+      html = await render('/_error', { req, res, err }, { dir, dev })
+    }
+
+    sendHTML(res, html)
+  }
+
+  async renderJSON (req, res) {
+    const { dir } = this
+    let json
+    try {
+      json = await renderJSON(req.url, { dir })
+    } catch (err) {
+      if ('ENOENT' === err.code) {
+        res.statusCode = 404
+      } else {
+        console.error(err)
+        res.statusCode = 500
+      }
+      json = await renderJSON('/_error.json', { dir })
     }
 
     const data = JSON.stringify(json)
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Content-Length', Buffer.byteLength(data))
     res.end(data)
+  }
+
+  async render404 (req, res) {
+    const { dir, dev } = this
+
+    res.statusCode = 404
+    const html = await render('/_error', { req, res }, { dir, dev })
+    sendHTML(res, html)
   }
 
   serveStatic (req, res, path) {
@@ -115,4 +117,10 @@ export default class Server {
       .on('finish', resolve)
     })
   }
+}
+
+function sendHTML (res, html) {
+  res.setHeader('Content-Type', 'text/html')
+  res.setHeader('Content-Length', Buffer.byteLength(html))
+  res.end(html)
 }
