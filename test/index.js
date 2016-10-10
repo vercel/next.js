@@ -9,8 +9,13 @@ test.before(() => build(dir))
 
 test(async (t) => {
   const html = await render('/stateless')
-  console.log(html)
   t.true(html.includes('<h1>My component!</h1>'))
+})
+
+test(async (t) => {
+  const html = await render('/css')
+  t.true(html.includes('<style data-aphrodite="">.red_im3wl1{color:red !important;}</style>'))
+  t.true(html.includes('<div class="red_im3wl1">This is red</div>'))
 })
 
 function render (url, ctx) {
