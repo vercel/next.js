@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "ava"
+    "test": "gulp test"
   },
   "dependencies": {
     "aphrodite": "0.5.0",
