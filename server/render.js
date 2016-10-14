@@ -14,7 +14,8 @@ import { StyleSheetServer } from '../lib/css'
 export async function render (url, ctx = {}, {
   dir = process.cwd(),
   dev = false,
-  staticMarkup = false
+  staticMarkup = false,
+  mfs
 } = {}) {
   const path = getPath(url)
   const p = await requireResolve(resolve(dir, '.next', 'pages', path))
@@ -22,7 +23,7 @@ export async function render (url, ctx = {}, {
   const Component = mod.default || mod
 
   const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
-  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
+  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path), { mfs })
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
     const app = createElement(App, {
@@ -53,9 +54,9 @@ export async function render (url, ctx = {}, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (url, { dir = process.cwd() } = {}) {
+export async function renderJSON (url, { dir = process.cwd(), mfs } = {}) {
   const path = getPath(url)
-  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
+  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path), { mfs })
   return { component }
 }
 

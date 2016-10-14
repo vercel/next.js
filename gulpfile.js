@@ -65,6 +65,16 @@ gulp.task('compile-test', () => {
   .pipe(notify('Compiled test files'))
 })
 
+gulp.task('copy', [
+  'copy-pages',
+  'copy-test-fixtures'
+]);
+
+gulp.task('copy-pages', () => {
+  return gulp.src('pages/**/*.js')
+  .pipe(gulp.dest('dist/pages'))
+})
+
 gulp.task('copy-test-fixtures', () => {
   return gulp.src('test/fixtures/**/*')
   .pipe(gulp.dest('dist/test/fixtures'))
@@ -83,7 +93,21 @@ gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
   .src('dist/client/next-dev.js')
   .pipe(webpack({
     quiet: true,
-    output: { filename: 'next-dev.bundle.js' }
+    output: { filename: 'next-dev.bundle.js' },
+    module: {
+      loaders: [
+        {
+          test: /eval-script\.js$/,
+          exclude: /node_modules/,
+          loader: 'babel',
+          query: {
+            plugins: [
+              'babel-plugin-transform-remove-strict-mode'
+            ]
+          }
+        }
+      ]
+    },
   }))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built dev client'))
@@ -102,7 +126,21 @@ gulp.task('build-release-client', ['compile-lib', 'compile-client'], () => {
         }
       }),
       new webpack.webpack.optimize.UglifyJsPlugin()
-    ]
+    ],
+    module: {
+      loaders: [
+        {
+          test: /eval-script\.js$/,
+          exclude: /node_modules/,
+          loader: 'babel',
+          query: {
+            plugins: [
+              'babel-plugin-transform-remove-strict-mode'
+            ]
+          }
+        }
+      ]
+    }
   }))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release client'))
@@ -157,6 +195,7 @@ gulp.task('clean-test', () => {
 gulp.task('default', [
   'compile',
   'build',
+  'copy',
   'test',
   'watch'
 ])
@@ -165,6 +204,7 @@ gulp.task('release', (cb) => {
   sequence('clean', [
     'compile',
     'build-release',
+    'copy',
     'test'
   ], 'clean-test', cb)
 })

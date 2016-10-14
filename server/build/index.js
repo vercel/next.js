@@ -5,7 +5,7 @@ import bundle from './bundle'
 
 export default async function build (dir) {
   const dstDir = resolve(dir, '.next')
-  const templateDir = resolve(__dirname, '..', '..', 'lib', 'pages')
+  const templateDir = resolve(__dirname, '..', '..', 'pages')
 
   // create `.next/pages/_error.js`
   // which may be overwriten by the user sciprt, `pages/_error.js`

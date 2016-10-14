@@ -3,11 +3,13 @@ import { resolve } from 'path'
 import send from 'send'
 import Router from './router'
 import { render, renderJSON } from './render'
+import HotReloader from './hot-reloader'
 
 export default class Server {
-  constructor ({ dir = '.', dev = false }) {
+  constructor ({ dir = '.', dev = false, hotReloader }) {
     this.dir = resolve(dir)
     this.dev = dev
+    this.hotReloader = hotReloader
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {
@@ -39,6 +41,10 @@ export default class Server {
       await this.render(req, res)
     })
 
+    if (this.hotReloader) {
+      await this.hotReloader.start()
+    }
+
     await new Promise((resolve, reject) => {
       this.http.listen(port, (err) => {
         if (err) return reject(err)
@@ -57,10 +63,11 @@ export default class Server {
   }
 
   async render (req, res) {
-    const { dir, dev } = this
+    const { dir, dev, hotReloader } = this
+    const mfs = hotReloader ? hotReloader.fileSystem : null
     let html
     try {
-      html = await render(req.url, { req, res }, { dir, dev })
+      html = await render(req.url, { req, res }, { dir, dev, mfs })
     } catch (err) {
       if ('ENOENT' === err.code) {
         res.statusCode = 404
@@ -68,17 +75,18 @@ export default class Server {
         console.error(err)
         res.statusCode = 500
       }
-      html = await render('/_error', { req, res, err }, { dir, dev })
+      html = await render('/_error', { req, res, err }, { dir, dev, mfs })
     }
 
     sendHTML(res, html)
   }
 
   async renderJSON (req, res) {
-    const { dir } = this
+    const { dir, hotReloader } = this
+    const mfs = hotReloader ? hotReloader.fileSystem : null
     let json
     try {
-      json = await renderJSON(req.url, { dir })
+      json = await renderJSON(req.url, { dir, mfs })
     } catch (err) {
       if ('ENOENT' === err.code) {
         res.statusCode = 404
@@ -86,7 +94,7 @@ export default class Server {
         console.error(err)
         res.statusCode = 500
       }
-      json = await renderJSON('/_error.json', { dir })
+      json = await renderJSON('/_error.json', { dir, mfs })
     }
 
     const data = JSON.stringify(json)

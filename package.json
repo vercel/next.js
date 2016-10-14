@@ -36,13 +36,16 @@
     "path-match": "1.2.4",
     "react": "15.3.2",
     "react-dom": "15.3.2",
+    "react-hot-loader": "3.0.0-beta.6",
     "resolve": "1.1.7",
     "run-sequence": "1.2.2",
     "send": "0.14.1",
     "url": "0.11.0",
-    "webpack": "1.13.2"
+    "webpack": "1.13.2",
+    "webpack-dev-server": "1.16.2"
   },
   "devDependencies": {
+    "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "del": "2.2.2",
     "gulp": "3.9.1",
     "gulp-ava": "0.14.1",

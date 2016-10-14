@@ -13,10 +13,11 @@ const {
 const App = app ? evalScript(app).default : DefaultApp
 const Component = evalScript(component).default
 
-const router = new Router(location.href, { Component })
+export const router = new Router(location.href, { Component })
+
 const headManager = new HeadManager()
 const container = document.getElementById('__next')
 const appProps = { Component, props, router, headManager }
 
 StyleSheet.rehydrate(classNames)
-render(createElement(App, { ...appProps }), container)
+render(createElement(App, appProps), container)

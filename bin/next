@@ -26,6 +26,6 @@ const bin = resolve(__dirname, 'next-' + cmd)
 const proc = spawn(bin, args, { stdio: 'inherit', customFds: [0, 1, 2] })
 proc.on('close', (code) => process.exit(code))
 proc.on('error', (err) => {
-  console.log(err)
+  console.error(err)
   process.exit(1)
 })
