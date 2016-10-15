@@ -166,6 +166,8 @@ For example, to deploy with `now` a `package.json` like follows is recommended:
 
 ### In progress
 
+The following tasks are planned and part of our roadmap
+
 - [ ] Add option to supply a `req`, `res` handling function for custom routing
 - [ ] Add option to supply a custom error component to render 404, 500 pages
 - [ ] Add option to extend or replace custom babel configuration
