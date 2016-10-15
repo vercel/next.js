@@ -1,39 +1,41 @@
-import { resolve } from 'path'
+import { resolve, join } from 'path'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 
 export default async function createCompiler(dir, { hotReload = false } = {}) {
-  const pages = await glob('**/*.js', { cwd: resolve(dir, 'pages') })
+  dir = resolve(dir)
+
+  const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
   const defaultEntries = hotReload ? ['webpack/hot/only-dev-server'] : []
   for (const p of pages) {
-    entry[p] = defaultEntries.concat(['./pages/' + p])
+    entry[join('_bundles', p)] = defaultEntries.concat(['./' + p])
   }
 
-  if (!entry['_error.js']) {
-    entry._error = resolve(__dirname, '..', '..', 'pages', '_error.js')
+  const errEntry = join('_bundles', 'pages', '_error.js')
+  if (!entry[errEntry]) {
+    entry[errEntry] = resolve(__dirname, '..', '..', 'pages', '_error.js')
   }
 
   const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
-
-  const plugins = hotReload
-  ? [new webpack.HotModuleReplacementPlugin()]
-  : [
-    new webpack.optimize.UglifyJsPlugin({
-      compress: { warnings: false },
-      sourceMap: false
-    })
-  ]
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\\/]package\.json$/, '');
 
   const loaders = [{
     test: /\.js$/,
+    loader: 'emit-file-loader',
+    include: dir,
+    exclude: /node_modules/,
+    query: {
+      name: '[path][name].[ext]'
+    }
+  }, {
+    test: /\.js$/,
     loader: 'babel',
     include: [
-      resolve(dir),
+      dir,
       resolve(__dirname, '..', '..', 'pages')
     ],
     exclude: /node_modules/,
@@ -67,7 +69,7 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
     context: dir,
     entry,
     output: {
-      path: resolve(dir, '.next', '_bundles', 'pages'),
+      path: resolve(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: hotReload ? 'http://localhost:3030/' : null
@@ -94,7 +96,14 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
         resolve(__dirname, '..', 'loaders')
       ]
     },
-    plugins,
+    plugins: [
+      hotReload
+      ? new webpack.HotModuleReplacementPlugin()
+      : new webpack.optimize.UglifyJsPlugin({
+        compress: { warnings: false },
+        sourceMap: false
+      })
+    ],
     module: {
       preLoaders: [
         { test: /\.json$/, loader: 'json-loader' }
