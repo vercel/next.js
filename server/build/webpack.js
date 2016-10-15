@@ -1,6 +1,7 @@
 import { resolve, join } from 'path'
 import webpack from 'webpack'
 import glob from 'glob-promise'
+import WriteFilePlugin from 'write-file-webpack-plugin'
 
 export default async function createCompiler(dir, { hotReload = false } = {}) {
   dir = resolve(dir)
@@ -19,6 +20,16 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
   }
 
   const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
+
+  const plugins = hotReload ? [
+    new webpack.HotModuleReplacementPlugin(),
+    new WriteFilePlugin({ log: false })
+  ] : [
+    new webpack.optimize.UglifyJsPlugin({
+      compress: { warnings: false },
+      sourceMap: false
+    })
+  ]
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\\/]package\.json$/, '');
@@ -96,14 +107,7 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
         resolve(__dirname, '..', 'loaders')
       ]
     },
-    plugins: [
-      hotReload
-      ? new webpack.HotModuleReplacementPlugin()
-      : new webpack.optimize.UglifyJsPlugin({
-        compress: { warnings: false },
-        sourceMap: false
-      })
-    ],
+    plugins,
     module: {
       preLoaders: [
         { test: /\.json$/, loader: 'json-loader' }

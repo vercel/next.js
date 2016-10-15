@@ -3,7 +3,6 @@ import { resolve } from 'path'
 import send from 'send'
 import Router from './router'
 import { render, renderJSON } from './render'
-import HotReloader from './hot-reloader'
 
 export default class Server {
   constructor ({ dir = '.', dev = false, hotReloader }) {
@@ -63,11 +62,10 @@ export default class Server {
   }
 
   async render (req, res) {
-    const { dir, dev, hotReloader } = this
-    const mfs = hotReloader ? hotReloader.fileSystem : null
+    const { dir, dev } = this
     let html
     try {
-      html = await render(req.url, { req, res }, { dir, dev, mfs })
+      html = await render(req.url, { req, res }, { dir, dev })
     } catch (err) {
       if ('ENOENT' === err.code) {
         res.statusCode = 404
@@ -75,18 +73,17 @@ export default class Server {
         console.error(err)
         res.statusCode = 500
       }
-      html = await render('/_error', { req, res, err }, { dir, dev, mfs })
+      html = await render('/_error', { req, res, err }, { dir, dev })
     }
 
     sendHTML(res, html)
   }
 
   async renderJSON (req, res) {
-    const { dir, hotReloader } = this
-    const mfs = hotReloader ? hotReloader.fileSystem : null
+    const { dir } = this
     let json
     try {
-      json = await renderJSON(req.url, { dir, mfs })
+      json = await renderJSON(req.url, { dir })
     } catch (err) {
       if ('ENOENT' === err.code) {
         res.statusCode = 404
@@ -94,7 +91,7 @@ export default class Server {
         console.error(err)
         res.statusCode = 500
       }
-      json = await renderJSON('/_error.json', { dir, mfs })
+      json = await renderJSON('/_error.json', { dir })
     }
 
     const data = JSON.stringify(json)

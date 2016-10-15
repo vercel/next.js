@@ -3,7 +3,6 @@
 import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
-import build from '../server/build'
 import HotReloader from '../server/hot-reloader'
 import webpack from '../server/build/webpack'
 
@@ -20,9 +19,8 @@ const argv = parseArgs(process.argv.slice(2), {
 
 const dir = resolve(argv._[0] || '.')
 
-build(dir)
-.then(async () => {
-  const compiler = await webpack(dir, { hotReload: true })
+webpack(dir, { hotReload: true })
+.then(async (compiler) => {
   const hotReloader = new HotReloader(compiler)
   const srv = new Server({ dir, dev: true, hotReloader })
   await srv.start(argv.port)

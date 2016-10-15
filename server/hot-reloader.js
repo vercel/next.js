@@ -1,4 +1,5 @@
 import WebpackDevServer from 'webpack-dev-server'
+import read from './read'
 
 export default class HotReloader {
   constructor (compiler) {
@@ -7,6 +8,17 @@ export default class HotReloader {
       hot: true,
       noInfo: true,
       clientLogLevel: 'warning'
+    })
+
+    compiler.plugin('after-emit', (compilation, callback) => {
+      const { assets } = compilation
+      for (const f of Object.keys(assets)) {
+        const source = assets[f]
+        // delete updated file caches
+        delete require.cache[source.existsAt]
+        delete read.cache[source.existsAt]
+      }
+      callback()
     })
   }
 
