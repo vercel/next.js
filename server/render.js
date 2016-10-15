@@ -21,7 +21,8 @@ export async function render (url, ctx = {}, {
   const mod = require(p)
   const Component = mod.default || mod
 
-  const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
+  const { err, res } = ctx
+  const props = ctx.err ? getErrorProps(ctx, dev) : await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
   const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
@@ -61,4 +62,8 @@ export async function renderJSON (url, { dir = process.cwd() } = {}) {
 
 function getPath (url) {
   return parse(url || '/').pathname.slice(1).replace(/\.json$/, '')
+}
+
+function getErrorProps (ctx, dev) {
+  return { statusCode: ctx.res.statusCode, stacktrace: dev ? ctx.err.message : undefined }
 }

@@ -139,6 +139,17 @@ Each top-level component receives a `url` property with the following API:
 - `pushTo(url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
 - `replaceTo(url)` - performs a `replaceState` call that renders the new `url`
 
+### Error handling
+
+404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
+
+```jsx
+import React from 'react'
+export default ({ statusCode }) => (
+  <p>An error { statusCode } occurred</p>
+)
+```
+
 ### Production deployment
 
 To deploy, run:
@@ -169,7 +180,6 @@ For example, to deploy with `now` a `package.json` like follows is recommended:
 The following tasks are planned and part of our roadmap
 
 - [ ] Add option to supply a `req`, `res` handling function for custom routing
-- [ ] Add option to supply a custom error component to render 404, 500 pages
 - [ ] Add option to extend or replace custom babel configuration
 - [ ] Add option to extend or replace custom webpack configuration
 - [ ] Investigate pluggable component-oriented rendering backends (Inferno, Preact, etc)
