@@ -3,6 +3,7 @@ const babel = require('gulp-babel')
 const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
 const ava = require('gulp-ava')
+const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
@@ -22,7 +23,8 @@ gulp.task('compile', [
   'compile-lib',
   'compile-server',
   'compile-client',
-  'compile-test'
+  'compile-test',
+  'compile-bench'
 ])
 
 gulp.task('compile-bin', () => {
@@ -68,7 +70,20 @@ gulp.task('compile-test', () => {
 gulp.task('copy-test-fixtures', () => {
   return gulp.src('test/fixtures/**/*')
   .pipe(gulp.dest('dist/test/fixtures'))
-});
+})
+
+gulp.task('compile-bench', () => {
+  return gulp.src('bench/*.js')
+  .pipe(cache('bench'))
+  .pipe(babel(babelOptions))
+  .pipe(gulp.dest('dist/bench'))
+  .pipe(notify('Compiled bench files'))
+})
+
+gulp.task('copy-bench-fixtures', () => {
+  return gulp.src('bench/fixtures/**/*')
+  .pipe(gulp.dest('dist/bench/fixtures'))
+})
 
 gulp.task('build', [
   'build-dev-client',
@@ -111,6 +126,13 @@ gulp.task('build-release-client', ['compile-lib', 'compile-client'], () => {
 gulp.task('test', ['compile', 'copy-test-fixtures'], () => {
   return gulp.src('dist/test/*.js')
   .pipe(ava())
+})
+
+gulp.task('bench', ['compile', 'copy-bench-fixtures'], () => {
+  return gulp.src('dist/bench/*.js', {read: false})
+  .pipe(benchmark({
+    reporters: benchmark.reporters.etalon('RegExp#test')
+  }))
 })
 
 gulp.task('watch', [

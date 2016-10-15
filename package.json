@@ -29,6 +29,7 @@
     "babel-runtime": "6.11.6",
     "cross-spawn": "4.0.2",
     "glob-promise": "1.0.6",
+    "gulp-benchmark": "^1.1.1",
     "htmlescape": "1.1.1",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
