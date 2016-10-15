@@ -30,9 +30,9 @@ Every `import` you declare gets bundled and served with each page
 
 ```jsx
 import React from 'react'
-import cowsay from 'cowsay'
+import cowsay from 'cowsay-browser'
 export default () => (
-  <pre>{ cowsay('hi there!') }</pre>
+  <pre>{ cowsay({ text: 'hi there!' }) }</pre>
 )
 ```
 
@@ -46,11 +46,11 @@ We use [Aphrodite](https://github.com/Khan/aphrodite) to provide a great built-i
 import React from 'react'
 import { css, StyleSheet } from 'next/css'
 
-export default () => {
+export default () => (
   <div className={ css(styles.main) }>
     Hello world
   </div>
-})
+)
 
 const styles = StyleSheet.create({
   main: {
@@ -70,11 +70,13 @@ We expose a built-in component for appending elements to the `<head>` of the pag
 import React from 'react'
 import Head from 'next/head'
 export default () => (
-  <Head>
-    <title>My page title</title>
-    <meta name="viewport" content="initial-scale=1.0, width=device-width" />
-  </Head>
-  <p>Hello world!</p>
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
 )
 ```
 
