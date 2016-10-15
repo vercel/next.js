@@ -172,3 +172,4 @@ The following tasks are planned and part of our roadmap
 - [ ] Add option to supply a custom error component to render 404, 500 pages
 - [ ] Add option to extend or replace custom babel configuration
 - [ ] Add option to extend or replace custom webpack configuration
+- [ ] Investigate pluggable component-oriented rendering backends (Inferno, Preact, etc)
