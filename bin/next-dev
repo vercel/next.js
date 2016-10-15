@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { resolve } from 'path'
+import { exec } from 'child_process'
 import parseArgs from 'minimist'
 import Server from '../server'
 import build from '../server/build'
@@ -16,6 +17,12 @@ const argv = parseArgs(process.argv.slice(2), {
   }
 })
 
+const open = url => {
+  const openers = { darwin: 'open', win32: 'start' }
+  const cmdName = openers[process.platform] || 'xdg-open'
+  exec(`${cmdName} ${url}`)
+}
+
 const dir = resolve(argv._[0] || '.')
 
 build(dir)
@@ -23,6 +30,7 @@ build(dir)
   const srv = new Server({ dir, dev: true })
   await srv.start(argv.port)
   console.log('> Ready on http://localhost:%d', argv.port);
+  open(`http://localhost:${argv.port}`)
 })
 .catch((err) => {
   console.error(err)
