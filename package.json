@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "gulp test",
+    "test": "standard && gulp test",
     "lint": "standard"
   },
   "dependencies": {
