@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+
+import { resolve, join } from 'path'
+import parseArgs from 'minimist'
+import { exists, writeFile, mkdir } from 'mz/fs'
+
+const argv = parseArgs(process.argv.slice(2), {
+  alias: {
+    h: 'help'
+  },
+  boolean: ['h']
+})
+
+const dir = resolve(argv._[0] || '.')
+
+exists(join(dir, 'package.json'))
+.then(async present => {
+  if (!present) {
+    await writeFile(join(dir, 'package.json'), basePackage)
+  }
+
+  if (!await exists(join(dir, 'static'))) {
+    await mkdir(join(dir, 'static'))
+  }
+
+  if (!await exists(join(dir, 'pages'))) {
+    await mkdir(join(dir, 'pages'))
+    await writeFile(join(dir, 'pages', 'index.js'), basePage)
+  }
+})
+.catch((err) => {
+  console.error(err)
+  exit(1)
+})
+
+const basePackage = `{
+  "name": "my-app",
+  "description": "my app",
+  "dependencies": {
+    "next": "latest"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}`
+
+const basePage =`
+import React from 'react'
+export default () => <p>Hello, world</p>
+`
