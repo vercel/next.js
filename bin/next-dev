@@ -28,9 +28,9 @@ build(dir)
   // Check if pages dir exists and warn if not
   if (!await exists(join(dir, 'pages'))) {
     if (await exists(join(dir, '..', 'pages'))) {
-      console.warn('> Pssst, there is a pages directory next to your project root. Next expects this to be under your project root directory.')
+      console.warn('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
     } else {
-      console.warn('> Couldn\'t find a pages directory. Please create one under the project root')
+      console.warn('> Couldn\'t find a `pages` directory. Please create one under the project root')
     }
   }
 })
