@@ -21,14 +21,14 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
 
   const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
 
-  const plugins = hotReload ? [
-    new webpack.HotModuleReplacementPlugin(),
-    new WriteFilePlugin({ log: false })
-  ] : [
-    new webpack.optimize.UglifyJsPlugin({
+  const plugins = [
+    hotReload
+    ? new webpack.HotModuleReplacementPlugin()
+    : new webpack.optimize.UglifyJsPlugin({
       compress: { warnings: false },
       sourceMap: false
-    })
+    }),
+    new WriteFilePlugin({ log: false })
   ]
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
