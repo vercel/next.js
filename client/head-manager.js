@@ -23,7 +23,7 @@ export default class HeadManager {
     let title
     if (component) {
       const { children } = component.props
-      title = 'string' === typeof children ? children : children.join('')
+      title = typeof children === 'string' ? children : children.join('')
     } else {
       title = DEFAULT_TITLE
     }
@@ -53,7 +53,7 @@ function reactElementToDOM ({ type, props }) {
   const el = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
-    if ('children' === p || 'dangerouslySetInnerHTML' === p) continue
+    if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
 
     const attr = HTMLDOMPropertyConfig.DOMAttributeNames[p] || p.toLowerCase()
     el.setAttribute(attr, props[p])
@@ -63,7 +63,7 @@ function reactElementToDOM ({ type, props }) {
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
   } else if (children) {
-    el.textContent = 'string' === typeof children ? children : children.join('')
+    el.textContent = typeof children === 'string' ? children : children.join('')
   }
   return el
 }

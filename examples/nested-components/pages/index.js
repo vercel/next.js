@@ -5,14 +5,14 @@ import { css, StyleSheet } from 'next/css'
 
 export default () => (
   <div className={css(styles.main)}>
-    <Post title="My first blog post">
+    <Post title='My first blog post'>
       <P>Hello there</P>
       <P>This is an example of a componentized blog post</P>
     </Post>
 
     <Hr />
 
-    <Post title="My second blog post">
+    <Post title='My second blog post'>
       <P>Hello there</P>
       <P>This is another example.</P>
       <P>Wa-hoo!</P>
@@ -20,7 +20,7 @@ export default () => (
 
     <Hr />
 
-    <Post title="The final blog post">
+    <Post title='The final blog post'>
       <P>C'est fin</P>
     </Post>
   </div>

@@ -86,7 +86,7 @@ gulp.task('copy-bench-fixtures', () => {
 })
 
 gulp.task('build', [
-  'build-dev-client',
+  'build-dev-client'
 ])
 
 gulp.task('build-release', [
