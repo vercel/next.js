@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { resolve, join } from 'path'
+import { resolve, join, basename } from 'path'
 import parseArgs from 'minimist'
 import { exists, writeFile, mkdir } from 'mz/fs'
 
@@ -15,6 +15,11 @@ const dir = resolve(argv._[0] || '.')
 
 exists(join(dir, 'package.json'))
 .then(async present => {
+  if (basename(dir) === 'pages') {
+    console.warn('Your root directory is named "pages". This looks suspicious. You probably want to go one directory up.')
+    return
+  }
+
   if (!present) {
     await writeFile(join(dir, 'package.json'), basePackage)
   }
