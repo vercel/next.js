@@ -29,8 +29,11 @@ build(dir)
 .then(async () => {
   const srv = new Server({ dir, dev: true })
   await srv.start(argv.port)
-  console.log('> Ready on http://localhost:%d', argv.port);
-  open(`http://localhost:${argv.port}`)
+  console.log('> Ready on http://localhost:%d', argv.port)
+
+  if (['false', '0'].indexOf(process.env.NEXT_OPEN_BROWSER) === -1) {
+    open(`http://localhost:${argv.port}`)
+  }
 })
 .catch((err) => {
   console.error(err)
