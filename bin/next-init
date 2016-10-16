@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { resolve, join, basename } from 'path'
 import parseArgs from 'minimist'
 import { exists, writeFile, mkdir } from 'mz/fs'
