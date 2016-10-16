@@ -15,9 +15,8 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
   }
 
   const errEntry = join('_bundles', 'pages', '_error.js')
-  if (!entry[errEntry]) {
-    entry[errEntry] = resolve(__dirname, '..', '..', 'pages', '_error.js')
-  }
+  const defaultErrorPath = resolve(__dirname, '..', '..', 'pages', '_error.js')
+  if (!entry[errEntry]) entry[errEntry] = defaultErrorPath
 
   const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
 
@@ -37,7 +36,10 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
   const loaders = [{
     test: /\.js$/,
     loader: 'emit-file-loader',
-    include: dir,
+    include: [
+      dir,
+      resolve(__dirname, '..', '..', 'pages')
+    ],
     exclude: /node_modules/,
     query: {
       name: '[path][name].[ext]'
@@ -113,6 +115,12 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
         { test: /\.json$/, loader: 'json-loader' }
       ],
       loaders
+    },
+    customInterpolateName: function (url, name, opts) {
+      if (defaultErrorPath === this.resourcePath) {
+        return 'pages/_error.js'
+      }
+      return url
     }
   })
 }
