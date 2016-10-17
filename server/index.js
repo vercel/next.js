@@ -15,8 +15,8 @@ export default class Server {
       this.run(req, res)
       .catch((err) => {
         console.error(err)
-        res.status(500);
-        res.end('error');
+        res.status(500)
+        res.end('error')
       })
     })
   }
@@ -67,7 +67,7 @@ export default class Server {
     try {
       html = await render(req.url, { req, res }, { dir, dev })
     } catch (err) {
-      if ('ENOENT' === err.code) {
+      if (err.code === 'ENOENT') {
         res.statusCode = 404
       } else {
         console.error(err)
@@ -85,7 +85,7 @@ export default class Server {
     try {
       json = await renderJSON(req.url, { dir })
     } catch (err) {
-      if ('ENOENT' === err.code) {
+      if (err.code === 'ENOENT') {
         res.statusCode = 404
       } else {
         console.error(err)
@@ -112,7 +112,7 @@ export default class Server {
     return new Promise((resolve, reject) => {
       send(req, path)
       .on('error', (err) => {
-        if ('ENOENT' === err.code) {
+        if (err.code === 'ENOENT') {
           this.render404(req, res).then(resolve, reject)
         } else {
           reject(err)

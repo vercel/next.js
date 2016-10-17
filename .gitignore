@@ -2,3 +2,4 @@
 node_modules
 dist
 .next
+yarn.lock

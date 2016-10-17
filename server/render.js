@@ -1,4 +1,4 @@
-import { relative, resolve } from 'path'
+import { resolve } from 'path'
 import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'

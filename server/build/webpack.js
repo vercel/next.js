@@ -3,7 +3,7 @@ import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 
-export default async function createCompiler(dir, { hotReload = false } = {}) {
+export default async function createCompiler (dir, { hotReload = false } = {}) {
   dir = resolve(dir)
 
   const pages = await glob('pages/**/*.js', { cwd: dir })
@@ -31,7 +31,7 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
   ]
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\\/]package\.json$/, '');
+  .replace(/[\\\/]package\.json$/, '')
 
   const loaders = [{
     test: /\.js$/,

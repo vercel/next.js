@@ -12,7 +12,9 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "ava"
+    "test": "standard && gulp test",
+    "lint": "standard",
+    "precommit": "npm run lint"
   },
   "dependencies": {
     "aphrodite": "0.5.0",
@@ -29,6 +31,7 @@
     "babel-runtime": "6.11.6",
     "cross-spawn": "4.0.2",
     "glob-promise": "1.0.6",
+    "gulp-benchmark": "^1.1.1",
     "htmlescape": "1.1.1",
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
@@ -47,6 +50,7 @@
     "write-file-webpack-plugin": "3.3.0"
   },
   "devDependencies": {
+    "babel-eslint": "^7.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "del": "2.2.2",
     "gulp": "3.9.1",
@@ -54,6 +58,8 @@
     "gulp-babel": "6.1.2",
     "gulp-cached": "1.1.0",
     "gulp-notify": "2.2.0",
+    "husky": "^0.11.9",
+    "standard": "^8.4.0",
     "webpack-stream": "3.2.0"
   },
   "ava": {
@@ -69,5 +75,8 @@
         "transform-runtime"
       ]
     }
+  },
+  "standard": {
+    "parser": "babel-eslint"
   }
 }
