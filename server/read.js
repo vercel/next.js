@@ -1,8 +1,6 @@
 import fs from 'mz/fs'
 import resolve from './resolve'
 
-const cache = {}
-
 /**
  * resolve a file like `require.resolve`,
  * and read and cache the file content
@@ -10,13 +8,16 @@ const cache = {}
 
 async function read (path) {
   const f = await resolve(path)
-  let promise = cache[f]
-  if (!promise) {
-    promise = cache[f] = fs.readFile(f, 'utf8')
+  if (cache.hasOwnProperty(f)) {
+    return cache[f]
   }
-  return promise
+
+  const data = fs.readFile(f, 'utf8')
+  cache[f] = data
+  return data
 }
 
-module.exports = read
+export default read
+export const cache = {}
 
-exports.cache = cache
+read.cache = cache

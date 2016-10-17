@@ -5,9 +5,10 @@ import Router from './router'
 import { render, renderJSON } from './render'
 
 export default class Server {
-  constructor ({ dir = '.', dev = false }) {
+  constructor ({ dir = '.', dev = false, hotReloader }) {
     this.dir = resolve(dir)
     this.dev = dev
+    this.hotReloader = hotReloader
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {
@@ -38,6 +39,10 @@ export default class Server {
     this.router.get('/:path*', async (req, res) => {
       await this.render(req, res)
     })
+
+    if (this.hotReloader) {
+      await this.hotReloader.start()
+    }
 
     await new Promise((resolve, reject) => {
       this.http.listen(port, (err) => {

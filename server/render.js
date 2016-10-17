@@ -2,7 +2,7 @@ import { resolve } from 'path'
 import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import requireResolve from './resolve'
+import requireModule from './require'
 import read from './read'
 import Router from '../lib/router'
 import Document from '../lib/document'
@@ -16,8 +16,7 @@ export async function render (url, ctx = {}, {
   staticMarkup = false
 } = {}) {
   const path = getPath(url)
-  const p = await requireResolve(resolve(dir, '.next', 'pages', path))
-  const mod = require(p)
+  const mod = await requireModule(resolve(dir, '.next', 'pages', path))
   const Component = mod.default || mod
 
   const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})

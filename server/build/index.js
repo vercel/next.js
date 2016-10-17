@@ -1,26 +1,21 @@
-import { resolve } from 'path'
-import glob from 'glob-promise'
-import transpile from './transpile'
-import bundle from './bundle'
+import webpack from './webpack'
 
 export default async function build (dir) {
-  const dstDir = resolve(dir, '.next')
-  const templateDir = resolve(__dirname, '..', '..', 'lib', 'pages')
+  const compiler = await webpack(dir)
 
-  // create `.next/pages/_error.js`
-  // which may be overwriten by the user script, `pages/_error.js`
-  const templatPaths = await glob('**/*.js', { cwd: templateDir })
-  await Promise.all(templatPaths.map(async (p) => {
-    await transpile(resolve(templateDir, p), resolve(dstDir, 'pages', p))
-  }))
+  return new Promise((resolve, reject) => {
+    compiler.run((err, stats) => {
+      if (err) return reject(err)
 
-  const paths = await glob('**/*.js', { cwd: dir, ignore: 'node_modules/**' })
-  await Promise.all(paths.map(async (p) => {
-    await transpile(resolve(dir, p), resolve(dstDir, p))
-  }))
+      const jsonStats = stats.toJson()
+      if (jsonStats.errors.length > 0) {
+        const error = new Error(jsonStats.errors[0])
+        error.errors = jsonStats.errors
+        error.warnings = jsonStats.warnings
+        return reject(error)
+      }
 
-  const pagePaths = await glob('pages/**/*.js', { cwd: dstDir })
-  await Promise.all(pagePaths.map(async (p) => {
-    await bundle(resolve(dstDir, p), resolve(dstDir, '_bundles', p))
-  }))
+      resolve()
+    })
+  })
 }

@@ -3,7 +3,8 @@ import { exec } from 'child_process'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
-import build from '../server/build'
+import HotReloader from '../server/hot-reloader'
+import webpack from '../server/build/webpack'
 import { exists } from 'mz/fs'
 
 const argv = parseArgs(process.argv.slice(2), {
@@ -25,9 +26,10 @@ const open = url => {
 
 const dir = resolve(argv._[0] || '.')
 
-build(dir)
-.then(async () => {
-  const srv = new Server({ dir, dev: true })
+webpack(dir, { hotReload: true })
+.then(async (compiler) => {
+  const hotReloader = new HotReloader(compiler)
+  const srv = new Server({ dir, dev: true, hotReloader })
   await srv.start(argv.port)
   console.log('> Ready on http://localhost:%d', argv.port)
 
