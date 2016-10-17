@@ -1,7 +1,11 @@
 import webpack from './webpack'
+import clean from './clean'
 
 export default async function build (dir) {
-  const compiler = await webpack(dir)
+  const [compiler] = await Promise.all([
+    webpack(dir),
+    clean(dir)
+  ])
 
   return new Promise((resolve, reject) => {
     compiler.run((err, stats) => {

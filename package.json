@@ -30,6 +30,7 @@
     "babel-preset-react": "6.16.0",
     "babel-runtime": "6.11.6",
     "cross-spawn": "4.0.2",
+    "del": "2.2.2",
     "glob-promise": "1.0.6",
     "gulp-benchmark": "^1.1.1",
     "htmlescape": "1.1.1",
@@ -52,7 +53,6 @@
   "devDependencies": {
     "babel-eslint": "^7.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
-    "del": "2.2.2",
     "gulp": "3.9.1",
     "gulp-ava": "0.14.1",
     "gulp-babel": "6.1.2",

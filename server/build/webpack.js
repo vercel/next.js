@@ -11,12 +11,12 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   const entry = {}
   const defaultEntries = hotReload ? ['webpack/hot/only-dev-server'] : []
   for (const p of pages) {
-    entry[join('_bundles', p)] = defaultEntries.concat(['./' + p])
+    entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
 
-  const errEntry = join('_bundles', 'pages', '_error.js')
+  const errorEntry = join('bundles', 'pages', '_error.js')
   const defaultErrorPath = resolve(__dirname, '..', '..', 'pages', '_error.js')
-  if (!entry[errEntry]) entry[errEntry] = defaultErrorPath
+  if (!entry[errorEntry]) entry[errorEntry] = defaultErrorPath
 
   const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
 
@@ -42,7 +42,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     ],
     exclude: /node_modules/,
     query: {
-      name: '[path][name].[ext]'
+      name: 'dist/[path][name].[ext]'
     }
   }, {
     test: /\.js$/,
@@ -118,7 +118,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     },
     customInterpolateName: function (url, name, opts) {
       if (defaultErrorPath === this.resourcePath) {
-        return 'pages/_error.js'
+        return 'dist/pages/_error.js'
       }
       return url
     }
