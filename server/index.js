@@ -20,9 +20,24 @@ export default class Server {
         res.end('error')
       })
     })
+
+    this.defineRoutes()
   }
 
   async start (port) {
+    if (this.hotReloader) {
+      await this.hotReloader.start()
+    }
+
+    await new Promise((resolve, reject) => {
+      this.http.listen(port, (err) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+  }
+
+  defineRoutes () {
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = resolve(__dirname, '../client', (params.path || []).join('/'))
       await this.serveStatic(req, res, p)
@@ -39,17 +54,6 @@ export default class Server {
 
     this.router.get('/:path*', async (req, res) => {
       await this.render(req, res)
-    })
-
-    if (this.hotReloader) {
-      await this.hotReloader.start()
-    }
-
-    await new Promise((resolve, reject) => {
-      this.http.listen(port, (err) => {
-        if (err) return reject(err)
-        resolve()
-      })
     })
   }
 
