@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 import { resolve } from 'path'
-import parseArgs from 'minimist'
-import { spawn } from 'cross-spawn';
+import { spawn } from 'cross-spawn'
 
 const defaultCommand = 'dev'
 const commands = new Set([
   defaultCommand,
+  'init',
   'build',
   'start'
 ])

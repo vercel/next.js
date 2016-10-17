@@ -1,10 +1,6 @@
 import React, { Component } from 'react'
 import { StyleSheet, css } from 'next/css'
 
-
-const spans = () => (
-)
-
 export default class CrazyCSS extends Component {
   spans () {
     const out = []

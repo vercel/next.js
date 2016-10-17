@@ -5,7 +5,7 @@ import { render as _render } from '../server/render'
 import Benchmark from 'benchmark'
 
 const dir = resolve(__dirname, 'fixtures', 'basic')
-const suite = new Benchmark.Suite('Next.js');
+const suite = new Benchmark.Suite('Next.js')
 
 suite
 .on('start', async () => build(dir))

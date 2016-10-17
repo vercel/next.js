@@ -1,6 +1,6 @@
 import { dirname } from 'path'
 import fs from 'mz/fs'
-import mkdirp from 'mkdirp-then';
+import mkdirp from 'mkdirp-then'
 import { transformFile } from 'babel-core'
 import preset2015 from 'babel-preset-es2015'
 import presetReact from 'babel-preset-react'
@@ -11,7 +11,7 @@ import transformRuntime from 'babel-plugin-transform-runtime'
 import moduleAlias from 'babel-plugin-module-alias'
 
 const babelRuntimePath = require.resolve('babel-runtime/package')
-.replace(/[\\\/]package\.json$/, '');
+.replace(/[\\\/]package\.json$/, '')
 
 const babelOptions = {
   presets: [preset2015, presetReact],
