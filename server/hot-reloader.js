@@ -1,14 +1,21 @@
 import WebpackDevServer from 'webpack-dev-server'
+import webpack from './build/webpack'
 import read from './read'
 
 export default class HotReloader {
-  constructor (compiler) {
-    this.server = new WebpackDevServer(compiler, {
-      publicPath: '/',
-      hot: true,
-      noInfo: true,
-      clientLogLevel: 'warning'
-    })
+  constructor (dir) {
+    this.dir = dir
+    this.server = null
+  }
+
+  async start () {
+    await this.prepareServer()
+    await this.waitBuild()
+    await this.listen()
+  }
+
+  async prepareServer () {
+    const compiler = await webpack(this.dir, { hotReload: true })
 
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
@@ -20,11 +27,13 @@ export default class HotReloader {
       }
       callback()
     })
-  }
 
-  async start () {
-    await this.waitBuild()
-    await this.listen()
+    this.server = new WebpackDevServer(compiler, {
+      publicPath: '/',
+      hot: true,
+      noInfo: true,
+      clientLogLevel: 'warning'
+    })
   }
 
   async waitBuild () {

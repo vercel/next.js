@@ -3,12 +3,13 @@ import { resolve } from 'path'
 import send from 'send'
 import Router from './router'
 import { render, renderJSON } from './render'
+import HotReloader from './hot-reloader'
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, hotReloader }) {
+  constructor ({ dir = '.', dev = false, hotReload = false }) {
     this.dir = resolve(dir)
     this.dev = dev
-    this.hotReloader = hotReloader
+    this.hotReloader = hotReload ? new HotReloader(this.dir) : null
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {
