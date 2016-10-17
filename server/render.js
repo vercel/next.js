@@ -1,8 +1,7 @@
-import { relative, resolve } from 'path'
+import { resolve } from 'path'
 import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import fs from 'mz/fs'
 import requireResolve from './resolve'
 import read from './read'
 import Router from '../lib/router'
@@ -21,8 +20,7 @@ export async function render (url, ctx = {}, {
   const mod = require(p)
   const Component = mod.default || mod
 
-  const { err, res } = ctx
-  const props = ctx.err ? getErrorProps(ctx, dev) : await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
+  const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
   const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
@@ -62,8 +60,4 @@ export async function renderJSON (url, { dir = process.cwd() } = {}) {
 
 function getPath (url) {
   return parse(url || '/').pathname.slice(1).replace(/\.json$/, '')
-}
-
-function getErrorProps (ctx, dev) {
-  return { statusCode: ctx.res.statusCode, stacktrace: dev ? ctx.err.message : undefined }
 }

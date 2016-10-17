@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'

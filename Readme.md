@@ -145,9 +145,19 @@ Each top-level component receives a `url` property with the following API:
 
 ```jsx
 import React from 'react'
-export default ({ statusCode }) => (
-  <p>An error { statusCode } occurred</p>
-)
+
+export default class Error extends React.Component {
+  static getInitialProps ({ res, xhr }) {
+    const statusCode = res ? res.statusCode : xhr.status
+    return { statusCode }
+  }
+
+  render () {
+    return (
+      <p>An error { this.props.statusCode } occurred</p>
+    )
+  }
+}
 ```
 
 ### Production deployment
