@@ -40,7 +40,7 @@ build(dir)
     }
   }
 
-  if (/^(false|0)$/i.test(process.env.NEXT_OPEN_BROWSER)) {
+  if (!/^(false|0)$/i.test(process.env.NEXT_OPEN_BROWSER)) {
     open(`http://localhost:${argv.port}`)
   }
 })
