@@ -106,7 +106,7 @@ export default async function createCompiler(dir, { hotReload = false } = {}) {
     resolveLoader: {
       root: [
         nodeModulesDir,
-        resolve(__dirname, '..', 'loaders')
+        resolve(__dirname, 'loaders')
       ]
     },
     plugins,
