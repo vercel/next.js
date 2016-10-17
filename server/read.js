@@ -6,7 +6,7 @@ import resolve from './resolve'
  * and read and cache the file content
  */
 
-async function read (path, opts = {}) {
+async function read (path) {
   const f = await resolve(path)
   if (cache.hasOwnProperty(f)) {
     return cache[f]
