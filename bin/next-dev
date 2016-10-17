@@ -22,7 +22,7 @@ build(dir)
 .then(async () => {
   const srv = new Server({ dir, dev: true })
   await srv.start(argv.port)
-  console.log('> Ready on http://localhost:%d', argv.port);
+  console.log('> Ready on http://localhost:%d', argv.port)
 })
 .catch((err) => {
   console.error(err)

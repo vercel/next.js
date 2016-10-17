@@ -13,7 +13,7 @@ const {
 const App = app ? evalScript(app).default : DefaultApp
 const Component = evalScript(component).default
 
-const router = new Router(location.href, { Component })
+const router = new Router(window.location.href, { Component })
 const headManager = new HeadManager()
 const container = document.getElementById('__next')
 const appProps = { Component, props, router, headManager }

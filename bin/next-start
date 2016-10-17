@@ -20,7 +20,7 @@ const dir = resolve(argv._[0] || '.')
 const srv = new Server({ dir })
 srv.start(argv.port)
 .then(() => {
-  console.log('> Ready on http://localhost:%d', argv.port);
+  console.log('> Ready on http://localhost:%d', argv.port)
 })
 .catch((err) => {
   console.error(err)

@@ -6,7 +6,7 @@ import build from '../server/build'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: 'help',
+    h: 'help'
   },
   boolean: ['h']
 })

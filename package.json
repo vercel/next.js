@@ -12,7 +12,8 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "gulp test"
+    "test": "standard && gulp test",
+    "lint": "standard"
   },
   "dependencies": {
     "aphrodite": "0.5.0",
@@ -44,12 +45,14 @@
     "webpack": "1.13.2"
   },
   "devDependencies": {
+    "babel-eslint": "^7.0.0",
     "del": "2.2.2",
     "gulp": "3.9.1",
     "gulp-ava": "0.14.1",
     "gulp-babel": "6.1.2",
     "gulp-cached": "1.1.0",
     "gulp-notify": "2.2.0",
+    "standard": "^8.4.0",
     "webpack-stream": "3.2.0"
   },
   "ava": {
@@ -65,5 +68,8 @@
         "transform-runtime"
       ]
     }
+  },
+  "standard": {
+    "parser": "babel-eslint"
   }
 }
