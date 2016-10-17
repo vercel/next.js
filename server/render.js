@@ -16,11 +16,11 @@ export async function render (url, ctx = {}, {
   staticMarkup = false
 } = {}) {
   const path = getPath(url)
-  const mod = await requireModule(resolve(dir, '.next', 'pages', path))
+  const mod = await requireModule(resolve(dir, '.next', 'dist', 'pages', path))
   const Component = mod.default || mod
 
   const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
-  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
+  const component = await read(resolve(dir, '.next', 'bundles', 'pages', path))
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
     const app = createElement(App, {
@@ -53,7 +53,7 @@ export async function render (url, ctx = {}, {
 
 export async function renderJSON (url, { dir = process.cwd() } = {}) {
   const path = getPath(url)
-  const component = await read(resolve(dir, '.next', '_bundles', 'pages', path))
+  const component = await read(resolve(dir, '.next', 'bundles', 'pages', path))
   return { component }
 }
 
