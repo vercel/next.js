@@ -27,7 +27,10 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       compress: { warnings: false },
       sourceMap: false
     }),
-    new WriteFilePlugin({ log: false })
+    new WriteFilePlugin({
+      exitOnErrors: false,
+      log: false
+    })
   ]
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
