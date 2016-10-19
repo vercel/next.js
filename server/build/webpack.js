@@ -14,9 +14,15 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
 
+  const nextPagesDir = resolve(__dirname, '..', '..', 'pages')
+
   const errorEntry = join('bundles', 'pages', '_error.js')
-  const defaultErrorPath = resolve(__dirname, '..', '..', 'pages', '_error.js')
+  const defaultErrorPath = resolve(nextPagesDir, '_error.js')
   if (!entry[errorEntry]) entry[errorEntry] = defaultErrorPath
+
+  const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
+  const errorDebugPath = resolve(nextPagesDir, '_error-debug.js')
+  entry[errorDebugEntry] = errorDebugPath
 
   const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
 
@@ -39,21 +45,21 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   const loaders = [{
     test: /\.js$/,
     loader: 'emit-file-loader',
-    include: [
-      dir,
-      resolve(__dirname, '..', '..', 'pages')
-    ],
+    include: [dir, nextPagesDir],
     exclude: /node_modules/,
     query: {
       name: 'dist/[path][name].[ext]'
     }
-  }, {
+  }]
+  .concat(hotReload ? [{
+    test: /\.js$/,
+    loader: 'hot-self-accept-loader',
+    include: resolve(dir, 'pages')
+  }] : [])
+  .concat([{
     test: /\.js$/,
     loader: 'babel',
-    include: [
-      dir,
-      resolve(__dirname, '..', '..', 'pages')
-    ],
+    include: [dir, nextPagesDir],
     exclude: /node_modules/,
     query: {
       presets: ['es2015', 'react'],
@@ -74,12 +80,12 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
         ]
       ]
     }
-  }]
-  .concat(hotReload ? [{
-    test: /\.js$/,
-    loader: 'hot-self-accept-loader',
-    include: resolve(dir, 'pages')
-  }] : [])
+  }])
+
+  const interpolateNames = new Map([
+    [defaultErrorPath, 'dist/pages/_error.js'],
+    [errorDebugPath, 'dist/pages/_error-debug.js']
+  ])
 
   return webpack({
     context: dir,
@@ -120,10 +126,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       loaders
     },
     customInterpolateName: function (url, name, opts) {
-      if (defaultErrorPath === this.resourcePath) {
-        return 'dist/pages/_error.js'
-      }
-      return url
+      return interpolateNames.get(this.resourcePath) || url
     }
   })
 }

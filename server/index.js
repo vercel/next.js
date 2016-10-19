@@ -1,9 +1,11 @@
 import http from 'http'
-import { resolve } from 'path'
+import { resolve, join } from 'path'
+import { parse } from 'url'
 import send from 'send'
 import Router from './router'
-import { render, renderJSON } from './render'
+import { render, renderJSON, errorToJSON } from './render'
 import HotReloader from './hot-reloader'
+import { resolveFromList } from './resolve'
 
 export default class Server {
   constructor ({ dir = '.', dev = false, hotReload = false }) {
@@ -68,17 +70,27 @@ export default class Server {
 
   async render (req, res) {
     const { dir, dev } = this
+    const ctx = { req, res }
+    const opts = { dir, dev }
+
     let html
-    try {
-      html = await render(req.url, { req, res }, { dir, dev })
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        res.statusCode = 404
-      } else {
-        console.error(err)
-        res.statusCode = 500
+
+    const err = this.getCompilationError(req.url)
+    if (err) {
+      res.statusCode = 500
+      html = await render('/_error-debug', { ...ctx, err }, opts)
+    } else {
+      try {
+        html = await render(req.url, ctx, opts)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          res.statusCode = 404
+        } else {
+          console.error(err)
+          res.statusCode = 500
+        }
+        html = await render('/_error', { ...ctx, err }, opts)
       }
-      html = await render('/_error', { req, res, err }, { dir, dev })
     }
 
     sendHTML(res, html)
@@ -86,17 +98,27 @@ export default class Server {
 
   async renderJSON (req, res) {
     const { dir } = this
+    const opts = { dir }
+
     let json
-    try {
-      json = await renderJSON(req.url, { dir })
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        res.statusCode = 404
-      } else {
-        console.error(err)
-        res.statusCode = 500
+
+    const err = this.getCompilationError(req.url)
+    if (err) {
+      res.statusCode = 500
+      json = await renderJSON('/_error-debug.json', opts)
+      json = { ...json, err: errorToJSON(err) }
+    } else {
+      try {
+        json = await renderJSON(req.url, opts)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          res.statusCode = 404
+        } else {
+          console.error(err)
+          res.statusCode = 500
+        }
+        json = await renderJSON('/_error.json', opts)
       }
-      json = await renderJSON('/_error.json', { dir })
     }
 
     const data = JSON.stringify(json)
@@ -126,6 +148,18 @@ export default class Server {
       .pipe(res)
       .on('finish', resolve)
     })
+  }
+
+  getCompilationError (url) {
+    if (!this.hotReloader) return
+
+    const errors = this.hotReloader.getCompilationErrors()
+    if (!errors.size) return
+
+    const p = parse(url || '/').pathname.replace(/\.json$/, '')
+    const id = join(this.dir, '.next', 'bundles', 'pages', p)
+    const path = resolveFromList(id, errors.keys())
+    if (path) return errors.get(path)[0]
   }
 }
 

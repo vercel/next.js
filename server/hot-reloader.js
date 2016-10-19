@@ -1,3 +1,4 @@
+import { join } from 'path'
 import WebpackDevServer from 'webpack-dev-server'
 import webpack from './build/webpack'
 import read from './read'
@@ -6,11 +7,13 @@ export default class HotReloader {
   constructor (dir) {
     this.dir = dir
     this.server = null
+    this.stats = null
+    this.compilationErrors = null
   }
 
   async start () {
     await this.prepareServer()
-    await this.waitBuild()
+    this.stats = await this.waitUntilValid()
     await this.listen()
   }
 
@@ -20,12 +23,14 @@ export default class HotReloader {
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
       for (const f of Object.keys(assets)) {
-        const source = assets[f]
-        // delete updated file caches
-        delete require.cache[source.existsAt]
-        delete read.cache[source.existsAt]
+        deleteCache(assets[f].existsAt)
       }
       callback()
+    })
+
+    compiler.plugin('done', (stats) => {
+      this.stats = stats
+      this.compilationErrors = null
     })
 
     this.server = new WebpackDevServer(compiler, {
@@ -52,18 +57,10 @@ export default class HotReloader {
     })
   }
 
-  async waitBuild () {
-    const stats = await new Promise((resolve) => {
+  waitUntilValid () {
+    return new Promise((resolve) => {
       this.server.middleware.waitUntilValid(resolve)
     })
-
-    const jsonStats = stats.toJson()
-    if (jsonStats.errors.length > 0) {
-      const err = new Error(jsonStats.errors[0])
-      err.errors = jsonStats.errors
-      err.warnings = jsonStats.warnings
-      throw err
-    }
   }
 
   listen () {
@@ -75,7 +72,31 @@ export default class HotReloader {
     })
   }
 
+  getCompilationErrors () {
+    if (!this.compilationErrors) {
+      this.compilationErrors = new Map()
+      if (this.stats.hasErrors()) {
+        const entries = this.stats.compilation.entries
+        .filter((e) => e.context === this.dir)
+        .filter((e) => !!e.errors.length || !!e.dependenciesErrors.length)
+
+        for (const e of entries) {
+          const path = join(e.context, '.next', e.name)
+          const errors = e.errors.concat(e.dependenciesErrors)
+          this.compilationErrors.set(path, errors)
+        }
+      }
+    }
+
+    return this.compilationErrors
+  }
+
   get fileSystem () {
     return this.server.middleware.fileSystem
   }
+}
+
+function deleteCache (path) {
+  delete require.cache[path]
+  delete read.cache[path]
 }

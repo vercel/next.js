@@ -8,8 +8,8 @@ module.exports = function (content) {
   return content + `
     if (module.hot) {
       module.hot.accept()
-      if ('idle' !== module.hot.status()) {
-        const Component = module.exports.default || module.exports
+      if (module.hot.status() !== 'idle') {
+        var Component = module.exports.default || module.exports
         next.router.update('${route}', Component)
       }
     }

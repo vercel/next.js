@@ -41,7 +41,8 @@ export async function render (url, ctx = {}, {
     data: {
       component,
       props,
-      classNames: css.renderedClassNames
+      classNames: css.renderedClassNames,
+      err: ctx.err ? errorToJSON(ctx.err) : null
     },
     hotReload: false,
     dev,
@@ -55,6 +56,19 @@ export async function renderJSON (url, { dir = process.cwd() } = {}) {
   const path = getPath(url)
   const component = await read(resolve(dir, '.next', 'bundles', 'pages', path))
   return { component }
+}
+
+export function errorToJSON (err) {
+  const { name, message, stack } = err
+  const json = { name, message, stack }
+
+  if (name === 'ModuleBuildError') {
+    // webpack compilation error
+    const { module: { rawRequest } } = err
+    json.module = { rawRequest }
+  }
+
+  return json
 }
 
 function getPath (url) {

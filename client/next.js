@@ -7,13 +7,13 @@ import DefaultApp from '../lib/app'
 import evalScript from '../lib/eval-script'
 
 const {
-  __NEXT_DATA__: { app, component, props, classNames }
+  __NEXT_DATA__: { app, component, props, classNames, err }
 } = window
 
 const App = app ? evalScript(app).default : DefaultApp
 const Component = evalScript(component).default
 
-export const router = new Router(window.location.href, { Component })
+export const router = new Router(window.location.href, { Component, ctx: { err } })
 
 const headManager = new HeadManager()
 const container = document.getElementById('__next')
