@@ -40,21 +40,24 @@ That means pages never load unneccessary code!
 
 ### CSS
 
-We use [Aphrodite](https://github.com/Khan/aphrodite) to provide a great built-in solution for CSS modularization
+We use [glamor](https://github.com/threepointone/glamor) to provide a great built-in solution for CSS isolation and modularization without trading off any CSS features
 
 ```jsx
 import React from 'react'
-import { css, StyleSheet } from 'next/css'
+import css from 'next/css'
 
 export default () => (
-  <div className={ css(styles.main) }>
+  <div className={style}>
     Hello world
   </div>
 )
 
-const styles = StyleSheet.create({
+const style = css({
   main: {
     background: 'red',
+    ':hover': {
+      background: 'gray'
+    }
     '@media (max-width: 600px)': {
       background: 'blue'
     }
