@@ -1,9 +1,9 @@
 import test from 'ava'
-import { resolve } from 'path'
+import { join } from 'path'
 import build from '../server/build'
 import { render as _render } from '../server/render'
 
-const dir = resolve(__dirname, 'fixtures', 'basic')
+const dir = join(__dirname, 'fixtures', 'basic')
 
 test.before(() => build(dir))
 

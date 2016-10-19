@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { resolve } from 'path'
+import { join } from 'path'
 import { spawn } from 'cross-spawn'
 
 const defaultCommand = 'dev'
@@ -21,7 +21,7 @@ if (commands.has(cmd)) {
   args = process.argv.slice(2)
 }
 
-const bin = resolve(__dirname, 'next-' + cmd)
+const bin = join(__dirname, 'next-' + cmd)
 
 const proc = spawn(bin, args, { stdio: 'inherit', customFds: [0, 1, 2] })
 proc.on('close', (code) => process.exit(code))

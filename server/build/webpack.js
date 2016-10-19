@@ -14,17 +14,17 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
 
-  const nextPagesDir = resolve(__dirname, '..', '..', 'pages')
+  const nextPagesDir = join(__dirname, '..', '..', 'pages')
 
   const errorEntry = join('bundles', 'pages', '_error.js')
-  const defaultErrorPath = resolve(nextPagesDir, '_error.js')
+  const defaultErrorPath = join(nextPagesDir, '_error.js')
   if (!entry[errorEntry]) entry[errorEntry] = defaultErrorPath
 
   const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
-  const errorDebugPath = resolve(nextPagesDir, '_error-debug.js')
+  const errorDebugPath = join(nextPagesDir, '_error-debug.js')
   entry[errorDebugEntry] = errorDebugPath
 
-  const nodeModulesDir = resolve(__dirname, '..', '..', '..', 'node_modules')
+  const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
     hotReload
@@ -54,7 +54,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   .concat(hotReload ? [{
     test: /\.js$/,
     loader: 'hot-self-accept-loader',
-    include: resolve(dir, 'pages')
+    include: join(dir, 'pages')
   }] : [])
   .concat([{
     test: /\.js$/,
@@ -91,7 +91,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     context: dir,
     entry,
     output: {
-      path: resolve(dir, '.next'),
+      path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: hotReload ? 'http://localhost:3030/' : null
@@ -109,13 +109,13 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     resolve: {
       root: [
         nodeModulesDir,
-        resolve(dir, 'node_modules')
+        join(dir, 'node_modules')
       ]
     },
     resolveLoader: {
       root: [
         nodeModulesDir,
-        resolve(__dirname, 'loaders')
+        join(__dirname, 'loaders')
       ]
     },
     plugins,

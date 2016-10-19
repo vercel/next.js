@@ -1,4 +1,4 @@
-import { resolve } from 'path'
+import { join } from 'path'
 import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
@@ -16,11 +16,11 @@ export async function render (url, ctx = {}, {
   staticMarkup = false
 } = {}) {
   const path = getPath(url)
-  const mod = await requireModule(resolve(dir, '.next', 'dist', 'pages', path))
+  const mod = await requireModule(join(dir, '.next', 'dist', 'pages', path))
   const Component = mod.default || mod
 
   const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
-  const component = await read(resolve(dir, '.next', 'bundles', 'pages', path))
+  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
 
   const { html, css } = StyleSheetServer.renderStatic(() => {
     const app = createElement(App, {
@@ -54,7 +54,7 @@ export async function render (url, ctx = {}, {
 
 export async function renderJSON (url, { dir = process.cwd() } = {}) {
   const path = getPath(url)
-  const component = await read(resolve(dir, '.next', 'bundles', 'pages', path))
+  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
   return { component }
 }
 
@@ -72,5 +72,5 @@ export function errorToJSON (err) {
 }
 
 function getPath (url) {
-  return parse(url || '/').pathname.slice(1).replace(/\.json$/, '')
+  return parse(url || '/').pathname.replace(/\.json$/, '')
 }
