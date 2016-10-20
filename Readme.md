@@ -83,9 +83,9 @@ export default () => (
 )
 ```
 
-### Stateful components
+### Lifecycle components
 
-When state, lifecycle hooks or initial data population you can export a `React.Component`:
+When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`:
 
 ```jsx
 import React from 'react'
@@ -95,7 +95,6 @@ export default class extends React.Component {
       ? { userAgent: req.headers.userAgent }
       : { userAgent: navigator.userAgent }
   }
-
   render () {
     return <div>
       Hello World {this.props.userAgent}
