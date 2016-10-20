@@ -162,16 +162,16 @@ export default class Error extends React.Component {
 }
 ```
 
-### Production deployment
+## Production deployment
 
-To deploy, run:
+To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
 
 ```bash
 next build
 next start
 ```
 
-For example, to deploy with `now` a `package.json` like follows is recommended:
+For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like follows is recommended:
 
 ```json
 {
@@ -187,7 +187,11 @@ For example, to deploy with `now` a `package.json` like follows is recommended:
 }
 ```
 
-### In progress
+Then run `now` and enjoy!
+
+Note: we recommend putting `.next` in `.npmignore` or `.gitigore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
+
+## FAQ
 
 The following tasks are planned and part of our roadmap
 
