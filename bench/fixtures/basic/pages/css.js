@@ -1,11 +1,11 @@
 import React, { Component } from 'react'
-import { StyleSheet, css } from 'next/css'
+import { style } from 'next/css'
 
 export default class CrazyCSS extends Component {
   spans () {
     const out = []
     for (let i = 0; i < 1000; i++) {
-      out.push(<span key={i} class={css(styles[`padding-${i}`])}>This is ${i}</span>)
+      out.push(<span key={i} class={spanStyles[`padding-${i}`]}>This is ${i}</span>)
     }
     return out
   }
@@ -17,7 +17,5 @@ export default class CrazyCSS extends Component {
 
 const spanStyles = {}
 for (let i = 0; i < 1000; i++) {
-  spanStyles[`padding-${i}`] = { padding: i }
+  spanStyles[`padding-${i}`] = style({ padding: i })
 }
-
-const styles = StyleSheet.create(spanStyles)
