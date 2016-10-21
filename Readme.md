@@ -44,7 +44,7 @@ We use [glamor](https://github.com/threepointone/glamor) to provide a great buil
 
 ```jsx
 import React from 'react'
-import css from 'next/css'
+import { style } from 'next/css'
 
 export default () => (
   <div className={style}>
@@ -52,7 +52,7 @@ export default () => (
   </div>
 )
 
-const style = css({
+const style = style({
   main: {
     background: 'red',
     ':hover': {
