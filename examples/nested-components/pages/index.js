@@ -1,7 +1,7 @@
 import React from 'react'
 import P from '../components/paragraph'
 import Post from '../components/post'
-import { style, before, merge } from 'next/css'
+import { style } from 'next/css'
 
 export default () => (
   <div className={styles.main}>
@@ -35,13 +35,14 @@ const styles = {
     padding: '10px'
   }),
 
-  hr: merge(style({
+  hr: style({
     width: '100px',
     borderWidth: 0,
     margin: '20px auto',
-    textAlign: 'center'
-  }), before({
-    content: '"***"',
-    color: '#ccc'
-  }))
+    textAlign: 'center',
+    '::before': {
+      content: '"***"',
+      color: '#ccc'
+    }
+  })
 }

@@ -1,8 +1,8 @@
 import React from 'react'
-import { style, hover, merge } from 'next/css'
+import { style } from 'next/css'
 
 export default () => (
-  <div className={merge(styles, hoverState)}>
+  <div className={styles}>
     <p>Hello World</p>
   </div>
 )
@@ -12,9 +12,8 @@ const styles = style({
   background: '#eee',
   padding: '100px',
   textAlign: 'center',
-  transition: '100ms ease-in background'
-})
-
-const hoverState = hover({
-  background: '#ccc'
+  transition: '100ms ease-in background',
+  ':hover': {
+    background: '#ccc'
+  }
 })
