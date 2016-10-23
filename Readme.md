@@ -40,21 +40,24 @@ That means pages never load unneccessary code!
 
 ### CSS
 
-We use [Aphrodite](https://github.com/Khan/aphrodite) to provide a great built-in solution for CSS modularization
+We use [glamor](https://github.com/threepointone/glamor) to provide a great built-in solution for CSS isolation and modularization without trading off any CSS features
 
 ```jsx
 import React from 'react'
-import { css, StyleSheet } from 'next/css'
+import { style } from 'next/css'
 
 export default () => (
-  <div className={ css(styles.main) }>
+  <div className={style}>
     Hello world
   </div>
 )
 
-const styles = StyleSheet.create({
+const style = style({
   main: {
     background: 'red',
+    ':hover': {
+      background: 'gray'
+    }
     '@media (max-width: 600px)': {
       background: 'blue'
     }
@@ -80,9 +83,9 @@ export default () => (
 )
 ```
 
-### Stateful components
+### Lifecycle components
 
-When state, lifecycle hooks or initial data population you can export a `React.Component`:
+When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`:
 
 ```jsx
 import React from 'react'
@@ -92,7 +95,6 @@ export default class extends React.Component {
       ? { userAgent: req.headers.userAgent }
       : { userAgent: navigator.userAgent }
   }
-
   render () {
     return <div>
       Hello World {this.props.userAgent}
@@ -160,16 +162,16 @@ export default class Error extends React.Component {
 }
 ```
 
-### Production deployment
+## Production deployment
 
-To deploy, run:
+To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
 
 ```bash
 next build
 next start
 ```
 
-For example, to deploy with `now` a `package.json` like follows is recommended:
+For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like follows is recommended:
 
 ```json
 {
@@ -185,7 +187,11 @@ For example, to deploy with `now` a `package.json` like follows is recommended:
 }
 ```
 
-### In progress
+Then run `now` and enjoy!
+
+Note: we recommend putting `.next` in `.npmignore` or `.gitigore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
+
+## FAQ
 
 The following tasks are planned and part of our roadmap
 

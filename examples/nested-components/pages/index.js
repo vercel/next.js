@@ -1,10 +1,10 @@
 import React from 'react'
 import P from '../components/paragraph'
 import Post from '../components/post'
-import { css, StyleSheet } from 'next/css'
+import { style } from 'next/css'
 
 export default () => (
-  <div className={css(styles.main)}>
+  <div className={styles.main}>
     <Post title='My first blog post'>
       <P>Hello there</P>
       <P>This is an example of a componentized blog post</P>
@@ -26,23 +26,23 @@ export default () => (
   </div>
 )
 
-const Hr = () => <hr className={css(styles.hr)} />
+const Hr = () => <hr className={styles.hr} />
 
-const styles = StyleSheet.create({
-  main: {
+const styles = {
+  main: style({
     margin: 'auto',
     maxWidth: '420px',
     padding: '10px'
-  },
+  }),
 
-  hr: {
+  hr: style({
     width: '100px',
     borderWidth: 0,
     margin: '20px auto',
     textAlign: 'center',
-    ':before': {
+    '::before': {
       content: '"***"',
       color: '#ccc'
     }
-  }
-})
+  })
+}

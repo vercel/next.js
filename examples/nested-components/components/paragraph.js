@@ -1,13 +1,11 @@
 import React from 'react'
-import { css, StyleSheet } from 'next/css'
+import { style } from 'next/css'
 
 export default ({ children }) => (
-  <p className={css(styles.main)}>{children}</p>
+  <p className={styles}>{children}</p>
 )
 
-const styles = StyleSheet.create({
-  main: {
-    font: '13px Helvetica, Arial',
-    margin: '10px 0'
-  }
+const styles = style({
+  font: '13px Helvetica, Arial',
+  margin: '10px 0'
 })

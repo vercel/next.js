@@ -14,8 +14,8 @@ test(async t => {
 
 test(async t => {
   const html = await render('/css')
-  t.true(html.includes('<style data-aphrodite="">.red_im3wl1{color:red !important;}</style>'))
-  t.true(html.includes('<div class="red_im3wl1">This is red</div>'))
+  t.true(html.includes('.css-im3wl1'))
+  t.true(html.includes('<div class="css-im3wl1">This is red</div>'))
 })
 
 test(async t => {

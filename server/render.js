@@ -8,7 +8,7 @@ import Router from '../lib/router'
 import Document from '../lib/document'
 import Head from '../lib/head'
 import App from '../lib/app'
-import { StyleSheetServer } from '../lib/css'
+import { renderStatic } from 'glamor/server'
 
 export async function render (url, ctx = {}, {
   dir = process.cwd(),
@@ -22,7 +22,7 @@ export async function render (url, ctx = {}, {
   const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
   const component = await read(join(dir, '.next', 'bundles', 'pages', path))
 
-  const { html, css } = StyleSheetServer.renderStatic(() => {
+  const { html, css, ids } = renderStatic(() => {
     const app = createElement(App, {
       Component,
       props,
@@ -41,7 +41,7 @@ export async function render (url, ctx = {}, {
     data: {
       component,
       props,
-      classNames: css.renderedClassNames,
+      ids: ids,
       err: ctx.err ? errorToJSON(ctx.err) : null
     },
     hotReload: false,
