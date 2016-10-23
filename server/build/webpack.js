@@ -2,6 +2,10 @@ import { resolve, join } from 'path'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
+import UnlinkFilePlugin from './plugins/unlink-file-plugin'
+import WatchPagesPlugin from './plugins/watch-pages-plugin'
+import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
+import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 
 export default async function createCompiler (dir, { hotReload = false } = {}) {
   dir = resolve(dir)
@@ -27,17 +31,24 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
-    hotReload
-    ? new webpack.HotModuleReplacementPlugin()
-    : new webpack.optimize.UglifyJsPlugin({
-      compress: { warnings: false },
-      sourceMap: false
-    }),
     new WriteFilePlugin({
       exitOnErrors: false,
-      log: false
+      log: false,
+      // required not to cache removed files
+      useHashIndex: false
     })
-  ]
+  ].concat(hotReload ? [
+    new webpack.HotModuleReplacementPlugin(),
+    new DynamicEntryPlugin(),
+    new UnlinkFilePlugin(),
+    new WatchRemoveEventPlugin(),
+    new WatchPagesPlugin(dir)
+  ] : [
+    new webpack.optimize.UglifyJsPlugin({
+      compress: { warnings: false },
+      sourceMap: false
+    })
+  ])
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\\/]package\.json$/, '')
