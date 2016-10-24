@@ -38,7 +38,7 @@ function removeEntry (name = 'main') {
 }
 
 function hasEntry (name = 'main') {
-  this.entryNames.has(name)
+  return this.entryNames.has(name)
 }
 
 function createCompilation (original) {
