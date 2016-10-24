@@ -7,7 +7,10 @@ export default class DynamicEntryPlugin {
     compiler.addEntry = addEntry
     compiler.removeEntry = removeEntry
     compiler.hasEntry = hasEntry
-    compiler.createCompilation = createCompilation(compiler.createCompilation)
+
+    compiler.plugin('compilation', (compilation) => {
+      compilation.addEntry = compilationAddEntry(compilation.addEntry)
+    })
   }
 }
 
@@ -39,14 +42,6 @@ function removeEntry (name = 'main') {
 
 function hasEntry (name = 'main') {
   return this.entryNames.has(name)
-}
-
-function createCompilation (original) {
-  return function (...args) {
-    const compilation = original.apply(this, args)
-    compilation.addEntry = compilationAddEntry(compilation.addEntry)
-    return compilation
-  }
 }
 
 function compilationAddEntry (original) {
