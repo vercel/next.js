@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { join, relative, sep } from 'path'
 import WebpackDevServer from 'webpack-dev-server'
 import webpack from './build/webpack'
 import read from './read'
@@ -10,7 +10,7 @@ export default class HotReloader {
     this.stats = null
     this.compilationErrors = null
     this.prevAssets = null
-    this.prevEntryChunkNames = null
+    this.prevChunkHashes = null
   }
 
   async start () {
@@ -44,24 +44,33 @@ export default class HotReloader {
       this.stats = stats
       this.compilationErrors = null
 
-      const entryChunkNames = new Set(stats.compilation.chunks
-      .filter((c) => c.entry)
-      .map((c) => c.name))
+      const chunkHashes = {}
+      stats.compilation.chunks.map((c) => {
+        chunkHashes[c.name] = c.hash
+      })
 
-      if (this.prevEntryChunkNames) {
-        const added = diff(entryChunkNames, this.prevEntryChunkNames)
-        const removed = diff(this.prevEntryChunkNames, entryChunkNames)
+      if (this.prevChunkHashes) {
+        const names = new Set(Object.keys(chunkHashes))
+        const prevNames = new Set(Object.keys(this.prevChunkHashes))
+        const added = diff(names, prevNames)
+        const removed = diff(prevNames, names)
+        const failed = new Set(stats.compilation.errors
+        .map((e) => e.module.reasons)
+        .reduce((a, b) => a.concat(b), [])
+        .map((r) => r.module.chunks)
+        .reduce((a, b) => a.concat(b), [])
+        .map((c) => c.name)
+        .filter((n) => chunkHashes[n] !== this.prevChunkHashes[n]))
 
-        for (const n of new Set([...added, ...removed])) {
-          const m = n.match(/^bundles\/pages(\/.+?)(?:\/index)?\.js$/)
-          if (!m) {
-            console.error('Unexpected chunk name: ' + n)
-            continue
-          }
-          this.send('reload', m[1])
+        const rootDir = join('bundles', 'pages')
+
+        for (const n of new Set([...added, ...removed, ...failed])) {
+          const route = toRoute(relative(rootDir, n))
+          this.send('reload', route)
         }
       }
-      this.prevEntryChunkNames = entryChunkNames
+
+      this.prevChunkHashes = chunkHashes
     })
 
     this.server = new WebpackDevServer(compiler, {
@@ -106,15 +115,19 @@ export default class HotReloader {
   getCompilationErrors () {
     if (!this.compilationErrors) {
       this.compilationErrors = new Map()
-      if (this.stats.hasErrors()) {
-        const entries = this.stats.compilation.entries
-        .filter((e) => e.context === this.dir)
-        .filter((e) => !!e.errors.length || !!e.dependenciesErrors.length)
 
-        for (const e of entries) {
-          const path = join(e.context, '.next', e.name)
-          const errors = e.errors.concat(e.dependenciesErrors)
-          this.compilationErrors.set(path, errors)
+      if (this.stats.hasErrors()) {
+        const { compiler, errors } = this.stats.compilation
+
+        for (const err of errors) {
+          for (const r of err.module.reasons) {
+            for (const c of r.module.chunks) {
+              // get the path of the bundle file
+              const path = join(compiler.outputPath, c.name)
+              const errors = this.compilationErrors.get(path) || []
+              this.compilationErrors.set(path, errors.concat([err]))
+            }
+          }
         }
       }
     }
@@ -138,4 +151,9 @@ function deleteCache (path) {
 
 function diff (a, b) {
   return new Set([...a].filter((v) => !b.has(v)))
+}
+
+function toRoute (file) {
+  const f = sep === '\\' ? file.replace(/\\/g, '/') : file
+  return ('/' + f).replace(/(\/index)?\.js$/, '') || '/'
 }
