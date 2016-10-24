@@ -9,7 +9,8 @@ export default class HotReloader {
     this.server = null
     this.stats = null
     this.compilationErrors = null
-    this.prevAssets = {}
+    this.prevAssets = null
+    this.prevEntryChunkNames = null
   }
 
   async start () {
@@ -23,21 +24,44 @@ export default class HotReloader {
 
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
-      for (const f of Object.keys(assets)) {
-        deleteCache(assets[f].existsAt)
-      }
-      for (const f of Object.keys(this.prevAssets)) {
-        if (!assets[f]) {
-          deleteCache(this.prevAssets[f].existsAt)
+
+      if (this.prevAssets) {
+        for (const f of Object.keys(assets)) {
+          deleteCache(assets[f].existsAt)
+        }
+        for (const f of Object.keys(this.prevAssets)) {
+          if (!assets[f]) {
+            deleteCache(this.prevAssets[f].existsAt)
+          }
         }
       }
       this.prevAssets = assets
+
       callback()
     })
 
     compiler.plugin('done', (stats) => {
       this.stats = stats
       this.compilationErrors = null
+
+      const entryChunkNames = new Set(stats.compilation.chunks
+      .filter((c) => c.entry)
+      .map((c) => c.name))
+
+      if (this.prevEntryChunkNames) {
+        const added = diff(entryChunkNames, this.prevEntryChunkNames)
+        const removed = diff(this.prevEntryChunkNames, entryChunkNames)
+
+        for (const n of new Set([...added, ...removed])) {
+          const m = n.match(/^bundles\/pages(\/.+?)(?:\/index)?\.js$/)
+          if (!m) {
+            console.error('Unexpected chunk name: ' + n)
+            continue
+          }
+          this.send('reload', m[1])
+        }
+      }
+      this.prevEntryChunkNames = entryChunkNames
     })
 
     this.server = new WebpackDevServer(compiler, {
@@ -98,6 +122,10 @@ export default class HotReloader {
     return this.compilationErrors
   }
 
+  send (type, data) {
+    this.server.sockWrite(this.server.sockets, type, data)
+  }
+
   get fileSystem () {
     return this.server.middleware.fileSystem
   }
@@ -106,4 +134,8 @@ export default class HotReloader {
 function deleteCache (path) {
   delete require.cache[path]
   delete read.cache[path]
+}
+
+function diff (a, b) {
+  return new Set([...a].filter((v) => !b.has(v)))
 }
