@@ -199,3 +199,10 @@ The following tasks are planned and part of our roadmap
 - [ ] Add option to extend or replace custom babel configuration
 - [ ] Add option to extend or replace custom webpack configuration
 - [ ] Investigate pluggable component-oriented rendering backends (Inferno, Preact, etc)
+
+## Authors
+
+- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT 
+- Tony Kovanen ([@rase-](https://twitter.com/rase-)) – ▲ZEIT 
+- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT 
+- Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
