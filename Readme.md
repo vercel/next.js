@@ -1,10 +1,16 @@
 # next.js
 
-`Next.js` is a minimalistic framework for server-rendered React applications.
+Next.js is a minimalistic framework for server-rendered React applications.
 
 ## How to use
 
-The file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
+Install it:
+
+```
+$ npm install next --save
+```
+
+After that, the file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
 
 Populate `./pages/index.js` inside your project:
 
@@ -83,7 +89,7 @@ export default () => (
 )
 ```
 
-### Lifecycle components
+### Component lifecycle
 
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`:
 
@@ -219,16 +225,14 @@ Yes and No.
 Yes in that both make your life easier.
 
 No in that it enforces a _structure_ so that we can do more advanced things like:
-	  - Server side rendering
-	  - Automatic code splitting
+- Server side rendering
+- Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-	  - Routing with lazy component loading: `<Link>` (by importing `next/link`)
-		- A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
+- Routing with lazy component loading: `<Link>` (by importing `next/link`)
+- A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
-Next is not suitable right now for creating reusable components that every single React app can use. But we consider that a feature, since your re-usable components should live in separate repositories and then `import`ed. 
-
-In the future, we might consider a `next export` feature that produces a re-usable build of a component, to take advantage of Glamor and our simple and easy-to-use build system.
+If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
 
 </details>
 
@@ -241,8 +245,7 @@ There’s *no tradeoff* in power. Instead, we gain the power of simpler composit
 
 *Compiling* regular CSS files would be counter-productive to some of our goals. Some of these are listed below.
 
-In the future, however, we _might_ be able to take advantage of custom elements / shadow DOM to also support the full CSS syntax once browser support is wide enough.
-
+**Please note**: we are very interested in supporting regular CSS, since it's so much easier to write and already familiar. To that end, we're currently exploring the possibility of leveraging Shadow DOM to avoid the entire CSS parsing and mangling step [[#22](https://github.com/zeit/next.js/issues/22)]
 
 ### Compilation performance
 
@@ -256,7 +259,7 @@ It also means fewer dependencies and fewer things for Next to do. Everything is 
 
 Since every class name is invoked with the `css()` helper, Next.js can intelligently add or remove `<style>` elements that are not being used.
 
-This is important for server-side rendering, but also during the lifecycle of the page. Since `Next.js` enables `pushState` transitions that load components dynamically, unnecessary `<style>` elements would bring down performance over time.
+This is important for server-side rendering, but also during the lifecycle of the page. Since Next.js enables `pushState` transitions that load components dynamically, unnecessary `<style>` elements would bring down performance over time.
 
 This is a very signifcant benefit over approaches like `require(‘xxxxx.css')`.
 
@@ -316,7 +319,7 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 <details>
 <summary>Why does it load the runtime from a CDN by default?</summary>
 
-We intend for `Next.js` to be a great starting point for any website or app, no matter how small.
+We intend for Next.js to be a great starting point for any website or app, no matter how small.
 
 If you’re building a very small mostly-content website, you still want to benefit from features like lazy-loading, a component architecture and module bundling.
 
