@@ -280,7 +280,7 @@ While these are tractable for CSS itself, we don’t need to duplicate the effor
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See [this](link to default babel config we use) and [this](link to issue that tracks the ability to change babel options)
+See [this](https://github.com/zeit/next.js/blob/master/server/build/webpack.js#L79) and [this](https://github.com/zeit/next.js/issues/26)
 
 </details>
 
@@ -333,7 +333,7 @@ But in some cases, the size of React itself would far exceed the content of the 
 
 For this reason we want to promote a situation where users can share the cache for the basic runtime across internet properties. The application code continues to load from your server as usual.
 
-We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick]().
+We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](https://github.com/zeit/next.js/blob/master/lib/document.js#L14).
 
 To turn the CDN off, just set `{ “next”: { “cdn”: false } }` in `package.json`.
 </details>
@@ -365,6 +365,6 @@ The following issues are currently being explored and input from the community i
 ## Authors
 
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
-- Tony Kovanen ([@rase-](https://twitter.com/rase-)) – ▲ZEIT
+- Tony Kovanen ([@TonyKovanen](https://twitter.com/TonyKovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
