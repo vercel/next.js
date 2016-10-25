@@ -245,8 +245,7 @@ There’s *no tradeoff* in power. Instead, we gain the power of simpler composit
 
 *Compiling* regular CSS files would be counter-productive to some of our goals. Some of these are listed below.
 
-In the future, however, we _might_ be able to take advantage of custom elements / shadow DOM to also support the full CSS syntax once browser support is wide enough.
-
+**Please note**: we are very interested in supporting regular CSS, since it's so much easier to write and already familiar. To that end, we're currently exploring the possibility of leveraging Shadow DOM to avoid the entire CSS parsing and mangling step [[#22](https://github.com/zeit/next.js/issues/22)]
 
 ### Compilation performance
 
