@@ -1,8 +1,9 @@
 {
   "name": "next",
   "version": "0.9.11",
-  "description": "",
+  "description": "Next.js is a minimalistic framework for server-rendered React applications",
   "main": "./dist/lib/index.js",
+  "homepage": "https://github.com/zeit/next.js",
   "license": "MIT",
   "files": [
     "dist"
@@ -79,5 +80,9 @@
   },
   "standard": {
     "parser": "babel-eslint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zeit/next.js.git"
   }
 }
