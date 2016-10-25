@@ -50,7 +50,7 @@ We use [glamor](https://github.com/threepointone/glamor) to provide a great buil
 
 ```jsx
 import React from 'react'
-import { style } from 'next/css'
+import style from 'next/css'
 
 export default () => (
   <div className={style}>
