@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { exec } from 'child_process'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { exists } from 'mz/fs'
@@ -17,12 +16,6 @@ const argv = parseArgs(process.argv.slice(2), {
   }
 })
 
-const open = url => {
-  const openers = { darwin: 'open', win32: 'start' }
-  const cmdName = openers[process.platform] || 'xdg-open'
-  exec(`${cmdName} ${url}`)
-}
-
 const dir = resolve(argv._[0] || '.')
 
 clean(dir)
@@ -38,10 +31,6 @@ clean(dir)
     } else {
       console.warn('> Couldn\'t find a `pages` directory. Please create one under the project root')
     }
-  }
-
-  if (!/^(false|0)$/i.test(process.env.NEXT_OPEN_BROWSER)) {
-    open(`http://localhost:${argv.port}`)
   }
 })
 .catch((err) => {

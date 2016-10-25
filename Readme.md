@@ -1,4 +1,4 @@
-# next.js
+<img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
@@ -50,7 +50,7 @@ We use [glamor](https://github.com/threepointone/glamor) to provide a great buil
 
 ```jsx
 import React from 'react'
-import style from 'next/css'
+import css from 'next/css'
 
 export default () => (
   <div className={style}>
@@ -58,15 +58,13 @@ export default () => (
   </div>
 )
 
-const style = style({
-  main: {
-    background: 'red',
-    ':hover': {
-      background: 'gray'
-    }
-    '@media (max-width: 600px)': {
-      background: 'blue'
-    }
+const style = css({
+  background: 'red',
+  ':hover': {
+    background: 'gray'
+  },
+  '@media (max-width: 600px)': {
+    background: 'blue'
   }
 })
 ```
