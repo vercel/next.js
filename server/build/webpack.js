@@ -57,7 +57,9 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     test: /\.js$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
-    exclude: /node_modules/,
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
     query: {
       name: 'dist/[path][name].[ext]'
     }
@@ -71,7 +73,9 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     test: /\.js$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
-    exclude: /node_modules/,
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
     query: {
       presets: ['es2015', 'react'],
       plugins: [
