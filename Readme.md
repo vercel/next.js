@@ -89,7 +89,7 @@ export default () => (
 )
 ```
 
-### Lifecycle components
+### Component lifecycle
 
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`:
 
