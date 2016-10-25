@@ -26,7 +26,7 @@ export default class WatchPagesPlugin {
         const name = getEntryName(f)
         if (compiler.hasEntry(name)) return
 
-        const entries = ['webpack/hot/only-dev-server', f]
+        const entries = ['webpack/hot/dev-server', f]
         compiler.addEntry(entries, name)
       })
 
