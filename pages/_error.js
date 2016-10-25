@@ -1,5 +1,5 @@
 import React from 'react'
-import { style, merge } from 'next/css'
+import style, { merge } from 'next/css'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {

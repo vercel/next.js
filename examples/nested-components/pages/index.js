@@ -1,7 +1,7 @@
 import React from 'react'
 import P from '../components/paragraph'
 import Post from '../components/post'
-import { style } from 'next/css'
+import style from 'next/css'
 
 export default () => (
   <div className={styles.main}>

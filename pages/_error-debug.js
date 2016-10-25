@@ -1,7 +1,7 @@
 import React from 'react'
 import stripAnsi from 'strip-ansi'
 import Head from 'next/head'
-import { style } from 'next/css'
+import style from 'next/css'
 
 export default class ErrorDebug extends React.Component {
   static getInitialProps ({ err }) {
