@@ -50,6 +50,7 @@
   "devDependencies": {
     "babel-eslint": "^7.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
+    "benchmark": "2.1.1",
     "gulp": "3.9.1",
     "gulp-ava": "0.14.1",
     "gulp-babel": "6.1.2",
