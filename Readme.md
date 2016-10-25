@@ -1,4 +1,4 @@
-<img width="141" alt="screen shot 2016-10-25 at 2 33 14 pm" src="https://cloud.githubusercontent.com/assets/13041/19686087/fffa6102-9abf-11e6-94a0-beb8dc344a3f.png">
+<img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
