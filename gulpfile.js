@@ -96,11 +96,8 @@ gulp.task('copy-bench-fixtures', () => {
 })
 
 gulp.task('build', [
-  'build-dev-client'
-])
-
-gulp.task('build-release', [
-  'build-release-client'
+  'build-dev-client',
+  'build-client'
 ])
 
 gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
@@ -128,7 +125,7 @@ gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built dev client'))
 })
 
-gulp.task('build-release-client', ['compile-lib', 'compile-client'], () => {
+gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   return gulp
   .src('dist/client/next.js')
   .pipe(webpack({
@@ -189,7 +186,7 @@ gulp.task('watch-bin', () => {
 gulp.task('watch-lib', () => {
   return gulp.watch('lib/**/*.js', [
     'compile-lib',
-    'build-dev-client'
+    'build'
   ])
 })
 
@@ -202,7 +199,7 @@ gulp.task('watch-server', () => {
 gulp.task('watch-client', () => {
   return gulp.watch('client/**/*.js', [
     'compile-client',
-    'build-dev-client'
+    'build'
   ])
 })
 
@@ -225,7 +222,7 @@ gulp.task('default', [
 gulp.task('release', (cb) => {
   sequence('clean', [
     'compile',
-    'build-release',
+    'build',
     'copy',
     'test'
   ], 'clean-test', cb)
