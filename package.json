@@ -14,6 +14,7 @@
     "build": "gulp",
     "test": "standard && gulp test",
     "lint": "standard",
+    "prepublish": "gulp release",
     "precommit": "npm run lint"
   },
   "dependencies": {
