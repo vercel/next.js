@@ -50,16 +50,16 @@
     "write-file-webpack-plugin": "3.3.0"
   },
   "devDependencies": {
-    "babel-eslint": "^7.0.0",
+    "babel-eslint": "7.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "benchmark": "2.1.1",
     "gulp": "3.9.1",
     "gulp-ava": "0.14.1",
     "gulp-babel": "6.1.2",
-    "gulp-benchmark": "^1.1.1",
+    "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.0",
     "gulp-notify": "2.2.0",
-    "husky": "^0.11.9",
+    "husky": "0.11.9",
     "run-sequence": "1.2.2",
     "standard": "^8.4.0",
     "webpack-stream": "3.2.0"
