@@ -22,9 +22,7 @@ gulp.task('compile', [
   'compile-bin',
   'compile-lib',
   'compile-server',
-  'compile-client',
-  'compile-test',
-  'compile-bench'
+  'compile-client'
 ])
 
 gulp.task('compile-bin', () => {
@@ -158,12 +156,12 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release client'))
 })
 
-gulp.task('test', ['compile', 'copy-test-fixtures'], () => {
+gulp.task('test', ['compile', 'compile-test', 'copy-test-fixtures'], () => {
   return gulp.src('dist/test/*.js')
   .pipe(ava())
 })
 
-gulp.task('bench', ['compile', 'copy-bench-fixtures'], () => {
+gulp.task('bench', ['compile', 'compile-bench', 'copy-bench-fixtures'], () => {
   return gulp.src('dist/bench/*.js', {read: false})
   .pipe(benchmark({
     reporters: benchmark.reporters.etalon('RegExp#test')
