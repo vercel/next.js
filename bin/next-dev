@@ -31,10 +31,10 @@ clean(dir)
     } else {
       console.error('> Couldn\'t find a `pages` directory. Please create one under the project root')
     }
-    exit(1)
+    process.exit(1)
   }
 })
 .catch((err) => {
   console.error(err)
-  exit(1)
+  process.exit(1)
 })
