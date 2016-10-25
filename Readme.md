@@ -40,7 +40,7 @@ Every `import` you declare gets bundled and served with each page
 import React from 'react'
 import cowsay from 'cowsay-browser'
 export default () => (
-  <pre>{ cowsay({ text: 'hi there!' }) }</pre>
+  <pre>{ cowsay.say({ text: 'hi there!' }) }</pre>
 )
 ```
 
