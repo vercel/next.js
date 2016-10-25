@@ -27,13 +27,14 @@ clean(dir)
   // Check if pages dir exists and warn if not
   if (!(await exists(join(dir, 'pages')))) {
     if (await exists(join(dir, '..', 'pages'))) {
-      console.warn('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+      console.error('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
     } else {
-      console.warn('> Couldn\'t find a `pages` directory. Please create one under the project root')
+      console.error('> Couldn\'t find a `pages` directory. Please create one under the project root')
     }
+    process.exit(1)
   }
 })
 .catch((err) => {
   console.error(err)
-  exit(1)
+  process.exit(1)
 })

@@ -16,5 +16,5 @@ const dir = resolve(argv._[0] || '.')
 build(dir)
 .catch((err) => {
   console.error(err)
-  exit(1)
+  process.exit(1)
 })

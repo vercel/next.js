@@ -24,5 +24,5 @@ srv.start(argv.port)
 })
 .catch((err) => {
   console.error(err)
-  exit(1)
+  process.exit(1)
 })
