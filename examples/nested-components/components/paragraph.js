@@ -1,5 +1,5 @@
 import React from 'react'
-import { style } from 'next/css'
+import style from 'next/css'
 
 export default ({ children }) => (
   <p className={styles}>{children}</p>
