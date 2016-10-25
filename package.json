@@ -1,9 +1,8 @@
 {
   "name": "next",
   "version": "1.0.0",
-  "description": "Next.js is a minimalistic framework for server-rendered React applications",
+  "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/lib/index.js",
-  "homepage": "https://github.com/zeit/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
   "files": [
@@ -18,6 +17,23 @@
     "lint": "standard",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
+  },
+  "ava": {
+    "babel": {
+      "presets": [
+        "es2015",
+        "react"
+      ],
+      "plugins": [
+        "transform-async-to-generator",
+        "transform-object-rest-spread",
+        "transform-class-properties",
+        "transform-runtime"
+      ]
+    }
+  },
+  "standard": {
+    "parser": "babel-eslint"
   },
   "dependencies": {
     "babel-core": "6.17.0",
@@ -64,22 +80,5 @@
     "run-sequence": "1.2.2",
     "standard": "^8.4.0",
     "webpack-stream": "3.2.0"
-  },
-  "ava": {
-    "babel": {
-      "presets": [
-        "es2015",
-        "react"
-      ],
-      "plugins": [
-        "transform-async-to-generator",
-        "transform-object-rest-spread",
-        "transform-class-properties",
-        "transform-runtime"
-      ]
-    }
-  },
-  "standard": {
-    "parser": "babel-eslint"
   }
 }
