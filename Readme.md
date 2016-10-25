@@ -30,6 +30,8 @@ So far, we get:
 - Server rendering and indexing of `./pages`
 - Static file serving. `./static/` is mapped to `/static/`
 
+To see how simple this is, check out the [sample app - nextagram](https://github.com/zeit/nextgram)
+
 ### Bundling (code splitting)
 
 Every `import` you declare gets bundled and served with each page
