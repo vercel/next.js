@@ -202,24 +202,24 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitigore`. Otherwise, us
 <details>
   <summary>Is this production ready?</summary>
   Next.js has been powering `https://zeit.co` since its inception.
-  
+
   We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
 </details>
 
 <details>
   <summary>How big is it?</summary>
 
-The client side next bundle, which includes React and Glamor is **${X}kb** gzipped.
-  
-The Next runtime (lazy loading, routing, `<Head>`) contributes **${Y}%** to the size of that bundle.
-  
+The client side next bundle, which includes React and Glamor is **73kb** gzipped.
+
+The Next runtime (lazy loading, routing, `<Head>`) contributes around **15%** to the size of that bundle.
+
 The codebase is ~1500LOC (excluding CLI programs).
 
 </details>
 
 <details>
   <summary>Is this like `create-react-app`?</summary>
-  
+
 Yes and No.
 
 Yes in that both make your life easier.
@@ -238,8 +238,8 @@ If you want to create re-usable React components that you can embed in your Next
 
 <details>
   <summary>Why CSS-in-JS?</summary>
-  
-`next/css` is powered by [Glamor](https://github.com/threepointone/glamor). While it exposes a JavaScript API, it produces regular CSS and therefore important features like `:hover`, animations, media queries all work. 
+
+`next/css` is powered by [Glamor](https://github.com/threepointone/glamor). While it exposes a JavaScript API, it produces regular CSS and therefore important features like `:hover`, animations, media queries all work.
 
 There’s *no tradeoff* in power. Instead, we gain the power of simpler composition and usage of JavaScript expressions.
 
@@ -249,8 +249,8 @@ There’s *no tradeoff* in power. Instead, we gain the power of simpler composit
 
 ### Compilation performance
 
-Parsing, prefixing, modularizing and hot-code-reloading CSS can be avoided by just using JavaScript. 
-  
+Parsing, prefixing, modularizing and hot-code-reloading CSS can be avoided by just using JavaScript.
+
 This results in better compilation performance and less memory usage, specially for large projects. No `cssom`, `postcss`, `cssnext` or transformation plugins.
 
 It also means fewer dependencies and fewer things for Next to do. Everything is Just JavaScript® (since JSX is completely optional)
@@ -266,7 +266,7 @@ This is a very signifcant benefit over approaches like `require(‘xxxxx.css')`.
 ### Correctness
 
 Since the class names and styles are defined as JavaScript objects, a variety of aids for correctness are much more easily enabled:
-  
+
 - Linting
 - Type checking
 - Autocompletion
@@ -324,11 +324,11 @@ We intend for Next.js to be a great starting point for any website or app, no ma
 If you’re building a very small mostly-content website, you still want to benefit from features like lazy-loading, a component architecture and module bundling.
 
 But in some cases, the size of React itself would far exceed the content of the page!
-  
+
 For this reason we want to promote a situation where users can share the cache for the basic runtime across internet properties. The application code continues to load from your server as usual.
 
 We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick]().
-  
+
 To turn the CDN off, just set `{ “next”: { “cdn”: false } }` in `package.json`.
 </details>
 
@@ -358,7 +358,7 @@ The following issues are currently being explored and input from the community i
 
 ## Authors
 
-- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT 
-- Tony Kovanen ([@rase-](https://twitter.com/rase-)) – ▲ZEIT 
-- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT 
+- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
+- Tony Kovanen ([@rase-](https://twitter.com/rase-)) – ▲ZEIT
+- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
