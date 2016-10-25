@@ -5,6 +5,7 @@
   "main": "./dist/lib/index.js",
   "homepage": "https://github.com/zeit/next.js",
   "license": "MIT",
+  "repository": "zeit/next.js",
   "files": [
     "dist"
   ],
@@ -80,9 +81,5 @@
   },
   "standard": {
     "parser": "babel-eslint"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/zeit/next.js.git"
   }
 }
