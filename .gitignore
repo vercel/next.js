@@ -1,5 +1,12 @@
-*.log
-node_modules
+# build output
 dist
-.next
+
+# dependencies
 yarn.lock
+node_modules
+
+# logs
+npm-debug.log
+
+# other
+.next
