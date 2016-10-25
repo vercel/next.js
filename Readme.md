@@ -317,6 +317,12 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 </details>
 
 <details>
+<summary>Can I use it with Redux?</summary>
+
+Yes! Here's an [example](https://github.com/zeit/next.js/wiki/Redux-example)
+</details>
+
+<details>
 <summary>Why does it load the runtime from a CDN by default?</summary>
 
 We intend for Next.js to be a great starting point for any website or app, no matter how small.
