@@ -50,7 +50,7 @@ We use [glamor](https://github.com/threepointone/glamor) to provide a great buil
 
 ```jsx
 import React from 'react'
-import style from 'next/css'
+import css from 'next/css'
 
 export default () => (
   <div className={style}>
@@ -58,15 +58,13 @@ export default () => (
   </div>
 )
 
-const style = style({
-  main: {
-    background: 'red',
-    ':hover': {
-      background: 'gray'
-    }
-    '@media (max-width: 600px)': {
-      background: 'blue'
-    }
+const style = css({
+  background: 'red',
+  ':hover': {
+    background: 'gray'
+  },
+  '@media (max-width: 600px)': {
+    background: 'blue'
   }
 })
 ```
