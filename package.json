@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "description": "",
   "main": "./dist/lib/index.js",
   "license": "MIT",
