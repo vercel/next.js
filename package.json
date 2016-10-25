@@ -1,5 +1,5 @@
 {
-  "name": "@zeit/next",
+  "name": "next",
   "version": "0.0.0",
   "description": "",
   "main": "./dist/lib/index.js",
