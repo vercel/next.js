@@ -365,6 +365,6 @@ The following issues are currently being explored and input from the community i
 ## Authors
 
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
-- Tony Kovanen ([@rase-](https://twitter.com/rase-)) – ▲ZEIT
+- Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
