@@ -1,0 +1,17 @@
+{
+  "name": "my-app",
+  "dependencies": {
+    "next": "^1.0.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "devDependencies": {
+    "babel-jest": "^16.0.0",
+    "enzyme": "^2.5.1",
+    "jest": "^16.0.2"
+  }
+}
