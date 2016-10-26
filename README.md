@@ -10,6 +10,16 @@ Install it:
 $ npm install next --save
 ```
 
+and add a script to your package.json like this:
+
+```json
+{
+  "scripts": {
+    "start": "next"
+  }
+}
+```
+
 After that, the file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
 
 Populate `./pages/index.js` inside your project:
@@ -21,7 +31,7 @@ export default () => (
 )
 ```
 
-and then just run `next` and go to `http://localhost:3000`
+and then just run `npm start` and go to `http://localhost:3000`
 
 So far, we get:
 
