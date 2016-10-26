@@ -261,7 +261,7 @@ There’s *no tradeoff* in power. Instead, we gain the power of simpler composit
 
 Parsing, prefixing, modularizing and hot-code-reloading CSS can be avoided by just using JavaScript.
 
-This results in better compilation performance and less memory usage, specially for large projects. No `cssom`, `postcss`, `cssnext` or transformation plugins.
+This results in better compilation performance and less memory usage (especially for large projects). No `cssom`, `postcss`, `cssnext` or transformation plugins.
 
 It also means fewer dependencies and fewer things for Next to do. Everything is Just JavaScript® (since JSX is completely optional)
 
