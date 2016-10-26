@@ -300,7 +300,7 @@ See [this](link to default babel config we use) and [this](link to issue that tr
 Next.js is special in that:
 
 - Routes don’t need to be known ahead of time
-- Routes are always be lazy-loadable
+- Routes are always lazy-loadable
 - Top-level components can define `getInitialProps` that should _block_ the loading of the route (either when server-rendering or lazy-loading)
 
 As a result, we were able to introduce a very simple approach to routing that consists of two pieces:
