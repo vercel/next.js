@@ -54,7 +54,7 @@ export default () => (
 )
 ```
 
-That means pages never load unneccessary code!
+That means pages never load unnecessary code!
 
 ### CSS
 
@@ -271,7 +271,7 @@ Since every class name is invoked with the `css()` helper, Next.js can intellige
 
 This is important for server-side rendering, but also during the lifecycle of the page. Since Next.js enables `pushState` transitions that load components dynamically, unnecessary `<style>` elements would bring down performance over time.
 
-This is a very signifcant benefit over approaches like `require(‘xxxxx.css')`.
+This is a very significant benefit over approaches like `require(‘xxxxx.css')`.
 
 ### Correctness
 
