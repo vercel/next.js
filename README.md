@@ -5,45 +5,56 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
+```
+npm install next --save
+```
+
+## How to create a new Next.js project
+
+1. Copy and paste this into your terminal:
+  ```bash
+  mkdir nextapp &&
+  cd nextapp &&
+  echo '{
+    "scripts": {
+      "dev": "next"
+    },
+    "dependencies": {
+      "next": "latest"
+    }
+  }' > package.json
+  ```
+
+2. Install with [npm](https://www.npmjs.com/get-npm) or [yarn](https://yarnpkg.com/en/docs/install):
+  ```
+  npm install
+  ```
+
 ## How to use
 
-Install it:
+The file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
 
-```
-$ npm install next --save
-```
+1. Create a new file containing the following text at `./pages/index.js`:
+  ```jsx
+  // ./pages/index.js
+  import React from 'react'
+  export default () => (
+    <div>Welcome to next.js!</div>
+  )
+  ```
 
-and add a script to your package.json like this:
+2. Run `npm run dev` then go to [http://localhost:3000](http://localhost:3000)
 
-```json
-{
-  "scripts": {
-    "dev": "next"
-  }
-}
-```
+3. At some point, you'll want to add the `.next` build directory to `.npmignore` or `.gitignore`.
 
-After that, the file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
-
-Populate `./pages/index.js` inside your project:
-
-```jsx
-import React from 'react'
-export default () => (
-  <div>Welcome to next.js!</div>
-)
-```
-
-and then just run `npm run dev` and go to `http://localhost:3000`
-
-So far, we get:
+### So far, we get:
 
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages`
 - Static file serving. `./static/` is mapped to `/static/`
 
-To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
+To see how simple this is, check out the [nextgram sample app](https://github.com/zeit/nextgram).
 
 ### Bundling (code splitting)
 
@@ -145,7 +156,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 Client-side transitions between routes are enabled via a `<Link>` component
 
-#### pages/index.js
+#### ./pages/index.js
 
 ```jsx
 import React from 'react'
@@ -155,7 +166,7 @@ export default () => (
 )
 ```
 
-#### pages/about.js
+#### ./pages/about.js
 
 ```jsx
 import React from 'react'
@@ -206,14 +217,9 @@ export default class Error extends React.Component {
 
 ## Production deployment
 
-To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
+For production, instead of using the all-in-one `next` development command, use `next build` and `next start`.
 
-```bash
-next build
-next start
-```
-
-For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like follows is recommended:
+For example, this `package.json` is recommended for deploying with services like [`now`](https://zeit.co/now):
 
 ```json
 {
@@ -231,7 +237,7 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 
 Then run `now` and enjoy!
 
-Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
+**Note:** we recommend adding the `.next` build directory to `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
 
 ## FAQ
 
@@ -260,7 +266,7 @@ Yes and No.
 
 Yes in that both make your life easier.
 
-No in that it enforces a _structure_ so that we can do more advanced things like:
+No in that it enforces a _structure_ so we can do more advanced things like:
 - Server side rendering
 - Automatic code splitting
 
@@ -268,7 +274,7 @@ In addition, Next.js provides two built-in features that are critical for every 
 - Routing with lazy component loading: `<Link>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
-If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
+If you want to create re-usable React components you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
 
 </details>
 
@@ -329,7 +335,7 @@ Next.js is special in that:
 - Routes are always lazy-loadable
 - Top-level components can define `getInitialProps` that should _block_ the loading of the route (either when server-rendering or lazy-loading)
 
-As a result, we were able to introduce a very simple approach to routing that consists of two pieces:
+As a result, we were able to introduce a very simple approach to routing consisting of two pieces:
 
 - Every top level component receives a `url` object to inspect the url or perform modifications to the history
 - A `<Link />` component is used to wrap elements like anchors (`<a/>`) to perform client-side transitions
@@ -343,7 +349,7 @@ We tested the flexibility of the routing with some interesting scenarios. For an
 
 We’re adding the ability to map between an arbitrary URL and any component by supplying a request handler: [#25](https://github.com/zeit/next.js/issues/25)
 
-On the client side, we'll add a parameter to `<Link>` so that it _decorates_ the URL differently from the URL it _fetches_.
+On the client side, we'll add a parameter to `<Link>` so it _decorates_ the URL differently from the URL it _fetches_.
 </details>
 
 <details>
@@ -387,6 +393,10 @@ As we were researching options for server-rendering React that didn’t involve 
 
 </details>
 
+## Background & Design Philosophy
+
+See [the announcement blog post](https://zeit.co/blog/next).
+
 ## Future directions
 
 The following issues are currently being explored and input from the community is appreciated:
@@ -397,6 +407,14 @@ The following issues are currently being explored and input from the community i
 - Custom server logic and routing [[#25](https://github.com/zeit/next.js/issues/25)]
 - Custom babel config [[#26](https://github.com/zeit/next.js/issues/26)]
 - Custom webpack config [[#40](https://github.com/zeit/next.js/issues/40)]
+
+## Contribute
+
+1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device
+2. Install the dependencies: `npm install`
+3. Build and test the code: `npm test`
+
+After that, you'll see the binaries in the `./dist/` folder.
 
 ## Authors
 
