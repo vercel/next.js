@@ -31,6 +31,9 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production')
+    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
