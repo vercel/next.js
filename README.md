@@ -343,7 +343,7 @@ But in some cases, the size of React itself would far exceed the content of the 
 
 For this reason we want to promote a situation where users can share the cache for the basic runtime across internet properties. The application code continues to load from your server as usual.
 
-We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick]().
+We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](http://www.hanselman.com/blog/CDNsFailButYourScriptsDontHaveToFallbackFromCDNToLocalJQuery.aspx).
 
 To turn the CDN off, just set `{ “next”: { “cdn”: false } }` in `package.json`.
 </details>
