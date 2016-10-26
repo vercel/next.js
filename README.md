@@ -15,7 +15,7 @@ and add a script to your package.json like this:
 ```json
 {
   "scripts": {
-    "start": "next"
+    "dev": "next"
   }
 }
 ```
@@ -31,7 +31,7 @@ export default () => (
 )
 ```
 
-and then just run `npm start` and go to `http://localhost:3000`
+and then just run `npm run dev` and go to `http://localhost:3000`
 
 So far, we get:
 
