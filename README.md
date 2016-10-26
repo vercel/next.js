@@ -150,7 +150,7 @@ Client-side routing behaves exactly like the native UA:
 
 Each top-level component receives a `url` property with the following API:
 
-- `path` - `String` of the current path excluding the query string
+- `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `push(url)` - performs a `pushState` call associated with the current component
 - `replace(url)` - performs a `replaceState` call associated with the current component
