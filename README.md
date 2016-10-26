@@ -378,3 +378,7 @@ The following issues are currently being explored and input from the community i
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+
+## License
+
+MIT
