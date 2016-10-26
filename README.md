@@ -290,7 +290,7 @@ While these are tractable for CSS itself, we don’t need to duplicate the effor
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See [this](link to default babel config we use) and [this](link to issue that tracks the ability to change babel options)
+See [this](https://github.com/zeit/next.js/blob/master/server/build/webpack.js#L79) and [this](https://github.com/zeit/next.js/issues/26)
 
 </details>
 
