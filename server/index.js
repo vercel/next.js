@@ -40,6 +40,19 @@ export default class Server {
   }
 
   defineRoutes () {
+    const pkg = require(`${process.cwd()}/package`)
+    const routes = pkg.next.routes
+
+    if (pkg.next.routes) {
+      Object.keys(routes).forEach(path => {
+        const resolvedPath = routes[path]
+        this.router.get(path, async (req, res, params) => {
+          req.url = resolvedPath
+          await this.render(req, res, params)
+        })
+      })
+    }
+
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
       await this.serveStatic(req, res, p)
@@ -68,9 +81,9 @@ export default class Server {
     }
   }
 
-  async render (req, res) {
+  async render (req, res, params) {
     const { dir, dev } = this
-    const ctx = { req, res }
+    const ctx = { req, res, params }
     const opts = { dir, dev }
 
     let html
