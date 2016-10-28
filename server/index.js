@@ -1,5 +1,5 @@
 import http from 'http'
-import { resolve, join } from 'path'
+import { resolve, join, relative } from 'path'
 import { parse } from 'url'
 import send from 'send'
 import Router from './router'
@@ -13,6 +13,12 @@ export default class Server {
     this.dev = dev
     this.hotReloader = hotReload ? new HotReloader(this.dir) : null
     this.router = new Router()
+
+    try {
+      this.config = require(`${process.cwd()}/next.config`)
+    } catch (err) {
+      this.config = {}
+    }
 
     this.http = http.createServer((req, res) => {
       this.run(req, res)
@@ -40,16 +46,21 @@ export default class Server {
   }
 
   defineRoutes () {
-    const pkg = require(`${process.cwd()}/package`)
-    const routes = pkg.next.routes
+    if (Object.hasOwnProperty.call(this.config, 'routes')) {
+      this.config.routes.map(route => {
+        if (route.path && route.file) {
+          const pagesBundle = join(this.dir, '.next', 'bundles', 'pages')
+          const routesBundle = join(this.dir, '.next', 'bundles', 'routes')
+          const relFile = relative(pagesBundle, join(routesBundle, route.file))
 
-    if (pkg.next.routes) {
-      Object.keys(routes).forEach(path => {
-        const resolvedPath = routes[path]
-        this.router.get(path, async (req, res, params) => {
-          req.url = resolvedPath
-          await this.render(req, res, params)
-        })
+          this.router.get(`${route.path}+.json`, async (req, res, params) => {
+            await this.renderJSON({ ...req, url: relFile }, res, params)
+          })
+
+          this.router.get(`${route.path}*`, async (req, res, params) => {
+            await this.render({ ...req, url: relFile }, res, params)
+          })
+        }
       })
     }
 

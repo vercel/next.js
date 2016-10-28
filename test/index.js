@@ -34,6 +34,18 @@ test(async t => {
   t.true(html.includes('<p>Diego Milito</p>'))
 })
 
+test(async t => {
+  const html = await render('../routes/stateless')
+  t.true(html.includes('<h1>My routed component!</h1>'))
+})
+
+test(async t => {
+  const html = await render('../routes/stateful', {
+    params: { id: 'test' }
+  })
+  t.true(html.includes('<div><p>The route parameter `id` is test</p></div>'))
+})
+
 function render (url, ctx) {
   return _render(url, ctx, { dir, staticMarkup: true })
 }

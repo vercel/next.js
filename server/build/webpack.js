@@ -10,7 +10,7 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 export default async function createCompiler (dir, { hotReload = false } = {}) {
   dir = resolve(dir)
 
-  const pages = await glob('pages/**/*.js', { cwd: dir })
+  const pages = await glob('{pages,routes}/**/*.js', { cwd: dir })
 
   const entry = {}
   const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
