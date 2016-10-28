@@ -2,7 +2,7 @@
 
 [`jest`](https://facebook.github.io/jest/) is a testing framework for `react`. In this example we show how to use `jest` to do DOM-testing for react applications in `next`
 
-npm install --save-dev jest babel-jest enzyme
+`npm install --save-dev jest babel-jest enzyme`
 
  * `jest` - The testing framework
  * `babel-jest` - Babel preprocessor for test files
