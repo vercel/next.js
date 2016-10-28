@@ -87,14 +87,16 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
         'transform-class-properties',
         'transform-runtime',
         [
-          'module-alias',
-          [
-            { src: `npm:${babelRuntimePath}`, expose: 'babel-runtime' },
-            { src: `npm:${require.resolve('react')}`, expose: 'react' },
-            { src: `npm:${require.resolve('../../lib/link')}`, expose: 'next/link' },
-            { src: `npm:${require.resolve('../../lib/css')}`, expose: 'next/css' },
-            { src: `npm:${require.resolve('../../lib/head')}`, expose: 'next/head' }
-          ]
+          'module-resolver',
+          {
+            alias: {
+              'babel-runtime': babelRuntimePath,
+              react: require.resolve('react'),
+              'next/link': require.resolve('../../lib/link'),
+              'next/css': require.resolve('../../lib/css'),
+              'next/head': require.resolve('../../lib/head')
+            }
+          }
         ]
       ]
     }
