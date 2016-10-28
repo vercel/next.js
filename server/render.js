@@ -2,13 +2,14 @@ import { join } from 'path'
 import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
+import { renderStatic } from 'glamor/server'
 import requireModule from './require'
 import read from './read'
+import getConfig from './config'
 import Router from '../lib/router'
 import Document from '../lib/document'
 import Head from '../lib/head'
 import App from '../lib/app'
-import { renderStatic } from 'glamor/server'
 
 export async function render (url, ctx = {}, {
   dir = process.cwd(),
@@ -33,6 +34,7 @@ export async function render (url, ctx = {}, {
   })
 
   const head = Head.rewind() || []
+  const config = await getConfig(dir)
 
   const doc = createElement(Document, {
     html,
@@ -44,9 +46,9 @@ export async function render (url, ctx = {}, {
       ids: ids,
       err: ctx.err ? errorToJSON(ctx.err) : null
     },
-    hotReload: false,
     dev,
-    staticMarkup
+    staticMarkup,
+    cdn: config.cdn
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
