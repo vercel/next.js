@@ -31,7 +31,7 @@ const styles = {
     left: 0,
     right: 0,
     position: 'absolute',
-    fontFamily: '"SF UI Text", "Helvetica Neue", "Lucida Grande"',
+    fontFamily: '-apple-system, "SF UI Text", "Helvetica Neue", "Lucida Grande", sans-serif',
     textAlign: 'center',
     paddingTop: '20%'
   }),
