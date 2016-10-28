@@ -39,7 +39,7 @@ exists(join(dir, 'package.json'))
 
 const basePackage = `{
   "name": "my-app",
-  "description": "my app",
+  "description": "",
   "dependencies": {
     "next": "latest"
   },
