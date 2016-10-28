@@ -16,7 +16,7 @@ export default class ErrorDebug extends React.Component {
       <Head>
         <style dangerouslySetInnerHTML={{ __html: `
           body {
-            background: #dc0067;
+            background: #fff;
             margin: 0;
           }
         `}} />
@@ -29,7 +29,7 @@ export default class ErrorDebug extends React.Component {
 
 const styles = {
   body: style({
-    background: '#dc0067',
+    background: '#fff',
     margin: 0
   }),
 
@@ -41,16 +41,16 @@ const styles = {
 
   message: style({
     fontFamily: 'menlo-regular',
-    fontSize: '10px',
-    color: '#fff',
+    fontSize: '16px',
+    color: '#000',
     margin: 0
   }),
 
   heading: style({
     fontFamily: 'sans-serif',
-    fontSize: '13px',
+    fontSize: '18px',
     fontWeight: 'bold',
-    color: '#ff90c6',
+    color: '#000',
     marginBottom: '20px'
   })
 }
