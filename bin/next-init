@@ -20,7 +20,7 @@ exists(join(dir, 'package.json'))
   }
 
   if (!present) {
-    await writeFile(join(dir, 'package.json'), basePackage)
+    await writeFile(join(dir, 'package.json'), basePackage.replace(/my-app/g, basename(dir)))
   }
 
   if (!await exists(join(dir, 'static'))) {
