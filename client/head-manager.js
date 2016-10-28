@@ -3,7 +3,20 @@ import HTMLDOMPropertyConfig from 'react/lib/HTMLDOMPropertyConfig'
 const DEFAULT_TITLE = ''
 
 export default class HeadManager {
+  constuctor () {
+    this.requestId = null
+  }
+
   updateHead (head) {
+    // perform batch update
+    window.cancelAnimationFrame(this.requestId)
+    this.requestId = window.requestAnimationFrame(() => {
+      this.requestId = null
+      this.doUpdateHead(head)
+    })
+  }
+
+  doUpdateHead (head) {
     const tags = {}
     head.forEach((h) => {
       const components = tags[h.type] || []
