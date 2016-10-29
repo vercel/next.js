@@ -2,6 +2,7 @@
 import { resolve, join, basename } from 'path'
 import parseArgs from 'minimist'
 import { exists, writeFile, mkdir } from 'mz/fs'
+import mkdirp from 'mkdirp-then'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -20,7 +21,7 @@ if (basename(dir) === 'pages') {
 exists(dir)
 .then(async present => {
   if (!present) {
-    await mkdir(dir)
+    await mkdirp(dir)
   }
 
   if (!await exists(join(dir, 'package.json'))) {
