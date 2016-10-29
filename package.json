@@ -16,8 +16,8 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "standard && gulp test",
-    "lint": "standard",
+    "test": "npm run lint && gulp test",
+    "lint": "standard && standard bin/*",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
   },
