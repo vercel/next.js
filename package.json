@@ -6,7 +6,10 @@
   "license": "MIT",
   "repository": "zeit/next.js",
   "files": [
-    "dist"
+    "dist",
+    "link.js",
+    "css.js",
+    "head.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
