@@ -12,6 +12,15 @@
   "devDependencies": {
     "babel-jest": "^16.0.0",
     "enzyme": "^2.5.1",
-    "jest": "^16.0.2"
+    "jest": "^16.0.2",
+    "react": "^15.3.2",
+    "react-addons-test-utils": "^15.3.2",
+    "react-dom": "^15.3.2"
+  },
+  "babel": {
+    "presets": [
+      "es2015",
+      "react"
+    ]
   }
 }
