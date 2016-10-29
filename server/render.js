@@ -18,12 +18,13 @@ export async function render (url, ctx = {}, {
 } = {}) {
   const distBase = join(dir, '.next', 'dist', 'pages')
   const path = getPath(url)
-  const result = await requireModule(join(distBase, path), distBase)
-  const Component = result.module.default || result.module
+  const modResult = await requireModule(join(distBase, path), distBase)
+  const Component = modResult.module.default || modResult.module
 
-  const props = await (Component.getInitialProps ? Component.getInitialProps({ ...ctx, params: result.params }) : {})
+  const props = await (Component.getInitialProps ? Component.getInitialProps({ ...ctx, params: modResult.params }) : {})
   const bundlesBase = join(dir, '.next', 'bundles', 'pages')
-  const component = await read(join(bundlesBase, path), bundlesBase)
+  const dataResult = await read(join(bundlesBase, path), bundlesBase)
+  const component = dataResult.data
 
   const { html, css, ids } = renderStatic(() => {
     const app = createElement(App, {
@@ -46,7 +47,8 @@ export async function render (url, ctx = {}, {
       component,
       props,
       ids: ids,
-      err: ctx.err ? errorToJSON(ctx.err) : null
+      err: ctx.err ? errorToJSON(ctx.err) : null,
+      params: dataResult.params
     },
     dev,
     staticMarkup,
@@ -59,8 +61,8 @@ export async function render (url, ctx = {}, {
 export async function renderJSON (url, { dir = process.cwd() } = {}) {
   const base = join(dir, '.next', 'bundles', 'pages')
   const path = getPath(url)
-  const component = await read(join(base, path), base)
-  return { component }
+  const result = await read(join(base, path), base)
+  return { component: result.data, params: result.params }
 }
 
 export function errorToJSON (err) {
