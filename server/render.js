@@ -16,12 +16,13 @@ export async function render (url, ctx = {}, {
   dev = false,
   staticMarkup = false
 } = {}) {
+  const base = join(dir, '.next', 'dist', 'pages')
   const path = getPath(url)
-  const mod = await requireModule(join(dir, '.next', 'dist', 'pages', path))
-  const Component = mod.default || mod
+  const result = await requireModule(join(base, path), base)
+  const Component = result.module.default || result.module
 
-  const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
-  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
+  const props = await (Component.getInitialProps ? Component.getInitialProps({ ...ctx, params: result.params }) : {})
+  const component = await read(join(base, path), base)
 
   const { html, css, ids } = renderStatic(() => {
     const app = createElement(App, {
@@ -55,8 +56,9 @@ export async function render (url, ctx = {}, {
 }
 
 export async function renderJSON (url, { dir = process.cwd() } = {}) {
+  const base = join(dir, '.next', 'dist', 'pages')
   const path = getPath(url)
-  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
+  const component = await read(join(base, path), base)
   return { component }
 }
 

@@ -1,11 +1,23 @@
 import { join, sep } from 'path'
 import fs from 'mz/fs'
+import glob from 'glob-promise'
 
-export default async function resolve (id) {
+export default async function resolve (id, base) {
   const paths = getPaths(id)
-  for (const p of paths) {
-    if (await isFile(p)) {
-      return p
+
+  const segments = id.replace(base, '').replace(/^\//, '').split('/')
+  const matched = await getMatchedRoute(segments, base)
+
+  if (matched) {
+    const file = join(base, matched.path)
+    if (await isFile(file)) {
+      return { file, params: matched.params }
+    }
+  }
+
+  for (const file of paths) {
+    if (await isFile(file)) {
+      return { file, params: {} }
     }
   }
 
@@ -20,6 +32,37 @@ export function resolveFromList (id, files) {
   for (const p of paths) {
     if (set.has(p)) return p
   }
+}
+
+async function getMatchedRoute (segments, base) {
+  let files, routes
+
+  files = await glob(join(base, '**'))
+  files = files.filter(f => f.indexOf('@') > 0)
+
+  routes = files.map(f => f.replace(base, ''))
+  routes = routes.filter(route => {
+    let r = toSegments(route)
+    return r.length === segments.length && segments[0] === r[0]
+  })
+
+  if (routes.length < 1) {
+    return null
+  }
+
+  const path = routes[0]
+  const params = toSegments(path).reduce((_params, part, i) => {
+    return !part.startsWith('@') ? _params : {
+      ..._params,
+      [part.slice(1)]: segments[i]
+    }
+  }, {})
+
+  return { path, params }
+}
+
+function toSegments (route) {
+  return route.replace(/^\/|\.js$/g, '').replace(/@/g, '@@').split(/_@|\/@?/)
 }
 
 function getPaths (id) {
