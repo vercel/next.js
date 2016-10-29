@@ -52,6 +52,7 @@
     "glamor": "2.17.10",
     "glob-promise": "1.0.6",
     "htmlescape": "1.1.1",
+    "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
     "mz": "2.4.0",
