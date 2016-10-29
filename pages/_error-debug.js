@@ -29,7 +29,7 @@ export default class ErrorDebug extends React.Component {
 
 const styles = {
   body: style({
-    background: '#A6004C',
+    background: '#dc0067',
     margin: 0
   }),
 
@@ -50,7 +50,7 @@ const styles = {
     fontFamily: 'sans-serif',
     fontSize: '13px',
     fontWeight: 'bold',
-    color: '#FF84BF',
+    color: '#ff90c6',
     marginBottom: '20px'
   })
 }
