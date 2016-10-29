@@ -3,6 +3,7 @@ import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import { renderStatic } from 'glamor/server'
+import glob from 'glob-promise'
 import requireModule from './require'
 import read from './read'
 import getConfig from './config'
@@ -39,6 +40,10 @@ export async function render (url, ctx = {}, {
   const head = Head.rewind() || []
   const config = await getConfig(dir)
 
+  let files
+  files = await glob(join(bundlesBase, '**'))
+  files = files.filter(f => f.indexOf('@') > 0).map(f => f.replace(bundlesBase, '').replace(/^\/|\.js$/g, ''))
+
   const doc = createElement(Document, {
     html,
     head,
@@ -48,7 +53,8 @@ export async function render (url, ctx = {}, {
       props,
       ids: ids,
       err: ctx.err ? errorToJSON(ctx.err) : null,
-      params: dataResult.params
+      params: dataResult.params,
+      dynamicRoutes: files
     },
     dev,
     staticMarkup,
