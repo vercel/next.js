@@ -12,13 +12,13 @@ const argv = parseArgs(process.argv.slice(2), {
 
 const dir = resolve(argv._[0] || '.')
 
+if (basename(dir) === 'pages') {
+  console.warn('Your root directory is named "pages". This looks suspicious. You probably want to go one directory up.')
+  process.exit(1)
+}
+
 exists(join(dir, 'package.json'))
 .then(async present => {
-  if (basename(dir) === 'pages') {
-    console.warn('Your root directory is named "pages". This looks suspicious. You probably want to go one directory up.')
-    return
-  }
-
   if (!present) {
     await writeFile(join(dir, 'package.json'), basePackage.replace(/my-app/g, basename(dir)))
   }
