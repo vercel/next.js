@@ -40,14 +40,14 @@ const styles = {
   }),
 
   message: style({
-    fontFamily: 'menlo-regular',
+    fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", menlo-regular, monospace',
     fontSize: '10px',
     color: '#fff',
     margin: 0
   }),
 
   heading: style({
-    fontFamily: 'sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     fontSize: '13px',
     fontWeight: 'bold',
     color: '#ff90c6',

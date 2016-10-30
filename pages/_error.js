@@ -31,7 +31,7 @@ const styles = {
     left: 0,
     right: 0,
     position: 'absolute',
-    fontFamily: '-apple-system, "SF UI Text", "Helvetica Neue", "Lucida Grande", sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     textAlign: 'center',
     paddingTop: '20%'
   }),
