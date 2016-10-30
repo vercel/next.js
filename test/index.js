@@ -34,6 +34,11 @@ test(async t => {
   t.true(html.includes('<p>Diego Milito</p>'))
 })
 
+test(async t => {
+  const html = await render('/jsxpage')
+  t.true(html.includes('<div>JSX is found</div>'))
+})
+
 function render (url, ctx) {
   return _render(url, ctx, { dir, staticMarkup: true })
 }
