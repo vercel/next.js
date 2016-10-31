@@ -7,10 +7,12 @@ export default class HotReloader {
   constructor (dir) {
     this.dir = dir
     this.server = null
+    this.initialized = false
     this.stats = null
     this.compilationErrors = null
     this.prevAssets = null
-    this.prevChunkHashes = null
+    this.prevChunkNames = null
+    this.prevFailedChunkNames = null
   }
 
   async start () {
@@ -41,36 +43,39 @@ export default class HotReloader {
     })
 
     compiler.plugin('done', (stats) => {
-      this.stats = stats
-      this.compilationErrors = null
+      const { compilation } = stats
+      const chunkNames = new Set(compilation.chunks.map((c) => c.name))
+      const failedChunkNames = new Set(compilation.errors
+      .map((e) => e.module.reasons)
+      .reduce((a, b) => a.concat(b), [])
+      .map((r) => r.module.chunks)
+      .reduce((a, b) => a.concat(b), [])
+      .map((c) => c.name))
 
-      const chunkHashes = {}
-      stats.compilation.chunks.map((c) => {
-        chunkHashes[c.name] = c.hash
-      })
+      if (this.initialized) {
+        // detect chunks which have to be replaced with a new template
+        // e.g, pages/index.js <-> pages/_error.js
+        const added = diff(chunkNames, this.prevChunkNames)
+        const removed = diff(this.prevChunkNames, chunkNames)
+        const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
 
-      if (this.prevChunkHashes) {
-        const names = new Set(Object.keys(chunkHashes))
-        const prevNames = new Set(Object.keys(this.prevChunkHashes))
-        const added = diff(names, prevNames)
-        const removed = diff(prevNames, names)
-        const failed = new Set(stats.compilation.errors
-        .map((e) => e.module.reasons)
-        .reduce((a, b) => a.concat(b), [])
-        .map((r) => r.module.chunks)
-        .reduce((a, b) => a.concat(b), [])
-        .map((c) => c.name)
-        .filter((n) => chunkHashes[n] !== this.prevChunkHashes[n]))
+        // reload all failed chunks to replace the templace to the error ones,
+        // and to update error content
+        const failed = failedChunkNames
 
         const rootDir = join('bundles', 'pages')
 
-        for (const n of new Set([...added, ...removed, ...failed])) {
+        for (const n of new Set([...added, ...removed, ...failed, ...succeeded])) {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)
         }
       }
 
-      this.prevChunkHashes = chunkHashes
+      this.initialized = true
+      this.stats = stats
+      this.compilationErrors = null
+      this.prevChunkNames = chunkNames
+      this.prevFailedChunkNames = failedChunkNames
     })
 
     this.server = new WebpackDevServer(compiler, {
