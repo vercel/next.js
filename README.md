@@ -214,15 +214,13 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, u
 
 ## FAQ
 
-<details>
-  <summary>Is this production ready?</summary>
-  Next.js has been powering `https://zeit.co` since its inception.
+### Is this production ready?
+Next.js has been powering `https://zeit.co` since its inception.
 
-  We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
-</details>
+We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
 
-<details>
-  <summary>How big is it?</summary>
+
+### How big is it?
 
 The client side next bundle, which includes React and Glamor is **73kb** gzipped.
 
@@ -230,10 +228,7 @@ The Next runtime (lazy loading, routing, `<Head>`) contributes around **15%** to
 
 The codebase is ~1500LOC (excluding CLI programs).
 
-</details>
-
-<details>
-  <summary>Is this like `create-react-app`?</summary>
+### Is this like `create-react-app`?
 
 Yes and No.
 
@@ -249,10 +244,7 @@ In addition, Next.js provides two built-in features that are critical for every 
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
 
-</details>
-
-<details>
-  <summary>Why CSS-in-JS?</summary>
+### Why CSS-in-JS?
 
 `next/css` is powered by [Glamor](https://github.com/threepointone/glamor). While it exposes a JavaScript API, it produces regular CSS and therefore important features like `:hover`, animations, media queries all work.
 
@@ -262,7 +254,7 @@ There’s *no tradeoff* in power. Instead, we gain the power of simpler composit
 
 **Please note**: we are very interested in supporting regular CSS, since it's so much easier to write and already familiar. To that end, we're currently exploring the possibility of leveraging Shadow DOM to avoid the entire CSS parsing and mangling step [[#22](https://github.com/zeit/next.js/issues/22)]
 
-### Compilation performance
+#### Compilation performance
 
 Parsing, prefixing, modularizing and hot-code-reloading CSS can be avoided by just using JavaScript.
 
@@ -270,7 +262,7 @@ This results in better compilation performance and less memory usage (especially
 
 It also means fewer dependencies and fewer things for Next to do. Everything is Just JavaScript® (since JSX is completely optional)
 
-### Lifecycle performance
+#### Lifecycle performance
 
 Since every class name is invoked with the `css()` helper, Next.js can intelligently add or remove `<style>` elements that are not being used.
 
@@ -278,7 +270,7 @@ This is important for server-side rendering, but also during the lifecycle of th
 
 This is a very significant benefit over approaches like `require(‘xxxxx.css')`.
 
-### Correctness
+#### Correctness
 
 Since the class names and styles are defined as JavaScript objects, a variety of aids for correctness are much more easily enabled:
 
@@ -288,19 +280,13 @@ Since the class names and styles are defined as JavaScript objects, a variety of
 
 While these are tractable for CSS itself, we don’t need to duplicate the efforts in tooling and libraries to accomplish them.
 
-</details>
-
-<details>
-  <summary>What syntactic features are transpiled? How do I change them?</summary>
+### What syntactic features are transpiled? How do I change them?</summary>
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
 See [this](https://github.com/zeit/next.js/blob/master/server/build/webpack.js#L79) and [this](https://github.com/zeit/next.js/issues/26)
 
-</details>
-
-<details>
-  <summary>Why a new Router?</summary>
+### Why a new Router?
 
 Next.js is special in that:
 
@@ -315,30 +301,21 @@ As a result, we were able to introduce a very simple approach to routing that co
 
 We tested the flexibility of the routing with some interesting scenarios. For an example, check out [nextgram](https://github.com/zeit/nextgram).
 
-</details>
-
-<details>
-<summary>How do I define a custom fancy route?</summary>
+### How do I define a custom fancy route?
 
 We’re adding the ability to map between an arbitrary URL and any component by supplying a request handler: [#25](https://github.com/zeit/next.js/issues/25)
 
 On the client side, we'll add a parameter to `<Link>` so that it _decorates_ the URL differently from the URL it _fetches_.
-</details>
 
-<details>
-<summary>How do I fetch data?</summary>
+### How do I fetch data?
 
 It’s up to you. `getInitialProps` is an `async` function (or a regular function that returns a `Promise`). It can retrieve data from anywhere.
-</details>
 
-<details>
-<summary>Can I use it with Redux?</summary>
+### Can I use it with Redux?
 
 Yes! Here's an [example](https://github.com/zeit/next.js/wiki/Redux-example)
-</details>
 
-<details>
-<summary>Why does it load the runtime from a CDN by default?</summary>
+### Why does it load the runtime from a CDN by default?
 
 We intend for Next.js to be a great starting point for any website or app, no matter how small.
 
@@ -351,10 +328,8 @@ For this reason we want to promote a situation where users can share the cache f
 We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](http://www.hanselman.com/blog/CDNsFailButYourScriptsDontHaveToFallbackFromCDNToLocalJQuery.aspx).
 
 To turn the CDN off, just set `{ “next”: { “cdn”: false } }` in `package.json`.
-</details>
 
-<details>
-<summary>What is this inspired by?</summary>
+### What is this inspired by?</summary>
 
 Many of the goals we set out to accomplish were the ones listed in [The 7 principles of Rich Web Applications](http://rauchg.com/2014/7-principles-of-rich-web-applications/) by Guillermo Rauch.
 
@@ -363,8 +338,6 @@ The ease-of-use of PHP is a great inspiration. We feel Next.js is a suitable rep
 Unlike PHP, we benefit from the ES6 module system and every file exports a **component or function** that can be easily imported for lazy evaluation or testing.
 
 As we were researching options for server-rendering React that didn’t involve a large number of steps, we came across [react-page](https://github.com/facebookarchive/react-page) (now deprecated), a similar approach to Next.js by the creator of React Jordan Walke.
-
-</details>
 
 ## Future directions
 
