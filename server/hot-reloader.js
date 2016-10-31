@@ -143,10 +143,6 @@ export default class HotReloader {
   send (type, data) {
     this.server.sockWrite(this.server.sockets, type, data)
   }
-
-  get fileSystem () {
-    return this.server.middleware.fileSystem
-  }
 }
 
 function deleteCache (path) {
