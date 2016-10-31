@@ -17,9 +17,13 @@ if (basename(dir) === 'pages') {
   process.exit(1)
 }
 
-exists(join(dir, 'package.json'))
+exists(dir)
 .then(async present => {
   if (!present) {
+    await mkdir(dir)
+  }
+
+  if (!await exists(join(dir, 'package.json'))) {
     await writeFile(join(dir, 'package.json'), basePackage.replace(/my-app/g, basename(dir)))
   }
 
