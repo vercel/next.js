@@ -52,10 +52,10 @@ export async function render (url, ctx = {}, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (url, { dir = process.cwd() } = {}) {
+export async function renderJSON (url, { params, dir = process.cwd() } = {}) {
   const path = getPath(url)
   const component = await read(join(dir, '.next', 'bundles', 'pages', path))
-  return { component }
+  return { component, params }
 }
 
 export function errorToJSON (err) {

@@ -120,9 +120,9 @@ export default class Server {
     sendHTML(res, html)
   }
 
-  async renderJSON (req, res) {
+  async renderJSON (req, res, params) {
     const { dir } = this
-    const opts = { dir }
+    const opts = { dir, params }
 
     let json
 
