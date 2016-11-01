@@ -58,17 +58,22 @@ That means pages never load unnecessary code!
 
 ### CSS
 
-We use [glamor](https://github.com/threepointone/glamor) to provide a great built-in solution for CSS isolation and modularization without trading off any CSS features
+We use [glamor](https://github.com/threepointone/glamor) to provide a great built-in solution for CSS isolation and modularization without trading off any CSS features.
+
+Glamor's [HowTo](https://github.com/threepointone/glamor/blob/master/docs/howto.md) shows converting various CSS use cases to Glamor. See Glamor's [API docs](https://github.com/threepointone/glamor/blob/master/docs/api.md) for more details.
 
 ```jsx
 import React from 'react'
-import css from 'next/css'
+import css, {insertRule} from 'next/css'
 
 export default () => (
   <div className={style}>
     Hello world
   </div>
 )
+
+// Global CSS rule
+insertRule("html, body { margin: 0; padding: 0; }")
 
 const style = css({
   background: 'red',
@@ -101,7 +106,7 @@ export default () => (
 
 ### Component lifecycle
 
-When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`:
+When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`.
 
 ```jsx
 import React from 'react'
@@ -118,6 +123,8 @@ export default class extends React.Component {
   }
 }
 ```
+
+Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
 ### Routing
 

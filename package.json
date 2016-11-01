@@ -1,20 +1,23 @@
 {
   "name": "next",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/lib/index.js",
   "license": "MIT",
   "repository": "zeit/next.js",
   "files": [
-    "dist"
+    "dist",
+    "link.js",
+    "css.js",
+    "head.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
   },
   "scripts": {
     "build": "gulp",
-    "test": "standard && gulp test",
-    "lint": "standard",
+    "test": "npm run lint && gulp test",
+    "lint": "standard && standard bin/*",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
   },
@@ -52,6 +55,7 @@
     "glamor": "2.17.10",
     "glob-promise": "1.0.6",
     "htmlescape": "1.1.1",
+    "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
     "mz": "2.4.0",
