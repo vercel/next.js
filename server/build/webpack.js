@@ -107,7 +107,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     [errorDebugPath, 'dist/pages/_error-debug.js']
   ])
 
-  return webpack({
+  const config = {
     context: dir,
     entry,
     output: {
@@ -148,5 +148,13 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     customInterpolateName: function (url, name, opts) {
       return interpolateNames.get(this.resourcePath) || url
     }
-  })
+  }
+  try {
+    require(join(dir, 'webpack.js'))(config, hotReload)
+  } catch (e) {
+    if (e.code != "MODULE_NOT_FOUND") {
+      throw(e)
+    }
+  }
+  return webpack(config)
 }
