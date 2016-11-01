@@ -106,7 +106,7 @@ export default () => (
 
 ### Component lifecycle
 
-When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`:
+When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`. Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
 ```jsx
 import React from 'react'
