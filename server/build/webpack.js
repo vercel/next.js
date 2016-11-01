@@ -6,6 +6,7 @@ import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
+import DetachPlugin from './plugins/detach-plugin'
 
 export default async function createCompiler (dir, { hotReload = false } = {}) {
   dir = resolve(dir)
@@ -42,6 +43,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     })
   ].concat(hotReload ? [
     new webpack.HotModuleReplacementPlugin(),
+    new DetachPlugin(),
     new DynamicEntryPlugin(),
     new UnlinkFilePlugin(),
     new WatchRemoveEventPlugin(),
