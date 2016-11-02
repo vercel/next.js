@@ -6,15 +6,23 @@ import resolve from './resolve'
  * and read and cache the file content
  */
 
-async function read (path) {
-  const f = await resolve(path)
-  if (cache.hasOwnProperty(f)) {
-    return cache[f]
+async function read (path, base) {
+  const resolved = await resolve(path, base)
+  const file = resolved.file
+  if (cache.hasOwnProperty(file)) {
+    return {
+      data: cache[file],
+      params: resolved.params
+    }
   }
 
-  const data = fs.readFile(f, 'utf8')
-  cache[f] = data
-  return data
+  const data = await fs.readFile(file, 'utf8')
+  cache[file] = data
+
+  return {
+    data,
+    params: resolved.params
+  }
 }
 
 export default read

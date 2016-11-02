@@ -3,6 +3,7 @@ import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import { renderStatic } from 'glamor/server'
+import { getParamRoutes, toParts } from './helpers'
 import requireModule from './require'
 import read from './read'
 import getConfig from './config'
@@ -16,12 +17,15 @@ export async function render (url, ctx = {}, {
   dev = false,
   staticMarkup = false
 } = {}) {
+  const distBase = join(dir, '.next', 'dist', 'pages')
   const path = getPath(url)
-  const mod = await requireModule(join(dir, '.next', 'dist', 'pages', path))
-  const Component = mod.default || mod
+  const modResult = await requireModule(join(distBase, path), distBase)
+  const Component = modResult.module.default || modResult.module
 
-  const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
-  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
+  const props = await (Component.getInitialProps ? Component.getInitialProps({ ...ctx, params: modResult.params }) : {})
+  const bundlesBase = join(dir, '.next', 'bundles', 'pages')
+  const dataResult = await read(join(bundlesBase, path), bundlesBase)
+  const component = dataResult.data
 
   const { html, css, ids } = renderStatic(() => {
     const app = createElement(App, {
@@ -35,6 +39,7 @@ export async function render (url, ctx = {}, {
 
   const head = Head.rewind() || []
   const config = await getConfig(dir)
+  const files = await getParamRoutes(bundlesBase)
 
   const doc = createElement(Document, {
     html,
@@ -44,7 +49,9 @@ export async function render (url, ctx = {}, {
       component,
       props,
       ids: ids,
-      err: ctx.err ? errorToJSON(ctx.err) : null
+      err: ctx.err ? errorToJSON(ctx.err) : null,
+      params: dataResult.params,
+      paramRoutes: files.map(r => toParts(r))
     },
     dev,
     staticMarkup,
@@ -55,9 +62,10 @@ export async function render (url, ctx = {}, {
 }
 
 export async function renderJSON (url, { dir = process.cwd() } = {}) {
+  const base = join(dir, '.next', 'bundles', 'pages')
   const path = getPath(url)
-  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
-  return { component }
+  const result = await read(join(base, path), base)
+  return { component: result.data, params: result.params }
 }
 
 export function errorToJSON (err) {

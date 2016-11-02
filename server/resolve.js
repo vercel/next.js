@@ -1,11 +1,21 @@
 import { join, sep } from 'path'
-import fs from 'mz/fs'
+import { getParamRoutes, isFile, toParts, compareRoute } from './helpers'
 
-export default async function resolve (id) {
+export default async function resolve (id, base) {
   const paths = getPaths(id)
-  for (const p of paths) {
-    if (await isFile(p)) {
-      return p
+  const segments = id.replace(base, '').replace(/^\//, '').split('/')
+  const matched = await getMatchedRoute(segments, base)
+
+  if (matched) {
+    const file = join(base, matched.path)
+    if (await isFile(file)) {
+      return { file, params: matched.params }
+    }
+  }
+
+  for (const file of paths) {
+    if (await isFile(file)) {
+      return { file, params: {} }
     }
   }
 
@@ -22,6 +32,25 @@ export function resolveFromList (id, files) {
   }
 }
 
+async function getMatchedRoute (segments, base) {
+  const files = await getParamRoutes(base)
+  const routes = files.filter(route => compareRoute(toParts(route), segments))
+
+  if (routes.length < 1) {
+    return null
+  }
+
+  const path = routes[0]
+  const params = toParts(path).reduce((_params, part, i) => {
+    return !part.startsWith('{') ? _params : {
+      ..._params,
+      [part.slice(1, -1)]: segments[i]
+    }
+  }, {})
+
+  return { path, params }
+}
+
 function getPaths (id) {
   const i = sep === '/' ? id : id.replace(/\//g, sep)
 
@@ -32,15 +61,4 @@ function getPaths (id) {
     i + '.js',
     join(i, 'index.js')
   ]
-}
-
-async function isFile (p) {
-  let stat
-  try {
-    stat = await fs.stat(p)
-  } catch (err) {
-    if (err.code === 'ENOENT') return false
-    throw err
-  }
-  return stat.isFile() || stat.isFIFO()
 }
