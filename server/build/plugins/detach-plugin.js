@@ -6,9 +6,6 @@ export default class DetachPlugin {
     compiler.apply = apply
     compiler.detach = detach
     compiler.getDetachablePlugins = getDetachablePlugins
-
-    Object.defineProperty(compiler, 'detachablePlugins', {
-    })
   }
 }
 
