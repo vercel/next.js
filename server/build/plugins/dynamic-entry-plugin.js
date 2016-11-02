@@ -11,6 +11,11 @@ export default class DynamicEntryPlugin {
     compiler.addEntry = addEntry
     compiler.removeEntry = removeEntry
     compiler.hasEntry = hasEntry
+
+    compiler.plugin('emit', (compilation, callback) => {
+      compiler.cache = compilation.cache
+      callback()
+    })
   }
 }
 
@@ -40,6 +45,18 @@ function removeEntry (name = 'main') {
   for (const p of this.getDetachablePlugins()) {
     if (!(p instanceof SingleEntryPlugin || p instanceof MultiEntryPlugin)) continue
     if (p.name !== name) continue
+
+    if (this.cache) {
+      for (const id of Object.keys(this.cache)) {
+        const m = this.cache[id]
+        if (m.name === name) {
+          // cache of `MultiModule` is based on `name`,
+          // so delete it here for the case
+          // a new entry is added with the same name later
+          delete this.cache[id]
+        }
+      }
+    }
 
     this.detach(p)
   }
