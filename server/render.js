@@ -42,7 +42,8 @@ export async function render (url, ctx = {}, {
       component,
       props,
       ids: ids,
-      err: ctx.err ? errorToJSON(ctx.err) : null
+      err: ctx.err ? errorToJSON(ctx.err) : null,
+      params: ctx.params
     },
     hotReload: false,
     dev,
