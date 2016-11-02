@@ -23,7 +23,9 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
 
   const errorEntry = join('bundles', 'pages', '_error.js')
   const defaultErrorPath = join(nextPagesDir, '_error.js')
-  if (!entry[errorEntry]) entry[errorEntry] = defaultErrorPath
+  if (!entry[errorEntry]) {
+    entry[errorEntry] = defaultEntries.concat([defaultErrorPath])
+  }
 
   const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
   const errorDebugPath = join(nextPagesDir, '_error-debug.js')
@@ -72,7 +74,10 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   .concat(hotReload ? [{
     test: /\.js$/,
     loader: 'hot-self-accept-loader',
-    include: join(dir, 'pages')
+    include: [
+      join(dir, 'pages'),
+      nextPagesDir
+    ]
   }] : [])
   .concat([{
     test: /\.js$/,
