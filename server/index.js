@@ -53,11 +53,11 @@ export default class Server {
           const routesBundle = join(this.dir, '.next', 'bundles', 'routes')
           const relFile = relative(pagesBundle, join(routesBundle, route.file))
 
-          this.router.get(`${route.path}+.json`, async (req, res, params) => {
+          this.router.get(`${route.path}.json`, async (req, res, params) => {
             await this.renderJSON({ ...req, url: relFile }, res, params)
           })
 
-          this.router.get(`${route.path}*`, async (req, res, params) => {
+          this.router.get(`${route.path}`, async (req, res, params) => {
             await this.render({ ...req, url: relFile }, res, params)
           })
         }
