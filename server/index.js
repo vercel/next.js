@@ -83,13 +83,19 @@ export default class Server {
       try {
         html = await render(req.url, ctx, opts)
       } catch (err) {
-        if (err.code === 'ENOENT') {
-          res.statusCode = 404
-        } else {
-          console.error(err)
+        const _err = this.getCompilationError('/_error')
+        if (_err) {
           res.statusCode = 500
+          html = await render('/_error-debug', { ...ctx, err: _err }, opts)
+        } else {
+          if (err.code === 'ENOENT') {
+            res.statusCode = 404
+          } else {
+            console.error(err)
+            res.statusCode = 500
+          }
+          html = await render('/_error', { ...ctx, err }, opts)
         }
-        html = await render('/_error', { ...ctx, err }, opts)
       }
     }
 
@@ -111,13 +117,20 @@ export default class Server {
       try {
         json = await renderJSON(req.url, opts)
       } catch (err) {
-        if (err.code === 'ENOENT') {
-          res.statusCode = 404
-        } else {
-          console.error(err)
+        const _err = this.getCompilationError('/_error.json')
+        if (_err) {
           res.statusCode = 500
+          json = await renderJSON('/_error-debug.json', opts)
+          json = { ...json, err: errorToJSON(_err) }
+        } else {
+          if (err.code === 'ENOENT') {
+            res.statusCode = 404
+          } else {
+            console.error(err)
+            res.statusCode = 500
+          }
+          json = await renderJSON('/_error.json', opts)
         }
-        json = await renderJSON('/_error.json', opts)
       }
     }
 
@@ -129,9 +142,19 @@ export default class Server {
 
   async render404 (req, res) {
     const { dir, dev } = this
+    const opts = { dir, dev }
 
-    res.statusCode = 404
-    const html = await render('/_error', { req, res }, { dir, dev })
+    let html
+
+    const err = this.getCompilationError('/_error')
+    if (err) {
+      res.statusCode = 500
+      html = await render('/_error-debug', { req, res, err }, opts)
+    } else {
+      res.statusCode = 404
+      html = await render('/_error', { req, res }, opts)
+    }
+
     sendHTML(res, html)
   }
 
