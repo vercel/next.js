@@ -1,5 +1,9 @@
 import SingleEntryPlugin from 'webpack/lib/SingleEntryPlugin'
 import MultiEntryPlugin from 'webpack/lib/MultiEntryPlugin'
+import { detachable } from './detach-plugin'
+
+detachable(SingleEntryPlugin)
+detachable(MultiEntryPlugin)
 
 export default class DynamicEntryPlugin {
   apply (compiler) {
@@ -8,8 +12,9 @@ export default class DynamicEntryPlugin {
     compiler.removeEntry = removeEntry
     compiler.hasEntry = hasEntry
 
-    compiler.plugin('compilation', (compilation) => {
-      compilation.addEntry = compilationAddEntry(compilation.addEntry)
+    compiler.plugin('emit', (compilation, callback) => {
+      compiler.cache = compilation.cache
+      callback()
     })
   }
 }
@@ -37,21 +42,27 @@ function addEntry (entry, name = 'main') {
 }
 
 function removeEntry (name = 'main') {
+  for (const p of this.getDetachablePlugins()) {
+    if (!(p instanceof SingleEntryPlugin || p instanceof MultiEntryPlugin)) continue
+    if (p.name !== name) continue
+
+    if (this.cache) {
+      for (const id of Object.keys(this.cache)) {
+        const m = this.cache[id]
+        if (m.name === name) {
+          // cache of `MultiModule` is based on `name`,
+          // so delete it here for the case
+          // a new entry is added with the same name later
+          delete this.cache[id]
+        }
+      }
+    }
+
+    this.detach(p)
+  }
   this.entryNames.delete(name)
 }
 
 function hasEntry (name = 'main') {
   return this.entryNames.has(name)
-}
-
-function compilationAddEntry (original) {
-  return function (context, entry, name, callback) {
-    if (!this.compiler.entryNames.has(name)) {
-      // skip removed entry
-      callback()
-      return
-    }
-
-    return original.call(this, context, entry, name, callback)
-  }
 }
