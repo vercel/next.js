@@ -107,6 +107,18 @@ const onSocketMsg = {
     }
   },
   reload (route) {
+    if (route === '/_error') {
+      for (const r of Object.keys(next.router.components)) {
+        const { Component } = next.router.components[r]
+        if (Component.__route === '/_error-debug') {
+          // reload all '/_error-debug'
+          // which are expected to be errors of '/_error' routes
+          next.router.reload(r)
+        }
+      }
+      return
+    }
+
     next.router.reload(route)
   },
   close () {
