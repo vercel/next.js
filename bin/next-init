@@ -2,6 +2,7 @@
 import { resolve, join, basename } from 'path'
 import parseArgs from 'minimist'
 import { exists, writeFile, mkdir } from 'mz/fs'
+import mkdirp from 'mkdirp-then'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -17,9 +18,13 @@ if (basename(dir) === 'pages') {
   process.exit(1)
 }
 
-exists(join(dir, 'package.json'))
+exists(dir)
 .then(async present => {
   if (!present) {
+    await mkdirp(dir)
+  }
+
+  if (!await exists(join(dir, 'package.json'))) {
     await writeFile(join(dir, 'package.json'), basePackage.replace(/my-app/g, basename(dir)))
   }
 
