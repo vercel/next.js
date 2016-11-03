@@ -128,6 +128,15 @@ export default class extends React.Component {
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
+`getInitialProps` receives a context object with the following properties:
+
+- `pathname` - path section of URL
+- `query` - query string section of URL parsed as an object
+- `req` - HTTP request object (server only)
+- `res` - HTTP response object (server only)
+- `xhr` - XMLHttpRequest object (client only)
+- `err` - Error object if any error is encountered during the rendering
+
 ### Routing
 
 Client-side transitions between routes are enabled via a `<Link>` component
