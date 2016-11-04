@@ -70,7 +70,8 @@ export default class Server {
 
   async render (req, res) {
     const { dir, dev } = this
-    const ctx = { req, res }
+    const { pathname, query } = parse(req.url, true)
+    const ctx = { req, res, pathname, query }
     const opts = { dir, dev }
 
     let html
@@ -142,6 +143,8 @@ export default class Server {
 
   async render404 (req, res) {
     const { dir, dev } = this
+    const { pathname, query } = parse(req.url, true)
+    const ctx = { req, res, pathname, query }
     const opts = { dir, dev }
 
     let html
@@ -149,10 +152,10 @@ export default class Server {
     const err = this.getCompilationError('/_error')
     if (err) {
       res.statusCode = 500
-      html = await render('/_error-debug', { req, res, err }, opts)
+      html = await render('/_error-debug', { ...ctx, err }, opts)
     } else {
       res.statusCode = 404
-      html = await render('/_error', { req, res }, opts)
+      html = await render('/_error', ctx, opts)
     }
 
     sendHTML(res, html)
