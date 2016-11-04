@@ -39,7 +39,6 @@
     "parser": "babel-eslint"
   },
   "dependencies": {
-    "ansi-html": "0.0.6",
     "babel-core": "6.17.0",
     "babel-generator": "6.17.0",
     "babel-loader": "6.2.5",
