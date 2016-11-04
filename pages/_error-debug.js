@@ -1,5 +1,5 @@
 import React from 'react'
-import stripAnsi from 'strip-ansi'
+import ansiHTML from 'ansi-html'
 import Head from 'next/head'
 import style from 'next/css'
 
@@ -16,20 +16,24 @@ export default class ErrorDebug extends React.Component {
       <Head>
         <style dangerouslySetInnerHTML={{ __html: `
           body {
-            background: #dc0067;
+            background: #a6004c;
             margin: 0;
           }
         `}} />
       </Head>
       <div className={styles.heading}>Error in {path}</div>
-      <pre className={styles.message}>{stripAnsi(message)}</pre>
+      <pre className={styles.message} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
     </div>
   }
 }
 
+const encodeHtml = str => {
+  return str.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 const styles = {
   body: style({
-    background: '#dc0067',
+    background: '#a6004c',
     margin: 0
   }),
 
@@ -50,7 +54,18 @@ const styles = {
     fontFamily: '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     fontSize: '13px',
     fontWeight: 'bold',
-    color: '#ff90c6',
+    color: '#ff84bf',
     marginBottom: '20px'
   })
 }
+
+ansiHTML.setColors({
+  reset: ['fff', 'a6004c'],
+  darkgrey: '5a012b',
+  yellow: 'ffab07',
+  green: 'aeefba',
+  magenta: 'ff84bf',
+  blue: '3505a0',
+  cyan: '56eaec',
+  red: '4e053a'
+})
