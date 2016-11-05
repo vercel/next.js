@@ -1,4 +1,7 @@
 language: node_js
+os:
+ - osx
+ - linux
 node_js:
   - "node"
   - "6"
