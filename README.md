@@ -1,5 +1,6 @@
 <img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
+[![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Slack Channel](https://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 
 Next.js is a minimalistic framework for server-rendered React applications.
