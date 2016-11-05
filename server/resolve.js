@@ -25,12 +25,14 @@ export function resolveFromList (id, files) {
 function getPaths (id) {
   const i = sep === '/' ? id : id.replace(/\//g, sep)
 
-  if (i.slice(-3) === '.js') return [i]
-  if (i[i.length - 1] === sep) return [i + 'index.js']
+  if (i.slice(-3) === '.js' || i.slice(-4) === '.jsx') return [i]
+  if (i[i.length - 1] === sep) return [i + 'index.js', i + 'index.jsx']
 
   return [
     i + '.js',
-    join(i, 'index.js')
+    i + '.jsx',
+    join(i, 'index.js'),
+    join(i, 'index.jsx')
   ]
 }
 

@@ -11,7 +11,7 @@ import DetachPlugin from './plugins/detach-plugin'
 export default async function createCompiler (dir, { hotReload = false } = {}) {
   dir = resolve(dir)
 
-  const pages = await glob('pages/**/*.js', { cwd: dir })
+  const pages = await glob('pages/**/*.+(js|jsx)', { cwd: dir })
 
   const entry = {}
   const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
@@ -61,7 +61,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   .replace(/[\\\/]package\.json$/, '')
 
   const loaders = [{
-    test: /\.js$/,
+    test: /\.jsx?$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
@@ -72,7 +72,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     }
   }]
   .concat(hotReload ? [{
-    test: /\.js$/,
+    test: /\.jsx?$/,
     loader: 'hot-self-accept-loader',
     include: [
       join(dir, 'pages'),
@@ -80,7 +80,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     ]
   }] : [])
   .concat([{
-    test: /\.js$/,
+    test: /\.jsx?$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
     exclude (str) {
