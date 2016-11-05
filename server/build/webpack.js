@@ -80,6 +80,21 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     ]
   }] : [])
   .concat([{
+    loader: 'babel',
+    include: nextPagesDir,
+    query: {
+      plugins: [
+        [
+          require.resolve('babel-plugin-module-resolver'),
+          {
+            alias: {
+              'ansi-html': require.resolve('ansi-html')
+            }
+          }
+        ]
+      ]
+    }
+  }, {
     test: /\.js$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
