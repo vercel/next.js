@@ -46,7 +46,7 @@ const styles = {
   message: style({
     fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", menlo-regular, monospace',
     fontSize: '10px',
-    color: '#fff',
+    color: '#fbe7f1',
     margin: 0
   }),
 
@@ -59,13 +59,16 @@ const styles = {
   })
 }
 
+// see color definitions of babel-code-frame:
+// https://github.com/babel/babel/blob/master/packages/babel-code-frame/src/index.js
+
 ansiHTML.setColors({
-  reset: ['fff', 'a6004c'],
-  darkgrey: '5a012b',
-  yellow: 'ffab07',
-  green: 'aeefba',
-  magenta: 'ff84bf',
-  blue: '3505a0',
-  cyan: '56eaec',
-  red: '4e053a'
+  reset: 'fff',
+  darkgrey: 'e54590',
+  yellow: 'ee8cbb',
+  green: 'f2a2c7',
+  magenta: 'fbe7f1',
+  blue: 'fff',
+  cyan: 'ef8bb9',
+  red: 'fff'
 })
