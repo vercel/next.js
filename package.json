@@ -70,6 +70,7 @@
     "url": "0.11.0",
     "webpack": "1.13.2",
     "webpack-dev-server": "1.16.2",
+    "sockjs-client": "1.1.1",
     "write-file-webpack-plugin": "3.3.0"
   },
   "devDependencies": {
