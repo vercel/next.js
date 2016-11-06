@@ -18,7 +18,7 @@
     "build": "gulp",
     "test": "npm run lint && gulp test",
     "lint": "standard && standard bin/*",
-    "prepublish": "gulp release",
+    "pre-publish": "gulp release",
     "precommit": "npm run lint"
   },
   "ava": {
