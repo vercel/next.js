@@ -65,10 +65,7 @@ gulp.task('compile-test', () => {
   .pipe(notify('Compiled test files'))
 })
 
-gulp.task('copy', [
-  'copy-pages',
-  'copy-test-fixtures'
-])
+gulp.task('copy', ['copy-pages'])
 
 gulp.task('copy-pages', () => {
   return gulp.src('pages/**/*.js')
@@ -156,12 +153,12 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release client'))
 })
 
-gulp.task('test', ['compile', 'compile-test', 'copy-test-fixtures'], () => {
+gulp.task('test', ['compile', 'copy', 'compile-test', 'copy-test-fixtures'], () => {
   return gulp.src('dist/test/*.js')
   .pipe(ava())
 })
 
-gulp.task('bench', ['compile', 'compile-bench', 'copy-bench-fixtures'], () => {
+gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
   return gulp.src('dist/bench/*.js', {read: false})
   .pipe(benchmark({
     reporters: benchmark.reporters.etalon('RegExp#test')
