@@ -74,6 +74,7 @@
     "write-file-webpack-plugin": "3.3.0"
   },
   "devDependencies": {
+    "ava": "0.16.0",
     "babel-eslint": "7.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "benchmark": "2.1.1",
