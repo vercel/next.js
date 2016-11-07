@@ -26,7 +26,7 @@ gulp.task('compile', [
 ])
 
 gulp.task('compile-bin', () => {
-  return gulp.src('bin/*')
+  return gulp.src(['bin/*', 'bin/**/*.js'])
   .pipe(cache('bin'))
   .pipe(babel(babelOptions))
   .pipe(gulp.dest('dist/bin'))
