@@ -1,5 +1,4 @@
 import { join } from 'path'
-import { readFile } from 'mz/fs'
 
 const cache = new Map()
 
@@ -13,21 +12,21 @@ export default function getConfig (dir) {
 }
 
 async function loadConfig (dir) {
-  const path = join(dir, 'package.json')
+  const path = join(dir, 'next.config.js')
 
-  let data
+  let module
   try {
-    data = await readFile(path, 'utf8')
+    module = require(path)
   } catch (err) {
-    if (err.code === 'ENOENT') {
-      data = '{}'
+    if (err.code === 'MODULE_NOT_FOUND') {
+      module = {}
     } else {
       throw err
     }
   }
 
   // no try-cache, it must be a valid json
-  const config = JSON.parse(data).next || {}
+  const config = module.default || module || {}
 
   return Object.assign({}, defaultConfig, config)
 }
