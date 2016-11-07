@@ -178,6 +178,8 @@ Each top-level component receives a `url` property with the following API:
 - `pushTo(url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
 - `replaceTo(url)` - performs a `replaceState` call that renders the new `url`
 
+If you are building an application which requires a catch-all route (for example, `/users/4`), you can define a `_all.js` file in the `./pages/user` folder.  Any un-matched route under the "user" route will be sent to this page.
+
 ### Error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
