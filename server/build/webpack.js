@@ -113,7 +113,14 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
           {
             alias: {
               'babel-runtime': babelRuntimePath,
-              react: require.resolve('react'),
+              'react': require.resolve('react'),
+
+              // XXX: This shouldn't here, but since external Babel config support is missing,
+              // there is no other way to achieve this. (Even though, `.babelrc` and
+              // `package.json/babel` sections are merged, I couldn't make them work correctly.)
+              'react-md': require.resolve('react-md'),
+              'react-md/lib/Buttons': require.resolve('react-md'),
+
               'next/link': require.resolve('../../lib/link'),
               'next/css': require.resolve('../../lib/css'),
               'next/head': require.resolve('../../lib/head')
@@ -139,13 +146,21 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       publicPath: hotReload ? 'http://localhost:3030/' : null
     },
     externals: [
-      'react',
-      'react-dom',
       {
-        [require.resolve('react')]: 'react',
+        [require.resolve('react')]: { commonjs: 'react', commonjs2: 'react', amd: 'react', root: 'React' },
+        [require.resolve('react-dom')]: { commonjs: 'react-dom', commonjs2: 'react-dom', amd: 'react-dom', root: 'ReactDOM' },
+        [require.resolve('react-addons-css-transition-group')]: 'var React.addons.CSSTransitionGroup',
+        [require.resolve('react-addons-transition-group')]: 'var React.addons.TransitionGroup',
+        [require.resolve('react-addons-pure-render-mixin')]: 'var React.addons.PureRenderMixin',
         [require.resolve('../../lib/link')]: 'next/link',
         [require.resolve('../../lib/css')]: 'next/css',
         [require.resolve('../../lib/head')]: 'next/head'
+      },
+
+      // XXX: This also shouldn't be here, but missing external Webpack config support forces me
+      // to patch it here.
+      {
+        [require.resolve('react-md')]: 'var ReactMD'
       }
     ],
     resolve: {

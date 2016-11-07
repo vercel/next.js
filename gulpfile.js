@@ -101,6 +101,10 @@ gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
   .pipe(webpack({
     quiet: true,
     output: { filename: 'next-dev.bundle.js' },
+    externals: [{
+      'react': 'var React',
+      'react-dom': 'var ReactDOM'
+    }],
     module: {
       loaders: [
         {
@@ -134,6 +138,10 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
       }),
       new webpack.webpack.optimize.UglifyJsPlugin()
     ],
+    externals: {
+      'react': 'var React',
+      'react-dom': 'var ReactDOM'
+    },
     module: {
       loaders: [
         {
