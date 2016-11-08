@@ -5,8 +5,7 @@ export default class CatchAll extends Component {
   constructor (props) {
     super(props)
 
-    let routeParts = this.props.url.pathname.split('/')
-    this.state = { user_id: parseInt(routeParts[(routeParts.length - 1)]) }
+    this.state = { user_id: parseInt(this.props.url.pathname.split('/').pop()) }
   }
 
   render () {
