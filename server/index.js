@@ -190,7 +190,9 @@ export default class Server {
 }
 
 function sendHTML (res, html) {
-  res.setHeader('Content-Type', 'text/html')
-  res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(html)
+  if (!res.finished) {
+    res.setHeader('Content-Type', 'text/html')
+    res.setHeader('Content-Length', Buffer.byteLength(html))
+    res.end(html)
+  }
 }
