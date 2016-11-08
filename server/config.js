@@ -25,7 +25,6 @@ async function loadConfig (dir) {
     }
   }
 
-  // no try-cache, it must be a valid json
   const config = module.default || module || {}
 
   return Object.assign({}, defaultConfig, config)
