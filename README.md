@@ -89,6 +89,10 @@ const style = css({
 })
 ```
 
+### Images and other static files
+
+Create a folder called `static` in your project root directory. You can place images and other static assets there. Reference them from JS files with the path to the static directory. For example, from `/pages` use `../static/file-name.jpg`
+
 ### `<head>` side effects
 
 We expose a built-in component for appending elements to the `<head>` of the page.
