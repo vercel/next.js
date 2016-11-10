@@ -209,6 +209,6 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     }
   })
   const config = await getConfig(dir)
-  const userWebpackConfig = config.webpack(webpackConfig)
+  const userWebpackConfig = config.webpack(webpackConfig, hotReload)
   return userWebpackConfig
 }

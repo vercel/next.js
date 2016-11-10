@@ -4,7 +4,7 @@ const cache = new Map()
 
 const defaultConfig = {
   cdn: true,
-  webpack: (cfg) => cfg
+  webpack: (cfg, hotReload) => cfg
 }
 
 export default function getConfig (dir) {
