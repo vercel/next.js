@@ -2,7 +2,10 @@ import { join } from 'path'
 
 const cache = new Map()
 
-const defaultConfig = {}
+const defaultConfig = {
+  cdn: true,
+  webpack: (cfg) => cfg
+}
 
 export default function getConfig (dir) {
   if (!cache.has(dir)) {

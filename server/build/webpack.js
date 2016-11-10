@@ -9,6 +9,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
+import getConfig from '../config'
 
 export default async function createCompiler (dir, { dev = false } = {}) {
   dir = resolve(dir)
@@ -166,7 +167,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     [errorDebugPath, 'dist/pages/_error-debug.js']
   ])
 
-  return webpack({
+  const webpackConfig = webpack({
     context: dir,
     entry,
     output: {
@@ -207,4 +208,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       return interpolateNames.get(this.resourcePath) || url
     }
   })
+  const config = await getConfig(dir)
+  const userWebpackConfig = config.webpack(webpackConfig)
+  return userWebpackConfig
 }
