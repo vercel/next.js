@@ -67,16 +67,13 @@ Glamor's [HowTo](https://github.com/threepointone/glamor/blob/master/docs/howto.
 
 ```jsx
 import React from 'react'
-import css, {insertRule} from 'next/css'
+import css from 'next/css'
 
 export default () => (
   <div className={style}>
     Hello world
   </div>
 )
-
-// Global CSS rule
-insertRule("html, body { margin: 0; padding: 0; }")
 
 const style = css({
   background: 'red',
