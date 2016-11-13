@@ -14,7 +14,7 @@ export default function getConfig (dir) {
   return cache.get(dir)
 }
 
-async function loadConfig (dir) {
+function loadConfig (dir) {
   const path = join(dir, 'next.config.js')
 
   let module

@@ -208,7 +208,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       return interpolateNames.get(this.resourcePath) || url
     }
   })
-  const config = await getConfig(dir)
+  const config = getConfig(dir)
   const userWebpackConfig = config.webpack(webpackConfig, hotReload)
   return userWebpackConfig
 }
