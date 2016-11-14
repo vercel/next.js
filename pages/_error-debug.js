@@ -63,7 +63,7 @@ const styles = {
 // https://github.com/babel/babel/blob/master/packages/babel-code-frame/src/index.js
 
 ansiHTML.setColors({
-  reset: 'fff',
+  reset: ['fff', 'a6004c'],
   darkgrey: 'e54590',
   yellow: 'ee8cbb',
   green: 'f2a2c7',
