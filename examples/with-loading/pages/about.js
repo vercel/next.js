@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import Header from '../components/header.js'
+import Header from '../components/Header'
 
 export default class About extends Component {
   // Add some delay to the loading page
