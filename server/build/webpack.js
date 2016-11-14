@@ -152,7 +152,10 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       root: [
         nodeModulesDir,
         join(dir, 'node_modules')
-      ]
+      ].concat(
+        (process.env.NODE_PATH || '')
+        .split(process.platform === 'win32' ? ';' : ':')
+      )
     },
     resolveLoader: {
       root: [
