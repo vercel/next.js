@@ -1,3 +1,4 @@
+const fs = require('fs')
 const gulp = require('gulp')
 const babel = require('gulp-babel')
 const cache = require('gulp-cached')
@@ -8,15 +9,7 @@ const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
 
-const babelOptions = {
-  presets: ['es2015', 'react'],
-  plugins: [
-    'transform-async-to-generator',
-    'transform-object-rest-spread',
-    'transform-class-properties',
-    'transform-runtime'
-  ]
-}
+const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 
 gulp.task('compile', [
   'compile-bin',
@@ -57,24 +50,11 @@ gulp.task('compile-client', () => {
   .pipe(notify('Compiled client files'))
 })
 
-gulp.task('compile-test', () => {
-  return gulp.src('test/*.js')
-  .pipe(cache('test'))
-  .pipe(babel(babelOptions))
-  .pipe(gulp.dest('dist/test'))
-  .pipe(notify('Compiled test files'))
-})
-
 gulp.task('copy', ['copy-pages'])
 
 gulp.task('copy-pages', () => {
   return gulp.src('pages/**/*.js')
   .pipe(gulp.dest('dist/pages'))
-})
-
-gulp.task('copy-test-fixtures', () => {
-  return gulp.src('test/fixtures/**/*')
-  .pipe(gulp.dest('dist/test/fixtures'))
 })
 
 gulp.task('compile-bench', () => {
@@ -153,9 +133,13 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release client'))
 })
 
-gulp.task('test', ['compile', 'copy', 'compile-test', 'copy-test-fixtures'], () => {
-  return gulp.src('dist/test/*.js')
-  .pipe(ava())
+gulp.task('test', () => {
+  process.env.NODE_ENV = 'test'
+  return gulp.src('test/**/**.test.js')
+  .pipe(ava({
+    verbose: true,
+    nyc: true
+  }))
 })
 
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
@@ -209,10 +193,6 @@ gulp.task('clean', () => {
   return del('dist')
 })
 
-gulp.task('clean-test', () => {
-  return del('dist/test')
-})
-
 gulp.task('default', [
   'compile',
   'build',
@@ -227,7 +207,7 @@ gulp.task('release', (cb) => {
     'build',
     'copy',
     'test'
-  ], 'clean-test', cb)
+  ], cb)
 })
 
 // avoid logging to the console
