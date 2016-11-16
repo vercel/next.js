@@ -89,13 +89,16 @@ export default class Server {
           res.statusCode = 500
           html = await render('/_error-debug', { ...ctx, err: _err }, opts)
         } else {
+          let url
           if (err.code === 'ENOENT') {
             res.statusCode = 404
+            url = '/_error'
           } else {
             console.error(err)
             res.statusCode = 500
+            url = dev ? '/_error-debug' : '/_error'
           }
-          html = await render('/_error', { ...ctx, err }, opts)
+          html = await render(url, { ...ctx, err }, opts)
         }
       }
     }
