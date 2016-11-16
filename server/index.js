@@ -18,7 +18,7 @@ export default class Server {
       this.run(req, res)
       .catch((err) => {
         console.error(err)
-        res.status(500)
+        res.statusCode = 500
         res.end('error')
       })
     })
