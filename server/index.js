@@ -108,7 +108,11 @@ export default class Server {
 
   async doRender (res, statusCode, url, ctx) {
     const { dir, dev } = this
+
+    // need to set statusCode before `render`
+    // since it can be used on getInitialProps
     res.statusCode = statusCode
+
     const html = await render(url, ctx, { dir, dev })
     sendHTML(res, html)
   }
