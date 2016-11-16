@@ -69,7 +69,6 @@ export default class Server {
   }
 
   async render (req, res) {
-    const { dev } = this
     const { pathname, query } = parse(req.url, true)
     const ctx = { req, res, pathname, query }
 
@@ -90,7 +89,7 @@ export default class Server {
 
       if (err.code !== 'ENOENT') {
         console.error(err)
-        const url = dev ? '/_error-debug' : '/_error'
+        const url = this.dev ? '/_error-debug' : '/_error'
         await this.doRender(res, 500, url, { ...ctx, err })
         return
       }
@@ -98,7 +97,7 @@ export default class Server {
       try {
         await this.doRender(res, 404, '/_error', { ...ctx, err })
       } catch (err2) {
-        if (dev) {
+        if (this.dev) {
           await this.doRender(res, 500, '/_error-debug', { ...ctx, err: err2 })
         } else {
           throw err2
@@ -109,8 +108,8 @@ export default class Server {
 
   async doRender (res, statusCode, url, ctx) {
     const { dir, dev } = this
-    const html = await render(url, ctx, { dir, dev })
     res.statusCode = statusCode
+    const html = await render(url, ctx, { dir, dev })
     sendHTML(res, html)
   }
 
@@ -153,23 +152,24 @@ export default class Server {
   }
 
   async render404 (req, res) {
-    const { dir, dev } = this
     const { pathname, query } = parse(req.url, true)
     const ctx = { req, res, pathname, query }
-    const opts = { dir, dev }
 
-    let html
-
-    const err = this.getCompilationError('/_error')
-    if (err) {
-      res.statusCode = 500
-      html = await render('/_error-debug', { ...ctx, err }, opts)
-    } else {
-      res.statusCode = 404
-      html = await render('/_error', ctx, opts)
+    const compilationErr = this.getCompilationError('/_error')
+    if (compilationErr) {
+      await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr })
+      return
     }
 
-    sendHTML(res, html)
+    try {
+      await this.doRender(res, 404, '/_error', ctx)
+    } catch (err) {
+      if (this.dev) {
+        await this.doRender(res, 500, '/_error-debug', { ...ctx, err })
+      } else {
+        throw err
+      }
+    }
   }
 
   serveStatic (req, res, path) {
