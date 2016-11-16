@@ -69,40 +69,48 @@ export default class Server {
   }
 
   async render (req, res) {
-    const { dir, dev } = this
+    const { dev } = this
     const { pathname, query } = parse(req.url, true)
     const ctx = { req, res, pathname, query }
-    const opts = { dir, dev }
 
-    let html
+    const compilationErr = this.getCompilationError(req.url)
+    if (compilationErr) {
+      await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr })
+      return
+    }
 
-    const err = this.getCompilationError(req.url)
-    if (err) {
-      res.statusCode = 500
-      html = await render('/_error-debug', { ...ctx, err }, opts)
-    } else {
+    try {
+      await this.doRender(res, 200, req.url, ctx)
+    } catch (err) {
+      const compilationErr2 = this.getCompilationError('/_error')
+      if (compilationErr2) {
+        await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr2 })
+        return
+      }
+
+      if (err.code !== 'ENOENT') {
+        console.error(err)
+        const url = dev ? '/_error-debug' : '/_error'
+        await this.doRender(res, 500, url, { ...ctx, err })
+        return
+      }
+
       try {
-        html = await render(req.url, ctx, opts)
-      } catch (err) {
-        const _err = this.getCompilationError('/_error')
-        if (_err) {
-          res.statusCode = 500
-          html = await render('/_error-debug', { ...ctx, err: _err }, opts)
+        await this.doRender(res, 404, '/_error', { ...ctx, err })
+      } catch (err2) {
+        if (dev) {
+          await this.doRender(res, 500, '/_error-debug', { ...ctx, err: err2 })
         } else {
-          let url
-          if (err.code === 'ENOENT') {
-            res.statusCode = 404
-            url = '/_error'
-          } else {
-            console.error(err)
-            res.statusCode = 500
-            url = dev ? '/_error-debug' : '/_error'
-          }
-          html = await render(url, { ...ctx, err }, opts)
+          throw err2
         }
       }
     }
+  }
 
+  async doRender (res, statusCode, url, ctx) {
+    const { dir, dev } = this
+    const html = await render(url, ctx, { dir, dev })
+    res.statusCode = statusCode
     sendHTML(res, html)
   }
 
