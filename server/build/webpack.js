@@ -7,6 +7,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
+import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 
 export default async function createCompiler (dir, { hotReload = false } = {}) {
   dir = resolve(dir)
@@ -49,7 +50,10 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     new DynamicEntryPlugin(),
     new UnlinkFilePlugin(),
     new WatchRemoveEventPlugin(),
-    new WatchPagesPlugin(dir)
+    new WatchPagesPlugin(dir),
+    new FriendlyErrorsWebpackPlugin({
+      messages: ['Your application is running here http://localhost:3000']
+    })
   ] : [
     new webpack.optimize.UglifyJsPlugin({
       compress: { warnings: false },

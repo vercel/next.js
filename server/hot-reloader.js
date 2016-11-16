@@ -82,23 +82,8 @@ export default class HotReloader {
       publicPath: '/',
       hot: true,
       noInfo: true,
-      clientLogLevel: 'warning',
-      stats: {
-        assets: false,
-        children: false,
-        chunks: false,
-        color: false,
-        errors: true,
-        errorDetails: false,
-        hash: false,
-        modules: false,
-        publicPath: false,
-        reasons: false,
-        source: false,
-        timings: false,
-        version: false,
-        warnings: false
-      }
+      quiet: true,
+      clientLogLevel: 'warning'
     })
   }
 
