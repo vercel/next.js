@@ -118,40 +118,41 @@ export default class Server {
   }
 
   async renderJSON (req, res) {
-    const { dir } = this
-    const opts = { dir }
+    const compilationErr = this.getCompilationError(req.url)
+    if (compilationErr) {
+      await this.doRenderJSON(res, 500, '/_error-debug.json', compilationErr)
+      return
+    }
 
-    let json
-
-    const err = this.getCompilationError(req.url)
-    if (err) {
-      res.statusCode = 500
-      json = await renderJSON('/_error-debug.json', opts)
-      json = { ...json, err: errorToJSON(err) }
-    } else {
-      try {
-        json = await renderJSON(req.url, opts)
-      } catch (err) {
-        const _err = this.getCompilationError('/_error.json')
-        if (_err) {
-          res.statusCode = 500
-          json = await renderJSON('/_error-debug.json', opts)
-          json = { ...json, err: errorToJSON(_err) }
-        } else {
-          if (err.code === 'ENOENT') {
-            res.statusCode = 404
-          } else {
-            console.error(err)
-            res.statusCode = 500
-          }
-          json = await renderJSON('/_error.json', opts)
-        }
+    try {
+      await this.doRenderJSON(res, 200, req.url)
+    } catch (err) {
+      const compilationErr2 = this.getCompilationError('/_error.json')
+      if (compilationErr2) {
+        await this.doRenderJSON(res, 500, '/_error-debug.json', compilationErr2)
+        return
       }
+
+      if (err.code === 'ENOENT') {
+        await this.doRenderJSON(res, 404, '/_error.json')
+      } else {
+        console.error(err)
+        await this.doRenderJSON(res, 500, '/_error.json')
+      }
+    }
+  }
+
+  async doRenderJSON (res, statusCode, url, err) {
+    const { dir } = this
+    const json = await renderJSON(url, { dir })
+    if (err) {
+      json.err = errorToJSON(err)
     }
 
     const data = JSON.stringify(json)
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Content-Length', Buffer.byteLength(data))
+    res.statusCode = statusCode
     res.end(data)
   }
 
