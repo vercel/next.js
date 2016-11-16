@@ -51,9 +51,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     new UnlinkFilePlugin(),
     new WatchRemoveEventPlugin(),
     new WatchPagesPlugin(dir),
-    new FriendlyErrorsWebpackPlugin({
-      messages: ['Your application is running here http://localhost:3000']
-    })
+    new FriendlyErrorsWebpackPlugin()
   ] : [
     new webpack.optimize.UglifyJsPlugin({
       compress: { warnings: false },
