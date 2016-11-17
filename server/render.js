@@ -8,7 +8,7 @@ import read from './read'
 import getConfig from './config'
 import Router from '../lib/router'
 import Document from '../lib/document'
-import Head from '../lib/head'
+import Head, {defaultHead} from '../lib/head'
 import App from '../lib/app'
 
 export async function render (url, ctx = {}, {
@@ -33,7 +33,7 @@ export async function render (url, ctx = {}, {
     return (staticMarkup ? renderToStaticMarkup : renderToString)(app)
   })
 
-  const head = Head.rewind() || []
+  const head = Head.rewind() || defaultHead()
   const config = await getConfig(dir)
 
   const doc = createElement(Document, {
