@@ -8,6 +8,7 @@ const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
+const processEnv = require('gulp-process-env')
 
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 
@@ -134,12 +135,14 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
 })
 
 gulp.task('test', () => {
-  process.env.NODE_ENV = 'test'
+  const env = processEnv({NODE_ENV: 'test'})
   return gulp.src('test/**/**.test.js')
+  .pipe(env)
   .pipe(ava({
     verbose: true,
     nyc: true
   }))
+  .pipe(env.restore())
 })
 
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
