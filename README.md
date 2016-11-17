@@ -184,7 +184,7 @@ import React from 'react'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : xhr.status
+    const statusCode = res ? res.statusCode : (xhr ? xhr.status : 500)
     return { statusCode }
   }
 
