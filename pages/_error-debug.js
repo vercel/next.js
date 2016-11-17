@@ -52,7 +52,8 @@ const styles = {
     fontSize: '10px',
     color: '#fbe7f1',
     margin: 0,
-    whiteSpace: 'pre-wrap'
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word'
   }),
 
   heading: style({
