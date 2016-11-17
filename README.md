@@ -86,6 +86,10 @@ const style = css({
 })
 ```
 
+### Images and other static files
+
+Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs, e.g.: `<img src="/static/file-name.jpg" />`.
+
 ### `<head>` side effects
 
 We expose a built-in component for appending elements to the `<head>` of the page.
