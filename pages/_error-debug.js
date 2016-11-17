@@ -38,16 +38,22 @@ const styles = {
   }),
 
   errorDebug: style({
-    height: '100%',
+    height: '100vh',
     padding: '16px',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center'
   }),
 
   message: style({
     fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", menlo-regular, monospace',
     fontSize: '10px',
     color: '#fbe7f1',
-    margin: 0
+    margin: 0,
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word'
   }),
 
   heading: style({
