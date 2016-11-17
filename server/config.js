@@ -1,10 +1,11 @@
 import { join } from 'path'
+import { existsSync } from 'fs'
 
 const cache = new Map()
 
 const defaultConfig = {
   cdn: true,
-  webpack: (cfg, hotReload) => cfg
+  webpack: null
 }
 
 export default function getConfig (dir) {
@@ -16,19 +17,25 @@ export default function getConfig (dir) {
 
 function loadConfig (dir) {
   const path = join(dir, 'next.config.js')
+  const packagePath = join(dir, 'package.json')
 
-  let module
-  try {
-    module = require(path)
-  } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') {
-      module = {}
-    } else {
-      throw err
-    }
+  let userConfig = {}
+  let packageConfig = null
+
+  const userHasConfig = existsSync(path)
+  if (userHasConfig) {
+    const userConfigModule = require(path)
+    userConfig = userConfigModule.default || userConfigModule
   }
 
-  const config = module.default || module || {}
+  const userHasPackageConfig = existsSync(packagePath)
+  if (userHasPackageConfig) {
+    packageConfig = require(packagePath).next
+  }
 
-  return Object.assign({}, defaultConfig, config)
+  if (packageConfig) {
+    console.warn("You're using package.json as source of config for next.js. Please use next.config.js instead.")
+  }
+
+  return Object.assign({}, defaultConfig, userConfig, packageConfig || {})
 }
