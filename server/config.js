@@ -34,7 +34,7 @@ function loadConfig (dir) {
   }
 
   if (packageConfig) {
-    console.warn("You're using package.json as source of config for next.js. Please use next.config.js instead.")
+    console.warn("WARNING: You're using package.json as source of config for next.js. Please use next.config.js instead.")
   }
 
   return Object.assign({}, defaultConfig, userConfig, packageConfig || {})
