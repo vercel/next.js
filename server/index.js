@@ -11,7 +11,7 @@ export default class Server {
   constructor ({ dir = '.', dev = false, hotReload = false }) {
     this.dir = resolve(dir)
     this.dev = dev
-    this.hotReloader = hotReload ? new HotReloader(this.dir) : null
+    this.hotReloader = hotReload ? new HotReloader(this.dir, this.dev) : null
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {

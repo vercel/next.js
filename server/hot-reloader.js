@@ -4,8 +4,9 @@ import webpack from './build/webpack'
 import read from './read'
 
 export default class HotReloader {
-  constructor (dir) {
+  constructor (dir, dev = false) {
     this.dir = dir
+    this.dev = dev
     this.server = null
     this.initialized = false
     this.stats = null
@@ -22,7 +23,7 @@ export default class HotReloader {
   }
 
   async prepareServer () {
-    const compiler = await webpack(this.dir, { hotReload: true })
+    const compiler = await webpack(this.dir, { hotReload: true, dev: this.dev })
 
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
