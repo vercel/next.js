@@ -11,7 +11,7 @@ export default class Error extends React.Component {
     const { statusCode } = this.props
     const title = statusCode === 404
       ? 'This page could not be found'
-      : (statusCode ? 'Internal Server Error' : 'Client Error')
+      : (statusCode ? 'Internal Server Error' : 'An unexpected error has occurred')
 
     return <div className={styles.error}>
       <div className={styles.text}>
