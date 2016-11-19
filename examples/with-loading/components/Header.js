@@ -6,7 +6,7 @@ export default () => (
   <div style={{ marginBottom: 20 }}>
     <Head>
       {/* Import CSS for nprogress */}
-      <link rel='stylesheet' type='text/css' href='http://ricostacruz.com/nprogress/nprogress.css' />
+      <link rel='stylesheet' type='text/css' href='/static/nprogress.css' />
     </Head>
 
     <MyLink href='/'>

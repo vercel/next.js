@@ -3,11 +3,12 @@
   "version": "0.0.0",
   "description": "",
   "scripts": {
-    "dev": "../../dist/bin/next"
+    "dev": "next"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "nprogress": "^0.2.0"
+    "nprogress": "^0.2.0",
+    "next": "*"
   }
 }
