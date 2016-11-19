@@ -1,6 +1,6 @@
 import loaderUtils from 'loader-utils'
 
-module.exports = function (content) {
+module.exports = function (content, sourceMap) {
   this.cacheable()
 
   const query = loaderUtils.parseQuery(this.query)
@@ -10,7 +10,7 @@ module.exports = function (content) {
   const opts = { context, content, regExp }
   const interpolatedName = loaderUtils.interpolateName(this, name, opts)
 
-  this.emitFile(interpolatedName, content)
+  this.emitFile(interpolatedName, content, sourceMap)
 
-  return content
+  this.callback(null, content, sourceMap)
 }
