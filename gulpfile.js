@@ -169,7 +169,8 @@ gulp.task('watch', [
   'watch-bin',
   'watch-lib',
   'watch-server',
-  'watch-client'
+  'watch-client',
+  'watch-pages'
 ])
 
 gulp.task('watch-bin', () => {
@@ -195,6 +196,12 @@ gulp.task('watch-client', () => {
   return gulp.watch('client/**/*.js', [
     'compile-client',
     'build'
+  ])
+})
+
+gulp.task('watch-pages', () => {
+  return gulp.watch('pages/**/*.js', [
+    'copy-pages'
   ])
 })
 
