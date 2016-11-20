@@ -37,8 +37,8 @@ const startProcess = () => {
 let proc = startProcess()
 
 if (cmd === 'dev') {
-  watchFile(join(process.cwd(), 'next.config.js'), (cur) => {
-    if (cur.size > 0) {
+  watchFile(join(process.cwd(), 'next.config.js'), (cur, prev) => {
+    if (cur.size > 0 || prev.size > 0) {
       console.log('\n> Found a change in next.config.js, restarting the server...')
       // Don't listen to 'close' now since otherwise parent gets killed by listener
       proc.removeAllListeners('close')
