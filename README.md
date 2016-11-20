@@ -316,6 +316,7 @@ module.exports = {
 
 As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js and `options`, which
 contains `hotReload` (`true` if hotReload is on) and `dev` (`true` if dev environment). The config you return is the config used by Next.js.
+You can also return a `Promise` which will be resolved first.
 
 _NOTE: Use this option with care, because you can potentially break the existing webpack build configuration by using this option._
 
