@@ -26,6 +26,7 @@ const bin = join(__dirname, 'next-' + cmd)
 
 const startProcess = () => {
   const proc = spawn(bin, args, { stdio: 'inherit', customFds: [0, 1, 2] })
+  proc.on('close', (code) => process.exit(code))
   proc.on('error', (err) => {
     console.error(err)
     process.exit(1)
@@ -36,9 +37,13 @@ const startProcess = () => {
 let proc = startProcess()
 
 if (cmd === 'dev') {
-  watchFile(join(process.cwd(), 'next.config.js'), () => {
-    console.log('\n> Found a change in next.config.js, restarting the server...')
-    proc.kill()
-    proc = startProcess()
+  watchFile(join(process.cwd(), 'next.config.js'), (cur) => {
+    if (cur.size > 0) {
+      console.log('\n> Found a change in next.config.js, restarting the server...')
+      // Don't listen to 'close' now since otherwise parent gets killed by listener
+      proc.removeAllListeners('close')
+      proc.kill()
+      proc = startProcess()
+    }
   })
 }
