@@ -288,8 +288,8 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, u
 ## Configuration
 
 While Next.js aims to work without any configuration, sometimes there is a need to add custom behaviour.
-You can define custom configuration in the configuration file called `next.config.js`, this file is stored in the root of the project. An example of a configuration
-looks like this:
+You can define custom configuration in a file called `next.config.js` in the project root directory.
+An example of a configuration looks like this:
 
 ```javascript
 // next.config.js
@@ -307,14 +307,13 @@ An example of this is using `eslint-loader` to lint the files before compiling. 
 ```javascript
 module.exports = {
   webpack: (webpackConfig, { hotReload, dev }) => {
-    const newConfig = { ...webpackConfig }
-    newConfig.module.preLoaders.push({ test: /\.js$/, loader: 'eslint-loader' })
-    return newConfig
+    webpackConfig.module.preLoaders.push({ test: /\.js$/, loader: 'eslint-loader' })
+    return webpackConfig
   }
 }
 ```
 
-As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js and `options`, which
+As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js, and `options`, which
 contains `hotReload` (`true` if hotReload is on) and `dev` (`true` if dev environment). The config you return is the config used by Next.js.
 You can also return a `Promise` which will be resolved first.
 
@@ -327,23 +326,21 @@ const I18nPlugin = require('i18n-webpack-plugin');
 
 module.exports = {
   webpack: (webpackConfig, { hotReload, dev }) => {
-    const newConfig = { ...webpackConfig }
     // Read image files:
-    newConfig.module.loaders.push({
+    webpackConfig.module.loaders.push({
       test: /\.png$/,
       loader: 'file'
     })
 
     // Adding a plugin
-    newConfig.plugins.push(new I18nPlugin())
+    webpackConfig.plugins.push(new I18nPlugin())
 
     // Or adding an alias
-    newConfig.resolve.alias = {
-      ...newConfig.resolve.alias,
-      src: './src'
-    }
+    // Create webpackConfig.resolve.alias if it doesn't exist yet:
+    webpackConfig.resolve.alias = webpackConfig.resolve.alias || {}
+    webpackConfig.resolve.alias.src = './src'
 
-    return newConfig
+    return webpackConfig
   }
 }
 ```
