@@ -13,7 +13,11 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
 
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
-  const entry = {}
+  const entry = {
+    'main': [
+      dev ? require.resolve('../../client/next-dev.js') : require.resolve('../../client/next.js')
+    ]
+  }
 
   const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
   for (const p of pages) {
@@ -42,8 +46,8 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       useHashIndex: false
     }),
     new webpack.optimize.CommonsChunkPlugin({
-      name: 'vendor',
-      filename: 'vendor.js'
+      name: 'main',
+      filename: 'main.js'
     })
   ]
 
