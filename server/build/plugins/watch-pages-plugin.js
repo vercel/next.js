@@ -35,7 +35,11 @@ export default class WatchPagesPlugin {
 
         if (compiler.hasEntry(name)) return
 
-        const entries = ['webpack/hot/dev-server', f]
+        const entries = [
+          'next/dist/client/webpack-dev-client?http://localhost:3030',
+          'webpack/hot/dev-server',
+          f
+        ]
         compiler.addEntry(entries, name)
       })
 
@@ -47,6 +51,7 @@ export default class WatchPagesPlugin {
 
         if (name === errorPageName) {
           compiler.addEntry([
+            'next/dist/client/webpack-dev-client?http://localhost:3030',
             'webpack/hot/dev-server',
             join(__dirname, '..', '..', '..', 'pages', '_error.js')
           ], name)

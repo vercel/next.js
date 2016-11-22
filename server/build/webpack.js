@@ -14,7 +14,10 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
+  const defaultEntries = hotReload ? [
+    'next/dist/client/webpack-dev-client?http://localhost:3030',
+    'webpack/hot/dev-server'
+  ] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
@@ -34,6 +37,14 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
+    new webpack.LoaderOptionsPlugin({
+      options: {
+        context: dir,
+        customInterpolateName: function (url, name, opts) {
+          return interpolateNames.get(this.resourcePath) || url
+        }
+      }
+    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
@@ -68,14 +79,14 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\\/]package\.json$/, '')
 
-  const loaders = [{
+  const rules = [{
     test: /\.js$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
+    options: {
       name: 'dist/[path][name].[ext]'
     }
   }]
@@ -88,9 +99,9 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     ]
   }] : [])
   .concat([{
-    loader: 'babel',
+    loader: 'babel-loader',
     include: nextPagesDir,
-    query: {
+    options: {
       plugins: [
         [
           require.resolve('babel-plugin-module-resolver'),
@@ -104,14 +115,15 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     }
   }, {
     test: /\.js$/,
-    loader: 'babel',
+    loader: 'babel-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
+    options: {
       presets: ['es2015', 'react'],
       plugins: [
+        require.resolve('react-hot-loader/babel'),
         require.resolve('babel-plugin-transform-async-to-generator'),
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
@@ -130,6 +142,9 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
         ]
       ]
     }
+  }, {
+    test: /\.json$/,
+    loader: 'json-loader'
   }])
 
   const interpolateNames = new Map([
@@ -144,7 +159,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? 'http://localhost:3030/' : null
+      publicPath: hotReload ? 'http://localhost:3030/' : '/'
     },
     externals: [
       'react',
@@ -157,29 +172,24 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       }
     ],
     resolve: {
-      root: [
+      modules: [
         nodeModulesDir,
         join(dir, 'node_modules')
       ].concat(
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
+        .filter((p) => !!p)
       )
     },
     resolveLoader: {
-      root: [
+      modules: [
         nodeModulesDir,
         join(__dirname, 'loaders')
       ]
     },
     plugins,
     module: {
-      preLoaders: [
-        { test: /\.json$/, loader: 'json-loader' }
-      ],
-      loaders
-    },
-    customInterpolateName: function (url, name, opts) {
-      return interpolateNames.get(this.resourcePath) || url
+      rules
     }
   })
 }

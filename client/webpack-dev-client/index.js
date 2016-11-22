@@ -1,4 +1,4 @@
-/* global __resourceQuery, next */
+/* global __resourceQuery, next, self */
 
 // Based on 'webpack-dev-server/client'
 
@@ -50,6 +50,16 @@ function log (level, msg) {
   }
 }
 
+// Send messages to the outside, so plugins can consume it.
+function sendMsg (type, data) {
+  if (typeof self !== 'undefined') {
+    self.postMessage({
+      type: 'webpack' + type,
+      data: data
+    }, '*')
+  }
+}
+
 const onSocketMsg = {
   hot () {
     hot = true
@@ -57,53 +67,48 @@ const onSocketMsg = {
   },
   invalid () {
     log('info', '[WDS] App updated. Recompiling...')
+    sendMsg('Invalid')
   },
   hash (hash) {
     currentHash = hash
   },
-  'still-ok': () => {
+  'still-ok' () {
     log('info', '[WDS] Nothing changed.')
+    sendMsg('StillOk')
   },
-  'log-level': (level) => {
+  'log-level' (level) {
     logLevel = level
   },
   ok () {
+    sendMsg('Ok')
     if (initial) {
       initial = false
       return
     }
     reloadApp()
+  },
+  'content-changed' () {
+    log('info', '[WDS] Content base changed. Reloading...')
+    self.location.reload()
   },
   warnings (warnings) {
-    log('info', '[WDS] Warnings while compiling.')
-    for (let i = 0; i < warnings.length; i++) {
-      console.warn(stripAnsi(warnings[i]))
+    log('info', '[WDS] Warnings while compiling. Reload prevented.')
+    const strippedWarnings = warnings.map((warning) => {
+      return stripAnsi(warning)
+    })
+    sendMsg('Warnings', strippedWarnings)
+    for (let i = 0; i < strippedWarnings.length; i++) {
+      console.warn(strippedWarnings[i])
     }
-    if (initial) {
-      initial = false
-      return
-    }
-    reloadApp()
   },
   errors (errors) {
-    log('info', '[WDS] Errors while compiling.')
-    for (let i = 0; i < errors.length; i++) {
-      console.error(stripAnsi(errors[i]))
-    }
-    if (initial) {
-      initial = false
-      return
-    }
-    reloadApp()
-  },
-  'proxy-error': (errors) => {
-    log('info', '[WDS] Proxy error.')
-    for (let i = 0; i < errors.length; i++) {
-      log('error', stripAnsi(errors[i]))
-    }
-    if (initial) {
-      initial = false
-      return
+    log('info', '[WDS] Errors while compiling. Reload prevented.')
+    const strippedErrors = errors.map((error) => {
+      return stripAnsi(error)
+    })
+    sendMsg('Errors', strippedErrors)
+    for (let i = 0; i < strippedErrors.length; i++) {
+      console.error(strippedErrors[i])
     }
   },
   reload (route) {
@@ -123,18 +128,20 @@ const onSocketMsg = {
   },
   close () {
     log('error', '[WDS] Disconnected!')
+    sendMsg('Close')
   }
 }
 
 let hostname = urlParts.hostname
 let protocol = urlParts.protocol
 
-if (urlParts.hostname === '0.0.0.0') {
+// check ipv4 and ipv6 `all hostname`
+if (hostname === '0.0.0.0' || hostname === '::') {
   // why do we need this check?
   // hostname n/a for file protocol (example, when using electron, ionic)
   // see: https://github.com/webpack/webpack-dev-server/pull/384
-  if (window.location.hostname && !!~window.location.protocol.indexOf('http')) {
-    hostname = window.location.hostname
+  if (self.location.hostname && !!~self.location.protocol.indexOf('http')) {
+    hostname = self.location.hostname
   }
 }
 
@@ -142,15 +149,15 @@ if (urlParts.hostname === '0.0.0.0') {
 // a protocol would result in an invalid URL.
 // When https is used in the app, secure websockets are always necessary
 // because the browser doesn't accept non-secure websockets.
-if (hostname && (window.location.protocol === 'https:' || urlParts.hostname === '0.0.0.0')) {
-  protocol = window.location.protocol
+if (hostname && (self.location.protocol === 'https:' || urlParts.hostname === '0.0.0.0')) {
+  protocol = self.location.protocol
 }
 
 const socketUrl = url.format({
   protocol,
   auth: urlParts.auth,
   hostname,
-  port: (urlParts.port === '0') ? window.location.port : urlParts.port,
+  port: (urlParts.port === '0') ? self.location.port : urlParts.port,
   pathname: urlParts.path == null || urlParts.path === '/' ? '/sockjs-node' : urlParts.path
 })
 
@@ -159,9 +166,14 @@ socket(socketUrl, onSocketMsg)
 function reloadApp () {
   if (hot) {
     log('info', '[WDS] App hot update...')
-    window.postMessage('webpackHotUpdate' + currentHash, '*')
+    const hotEmitter = require('webpack/hot/emitter')
+    hotEmitter.emit('webpackHotUpdate', currentHash)
+    if (typeof self !== 'undefined') {
+      // broadcast update to window
+      self.postMessage('webpackHotUpdate' + currentHash, '*')
+    }
   } else {
     log('info', '[WDS] App updated. Reloading...')
-    window.location.reload()
+    self.location.reload()
   }
 }
