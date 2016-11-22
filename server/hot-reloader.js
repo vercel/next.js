@@ -93,7 +93,7 @@ export default class HotReloader {
     })
 
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
-      publicPath: '/_webpack',
+      publicPath: '/_webpack/',
       noInfo: true,
       stats: {
         assets: false,

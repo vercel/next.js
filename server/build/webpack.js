@@ -146,7 +146,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? '/_webpack' : null
+      publicPath: hotReload ? '/_webpack/' : null
     },
     externals: [
       'react',
