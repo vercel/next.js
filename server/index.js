@@ -40,6 +40,11 @@ export default class Server {
   }
 
   defineRoutes () {
+    this.router.get('/vendor.js', async (req, res, params) => {
+      const p = join(this.dir, '.next/vendor.js')
+      await this.serveStatic(req, res, p)
+    })
+
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
       await this.serveStatic(req, res, p)

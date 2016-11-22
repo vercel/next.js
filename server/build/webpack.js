@@ -14,6 +14,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
+
   const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
@@ -39,6 +40,10 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       log: false,
       // required not to cache removed files
       useHashIndex: false
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'vendor',
+      filename: 'vendor.js'
     })
   ]
 
@@ -146,16 +151,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       libraryTarget: 'commonjs2',
       publicPath: hotReload ? 'http://localhost:3030/' : null
     },
-    externals: [
-      'react',
-      'react-dom',
-      {
-        [require.resolve('react')]: 'react',
-        [require.resolve('../../lib/link')]: 'next/link',
-        [require.resolve('../../lib/css')]: 'next/css',
-        [require.resolve('../../lib/head')]: 'next/head'
-      }
-    ],
     resolve: {
       root: [
         nodeModulesDir,
