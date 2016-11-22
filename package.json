@@ -84,8 +84,6 @@
     "url": "0.11.0",
     "webpack": "1.13.3",
     "webpack-dev-server": "1.16.2",
-<<<<<<< HEAD
-    "sockjs-client": "1.1.1",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
@@ -93,16 +91,8 @@
     "babel-eslint": "7.1.1",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "benchmark": "2.1.2",
-    "write-file-webpack-plugin": "3.3.0"
-  },
-  "devDependencies": {
-    "ava": "0.16.0",
-    "babel-eslint": "7.0.0",
-    "babel-plugin-istanbul": "3.0.0",
-    "babel-plugin-transform-remove-strict-mode": "0.0.2",
-    "benchmark": "2.1.1",
     "coveralls": "2.11.15",
-    "cross-env": "^3.1.3",
+    "cross-env": "3.1.3",
     "gulp": "3.9.1",
     "gulp-ava": "0.15.0",
     "gulp-babel": "6.1.2",
@@ -111,7 +101,7 @@
     "gulp-notify": "2.2.0",
     "gulp-process-env": "0.0.2",
     "husky": "0.11.9",
-    "nyc": "9.0.1",
+    "nyc": "10.0.0",
     "run-sequence": "1.2.2",
     "standard": "8.5.0",
     "webpack-stream": "3.2.0"
