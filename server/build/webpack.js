@@ -8,13 +8,13 @@ import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 
-export default async function createCompiler (dir, { hotReload = false } = {}) {
+export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
   dir = resolve(dir)
 
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
+  const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
@@ -34,28 +34,38 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('production')
-    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
       // required not to cache removed files
       useHashIndex: false
     })
-  ].concat(hotReload ? [
-    new webpack.HotModuleReplacementPlugin(),
-    new DetachPlugin(),
-    new DynamicEntryPlugin(),
-    new UnlinkFilePlugin(),
-    new WatchRemoveEventPlugin(),
-    new WatchPagesPlugin(dir)
-  ] : [
-    new webpack.optimize.UglifyJsPlugin({
-      compress: { warnings: false },
-      sourceMap: false
-    })
-  ])
+  ]
+
+  if (!dev) {
+    plugins.push(
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify('production')
+      }),
+      new webpack.optimize.UglifyJsPlugin({
+        compress: { warnings: false },
+        sourceMap: false
+      })
+    )
+  }
+
+  if (hotReload) {
+    plugins.push(
+      new webpack.optimize.OccurrenceOrderPlugin(),
+      new webpack.HotModuleReplacementPlugin(),
+      new webpack.NoErrorsPlugin(),
+      new DetachPlugin(),
+      new DynamicEntryPlugin(),
+      new UnlinkFilePlugin(),
+      new WatchRemoveEventPlugin(),
+      new WatchPagesPlugin(dir)
+    )
+  }
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\\/]package\.json$/, '')
@@ -136,7 +146,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? 'http://localhost:3030/' : null
+      publicPath: hotReload ? '/_webpack/' : null
     },
     externals: [
       'react',

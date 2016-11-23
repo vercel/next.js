@@ -9,6 +9,7 @@ test.before(() => build(dir))
 
 test(async t => {
   const html = await render('/stateless')
+  t.true(html.includes('<meta charset="utf-8" class="next-head"/>'))
   t.true(html.includes('<h1>My component!</h1>'))
 })
 
@@ -25,6 +26,7 @@ test(async t => {
 
 test(async t => {
   const html = await (render('/head'))
+  t.true(html.includes('<meta charset="iso-8859-5" class="next-head"/>'))
   t.true(html.includes('<meta content="my meta" class="next-head"/>'))
   t.true(html.includes('<div><h1>I can haz meta tags</h1></div>'))
 })
