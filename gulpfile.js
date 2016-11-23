@@ -5,6 +5,7 @@ const notify_ = require('gulp-notify')
 const ava = require('gulp-ava')
 const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
+const webpack = require('webpack-stream')
 const del = require('del')
 
 const babelOptions = {
@@ -90,8 +91,67 @@ gulp.task('copy-bench-fixtures', () => {
 })
 
 gulp.task('build', [
-
+  'build-dev-client',
+  'build-client'
 ])
+
+gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
+  return gulp
+  .src('dist/client/next-dev.js')
+  .pipe(webpack({
+    quiet: true,
+    output: { filename: 'next-dev.bundle.js', libraryTarget: 'var', library: 'require' },
+    module: {
+      loaders: [
+        {
+          test: /eval-script\.js$/,
+          exclude: /node_modules/,
+          loader: 'babel',
+          query: {
+            plugins: [
+              'babel-plugin-transform-remove-strict-mode'
+            ]
+          }
+        }
+      ]
+    }
+  }))
+  .pipe(gulp.dest('dist/client'))
+  .pipe(notify('Built dev client'))
+})
+
+gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
+  return gulp
+  .src('dist/client/next.js')
+  .pipe(webpack({
+    quiet: true,
+    output: { filename: 'next.bundle.js', libraryTarget: 'var', library: 'require' },
+    plugins: [
+      new webpack.webpack.DefinePlugin({
+        'process.env': {
+          NODE_ENV: JSON.stringify('production')
+        }
+      }),
+      new webpack.webpack.optimize.UglifyJsPlugin()
+    ],
+    module: {
+      loaders: [
+        {
+          test: /eval-script\.js$/,
+          exclude: /node_modules/,
+          loader: 'babel',
+          query: {
+            plugins: [
+              'babel-plugin-transform-remove-strict-mode'
+            ]
+          }
+        }
+      ]
+    }
+  }))
+  .pipe(gulp.dest('dist/client'))
+  .pipe(notify('Built release client'))
+})
 
 gulp.task('test', ['compile', 'copy', 'compile-test', 'copy-test-fixtures'], () => {
   return gulp.src('dist/test/*.js')

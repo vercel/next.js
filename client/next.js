@@ -10,13 +10,17 @@ const {
   __NEXT_DATA__: { component, props, ids, err }
 } = window
 
-const Component = evalScript(component).default
+document.addEventListener('DOMContentLoaded', () => {
+  const Component = evalScript(component).default
 
-export const router = new Router(window.location.href, { Component, ctx: { err } })
+  const router = new Router(window.location.href, { Component, ctx: { err } })
 
-const headManager = new HeadManager()
-const container = document.getElementById('__next')
-const appProps = { Component, props, router, headManager }
+  const headManager = new HeadManager()
+  const container = document.getElementById('__next')
+  const appProps = { Component, props, router, headManager }
 
-rehydrate(ids)
-render(createElement(App, appProps), container)
+  rehydrate(ids)
+  render(createElement(App, appProps), container)
+})
+
+module.exports = require('./require')

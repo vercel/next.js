@@ -13,11 +13,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
 
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
-  const entry = {
-    'main': [
-      dev ? require.resolve('../../client/next-dev.js') : require.resolve('../../client/next.js')
-    ]
-  }
+  const entry = {}
 
   const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
   for (const p of pages) {
@@ -130,7 +126,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
           {
             alias: {
               'babel-runtime': babelRuntimePath,
-              react: require.resolve('react'),
               'next/link': require.resolve('../../lib/link'),
               'next/css': require.resolve('../../lib/css'),
               'next/head': require.resolve('../../lib/head')
@@ -155,6 +150,13 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       libraryTarget: 'commonjs2',
       publicPath: hotReload ? 'http://localhost:3030/' : null
     },
+    externals: [
+      'react',
+      'react-dom',
+      'next/link',
+      'next/css',
+      'next/head'
+    ],
     resolve: {
       root: [
         nodeModulesDir,
