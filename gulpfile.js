@@ -8,6 +8,10 @@ const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
 
+// Notify that we are in the next dev mode.
+// So, build output will adust accordingly (may prodduce less optimized code)
+process.env.NEXT_DEV = '1'
+
 const babelOptions = {
   presets: ['es2015', 'react'],
   plugins: [

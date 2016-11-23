@@ -18,5 +18,5 @@ npm run dev
 To run this project:
 
 ```sh
-../../dist/bin/next
+NEXT_DEV=1 ../../dist/bin/next
 ```
