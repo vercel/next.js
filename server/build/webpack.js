@@ -14,7 +14,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
+  const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
@@ -56,7 +56,9 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
 
   if (hotReload) {
     plugins.push(
+      new webpack.optimize.OccurrenceOrderPlugin(),
       new webpack.HotModuleReplacementPlugin(),
+      new webpack.NoErrorsPlugin(),
       new DetachPlugin(),
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
@@ -144,7 +146,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? 'http://localhost:3030/' : null
+      publicPath: hotReload ? '/_webpack/' : null
     },
     externals: [
       'react',

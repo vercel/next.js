@@ -58,8 +58,8 @@
     "strip-ansi": "3.0.1",
     "url": "0.11.0",
     "webpack": "1.13.3",
-    "webpack-dev-server": "1.16.2",
-    "sockjs-client": "1.1.1",
+    "webpack-dev-middleware": "1.8.4",
+    "webpack-hot-middleware": "2.13.2",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {

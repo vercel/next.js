@@ -60,6 +60,10 @@ export default class Server {
   }
 
   async run (req, res) {
+    if (this.hotReloader) {
+      await this.hotReloader.run(req, res)
+    }
+
     const fn = this.router.match(req, res)
     if (fn) {
       await fn()
