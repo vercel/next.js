@@ -2,7 +2,7 @@
   "name": "next",
   "version": "1.1.2",
   "description": "Minimalistic framework for server-rendered React applications",
-  "main": "./dist/lib/index.js",
+  "main": "./dist/server/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
   "files": [

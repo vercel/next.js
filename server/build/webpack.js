@@ -8,13 +8,13 @@ import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 
-export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
+export default async function createCompiler (dir, { dev = false } = {}) {
   dir = resolve(dir)
 
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
+  const defaultEntries = dev ? ['next/dist/client/webpack-hot-middleware-client'] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
@@ -42,19 +42,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     })
   ]
 
-  if (!dev) {
-    plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify('production')
-      }),
-      new webpack.optimize.UglifyJsPlugin({
-        compress: { warnings: false },
-        sourceMap: false
-      })
-    )
-  }
-
-  if (hotReload) {
+  if (dev) {
     plugins.push(
       new webpack.optimize.OccurrenceOrderPlugin(),
       new webpack.HotModuleReplacementPlugin(),
@@ -64,6 +52,16 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
       new WatchPagesPlugin(dir)
+    )
+  } else {
+    plugins.push(
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify('production')
+      }),
+      new webpack.optimize.UglifyJsPlugin({
+        compress: { warnings: false },
+        sourceMap: false
+      })
     )
   }
 
@@ -81,7 +79,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       name: 'dist/[path][name].[ext]'
     }
   }]
-  .concat(hotReload ? [{
+  .concat(dev ? [{
     test: /\.js$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -146,7 +144,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? '/_webpack/' : null
+      publicPath: dev ? '/_webpack/' : null
     },
     externals: [
       'react',

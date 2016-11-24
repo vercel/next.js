@@ -17,7 +17,7 @@ const argv = parseArgs(process.argv.slice(2), {
 
 const dir = resolve(argv._[0] || '.')
 
-const srv = new Server({ dir })
+const srv = new Server(dir)
 srv.start(argv.port)
 .then(() => {
   console.log('> Ready on http://localhost:%d', argv.port)
