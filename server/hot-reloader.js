@@ -17,6 +17,7 @@ export default class HotReloader {
     this.prevAssets = null
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
+    this.prevChunkHashes = null
   }
 
   async run (req, res) {
@@ -66,6 +67,8 @@ export default class HotReloader {
       .reduce((a, b) => a.concat(b), [])
       .map((c) => c.name))
 
+      const chunkHashes = new Map(compilation.chunks.map((c) => [c.name, c.hash]))
+
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
         // e.g, pages/index.js <-> pages/_error.js
@@ -83,6 +86,16 @@ export default class HotReloader {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)
         }
+
+        for (const [n, hash] of chunkHashes) {
+          if (!this.prevChunkHashes.has(n)) continue
+          if (this.prevChunkHashes.get(n) === hash) continue
+
+          const route = toRoute(relative(rootDir, n))
+
+          // notify change to recover from runtime errors
+          this.send('change', route)
+        }
       }
 
       this.initialized = true
@@ -90,6 +103,7 @@ export default class HotReloader {
       this.compilationErrors = null
       this.prevChunkNames = chunkNames
       this.prevFailedChunkNames = failedChunkNames
+      this.prevChunkHashes = chunkHashes
     })
 
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, {

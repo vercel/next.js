@@ -16,6 +16,13 @@ const handlers = {
     }
 
     next.router.reload(route)
+  },
+  change (route) {
+    const { Component } = next.router.components[route] || {}
+    if (Component && Component.__route === '/_error-debug') {
+      // reload to recover from runtime errors
+      next.router.reload(route)
+    }
   }
 }
 

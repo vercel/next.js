@@ -1,19 +1,21 @@
 import React from 'react'
-import style, { merge } from 'next/css'
+import style from 'next/css'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : xhr.status
+    const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
     return { statusCode }
   }
 
   render () {
     const { statusCode } = this.props
-    const title = statusCode === 404 ? 'This page could not be found' : 'Internal Server Error'
+    const title = statusCode === 404
+      ? 'This page could not be found'
+      : (statusCode ? 'Internal Server Error' : 'An unexpected error has occurred')
 
-    return <div className={merge(styles.error, styles['error_' + statusCode])}>
+    return <div className={styles.error}>
       <div className={styles.text}>
-        <h1 className={styles.h1}>{statusCode}</h1>
+        {statusCode ? <h1 className={styles.h1}>{statusCode}</h1> : null}
         <div className={styles.desc}>
           <h2 className={styles.h2}>{title}.</h2>
         </div>
