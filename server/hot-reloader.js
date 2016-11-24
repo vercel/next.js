@@ -1,5 +1,6 @@
 import { join, relative, sep } from 'path'
-import WebpackDevServer from 'webpack-dev-server'
+import webpackDevMiddleware from 'webpack-dev-middleware'
+import webpackHotMiddleware from 'webpack-hot-middleware'
 import webpack from './build/webpack'
 import read from './read'
 
@@ -7,7 +8,9 @@ export default class HotReloader {
   constructor (dir, dev = false) {
     this.dir = dir
     this.dev = dev
-    this.server = null
+    this.middlewares = []
+    this.webpackDevMiddleware = null
+    this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
     this.compilationErrors = null
@@ -16,13 +19,23 @@ export default class HotReloader {
     this.prevFailedChunkNames = null
   }
 
-  async start () {
-    await this.prepareServer()
-    this.stats = await this.waitUntilValid()
-    await this.listen()
+  async run (req, res) {
+    for (const fn of this.middlewares) {
+      await new Promise((resolve, reject) => {
+        fn(req, res, (err) => {
+          if (err) reject(err)
+          resolve()
+        })
+      })
+    }
   }
 
-  async prepareServer () {
+  async start () {
+    await this.prepareMiddlewares()
+    this.stats = await this.waitUntilValid()
+  }
+
+  async prepareMiddlewares () {
     const compiler = await webpack(this.dir, { hotReload: true, dev: this.dev })
 
     compiler.plugin('after-emit', (compilation, callback) => {
@@ -79,11 +92,9 @@ export default class HotReloader {
       this.prevFailedChunkNames = failedChunkNames
     })
 
-    this.server = new WebpackDevServer(compiler, {
-      publicPath: '/',
-      hot: true,
+    this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
+      publicPath: '/_webpack/',
       noInfo: true,
-      clientLogLevel: 'warning',
       stats: {
         assets: false,
         children: false,
@@ -101,20 +112,18 @@ export default class HotReloader {
         warnings: false
       }
     })
+
+    this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+
+    this.middlewares = [
+      this.webpackDevMiddleware,
+      this.webpackHotMiddleware
+    ]
   }
 
   waitUntilValid () {
     return new Promise((resolve) => {
-      this.server.middleware.waitUntilValid(resolve)
-    })
-  }
-
-  listen () {
-    return new Promise((resolve, reject) => {
-      this.server.listen(3030, (err) => {
-        if (err) return reject(err)
-        resolve()
-      })
+      this.webpackDevMiddleware.waitUntilValid(resolve)
     })
   }
 
@@ -141,8 +150,8 @@ export default class HotReloader {
     return this.compilationErrors
   }
 
-  send (type, data) {
-    this.server.sockWrite(this.server.sockets, type, data)
+  send (action, ...args) {
+    this.webpackHotMiddleware.publish({ action, data: args })
   }
 }
 
