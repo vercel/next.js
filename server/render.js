@@ -20,8 +20,15 @@ export async function render (url, ctx = {}, {
   const mod = await requireModule(join(dir, '.next', 'dist', 'pages', path))
   const Component = mod.default || mod
 
-  const props = await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
-  const component = await read(join(dir, '.next', 'bundles', 'pages', path))
+  const [
+    props,
+    component,
+    errorComponent
+  ] = await Promise.all([
+    Component.getInitialProps ? Component.getInitialProps(ctx) : {},
+    read(join(dir, '.next', 'bundles', 'pages', path)),
+    read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
+  ])
 
   const { html, css, ids } = renderStatic(() => {
     const app = createElement(App, {
@@ -42,6 +49,7 @@ export async function render (url, ctx = {}, {
     css,
     data: {
       component,
+      errorComponent,
       props,
       ids: ids,
       err: (ctx.err && dev) ? errorToJSON(ctx.err) : null
