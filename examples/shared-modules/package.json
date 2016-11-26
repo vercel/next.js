@@ -4,7 +4,10 @@
   "description": "This example features:",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "next"
+  },
+  "dependencies": {
+    "next": "*"
   },
   "author": "",
   "license": "ISC",
