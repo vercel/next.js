@@ -70,18 +70,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\\/]package\.json$/, '')
 
-  const loaders = [{
-    test: /\.js$/,
-    loader: 'emit-file-loader',
-    include: [dir, nextPagesDir],
-    exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-    },
-    query: {
-      name: 'dist/[path][name].[ext]'
-    }
-  }]
-  .concat(hotReload ? [{
+  const loaders = (hotReload ? [{
     test: /\.js$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -90,6 +79,19 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     ]
   }] : [])
   .concat([{
+    test: /\.json$/,
+    loader: 'json-loader'
+  }, {
+    test: /\.(js|json)$/,
+    loader: 'emit-file-loader',
+    include: [dir, nextPagesDir],
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
+    query: {
+      name: 'dist/[path][name].[ext]'
+    }
+  }, {
     loader: 'babel',
     include: nextPagesDir,
     query: {
@@ -175,9 +177,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     },
     plugins,
     module: {
-      preLoaders: [
-        { test: /\.json$/, loader: 'json-loader' }
-      ],
       loaders
     },
     customInterpolateName: function (url, name, opts) {
