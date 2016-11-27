@@ -21,7 +21,9 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   // This it to support error handling in the dev time with hot code reload.
-  module.exports.router = router
+  if (window.next) {
+    window.next.router = router
+  }
 
   const headManager = new HeadManager()
   const container = document.getElementById('__next')
