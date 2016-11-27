@@ -33,18 +33,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
 
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
-  const alias = {
-    'babel-runtime': babelRuntimePath
-  }
-
-  // Alias next's API in the next dev mode.
-  // This is only required when developing Next.js
-  if (process.env.NEXT_DEV) {
-    alias['next/link'] = require.resolve('../../lib/link')
-    alias['next/css'] = require.resolve('../../lib/css')
-    alias['next/head'] = require.resolve('../../lib/head')
-  }
-
   const plugins = [
     new WriteFilePlugin({
       exitOnErrors: false,
@@ -137,7 +125,13 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
         [
           require.resolve('babel-plugin-module-resolver'),
           {
-            alias
+            alias: {
+              'babel-runtime': babelRuntimePath,
+              react: require.resolve('react'),
+              'next/link': require.resolve('../../lib/link'),
+              'next/css': require.resolve('../../lib/css'),
+              'next/head': require.resolve('../../lib/head')
+            }
           }
         ]
       ]
@@ -161,9 +155,12 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     externals: [
       'react',
       'react-dom',
-      'next/link',
-      'next/css',
-      'next/head'
+      {
+        [require.resolve('react')]: 'react',
+        [require.resolve('../../lib/link')]: 'next/link',
+        [require.resolve('../../lib/css')]: 'next/css',
+        [require.resolve('../../lib/head')]: 'next/head'
+      }
     ],
     resolve: {
       root: [
