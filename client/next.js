@@ -20,6 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx: { err }
   })
 
+  // This it to support error handling in the dev time with hot code reload.
+  window.next.router = router
+
   const headManager = new HeadManager()
   const container = document.getElementById('__next')
   const appProps = { Component, props, router, headManager }
