@@ -118,6 +118,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     query: {
       presets: ['es2015', 'react'],
       plugins: [
+        require.resolve('babel-plugin-react-require'),
         require.resolve('babel-plugin-transform-async-to-generator'),
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
