@@ -39,6 +39,10 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       log: false,
       // required not to cache removed files
       useHashIndex: false
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'commons',
+      filename: 'commons.js'
     })
   ]
 
