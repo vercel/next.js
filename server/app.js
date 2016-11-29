@@ -1,7 +1,13 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
 import send from 'send'
-import { render, renderJSON, errorToJSON } from './render'
+import {
+  renderToHTML,
+  renderErrorToHTML,
+  renderJSON,
+  renderErrorJSON,
+  sendHTML
+} from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
@@ -44,12 +50,14 @@ export default class App {
       await this.serveStatic(req, res, p)
     })
 
-    this.router.get('/:path+.json', async (req, res) => {
-      await this.renderJSON(req, res)
+    this.router.get('/:path+.json', async (req, res, params) => {
+      const pathname = join(...(params.path || []))
+      await this.renderJSON(res, pathname)
     })
 
     this.router.get('/:path*', async (req, res) => {
-      await this.render(req, res)
+      const { pathname, query } = parse(req.url, true)
+      await this.render(req, res, pathname, query)
     })
   }
 
@@ -66,113 +74,113 @@ export default class App {
     }
   }
 
-  async render (req, res) {
-    const { pathname, query } = parse(req.url, true)
-    const ctx = { req, res, pathname, query }
+  async render (req, res, pathname, query) {
+    const html = await this.renderToHTML(req, res, pathname, query)
+    sendHTML(res, html)
+  }
 
-    const compilationErr = this.getCompilationError(req.url)
-    if (compilationErr) {
-      await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr })
-      return
+  async renderToHTML (req, res, pathname, query) {
+    const { dir, dev } = this
+
+    if (dev) {
+      const compilationErr = this.getCompilationError(pathname)
+      if (compilationErr) {
+        res.statusCode = 500
+        return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
+      }
     }
 
+    const opts = { dir, dev }
+
     try {
-      await this.doRender(res, 200, req.url, ctx)
+      return await renderToHTML(req, res, pathname, query, opts)
     } catch (err) {
-      const compilationErr2 = this.getCompilationError('/_error')
-      if (compilationErr2) {
-        await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr2 })
-        return
-      }
-
-      if (err.code !== 'ENOENT') {
+      if (err.code === 'ENOENT') {
+        res.statusCode = 404
+        return this.renderErrorToHTML(null, req, res, pathname, query)
+      } else {
         console.error(err)
-        const url = this.dev ? '/_error-debug' : '/_error'
-        await this.doRender(res, 500, url, { ...ctx, err })
-        return
-      }
-
-      try {
-        await this.doRender(res, 404, '/_error', { ...ctx, err })
-      } catch (err2) {
-        if (this.dev) {
-          await this.doRender(res, 500, '/_error-debug', { ...ctx, err: err2 })
-        } else {
-          throw err2
-        }
+        res.statusCode = 500
+        return this.renderErrorToHTML(err, req, res, pathname, query)
       }
     }
   }
 
-  async doRender (res, statusCode, url, ctx) {
-    const { dir, dev } = this
-
-    // need to set statusCode before `render`
-    // since it can be used on getInitialProps
-    res.statusCode = statusCode
-
-    const html = await render(url, ctx, { dir, dev })
+  async renderError (err, req, res, pathname, query) {
+    const html = await this.renderErrorToHTML(err, req, res, pathname, query)
     sendHTML(res, html)
+  }
+
+  async renderErrorToHTML (err, req, res, pathname, query) {
+    const { dir, dev } = this
+    const opts = { dir, dev }
+
+    if (dev) {
+      const compilationErr = this.getCompilationError('/_error')
+      if (compilationErr) {
+        res.statusCode = 500
+        return renderErrorToHTML(compilationErr, req, res, pathname, query, opts)
+      }
+    }
+
+    try {
+      return await renderErrorToHTML(err, req, res, pathname, query, opts)
+    } catch (err2) {
+      if (dev) {
+        console.error(err2)
+        res.statusCode = 500
+        return renderErrorToHTML(err2, req, res, pathname, query, opts)
+      } else {
+        throw err2
+      }
+    }
   }
 
   async render404 (req, res) {
     const { pathname, query } = parse(req.url, true)
-    const ctx = { req, res, pathname, query }
-
-    const compilationErr = this.getCompilationError('/_error')
-    if (compilationErr) {
-      await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr })
-      return
-    }
-
-    try {
-      await this.doRender(res, 404, '/_error', ctx)
-    } catch (err) {
-      if (this.dev) {
-        await this.doRender(res, 500, '/_error-debug', { ...ctx, err })
-      } else {
-        throw err
-      }
-    }
+    res.statusCode = 404
+    this.renderErrorToHTML(null, req, res, pathname, query)
   }
 
-  async renderJSON (req, res) {
-    const compilationErr = this.getCompilationError(req.url)
-    if (compilationErr) {
-      await this.doRenderJSON(res, 500, '/_error-debug.json', compilationErr)
-      return
+  async renderJSON (res, page) {
+    const { dir, dev } = this
+
+    if (dev) {
+      const compilationErr = this.getCompilationError(page)
+      if (compilationErr) {
+        return this.renderErrorJSON(compilationErr, res)
+      }
     }
 
-    try {
-      await this.doRenderJSON(res, 200, req.url)
-    } catch (err) {
-      const compilationErr2 = this.getCompilationError('/_error.json')
-      if (compilationErr2) {
-        await this.doRenderJSON(res, 500, '/_error-debug.json', compilationErr2)
-        return
-      }
+    const opts = { dir, dev }
 
+    try {
+      await renderJSON(res, page, opts)
+    } catch (err) {
       if (err.code === 'ENOENT') {
-        await this.doRenderJSON(res, 404, '/_error.json')
+        res.statusCode = 404
+        return this.renderErrorJSON(null, res)
       } else {
         console.error(err)
-        await this.doRenderJSON(res, 500, '/_error.json')
+        res.statusCode = 500
+        return this.renderErrorJSON(err, res)
       }
     }
   }
 
-  async doRenderJSON (res, statusCode, url, err) {
-    const { dir } = this
-    const json = await renderJSON(url, { dir })
-    if (err) {
-      json.err = errorToJSON(err)
+  async renderErrorJSON (err, res) {
+    const { dir, dev } = this
+    const opts = { dir, dev }
+
+    if (dev) {
+      const compilationErr = this.getCompilationError('/_error')
+      if (compilationErr) {
+        res.statusCode = 500
+        return renderErrorJSON(compilationErr, res, opts)
+      }
     }
 
-    const data = JSON.stringify(json)
-    res.setHeader('Content-Type', 'application/json')
-    res.setHeader('Content-Length', Buffer.byteLength(data))
-    res.statusCode = statusCode
-    res.end(data)
+    return renderErrorJSON(err, res, opts)
   }
 
   serveStatic (req, res, path) {
@@ -190,21 +198,15 @@ export default class App {
     })
   }
 
-  getCompilationError (url) {
+  getCompilationError (page) {
     if (!this.hotReloader) return
 
     const errors = this.hotReloader.getCompilationErrors()
     if (!errors.size) return
 
-    const p = parse(url || '/').pathname.replace(/\.json$/, '')
-    const id = join(this.dir, '.next', 'bundles', 'pages', p)
-    const path = resolveFromList(id, errors.keys())
-    if (path) return errors.get(path)[0]
+    const id = join(this.dir, '.next', 'bundles', 'pages', page)
+    const p = resolveFromList(id, errors.keys())
+    if (p) return errors.get(p)[0]
   }
 }
 
-function sendHTML (res, html) {
-  res.setHeader('Content-Type', 'text/html')
-  res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(html)
-}

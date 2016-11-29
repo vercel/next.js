@@ -1,7 +1,7 @@
 import test from 'ava'
 import { join } from 'path'
 import build from '../server/build'
-import { render as _render } from '../server/render'
+import { renderToHTML } from '../server/render'
 
 const dir = join(__dirname, 'fixtures', 'basic')
 
@@ -36,6 +36,6 @@ test(async t => {
   t.true(html.includes('<p>Diego Milito</p>'))
 })
 
-function render (url, ctx) {
-  return _render(url, ctx, { dir, staticMarkup: true })
+function render (pathname, query = {}) {
+  return renderToHTML({}, {}, pathname, query, { dir, staticMarkup: true })
 }
