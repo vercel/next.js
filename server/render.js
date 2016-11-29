@@ -51,6 +51,9 @@ async function doRender (req, res, pathname, query, {
     read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
   ])
 
+  // the response might be finshed on the getinitialprops call
+  if (res.finished) return
+
   const { html, css, ids } = renderStatic(() => {
     const app = createElement(App, {
       Component,
