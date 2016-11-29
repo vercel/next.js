@@ -16,8 +16,7 @@ export async function render (req, res, pathname, query, opts) {
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
-  const ctx = { req, res, pathname, query }
-  return doRender(pathname, ctx, opts)
+  return doRender(req, res, pathname, query, opts)
 }
 
 export async function renderError (err, req, res, pathname, query, opts) {
@@ -27,17 +26,20 @@ export async function renderError (err, req, res, pathname, query, opts) {
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   const page = err && opts.dev ? '/_error-debug' : '/_error'
-  const ctx = { err, req, res, pathname, query }
-  return doRender(page, ctx, opts)
+  return doRender(req, res, pathname, query, { ...opts, err, page })
 }
 
-async function doRender (page, ctx = {}, {
+async function doRender (req, res, pathname, query, {
+  err,
+  page,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
 } = {}) {
+  page = page || pathname
   const mod = await requireModule(join(dir, '.next', 'dist', 'pages', page))
   const Component = mod.default || mod
+  const ctx = { err, req, res, pathname, query }
 
   const [
     props,
@@ -53,7 +55,7 @@ async function doRender (page, ctx = {}, {
     const app = createElement(App, {
       Component,
       props,
-      router: new Router(ctx.pathname, ctx.query)
+      router: new Router(pathname, query)
     })
 
     return (staticMarkup ? renderToStaticMarkup : renderToString)(app)
@@ -70,8 +72,10 @@ async function doRender (page, ctx = {}, {
       component,
       errorComponent,
       props,
+      pathname,
+      query,
       ids: ids,
-      err: (ctx.err && dev) ? errorToJSON(ctx.err) : null
+      err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
     staticMarkup,

@@ -1,4 +1,3 @@
-import { parse } from 'url'
 import { createElement } from 'react'
 import { render } from 'react-dom'
 import HeadManager from './head-manager'
@@ -8,13 +7,20 @@ import App from '../lib/app'
 import evalScript from '../lib/eval-script'
 
 const {
-  __NEXT_DATA__: { component, errorComponent, props, ids, err }
+  __NEXT_DATA__: {
+    component,
+    errorComponent,
+    props,
+    ids,
+    err,
+    pathname,
+    query
+  }
 } = window
 
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 
-const { pathname, query } = parse(window.location.href, true)
 export const router = new Router(pathname, query, {
   Component,
   ErrorComponent,
