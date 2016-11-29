@@ -3,6 +3,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "accepts": "1.3.3",
     "next": "*"
   }
 }

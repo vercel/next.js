@@ -1,6 +1,7 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
 import send from 'send'
+import accepts from 'accepts'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -50,14 +51,14 @@ export default class App {
       await this.serveStatic(req, res, p)
     })
 
-    this.router.get('/:path+.json', async (req, res, params) => {
-      const pathname = join(...(params.path || []))
-      await this.renderJSON(res, pathname)
-    })
-
     this.router.get('/:path*', async (req, res) => {
       const { pathname, query } = parse(req.url, true)
-      await this.render(req, res, pathname, query)
+      const accept = accepts(req)
+      if (accept.type(['json', 'html']) === 'json') {
+        await this.renderJSON(res, pathname)
+      } else {
+        await this.render(req, res, pathname, query)
+      }
     })
   }
 
