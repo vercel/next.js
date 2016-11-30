@@ -14,7 +14,8 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = dev ? ['next/dist/client/webpack-hot-middleware-client'] : []
+  const defaultEntries = dev
+    ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
