@@ -43,7 +43,7 @@
     "babel-runtime": "6.18.0",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
-    "glamor": "2.18.2",
+    "glamor": "2.20.8",
     "glob-promise": "2.0.0",
     "htmlescape": "1.1.1",
     "is-windows-bash": "1.0.1",
