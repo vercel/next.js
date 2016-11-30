@@ -10,12 +10,13 @@ app.prepare()
 .then(() => {
   createServer((req, res) => {
     const accept = accepts(req)
-    const { pathname, query } = parse(req.url, true)
     const type = accept.type(['json', 'html'])
     if (type === 'json') {
       handle(req, res)
       return
     }
+
+    const { pathname, query } = parse(req.url, true)
 
     if (pathname === '/a') {
       app.render(req, res, '/b', query)
