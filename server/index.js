@@ -15,9 +15,11 @@ import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
 
 export default class Server {
-  constructor (dir, { dev = false } = {}) {
+  constructor (dir, { dev = false, staticMarkup = false, quiet = false } = {}) {
     this.dir = resolve(dir || '.')
     this.dev = dev
+    this.quiet = quiet
+    this.renderOpts = { dir: this.dir, dev, staticMarkup }
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir) : null
     this.http = null
@@ -29,7 +31,7 @@ export default class Server {
     return (req, res) => {
       this.run(req, res)
       .catch((err) => {
-        console.error(err)
+        if (!this.quiet) console.error(err)
         res.statusCode = 500
         res.end('error')
       })
@@ -94,9 +96,7 @@ export default class Server {
   }
 
   async renderToHTML (req, res, pathname, query) {
-    const { dir, dev } = this
-
-    if (dev) {
+    if (this.dev) {
       const compilationErr = this.getCompilationError(pathname)
       if (compilationErr) {
         res.statusCode = 500
@@ -104,16 +104,14 @@ export default class Server {
       }
     }
 
-    const opts = { dir, dev }
-
     try {
-      return await renderToHTML(req, res, pathname, query, opts)
+      return await renderToHTML(req, res, pathname, query, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
-        console.error(err)
+        if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
       }
@@ -126,24 +124,21 @@ export default class Server {
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
-    const { dir, dev } = this
-    const opts = { dir, dev }
-
-    if (dev) {
+    if (this.dev) {
       const compilationErr = this.getCompilationError('/_error')
       if (compilationErr) {
         res.statusCode = 500
-        return renderErrorToHTML(compilationErr, req, res, pathname, query, opts)
+        return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
       }
     }
 
     try {
-      return await renderErrorToHTML(err, req, res, pathname, query, opts)
+      return await renderErrorToHTML(err, req, res, pathname, query, this.renderOpts)
     } catch (err2) {
-      if (dev) {
-        console.error(err2)
+      if (this.dev) {
+        if (!this.quiet) console.error(err2)
         res.statusCode = 500
-        return renderErrorToHTML(err2, req, res, pathname, query, opts)
+        return renderErrorToHTML(err2, req, res, pathname, query, this.renderOpts)
       } else {
         throw err2
       }
@@ -157,25 +152,21 @@ export default class Server {
   }
 
   async renderJSON (res, page) {
-    const { dir, dev } = this
-
-    if (dev) {
+    if (this.dev) {
       const compilationErr = this.getCompilationError(page)
       if (compilationErr) {
         return this.renderErrorJSON(compilationErr, res)
       }
     }
 
-    const opts = { dir, dev }
-
     try {
-      await renderJSON(res, page, opts)
+      await renderJSON(res, page, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorJSON(null, res)
       } else {
-        console.error(err)
+        if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorJSON(err, res)
       }
@@ -183,18 +174,15 @@ export default class Server {
   }
 
   async renderErrorJSON (err, res) {
-    const { dir, dev } = this
-    const opts = { dir, dev }
-
-    if (dev) {
+    if (this.dev) {
       const compilationErr = this.getCompilationError('/_error')
       if (compilationErr) {
         res.statusCode = 500
-        return renderErrorJSON(compilationErr, res, opts)
+        return renderErrorJSON(compilationErr, res, this.renderOpts)
       }
     }
 
-    return renderErrorJSON(err, res, opts)
+    return renderErrorJSON(err, res, this.renderOpts)
   }
 
   serveStatic (req, res, path) {
