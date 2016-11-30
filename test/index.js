@@ -1,11 +1,15 @@
 import test from 'ava'
 import { join } from 'path'
-import build from '../server/build'
-import { renderToHTML } from '../server/render'
+import next from '../server/next'
 
 const dir = join(__dirname, 'fixtures', 'basic')
+const app = next(dir, {
+  dev: true,
+  staticMarkup: true,
+  quiet: true
+})
 
-test.before(() => build(dir))
+test.before(() => app.prepare())
 
 test(async t => {
   const html = await render('/stateless')
@@ -36,6 +40,28 @@ test(async t => {
   t.true(html.includes('<p>Diego Milito</p>'))
 })
 
+test(async t => {
+  const html = await render('/error')
+  t.regex(html, /<pre class=".+">Error: This is an expected error\n[^]+<\/pre>/)
+})
+
+test(async t => {
+  const html = await render('/non-existent')
+  t.regex(html, /<h1 class=".+">404<\/h1>/)
+  t.regex(html, /<h2 class=".+">This page could not be found\.<\/h2>/)
+})
+
+test(async t => {
+  const res = {
+    finished: false,
+    end () {
+      this.finished = true
+    }
+  }
+  const html = await app.renderToHTML({}, res, '/finish-response', {})
+  t.falsy(html)
+})
+
 function render (pathname, query = {}) {
-  return renderToHTML({}, {}, pathname, query, { dir, staticMarkup: true })
+  return app.renderToHTML({}, {}, pathname, query)
 }
