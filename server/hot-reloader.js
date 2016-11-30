@@ -1,6 +1,7 @@
 import { join, relative, sep } from 'path'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
+import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import read from './read'
@@ -109,6 +110,14 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
+    const windowsSettings = isWindowsBash() ? {
+      lazy: false,
+      watchOptions: {
+        aggregateTimeout: 300,
+        poll: true
+      }
+    } : {}
+
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
       publicPath: '/_webpack/',
       noInfo: true,
@@ -127,7 +136,8 @@ export default class HotReloader {
         timings: false,
         version: false,
         warnings: false
-      }
+      },
+      ...windowsSettings
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })

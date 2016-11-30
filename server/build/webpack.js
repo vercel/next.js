@@ -40,6 +40,10 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       log: false,
       // required not to cache removed files
       useHashIndex: false
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'commons',
+      filename: 'commons.js'
     })
   ]
 
@@ -113,6 +117,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     query: {
       presets: ['es2015', 'react'],
       plugins: [
+        require.resolve('babel-plugin-react-require'),
         require.resolve('babel-plugin-transform-async-to-generator'),
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
