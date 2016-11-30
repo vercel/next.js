@@ -113,7 +113,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     loader: 'babel',
     include: [dir, nextPagesDir],
     exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0 && str.indexOf(dir) !== 0
     },
     query: {
       presets: ['es2015', 'react'],
