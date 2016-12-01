@@ -32,7 +32,7 @@
     "babel-core": "6.18.2",
     "babel-generator": "6.19.0",
     "babel-loader": "6.2.8",
-    "babel-plugin-module-resolver": "2.3.0",
+    "babel-plugin-module-resolver": "2.4.0",
     "babel-plugin-react-require": "^3.0.0",
     "babel-plugin-transform-async-to-generator": "6.16.0",
     "babel-plugin-transform-class-properties": "6.19.0",
