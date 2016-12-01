@@ -72,7 +72,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   }
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\\/]package\.json$/, '')
+  .replace(/[\\/]package\.json$/, '')
 
   const loaders = [{
     test: /\.js$/,
