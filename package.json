@@ -46,7 +46,7 @@
     "glamor": "2.20.8",
     "glob-promise": "2.0.0",
     "htmlescape": "1.1.1",
-    "is-windows-bash": "1.0.1",
+    "is-windows-bash": "1.0.2",
     "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
