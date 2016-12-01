@@ -1,4 +1,4 @@
-import HTMLDOMPropertyConfig from 'react/lib/HTMLDOMPropertyConfig'
+import HTMLDOMPropertyConfig from 'react-dom/lib/HTMLDOMPropertyConfig'
 
 const DEFAULT_TITLE = ''
 

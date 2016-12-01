@@ -5,12 +5,12 @@ import style from 'next/css'
 
 export default class ErrorDebug extends React.Component {
   static getInitialProps ({ err }) {
-    const { message, module } = err
-    return { message, path: module.rawRequest }
+    const { name, message, stack, module } = err
+    return { name, message, stack, path: module ? module.rawRequest : null }
   }
 
   render () {
-    const { message, path } = this.props
+    const { name, message, stack, path } = this.props
 
     return <div className={styles.errorDebug}>
       <Head>
@@ -21,8 +21,12 @@ export default class ErrorDebug extends React.Component {
           }
         `}} />
       </Head>
-      <div className={styles.heading}>Error in {path}</div>
-      <pre className={styles.message} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
+      {path ? <div className={styles.heading}>Error in {path}</div> : null}
+      {
+        name === 'ModuleBuildError'
+        ? <pre className={styles.message} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
+        : <pre className={styles.message}>{stack}</pre>
+      }
     </div>
   }
 }
