@@ -77,7 +77,7 @@
     "gulp-notify": "2.2.0",
     "husky": "0.11.9",
     "run-sequence": "1.2.2",
-    "standard": "8.5.0",
+    "standard": "8.6.0",
     "webpack-stream": "3.2.0"
   }
 }
