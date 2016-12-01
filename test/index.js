@@ -36,6 +36,11 @@ test(async t => {
   t.true(html.includes('<p>Diego Milito</p>'))
 })
 
+test(async t => {
+  const html = await render('/catch-all/4')
+  t.true(html.includes('<p>user id: 4</p>'))
+})
+
 function render (url, ctx) {
   return _render(url, ctx, { dir, staticMarkup: true })
 }
