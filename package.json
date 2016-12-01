@@ -32,7 +32,8 @@
     "babel-core": "6.18.2",
     "babel-generator": "6.19.0",
     "babel-loader": "6.2.8",
-    "babel-plugin-module-resolver": "2.3.0",
+    "babel-plugin-module-resolver": "2.4.0",
+    "babel-plugin-react-require": "^3.0.0",
     "babel-plugin-transform-async-to-generator": "6.16.0",
     "babel-plugin-transform-class-properties": "6.19.0",
     "babel-plugin-transform-object-rest-spread": "6.19.0",
@@ -42,9 +43,10 @@
     "babel-runtime": "6.18.0",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
-    "glamor": "2.19.0",
+    "glamor": "2.20.8",
     "glob-promise": "2.0.0",
     "htmlescape": "1.1.1",
+    "is-windows-bash": "1.0.2",
     "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
@@ -58,8 +60,8 @@
     "strip-ansi": "3.0.1",
     "url": "0.11.0",
     "webpack": "1.13.3",
-    "webpack-dev-server": "1.16.2",
-    "sockjs-client": "1.1.1",
+    "webpack-dev-middleware": "1.8.4",
+    "webpack-hot-middleware": "2.13.2",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
@@ -75,7 +77,7 @@
     "gulp-notify": "2.2.0",
     "husky": "0.11.9",
     "run-sequence": "1.2.2",
-    "standard": "8.5.0",
+    "standard": "8.6.0",
     "webpack-stream": "3.2.0"
   }
 }

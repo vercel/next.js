@@ -14,7 +14,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
+  const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
@@ -39,6 +39,10 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       log: false,
       // required not to cache removed files
       useHashIndex: false
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'commons',
+      filename: 'commons.js'
     })
   ]
 
@@ -56,7 +60,9 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
 
   if (hotReload) {
     plugins.push(
+      new webpack.optimize.OccurrenceOrderPlugin(),
       new webpack.HotModuleReplacementPlugin(),
+      new webpack.NoErrorsPlugin(),
       new DetachPlugin(),
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
@@ -66,7 +72,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   }
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\\/]package\.json$/, '')
+  .replace(/[\\/]package\.json$/, '')
 
   const loaders = [{
     test: /\.js$/,
@@ -107,11 +113,12 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     loader: 'babel',
     include: [dir, nextPagesDir],
     exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0 && str.indexOf(dir) !== 0
     },
     query: {
       presets: ['es2015', 'react'],
       plugins: [
+        require.resolve('babel-plugin-react-require'),
         require.resolve('babel-plugin-transform-async-to-generator'),
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
@@ -144,7 +151,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? 'http://localhost:3030/' : null
+      publicPath: hotReload ? '/_webpack/' : null
     },
     externals: [
       'react',

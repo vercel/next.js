@@ -100,7 +100,7 @@ gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
   .src('dist/client/next-dev.js')
   .pipe(webpack({
     quiet: true,
-    output: { filename: 'next-dev.bundle.js' },
+    output: { filename: 'next-dev.bundle.js', libraryTarget: 'var', library: 'require' },
     module: {
       loaders: [
         {
@@ -125,7 +125,7 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   .src('dist/client/next.js')
   .pipe(webpack({
     quiet: true,
-    output: { filename: 'next.bundle.js' },
+    output: { filename: 'next.bundle.js', libraryTarget: 'var', library: 'require' },
     plugins: [
       new webpack.webpack.DefinePlugin({
         'process.env': {
