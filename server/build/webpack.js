@@ -70,7 +70,10 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
       new WatchPagesPlugin(dir),
-      new FriendlyErrorsWebpackPlugin()
+      new FriendlyErrorsWebpackPlugin({
+        // see https://github.com/geowarin/friendly-errors-webpack-plugin/pull/11
+        clearConsole: true
+      })
     )
   }
 
