@@ -66,6 +66,7 @@
     "babel-runtime": "6.18.0",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
+    "domready": "1.0.8",
     "friendly-errors-webpack-plugin": "1.1.1",
     "glamor": "2.20.8",
     "glob-promise": "2.0.0",
