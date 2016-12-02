@@ -67,16 +67,13 @@ Glamor's [HowTo](https://github.com/threepointone/glamor/blob/master/docs/howto.
 
 ```jsx
 import React from 'react'
-import css, {insertRule} from 'next/css'
+import css from 'next/css'
 
 export default () => (
   <div className={style}>
     Hello world
   </div>
 )
-
-// Global CSS rule
-insertRule("html, body { margin: 0; padding: 0; }")
 
 const style = css({
   background: 'red',
@@ -88,6 +85,10 @@ const style = css({
   }
 })
 ```
+
+### Images and other static files
+
+Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs, e.g.: `<img src="/static/file-name.jpg" />`.
 
 ### `<head>` side effects
 
@@ -187,13 +188,17 @@ import React from 'react'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : xhr.status
+    const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
     return { statusCode }
   }
 
   render () {
     return (
-      <p>An error { this.props.statusCode } occurred</p>
+      <p>{
+        this.props.statusCode
+        ? `An error ${this.props.statusCode} occurred on server`
+        : 'An error occurred on client'
+      ]</p>
     )
   }
 }

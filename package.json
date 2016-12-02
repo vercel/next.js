@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/lib/index.js",
   "license": "MIT",
@@ -22,72 +22,64 @@
     "precommit": "npm run lint"
   },
   "ava": {
-    "babel": {
-      "presets": [
-        "es2015",
-        "react"
-      ],
-      "plugins": [
-        "transform-async-to-generator",
-        "transform-object-rest-spread",
-        "transform-class-properties",
-        "transform-runtime"
-      ]
-    }
+    "babel": {}
   },
   "standard": {
     "parser": "babel-eslint"
   },
   "dependencies": {
     "ansi-html": "0.0.6",
-    "babel-core": "6.17.0",
-    "babel-generator": "6.17.0",
-    "babel-loader": "6.2.5",
-    "babel-plugin-module-resolver": "2.3.0",
+    "babel-core": "6.18.2",
+    "babel-generator": "6.19.0",
+    "babel-loader": "6.2.8",
+    "babel-plugin-module-resolver": "2.4.0",
+    "babel-plugin-react-require": "^3.0.0",
     "babel-plugin-transform-async-to-generator": "6.16.0",
-    "babel-plugin-transform-class-properties": "6.16.0",
-    "babel-plugin-transform-object-rest-spread": "6.16.0",
+    "babel-plugin-transform-class-properties": "6.19.0",
+    "babel-plugin-transform-object-rest-spread": "6.19.0",
     "babel-plugin-transform-runtime": "6.15.0",
-    "babel-preset-es2015": "6.16.0",
+    "babel-preset-es2015": "6.18.0",
     "babel-preset-react": "6.16.0",
-    "babel-runtime": "6.11.6",
-    "cross-spawn": "4.0.2",
+    "babel-runtime": "6.18.0",
+    "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.1.0",
-    "glamor": "2.17.10",
-    "glob-promise": "1.0.6",
+    "glamor": "2.20.8",
+    "glob-promise": "2.0.0",
     "htmlescape": "1.1.1",
+    "is-windows-bash": "1.0.2",
     "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
-    "mz": "2.4.0",
+    "mz": "2.6.0",
     "path-match": "1.2.4",
-    "react": "15.3.2",
-    "react-dom": "15.3.2",
+    "react": "15.4.1",
+    "react-dom": "15.4.1",
     "react-hot-loader": "3.0.0-beta.6",
     "send": "0.14.1",
     "sockjs-client": "1.1.1",
     "strip-ansi": "3.0.1",
     "url": "0.11.0",
-    "webpack": "1.13.2",
-    "webpack-dev-server": "1.16.2",
-    "write-file-webpack-plugin": "3.3.0"
+    "webpack": "1.13.3",
+    "webpack-dev-middleware": "1.8.4",
+    "webpack-hot-middleware": "2.13.2",
+    "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
-    "ava": "0.16.0",
-    "babel-eslint": "7.0.0",
+    "ava": "0.17.0",
+    "babel-eslint": "7.1.1",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
-    "benchmark": "2.1.1",
+    "benchmark": "2.1.2",
     "gulp": "3.9.1",
-    "gulp-ava": "0.14.1",
+    "gulp-ava": "0.15.0",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
-    "gulp-cached": "1.1.0",
+    "gulp-cached": "1.1.1",
     "gulp-notify": "2.2.0",
     "husky": "0.11.9",
     "run-sequence": "1.2.2",
-    "standard": "8.4.0",
+    "standard": "8.6.0",
     "webpack-stream": "3.2.0"
   }
 }

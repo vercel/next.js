@@ -9,13 +9,13 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 
-export default async function createCompiler (dir, { hotReload = false } = {}) {
+export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
   dir = resolve(dir)
 
   const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['webpack/hot/dev-server'] : []
+  const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
   }
@@ -35,45 +35,48 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify('production')
-    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
       // required not to cache removed files
       useHashIndex: false
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'commons',
+      filename: 'commons.js'
     })
-  ].concat(hotReload ? [
-    new webpack.HotModuleReplacementPlugin(),
-    new DetachPlugin(),
-    new DynamicEntryPlugin(),
-    new UnlinkFilePlugin(),
-    new WatchRemoveEventPlugin(),
-    new WatchPagesPlugin(dir),
-    new FriendlyErrorsWebpackPlugin()
-  ] : [
-    new webpack.optimize.UglifyJsPlugin({
-      compress: { warnings: false },
-      sourceMap: false
-    })
-  ])
+  ]
+
+  if (!dev) {
+    plugins.push(
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify('production')
+      }),
+      new webpack.optimize.UglifyJsPlugin({
+        compress: { warnings: false },
+        sourceMap: false
+      })
+    )
+  }
+
+  if (hotReload) {
+    plugins.push(
+      new webpack.optimize.OccurrenceOrderPlugin(),
+      new webpack.HotModuleReplacementPlugin(),
+      new webpack.NoErrorsPlugin(),
+      new DetachPlugin(),
+      new DynamicEntryPlugin(),
+      new UnlinkFilePlugin(),
+      new WatchRemoveEventPlugin(),
+      new WatchPagesPlugin(dir),
+      new FriendlyErrorsWebpackPlugin()
+    )
+  }
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\\/]package\.json$/, '')
+  .replace(/[\\/]package\.json$/, '')
 
-  const loaders = [{
-    test: /\.js$/,
-    loader: 'emit-file-loader',
-    include: [dir, nextPagesDir],
-    exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-    },
-    query: {
-      name: 'dist/[path][name].[ext]'
-    }
-  }]
-  .concat(hotReload ? [{
+  const loaders = (hotReload ? [{
     test: /\.js$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -82,6 +85,19 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     ]
   }] : [])
   .concat([{
+    test: /\.json$/,
+    loader: 'json-loader'
+  }, {
+    test: /\.(js|json)$/,
+    loader: 'emit-file-loader',
+    include: [dir, nextPagesDir],
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
+    query: {
+      name: 'dist/[path][name].[ext]'
+    }
+  }, {
     loader: 'babel',
     include: nextPagesDir,
     query: {
@@ -101,11 +117,12 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     loader: 'babel',
     include: [dir, nextPagesDir],
     exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0 && str.indexOf(dir) !== 0
     },
     query: {
       presets: ['es2015', 'react'],
       plugins: [
+        require.resolve('babel-plugin-react-require'),
         require.resolve('babel-plugin-transform-async-to-generator'),
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
@@ -138,7 +155,7 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? 'http://localhost:3030/' : null
+      publicPath: hotReload ? '/_webpack/' : null
     },
     externals: [
       'react',
@@ -154,7 +171,10 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
       root: [
         nodeModulesDir,
         join(dir, 'node_modules')
-      ]
+      ].concat(
+        (process.env.NODE_PATH || '')
+        .split(process.platform === 'win32' ? ';' : ':')
+      )
     },
     resolveLoader: {
       root: [
@@ -164,9 +184,6 @@ export default async function createCompiler (dir, { hotReload = false } = {}) {
     },
     plugins,
     module: {
-      preLoaders: [
-        { test: /\.json$/, loader: 'json-loader' }
-      ],
       loaders
     },
     customInterpolateName: function (url, name, opts) {

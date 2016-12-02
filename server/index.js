@@ -11,14 +11,14 @@ export default class Server {
   constructor ({ dir = '.', dev = false, hotReload = false }) {
     this.dir = resolve(dir)
     this.dev = dev
-    this.hotReloader = hotReload ? new HotReloader(this.dir) : null
+    this.hotReloader = hotReload ? new HotReloader(this.dir, this.dev) : null
     this.router = new Router()
 
     this.http = http.createServer((req, res) => {
       this.run(req, res)
       .catch((err) => {
         console.error(err)
-        res.status(500)
+        res.statusCode = 500
         res.end('error')
       })
     })
@@ -40,6 +40,11 @@ export default class Server {
   }
 
   defineRoutes () {
+    this.router.get('/_next/commons.js', async (req, res, params) => {
+      const p = join(this.dir, '.next/commons.js')
+      await this.serveStatic(req, res, p)
+    })
+
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
       await this.serveStatic(req, res, p)
@@ -60,6 +65,10 @@ export default class Server {
   }
 
   async run (req, res) {
+    if (this.hotReloader) {
+      await this.hotReloader.run(req, res)
+    }
+
     const fn = this.router.match(req, res)
     if (fn) {
       await fn()
@@ -69,96 +78,112 @@ export default class Server {
   }
 
   async render (req, res) {
-    const { dir, dev } = this
     const { pathname, query } = parse(req.url, true)
     const ctx = { req, res, pathname, query }
-    const opts = { dir, dev }
 
-    let html
+    const compilationErr = this.getCompilationError(req.url)
+    if (compilationErr) {
+      await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr })
+      return
+    }
 
-    const err = this.getCompilationError(req.url)
-    if (err) {
-      res.statusCode = 500
-      html = await render('/_error-debug', { ...ctx, err }, opts)
-    } else {
+    try {
+      await this.doRender(res, 200, req.url, ctx)
+    } catch (err) {
+      const compilationErr2 = this.getCompilationError('/_error')
+      if (compilationErr2) {
+        await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr2 })
+        return
+      }
+
+      if (err.code !== 'ENOENT') {
+        console.error(err)
+        const url = this.dev ? '/_error-debug' : '/_error'
+        await this.doRender(res, 500, url, { ...ctx, err })
+        return
+      }
+
       try {
-        html = await render(req.url, ctx, opts)
-      } catch (err) {
-        const _err = this.getCompilationError('/_error')
-        if (_err) {
-          res.statusCode = 500
-          html = await render('/_error-debug', { ...ctx, err: _err }, opts)
+        await this.doRender(res, 404, '/_error', { ...ctx, err })
+      } catch (err2) {
+        if (this.dev) {
+          await this.doRender(res, 500, '/_error-debug', { ...ctx, err: err2 })
         } else {
-          if (err.code === 'ENOENT') {
-            res.statusCode = 404
-          } else {
-            console.error(err)
-            res.statusCode = 500
-          }
-          html = await render('/_error', { ...ctx, err }, opts)
+          throw err2
         }
       }
     }
+  }
 
+  async doRender (res, statusCode, url, ctx) {
+    const { dir, dev } = this
+
+    // need to set statusCode before `render`
+    // since it can be used on getInitialProps
+    res.statusCode = statusCode
+
+    const html = await render(url, ctx, { dir, dev })
     sendHTML(res, html)
   }
 
   async renderJSON (req, res) {
-    const { dir } = this
-    const opts = { dir }
+    const compilationErr = this.getCompilationError(req.url)
+    if (compilationErr) {
+      await this.doRenderJSON(res, 500, '/_error-debug.json', compilationErr)
+      return
+    }
 
-    let json
-
-    const err = this.getCompilationError(req.url)
-    if (err) {
-      res.statusCode = 500
-      json = await renderJSON('/_error-debug.json', opts)
-      json = { ...json, err: errorToJSON(err) }
-    } else {
-      try {
-        json = await renderJSON(req.url, opts)
-      } catch (err) {
-        const _err = this.getCompilationError('/_error.json')
-        if (_err) {
-          res.statusCode = 500
-          json = await renderJSON('/_error-debug.json', opts)
-          json = { ...json, err: errorToJSON(_err) }
-        } else {
-          if (err.code === 'ENOENT') {
-            res.statusCode = 404
-          } else {
-            console.error(err)
-            res.statusCode = 500
-          }
-          json = await renderJSON('/_error.json', opts)
-        }
+    try {
+      await this.doRenderJSON(res, 200, req.url)
+    } catch (err) {
+      const compilationErr2 = this.getCompilationError('/_error.json')
+      if (compilationErr2) {
+        await this.doRenderJSON(res, 500, '/_error-debug.json', compilationErr2)
+        return
       }
+
+      if (err.code === 'ENOENT') {
+        await this.doRenderJSON(res, 404, '/_error.json')
+      } else {
+        console.error(err)
+        await this.doRenderJSON(res, 500, '/_error.json')
+      }
+    }
+  }
+
+  async doRenderJSON (res, statusCode, url, err) {
+    const { dir } = this
+    const json = await renderJSON(url, { dir })
+    if (err) {
+      json.err = errorToJSON(err)
     }
 
     const data = JSON.stringify(json)
     res.setHeader('Content-Type', 'application/json')
     res.setHeader('Content-Length', Buffer.byteLength(data))
+    res.statusCode = statusCode
     res.end(data)
   }
 
   async render404 (req, res) {
-    const { dir, dev } = this
     const { pathname, query } = parse(req.url, true)
     const ctx = { req, res, pathname, query }
-    const opts = { dir, dev }
 
-    let html
-
-    const err = this.getCompilationError('/_error')
-    if (err) {
-      res.statusCode = 500
-      html = await render('/_error-debug', { ...ctx, err }, opts)
-    } else {
-      res.statusCode = 404
-      html = await render('/_error', ctx, opts)
+    const compilationErr = this.getCompilationError('/_error')
+    if (compilationErr) {
+      await this.doRender(res, 500, '/_error-debug', { ...ctx, err: compilationErr })
+      return
     }
 
-    sendHTML(res, html)
+    try {
+      await this.doRender(res, 404, '/_error', ctx)
+    } catch (err) {
+      if (this.dev) {
+        await this.doRender(res, 500, '/_error-debug', { ...ctx, err })
+      } else {
+        throw err
+      }
+    }
   }
 
   serveStatic (req, res, path) {

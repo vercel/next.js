@@ -5,12 +5,12 @@ import style from 'next/css'
 
 export default class ErrorDebug extends React.Component {
   static getInitialProps ({ err }) {
-    const { message, module } = err
-    return { message, path: module.rawRequest }
+    const { name, message, stack, module } = err
+    return { name, message, stack, path: module ? module.rawRequest : null }
   }
 
   render () {
-    const { message, path } = this.props
+    const { name, message, stack, path } = this.props
 
     return <div className={styles.errorDebug}>
       <Head>
@@ -21,8 +21,12 @@ export default class ErrorDebug extends React.Component {
           }
         `}} />
       </Head>
-      <div className={styles.heading}>Error in {path}</div>
-      <pre className={styles.message} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
+      {path ? <div className={styles.heading}>Error in {path}</div> : null}
+      {
+        name === 'ModuleBuildError'
+        ? <pre className={styles.message} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
+        : <pre className={styles.message}>{stack}</pre>
+      }
     </div>
   }
 }
@@ -38,16 +42,22 @@ const styles = {
   }),
 
   errorDebug: style({
-    height: '100%',
+    height: '100vh',
     padding: '16px',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center'
   }),
 
   message: style({
     fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", menlo-regular, monospace',
     fontSize: '10px',
     color: '#fbe7f1',
-    margin: 0
+    margin: 0,
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word'
   }),
 
   heading: style({
@@ -63,7 +73,7 @@ const styles = {
 // https://github.com/babel/babel/blob/master/packages/babel-code-frame/src/index.js
 
 ansiHTML.setColors({
-  reset: 'fff',
+  reset: ['fff', 'a6004c'],
   darkgrey: 'e54590',
   yellow: 'ee8cbb',
   green: 'f2a2c7',
