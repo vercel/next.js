@@ -3,7 +3,8 @@ import { join } from 'path'
 import next from '../server/next'
 
 const dir = join(__dirname, 'fixtures', 'basic')
-const app = next(dir, {
+const app = next({
+  dir,
   dev: true,
   staticMarkup: true,
   quiet: true

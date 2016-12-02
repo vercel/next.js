@@ -15,8 +15,8 @@ import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
 
 export default class Server {
-  constructor (dir, { dev = false, staticMarkup = false, quiet = false } = {}) {
-    this.dir = resolve(dir || '.')
+  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
+    this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
     this.renderOpts = { dir: this.dir, dev, staticMarkup }
