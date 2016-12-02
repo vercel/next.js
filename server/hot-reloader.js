@@ -1,5 +1,7 @@
 import { join, relative, sep } from 'path'
-import WebpackDevServer from 'webpack-dev-server'
+import webpackDevMiddleware from 'webpack-dev-middleware'
+import webpackHotMiddleware from 'webpack-hot-middleware'
+import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import read from './read'
 
@@ -7,22 +9,35 @@ export default class HotReloader {
   constructor (dir, dev = false) {
     this.dir = dir
     this.dev = dev
-    this.server = null
+    this.middlewares = []
+    this.webpackDevMiddleware = null
+    this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
     this.compilationErrors = null
     this.prevAssets = null
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
+    this.prevChunkHashes = null
+  }
+
+  async run (req, res) {
+    for (const fn of this.middlewares) {
+      await new Promise((resolve, reject) => {
+        fn(req, res, (err) => {
+          if (err) reject(err)
+          resolve()
+        })
+      })
+    }
   }
 
   async start () {
-    await this.prepareServer()
+    await this.prepareMiddlewares()
     this.stats = await this.waitUntilValid()
-    await this.listen()
   }
 
-  async prepareServer () {
+  async prepareMiddlewares () {
     const compiler = await webpack(this.dir, { hotReload: true, dev: this.dev })
 
     compiler.plugin('after-emit', (compilation, callback) => {
@@ -53,6 +68,8 @@ export default class HotReloader {
       .reduce((a, b) => a.concat(b), [])
       .map((c) => c.name))
 
+      const chunkHashes = new Map(compilation.chunks.map((c) => [c.name, c.hash]))
+
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
         // e.g, pages/index.js <-> pages/_error.js
@@ -70,6 +87,16 @@ export default class HotReloader {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)
         }
+
+        for (const [n, hash] of chunkHashes) {
+          if (!this.prevChunkHashes.has(n)) continue
+          if (this.prevChunkHashes.get(n) === hash) continue
+
+          const route = toRoute(relative(rootDir, n))
+
+          // notify change to recover from runtime errors
+          this.send('change', route)
+        }
       }
 
       this.initialized = true
@@ -77,44 +104,36 @@ export default class HotReloader {
       this.compilationErrors = null
       this.prevChunkNames = chunkNames
       this.prevFailedChunkNames = failedChunkNames
+      this.prevChunkHashes = chunkHashes
     })
 
-    this.server = new WebpackDevServer(compiler, {
-      publicPath: '/',
-      hot: true,
-      noInfo: true,
-      clientLogLevel: 'warning',
-      stats: {
-        assets: false,
-        children: false,
-        chunks: false,
-        color: false,
-        errors: true,
-        errorDetails: false,
-        hash: false,
-        modules: false,
-        publicPath: false,
-        reasons: false,
-        source: false,
-        timings: false,
-        version: false,
-        warnings: false
+    const windowsSettings = isWindowsBash() ? {
+      lazy: false,
+      watchOptions: {
+        aggregateTimeout: 300,
+        poll: true
       }
+    } : {}
+
+    this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
+      publicPath: '/_webpack/',
+      noInfo: true,
+      quiet: true,
+      clientLogLevel: 'warning',
+      ...windowsSettings
     })
+
+    this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+
+    this.middlewares = [
+      this.webpackDevMiddleware,
+      this.webpackHotMiddleware
+    ]
   }
 
   waitUntilValid () {
     return new Promise((resolve) => {
-      this.server.middleware.waitUntilValid(resolve)
-    })
-  }
-
-  listen () {
-    return new Promise((resolve, reject) => {
-      this.server.listen(3030, (err) => {
-        if (err) return reject(err)
-        resolve()
-      })
+      this.webpackDevMiddleware.waitUntilValid(resolve)
     })
   }
 
@@ -141,8 +160,8 @@ export default class HotReloader {
     return this.compilationErrors
   }
 
-  send (type, data) {
-    this.server.sockWrite(this.server.sockets, type, data)
+  send (action, ...args) {
+    this.webpackHotMiddleware.publish({ action, data: args })
   }
 }
 

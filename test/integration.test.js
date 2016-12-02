@@ -27,8 +27,8 @@ test('header helper renders header information', async t => {
 
 test('css helper renders styles', async t => {
   const html = await render('/css')
-  t.true(html.includes('.css-im3wl1'))
-  t.true(html.includes('<div class="css-im3wl1">This is red</div>'))
+  t.regex(html, /\.css-\w+/)
+  t.regex(html, /<div class="css-\w+">This is red<\/div>/)
 })
 
 test('renders properties populated asynchronously', async t => {
