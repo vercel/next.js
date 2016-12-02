@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { exists } from 'mz/fs'
@@ -20,7 +21,7 @@ const dir = resolve(argv._[0] || '.')
 const srv = new Server(dir, { dev: true })
 srv.start(argv.port)
 .then(async () => {
-  console.log('> Ready on http://localhost:%d', argv.port)
+  console.log(`> Ready on http://localhost:${argv.port}`)
 
   // Check if pages dir exists and warn if not
   if (!(await exists(join(dir, 'pages')))) {

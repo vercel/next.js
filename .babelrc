@@ -1,0 +1,14 @@
+{
+  "presets": ["es2015", "react"],
+  "plugins": [
+    "transform-async-to-generator",
+    "transform-object-rest-spread",
+    "transform-class-properties",
+    "transform-runtime"
+  ],
+  "env": {
+    "test": {
+      "plugins": ["istanbul"]
+    }
+  }
+}

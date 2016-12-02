@@ -121,22 +121,8 @@ export default class HotReloader {
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
       publicPath: '/_webpack/',
       noInfo: true,
-      stats: {
-        assets: false,
-        children: false,
-        chunks: false,
-        color: false,
-        errors: true,
-        errorDetails: false,
-        hash: false,
-        modules: false,
-        publicPath: false,
-        reasons: false,
-        source: false,
-        timings: false,
-        version: false,
-        warnings: false
-      },
+      quiet: true,
+      clientLogLevel: 'warning',
       ...windowsSettings
     })
 

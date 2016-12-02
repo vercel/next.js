@@ -1,4 +1,5 @@
 import { resolve, join } from 'path'
+import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -7,6 +8,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
+import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 
 export default async function createCompiler (dir, { dev = false } = {}) {
   dir = resolve(dir)
@@ -56,7 +58,11 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
-      new WatchPagesPlugin(dir)
+      new WatchPagesPlugin(dir),
+      new FriendlyErrorsWebpackPlugin({
+        // see https://github.com/geowarin/friendly-errors-webpack-plugin/pull/11
+        clearConsole: true
+      })
     )
   } else {
     plugins.push(
@@ -71,20 +77,9 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   }
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\\/]package\.json$/, '')
+  .replace(/[\\/]package\.json$/, '')
 
-  const loaders = [{
-    test: /\.js$/,
-    loader: 'emit-file-loader',
-    include: [dir, nextPagesDir],
-    exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-    },
-    query: {
-      name: 'dist/[path][name].[ext]'
-    }
-  }]
-  .concat(dev ? [{
+  const loaders = (dev ? [{
     test: /\.js$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -93,9 +88,23 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     ]
   }] : [])
   .concat([{
+    test: /\.json$/,
+    loader: 'json-loader'
+  }, {
+    test: /\.(js|json)$/,
+    loader: 'emit-file-loader',
+    include: [dir, nextPagesDir],
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
+    query: {
+      name: 'dist/[path][name].[ext]'
+    }
+  }, {
     loader: 'babel',
     include: nextPagesDir,
     query: {
+      sourceMaps: dev ? 'both' : false,
       plugins: [
         [
           require.resolve('babel-plugin-module-resolver'),
@@ -115,6 +124,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     query: {
+      sourceMaps: dev ? 'both' : false,
       presets: ['es2015', 'react'],
       plugins: [
         require.resolve('babel-plugin-react-require'),
@@ -150,7 +160,15 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: dev ? '/_webpack/' : null
+      publicPath: dev ? '/_webpack/' : null,
+      devtoolModuleFilenameTemplate ({ resourcePath }) {
+        const hash = createHash('sha1')
+        hash.update(Date.now() + '')
+        const id = hash.digest('hex').slice(0, 7)
+
+        // append hash id for cache busting
+        return `webpack:///${resourcePath}?${id}`
+      }
     },
     externals: [
       'react',
@@ -179,11 +197,9 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     },
     plugins,
     module: {
-      preLoaders: [
-        { test: /\.json$/, loader: 'json-loader' }
-      ],
       loaders
     },
+    devtool: dev ? 'inline-source-map' : false,
     customInterpolateName: function (url, name, opts) {
       return interpolateNames.get(this.resourcePath) || url
     }
