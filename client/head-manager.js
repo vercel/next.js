@@ -3,7 +3,7 @@ import HTMLDOMPropertyConfig from 'react-dom/lib/HTMLDOMPropertyConfig'
 const DEFAULT_TITLE = ''
 
 export default class HeadManager {
-  constuctor () {
+  constructor () {
     this.requestId = null
   }
 
