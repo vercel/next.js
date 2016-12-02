@@ -17,7 +17,8 @@ export async function render (url, ctx = {}, {
   staticMarkup = false
 } = {}) {
   const path = getPath(url)
-  const mod = await requireModule(join(dir, '.next', 'dist', 'pages', path))
+  const pages = join(dir, '.next', 'dist', 'pages')
+  const mod = await requireModule(join(pages, path))
   const Component = mod.default || mod
 
   const [
@@ -26,8 +27,8 @@ export async function render (url, ctx = {}, {
     errorComponent
   ] = await Promise.all([
     Component.getInitialProps ? Component.getInitialProps(ctx) : {},
-    read(join(dir, '.next', 'bundles', 'pages', path)),
-    read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
+    read(join(pages, path)),
+    read(join(pages, dev ? '_error-debug' : '_error'))
   ])
 
   const { html, css, ids } = renderStatic(() => {
