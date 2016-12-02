@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/lib/index.js",
   "license": "MIT",
