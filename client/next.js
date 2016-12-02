@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { render } from 'react-dom'
 import HeadManager from './head-manager'
+import domready from 'domready'
 import { rehydrate } from '../lib/css'
 import Router from '../lib/router'
 import App from '../lib/app'
@@ -10,7 +11,7 @@ const {
   __NEXT_DATA__: { component, errorComponent, props, ids, err }
 } = window
 
-document.addEventListener('DOMContentLoaded', () => {
+domready(() => {
   const Component = evalScript(component).default
   const ErrorComponent = evalScript(errorComponent).default
 
