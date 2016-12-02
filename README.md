@@ -395,7 +395,7 @@ The following issues are currently being explored and input from the community i
 - Support for pluggable renderers [[#20](https://github.com/zeit/next.js/issues/20)]
 - Style isolation through Shadow DOM or "full css support" [[#22](https://github.com/zeit/next.js/issues/22)]
 - Better JSX [[#22](https://github.com/zeit/next.js/issues/23)]
-- Custom server logic and routing [[#25](https://github.com/zeit/next.js/issues/25)]
+- Programmatic API [[#291](https://github.com/zeit/next.js/issues/291)]
 - Custom babel config [[#26](https://github.com/zeit/next.js/issues/26)]
 - Custom webpack config [[#40](https://github.com/zeit/next.js/issues/40)]
 
