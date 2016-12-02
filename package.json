@@ -16,13 +16,36 @@
   },
   "scripts": {
     "build": "gulp",
-    "test": "npm run lint && gulp test",
+    "pretest": "npm run lint",
+    "test": "gulp test",
+    "html-report": "nyc report --reporter=html",
+    "ava": "cross-env NODE_ENV=test nyc ava --verbose",
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
     "lint": "standard && standard bin/*",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
   },
-  "ava": {
-    "babel": {}
+  "nyc": {
+    "require": [
+      "babel-core/register"
+    ],
+    "exclude": [
+      "gulpfile.js",
+      "css.js",
+      "link.js",
+      "head.js",
+      "client/**",
+      "**/pages/**",
+      "**/coverage/**",
+      "**/client/**",
+      "**/test/**",
+      "**/dist/**",
+      "**/examples/**",
+      "**/bench/**"
+    ],
+    "all": false,
+    "sourceMap": false,
+    "instrument": false
   },
   "standard": {
     "parser": "babel-eslint"
@@ -43,6 +66,7 @@
     "babel-runtime": "6.18.0",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
+    "friendly-errors-webpack-plugin": "1.1.0",
     "glamor": "2.20.8",
     "glob-promise": "2.0.0",
     "htmlescape": "1.1.1",
@@ -56,6 +80,7 @@
     "react": "15.4.1",
     "react-dom": "15.4.1",
     "react-hot-loader": "3.0.0-beta.6",
+    "read-pkg-up": "2.0.0",
     "send": "0.14.1",
     "sockjs-client": "1.1.1",
     "source-map-support": "0.4.6",
@@ -69,15 +94,20 @@
   "devDependencies": {
     "ava": "0.17.0",
     "babel-eslint": "7.1.1",
+    "babel-plugin-istanbul": "3.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "benchmark": "2.1.2",
+    "coveralls": "2.11.15",
+    "cross-env": "3.1.3",
     "gulp": "3.9.1",
     "gulp-ava": "0.15.0",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.1",
     "gulp-notify": "2.2.0",
+    "gulp-process-env": "0.0.2",
     "husky": "0.11.9",
+    "nyc": "10.0.0",
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "webpack-stream": "3.2.0"

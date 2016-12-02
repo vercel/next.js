@@ -10,3 +10,7 @@ npm-debug.log
 
 # other
 .next
+
+# coverage
+.nyc_output
+coverage
