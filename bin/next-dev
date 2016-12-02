@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { exists } from 'mz/fs'

@@ -1,11 +1,11 @@
 import { resolve, relative } from 'path'
 
-module.exports = function (content) {
+module.exports = function (content, sourceMap) {
   this.cacheable()
 
   const route = getRoute(this)
 
-  return `${content}
+  this.callback(null, `${content}
     if (module.hot) {
       module.hot.accept()
 
@@ -23,7 +23,7 @@ module.exports = function (content) {
         }
       }
     }
-  `
+  `, sourceMap)
 }
 
 const nextPagesDir = resolve(__dirname, '..', '..', '..', 'pages')

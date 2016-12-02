@@ -1,4 +1,5 @@
 import { resolve, join } from 'path'
+import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -101,6 +102,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     loader: 'babel',
     include: nextPagesDir,
     query: {
+      sourceMaps: dev ? 'both' : false,
       plugins: [
         [
           require.resolve('babel-plugin-module-resolver'),
@@ -120,6 +122,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0 && str.indexOf(dir) !== 0
     },
     query: {
+      sourceMaps: dev ? 'both' : false,
       presets: ['es2015', 'react'],
       plugins: [
         require.resolve('babel-plugin-react-require'),
@@ -155,7 +158,15 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? '/_webpack/' : null
+      publicPath: hotReload ? '/_webpack/' : null,
+      devtoolModuleFilenameTemplate ({ resourcePath }) {
+        const hash = createHash('sha1')
+        hash.update(Date.now() + '')
+        const id = hash.digest('hex').slice(0, 7)
+
+        // append hash id for cache busting
+        return `webpack:///${resourcePath}?${id}`
+      }
     },
     externals: [
       'react',
@@ -186,6 +197,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     module: {
       loaders
     },
+    devtool: dev ? 'inline-source-map' : false,
     customInterpolateName: function (url, name, opts) {
       return interpolateNames.get(this.resourcePath) || url
     }
