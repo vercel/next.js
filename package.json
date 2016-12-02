@@ -82,7 +82,6 @@
     "react-hot-loader": "3.0.0-beta.6",
     "read-pkg-up": "2.0.0",
     "send": "0.14.1",
-    "sockjs-client": "1.1.1",
     "source-map-support": "0.4.6",
     "strip-ansi": "3.0.1",
     "url": "0.11.0",
