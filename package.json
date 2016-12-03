@@ -67,7 +67,7 @@
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "domready": "1.0.8",
-    "friendly-errors-webpack-plugin": "1.1.1",
+    "friendly-errors-webpack-plugin": "1.1.2",
     "glamor": "2.20.12",
     "glob-promise": "2.0.0",
     "htmlescape": "1.1.1",
