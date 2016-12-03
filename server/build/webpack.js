@@ -3,12 +3,12 @@ import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
+import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
-import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 
 export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
   dir = resolve(dir)
@@ -70,10 +70,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
       new WatchPagesPlugin(dir),
-      new FriendlyErrorsWebpackPlugin({
-        // see https://github.com/geowarin/friendly-errors-webpack-plugin/pull/11
-        clearConsole: true
-      })
+      new FriendlyErrorsWebpackPlugin()
     )
   }
 
