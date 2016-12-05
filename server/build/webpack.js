@@ -84,6 +84,10 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       join(dir, 'pages'),
       nextPagesDir
     ]
+  }, {
+    test: /\.js$/,
+    loader: 'react-hot-loader/webpack',
+    exclude: /node_modules/
   }] : [])
   .concat([{
     test: /\.json$/,
