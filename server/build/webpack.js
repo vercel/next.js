@@ -44,7 +44,8 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     }),
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
-      filename: 'commons.js'
+      filename: 'commons.js',
+      minChunks: pages.length
     })
   ]
 
