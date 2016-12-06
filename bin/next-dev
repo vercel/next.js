@@ -23,7 +23,10 @@ clean(dir)
 .then(async () => {
   const srv = new Server({ dir, dev: true, hotReload: true })
   await srv.start(argv.port)
-  console.log(`> Ready on http://localhost:${argv.port}`)
+
+  if (!process.env.NOW) {
+    console.log(`> Ready on http://localhost:${argv.port}`)
+  }
 
   // Check if pages dir exists and warn if not
   if (!(await exists(join(dir, 'pages')))) {
