@@ -3,12 +3,12 @@ import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
+import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
-import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 
 export default async function createCompiler (dir, { dev = false } = {}) {
   dir = resolve(dir)
@@ -19,7 +19,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   const defaultEntries = dev
     ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
   for (const p of pages) {
-    entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
+    entry[join('bundles', p)] = defaultEntries.concat([`./${p}?entry`])
   }
 
   const nextPagesDir = join(__dirname, '..', '..', 'pages')
@@ -27,7 +27,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   const errorEntry = join('bundles', 'pages', '_error.js')
   const defaultErrorPath = join(nextPagesDir, '_error.js')
   if (!entry[errorEntry]) {
-    entry[errorEntry] = defaultEntries.concat([defaultErrorPath])
+    entry[errorEntry] = defaultEntries.concat([defaultErrorPath + '?entry'])
   }
 
   const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
@@ -45,7 +45,8 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     }),
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
-      filename: 'commons.js'
+      filename: 'commons.js',
+      minChunks: pages.length
     })
   ]
 
@@ -59,10 +60,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
       new WatchPagesPlugin(dir),
-      new FriendlyErrorsWebpackPlugin({
-        // see https://github.com/geowarin/friendly-errors-webpack-plugin/pull/11
-        clearConsole: true
-      })
+      new FriendlyErrorsWebpackPlugin()
     )
   } else {
     plugins.push(
@@ -80,18 +78,22 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   .replace(/[\\/]package\.json$/, '')
 
   const loaders = (dev ? [{
-    test: /\.js$/,
+    test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
       join(dir, 'pages'),
       nextPagesDir
     ]
+  }, {
+    test: /\.js(\?[^?]*)?$/,
+    loader: 'react-hot-loader/webpack',
+    exclude: /node_modules/
   }] : [])
   .concat([{
     test: /\.json$/,
     loader: 'json-loader'
   }, {
-    test: /\.(js|json)$/,
+    test: /\.(js|json)(\?[^?]*)?$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
@@ -117,7 +119,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       ]
     }
   }, {
-    test: /\.js$/,
+    test: /\.js(\?[^?]*)?$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
     exclude (str) {

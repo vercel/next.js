@@ -14,6 +14,6 @@
   "author": "",
   "license": "ISC",
   "next": {
-    "cdn": false
+    "cdn": true
   }
 }

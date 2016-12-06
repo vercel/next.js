@@ -6,23 +6,28 @@ module.exports = function (content, sourceMap) {
   const route = getRoute(this)
 
   this.callback(null, `${content}
-    if (module.hot) {
+    (function (Component, route) {
+      if (!module.hot) return
+      if (!__resourceQuery) return
+
+      var qs = require('querystring')
+      var params = qs.parse(__resourceQuery.slice(1))
+      if (params.entry == null) return
+
       module.hot.accept()
+      Component.__route = route
 
-      var Component = module.exports.default || module.exports
-      Component.__route = ${JSON.stringify(route)}
+      if (module.hot.status() === 'idle') return
 
-      if (module.hot.status() !== 'idle') {
-        var components = next.router.components
-        for (var r in components) {
-          if (!components.hasOwnProperty(r)) continue
+      var components = next.router.components
+      for (var r in components) {
+        if (!components.hasOwnProperty(r)) continue
 
-          if (components[r].Component.__route === ${JSON.stringify(route)}) {
-            next.router.update(r, Component)
-          }
+        if (components[r].Component.__route === route) {
+          next.router.update(r, Component)
         }
       }
-    }
+    })(module.exports.default || module.exports, ${JSON.stringify(route)})
   `, sourceMap)
 }
 
