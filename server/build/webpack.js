@@ -18,7 +18,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const entry = {}
   const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
   for (const p of pages) {
-    entry[join('bundles', p)] = defaultEntries.concat(['./' + p])
+    entry[join('bundles', p)] = defaultEntries.concat([`./${p}?entry`])
   }
 
   const nextPagesDir = join(__dirname, '..', '..', 'pages')
@@ -26,7 +26,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   const errorEntry = join('bundles', 'pages', '_error.js')
   const defaultErrorPath = join(nextPagesDir, '_error.js')
   if (!entry[errorEntry]) {
-    entry[errorEntry] = defaultEntries.concat([defaultErrorPath])
+    entry[errorEntry] = defaultEntries.concat([defaultErrorPath + '?entry'])
   }
 
   const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
@@ -78,14 +78,14 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   .replace(/[\\/]package\.json$/, '')
 
   const loaders = (hotReload ? [{
-    test: /\.js$/,
+    test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
       join(dir, 'pages'),
       nextPagesDir
     ]
   }, {
-    test: /\.js$/,
+    test: /\.js(\?[^?]*)?$/,
     loader: 'react-hot-loader/webpack',
     exclude: /node_modules/
   }] : [])
@@ -93,7 +93,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     test: /\.json$/,
     loader: 'json-loader'
   }, {
-    test: /\.(js|json)$/,
+    test: /\.(js|json)(\?[^?]*)?$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
@@ -119,7 +119,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       ]
     }
   }, {
-    test: /\.js$/,
+    test: /\.js(\?[^?]*)?$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
     exclude (str) {
