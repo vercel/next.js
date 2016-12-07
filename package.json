@@ -86,7 +86,7 @@
     "source-map-support": "0.4.6",
     "strip-ansi": "3.0.1",
     "url": "0.11.0",
-    "webpack": "1.13.3",
+    "webpack": "1.14.0",
     "webpack-dev-middleware": "1.8.4",
     "webpack-hot-middleware": "2.13.2",
     "write-file-webpack-plugin": "3.4.2"
