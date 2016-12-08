@@ -30,6 +30,7 @@ Populate `./pages/index.js` inside your project:
 
 ```jsx
 import React from 'react'
+
 export default () => (
   <div>Welcome to next.js!</div>
 )
@@ -53,6 +54,7 @@ Every `import` you declare gets bundled and served with each page
 ```jsx
 import React from 'react'
 import cowsay from 'cowsay-browser'
+
 export default () => (
   <pre>{ cowsay.say({ text: 'hi there!' }) }</pre>
 )

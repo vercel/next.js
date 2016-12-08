@@ -2,7 +2,6 @@
 dist
 
 # dependencies
-yarn.lock
 node_modules
 
 # logs

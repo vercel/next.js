@@ -21,7 +21,9 @@ const dir = resolve(argv._[0] || '.')
 const srv = new Server({ dir, dev: true })
 srv.start(argv.port)
 .then(async () => {
-  console.log(`> Ready on http://localhost:${argv.port}`)
+  if (!process.env.NOW) {
+    console.log(`> Ready on http://localhost:${argv.port}`)
+  }
 
   // Check if pages dir exists and warn if not
   if (!(await exists(join(dir, 'pages')))) {
