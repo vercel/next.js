@@ -5,6 +5,7 @@ const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
 const ava = require('gulp-ava')
 const benchmark = require('gulp-benchmark')
+const replace = require('gulp-replace')
 const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
@@ -134,7 +135,13 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release client'))
 })
 
-gulp.task('test', () => {
+gulp.task('pre-test', ['compile', 'build', 'copy'], () => {
+  return gulp.src(['css.js', 'head.js', 'link.js'])
+  .pipe(replace('./dist/lib', '../../lib'))
+  .pipe(gulp.dest('node_modules/next'))
+})
+
+gulp.task('run-test', ['pre-test'], () => {
   const env = processEnv({NODE_ENV: 'test'})
   return gulp.src('test/**/**.test.js')
   .pipe(env)
@@ -144,6 +151,16 @@ gulp.task('test', () => {
   }))
   .pipe(env.restore())
 })
+
+gulp.task('post-test', ['run-test'], () => {
+  return del('node_modules/next')
+})
+
+gulp.task('test', [
+  'pre-test',
+  'run-test',
+  'post-test'
+])
 
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
   return gulp.src('dist/bench/*.js', {read: false})
