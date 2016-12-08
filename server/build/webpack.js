@@ -75,6 +75,18 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     )
   }
 
+  const resolveModule = (moduleName) => {
+    // Check if there's a local version of the module
+    try {
+      const path = `next/node_modules/${moduleName}`
+      // Will throw if it doesn't exist
+      require.resolve(path)
+      return path
+    } catch (e) {
+      return moduleName
+    }
+  }
+
   const loaders = (hotReload ? [{
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
@@ -101,12 +113,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       name: 'dist/[path][name].[ext]'
     }
   }, {
-    loader: 'babel',
-    include: nextPagesDir,
-    query: {
-      sourceMaps: dev ? 'both' : false
-    }
-  }, {
     test: /\.js(\?[^?]*)?$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
@@ -121,7 +127,17 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
         require.resolve('babel-plugin-transform-async-to-generator'),
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
-        require.resolve('babel-plugin-transform-runtime')
+        require.resolve('babel-plugin-transform-runtime'),
+        [
+          require.resolve('babel-plugin-module-resolver'),
+          {
+            alias: {
+              'ansi-html': resolveModule('ansi-html'),
+              'babel-runtime': resolveModule('babel-runtime'),
+              react: resolveModule('react')
+            }
+          }
+        ]
       ]
     }
   }])
