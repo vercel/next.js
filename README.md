@@ -390,16 +390,9 @@ As we were researching options for server-rendering React that didn’t involve 
 
 </details>
 
-## Future directions
+## Roadmap
 
-The following issues are currently being explored and input from the community is appreciated:
-
-- Support for pluggable renderers [[#20](https://github.com/zeit/next.js/issues/20)]
-- Style isolation through Shadow DOM or "full css support" [[#22](https://github.com/zeit/next.js/issues/22)]
-- Better JSX [[#22](https://github.com/zeit/next.js/issues/23)]
-- Programmatic API [[#291](https://github.com/zeit/next.js/issues/291)]
-- Custom babel config [[#26](https://github.com/zeit/next.js/issues/26)]
-- Custom webpack config [[#40](https://github.com/zeit/next.js/issues/40)]
+Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
 
 ## Authors
 
