@@ -75,8 +75,17 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     )
   }
 
-  const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\/]package\.json$/, '')
+  const resolveModule = (moduleName) => {
+    // Check if there's a local version of the module
+    try {
+      const path = `next/node_modules/${moduleName}`
+      // Will throw if it doesn't exist
+      require.resolve(path)
+      return path
+    } catch (e) {
+      return moduleName
+    }
+  }
 
   const loaders = (hotReload ? [{
     test: /\.js(\?[^?]*)?$/,
@@ -104,22 +113,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       name: 'dist/[path][name].[ext]'
     }
   }, {
-    loader: 'babel',
-    include: nextPagesDir,
-    query: {
-      sourceMaps: dev ? 'both' : false,
-      plugins: [
-        [
-          require.resolve('babel-plugin-module-resolver'),
-          {
-            alias: {
-              'ansi-html': require.resolve('ansi-html')
-            }
-          }
-        ]
-      ]
-    }
-  }, {
     test: /\.js(\?[^?]*)?$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
@@ -139,11 +132,9 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
           require.resolve('babel-plugin-module-resolver'),
           {
             alias: {
-              'babel-runtime': babelRuntimePath,
-              react: require.resolve('react'),
-              'next/link': require.resolve('../../lib/link'),
-              'next/css': require.resolve('../../lib/css'),
-              'next/head': require.resolve('../../lib/head')
+              'ansi-html': resolveModule('ansi-html'),
+              'babel-runtime': resolveModule('babel-runtime'),
+              react: resolveModule('react')
             }
           }
         ]
@@ -176,12 +167,9 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     externals: [
       'react',
       'react-dom',
-      {
-        [require.resolve('react')]: 'react',
-        [require.resolve('../../lib/link')]: 'next/link',
-        [require.resolve('../../lib/css')]: 'next/css',
-        [require.resolve('../../lib/head')]: 'next/head'
-      }
+      'next/css',
+      'next/head',
+      'next/link'
     ],
     resolve: {
       root: [
