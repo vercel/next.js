@@ -2,7 +2,7 @@ const express = require('express')
 const next = require('next')
 const accepts = require('accepts')
 
-const app = next('.', { dev: true })
+const app = next({ dir: '.', dev: true })
 const handle = app.getRequestHandler()
 
 app.prepare()
