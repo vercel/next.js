@@ -53,7 +53,7 @@
   "dependencies": {
     "ansi-html": "0.0.6",
     "babel-core": "6.18.2",
-    "babel-generator": "6.19.0",
+    "babel-generator": "6.20.0",
     "babel-loader": "6.2.8",
     "babel-plugin-module-resolver": "2.4.0",
     "babel-plugin-react-require": "^3.0.0",
