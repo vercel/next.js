@@ -63,7 +63,7 @@
     "babel-plugin-transform-runtime": "6.15.0",
     "babel-preset-es2015": "6.18.0",
     "babel-preset-react": "6.16.0",
-    "babel-runtime": "6.18.0",
+    "babel-runtime": "6.20.0",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "domready": "1.0.8",
