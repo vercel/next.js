@@ -113,6 +113,22 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       name: 'dist/[path][name].[ext]'
     }
   }, {
+    loader: 'babel',
+    include: nextPagesDir,
+    query: {
+      sourceMaps: dev ? 'both' : false,
+      plugins: [
+        [
+          require.resolve('babel-plugin-module-resolver'),
+          {
+            alias: {
+              'ansi-html': resolveModule('ansi-html')
+            }
+          }
+        ]
+      ]
+    }
+  }, {
     test: /\.js(\?[^?]*)?$/,
     loader: 'babel',
     include: [dir, nextPagesDir],
@@ -132,7 +148,6 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
           require.resolve('babel-plugin-module-resolver'),
           {
             alias: {
-              'ansi-html': resolveModule('ansi-html'),
               'babel-runtime': resolveModule('babel-runtime'),
               react: resolveModule('react')
             }
