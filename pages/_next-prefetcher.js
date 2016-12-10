@@ -21,26 +21,32 @@ self.addEventListener('fetch', function (e) {
 self.addEventListener('message', function handler (e) {
   switch (e.data.action) {
     case 'ADD_URL': {
-      console.log('CACHING: ', e.data.url)
-      cacheUrl(e.data.url)
-        .then(function () {
-          console.log('CACHED URL', e.data.url)
-        })
-
+      console.log('CACHING ', e.data.url)
+      sendReply(e, cacheUrl(e.data.url))
       break
     }
     case 'RESET': {
       console.log('RESET')
-      resetCache()
-        .then(function () {
-          console.log('CACHE RESET')
-        })
+      sendReply(e, resetCache())
       break
     }
     default:
       console.error('Unknown action: ' + e.data.action)
   }
 })
+
+function sendReply (e, result) {
+  var payload = { action: 'REPLY', actionType: e.data.action, replyFor: e.data.id }
+  result
+    .then(function (result) {
+      payload.result = result
+      e.source.postMessage(payload)
+    })
+    .catch(function (error) {
+      payload.error = error.message
+      e.source.postMessage(payload)
+    })
+}
 
 function cacheUrl (url) {
   var req = new self.Request(url, {
