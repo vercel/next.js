@@ -41,7 +41,7 @@ export default class Server {
 
   defineRoutes () {
     this.router.get('/_next-prefetcher.js', async (req, res, params) => {
-      const p = join(__dirname, '../pages/_next-prefetcher.js')
+      const p = join(__dirname, '../client/next-prefetcher-bundle.js')
       await this.serveStatic(req, res, p)
     })
 

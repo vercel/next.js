@@ -1,12 +1,12 @@
 /* global self */
 
-var CACHE_NAME = 'next-prefetcher-v1'
+const CACHE_NAME = 'next-prefetcher-v1'
 
-self.addEventListener('install', function (event) {
+self.addEventListener('install', () => {
   console.log('Installing Next Prefetcher')
 })
 
-self.addEventListener('activate', function (e) {
+self.addEventListener('activate', (e) => {
   console.log('Activated Next Prefetcher')
   e.waitUntil(Promise.all([
     resetCache(),
@@ -14,11 +14,11 @@ self.addEventListener('activate', function (e) {
   ]))
 })
 
-self.addEventListener('fetch', function (e) {
+self.addEventListener('fetch', (e) => {
   e.respondWith(getResponse(e.request))
 })
 
-self.addEventListener('message', function handler (e) {
+self.addEventListener('message', (e) => {
   switch (e.data.action) {
     case 'ADD_URL': {
       console.log('CACHING ', e.data.url)
@@ -36,38 +36,34 @@ self.addEventListener('message', function handler (e) {
 })
 
 function sendReply (e, result) {
-  var payload = { action: 'REPLY', actionType: e.data.action, replyFor: e.data.id }
+  const payload = { action: 'REPLY', actionType: e.data.action, replyFor: e.data.id }
   result
-    .then(function (result) {
+    .then((result) => {
       payload.result = result
       e.source.postMessage(payload)
     })
-    .catch(function (error) {
+    .catch((error) => {
       payload.error = error.message
       e.source.postMessage(payload)
     })
 }
 
 function cacheUrl (url) {
-  var req = new self.Request(url, {
+  const req = new self.Request(url, {
     mode: 'no-cors'
   })
 
   return self.caches.open(CACHE_NAME)
-    .then(function (cache) {
+    .then((cache) => {
       return self.fetch(req)
-        .then(function (res) {
-          return cache.put(req, res)
-        })
+        .then((res) => cache.put(req, res))
     })
 }
 
 function getResponse (req) {
   return self.caches.open(CACHE_NAME)
-    .then(function (cache) {
-      return cache.match(req)
-    })
-    .then(function (res) {
+    .then((cache) => cache.match(req))
+    .then((res) => {
       if (res) {
         console.log('CACHE HIT: ' + req.url)
         return res
@@ -79,28 +75,24 @@ function getResponse (req) {
 }
 
 function resetCache () {
-  var cache
+  let cache
 
   return self.caches.open(CACHE_NAME)
-    .then(function (c) {
+    .then((c) => {
       cache = c
       return cache.keys()
     })
     .then(function (items) {
-      var deleteAll = items.map(function (item) {
-        return cache.delete(item)
-      })
+      const deleteAll = items.map((item) => cache.delete(item))
       return Promise.all(deleteAll)
     })
 }
 
 function notifyClients () {
   return self.clients.claim()
-    .then(function () {
-      return self.clients.matchAll()
-    })
-    .then(function (clients) {
-      var notifyAll = clients.map(function (client) {
+    .then(() => self.clients.matchAll())
+    .then((clients) => {
+      const notifyAll = clients.map((client) => {
         return client.postMessage({ action: 'NEXT_PREFETCHER_ACTIVATED' })
       })
       return Promise.all(notifyAll)
