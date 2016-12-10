@@ -1,7 +1,7 @@
 import React from 'react'
 import Link, { prefetch } from 'next/prefetch'
 
-// Prefetch using imperative API
+// Prefetch using the imperative API
 prefetch('/')
 
 const styles = {

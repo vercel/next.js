@@ -3,7 +3,7 @@
 This example features:
 
 * An app with four simple pages
-* We will prefetch all the pages in the background except the "contact" page
+* It will prefetch all the pages in the background except the "contact" page
 
 ## How to run it
 
