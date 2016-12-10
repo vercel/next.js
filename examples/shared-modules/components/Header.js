@@ -1,6 +1,7 @@
 import React from 'react'
-import Link from 'next/link'
-import 'next/prefetcher'
+import Link, { prefetch } from 'next/prefetch'
+
+prefetch('/')
 
 const styles = {
   a: {
@@ -10,7 +11,7 @@ const styles = {
 
 export default () => (
   <div>
-    <Link href='/'>
+    <Link href='/' prefetch={false}>
       <a style={styles.a} >Home</a>
     </Link>
 

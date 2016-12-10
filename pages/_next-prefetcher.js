@@ -1,6 +1,6 @@
 /* global self */
 
-var CACHE_NAME = 'next-prefetcher-v2'
+var CACHE_NAME = 'next-prefetcher-v1'
 
 self.addEventListener('install', function (event) {
   console.log('Installing Next Prefetcher')
@@ -21,14 +21,20 @@ self.addEventListener('fetch', function (e) {
 self.addEventListener('message', function handler (e) {
   switch (e.data.action) {
     case 'ADD_URL': {
+      console.log('CACHING: ', e.data.url)
       cacheUrl(e.data.url)
         .then(function () {
-          e.ports[0].postMessage({ action: 'URL_ADDED', url: e.data.url })
-        })
-        .catch(function (err) {
-          e.ports[0].postMessage({ action: 'URL_ADD_ERROR', error: err.message })
+          console.log('CACHED URL', e.data.url)
         })
 
+      break
+    }
+    case 'RESET': {
+      console.log('RESET')
+      resetCache()
+        .then(function () {
+          console.log('CACHE RESET')
+        })
       break
     }
     default:
@@ -76,7 +82,7 @@ function resetCache () {
     })
     .then(function (items) {
       var deleteAll = items.map(function (item) {
-        return cache.delete(items)
+        return cache.delete(item)
       })
       return Promise.all(deleteAll)
     })
