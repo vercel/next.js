@@ -107,6 +107,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     loader: 'babel',
     include: nextPagesDir,
     query: {
+      babelrc: false,
       sourceMaps: dev ? 'both' : false,
       plugins: [
         [
@@ -127,6 +128,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     query: {
+      babelrc: false,
       sourceMaps: dev ? 'both' : false,
       presets: ['es2015', 'react'],
       plugins: [
