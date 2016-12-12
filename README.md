@@ -188,7 +188,7 @@ When you are switching between pages, Next.js will download new pages from the s
 
 > Once the Next.js has download the page, it'll reuse it in the next time when you navigate to that same page.
 
-This is a problem specially in UX wise. "Prefetching Pages" is one of our solutions for this problem. With this, we'll prefetch pages behind the scene using the support of [Service Workers](https://developers.google.com/web/fundamentals/getting-started/primers/service-workers).
+This is a problem specially in UX wise. "Prefetching Pages" is one of our solutions for this problem. With this, Next.js will prefetch pages behind the scene using the support of [Service Workers](https://developers.google.com/web/fundamentals/getting-started/primers/service-workers).
 
 #### Declarative API
 
@@ -209,7 +209,7 @@ export default () => (
 
 Here you are using `<Link>` from `next/prefetch` instead of `next/link`. It's an extended version of `next/link` with prefetching support.
 
-Now we'll prefetch all the pages behind the scene. So, when you click on any of the link it won't need to do a network hit to fetch the page.
+Then Next.js will start to prefetch all the pages behind the scene. So, when you click on any of the link it won't need to do a network hit to fetch the page.
 
 If you need, you could stop prefetching like this:
 
