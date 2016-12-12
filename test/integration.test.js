@@ -1,44 +1,51 @@
-import test from 'ava'
-import { join } from 'path'
+/* global expect, jasmine, describe, test, beforeAll */
+
+'use strict'
+
 import build from '../server/build'
+import { join } from 'path'
 import { render as _render } from '../server/render'
 
 const dir = join(__dirname, 'fixtures', 'basic')
 
-test.before(() => build(dir))
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000
 
-test('renders a stateless component', async t => {
-  const html = await render('/stateless')
-  t.true(html.includes('<meta charset="utf-8" class="next-head"/>'))
-  t.true(html.includes('<h1>My component!</h1>'))
-})
+describe('integration tests', () => {
+  beforeAll(() => build(dir))
 
-test('renders a stateful component', async t => {
-  const html = await render('/stateful')
-  t.true(html.includes('<div><p>The answer is 42</p></div>'))
-})
+  test('renders a stateless component', async () => {
+    const html = await render('/stateless')
+    expect(html.includes('<meta charset="utf-8" class="next-head"/>')).toBeTruthy()
+    expect(html.includes('<h1>My component!</h1>')).toBeTruthy()
+  })
 
-test('header helper renders header information', async t => {
-  const html = await (render('/head'))
-  t.true(html.includes('<meta charset="iso-8859-5" class="next-head"/>'))
-  t.true(html.includes('<meta content="my meta" class="next-head"/>'))
-  t.true(html.includes('<div><h1>I can haz meta tags</h1></div>'))
-})
+  test('renders a stateful component', async () => {
+    const html = await render('/stateful')
+    expect(html.includes('<div><p>The answer is 42</p></div>')).toBeTruthy()
+  })
 
-test('css helper renders styles', async t => {
-  const html = await render('/css')
-  t.regex(html, /\.css-\w+/)
-  t.regex(html, /<div class="css-\w+">This is red<\/div>/)
-})
+  test('header helper renders header information', async () => {
+    const html = await (render('/head'))
+    expect(html.includes('<meta charset="iso-8859-5" class="next-head"/>')).toBeTruthy()
+    expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
+    expect(html.includes('<div><h1>I can haz meta tags</h1></div>')).toBeTruthy()
+  })
 
-test('renders properties populated asynchronously', async t => {
-  const html = await render('/async-props')
-  t.true(html.includes('<p>Diego Milito</p>'))
-})
+  test('css helper renders styles', async () => {
+    const html = await render('/css')
+    expect(/\.css-\w+/.test(html)).toBeTruthy()
+    expect(/<div class="css-\w+">This is red<\/div>/.test(html)).toBeTruthy()
+  })
 
-test('renders a link component', async t => {
-  const html = await render('/link')
-  t.true(html.includes('<a href="/about">About</a>'))
+  test('renders properties populated asynchronously', async () => {
+    const html = await render('/async-props')
+    expect(html.includes('<p>Diego Milito</p>')).toBeTruthy()
+  })
+
+  test('renders a link component', async () => {
+    const html = await render('/link')
+    expect(html.includes('<a href="/about">About</a>')).toBeTruthy()
+  })
 })
 
 function render (url, ctx) {
