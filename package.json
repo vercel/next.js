@@ -18,34 +18,12 @@
     "build": "gulp",
     "pretest": "npm run lint",
     "test": "gulp test",
-    "html-report": "nyc report --reporter=html",
-    "ava": "cross-env NODE_ENV=test nyc ava --verbose",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "html-report": "nyc report --temp-directory=./coverage --reporter=html",
+    "jest": "jest --coverage",
+    "coveralls": "nyc report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard && standard bin/*",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
-  },
-  "nyc": {
-    "require": [
-      "babel-core/register"
-    ],
-    "exclude": [
-      "gulpfile.js",
-      "css.js",
-      "link.js",
-      "head.js",
-      "client/**",
-      "**/pages/**",
-      "**/coverage/**",
-      "**/client/**",
-      "**/test/**",
-      "**/dist/**",
-      "**/examples/**",
-      "**/bench/**"
-    ],
-    "all": false,
-    "sourceMap": false,
-    "instrument": false
   },
   "standard": {
     "parser": "babel-eslint"
@@ -92,24 +70,24 @@
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
-    "ava": "0.17.0",
     "babel-eslint": "7.1.1",
-    "babel-plugin-istanbul": "3.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "benchmark": "2.1.2",
     "coveralls": "2.11.15",
-    "cross-env": "3.1.3",
     "gulp": "3.9.1",
-    "gulp-ava": "0.15.0",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.1",
+    "gulp-jest": "^0.6.0",
     "gulp-notify": "2.2.0",
-    "gulp-process-env": "0.0.2",
     "husky": "0.11.9",
-    "nyc": "10.0.0",
+    "jest": "^17.0.3",
+    "nyc": "^10.0.0",
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "webpack-stream": "3.2.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
   }
 }

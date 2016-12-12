@@ -3,12 +3,11 @@ const gulp = require('gulp')
 const babel = require('gulp-babel')
 const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
-const ava = require('gulp-ava')
 const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
 const webpack = require('webpack-stream')
 const del = require('del')
-const processEnv = require('gulp-process-env')
+const jest = require('gulp-jest')
 
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 
@@ -135,14 +134,18 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
 })
 
 gulp.task('test', () => {
-  const env = processEnv({NODE_ENV: 'test'})
-  return gulp.src('test/**/**.test.js')
-  .pipe(env)
-  .pipe(ava({
+  return gulp.src('./test')
+  .pipe(jest.default({
+    coverage: true,
     verbose: true,
-    nyc: true
+    config: {
+      rootDir: './test',
+      testEnvironment: 'node',
+      coveragePathIgnorePatterns: [
+        'test/.*'
+      ]
+    }
   }))
-  .pipe(env.restore())
 })
 
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
