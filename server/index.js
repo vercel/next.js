@@ -62,12 +62,7 @@ export default class Server {
 
     this.router.get('/:path*', async (req, res) => {
       const { pathname, query } = parse(req.url, true)
-      const accept = accepts(req)
-      if (accept.type(['json', 'html']) === 'json') {
-        await this.renderJSON(res, pathname)
-      } else {
-        await this.render(req, res, pathname, query)
-      }
+      await this.render(req, res, pathname, query)
     })
   }
 
@@ -95,9 +90,17 @@ export default class Server {
     }
   }
 
-  async render (req, res, pathname, query) {
-    const html = await this.renderToHTML(req, res, pathname, query)
-    sendHTML(res, html)
+  async render (req, res, pathname, query, use) {
+    const accept = accepts(req)
+    if (accept.type(['json', 'html']) === 'json') {
+      // When we are asking for the page json, we always need to give
+      // the real pathname. But not the pathname user provided.
+      const { pathname: realPathname } = parse(req.url)
+      await this.renderJSON(res, realPathname)
+    } else {
+      const html = await this.renderToHTML(req, res, pathname, query)
+      sendHTML(res, html)
+    }
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -216,4 +219,3 @@ export default class Server {
     if (p) return errors.get(p)[0]
   }
 }
-
