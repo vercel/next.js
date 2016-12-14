@@ -1,6 +1,12 @@
-import HTMLDOMPropertyConfig from 'react-dom/lib/HTMLDOMPropertyConfig'
 
 const DEFAULT_TITLE = ''
+
+const DOMAttributeNames = {
+  acceptCharset: 'accept-charset',
+  className: 'class',
+  htmlFor: 'for',
+  httpEquiv: 'http-equiv',
+}
 
 export default class HeadManager {
   constructor () {
@@ -68,7 +74,7 @@ function reactElementToDOM ({ type, props }) {
     if (!props.hasOwnProperty(p)) continue
     if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
 
-    const attr = HTMLDOMPropertyConfig.DOMAttributeNames[p] || p.toLowerCase()
+    const attr = DOMAttributeNames[p] || p.toLowerCase()
     el.setAttribute(attr, props[p])
   }
 
