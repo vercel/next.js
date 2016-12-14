@@ -122,8 +122,8 @@ export default class Server {
     // since it can be used on getInitialProps
     res.statusCode = statusCode
 
-    const html = await render(url, ctx, { dir, dev })
-    sendHTML(res, html)
+    const rendered = await render(url, ctx, { dir, dev })
+    sendHTML(res, rendered.html, rendered.headers)
   }
 
   async renderJSON (req, res) {
@@ -214,8 +214,17 @@ export default class Server {
   }
 }
 
-function sendHTML (res, html) {
+function sendHTML (res, html, headers) {
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
+  if (headers) {
+    Object.keys(headers).forEach((item) => {
+      if (item !== 'Status Code') {
+        res.setHeader(item, headers[item])
+      } else if (item === 'Status Code') {
+        res.statusCode = headers[item]
+      }
+    })
+  }
   res.end(html)
 }

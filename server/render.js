@@ -22,10 +22,12 @@ export async function render (url, ctx = {}, {
 
   const [
     props,
+    headers,
     component,
     errorComponent
   ] = await Promise.all([
     Component.getInitialProps ? Component.getInitialProps(ctx) : {},
+    Component.setHeaders ? Component.setHeaders(ctx) : { 'X-Powered-By': 'next.js' },
     read(join(dir, '.next', 'bundles', 'pages', path)),
     read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
   ])
@@ -59,7 +61,10 @@ export async function render (url, ctx = {}, {
     cdn: config.cdn
   })
 
-  return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
+  return {
+    html: '<!DOCTYPE html>' + renderToStaticMarkup(doc),
+    headers: headers
+  }
 }
 
 export async function renderJSON (url, { dir = process.cwd() } = {}) {
