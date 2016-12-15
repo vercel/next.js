@@ -182,6 +182,58 @@ Each top-level component receives a `url` property with the following API:
 - `pushTo(url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
 - `replaceTo(url)` - performs a `replaceState` call that renders the new `url`
 
+### Prefetching Pages
+
+When you are switching between pages, Next.js will download new pages from the server and render them for you. So, it'll take some time to download. Because of that, when you click on a page, it might wait few milliseconds (depending on the network speed) before it render the page.
+
+> Once the Next.js has download the page, it'll reuse it in the next time when you navigate to that same page.
+
+This is a problem specially in UX wise. "Prefetching Pages" is one of our solutions for this problem. With this, Next.js will prefetch pages behind the scene using the support of [Service Workers](https://developers.google.com/web/fundamentals/getting-started/primers/service-workers).
+
+#### Declarative API
+
+You can simply ask Next.js to prefetch pages using `next/prefetch`. See:
+
+```jsx
+import Link from 'next/prefetch'
+
+// This is the header component
+export default () => (
+  <div>
+    <Link href='/'>Home</Link>
+    <Link href='/about'>Home</Link>
+    <Link href='/contact'>Home</Link>
+  </div>
+)
+```
+
+Here you are using `<Link>` from `next/prefetch` instead of `next/link`. It's an extended version of `next/link` with prefetching support.
+
+Then Next.js will start to prefetch all the pages behind the scene. So, when you click on any of the link it won't need to do a network hit to fetch the page.
+
+If you need, you could stop prefetching like this:
+
+```jsx
+<Link href='/contact' prefetch={false}>Home</Link>
+```
+
+#### Imperative API
+
+You can get started with prefetching using `<Link>` pretty quickly. But you may want to prefetch based on your own logic. (You may need to write a custom prefetching `<Link>` based on [premonish](https://github.com/mathisonian/premonish).)
+
+Then you can use the imperative API like this:
+
+```jsx
+import { prefetch } from 'next/prefetch'
+
+prefetch('/')
+prefetch('/features')
+```
+
+When you simply run `prefetch('/page_url')` we'll start prefetching that page.
+
+> We can only do this, if `prefetch` is called when loading the current page. So in general, make sure to run `prefetch` calls in a common module all of your pages import.
+
 ### Error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:

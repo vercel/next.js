@@ -144,6 +144,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
               'babel-runtime': babelRuntimePath,
               react: require.resolve('react'),
               'next/link': require.resolve('../../lib/link'),
+              'next/prefetch': require.resolve('../../lib/prefetch'),
               'next/css': require.resolve('../../lib/css'),
               'next/head': require.resolve('../../lib/head')
             }
@@ -181,6 +182,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       {
         [require.resolve('react')]: 'react',
         [require.resolve('../../lib/link')]: 'next/link',
+        [require.resolve('../../lib/prefetch')]: 'next/prefetch',
         [require.resolve('../../lib/css')]: 'next/css',
         [require.resolve('../../lib/head')]: 'next/head'
       }

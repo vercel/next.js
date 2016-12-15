@@ -72,7 +72,8 @@ gulp.task('copy-bench-fixtures', () => {
 
 gulp.task('build', [
   'build-dev-client',
-  'build-client'
+  'build-client',
+  'build-prefetcher'
 ])
 
 gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
@@ -131,6 +132,44 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
   }))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release client'))
+})
+
+gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
+  return gulp
+  .src('client/next-prefetcher.js')
+  .pipe(webpack({
+    quiet: true,
+    output: { filename: 'next-prefetcher-bundle.js' },
+    plugins: [
+      new webpack.webpack.DefinePlugin({
+        'process.env': {
+          NODE_ENV: JSON.stringify('production')
+        }
+      })
+    ],
+    module: {
+      loaders: [
+        {
+          test: /\.js$/,
+          exclude: /node_modules/,
+          loader: 'babel',
+          query: {
+            'babelrc': false,
+            'presets': [
+              ['env', {
+                'targets': {
+                  // All browsers which supports service workers
+                  'browsers': ['chrome 49', 'firefox 49', 'opera 41']
+                }
+              }]
+            ]
+          }
+        }
+      ]
+    }
+  }))
+  .pipe(gulp.dest('dist/client'))
+  .pipe(notify('Built release prefetcher'))
 })
 
 gulp.task('test', () => {

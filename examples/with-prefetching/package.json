@@ -1,0 +1,14 @@
+{
+  "name": "with-prefetching",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "*"
+  },
+  "author": "",
+  "license": "ISC"
+}

@@ -72,6 +72,7 @@
   "devDependencies": {
     "babel-eslint": "7.1.1",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
+    "babel-preset-env": "1.0.2",
     "benchmark": "2.1.2",
     "coveralls": "2.11.15",
     "gulp": "3.9.1",
