@@ -5,7 +5,7 @@ const DOMAttributeNames = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
-  httpEquiv: 'http-equiv',
+  httpEquiv: 'http-equiv'
 }
 
 export default class HeadManager {
