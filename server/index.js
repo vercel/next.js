@@ -50,8 +50,8 @@ export default class Server {
     })
 
     this.router.get('/_next/pages/:path*', async (req, res, params) => {
-      const path = params.path || ['']
-      const pathname = `/${path[0]}`
+      const paths = params.path || []
+      const pathname = `/${paths.join('/')}`
       await this.renderJSON(res, pathname)
     })
 
