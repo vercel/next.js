@@ -2,7 +2,6 @@ import { resolve, join } from 'path'
 import { parse } from 'url'
 import http from 'http'
 import send from 'send'
-import accepts from 'accepts'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -50,6 +49,12 @@ export default class Server {
       await this.serveStatic(req, res, p)
     })
 
+    this.router.get('/_next/pages/:path*', async (req, res, params) => {
+      const path = params.path || ['']
+      const pathname = `/${path[0]}`
+      await this.renderJSON(res, pathname)
+    })
+
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
       await this.serveStatic(req, res, p)
@@ -90,17 +95,9 @@ export default class Server {
     }
   }
 
-  async render (req, res, pathname, query, use) {
-    const accept = accepts(req)
-    if (accept.type(['json', 'html']) === 'json') {
-      // When we are asking for the page json, we always need to give
-      // the real pathname. But not the pathname user provided.
-      const { pathname: realPathname } = parse(req.url)
-      await this.renderJSON(res, realPathname)
-    } else {
-      const html = await this.renderToHTML(req, res, pathname, query)
-      sendHTML(res, html)
-    }
+  async render (req, res, pathname, query) {
+    const html = await this.renderToHTML(req, res, pathname, query)
+    sendHTML(res, html)
   }
 
   async renderToHTML (req, res, pathname, query) {
