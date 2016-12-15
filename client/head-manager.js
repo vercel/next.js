@@ -25,9 +25,9 @@ export default class HeadManager {
   doUpdateHead (head) {
     const tags = {}
     head.forEach((h) => {
-      const components = tags[h.type] || []
+      const components = tags[h.nodeName] || []
       components.push(h)
-      tags[h.type] = components
+      tags[h.nodeName] = components
     })
 
     this.updateTitle(tags.title ? tags.title[0] : null)
@@ -68,7 +68,7 @@ export default class HeadManager {
   }
 }
 
-function reactElementToDOM ({ type, props }) {
+function reactElementToDOM ({ nodeName: type, attributes: props }) {
   const el = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
