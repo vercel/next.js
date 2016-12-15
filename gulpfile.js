@@ -112,8 +112,8 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
         'process.env': {
           NODE_ENV: JSON.stringify('production')
         }
-      })
-      // new webpack.webpack.optimize.UglifyJsPlugin()
+      }),
+      new webpack.webpack.optimize.UglifyJsPlugin()
     ],
     module: {
       loaders: [
