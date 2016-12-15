@@ -1,8 +1,7 @@
-import { createElement } from 'react'
-import { render } from 'react-dom'
+import { h as createElement, render } from 'preact'
 import HeadManager from './head-manager'
 import domready from 'domready'
-import { rehydrate } from '../lib/css'
+// import { rehydrate } from '../lib/css'
 import Router from '../lib/router'
 import App from '../lib/app'
 import evalScript, { requireModule } from '../lib/eval-script'
@@ -30,8 +29,8 @@ domready(() => {
   const container = document.getElementById('__next')
   const appProps = { Component, props, router, headManager }
 
-  rehydrate(ids)
-  render(createElement(App, appProps), container)
+  // rehydrate(ids)
+  render(createElement(App, appProps), container, container.lastChild)
 })
 
 module.exports = requireModule

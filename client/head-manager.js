@@ -5,7 +5,7 @@ const DOMAttributeNames = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
-  httpEquiv: 'http-equiv',
+  httpEquiv: 'http-equiv'
 }
 
 export default class HeadManager {
@@ -41,7 +41,7 @@ export default class HeadManager {
   updateTitle (component) {
     let title
     if (component) {
-      const { children } = component.props
+      const children = component.children
       title = typeof children === 'string' ? children : children.join('')
     } else {
       title = DEFAULT_TITLE

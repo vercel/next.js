@@ -49,7 +49,7 @@ export async function render (url, ctx = {}, {
     css,
     data: {
       component,
-      errorComponent,
+      // errorComponent,
       props,
       ids: ids,
       err: (ctx.err && dev) ? errorToJSON(ctx.err) : null
