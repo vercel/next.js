@@ -1,7 +1,6 @@
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
-const accepts = require('accepts')
 const pathMatch = require('path-match')
 
 const app = next({ dev: true })
@@ -12,13 +11,6 @@ const match = route('/blog/:id')
 app.prepare()
 .then(() => {
   createServer((req, res) => {
-    const accept = accepts(req)
-    const type = accept.type(['json', 'html'])
-    if (type === 'json') {
-      handle(req, res)
-      return
-    }
-
     const { pathname } = parse(req.url)
     const params = match(pathname)
     if (params === false) {

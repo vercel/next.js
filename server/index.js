@@ -2,7 +2,6 @@ import { resolve, join } from 'path'
 import { parse } from 'url'
 import http from 'http'
 import send from 'send'
-import accepts from 'accepts'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -50,6 +49,12 @@ export default class Server {
       await this.serveStatic(req, res, p)
     })
 
+    this.router.get('/_next/pages/:path*', async (req, res, params) => {
+      const paths = params.path || []
+      const pathname = `/${paths.join('/')}`
+      await this.renderJSON(res, pathname)
+    })
+
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
       await this.serveStatic(req, res, p)
@@ -62,12 +67,7 @@ export default class Server {
 
     this.router.get('/:path*', async (req, res) => {
       const { pathname, query } = parse(req.url, true)
-      const accept = accepts(req)
-      if (accept.type(['json', 'html']) === 'json') {
-        await this.renderJSON(res, pathname)
-      } else {
-        await this.render(req, res, pathname, query)
-      }
+      await this.render(req, res, pathname, query)
     })
   }
 
@@ -216,4 +216,3 @@ export default class Server {
     if (p) return errors.get(p)[0]
   }
 }
-
