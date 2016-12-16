@@ -1,13 +1,14 @@
 /* global self */
 
 const CACHE_NAME = 'next-prefetcher-v1'
+const log = () => {}
 
 self.addEventListener('install', () => {
-  console.log('Installing Next Prefetcher')
+  log('Installing Next Prefetcher')
 })
 
 self.addEventListener('activate', (e) => {
-  console.log('Activated Next Prefetcher')
+  log('Activated Next Prefetcher')
   e.waitUntil(Promise.all([
     resetCache(),
     notifyClients()
@@ -21,12 +22,12 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('message', (e) => {
   switch (e.data.action) {
     case 'ADD_URL': {
-      console.log('CACHING ', e.data.url)
+      log('CACHING ', e.data.url)
       sendReply(e, cacheUrl(e.data.url))
       break
     }
     case 'RESET': {
-      console.log('RESET')
+      log('RESET')
       sendReply(e, resetCache())
       break
     }
@@ -65,10 +66,10 @@ function getResponse (req) {
     .then((cache) => cache.match(req))
     .then((res) => {
       if (res) {
-        console.log('CACHE HIT: ' + req.url)
+        log('CACHE HIT: ' + req.url)
         return res
       } else {
-        console.log('CACHE MISS: ' + req.url)
+        log('CACHE MISS: ' + req.url)
         return self.fetch(req)
       }
     })
