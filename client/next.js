@@ -30,7 +30,7 @@ domready(() => {
   const container = document.getElementById('__next')
   const appProps = { Component, props, router, headManager }
 
-  rehydrate(ids)
+  if (ids) rehydrate(ids)
   render(createElement(App, appProps), container)
 })
 

@@ -13,7 +13,10 @@ import DetachPlugin from './plugins/detach-plugin'
 export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
   dir = resolve(dir)
 
-  const pages = await glob('pages/**/*.js', { cwd: dir })
+  const pages = await glob('pages/**/*.js', {
+    cwd: dir,
+    ignore: 'pages/_document.js'
+  })
 
   const entry = {}
   const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
@@ -146,7 +149,8 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
               'next/link': require.resolve('../../lib/link'),
               'next/prefetch': require.resolve('../../lib/prefetch'),
               'next/css': require.resolve('../../lib/css'),
-              'next/head': require.resolve('../../lib/head')
+              'next/head': require.resolve('../../lib/head'),
+              'next/document': require.resolve('../../server/document')
             }
           }
         ]

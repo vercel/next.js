@@ -3,6 +3,7 @@ import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
+import babel, { watch } from './build/babel'
 import read from './read'
 
 export default class HotReloader {
@@ -12,6 +13,7 @@ export default class HotReloader {
     this.middlewares = []
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
+    this.watcher = null
     this.initialized = false
     this.stats = null
     this.compilationErrors = null
@@ -33,7 +35,11 @@ export default class HotReloader {
   }
 
   async start () {
-    await this.prepareMiddlewares()
+    this.watch()
+    await Promise.all([
+      this.prepareMiddlewares(),
+      babel(this.dir, { dev: true })
+    ])
     this.stats = await this.waitUntilValid()
   }
 
@@ -162,6 +168,26 @@ export default class HotReloader {
 
   send (action, ...args) {
     this.webpackHotMiddleware.publish({ action, data: args })
+  }
+
+  watch () {
+    const onChange = (path) => {
+      babel(this.dir, { dev: true })
+      .then(() => {
+        const f = join(this.dir, '.next', 'dist', relative(this.dir, path))
+        delete require.cache[f]
+        this.send('hardReload')
+      })
+    }
+
+    this.watcher = watch(this.dir)
+    this.watcher
+    .on('add', onChange)
+    .on('change', onChange)
+    .on('unlink', onChange)
+    .on('error', (err) => {
+      console.error(err)
+    })
   }
 }
 

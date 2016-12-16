@@ -23,6 +23,9 @@ const handlers = {
       // reload to recover from runtime errors
       next.router.reload(route)
     }
+  },
+  hardReload () {
+    window.location.reload()
   }
 }
 
