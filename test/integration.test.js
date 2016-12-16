@@ -2,16 +2,21 @@
 
 'use strict'
 
-import build from '../server/build'
 import { join } from 'path'
-import { render as _render } from '../server/render'
+import next from '../server/next'
 
 const dir = join(__dirname, 'fixtures', 'basic')
+const app = next({
+  dir,
+  dev: true,
+  staticMarkup: true,
+  quiet: true
+})
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('integration tests', () => {
-  beforeAll(() => build(dir))
+  beforeAll(() => app.prepare())
 
   test('renders a stateless component', async () => {
     const html = await render('/stateless')
@@ -46,8 +51,30 @@ describe('integration tests', () => {
     const html = await render('/link')
     expect(html.includes('<a href="/about">About</a>')).toBeTruthy()
   })
+
+  test('error', async () => {
+    const html = await render('/error')
+    expect(html).toMatch(/<pre class=".+">Error: This is an expected error\n[^]+<\/pre>/)
+  })
+
+  test('error 404', async () => {
+    const html = await render('/non-existent')
+    expect(html).toMatch(/<h1 class=".+">404<\/h1>/)
+    expect(html).toMatch(/<h2 class=".+">This page could not be found\.<\/h2>/)
+  })
+
+  test('finishes response', async () => {
+    const res = {
+      finished: false,
+      end () {
+        this.finished = true
+      }
+    }
+    const html = await app.renderToHTML({}, res, '/finish-response', {})
+    expect(html).toBeFalsy()
+  })
 })
 
-function render (url, ctx) {
-  return _render(url, ctx, { dir, staticMarkup: true })
+function render (pathname, query = {}) {
+  return app.renderToHTML({}, {}, pathname, query)
 }

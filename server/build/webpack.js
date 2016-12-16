@@ -10,7 +10,7 @@ import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 
-export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
+export default async function createCompiler (dir, { dev = false } = {}) {
   dir = resolve(dir)
 
   const pages = await glob('pages/**/*.js', {
@@ -19,7 +19,8 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
   })
 
   const entry = {}
-  const defaultEntries = hotReload ? ['next/dist/client/webpack-hot-middleware-client'] : []
+  const defaultEntries = dev
+    ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
   for (const p of pages) {
     entry[join('bundles', p)] = defaultEntries.concat([`./${p}?entry`])
   }
@@ -52,19 +53,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
     })
   ]
 
-  if (!dev) {
-    plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify('production')
-      }),
-      new webpack.optimize.UglifyJsPlugin({
-        compress: { warnings: false },
-        sourceMap: false
-      })
-    )
-  }
-
-  if (hotReload) {
+  if (dev) {
     plugins.push(
       new webpack.optimize.OccurrenceOrderPlugin(),
       new webpack.HotModuleReplacementPlugin(),
@@ -76,12 +65,22 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       new WatchPagesPlugin(dir),
       new FriendlyErrorsWebpackPlugin()
     )
+  } else {
+    plugins.push(
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify('production')
+      }),
+      new webpack.optimize.UglifyJsPlugin({
+        compress: { warnings: false },
+        sourceMap: false
+      })
+    )
   }
 
   const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\/]package\.json$/, '')
 
-  const loaders = (hotReload ? [{
+  const loaders = (dev ? [{
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -170,7 +169,7 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: hotReload ? '/_webpack/' : null,
+      publicPath: dev ? '/_webpack/' : null,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
         hash.update(Date.now() + '')

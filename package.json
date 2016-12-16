@@ -2,7 +2,7 @@
   "name": "next",
   "version": "1.2.3",
   "description": "Minimalistic framework for server-rendered React applications",
-  "main": "./dist/lib/index.js",
+  "main": "./dist/server/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
   "files": [
@@ -31,6 +31,7 @@
     "parser": "babel-eslint"
   },
   "dependencies": {
+    "accepts": "1.3.3",
     "ansi-html": "0.0.6",
     "babel-core": "6.20.0",
     "babel-generator": "6.20.0",
