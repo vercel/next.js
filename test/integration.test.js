@@ -8,7 +8,7 @@ import { render as _render } from '../server/render'
 
 const dir = join(__dirname, 'fixtures', 'basic')
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('integration tests', () => {
   beforeAll(() => build(dir))

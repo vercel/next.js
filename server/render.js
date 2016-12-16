@@ -2,13 +2,11 @@ import { join } from 'path'
 import { parse } from 'url'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { renderStatic } from 'glamor/server'
 import requireModule from './require'
 import read from './read'
 import getConfig from './config'
 import Router from '../lib/router'
-import Document from '../lib/document'
-import Head, {defaultHead} from '../lib/head'
+import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
 export async function render (url, ctx = {}, {
@@ -17,8 +15,12 @@ export async function render (url, ctx = {}, {
   staticMarkup = false
 } = {}) {
   const path = getPath(url)
-  const mod = await requireModule(join(dir, '.next', 'dist', 'pages', path))
-  const Component = mod.default || mod
+  let [Component, Document] = await Promise.all([
+    requireModule(join(dir, '.next', 'dist', 'pages', path)),
+    requireModule(join(dir, '.next', 'dist', 'pages', '_document'))
+  ])
+  Component = Component.default || Component
+  Document = Document.default || Document
 
   const [
     props,
@@ -30,33 +32,32 @@ export async function render (url, ctx = {}, {
     read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
   ])
 
-  const { html, css, ids } = renderStatic(() => {
+  const renderPage = () => {
     const app = createElement(App, {
       Component,
       props,
       router: new Router(ctx.req ? ctx.req.url : url)
     })
+    const html = (staticMarkup ? renderToStaticMarkup : renderToString)(app)
+    const head = Head.rewind() || defaultHead()
+    return { html, head }
+  }
 
-    return (staticMarkup ? renderToStaticMarkup : renderToString)(app)
-  })
-
-  const head = Head.rewind() || defaultHead()
   const config = await getConfig(dir)
 
+  const docProps = await Document.getInitialProps({ ...ctx, renderPage })
+
   const doc = createElement(Document, {
-    html,
-    head,
-    css,
-    data: {
+    __NEXT_DATA__: {
       component,
       errorComponent,
       props,
-      ids: ids,
       err: (ctx.err && dev) ? errorToJSON(ctx.err) : null
     },
     dev,
     staticMarkup,
-    cdn: config.cdn
+    cdn: config.cdn,
+    ...docProps
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
