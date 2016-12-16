@@ -9,8 +9,7 @@
     "dist",
     "link.js",
     "css.js",
-    "head.js",
-    "render.js"
+    "head.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
