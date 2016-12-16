@@ -1,4 +1,4 @@
-import 'react-hot-loader/patch'
+// import 'react-hot-loader/patch'
 import * as next from './next'
 import { requireModule } from '../lib/eval-script'
 

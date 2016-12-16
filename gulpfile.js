@@ -129,6 +129,8 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
         }
       ]
     }
+  }, null, function (err, stats) {
+    fs.writeFileSync('next.json', JSON.stringify(stats.toJson(), true, 2))
   }))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release client'))
