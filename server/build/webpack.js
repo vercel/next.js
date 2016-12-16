@@ -184,7 +184,12 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
         [require.resolve('../../lib/link')]: 'next/link',
         [require.resolve('../../lib/prefetch')]: 'next/prefetch',
         [require.resolve('../../lib/css')]: 'next/css',
-        [require.resolve('../../lib/head')]: 'next/head'
+        [require.resolve('../../lib/head')]: 'next/head',
+        // React addons ask for React like this.
+        // That causes webpack to push react into the app's bundle.
+        // This fix simply prevents that and ask to use React from the next-bundle
+        './React': 'react',
+        './ReactDOM': 'react-dom'
       }
     ],
     resolve: {
