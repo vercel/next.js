@@ -30,6 +30,7 @@ function getPaths (id) {
 
   return [
     i + '.js',
+    i + '.jsx',
     join(i, 'index.js')
   ]
 }

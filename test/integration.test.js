@@ -48,6 +48,11 @@ describe('integration tests', () => {
   })
 })
 
+test('resolve jsx extension', async t => {
+  const html = await render('/dummy')
+  t.true(html.includes('<p> Dummy task to check jsx resolution with webpack</p>'))
+})
+
 function render (url, ctx) {
   return _render(url, ctx, { dir, staticMarkup: true })
 }
