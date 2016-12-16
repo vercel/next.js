@@ -60,7 +60,9 @@ export default class WatchPagesPlugin {
   }
 
   isPageFile (f) {
-    return f.indexOf(this.dir) === 0 && extname(f) === '.js'
+    return f.indexOf(this.dir) === 0 &&
+      relative(this.dir, f) !== '_document.js' &&
+      extname(f) === '.js'
   }
 }
 

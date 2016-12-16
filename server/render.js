@@ -1,13 +1,11 @@
 import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { renderStatic } from 'glamor/server'
 import requireModule from './require'
 import read from './read'
 import getConfig from './config'
 import Router from '../lib/router'
-import Document from '../lib/document'
-import Head, {defaultHead} from '../lib/head'
+import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
 export async function render (req, res, pathname, query, opts) {
@@ -37,8 +35,12 @@ async function doRender (req, res, pathname, query, {
   staticMarkup = false
 } = {}) {
   page = page || pathname
-  const mod = await requireModule(join(dir, '.next', 'dist', 'pages', page))
-  const Component = mod.default || mod
+  let [Component, Document] = await Promise.all([
+    requireModule(join(dir, '.next', 'dist', 'pages', page)),
+    requireModule(join(dir, '.next', 'dist', 'pages', '_document'))
+  ])
+  Component = Component.default || Component
+  Document = Document.default || Document
   const ctx = { err, req, res, pathname, query }
 
   const [
@@ -54,35 +56,34 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
 
-  const { html, css, ids } = renderStatic(() => {
+  const renderPage = () => {
     const app = createElement(App, {
       Component,
       props,
       router: new Router(pathname, query)
     })
+    const html = (staticMarkup ? renderToStaticMarkup : renderToString)(app)
+    const head = Head.rewind() || defaultHead()
+    return { html, head }
+  }
 
-    return (staticMarkup ? renderToStaticMarkup : renderToString)(app)
-  })
-
-  const head = Head.rewind() || defaultHead()
   const config = await getConfig(dir)
 
+  const docProps = await Document.getInitialProps({ ...ctx, renderPage })
+
   const doc = createElement(Document, {
-    html,
-    head,
-    css,
-    data: {
+    __NEXT_DATA__: {
       component,
       errorComponent,
       props,
       pathname,
       query,
-      ids: ids,
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
     staticMarkup,
-    cdn: config.cdn
+    cdn: config.cdn,
+    ...docProps
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)

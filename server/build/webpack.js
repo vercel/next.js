@@ -13,7 +13,10 @@ import DetachPlugin from './plugins/detach-plugin'
 export default async function createCompiler (dir, { dev = false } = {}) {
   dir = resolve(dir)
 
-  const pages = await glob('pages/**/*.js', { cwd: dir })
+  const pages = await glob('pages/**/*.js', {
+    cwd: dir,
+    ignore: 'pages/_document.js'
+  })
 
   const entry = {}
   const defaultEntries = dev
@@ -46,7 +49,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
       filename: 'commons.js',
-      minChunks: pages.length
+      minChunks: Math.max(2, pages.length)
     })
   ]
 
@@ -106,6 +109,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     loader: 'babel',
     include: nextPagesDir,
     query: {
+      babelrc: false,
       sourceMaps: dev ? 'both' : false,
       plugins: [
         [
@@ -126,6 +130,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     query: {
+      babelrc: false,
       sourceMaps: dev ? 'both' : false,
       presets: ['es2015', 'react'],
       plugins: [
@@ -141,8 +146,10 @@ export default async function createCompiler (dir, { dev = false } = {}) {
               'babel-runtime': babelRuntimePath,
               react: require.resolve('react'),
               'next/link': require.resolve('../../lib/link'),
+              'next/prefetch': require.resolve('../../lib/prefetch'),
               'next/css': require.resolve('../../lib/css'),
-              'next/head': require.resolve('../../lib/head')
+              'next/head': require.resolve('../../lib/head'),
+              'next/document': require.resolve('../../server/document')
             }
           }
         ]
@@ -178,8 +185,14 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       {
         [require.resolve('react')]: 'react',
         [require.resolve('../../lib/link')]: 'next/link',
+        [require.resolve('../../lib/prefetch')]: 'next/prefetch',
         [require.resolve('../../lib/css')]: 'next/css',
-        [require.resolve('../../lib/head')]: 'next/head'
+        [require.resolve('../../lib/head')]: 'next/head',
+        // React addons ask for React like this.
+        // That causes webpack to push react into the app's bundle.
+        // This fix simply prevents that and ask to use React from the next-bundle
+        './React': 'react',
+        './ReactDOM': 'react-dom'
       }
     ],
     resolve: {

@@ -5,10 +5,5 @@
     "transform-object-rest-spread",
     "transform-class-properties",
     "transform-runtime"
-  ],
-  "env": {
-    "test": {
-      "plugins": ["istanbul"]
-    }
-  }
+  ]
 }

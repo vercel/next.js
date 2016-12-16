@@ -1,4 +1,5 @@
 import webpack from './webpack'
+import babel from './babel'
 import clean from './clean'
 
 export default async function build (dir) {
@@ -7,6 +8,13 @@ export default async function build (dir) {
     clean(dir)
   ])
 
+  await Promise.all([
+    runCompiler(compiler),
+    babel(dir)
+  ])
+}
+
+function runCompiler (compiler) {
   return new Promise((resolve, reject) => {
     compiler.run((err, stats) => {
       if (err) return reject(err)

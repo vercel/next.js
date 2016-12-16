@@ -1,4 +1,7 @@
-import test from 'ava'
+/* global expect, jasmine, describe, test, beforeAll */
+
+'use strict'
+
 import { join } from 'path'
 import next from '../server/next'
 
@@ -10,62 +13,66 @@ const app = next({
   quiet: true
 })
 
-test.before(() => app.prepare())
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
-test('renders a stateless component', async t => {
-  const html = await render('/stateless')
-  t.true(html.includes('<meta charset="utf-8" class="next-head"/>'))
-  t.true(html.includes('<h1>My component!</h1>'))
-})
+describe('integration tests', () => {
+  beforeAll(() => app.prepare())
 
-test('renders a stateful component', async t => {
-  const html = await render('/stateful')
-  t.true(html.includes('<div><p>The answer is 42</p></div>'))
-})
+  test('renders a stateless component', async () => {
+    const html = await render('/stateless')
+    expect(html.includes('<meta charset="utf-8" class="next-head"/>')).toBeTruthy()
+    expect(html.includes('<h1>My component!</h1>')).toBeTruthy()
+  })
 
-test('header helper renders header information', async t => {
-  const html = await (render('/head'))
-  t.true(html.includes('<meta charset="iso-8859-5" class="next-head"/>'))
-  t.true(html.includes('<meta content="my meta" class="next-head"/>'))
-  t.true(html.includes('<div><h1>I can haz meta tags</h1></div>'))
-})
+  test('renders a stateful component', async () => {
+    const html = await render('/stateful')
+    expect(html.includes('<div><p>The answer is 42</p></div>')).toBeTruthy()
+  })
 
-test('css helper renders styles', async t => {
-  const html = await render('/css')
-  t.regex(html, /\.css-\w+/)
-  t.regex(html, /<div class="css-\w+">This is red<\/div>/)
-})
+  test('header helper renders header information', async () => {
+    const html = await (render('/head'))
+    expect(html.includes('<meta charset="iso-8859-5" class="next-head"/>')).toBeTruthy()
+    expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
+    expect(html.includes('<div><h1>I can haz meta tags</h1></div>')).toBeTruthy()
+  })
 
-test('renders properties populated asynchronously', async t => {
-  const html = await render('/async-props')
-  t.true(html.includes('<p>Diego Milito</p>'))
-})
+  test('css helper renders styles', async () => {
+    const html = await render('/css')
+    expect(/\.css-\w+/.test(html)).toBeTruthy()
+    expect(/<div class="css-\w+">This is red<\/div>/.test(html)).toBeTruthy()
+  })
 
-test('renders a link component', async t => {
-  const html = await render('/link')
-  t.true(html.includes('<a href="/about">About</a>'))
-})
+  test('renders properties populated asynchronously', async () => {
+    const html = await render('/async-props')
+    expect(html.includes('<p>Diego Milito</p>')).toBeTruthy()
+  })
 
-test(async t => {
-  const html = await render('/error')
-  t.regex(html, /<pre class=".+">Error: This is an expected error\n[^]+<\/pre>/)
-})
+  test('renders a link component', async () => {
+    const html = await render('/link')
+    expect(html.includes('<a href="/about">About</a>')).toBeTruthy()
+  })
 
-test(async t => {
-  const html = await render('/non-existent')
-  t.regex(html, /<h1 class=".+">404<\/h1>/)
-  t.regex(html, /<h2 class=".+">This page could not be found\.<\/h2>/)
-})
+  test('error', async () => {
+    const html = await render('/error')
+    expect(html).toMatch(/<pre class=".+">Error: This is an expected error\n[^]+<\/pre>/)
+  })
 
-test(async t => {
-  const res = {
-    finished: false,
-    end () {
-      this.finished = true
+  test('error 404', async () => {
+    const html = await render('/non-existent')
+    expect(html).toMatch(/<h1 class=".+">404<\/h1>/)
+    expect(html).toMatch(/<h2 class=".+">This page could not be found\.<\/h2>/)
+  })
+
+  test('finishes response', async () => {
+    const res = {
+      finished: false,
+      end () {
+        this.finished = true
+      }
     }
-  }
-  const html = await app.renderToHTML({}, res, '/finish-response', {})
-  t.falsy(html)
+    const html = await app.renderToHTML({}, res, '/finish-response', {})
+    expect(html).toBeFalsy()
+  })
 })
 
 function render (pathname, query = {}) {
