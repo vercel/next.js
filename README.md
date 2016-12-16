@@ -54,7 +54,6 @@ To see how simple this is, check out the [sample app - nextgram](https://github.
 Every `import` you declare gets bundled and served with each page
 
 ```jsx
-import React from 'react'
 import cowsay from 'cowsay-browser'
 
 export default () => (
@@ -71,7 +70,6 @@ We use [glamor](https://github.com/threepointone/glamor) to provide a great buil
 Glamor's [HowTo](https://github.com/threepointone/glamor/blob/master/docs/howto.md) shows converting various CSS use cases to Glamor. See Glamor's [API docs](https://github.com/threepointone/glamor/blob/master/docs/api.md) for more details.
 
 ```jsx
-import React from 'react'
 import css from 'next/css'
 
 export default () => (
@@ -100,7 +98,6 @@ Create a folder called `static` in your project root directory. From your code y
 We expose a built-in component for appending elements to the `<head>` of the page.
 
 ```jsx
-import React from 'react'
 import Head from 'next/head'
 export default () => (
   <div>
@@ -153,7 +150,6 @@ Client-side transitions between routes are enabled via a `<Link>` component
 #### pages/index.js
 
 ```jsx
-import React from 'react'
 import Link from 'next/link'
 export default () => (
   <div>Click <Link href="/about"><a>here</a></Link> to read more</div>
@@ -163,7 +159,6 @@ export default () => (
 #### pages/about.js
 
 ```jsx
-import React from 'react'
 export default () => (
   <p>Welcome to About!</p>
 )
