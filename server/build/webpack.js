@@ -10,6 +10,12 @@ import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 
+// get all the environment variables
+const env = Object.keys(process.env).reduce(function (o, k) {
+  o['process.env.' + k] = JSON.stringify(process.env[k])
+  return o
+}, {})
+
 export default async function createCompiler (dir, { hotReload = false, dev = false } = {}) {
   dir = resolve(dir)
 
@@ -54,13 +60,17 @@ export default async function createCompiler (dir, { hotReload = false, dev = fa
 
   if (!dev) {
     plugins.push(
-      new webpack.DefinePlugin({
+      new webpack.DefinePlugin(Object.assign({
         'process.env.NODE_ENV': JSON.stringify('production')
-      }),
+      }, env)),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
       })
+    )
+  } else {
+    plugins.push(
+      new webpack.DefinePlugin(env)
     )
   }
 
