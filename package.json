@@ -9,7 +9,9 @@
     "dist",
     "link.js",
     "css.js",
-    "head.js"
+    "head.js",
+    "document.js",
+    "prefetch.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
