@@ -6,6 +6,8 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
+**NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)! **
+
 ## How to use
 
 Install it:
