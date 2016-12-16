@@ -51,7 +51,7 @@
     "domready": "1.0.8",
     "friendly-errors-webpack-plugin": "1.1.2",
     "glamor": "2.20.12",
-    "glob-promise": "2.0.0",
+    "glob-promise": "3.1.0",
     "htmlescape": "1.1.1",
     "is-windows-bash": "1.0.3",
     "json-loader": "0.5.4",
