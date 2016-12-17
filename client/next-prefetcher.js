@@ -51,7 +51,10 @@ function sendReply (e, result) {
 
 function cacheUrl (url) {
   const req = new self.Request(url, {
-    mode: 'no-cors'
+    mode: 'no-cors',
+    headers: {
+      'Accept': 'application/json'
+    }
   })
 
   return self.caches.open(CACHE_NAME)
