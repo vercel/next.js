@@ -1,4 +1,4 @@
-/* global expect, jasmine, describe, test, beforeAll */
+/* global expect, jasmine, describe, test, beforeAll, afterAll */
 
 'use strict'
 
@@ -17,6 +17,8 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('integration tests', () => {
   beforeAll(() => app.prepare())
+
+  afterAll(() => app.close())
 
   test('renders a stateless component', async () => {
     const html = await render('/stateless')

@@ -50,6 +50,19 @@ export default class HotReloader {
     this.stats = await this.waitUntilValid()
   }
 
+  async stop () {
+    if (this.watcher) this.watcher.close()
+
+    if (this.webpackDevMiddleware) {
+      return new Promise((resolve, reject) => {
+        this.webpackDevMiddleware.close((err) => {
+          if (err) reject(err)
+          resolve()
+        })
+      })
+    }
+  }
+
   async prepareMiddlewares (compiler) {
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation

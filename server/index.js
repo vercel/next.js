@@ -43,6 +43,12 @@ export default class Server {
     }
   }
 
+  async close () {
+    if (this.hotReloader) {
+      await this.hotReloader.stop()
+    }
+  }
+
   defineRoutes () {
     this.router.get('/_next-prefetcher.js', async (req, res, params) => {
       const p = join(__dirname, '../client/next-prefetcher-bundle.js')
