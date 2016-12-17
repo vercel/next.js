@@ -285,6 +285,66 @@ Then run `now` and enjoy!
 
 Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
 
+## Configuration
+
+While Next.js aims to work without any configuration, sometimes there is a need to add custom behaviour.
+You can define custom configuration in a file called `next.config.js` in the project root directory.
+An example of a configuration looks like this:
+
+```javascript
+// next.config.js
+module.exports = {
+  cdn: true
+}
+```
+
+### Customizing webpack config
+
+Sometimes the user needs to have custom configuration for webpack to add a specific behaviour in the build process.
+An example of this is using `eslint-loader` to lint the files before compiling. This can be done by defining 
+`webpack` in the config.
+
+```javascript
+module.exports = {
+  webpack: (webpackConfig, { dev }) => {
+    webpackConfig.module.preLoaders.push({ test: /\.js$/, loader: 'eslint-loader' })
+    return webpackConfig
+  }
+}
+```
+
+As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js, and `options`, which contains
+`dev` (`true` if dev environment). The config you return is the config used by Next.js.
+You can also return a `Promise` which will be resolved first.
+
+_NOTE: Use this option with care, because you can potentially break the existing webpack build configuration by using this option._
+
+These are some more examples:
+
+```javascript
+const I18nPlugin = require('i18n-webpack-plugin');
+
+module.exports = {
+  webpack: (webpackConfig, { dev }) => {
+    // Read image files:
+    webpackConfig.module.loaders.push({
+      test: /\.png$/,
+      loader: 'file'
+    })
+
+    // Adding a plugin
+    webpackConfig.plugins.push(new I18nPlugin())
+
+    // Or adding an alias
+    // Create webpackConfig.resolve.alias if it doesn't exist yet:
+    webpackConfig.resolve.alias = webpackConfig.resolve.alias || {}
+    webpackConfig.resolve.alias.src = './src'
+
+    return webpackConfig
+  }
+}
+```
+
 ## FAQ
 
 <details>
@@ -423,7 +483,7 @@ For this reason we want to promote a situation where users can share the cache f
 
 We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](http://www.hanselman.com/blog/CDNsFailButYourScriptsDontHaveToFallbackFromCDNToLocalJQuery.aspx).
 
-To turn the CDN off, just set `{ “next”: { “cdn”: false } }` in `package.json`.
+To turn the CDN off, just set `module.exports = { cdn: false }` in `next.config.js`.
 </details>
 
 <details>
