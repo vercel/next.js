@@ -22,7 +22,7 @@ and add a script to your package.json like this:
 {
   "scripts": {
     "dev": "next"
-  }
+  } 
 }
 ```
 
@@ -214,16 +214,14 @@ Most needs are addressed by `<Link />`, but we also expose an imperative API for
 
 ```jsx
 import { prefetch } from 'next/prefetch'
-prefetch('/')
-prefetch('/features')
-```
-
-Note: it's also possible to prefetch by using an empty `<Link />`:
-
-```js
-import Link from 'next/prefetch'
-export default () => (
-  <div>Hello world <Link href="/prefetch-this" /></div>
+export default ({ url }) => (
+  <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
+    A route transition will happen after 100ms
+  </a>
+  {
+    // but we can prefetch it!
+    prefetch('/dynamic')
+  }
 )
 ```
 
@@ -233,7 +231,6 @@ export default () => (
 
 ```jsx
 import React from 'react'
-
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
     const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
