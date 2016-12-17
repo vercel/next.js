@@ -17,9 +17,9 @@ if (argv.help) {
       Scaffolds a simple project structure to get started quickly
 
     Usage
-      $ next init <directory>
+      $ next init <dir>
 
-      If no directory is providing the current directory will be used.
+      If no directory is provided the current directory will be used.
 
     Options
       --help, -p      Displays this message

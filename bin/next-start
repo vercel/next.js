@@ -22,9 +22,9 @@ if (argv.help) {
       The application should be compiled with \`next build\` first.
 
     Usage
-      $ next start <directory> -p <port>
+      $ next start <dir> -p <port>
 
-    <directory> is the directory that contains the compiled .next folder
+    <dir> is the directory that contains the compiled .next folder
     created by running \`next build\`.
     If no directory is provided, the current directory will be assumed.
 
