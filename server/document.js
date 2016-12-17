@@ -1,12 +1,6 @@
 import React, { Component, PropTypes } from 'react'
 import htmlescape from 'htmlescape'
 import { renderStatic } from 'glamor/server'
-import readPkgUp from 'read-pkg-up'
-
-const { pkg } = readPkgUp.sync({
-  cwd: __dirname,
-  normalize: false
-})
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
@@ -82,37 +76,11 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, dev, cdn } = this.context._documentProps
+    const { staticMarkup } = this.context._documentProps
+
     return <div>
-      {staticMarkup ? null : createClientScript({ dev, cdn })}
-      <script type='text/javascript' src='/_next/commons.js' />
+      { staticMarkup ? null : <script type='text/javascript' src='/_next/commons.js' /> }
+      { staticMarkup ? null : <script type='text/javascript' src='/_next/main.js' /> }
     </div>
   }
-}
-
-function createClientScript ({ dev, cdn }) {
-  if (dev) {
-    return <script type='text/javascript' src='/_next/next-dev.bundle.js' />
-  }
-
-  if (!cdn) {
-    return <script type='text/javascript' src='/_next/next.bundle.js' />
-  }
-
-  return <script dangerouslySetInnerHTML={{ __html: `
-    (function () {
-      load('https://cdn.zeit.co/next.js/${pkg.version}/next.min.js', function (err) {
-        if (err) load('/_next/next.bundle.js')
-      })
-      function load (src, fn) {
-        fn = fn || function () {}
-        var script = document.createElement('script')
-        script.src = src
-        script.onload = function () { fn(null) }
-        script.onerror = fn
-        script.crossorigin = 'anonymous'
-        document.body.appendChild(script)
-      }
-    })()
-  `}} />
 }

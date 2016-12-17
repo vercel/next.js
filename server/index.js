@@ -55,6 +55,11 @@ export default class Server {
       await this.serveStatic(req, res, p)
     })
 
+    this.router.get('/_next/main.js', async (req, res, params) => {
+      const p = join(this.dir, '.next/main.js')
+      await this.serveStatic(req, res, p)
+    })
+
     this.router.get('/_next/commons.js', async (req, res, params) => {
       const p = join(this.dir, '.next/commons.js')
       await this.serveStatic(req, res, p)

@@ -71,68 +71,8 @@ gulp.task('copy-bench-fixtures', () => {
 })
 
 gulp.task('build', [
-  'build-dev-client',
-  'build-client',
   'build-prefetcher'
 ])
-
-gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
-  return gulp
-  .src('dist/client/next-dev.js')
-  .pipe(webpack({
-    quiet: true,
-    output: { filename: 'next-dev.bundle.js', libraryTarget: 'var', library: 'require' },
-    module: {
-      loaders: [
-        {
-          test: /eval-script\.js$/,
-          exclude: /node_modules/,
-          loader: 'babel',
-          query: {
-            plugins: [
-              'babel-plugin-transform-remove-strict-mode'
-            ]
-          }
-        }
-      ]
-    }
-  }))
-  .pipe(gulp.dest('dist/client'))
-  .pipe(notify('Built dev client'))
-})
-
-gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
-  return gulp
-  .src('dist/client/next.js')
-  .pipe(webpack({
-    quiet: true,
-    output: { filename: 'next.bundle.js', libraryTarget: 'var', library: 'require' },
-    plugins: [
-      new webpack.webpack.DefinePlugin({
-        'process.env': {
-          NODE_ENV: JSON.stringify('production')
-        }
-      }),
-      new webpack.webpack.optimize.UglifyJsPlugin()
-    ],
-    module: {
-      loaders: [
-        {
-          test: /eval-script\.js$/,
-          exclude: /node_modules/,
-          loader: 'babel',
-          query: {
-            plugins: [
-              'babel-plugin-transform-remove-strict-mode'
-            ]
-          }
-        }
-      ]
-    }
-  }))
-  .pipe(gulp.dest('dist/client'))
-  .pipe(notify('Built release client'))
-})
 
 gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
   return gulp
@@ -172,7 +112,7 @@ gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release prefetcher'))
 })
 
-gulp.task('test', () => {
+gulp.task('test', ['compile'], () => {
   return gulp.src('./test')
   .pipe(jest.default({
     coverage: true,

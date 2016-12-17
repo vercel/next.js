@@ -3,7 +3,6 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import requireModule from './require'
 import read from './read'
-import getConfig from './config'
 import Router from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
@@ -67,8 +66,6 @@ async function doRender (req, res, pathname, query, {
     return { html, head }
   }
 
-  const config = await getConfig(dir)
-
   const docProps = await Document.getInitialProps({ ...ctx, renderPage })
 
   const doc = createElement(Document, {
@@ -82,7 +79,6 @@ async function doRender (req, res, pathname, query, {
     },
     dev,
     staticMarkup,
-    cdn: config.cdn,
     ...docProps
   })
 
