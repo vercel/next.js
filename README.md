@@ -287,60 +287,28 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, u
 
 ## Configuration
 
-While Next.js aims to work without any configuration, sometimes there is a need to add custom behaviour.
-You can define custom configuration in a file called `next.config.js` in the project root directory.
-An example of a configuration looks like this:
+For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`). 
+
+Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
 
 ```javascript
 // next.config.js
 module.exports = {
-  cdn: true
+  /* config options here */
 }
 ```
 
 ### Customizing webpack config
 
-Sometimes the user needs to have custom configuration for webpack to add a specific behaviour in the build process.
-An example of this is using `eslint-loader` to lint the files before compiling. This can be done by defining 
-`webpack` in the config.
+In order to extend our usage of `webpack`, you can define a function that extends its config. 
 
-```javascript
+The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
+
+```js
 module.exports = {
-  webpack: (webpackConfig, { dev }) => {
-    webpackConfig.module.preLoaders.push({ test: /\.js$/, loader: 'eslint-loader' })
-    return webpackConfig
-  }
-}
-```
-
-As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js, and `options`, which contains
-`dev` (`true` if dev environment). The config you return is the config used by Next.js.
-You can also return a `Promise` which will be resolved first.
-
-_NOTE: Use this option with care, because you can potentially break the existing webpack build configuration by using this option._
-
-These are some more examples:
-
-```javascript
-const I18nPlugin = require('i18n-webpack-plugin');
-
-module.exports = {
-  webpack: (webpackConfig, { dev }) => {
-    // Read image files:
-    webpackConfig.module.loaders.push({
-      test: /\.png$/,
-      loader: 'file'
-    })
-
-    // Adding a plugin
-    webpackConfig.plugins.push(new I18nPlugin())
-
-    // Or adding an alias
-    // Create webpackConfig.resolve.alias if it doesn't exist yet:
-    webpackConfig.resolve.alias = webpackConfig.resolve.alias || {}
-    webpackConfig.resolve.alias.src = './src'
-
-    return webpackConfig
+  webpack: (cfg, { dev }) => {
+    cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
+    return cfg
   }
 }
 ```
