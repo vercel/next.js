@@ -67,8 +67,8 @@ describe('integration tests', () => {
 
   test('error 404', async () => {
     const html = await render('/non-existent')
-    expect(html).toMatch(/<h1 class=".+">404<\/h1>/)
-    expect(html).toMatch(/<h2 class=".+">This page could not be found\.<\/h2>/)
+    expect(html).toMatch(/<h1 data-jsx=".+">404<\/h1>/)
+    expect(html).toMatch(/<h2 data-jsx=".+">This page could not be found\.<\/h2>/)
   })
 
   test('finishes response', async () => {
