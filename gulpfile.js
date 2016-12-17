@@ -82,6 +82,7 @@ gulp.task('build-dev-client', ['compile-lib', 'compile-client'], () => {
   .pipe(webpack({
     quiet: true,
     output: { filename: 'next-dev.bundle.js', libraryTarget: 'var', library: 'require' },
+    plugins: [new webpack.webpack.optimize.DedupePlugin()],
     module: {
       loaders: [
         {
@@ -108,6 +109,7 @@ gulp.task('build-client', ['compile-lib', 'compile-client'], () => {
     quiet: true,
     output: { filename: 'next.bundle.js', libraryTarget: 'var', library: 'require' },
     plugins: [
+      new webpack.webpack.optimize.DedupePlugin(),
       new webpack.webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify('production')

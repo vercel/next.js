@@ -40,6 +40,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
   const plugins = [
+    new webpack.optimize.DedupePlugin(),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
