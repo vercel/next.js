@@ -76,9 +76,11 @@ export class NextScript extends Component {
   }
 
   render () {
+    const { staticMarkup } = this.context._documentProps
+
     return <div>
-      <script type='text/javascript' src='/_next/commons.js' />
-      <script type='text/javascript' src='/_next/main.js' />
+      { staticMarkup ? null : <script type='text/javascript' src='/_next/commons.js' /> }
+      { staticMarkup ? null : <script type='text/javascript' src='/_next/main.js' /> }
     </div>
   }
 }
