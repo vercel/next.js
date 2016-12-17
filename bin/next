@@ -14,7 +14,7 @@ const commands = new Set([
 let cmd = process.argv[2]
 let args
 
-if (cmd === '--help' || cmd === '-h') {
+if (new Set(['--help', '-h']).has(cmd)) {
   console.log(`
     Usage
       $ next <command>
