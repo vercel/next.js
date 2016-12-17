@@ -256,6 +256,34 @@ export default class Error extends React.Component {
 }
 ```
 
+### Configuration
+
+For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`). 
+
+Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
+
+```javascript
+// next.config.js
+module.exports = {
+  /* config options here */
+}
+```
+
+### Customizing webpack config
+
+In order to extend our usage of `webpack`, you can define a function that extends its config. 
+
+The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
+
+```js
+module.exports = {
+  webpack: (cfg, { dev }) => {
+    cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
+    return cfg
+  }
+}
+```
+
 ## Production deployment
 
 To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
@@ -284,34 +312,6 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 Then run `now` and enjoy!
 
 Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
-
-## Configuration
-
-For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`). 
-
-Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
-
-```javascript
-// next.config.js
-module.exports = {
-  /* config options here */
-}
-```
-
-### Customizing webpack config
-
-In order to extend our usage of `webpack`, you can define a function that extends its config. 
-
-The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
-
-```js
-module.exports = {
-  webpack: (cfg, { dev }) => {
-    cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
-    return cfg
-  }
-}
-```
 
 ## FAQ
 
