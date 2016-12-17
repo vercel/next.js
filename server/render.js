@@ -6,6 +6,8 @@ import read from './read'
 import Router from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
+// We need to go up one more level since we are in the `dist` directory
+import pkg from '../../package'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
@@ -102,6 +104,7 @@ export async function renderErrorJSON (err, res, { dir = process.cwd(), dev = fa
 export function sendHTML (res, html) {
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
+  res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
   res.end(html)
 }
 
