@@ -31,8 +31,6 @@ After that, the file-system is the main API. Every `.js` file becomes a route th
 Populate `./pages/index.js` inside your project:
 
 ```jsx
-import React from 'react'
-
 export default () => (
   <div>Welcome to next.js!</div>
 )
@@ -55,7 +53,6 @@ Every `import` you declare gets bundled and served with each page
 
 ```jsx
 import cowsay from 'cowsay-browser'
-
 export default () => (
   <pre>{ cowsay.say({ text: 'hi there!' }) }</pre>
 )
@@ -93,7 +90,7 @@ const style = css({
 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs, e.g.: `<img src="/static/file-name.jpg" />`.
 
-### `<head>` side effects
+### Populating `<head>`
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -110,7 +107,9 @@ export default () => (
 )
 ```
 
-### Component lifecycle
+_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+
+### Fetching data and component lifecycle
 
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`.
 
@@ -132,7 +131,7 @@ export default class extends React.Component {
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component and the `props.url`.
+For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or invoking `props.url.*` methods like `pushTo`.
 
 `getInitialProps` receives a context object with the following properties:
 
@@ -181,34 +180,29 @@ Each top-level component receives a `url` property with the following API:
 
 ### Prefetching Pages
 
-When you are switching between pages, Next.js will download new pages from the server and render them for you. So, it'll take some time to download. Because of that, when you click on a page, it might wait few milliseconds (depending on the network speed) before it render the page.
+Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`. 
 
-> Once the Next.js has download the page, it'll reuse it in the next time when you navigate to that same page.
+Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance). 
 
-This is a problem specially in UX wise. "Prefetching Pages" is one of our solutions for this problem. With this, Next.js will prefetch pages behind the scene using the support of [Service Workers](https://developers.google.com/web/fundamentals/getting-started/primers/service-workers).
-
-#### Declarative API
+#### <Link> prefetching
 
 You can simply ask Next.js to prefetch pages using `next/prefetch`. See:
 
 ```jsx
 import Link from 'next/prefetch'
-
-// This is the header component
+// example header component
 export default () => (
-  <div>
-    <Link href='/'>Home</Link>
-    <Link href='/about'>Home</Link>
-    <Link href='/contact'>Home</Link>
-  </div>
+  <nav>
+    <ul>
+      <li><Link href='/'><a>Home</a></Link></li>
+      <li><Link href='/about'><a>About</a></Link></li>
+      <li><Link href='/contact'><a>Contact</a></Link></li>
+    </ul>
+  </nav>
 )
 ```
 
-Here you are using `<Link>` from `next/prefetch` instead of `next/link`. It's an extended version of `next/link` with prefetching support.
-
-Then Next.js will start to prefetch all the pages behind the scene. So, when you click on any of the link it won't need to do a network hit to fetch the page.
-
-If you need, you could stop prefetching like this:
+When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
 
 ```jsx
 <Link href='/contact' prefetch={false}>Home</Link>
@@ -216,20 +210,22 @@ If you need, you could stop prefetching like this:
 
 #### Imperative API
 
-You can get started with prefetching using `<Link>` pretty quickly. But you may want to prefetch based on your own logic. (You may need to write a custom prefetching `<Link>` based on [premonish](https://github.com/mathisonian/premonish).)
-
-Then you can use the imperative API like this:
+Most needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
 import { prefetch } from 'next/prefetch'
-
 prefetch('/')
 prefetch('/features')
 ```
 
-When you simply run `prefetch('/page_url')` we'll start prefetching that page.
+Note: it's also possible to prefetch by not decorating anything with `<Link />`:
 
-> We can only do this, if `prefetch` is called when loading the current page. So in general, make sure to run `prefetch` calls in a common module all of your pages import.
+```js
+import Link from 'next/prefetch'
+export default () => (
+  <div>Hello world <Link href="/prefetch-this" /></div>
+)
+```
 
 ### Error handling
 
