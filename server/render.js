@@ -67,7 +67,6 @@ async function doRender (req, res, pathname, query, {
   }
 
   const docProps = await Document.getInitialProps({ ...ctx, renderPage })
-  const config = getConfig(dir)
 
   const doc = createElement(Document, {
     __NEXT_DATA__: {

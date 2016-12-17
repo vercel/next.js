@@ -4,7 +4,6 @@ import { existsSync } from 'fs'
 const cache = new Map()
 
 const defaultConfig = {
-  cdn: true,
   webpack: null
 }
 
@@ -17,10 +16,8 @@ export default function getConfig (dir) {
 
 function loadConfig (dir) {
   const path = join(dir, 'next.config.js')
-  const packagePath = join(dir, 'package.json')
 
   let userConfig = {}
-  let packageConfig = null
 
   const userHasConfig = existsSync(path)
   if (userHasConfig) {
@@ -28,14 +25,5 @@ function loadConfig (dir) {
     userConfig = userConfigModule.default || userConfigModule
   }
 
-  const userHasPackageConfig = existsSync(packagePath)
-  if (userHasPackageConfig) {
-    packageConfig = require(packagePath).next
-  }
-
-  if (packageConfig) {
-    console.warn("> [warn] You're using package.json as source of config for next.js. Use next.config.js instead.")
-  }
-
-  return Object.assign({}, defaultConfig, userConfig, packageConfig || {})
+  return Object.assign({}, defaultConfig, userConfig)
 }

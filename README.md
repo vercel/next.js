@@ -306,15 +306,15 @@ An example of this is using `eslint-loader` to lint the files before compiling. 
 
 ```javascript
 module.exports = {
-  webpack: (webpackConfig, { hotReload, dev }) => {
+  webpack: (webpackConfig, { dev }) => {
     webpackConfig.module.preLoaders.push({ test: /\.js$/, loader: 'eslint-loader' })
     return webpackConfig
   }
 }
 ```
 
-As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js, and `options`, which
-contains `hotReload` (`true` if hotReload is on) and `dev` (`true` if dev environment). The config you return is the config used by Next.js.
+As you can see you need to provide a function which has two parameters `webpackConfig`, which is the config used by Next.js, and `options`, which contains
+`dev` (`true` if dev environment). The config you return is the config used by Next.js.
 You can also return a `Promise` which will be resolved first.
 
 _NOTE: Use this option with care, because you can potentially break the existing webpack build configuration by using this option._
@@ -325,7 +325,7 @@ These are some more examples:
 const I18nPlugin = require('i18n-webpack-plugin');
 
 module.exports = {
-  webpack: (webpackConfig, { hotReload, dev }) => {
+  webpack: (webpackConfig, { dev }) => {
     // Read image files:
     webpackConfig.module.loaders.push({
       test: /\.png$/,
