@@ -218,7 +218,7 @@ prefetch('/')
 prefetch('/features')
 ```
 
-Note: it's also possible to prefetch by not decorating anything with `<Link />`:
+Note: it's also possible to prefetch by using an empty `<Link />`:
 
 ```js
 import Link from 'next/prefetch'
