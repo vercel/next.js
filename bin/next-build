@@ -17,7 +17,10 @@ if (argv.help) {
       Compiles the application for production deployment
 
     Usage
-      $ next build
+      $ next build <directory>
+
+    <directory> represents where the compiled .next folder should go.
+    If no directory is provided, .next will be created in the current directory
   `)
   process.exit(0)
 }

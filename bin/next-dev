@@ -23,7 +23,10 @@ if (argv.help) {
       reporting, etc)
 
     Usage
-      $ next dev -p <port number>
+      $ next dev <directory> -p <port number>
+
+    <directory> represents where the compiled .next folder should go.
+    If no directory is provided, .next will be created in the current directory
 
     Options
       --port, -p      A port number on which to start the application
