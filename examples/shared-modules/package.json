@@ -12,8 +12,5 @@
     "next": "*"
   },
   "author": "",
-  "license": "ISC",
-  "next": {
-    "cdn": true
-  }
+  "license": "ISC"
 }

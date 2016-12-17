@@ -3,7 +3,7 @@ import { readFile } from 'mz/fs'
 
 const cache = new Map()
 
-const defaultConfig = { cdn: true }
+const defaultConfig = {}
 
 export default function getConfig (dir) {
   if (!cache.has(dir)) {
