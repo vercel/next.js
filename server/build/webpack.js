@@ -18,7 +18,10 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     ignore: 'pages/_document.js'
   })
 
-  const entry = {}
+  const entry = {
+    'main.js': dev ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
+  }
+
   const defaultEntries = dev
     ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
   for (const p of pages) {
@@ -145,6 +148,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
             alias: {
               'babel-runtime': babelRuntimePath,
               react: require.resolve('react'),
+              'react-dom': require.resolve('react-dom'),
               'next/link': require.resolve('../../lib/link'),
               'next/prefetch': require.resolve('../../lib/prefetch'),
               'next/css': require.resolve('../../lib/css'),
@@ -179,22 +183,6 @@ export default async function createCompiler (dir, { dev = false } = {}) {
         return `webpack:///${resourcePath}?${id}`
       }
     },
-    externals: [
-      'react',
-      'react-dom',
-      {
-        [require.resolve('react')]: 'react',
-        [require.resolve('../../lib/link')]: 'next/link',
-        [require.resolve('../../lib/prefetch')]: 'next/prefetch',
-        [require.resolve('../../lib/css')]: 'next/css',
-        [require.resolve('../../lib/head')]: 'next/head',
-        // React addons ask for React like this.
-        // That causes webpack to push react into the app's bundle.
-        // This fix simply prevents that and ask to use React from the next-bundle
-        './React': 'react',
-        './ReactDOM': 'react-dom'
-      }
-    ],
     resolve: {
       root: [
         nodeModulesDir,

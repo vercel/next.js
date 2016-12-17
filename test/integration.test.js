@@ -3,7 +3,7 @@
 'use strict'
 
 import { join } from 'path'
-import next from '../server/next'
+import next from '../dist/server/next'
 
 const dir = join(__dirname, 'fixtures', 'basic')
 const app = next({
