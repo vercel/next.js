@@ -44,6 +44,12 @@ describe('integration tests', () => {
     expect(/<div class="css-\w+">This is red<\/div>/.test(html)).toBeTruthy()
   })
 
+  test('renders styled jsx', async () => {
+    const html = await render('/styled-jsx')
+    expect(html.includes('<style>p[data-jsx="1354095109"] {color: blue }</style>')).toBeTruthy()
+    expect(html.includes('<div data-jsx="1354095109"><p data-jsx="1354095109">This is blue</p></div>')).toBeTruthy()
+  })
+
   test('renders properties populated asynchronously', async () => {
     const html = await render('/async-props')
     expect(html.includes('<p>Diego Milito</p>')).toBeTruthy()
