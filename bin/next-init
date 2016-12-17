@@ -13,10 +13,16 @@ const argv = parseArgs(process.argv.slice(2), {
 
 if (argv.help) {
   console.log(`
-    Usage:
+    Description
+      Scaffolds a simple project structure to get started quickly
+
+    Usage
       $ next init <directory>
 
-      Directory defaults to current directory ('.')
+      If no directory is providing the current directory will be used.
+
+    Options
+      --help, -p      Displays this message
   `)
 
   process.exit(0)
