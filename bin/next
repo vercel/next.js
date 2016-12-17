@@ -5,14 +5,28 @@ import { spawn } from 'cross-spawn'
 
 const defaultCommand = 'dev'
 const commands = new Set([
-  defaultCommand,
   'init',
   'build',
-  'start'
+  'start',
+  defaultCommand
 ])
 
 let cmd = process.argv[2]
 let args
+
+if (cmd === '--help' || cmd === '-h') {
+  console.log(`
+    Usage
+      $ next <command>
+
+    Available commands
+      ${Array.from(commands).join(', ')}
+
+    For more information run a command with the --help flag
+      $ next init --help
+  `)
+  process.exit(0)
+}
 
 if (commands.has(cmd)) {
   args = process.argv.slice(3)
