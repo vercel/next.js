@@ -184,9 +184,9 @@ Next.js exposes a module that configures a `ServiceWorker` automatically to pref
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance). 
 
-#### <Link> prefetching
+#### Link prefetching
 
-You can simply ask Next.js to prefetch pages using `next/prefetch`. See:
+You can substitute your usage of `<Link>` with the default export of `next/prefetch`. For example:
 
 ```jsx
 import Link from 'next/prefetch'
@@ -227,7 +227,7 @@ export default () => (
 )
 ```
 
-### Error handling
+### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
 
@@ -252,7 +252,7 @@ export default class Error extends React.Component {
 }
 ```
 
-### Configuration
+### Custom configuration
 
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`). 
 
@@ -341,7 +341,8 @@ No in that it enforces a _structure_ so that we can do more advanced things like
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-- Routing with lazy component loading: `<Link>` (by importing `next/link`)
+- Routing with lazy component loading: `
+>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
