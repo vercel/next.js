@@ -15,6 +15,26 @@ const argv = parseArgs(process.argv.slice(2), {
   }
 })
 
+if (argv.help) {
+  console.log(`
+    Description
+      Starts the application in production mode.
+      The application should be compiled with \`next build\` first.
+
+    Usage
+      $ next start <dir> -p <port>
+
+    <dir> is the directory that contains the compiled .next folder
+    created by running \`next build\`.
+    If no directory is provided, the current directory will be assumed.
+
+    Options
+      --port, -p      A port number on which to start the application
+      --help, -p      Displays this message
+  `)
+  process.exit(0)
+}
+
 const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })

@@ -6,14 +6,28 @@ import { watchFile } from 'fs'
 
 const defaultCommand = 'dev'
 const commands = new Set([
-  defaultCommand,
   'init',
   'build',
-  'start'
+  'start',
+  defaultCommand
 ])
 
 let cmd = process.argv[2]
 let args
+
+if (new Set(['--help', '-h']).has(cmd)) {
+  console.log(`
+    Usage
+      $ next <command>
+
+    Available commands
+      ${Array.from(commands).join(', ')}
+
+    For more information run a command with the --help flag
+      $ next init --help
+  `)
+  process.exit(0)
+}
 
 if (commands.has(cmd)) {
   args = process.argv.slice(3)

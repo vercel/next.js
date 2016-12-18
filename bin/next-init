@@ -11,6 +11,23 @@ const argv = parseArgs(process.argv.slice(2), {
   boolean: ['h']
 })
 
+if (argv.help) {
+  console.log(`
+    Description
+      Scaffolds a simple project structure to get started quickly
+
+    Usage
+      $ next init <dir>
+
+      If no directory is provided the current directory will be used.
+
+    Options
+      --help, -p      Displays this message
+  `)
+
+  process.exit(0)
+}
+
 const dir = resolve(argv._[0] || '.')
 
 if (basename(dir) === 'pages') {

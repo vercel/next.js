@@ -11,6 +11,20 @@ const argv = parseArgs(process.argv.slice(2), {
   boolean: ['h']
 })
 
+if (argv.help) {
+  console.log(`
+    Description
+      Compiles the application for production deployment
+
+    Usage
+      $ next build <dir>
+
+    <dir> represents where the compiled .next folder should go.
+    If no directory is provided, .next will be created in the current directory
+  `)
+  process.exit(0)
+}
+
 const dir = resolve(argv._[0] || '.')
 
 build(dir)
