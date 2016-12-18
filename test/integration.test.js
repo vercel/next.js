@@ -4,6 +4,7 @@
 
 import { join } from 'path'
 import next from '../dist/server/next'
+import pkg from '../package.json'
 
 const dir = join(__dirname, 'fixtures', 'basic')
 const app = next({
@@ -74,6 +75,39 @@ describe('integration tests', () => {
     }
     const html = await app.renderToHTML({}, res, '/finish-response', {})
     expect(html).toBeFalsy()
+  })
+
+  describe('X-Powered-By header', () => {
+    test('set it by default', async () => {
+      const req = { url: '/stateless' }
+      const headers = {}
+      const res = {
+        setHeader (key, value) {
+          headers[key] = value
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
+    })
+
+    test('do not set it when poweredByHeader==false', async () => {
+      const req = { url: '/stateless' }
+      const originalConfigValue = app.config.poweredByHeader
+      app.config.poweredByHeader = false
+      const res = {
+        setHeader (key, value) {
+          if (key === 'X-Powered-By') {
+            throw new Error('Should not set the X-Powered-By header')
+          }
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      app.config.poweredByHeader = originalConfigValue
+    })
   })
 })
 
