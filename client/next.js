@@ -21,16 +21,11 @@ const {
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 
-const router = createRouter(pathname, query, {
+export const router = createRouter(pathname, query, {
   Component,
   ErrorComponent,
   ctx: { err }
 })
-
-// This it to support error handling in the dev time with hot code reload.
-if (window.next) {
-  window.next.router = router
-}
 
 const headManager = new HeadManager()
 const container = document.getElementById('__next')
