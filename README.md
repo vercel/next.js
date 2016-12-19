@@ -142,28 +142,26 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 - `xhr` - XMLHttpRequest object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
-### Routing with <Link>
+### Routing with `<Link>`
 
-Client-side transitions between routes can be enabled via a `<Link>` component
-
-#### pages/index.js
+Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
 ```jsx
+// pages/index.js
 import Link from 'next/link'
 export default () => (
   <div>Click <Link href="/about"><a>here</a></Link> to read more</div>
 )
 ```
 
-#### pages/about.js
-
 ```jsx
+// pages/about.js
 export default () => (
   <p>Welcome to About!</p>
 )
 ```
 
-Client-side routing behaves exactly like the native UA:
+Client-side routing behaves exactly like the browser:
 
 1. The component is fetched
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
@@ -175,12 +173,14 @@ Each top-level component receives a `url` property with the following API:
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `push(url)` - performs a `pushState` call associated with the current component
 - `replace(url)` - performs a `replaceState` call associated with the current component
-- `pushTo(url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
-- `replaceTo(url)` - performs a `replaceState` call that renders the new `url`
+- `pushTo(url, as=url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
+- `replaceTo(url, as=url)` - performs a `replaceState` call that renders the new `url`
 
-### Routing with next/router
+The second `as` parameter for `pushTo` and `replaceTo` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-You can also do client-side page transitions using the `next/router`. This is the same API used inside the above `<Link />` component.
+### Routing with `next/router`
+
+You can also do client-side page transitions using the `next/router`. This is the same API used inside the above `<Link />` component (`pushTo` and `replaceTo`)
 
 ```jsx
 import Router from 'next/router'
@@ -197,29 +197,15 @@ export default () => (
 )
 ```
 
-#### pages/about.js
-
-```jsx
-export default () => (
-  <p>Welcome to About!</p>
-)
-```
-
 Above `Router` object comes with the following API:
 
 - `route` - `String` of the current route
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url, pathname=url)` - performs a `pushState` call associated with the current component
-- `replace(url, pathname=url)` - performs a `replaceState` call associated with the current component
+- `push(url, as=url)` - performs a `pushState` call associated with the current component
+- `replace(url, as=url)` - performs a `replaceState` call associated with the current component
 
-> Usually, route is the same as pathname.
-> But when used with programmatic API, route and pathname can be different.
-> "route" is your actual page's path while "pathname" is the path of the url mapped to it.
->
-> Likewise, url and path is the same usually.
-> But when used with programmatic API, "url" is the route with the query string.
-> "pathname" is the path of the url mapped to it.
+The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ### Prefetching Pages
 
@@ -227,7 +213,7 @@ Next.js exposes a module that configures a `ServiceWorker` automatically to pref
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
-#### Link prefetching
+#### `<Link>` prefetching
 
 You can substitute your usage of `<Link>` with the default export of `next/prefetch`. For example:
 
