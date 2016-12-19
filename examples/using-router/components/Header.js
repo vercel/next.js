@@ -13,7 +13,7 @@ const Link = ({ children, href }) => (
     style={styles.a}
     onClick={(e) => {
       e.preventDefault()
-      Router.push(href, href)
+      Router.push(href)
     }}
   >
     { children }
