@@ -22,7 +22,7 @@ and add a script to your package.json like this:
 {
   "scripts": {
     "dev": "next"
-  } 
+  }
 }
 ```
 
@@ -142,9 +142,9 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 - `xhr` - XMLHttpRequest object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
-### Routing
+### Routing with <Link>
 
-Client-side transitions between routes are enabled via a `<Link>` component
+Client-side transitions between routes can be enabled via a `<Link>` component
 
 #### pages/index.js
 
@@ -178,11 +178,54 @@ Each top-level component receives a `url` property with the following API:
 - `pushTo(url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
 - `replaceTo(url)` - performs a `replaceState` call that renders the new `url`
 
+### Routing with next/router
+
+You can also do client-side page transitions using the `next/router`. This is the same API used inside the above `<Link />` component.
+
+```jsx
+import Router from 'next/router'
+
+const routeTo(href) {
+  return (e) => {
+    e.preventDefault()
+    Router.push(href)
+  }
+}
+
+export default () => (
+  <div>Click <a href='#' onClick={routeTo('/about')}>here</a> to read more</div>
+)
+```
+
+#### pages/about.js
+
+```jsx
+export default () => (
+  <p>Welcome to About!</p>
+)
+```
+
+Above `Router` object comes with the following API:
+
+- `route` - `String` of the current route
+- `pathname` - `String` of the current path excluding the query string
+- `query` - `Object` with the parsed query string. Defaults to `{}`
+- `push(url, pathname=url)` - performs a `pushState` call associated with the current component
+- `replace(url, pathname=url)` - performs a `replaceState` call associated with the current component
+
+> Usually, route is the same as pathname.
+> But when used with programmatic API, route and pathname can be different.
+> "route" is your actual page's path while "pathname" is the path of the url mapped to it.
+>
+> Likewise, url and path is the same usually.
+> But when used with programmatic API, "url" is the route with the query string.
+> "pathname" is the path of the url mapped to it.
+
 ### Prefetching Pages
 
-Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`. 
+Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
 
-Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance). 
+Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 #### Link prefetching
 
@@ -251,7 +294,7 @@ export default class Error extends React.Component {
 
 ### Custom configuration
 
-For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`). 
+For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
 Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
 
@@ -264,7 +307,7 @@ module.exports = {
 
 ### Customizing webpack config
 
-In order to extend our usage of `webpack`, you can define a function that extends its config. 
+In order to extend our usage of `webpack`, you can define a function that extends its config.
 
 The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
 

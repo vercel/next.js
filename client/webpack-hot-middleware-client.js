@@ -1,27 +1,27 @@
-/* global next */
 import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?overlay=false&reload=true'
+import Router from '../lib/router'
 
 const handlers = {
   reload (route) {
     if (route === '/_error') {
-      for (const r of Object.keys(next.router.components)) {
-        const { Component } = next.router.components[r]
+      for (const r of Object.keys(Router.components)) {
+        const { Component } = Router.components[r]
         if (Component.__route === '/_error-debug') {
           // reload all '/_error-debug'
           // which are expected to be errors of '/_error' routes
-          next.router.reload(r)
+          Router.reload(r)
         }
       }
       return
     }
 
-    next.router.reload(route)
+    Router.reload(route)
   },
   change (route) {
-    const { Component } = next.router.components[route] || {}
+    const { Component } = Router.components[route] || {}
     if (Component && Component.__route === '/_error-debug') {
       // reload to recover from runtime errors
-      next.router.reload(route)
+      Router.reload(route)
     }
   },
   hardReload () {

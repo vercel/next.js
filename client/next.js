@@ -1,9 +1,8 @@
 import { createElement } from 'react'
 import { render } from 'react-dom'
 import HeadManager from './head-manager'
-import domready from 'domready'
 import { rehydrate } from '../lib/css'
-import Router from '../lib/router'
+import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
 
@@ -19,25 +18,18 @@ const {
   }
 } = window
 
-domready(() => {
-  const Component = evalScript(component).default
-  const ErrorComponent = evalScript(errorComponent).default
+const Component = evalScript(component).default
+const ErrorComponent = evalScript(errorComponent).default
 
-  const router = new Router(pathname, query, {
-    Component,
-    ErrorComponent,
-    ctx: { err }
-  })
-
-  // This it to support error handling in the dev time with hot code reload.
-  if (window.next) {
-    window.next.router = router
-  }
-
-  const headManager = new HeadManager()
-  const container = document.getElementById('__next')
-  const appProps = { Component, props, router, headManager }
-
-  if (ids) rehydrate(ids)
-  render(createElement(App, appProps), container)
+export const router = createRouter(pathname, query, {
+  Component,
+  ErrorComponent,
+  ctx: { err }
 })
+
+const headManager = new HeadManager()
+const container = document.getElementById('__next')
+const appProps = { Component, props, router, headManager }
+
+if (ids) rehydrate(ids)
+render(createElement(App, appProps), container)
