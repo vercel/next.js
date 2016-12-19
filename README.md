@@ -131,7 +131,7 @@ export default class extends React.Component {
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or invoking `props.url.*` methods like `pushTo`.
+For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
 
 `getInitialProps` receives a context object with the following properties:
 
@@ -142,7 +142,9 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 - `xhr` - XMLHttpRequest object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
-### Routing with `<Link>`
+### Routing
+
+#### With `<Link>`
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
@@ -173,14 +175,10 @@ Each top-level component receives a `url` property with the following API:
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `push(url)` - performs a `pushState` call associated with the current component
 - `replace(url)` - performs a `replaceState` call associated with the current component
-- `pushTo(url, as=url)` - performs a `pushState` call that renders the new `url`. This is equivalent to following a `<Link>`
-- `replaceTo(url, as=url)` - performs a `replaceState` call that renders the new `url`
 
-The second `as` parameter for `pushTo` and `replaceTo` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+#### Imperatively 
 
-### Routing with `next/router`
-
-You can also do client-side page transitions using the `next/router`. This is the same API used inside the above `<Link />` component (`pushTo` and `replaceTo`)
+You can also do client-side page transitions using the `next/router`
 
 ```jsx
 import Router from 'next/router'
@@ -207,13 +205,15 @@ Above `Router` object comes with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
+_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` withing a component_
+
 ### Prefetching Pages
 
 Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
-#### `<Link>` prefetching
+#### With `<Link>`
 
 You can substitute your usage of `<Link>` with the default export of `next/prefetch`. For example:
 
@@ -237,7 +237,7 @@ When this higher-level `<Link>` component is first used, the `ServiceWorker` get
 <Link href='/contact' prefetch={false}>Home</Link>
 ```
 
-#### Imperative API
+#### Imperatively
 
 Most needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
