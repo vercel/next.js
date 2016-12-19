@@ -17,7 +17,7 @@ let cmd = process.argv[2]
 let args
 
 if (new Set(['--version', '-v']).has(cmd)) {
-  console.log(`next.js v${pkg2.version}`)
+  console.log(`next.js v${pkg.version}`)
   process.exit(0)
 }
 
