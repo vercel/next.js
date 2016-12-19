@@ -183,15 +183,8 @@ You can also do client-side page transitions using the `next/router`
 ```jsx
 import Router from 'next/router'
 
-const routeTo(href) {
-  return (e) => {
-    e.preventDefault()
-    Router.push(href)
-  }
-}
-
 export default () => (
-  <div>Click <a href='#' onClick={routeTo('/about')}>here</a> to read more</div>
+  <div>Click <span onClick={() => Router.push('/about')}>here</span> to read more</div>
 )
 ```
 
