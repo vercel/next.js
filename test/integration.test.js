@@ -45,6 +45,12 @@ describe('integration tests', () => {
     expect(/<div class="css-\w+">This is red<\/div>/.test(html)).toBeTruthy()
   })
 
+  test('renders styled jsx', async () => {
+    const html = await render('/styled-jsx')
+    expect(html).toMatch(/<style id="__jsx-style-1401785258">p\[data-jsx="1401785258"] {color: blue }[^]+<\/style>/)
+    expect(html.includes('<div data-jsx="1401785258"><p data-jsx="1401785258">This is blue</p></div>')).toBeTruthy()
+  })
+
   test('renders properties populated asynchronously', async () => {
     const html = await render('/async-props')
     expect(html.includes('<p>Diego Milito</p>')).toBeTruthy()
@@ -62,8 +68,8 @@ describe('integration tests', () => {
 
   test('error 404', async () => {
     const html = await render('/non-existent')
-    expect(html).toMatch(/<h1 class=".+">404<\/h1>/)
-    expect(html).toMatch(/<h2 class=".+">This page could not be found\.<\/h2>/)
+    expect(html).toMatch(/<h1 data-jsx=".+">404<\/h1>/)
+    expect(html).toMatch(/<h2 data-jsx=".+">This page could not be found\.<\/h2>/)
   })
 
   test('finishes response', async () => {

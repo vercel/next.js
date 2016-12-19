@@ -1,7 +1,5 @@
 import React from 'react'
 import ansiHTML from 'ansi-html'
-import Head from 'next/head'
-import style from 'next/css'
 
 export default class ErrorDebug extends React.Component {
   static getInitialProps ({ err }) {
@@ -12,61 +10,53 @@ export default class ErrorDebug extends React.Component {
   render () {
     const { name, message, stack, path } = this.props
 
-    return <div className={styles.errorDebug}>
-      <Head>
-        <style dangerouslySetInnerHTML={{ __html: `
-          body {
-            background: #a6004c;
-            margin: 0;
-          }
-        `}} />
-      </Head>
-      {path ? <div className={styles.heading}>Error in {path}</div> : null}
+    return <div className='errorDebug'>
+      {path ? <div className='heading'>Error in {path}</div> : null}
       {
         name === 'ModuleBuildError'
-        ? <pre className={styles.message} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
-        : <pre className={styles.message}>{stack}</pre>
+        ? <pre className='message' dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
+        : <pre className='message'>{stack}</pre>
       }
+      <style jsx global>{`
+        body {
+          background: #a6004c;
+          margin: 0;
+        }
+      `}</style>
+      <style jsx>{`
+        .errorDebug {
+          height: 100vh;
+          padding: 16px;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .message {
+          font-family: "SF Mono", "Roboto Mono", "Fira Mono", menlo-regular, monospace;
+          font-size: 10px;
+          color: #fbe7f1;
+          margin: 0;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+
+        .heading {
+          font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif;
+          font-size: 13px;
+          font-weight: bold;
+          color: #ff84bf;
+          margin-bottom: 20pxl
+        }
+      `}</style>
     </div>
   }
 }
 
 const encodeHtml = str => {
   return str.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-const styles = {
-  body: style({
-    background: '#a6004c',
-    margin: 0
-  }),
-
-  errorDebug: style({
-    height: '100vh',
-    padding: '16px',
-    boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center'
-  }),
-
-  message: style({
-    fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", menlo-regular, monospace',
-    fontSize: '10px',
-    color: '#fbe7f1',
-    margin: 0,
-    whiteSpace: 'pre-wrap',
-    wordWrap: 'break-word'
-  }),
-
-  heading: style({
-    fontFamily: '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
-    fontSize: '13px',
-    fontWeight: 'bold',
-    color: '#ff84bf',
-    marginBottom: '20px'
-  })
 }
 
 // see color definitions of babel-code-frame:

@@ -120,7 +120,8 @@ export default async function createCompiler (dir, { dev = false } = {}) {
           require.resolve('babel-plugin-module-resolver'),
           {
             alias: {
-              'ansi-html': require.resolve('ansi-html')
+              'ansi-html': require.resolve('ansi-html'),
+              'styled-jsx/style': require.resolve('styled-jsx/style')
             }
           }
         ]
@@ -143,6 +144,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
         require.resolve('babel-plugin-transform-object-rest-spread'),
         require.resolve('babel-plugin-transform-class-properties'),
         require.resolve('babel-plugin-transform-runtime'),
+        require.resolve('styled-jsx/babel'),
         [
           require.resolve('babel-plugin-module-resolver'),
           {
@@ -154,7 +156,8 @@ export default async function createCompiler (dir, { dev = false } = {}) {
               'next/prefetch': require.resolve('../../lib/prefetch'),
               'next/css': require.resolve('../../lib/css'),
               'next/head': require.resolve('../../lib/head'),
-              'next/document': require.resolve('../../server/document')
+              'next/document': require.resolve('../../server/document'),
+              'styled-jsx/style': require.resolve('styled-jsx/style')
             }
           }
         ]
