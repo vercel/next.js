@@ -44,11 +44,11 @@ export default class ErrorDebug extends React.Component {
         }
 
         .heading {
-          font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif,
-          font-size: 13px,
-          font-weight: bold,
-          color: #ff84bf,
-          margin-bottom: 20px
+          font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif;
+          font-size: 13px;
+          font-weight: bold;
+          color: #ff84bf;
+          margin-bottom: 20pxl
         }
       `}</style>
     </div>
