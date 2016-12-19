@@ -3,6 +3,7 @@
 import { join } from 'path'
 import { spawn } from 'cross-spawn'
 import { watchFile } from 'fs'
+import pkg from '../../package.json'
 
 const defaultCommand = 'dev'
 const commands = new Set([
@@ -14,6 +15,11 @@ const commands = new Set([
 
 let cmd = process.argv[2]
 let args
+
+if (new Set(['--version', '-v']).has(cmd)) {
+  console.log(`next.js v${pkg.version}`)
+  process.exit(0)
+}
 
 if (new Set(['--help', '-h']).has(cmd)) {
   console.log(`
