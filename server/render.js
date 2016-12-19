@@ -40,7 +40,7 @@ async function doRender (req, res, pathname, query, {
   ])
   Component = Component.default || Component
   Document = Document.default || Document
-  const ctx = { err, req, res, pathname, query }
+  const ctx = { err, req, res, pathname, query, isServer: true }
 
   const [
     props,
