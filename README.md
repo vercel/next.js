@@ -47,9 +47,9 @@ So far, we get:
 
 To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
 
-### Bundling (code splitting)
+### Automatic code splitting
 
-Every `import` you declare gets bundled and served with each page
+Every `import` you declare gets bundled and served with each page. That means pages never load unnecessary code!
 
 ```jsx
 import cowsay from 'cowsay-browser'
@@ -57,8 +57,6 @@ export default () => (
   <pre>{ cowsay.say({ text: 'hi there!' }) }</pre>
 )
 ```
-
-That means pages never load unnecessary code!
 
 ### CSS
 
@@ -92,13 +90,13 @@ export default () => (
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
-```
+```jsx
 export default () => (
   <p style={{ color: red }}>hi there</p>
 )
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#custom-document) component that wraps each page
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
 
 The following wiki pages provide examples for some popular styling solutions:
 
@@ -107,9 +105,15 @@ The following wiki pages provide examples for some popular styling solutions:
 - `styletron`
 - `fela`
 
-### Images and other static files
+### Static file serving (e.g.: images)
 
-Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs, e.g.: `<img src="/static/file-name.jpg" />`.
+Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
+
+```jsx
+export default () => (
+  <img src="/static/my-image.png" />
+)
+```
 
 ### Populating `<head>`
 
@@ -132,7 +136,7 @@ _Note: The contents of `<head>` get cleared upon unmounting the component, so ma
 
 ### Fetching data and component lifecycle
 
-When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`.
+When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
 
 ```jsx
 import React from 'react'
@@ -268,6 +272,41 @@ export default ({ url }) => (
     prefetch('/dynamic')
   }
 )
+```
+
+### Custom `<Document>`
+
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc.
+
+In order to support custom server-rendering pipelines (such as rendering CSS with `styled-components` or `glamor`), you can implement `getInitialProps` at the `<Document>` level:
+
+```jsx
+import Document, { Head, Main, NextScript } from `next/document`
+
+export default class MyDocument extends Document {
+  static async getInitialProps (ctx) {
+    const props = await Document.getInitialProps(ctx)
+    // append a custom `value`
+    return { ...props, value: 'hi' }
+  }
+
+  render () {
+    return (
+     <html>
+       <Head>
+         {/* custom style */}
+         <style>{`body { margin: 0 }`}</style>
+       </Head>
+        {/* set className to body */}
+       <body className="hi">
+         {this.props.value}
+         <Main />
+         <NextScript />
+       </body>
+     </html>
+    )
+  }
+}
 ```
 
 ### Custom error handling
