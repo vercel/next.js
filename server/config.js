@@ -4,7 +4,8 @@ import { existsSync } from 'fs'
 const cache = new Map()
 
 const defaultConfig = {
-  webpack: null
+  webpack: null,
+  poweredByHeader: true
 }
 
 export default function getConfig (dir) {

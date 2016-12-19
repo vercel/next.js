@@ -12,6 +12,9 @@ import {
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
+import getConfig from './config'
+// We need to go up one more level since we are in the `dist` directory
+import pkg from '../../package'
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
@@ -22,6 +25,7 @@ export default class Server {
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir) : null
     this.http = null
+    this.config = getConfig(dir)
 
     this.defineRoutes()
   }
@@ -111,6 +115,9 @@ export default class Server {
   }
 
   async render (req, res, pathname, query) {
+    if (this.config.poweredByHeader) {
+      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
+    }
     const html = await this.renderToHTML(req, res, pathname, query)
     sendHTML(res, html)
   }
