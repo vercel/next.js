@@ -276,9 +276,7 @@ export default ({ url }) => (
 
 ### Custom `<Document>`
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc.
-
-In order to support custom server-rendering pipelines (such as rendering CSS with `styled-components` or `glamor`), you can implement `getInitialProps` at the `<Document>` level:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
 ```jsx
 import Document, { Head, Main, NextScript } from `next/document`
@@ -306,7 +304,7 @@ export default class MyDocument extends Document {
 }
 ```
 
-The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, plus:
+The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
