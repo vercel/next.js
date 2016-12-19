@@ -62,29 +62,50 @@ That means pages never load unnecessary code!
 
 ### CSS
 
-We use [glamor](https://github.com/threepointone/glamor) to provide a great built-in solution for CSS isolation and modularization without trading off any CSS features.
+#### Built-in CSS support
 
-Glamor's [HowTo](https://github.com/threepointone/glamor/blob/master/docs/howto.md) shows converting various CSS use cases to Glamor. See Glamor's [API docs](https://github.com/threepointone/glamor/blob/master/docs/api.md) for more details.
+We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" resembling of Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
-import css from 'next/css'
-
 export default () => (
-  <div className={style}>
+  <div>
     Hello world
+    <p>scoped!</p>
+    <style jsx>{`
+      p {
+        color: blue;
+      }
+      div {
+        background: red;
+      }
+      @media (max-width: 600px) {
+        div {
+          background: blue;
+        }
+      }
+    `}</style>
   </div>
 )
-
-const style = css({
-  background: 'red',
-  ':hover': {
-    background: 'gray'
-  },
-  '@media (max-width: 600px)': {
-    background: 'blue'
-  }
-})
 ```
+
+#### CSS-in-JS
+
+It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
+
+```
+export default () => (
+  <p style={{ color: red }}>hi there</p>
+)
+```
+
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#custom-document) component that wraps each page
+
+The following wiki pages provide examples for some popular styling solutions:
+
+- `glamor` (formerly `next/css`)
+- `styled-components`
+- `styletron`
+- `fela`
 
 ### Images and other static files
 
