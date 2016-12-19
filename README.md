@@ -173,10 +173,12 @@ Each top-level component receives a `url` property with the following API:
 
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url)` - performs a `pushState` call associated with the current component
-- `replace(url)` - performs a `replaceState` call associated with the current component
+- `push(url, as=url)` - performs a `pushState` call with the given url
+- `replace(url, as=url)` - performs a `replaceState` call with the given url
 
-#### Imperatively 
+The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+
+#### Imperatively
 
 You can also do client-side page transitions using the `next/router`
 
@@ -193,8 +195,8 @@ Above `Router` object comes with the following API:
 - `route` - `String` of the current route
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url, as=url)` - performs a `pushState` call associated with the current component
-- `replace(url, as=url)` - performs a `replaceState` call associated with the current component
+- `push(url, as=url)` - performs a `pushState` call with the given url
+- `replace(url, as=url)` - performs a `replaceState` call with the given url
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
