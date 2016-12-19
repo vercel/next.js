@@ -286,20 +286,17 @@ import Document, { Head, Main, NextScript } from `next/document`
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
     const props = await Document.getInitialProps(ctx)
-    // append a custom `value`
-    return { ...props, value: 'hi' }
+    return { ...props, customValue: 'hi there!' }
   }
 
   render () {
     return (
      <html>
        <Head>
-         {/* custom style */}
-         <style>{`body { margin: 0 }`}</style>
+         <style>{`body { margin: 0 } /* custom! */`}</style>
        </Head>
-        {/* set className to body */}
-       <body className="hi">
-         {this.props.value}
+       <body className="custom_class">
+         {this.props.customValue}
          <Main />
          <NextScript />
        </body>
