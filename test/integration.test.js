@@ -46,7 +46,7 @@ describe('integration tests', () => {
 
   test('renders styled jsx', async () => {
     const html = await render('/styled-jsx')
-    expect(html).toMatch(/<style>p\[data-jsx="1401785258"] {color: blue }[^]+<\/style>/)
+    expect(html).toMatch(/<style id="__jsx-style-1401785258">p\[data-jsx="1401785258"] {color: blue }[^]+<\/style>/)
     expect(html.includes('<div data-jsx="1401785258"><p data-jsx="1401785258">This is blue</p></div>')).toBeTruthy()
   })
 

@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react'
 import htmlescape from 'htmlescape'
 import { renderStatic } from 'glamor/server'
-import flush from 'styled-jsx/flush'
+import flush from 'styled-jsx/server'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
@@ -51,13 +51,7 @@ export class Head extends Component {
     return <head>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {nextCSS && nextCSS.css ? <style dangerouslySetInnerHTML={{ __html: nextCSS.css }} /> : null}
-      {
-        nextCSS && nextCSS.styles
-          ? Object.keys(nextCSS.styles).map((id) => {
-            return <style key={id} dangerouslySetInnerHTML={{ __html: nextCSS.styles[id] }} />
-          })
-          : null
-      }
+      {nextCSS && nextCSS.styles ? nextCSS.styles : null}
       {this.props.children}
     </head>
   }
