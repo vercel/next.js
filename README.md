@@ -158,7 +158,7 @@ Notice that to load data when the page loads, we use `getInitialProps` which is 
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
 
-`getInitialProps` <span id="getinitialprops-params">receives</span> a context object with the following properties:
+`getInitialProps` receives a context object with the following properties:
 
 - `pathname` - path section of URL
 - `query` - query string section of URL parsed as an object
@@ -306,7 +306,7 @@ export default class MyDocument extends Document {
 }
 ```
 
-The `ctx` object is equivalent to the one received in all [`getInitialProps`](#getinitialprops-params) hooks, plus:
+The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, plus:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
