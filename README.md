@@ -349,7 +349,7 @@ module.exports = {
 
 ### Customizing webpack config
 
-In order to extend our usage of `webpack`, you can define a function that extends its config.
+In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
 
 The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
 
