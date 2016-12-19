@@ -1,9 +1,11 @@
 import { join } from 'path'
-import { readFile } from 'mz/fs'
+import { existsSync } from 'fs'
 
 const cache = new Map()
 
-const defaultConfig = {}
+const defaultConfig = {
+  webpack: null
+}
 
 export default function getConfig (dir) {
   if (!cache.has(dir)) {
@@ -12,22 +14,16 @@ export default function getConfig (dir) {
   return cache.get(dir)
 }
 
-async function loadConfig (dir) {
-  const path = join(dir, 'package.json')
+function loadConfig (dir) {
+  const path = join(dir, 'next.config.js')
 
-  let data
-  try {
-    data = await readFile(path, 'utf8')
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      data = '{}'
-    } else {
-      throw err
-    }
+  let userConfig = {}
+
+  const userHasConfig = existsSync(path)
+  if (userHasConfig) {
+    const userConfigModule = require(path)
+    userConfig = userConfigModule.default || userConfigModule
   }
 
-  // no try-cache, it must be a valid json
-  const config = JSON.parse(data).next || {}
-
-  return Object.assign({}, defaultConfig, config)
+  return Object.assign({}, defaultConfig, userConfig)
 }

@@ -22,7 +22,7 @@ and add a script to your package.json like this:
 {
   "scripts": {
     "dev": "next"
-  }
+  } 
 }
 ```
 
@@ -31,8 +31,6 @@ After that, the file-system is the main API. Every `.js` file becomes a route th
 Populate `./pages/index.js` inside your project:
 
 ```jsx
-import React from 'react'
-
 export default () => (
   <div>Welcome to next.js!</div>
 )
@@ -55,7 +53,6 @@ Every `import` you declare gets bundled and served with each page
 
 ```jsx
 import cowsay from 'cowsay-browser'
-
 export default () => (
   <pre>{ cowsay.say({ text: 'hi there!' }) }</pre>
 )
@@ -93,7 +90,7 @@ const style = css({
 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs, e.g.: `<img src="/static/file-name.jpg" />`.
 
-### `<head>` side effects
+### Populating `<head>`
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -110,7 +107,9 @@ export default () => (
 )
 ```
 
-### Component lifecycle
+_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+
+### Fetching data and component lifecycle
 
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component`.
 
@@ -132,7 +131,7 @@ export default class extends React.Component {
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component and the `props.url`.
+For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or invoking `props.url.*` methods like `pushTo`.
 
 `getInitialProps` receives a context object with the following properties:
 
@@ -181,34 +180,29 @@ Each top-level component receives a `url` property with the following API:
 
 ### Prefetching Pages
 
-When you are switching between pages, Next.js will download new pages from the server and render them for you. So, it'll take some time to download. Because of that, when you click on a page, it might wait few milliseconds (depending on the network speed) before it render the page.
+Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`. 
 
-> Once the Next.js has download the page, it'll reuse it in the next time when you navigate to that same page.
+Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance). 
 
-This is a problem specially in UX wise. "Prefetching Pages" is one of our solutions for this problem. With this, Next.js will prefetch pages behind the scene using the support of [Service Workers](https://developers.google.com/web/fundamentals/getting-started/primers/service-workers).
+#### Link prefetching
 
-#### Declarative API
-
-You can simply ask Next.js to prefetch pages using `next/prefetch`. See:
+You can substitute your usage of `<Link>` with the default export of `next/prefetch`. For example:
 
 ```jsx
 import Link from 'next/prefetch'
-
-// This is the header component
+// example header component
 export default () => (
-  <div>
-    <Link href='/'>Home</Link>
-    <Link href='/about'>Home</Link>
-    <Link href='/contact'>Home</Link>
-  </div>
+  <nav>
+    <ul>
+      <li><Link href='/'><a>Home</a></Link></li>
+      <li><Link href='/about'><a>About</a></Link></li>
+      <li><Link href='/contact'><a>Contact</a></Link></li>
+    </ul>
+  </nav>
 )
 ```
 
-Here you are using `<Link>` from `next/prefetch` instead of `next/link`. It's an extended version of `next/link` with prefetching support.
-
-Then Next.js will start to prefetch all the pages behind the scene. So, when you click on any of the link it won't need to do a network hit to fetch the page.
-
-If you need, you could stop prefetching like this:
+When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
 
 ```jsx
 <Link href='/contact' prefetch={false}>Home</Link>
@@ -216,28 +210,27 @@ If you need, you could stop prefetching like this:
 
 #### Imperative API
 
-You can get started with prefetching using `<Link>` pretty quickly. But you may want to prefetch based on your own logic. (You may need to write a custom prefetching `<Link>` based on [premonish](https://github.com/mathisonian/premonish).)
-
-Then you can use the imperative API like this:
+Most needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
 import { prefetch } from 'next/prefetch'
-
-prefetch('/')
-prefetch('/features')
+export default ({ url }) => (
+  <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
+    A route transition will happen after 100ms
+  </a>
+  {
+    // but we can prefetch it!
+    prefetch('/dynamic')
+  }
+)
 ```
 
-When you simply run `prefetch('/page_url')` we'll start prefetching that page.
-
-> We can only do this, if `prefetch` is called when loading the current page. So in general, make sure to run `prefetch` calls in a common module all of your pages import.
-
-### Error handling
+### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
 
 ```jsx
 import React from 'react'
-
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
     const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
@@ -252,6 +245,34 @@ export default class Error extends React.Component {
         : 'An error occurred on client'
       }</p>
     )
+  }
+}
+```
+
+### Custom configuration
+
+For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`). 
+
+Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
+
+```javascript
+// next.config.js
+module.exports = {
+  /* config options here */
+}
+```
+
+### Customizing webpack config
+
+In order to extend our usage of `webpack`, you can define a function that extends its config. 
+
+The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
+
+```js
+module.exports = {
+  webpack: (cfg, { dev }) => {
+    cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
+    return cfg
   }
 }
 ```
@@ -317,7 +338,8 @@ No in that it enforces a _structure_ so that we can do more advanced things like
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-- Routing with lazy component loading: `<Link>` (by importing `next/link`)
+- Routing with lazy component loading: `
+>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
@@ -423,7 +445,7 @@ For this reason we want to promote a situation where users can share the cache f
 
 We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](http://www.hanselman.com/blog/CDNsFailButYourScriptsDontHaveToFallbackFromCDNToLocalJQuery.aspx).
 
-To turn the CDN off, just set `{ “next”: { “cdn”: false } }` in `package.json`.
+To turn the CDN off, just set `module.exports = { cdn: false }` in `next.config.js`.
 </details>
 
 <details>
