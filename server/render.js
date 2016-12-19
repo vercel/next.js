@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import requireModule from './require'
 import read from './read'
-import Router from '../lib/router'
+import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 

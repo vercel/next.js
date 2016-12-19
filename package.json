@@ -48,7 +48,6 @@
     "chokidar": "1.6.1",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
-    "domready": "1.0.8",
     "friendly-errors-webpack-plugin": "1.1.2",
     "glamor": "2.20.12",
     "glob-promise": "3.1.0",
