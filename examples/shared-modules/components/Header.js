@@ -1,11 +1,4 @@
-import React from 'react'
 import Link from 'next/link'
-
-const styles = {
-  a: {
-    marginRight: 10
-  }
-}
 
 export default () => (
   <div>
@@ -18,3 +11,9 @@ export default () => (
     </Link>
   </div>
 )
+
+const styles = {
+  a: {
+    marginRight: 10
+  }
+}
