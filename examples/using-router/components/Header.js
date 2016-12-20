@@ -1,12 +1,16 @@
-import React from 'react'
 import Router from 'next/router'
 
-const styles = {
-  a: {
-    marginRight: 10
-  }
-}
+export default () => (
+  <div>
+    <Link href='/'>Home</Link>
+    <Link href='/about'>About</Link>
+    <Link href='/error'>Error</Link>
+  </div>
+)
 
+// typically you want to use `next/link` for this usecase
+// but this example shows how you can also access the router
+// and use it manually
 const Link = ({ children, href }) => (
   <a
     href='#'
@@ -20,10 +24,8 @@ const Link = ({ children, href }) => (
   </a>
 )
 
-export default () => (
-  <div>
-    <Link href='/'>Home</Link>
-    <Link href='/about'>About</Link>
-    <Link href='/error'>Error</Link>
-  </div>
-)
+const styles = {
+  a: {
+    marginRight: 10
+  }
+}
