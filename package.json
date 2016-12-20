@@ -24,7 +24,7 @@
     "jest": "jest --coverage",
     "coveralls": "nyc report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard && standard bin/*",
-    "prepublish": "gulp release",
+    "pre-publish": "gulp release",
     "precommit": "npm run lint"
   },
   "standard": {
