@@ -24,6 +24,7 @@ export default () => (
   <div>
     <Link href='/'>Home</Link>
     <Link href='/about'>About</Link>
+    <Link href='/error'>Error</Link>
     <div>
       <small>Now you are in the route: {Router.route} </small>
     </div>
