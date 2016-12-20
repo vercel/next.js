@@ -280,7 +280,7 @@ Typically you start your next server with `next start`. It's possible, however, 
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
-```
+```js
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
