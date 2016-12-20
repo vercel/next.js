@@ -1,32 +1,30 @@
-import React from 'react'
 import Link, { prefetch } from 'next/prefetch'
-
-// Prefetch using the imperative API
-prefetch('/')
-
-const styles = {
-  a: {
-    marginRight: 10
-  }
-}
+import RegularLink from 'next/link'
 
 export default () => (
   <div>
     { /* Prefetch using the declarative API */ }
     <Link href='/'>
-      <a style={styles.a} >Home</a>
+      <a>Home</a>
     </Link>
 
     <Link href='/features'>
-      <a style={styles.a} >Features</a>
+      <a>Features</a>
     </Link>
 
-    <Link href='/about'>
-      <a style={styles.a} >About</a>
-    </Link>
+    { /* we imperatively prefetch on hover */ }
+    <RegularLink href='/about'>
+      <a onMouseEnter={ () => prefetch('/about') && console.log('prefetching /about!') }>About</a>
+    </RegularLink>
 
     <Link href='/contact' prefetch={false}>
-      <a style={styles.a} >Contact (<small>NO-PREFETCHING</small>)</a>
+      <a>Contact (<small>NO-PREFETCHING</small>)</a>
     </Link>
+
+    <style jsx>{`
+      a {
+        margin-right: 10px;
+      }
+    `}</style>
   </div>
 )
