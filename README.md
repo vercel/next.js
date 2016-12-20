@@ -316,7 +316,6 @@ The `next` API is as follows:
 Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
-- `staticMarkup` (`bool`) wheter to use React DOM `renderToStaticMarkup` or `renderToString` - default `false`
 - `quiet` (`bool`) Display error messages with server information. Should only be used during development - default `false`
 
 ### Custom `<Document>`
