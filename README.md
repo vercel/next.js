@@ -307,6 +307,13 @@ app.prepare().then(() => {
 })
 ```
 
+The `next` API is as follows:
+- `next(path: string, opts: objecvt)` - `path` is where the Next project is located
+- `next(opts: object)`
+
+Supported options:
+- `dev` (`bool`) whether to launch Next.js in dev mode
+
 ### Custom `<Document>`
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
