@@ -1,5 +1,3 @@
-import React from 'react'
-
 export default ({ title, children }) => (
   <div className='main'>
     <h1>{ title }</h1>
