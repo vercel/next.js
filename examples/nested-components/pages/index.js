@@ -1,4 +1,3 @@
-import React from 'react'
 import P from '../components/paragraph'
 import Post from '../components/post'
 
