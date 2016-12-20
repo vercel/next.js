@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import requireModule from './require'
 import read from './read'
-import { Router, withRouter } from '../lib/router'
+import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
@@ -56,16 +56,13 @@ async function doRender (req, res, pathname, query, {
   if (res.finished) return
 
   const renderPage = () => {
-    const router = new Router(pathname, query)
     const app = createElement(App, {
       Component,
       props,
-      router
+      router: new Router(pathname, query)
     })
 
-    const html = withRouter(router, () => {
-      return (staticMarkup ? renderToStaticMarkup : renderToString)(app)
-    })
+    const html = (staticMarkup ? renderToStaticMarkup : renderToString)(app)
     const head = Head.rewind() || defaultHead()
     return { html, head }
   }
