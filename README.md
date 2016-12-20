@@ -12,8 +12,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 Install it:
 
-```
-$ npm install next --save
+```bash
+npm install next --save
 ```
 
 and add a script to your package.json like this:
@@ -272,6 +272,39 @@ export default ({ url }) => (
     prefetch('/dynamic')
   }
 )
+```
+
+### Custom server and routing
+
+Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
+
+This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
+
+```
+const { createServer } = require('http')
+const { parse } = require('url')
+const next = require('next')
+
+const app = next({ dev: true })
+const handle = app.getRequestHandler()
+
+app.prepare().then(() => {
+  createServer((req, res) => {
+    const { pathname, query } = parse(req.url, true)
+
+    if (pathname === '/a') {
+      app.render(req, res, '/b', query)
+    } else if (pathname === '/b') {
+      app.render(req, res, '/a', query)
+    } else {
+      handle(req, res)
+    }
+  })
+  .listen(3000, (err) => {
+    if (err) throw err
+    console.log('> Ready on http://localhost:3000')
+  })
+})
 ```
 
 ### Custom `<Document>`
