@@ -3,23 +3,20 @@
 'use strict'
 
 import { join } from 'path'
-import next from '../dist/server/next'
 import pkg from '../package.json'
+import {setup, render, teardown} from './helper'
 
 const dir = join(__dirname, 'fixtures', 'basic')
-const app = next({
-  dir,
-  dev: true,
-  staticMarkup: true,
-  quiet: true
-})
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('integration tests', () => {
-  beforeAll(() => app.prepare())
+  let app = null
+  beforeAll(async () => {
+    app = await setup(dir)
+  })
 
-  afterAll(() => app.close())
+  afterAll(() => teardown())
 
   test('renders a stateless component', async () => {
     const html = await render('/stateless')
@@ -74,12 +71,13 @@ describe('integration tests', () => {
 
   test('finishes response', async () => {
     const res = {
-      finished: false,
+      finished: true,
+      setHeader (key, value) {},
       end () {
         this.finished = true
       }
     }
-    const html = await app.renderToHTML({}, res, '/finish-response', {})
+    const html = await render('/finish-response', {}, res)
     expect(html).toBeFalsy()
   })
 
@@ -94,7 +92,7 @@ describe('integration tests', () => {
         end () {}
       }
 
-      await app.render(req, res, req.url)
+      await render(req.url, req, res)
       expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
     })
 
@@ -111,12 +109,8 @@ describe('integration tests', () => {
         end () {}
       }
 
-      await app.render(req, res, req.url)
+      await render(req.url, req, res)
       app.config.poweredByHeader = originalConfigValue
     })
   })
 })
-
-function render (pathname, query = {}) {
-  return app.renderToHTML({}, {}, pathname, query)
-}
