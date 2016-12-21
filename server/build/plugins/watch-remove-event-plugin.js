@@ -10,26 +10,24 @@ export default class WatchRemoveEventPlugin {
   apply (compiler) {
     compiler.removedFiles = []
 
-    compiler.plugin('environment', () => {
-      if (!compiler.watchFileSystem) return
+    if (!compiler.watchFileSystem) return
 
-      const { watchFileSystem } = compiler
-      const { watch } = watchFileSystem
+    const { watchFileSystem } = compiler
+    const { watch } = watchFileSystem
 
-      watchFileSystem.watch = (files, dirs, missing, startTime, options, callback, callbackUndelayed) => {
-        const result = watch.call(watchFileSystem, files, dirs, missing, startTime, options, (...args) => {
-          compiler.removedFiles = this.removedFiles
-          this.removedFiles = []
-          callback(...args)
-        }, callbackUndelayed)
+    watchFileSystem.watch = (files, dirs, missing, startTime, options, callback, callbackUndelayed) => {
+      const result = watch.call(watchFileSystem, files, dirs, missing, startTime, options, (...args) => {
+        compiler.removedFiles = this.removedFiles
+        this.removedFiles = []
+        callback(...args)
+      }, callbackUndelayed)
 
-        const watchpack = watchFileSystem.watcher
-        watchpack.fileWatchers.forEach((w) => {
-          w.on('remove', this.onRemove.bind(this, watchpack, w.path))
-        })
-        return result
-      }
-    })
+      const watchpack = watchFileSystem.watcher
+      watchpack.fileWatchers.forEach((w) => {
+        w.on('remove', this.onRemove.bind(this, watchpack, w.path))
+      })
+      return result
+    }
   }
 
   onRemove (watchpack, file) {
