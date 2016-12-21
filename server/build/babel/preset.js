@@ -1,5 +1,3 @@
-'use strict'
-
 const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\/]package\.json$/, '')
 
