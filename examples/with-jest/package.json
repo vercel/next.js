@@ -1,7 +1,7 @@
 {
   "name": "my-app",
   "dependencies": {
-    "next": "^1.0.0"
+    "next": "^2.0.0-beta"
   },
   "scripts": {
     "test": "jest",
@@ -10,17 +10,12 @@
     "start": "next start"
   },
   "devDependencies": {
-    "babel-jest": "^16.0.0",
+    "babel-jest": "^18.0.0",
     "enzyme": "^2.5.1",
-    "jest": "^16.0.2",
+    "jest-cli": "^18.0.0",
     "react": "^15.3.2",
     "react-addons-test-utils": "^15.3.2",
-    "react-dom": "^15.3.2"
-  },
-  "babel": {
-    "presets": [
-      "es2015",
-      "react"
-    ]
+    "react-dom": "^15.3.2",
+    "react-test-renderer": "^15.4.1"
   }
 }
