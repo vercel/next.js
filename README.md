@@ -12,8 +12,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 Install it:
 
-```
-$ npm install next --save
+```bash
+npm install next --save
 ```
 
 and add a script to your package.json like this:
@@ -92,7 +92,7 @@ It's possible to use any existing CSS-in-JS solution. The simplest one is inline
 
 ```jsx
 export default () => (
-  <p style={{ color: red }}>hi there</p>
+  <p style={{ color: 'red' }}>hi there</p>
 )
 ```
 
@@ -264,15 +264,59 @@ Most needs are addressed by `<Link />`, but we also expose an imperative API for
 ```jsx
 import { prefetch } from 'next/prefetch'
 export default ({ url }) => (
-  <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
-    A route transition will happen after 100ms
-  </a>
-  {
-    // but we can prefetch it!
-    prefetch('/dynamic')
-  }
+  <div>
+    <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
+      A route transition will happen after 100ms
+    </a>
+    {
+      // but we can prefetch it!
+      prefetch('/dynamic')
+    }
+  </div>
 )
 ```
+
+### Custom server and routing
+
+Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
+
+This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
+
+```js
+const { createServer } = require('http')
+const { parse } = require('url')
+const next = require('next')
+
+const app = next({ dev: true })
+const handle = app.getRequestHandler()
+
+app.prepare().then(() => {
+  createServer((req, res) => {
+    const { pathname, query } = parse(req.url, true)
+
+    if (pathname === '/a') {
+      app.render(req, res, '/b', query)
+    } else if (pathname === '/b') {
+      app.render(req, res, '/a', query)
+    } else {
+      handle(req, res)
+    }
+  })
+  .listen(3000, (err) => {
+    if (err) throw err
+    console.log('> Ready on http://localhost:3000')
+  })
+})
+```
+
+The `next` API is as follows:
+- `next(path: string, opts: object)` - `path` is 
+- `next(opts: object)`
+
+Supported options:
+- `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
+- `dir` (`string`) where the Next project is located - default `'.'`
+- `quiet` (`bool`) Display error messages with server information - default `false`
 
 ### Custom `<Document>`
 
@@ -401,11 +445,8 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, u
 <details>
   <summary>How big is it?</summary>
 
-The client side next bundle, which includes React and Glamor is **73kb** gzipped.
-
-The Next runtime (lazy loading, routing, `<Head>`) contributes around **15%** to the size of that bundle.
-
-The codebase is ~1500LOC (excluding CLI programs).
+The client side bundle size should be measured in a per-app basis.
+A small Next main bundle is around 65kb gzipped.
 
 </details>
 
@@ -430,15 +471,10 @@ If you want to create re-usable React components that you can embed in your Next
 </details>
 
 <details>
-  <summary>Why CSS-in-JS?</summary>
+  <summary>How do I use CSS-in-JS solutions</summary>
 
-`next/css` is powered by [Glamor](https://github.com/threepointone/glamor). While it exposes a JavaScript API, it produces regular CSS and therefore important features like `:hover`, animations, media queries all work.
+Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use a CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
 
-There’s *no tradeoff* in power. Instead, we gain the power of simpler composition and usage of JavaScript expressions.
-
-*Compiling* regular CSS files would be counter-productive to some of our goals. Some of these are listed below.
-
-**Please note**: we are very interested in supporting regular CSS, since it's so much easier to write and already familiar. To that end, we're currently exploring the possibility of leveraging Shadow DOM to avoid the entire CSS parsing and mangling step [[#22](https://github.com/zeit/next.js/issues/22)]
 
 ### Compilation performance
 
@@ -498,9 +534,9 @@ We tested the flexibility of the routing with some interesting scenarios. For an
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We’re adding the ability to map between an arbitrary URL and any component by supplying a request handler: [#25](https://github.com/zeit/next.js/issues/25)
+We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
 
-On the client side, we'll add a parameter to `<Link>` so that it _decorates_ the URL differently from the URL it _fetches_.
+On the client side, we have a parameter call `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
 </details>
 
 <details>
