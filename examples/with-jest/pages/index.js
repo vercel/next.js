@@ -1,5 +1,5 @@
 export default () => (
   <div>
-    <p>Hello world!</p>
+    <p>Hello World!</p>
   </div>
 )
