@@ -7,7 +7,7 @@ Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/with-redux
-cd examples/with-redux
+cd next.js-master/examples/with-redux
 ```
 
 or clone the repo:

@@ -7,16 +7,18 @@ export default class MyDocument extends Document {
       styleSheet.flush()
       return ctx.renderPage()
     }
+
     const props = await Document.getInitialProps({ ...ctx, renderPage })
     const style = styleSheet.rules().map(rule => rule.cssText).join('\n')
     return { ...props, style }
   }
 
   render () {
+    console.log(this.props)
     return (
       <html>
         <Head>
-          <title>pee</title>
+          <title>My page</title>
           <style dangerouslySetInnerHTML={{ __html: this.props.style }} />
         </Head>
         <body>

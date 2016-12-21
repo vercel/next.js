@@ -1,7 +1,8 @@
 import React from 'react'
+import styled from 'styled-components'
 
-export default () => (
-  <div>
-  asd
-  </div>
-)
+const Title = styled.h1`
+  color: red;
+`
+
+export default () => <Title>My page</Title>
