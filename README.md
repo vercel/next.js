@@ -310,7 +310,7 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
-- `next(path: string, opts: objecvt)` - `path` is 
+- `next(path: string, opts: object)` - `path` is 
 - `next(opts: object)`
 
 Supported options:
