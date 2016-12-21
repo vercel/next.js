@@ -4,6 +4,14 @@ import queryString from 'query-string'
 
 const err = Error('App not initialized: please call prepare()')
 
+/*
+  startup the app used during integration testing.
+
+  let app = null
+  beforeAll(async () => {
+    app = await setup(dir)
+  })
+*/
 let app = null
 export async function setup (dir) {
   app = next({
@@ -16,11 +24,26 @@ export async function setup (dir) {
   return app
 }
 
+/*
+  after all tests are complete, cleanup the
+  integration testing app.
+
+  afterAll(async () => {
+    await teardown()
+  })
+*/
 export async function teardown () {
   if (app) await app.close()
   else throw err
 }
 
+/*
+  helper for rendering a page in the integration testing application:
+
+  render('/my-awesome-search-page', {q: 'banana'})
+
+  req.url is automatically populated.
+*/
 export async function render (pathname, query = {}, req, res, opts = {}) {
   let html = null
   if (app) {
