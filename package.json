@@ -23,12 +23,15 @@
     "html-report": "nyc report --temp-directory=./coverage --reporter=html",
     "jest": "jest --coverage",
     "coveralls": "nyc report --temp-directory=./coverage --reporter=text-lcov | coveralls",
-    "lint": "standard && standard bin/*",
+    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
   },
   "standard": {
-    "parser": "babel-eslint"
+    "parser": "babel-eslint",
+    "ignore": [
+      "**/node_modules/**"
+    ]
   },
   "dependencies": {
     "accepts": "1.3.3",
