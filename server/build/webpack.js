@@ -191,7 +191,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   const config = getConfig(dir)
   if (config.webpack) {
     console.log('> Using Webpack config function defined in next.config.js.')
-    webpackConfig = await config.webpack(webpackConfig, { dev })
+    webpackConfig = await config.webpack(webpackConfig, { webpack, dev })
   }
   return webpack(webpackConfig)
 }
