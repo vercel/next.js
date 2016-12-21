@@ -11,7 +11,7 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import getConfig from '../config'
 
-export default async function createCompiler (dir, { dev = false } = {}) {
+export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
   dir = resolve(dir)
 
   const pages = await glob('pages/**/*.js', {
@@ -66,9 +66,11 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
-      new WatchPagesPlugin(dir),
-      new FriendlyErrorsWebpackPlugin()
+      new WatchPagesPlugin(dir)
     )
+    if (!quiet) {
+      plugins.push(new FriendlyErrorsWebpackPlugin())
+    }
   } else {
     plugins.push(
       new webpack.DefinePlugin({
