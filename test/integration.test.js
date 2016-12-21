@@ -16,7 +16,9 @@ describe('integration tests', () => {
     app = await setup(dir)
   })
 
-  afterAll(() => teardown())
+  afterAll(async () => {
+    await teardown()
+  })
 
   test('renders a stateless component', async () => {
     const html = await render('/stateless')
@@ -77,7 +79,7 @@ describe('integration tests', () => {
         this.finished = true
       }
     }
-    const html = await render('/finish-response', {}, res)
+    const html = await render('/finish-response', {}, {}, res)
     expect(html).toBeFalsy()
   })
 
@@ -92,7 +94,7 @@ describe('integration tests', () => {
         end () {}
       }
 
-      await render(req.url, req, res)
+      await render(req.url, {}, req, res)
       expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
     })
 

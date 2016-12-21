@@ -63,6 +63,7 @@
     "mkdirp-then": "1.2.0",
     "mz": "2.6.0",
     "path-match": "1.2.4",
+    "query-string": "^4.2.3",
     "react": "15.4.1",
     "react-dom": "15.4.1",
     "react-hot-loader": "3.0.0-beta.6",
