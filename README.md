@@ -310,7 +310,7 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
-- `next(path: string, opts: object)` - `path` is 
+- `next(path: string, opts: object)` - `path` is
 - `next(opts: object)`
 
 Supported options:
@@ -396,10 +396,40 @@ In order to extend our usage of `webpack`, you can define a function that extend
 The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
 
 ```js
+// This file is not going through babel transformation.
+// So, we write it in vanilla JS
+// (But you could use ES2015 features supported by your Node.js version)
+
 module.exports = {
-  webpack: (cfg, { dev }) => {
-    cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
-    return cfg
+  webpack: (config, { dev }) => {
+    config.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
+
+    // Important: return the modified config
+    return config
+  }
+}
+```
+
+### Customizing babel config
+
+In order to extend our usage of `babel`, you can define a function that extends its config via `next.config.js`.
+
+The following example config shows you how to use `babel-preset-stage-0` with your app.
+
+```js
+// This file is not going through babel transformation.
+// So, we write it in vanilla JS
+// (But you could use ES2015 features supported by your Node.js version)
+
+module.exports = {
+  // config is the set of options we pass to our babel-loaders's query option
+  babel: function (config, { dev }) {
+    // Add the stage-0 preset.
+    // Make sure to use 'require.resolve' otherwise we won't be able to find it.
+    config.presets.push(require.resolve('babel-preset-stage-0'))
+
+    // Important: return the modified config
+    return config
   }
 }
 ```
