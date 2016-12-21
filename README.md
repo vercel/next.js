@@ -310,7 +310,7 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
-- `next(path: string, opts: object)` - `path` is 
+- `next(path: string, opts: object)` - `path` is
 - `next(opts: object)`
 
 Supported options:
@@ -397,8 +397,13 @@ The following example shows how you can use [`react-svg-loader`](https://github.
 
 ```js
 module.exports = {
-  webpack: (cfg, { dev }) => {
+  webpack: (cfg, { webpack, dev }) => {
     cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
+    cfg.plugins.push(
+        new webpack.DefinePlugin({
+        'process.env.CUSTOM_VALUE': JSON.stringify(process.env.CUSTOM_VALUE),
+      })
+    )
     return cfg
   }
 }
