@@ -13,6 +13,7 @@ import getConfig from '../config'
 
 export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
   dir = resolve(dir)
+  const config = getConfig(dir)
 
   const pages = await glob('pages/**/*.js', {
     cwd: dir,
@@ -83,6 +84,19 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     )
   }
 
+  let mainBabelOptions = {
+    babelrc: false,
+    sourceMaps: dev ? 'both' : false,
+    presets: [
+      require.resolve('./babel/preset')
+    ]
+  }
+
+  if (config.babel) {
+    console.log('> Using "babel" config function defined in next.config.js.')
+    mainBabelOptions = await config.babel(mainBabelOptions, { dev })
+  }
+
   const loaders = (dev ? [{
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
@@ -133,13 +147,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
-      babelrc: false,
-      sourceMaps: dev ? 'both' : false,
-      presets: [
-        require.resolve('./babel/preset')
-      ]
-    }
+    query: mainBabelOptions
   }])
 
   const interpolateNames = new Map([
@@ -188,9 +196,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       return interpolateNames.get(this.resourcePath) || url
     }
   }
-  const config = getConfig(dir)
+
   if (config.webpack) {
-    console.log('> Using Webpack config function defined in next.config.js.')
+    console.log('> Using "webpack" config function defined in next.config.js.')
     webpackConfig = await config.webpack(webpackConfig, { dev })
   }
   return webpack(webpackConfig)
