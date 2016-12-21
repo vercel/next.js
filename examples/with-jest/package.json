@@ -1,8 +1,7 @@
 {
   "name": "my-app",
   "dependencies": {
-    "next": "^2.0.0-beta",
-    "react-test-renderer": "^15.4.1"
+    "next": "^2.0.0-beta"
   },
   "scripts": {
     "test": "jest",
@@ -16,6 +15,7 @@
     "jest-cli": "^18.0.0",
     "react": "^15.3.2",
     "react-addons-test-utils": "^15.3.2",
-    "react-dom": "^15.3.2"
+    "react-dom": "^15.3.2",
+    "react-test-renderer": "^15.4.1"
   }
 }
