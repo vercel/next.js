@@ -139,6 +139,11 @@ _Note: The contents of `<head>` get cleared upon unmounting the component, so ma
 
 ### Fetching data and component lifecycle
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/data-fetch">Data fetch</a></li></ul>
+</details></p>
+
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
 
 ```jsx
@@ -237,10 +242,10 @@ _Note: in order to programmatically change the route without triggering navigati
 
 ### Prefetching Pages
 
-<details>
+<p><details>
   <summary><b>Examples</b></summary>
-  - [Prefetching](./examples/with-prefetching)
-</details>
+  <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
+</details></p>
 
 Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
 
@@ -291,12 +296,14 @@ export default ({ url }) => (
 
 ### Custom server and routing
 
-<details>
+<p><details>
   <summary><b>Examples</b></summary>
-  - [Basic custom server](./examples/custom-server)
-  - [Express integration](./examples/custom-server-express)
-  - [Parameterized routing](./examples/parameterized-routing)
-</details>
+  <ul>
+    <li><a href="./examples/custom-server">Basic custom server</a></li>
+    <li><a href="./examples/custom-server-express">Express integration</a></li>
+    <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
+  </ul>
+</details></p>
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
 
@@ -340,10 +347,10 @@ Supported options:
 
 ### Custom `<Document>`
 
-<details>
+<p><details>
   <summary><b>Examples</b></summary>
-  - [Styled components custom document](./examples/with-styled-components)
-</details>
+  <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
+</details></p>
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
@@ -403,10 +410,10 @@ export default class Error extends React.Component {
 
 ### Custom configuration
 
-<details>
+<p><details>
   <summary><b>Examples</b></summary>
-  - [Custom babel configuration](./examples/with-custom-babel-config)
-</details>
+  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
+</details></p>
 
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
