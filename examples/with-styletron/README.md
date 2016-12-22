@@ -1,0 +1,36 @@
+
+# Styletron example
+
+## How to use
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-styletron
+cd with-styletron
+```
+
+or clone the repo:
+
+```bash
+git clone https://github.com/zeit/next.js.git --depth=1
+cd next.js/examples/with-styletron
+```
+
+Install the dependencies:
+
+```bash
+npm install
+```
+
+Run the dev server:
+
+```bash
+npm run dev
+```
+
+## The idea behind the example
+
+This example features how yo use a different styling solution than [styled-jsx](https://github.com/zeit/styled-jsx) that also supports universal styles. That means we can serve the required styles for the first render within the HTML and then load the rest in the client. In this case we are using [styletron](https://github.com/styled-components/styletron).
+
+For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
