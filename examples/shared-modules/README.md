@@ -2,30 +2,24 @@
 
 ## How to use
 
-Download the example:
+Download the example (or clone the repo)[https://github.com/zeit/next.js.git]:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/shared-modules
 cd shared-modules
 ```
 
-or clone the repo:
-
-```bash
-git clone https://github.com/zeit/next.js.git --depth=1
-cd next.js/examples/shared-modules
-```
-
-Install the dependencies:
+Install it and run:
 
 ```bash
 npm install
+npm run dev
 ```
 
-Run the dev server:
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
-npm run dev
+now
 ```
 
 ## The idea behind the example

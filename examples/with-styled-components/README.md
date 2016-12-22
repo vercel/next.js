@@ -1,5 +1,5 @@
 
-# Redux example
+# Styled components example
 
 ## How to use
 
