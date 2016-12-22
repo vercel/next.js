@@ -62,6 +62,11 @@ export default () => (
 
 #### Built-in CSS support
 
+<details>
+  <summary><b>Examples</b></summary>
+  - [Basic css](./examples/basic-css)
+</details>
+
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" resembling of Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
@@ -85,8 +90,6 @@ export default () => (
   </div>
 )
 ```
-
-See the [full example project](./examples/basic-css).
 
 #### CSS-in-JS
 
@@ -112,6 +115,11 @@ export default () => (
 
 ### Populating `<head>`
 
+<details>
+  <summary><b>Examples</b></summary>
+  - [Head elements](./examples/head-elements)
+</details>
+
 We expose a built-in component for appending elements to the `<head>` of the page.
 
 ```jsx
@@ -128,8 +136,6 @@ export default () => (
 ```
 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
-
-See the [full example project](./examples/head-elements) using custom head elements.
 
 ### Fetching data and component lifecycle
 
@@ -166,6 +172,11 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ### Routing
 
+<details>
+  <summary><b>Examples</b></summary>
+  - [Basic routing](./examples/using-routing)
+</details>
+
 #### With `<Link>`
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
@@ -200,8 +211,6 @@ Each top-level component receives a `url` property with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-See the [basic routing example](./examples/using-router).
-
 #### Imperatively
 
 You can also do client-side page transitions using the `next/router`
@@ -227,6 +236,11 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
 ### Prefetching Pages
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Prefetching](./examples/with-prefetching)
+</details>
 
 Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
 
@@ -256,8 +270,6 @@ When this higher-level `<Link>` component is first used, the `ServiceWorker` get
 <Link href='/contact' prefetch={false}>Home</Link>
 ```
 
-See the [prefetching example](./examples/with-prefetching).
-
 #### Imperatively
 
 Most needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
@@ -278,6 +290,13 @@ export default ({ url }) => (
 ```
 
 ### Custom server and routing
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Basic custom server](./examples/custom-server)
+  - [Express integration](./examples/custom-server-express)
+  - [Parameterized routing](./examples/parameterized-routing)
+</details>
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
 
@@ -319,11 +338,12 @@ Supported options:
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Display error messages with server information - default `false`
 
-See the [basic custom server](./examples/custom-server), the
-[express integration](./examples/custom-server-express) or the
-[parametrized routes](./examples/parameterized-routing).
-
 ### Custom `<Document>`
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Styled components custom document](./examples/with-styled-components)
+</details>
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
@@ -357,10 +377,6 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-The [styled components example](./examples/with-styled-components) showcase how
-to extend the `<Document>` to allow server side styles with you favorite styling
-library.
-
 ### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
@@ -386,6 +402,11 @@ export default class Error extends React.Component {
 ```
 
 ### Custom configuration
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Custom babel configuration](./examples/with-custom-babel-config)
+</details>
 
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
@@ -418,8 +439,6 @@ module.exports = {
   }
 }
 ```
-
-Check the [custom babel config example](./examples/with-custom-babel-config).
 
 ### Customizing babel config
 
@@ -561,7 +580,7 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 <details>
 <summary>Can I use it with Redux?</summary>
 
-Yes! Here's an [example](https://github.com/zeit/next.js/wiki/Redux-example)
+Yes! Here's an [example](./examples/with-redux)
 </details>
 
 <details>
