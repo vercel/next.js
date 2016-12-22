@@ -494,37 +494,9 @@ If you want to create re-usable React components that you can embed in your Next
 </details>
 
 <details>
-  <summary>How do I use CSS-in-JS solutions</summary>
+  <summary>How do I use CSS-in-JS solutions?</summary>
 
 Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use a CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
-
-
-### Compilation performance
-
-Parsing, prefixing, modularizing and hot-code-reloading CSS can be avoided by just using JavaScript.
-
-This results in better compilation performance and less memory usage (especially for large projects). No `cssom`, `postcss`, `cssnext` or transformation plugins.
-
-It also means fewer dependencies and fewer things for Next to do. Everything is Just JavaScript® (since JSX is completely optional)
-
-### Lifecycle performance
-
-Since every class name is invoked with the `css()` helper, Next.js can intelligently add or remove `<style>` elements that are not being used.
-
-This is important for server-side rendering, but also during the lifecycle of the page. Since Next.js enables `pushState` transitions that load components dynamically, unnecessary `<style>` elements would bring down performance over time.
-
-This is a very significant benefit over approaches like `require(‘xxxxx.css')`.
-
-### Correctness
-
-Since the class names and styles are defined as JavaScript objects, a variety of aids for correctness are much more easily enabled:
-
-- Linting
-- Type checking
-- Autocompletion
-
-While these are tractable for CSS itself, we don’t need to duplicate the efforts in tooling and libraries to accomplish them.
-
 </details>
 
 <details>
