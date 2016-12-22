@@ -1,5 +1,5 @@
 
-# Redux example
+# Example app using nested components
 
 ## How to use
 
