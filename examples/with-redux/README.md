@@ -13,7 +13,7 @@ cd with-redux
 or clone the repo:
 
 ```bash
-git clone git@github.com:zeit/next.js.git --depth=1
+git clone https://github.com/zeit/next.js.git --depth=1
 cd next.js/examples/with-redux
 ```
 
