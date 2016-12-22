@@ -4,7 +4,6 @@ import styleSheet from 'styled-components/lib/models/StyleSheet'
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
     const renderPage = () => {
-      styleSheet.flush()
       return ctx.renderPage()
     }
 
@@ -14,7 +13,6 @@ export default class MyDocument extends Document {
   }
 
   render () {
-    console.log(this.props)
     return (
       <html>
         <Head>
