@@ -86,7 +86,7 @@ export default () => (
 )
 ```
 
-See the [full example project](./examples-basic-css)
+See the [full example project](./examples/basic-css).
 
 #### CSS-in-JS
 
@@ -99,8 +99,6 @@ export default () => (
 ```
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
-
-See the [full example project](./examples-basic-css) using styled-components.
 
 ### Static file serving (e.g.: images)
 
@@ -131,7 +129,7 @@ export default () => (
 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
-See the [full example project](./head-elements) using custom head elements.
+See the [full example project](./examples/head-elements) using custom head elements.
 
 ### Fetching data and component lifecycle
 
@@ -202,7 +200,7 @@ Each top-level component receives a `url` property with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-See the [basic routing example](./examples/using-router)
+See the [basic routing example](./examples/using-router).
 
 #### Imperatively
 
@@ -258,7 +256,7 @@ When this higher-level `<Link>` component is first used, the `ServiceWorker` get
 <Link href='/contact' prefetch={false}>Home</Link>
 ```
 
-See the [prefetching example](./examples/with-prefetching)
+See the [prefetching example](./examples/with-prefetching).
 
 #### Imperatively
 
@@ -323,7 +321,7 @@ Supported options:
 
 See the [basic custom server](./examples/custom-server), the
 [express integration](./examples/custom-server-express) or the
-[parametrized routes](./examples/parametrized-routing)
+[parametrized routes](./examples/parameterized-routing).
 
 ### Custom `<Document>`
 
