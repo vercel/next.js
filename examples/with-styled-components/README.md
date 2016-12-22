@@ -1,5 +1,5 @@
 
-# Styled components example
+# Example app with styled-components
 
 ## How to use
 
