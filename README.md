@@ -98,13 +98,6 @@ export default () => (
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
 
-The following wiki pages provide examples for some popular styling solutions:
-
-- `glamor` (formerly `next/css`)
-- `styled-components`
-- `styletron`
-- `fela`
-
 ### Static file serving (e.g.: images)
 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
@@ -579,22 +572,6 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](https://github.com/zeit/next.js/wiki/Redux-example)
-</details>
-
-<details>
-<summary>Why does it load the runtime from a CDN by default?</summary>
-
-We intend for Next.js to be a great starting point for any website or app, no matter how small.
-
-If you’re building a very small mostly-content website, you still want to benefit from features like lazy-loading, a component architecture and module bundling.
-
-But in some cases, the size of React itself would far exceed the content of the page!
-
-For this reason we want to promote a situation where users can share the cache for the basic runtime across internet properties. The application code continues to load from your server as usual.
-
-We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](http://www.hanselman.com/blog/CDNsFailButYourScriptsDontHaveToFallbackFromCDNToLocalJQuery.aspx).
-
-To turn the CDN off, just set `module.exports = { cdn: false }` in `next.config.js`.
 </details>
 
 <details>
