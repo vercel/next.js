@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "with-jest",
   "dependencies": {
     "next": "^2.0.0-beta"
   },

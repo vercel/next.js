@@ -1,0 +1,46 @@
+
+# Redux example
+
+## How to use
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/with-redux
+cd next.js-master/examples/with-redux
+```
+
+or clone the repo:
+
+```bash
+git clone git@github.com:zeit/next.js.git --depth=1
+cd next.js/examples/with-redux
+```
+
+Install the dependencies:
+
+```bash
+npm install
+```
+
+Run the dev server:
+
+```bash
+npm run dev
+```
+
+## The idea behind the example
+
+Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use redux that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
+
+In this example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color than the client one.
+
+![](http://i.imgur.com/JCxtWSj.gif)
+
+Our page is located at `pages/index.js` so it will map the route `/`. To get the initial data for rendering we are implementing the static method `getInitialProps`, initializing the redux store and dispatching the required actions until we are ready to return the initial state to be rendered. The root component for the render method is the `react-redux Provider` that allows us to send the store down to children components so they can access to the state when required.
+
+To pass the initial state from the server to the client we pass it as a prop called `initialState` so then it's available when the client takes over.
+
+The trick here for supporting universal redux is to separate the cases for the client and the server. When we are on the server we want to create a new store every time, otherwise different users data will be mixed up. If we are in the client we want to use always the same store. That's what we accomplish on `store.js`
+
+The clock, under `components/Clock.js`, has access to the state using the `connect` function from `react-redux`. In this case Clock is a direct child from the page but it could be deep down the render tree.

@@ -1,0 +1,15 @@
+{
+  "name": "with-styled-components",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "*",
+    "styled-components": "1.2.1"
+  },
+  "author": "",
+  "license": "ISC"
+}
