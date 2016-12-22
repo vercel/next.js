@@ -172,12 +172,12 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ### Routing
 
-<details>
-  <summary><b>Examples</b></summary>
-  - [Basic routing](./examples/using-routing)
-</details>
-
 #### With `<Link>`
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/using-routing">Basic routing</a></li></ul>
+</details></p>
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
