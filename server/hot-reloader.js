@@ -8,8 +8,9 @@ import babel, { watch } from './build/babel'
 import read from './read'
 
 export default class HotReloader {
-  constructor (dir) {
+  constructor (dir, { quiet } = {}) {
     this.dir = dir
+    this.quiet = quiet
     this.middlewares = []
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
@@ -38,7 +39,7 @@ export default class HotReloader {
     this.watch()
 
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true }),
+      webpack(this.dir, { dev: true, quiet: this.quiet }),
       clean(this.dir)
     ])
 

@@ -6,12 +6,18 @@ import flush from 'styled-jsx/server'
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
     let head
-    const { html, css, ids } = renderStatic(() => {
-      const page = renderPage()
-      head = page.head
-      return page.html
-    })
-    const styles = flush()
+    let rendered
+    let styles
+    try {
+      rendered = renderStatic(() => {
+        const page = renderPage()
+        head = page.head
+        return page.html
+      })
+    } finally {
+      styles = flush()
+    }
+    const { html, css, ids } = rendered
     const nextCSS = { css, ids, styles }
     return { html, head, nextCSS }
   }

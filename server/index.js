@@ -23,7 +23,7 @@ export default class Server {
     this.quiet = quiet
     this.renderOpts = { dir: this.dir, dev, staticMarkup }
     this.router = new Router()
-    this.hotReloader = dev ? new HotReloader(this.dir) : null
+    this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(dir)
 

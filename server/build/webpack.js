@@ -11,8 +11,9 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import getConfig from '../config'
 
-export default async function createCompiler (dir, { dev = false } = {}) {
+export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
   dir = resolve(dir)
+  const config = getConfig(dir)
 
   const pages = await glob('pages/**/*.js', {
     cwd: dir,
@@ -66,9 +67,11 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
-      new WatchPagesPlugin(dir),
-      new FriendlyErrorsWebpackPlugin()
+      new WatchPagesPlugin(dir)
     )
+    if (!quiet) {
+      plugins.push(new FriendlyErrorsWebpackPlugin())
+    }
   } else {
     plugins.push(
       new webpack.DefinePlugin({
@@ -81,8 +84,18 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     )
   }
 
-  const babelRuntimePath = require.resolve('babel-runtime/package')
-  .replace(/[\\/]package\.json$/, '')
+  let mainBabelOptions = {
+    babelrc: false,
+    sourceMaps: dev ? 'both' : false,
+    presets: [
+      require.resolve('./babel/preset')
+    ]
+  }
+
+  if (config.babel) {
+    console.log('> Using "babel" config function defined in next.config.js.')
+    mainBabelOptions = await config.babel(mainBabelOptions, { dev })
+  }
 
   const loaders = (dev ? [{
     test: /\.js(\?[^?]*)?$/,
@@ -134,35 +147,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
-      babelrc: false,
-      sourceMaps: dev ? 'both' : false,
-      presets: ['es2015', 'react'],
-      plugins: [
-        require.resolve('babel-plugin-react-require'),
-        require.resolve('babel-plugin-transform-async-to-generator'),
-        require.resolve('babel-plugin-transform-object-rest-spread'),
-        require.resolve('babel-plugin-transform-class-properties'),
-        require.resolve('babel-plugin-transform-runtime'),
-        require.resolve('styled-jsx/babel'),
-        [
-          require.resolve('babel-plugin-module-resolver'),
-          {
-            alias: {
-              'babel-runtime': babelRuntimePath,
-              react: require.resolve('react'),
-              'react-dom': require.resolve('react-dom'),
-              'next/link': require.resolve('../../lib/link'),
-              'next/prefetch': require.resolve('../../lib/prefetch'),
-              'next/css': require.resolve('../../lib/css'),
-              'next/head': require.resolve('../../lib/head'),
-              'next/document': require.resolve('../../server/document'),
-              'styled-jsx/style': require.resolve('styled-jsx/style')
-            }
-          }
-        ]
-      ]
-    }
+    query: mainBabelOptions
   }])
 
   const interpolateNames = new Map([
@@ -211,9 +196,9 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       return interpolateNames.get(this.resourcePath) || url
     }
   }
-  const config = getConfig(dir)
+
   if (config.webpack) {
-    console.log('> Using Webpack config function defined in next.config.js.')
+    console.log('> Using "webpack" config function defined in next.config.js.')
     webpackConfig = await config.webpack(webpackConfig, { dev })
   }
   return webpack(webpackConfig)
