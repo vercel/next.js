@@ -115,14 +115,14 @@ export default class Server {
   }
 
   async render (req, res, pathname, query) {
-    if (this.config.poweredByHeader) {
-      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
-    }
     const html = await this.renderToHTML(req, res, pathname, query)
     sendHTML(res, html)
   }
 
   async renderToHTML (req, res, pathname, query) {
+    if (this.config.poweredByHeader) {
+      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
+    }
     if (this.dev) {
       const compilationErr = this.getCompilationError(pathname)
       if (compilationErr) {
