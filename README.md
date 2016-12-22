@@ -86,6 +86,8 @@ export default () => (
 )
 ```
 
+See the [full example project](./examples-basic-css)
+
 #### CSS-in-JS
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -97,6 +99,8 @@ export default () => (
 ```
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
+
+See the [full example project](./examples-basic-css) using styled-components.
 
 ### Static file serving (e.g.: images)
 
@@ -126,6 +130,8 @@ export default () => (
 ```
 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+
+See the [full example project](./head-elements) using custom head elements.
 
 ### Fetching data and component lifecycle
 
@@ -196,6 +202,8 @@ Each top-level component receives a `url` property with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
+See the [basic routing example](./examples/using-router)
+
 #### Imperatively
 
 You can also do client-side page transitions using the `next/router`
@@ -249,6 +257,8 @@ When this higher-level `<Link>` component is first used, the `ServiceWorker` get
 ```jsx
 <Link href='/contact' prefetch={false}>Home</Link>
 ```
+
+See the [prefetching example](./examples/with-prefetching)
 
 #### Imperatively
 
@@ -311,6 +321,10 @@ Supported options:
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Display error messages with server information - default `false`
 
+See the [basic custom server](./examples/custom-server), the
+[express integration](./examples/custom-server-express) or the
+[parametrized routes](./examples/parametrized-routing)
+
 ### Custom `<Document>`
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
@@ -344,6 +358,10 @@ export default class MyDocument extends Document {
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
+
+The [styled components example](./examples/with-styled-components) showcase how
+to extend the `<Document>` to allow server side styles with you favorite styling
+library.
 
 ### Custom error handling
 
@@ -402,6 +420,8 @@ module.exports = {
   }
 }
 ```
+
+Check the [custom babel config example](./examples/with-custom-babel-config).
 
 ### Customizing babel config
 
