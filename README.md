@@ -62,6 +62,11 @@ export default () => (
 
 #### Built-in CSS support
 
+<details>
+  <summary><b>Examples</b></summary>
+  - [Basic css](./examples/basic-css)
+</details>
+
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" resembling of Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
@@ -109,6 +114,11 @@ export default () => (
 ```
 
 ### Populating `<head>`
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Head elements](./examples/head-elements)
+</details>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -161,6 +171,11 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 - `err` - Error object if any error is encountered during the rendering
 
 ### Routing
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Basic routing](./examples/using-routing)
+</details>
 
 #### With `<Link>`
 
@@ -222,6 +237,11 @@ _Note: in order to programmatically change the route without triggering navigati
 
 ### Prefetching Pages
 
+<details>
+  <summary><b>Examples</b></summary>
+  - [Prefetching](./examples/with-prefetching)
+</details>
+
 Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
@@ -271,6 +291,13 @@ export default ({ url }) => (
 
 ### Custom server and routing
 
+<details>
+  <summary><b>Examples</b></summary>
+  - [Basic custom server](./examples/custom-server)
+  - [Express integration](./examples/custom-server-express)
+  - [Parameterized routing](./examples/parameterized-routing)
+</details>
+
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
@@ -312,6 +339,11 @@ Supported options:
 - `quiet` (`bool`) Display error messages with server information - default `false`
 
 ### Custom `<Document>`
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Styled components custom document](./examples/with-styled-components)
+</details>
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
@@ -370,6 +402,11 @@ export default class Error extends React.Component {
 ```
 
 ### Custom configuration
+
+<details>
+  <summary><b>Examples</b></summary>
+  - [Custom babel configuration](./examples/with-custom-babel-config)
+</details>
 
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
@@ -543,7 +580,7 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 <details>
 <summary>Can I use it with Redux?</summary>
 
-Yes! Here's an [example](https://github.com/zeit/next.js/wiki/Redux-example)
+Yes! Here's an [example](./examples/with-redux)
 </details>
 
 <details>
