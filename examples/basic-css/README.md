@@ -6,8 +6,8 @@
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/basic-css
-cd next.js-master/examples/basic-css
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/basic-css
+cd basic-css
 ```
 
 or clone the repo:

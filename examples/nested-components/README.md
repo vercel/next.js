@@ -6,8 +6,8 @@
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/nested-components
-cd next.js-master/examples/nested-components
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/nested-components
+cd nested-components
 ```
 
 or clone the repo:

@@ -6,8 +6,8 @@
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/with-styles-components
-cd next.js-master/examples/with-styled-components
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-styles-components
+cd with-styled-components
 ```
 
 or clone the repo:

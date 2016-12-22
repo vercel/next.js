@@ -5,8 +5,8 @@
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/using-router
-cd next.js-master/examples/using-router
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/using-router
+cd using-router
 ```
 
 or clone the repo:

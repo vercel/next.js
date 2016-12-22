@@ -6,8 +6,8 @@
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz next.js-master/examples/custom-server-express
-cd next.js-master/examples/custom-server-express
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/custom-server-express
+cd custom-server-express
 ```
 
 or clone the repo:
