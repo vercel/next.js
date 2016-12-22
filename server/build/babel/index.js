@@ -3,11 +3,13 @@ import { readFile, writeFile } from 'mz/fs'
 import { transform } from 'babel-core'
 import chokidar from 'chokidar'
 import mkdirp from 'mkdirp-then'
+import getConfig from '../../config'
 
 export default babel
 
 async function babel (dir, { dev = false } = {}) {
   dir = resolve(dir)
+  const config = getConfig('../')
 
   let src
   try {
@@ -20,11 +22,18 @@ async function babel (dir, { dev = false } = {}) {
     }
   }
 
-  const { code } = transform(src, {
+  let babelOptions = {
     babelrc: false,
     sourceMaps: dev ? 'inline' : false,
     presets: [require.resolve('./preset')]
-  })
+  }
+
+  if (config.babel) {
+    console.log('> Using "babel" config function defined in next.config.js.')
+    babelOptions = await config.babel(babelOptions, { dev })
+  }
+
+  const { code } = transform(src, babelOptions)
 
   const file = join(dir, '.next', 'dist', 'pages', '_document.js')
   await mkdirp(dirname(file))
