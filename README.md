@@ -458,7 +458,12 @@ module.exports = {
 
 ### Customizing babel config
 
-In order to extend our usage of `babel`, you can simply define a `.babelrc` file in your root of your app.
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
+</details></p>
+
+In order to extend our usage of `babel`, you can simply define a `.babelrc` file in the root of your app.
 If found, we'll use it. Here's an example `.babelrc` file:
 
 ```js
