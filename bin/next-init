@@ -74,17 +74,16 @@ const basePackage = `{
 
 const basePage = `
 
-import React from 'react'
 import Head from 'next/head'
 
 export default () => (
   <div>
     <Head>
-      <meta name="viewport" content="width=device-width, initial-scale=1"/>
+      <meta name='viewport' content='width=device-width, initial-scale=1'/>
       <style>{bodyStyles}</style>
     </Head>
 
-    <img width="112" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png" alt="next.js" />
+    <img width='112' src='https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png' alt='next.js' />
   </div>
 )
 
