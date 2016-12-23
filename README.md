@@ -98,6 +98,7 @@ export default () => (
   <ul>
 		<li><a href="./examples/with-styled-components">Styled components</a></li>
 		<li><a href="./examples/with-styletron">Styletron</a></li>
+    <li><a href="./examples/with-glamor">Glamor</a></li>
 	</ul>
 </details></p>
 
