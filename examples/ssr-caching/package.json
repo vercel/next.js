@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.14.0",
+    "lru-cache": "^4.0.2",
+    "next": "^2.0.0-beta"
+  }
+}
