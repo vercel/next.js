@@ -86,6 +86,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
 
   let mainBabelOptions = {
     babelrc: false,
+    cacheDirectory: true,
     sourceMaps: dev ? 'both' : false,
     presets: [
       require.resolve('./babel/preset')
@@ -127,6 +128,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     include: nextPagesDir,
     query: {
       babelrc: false,
+      cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
       plugins: [
         [
