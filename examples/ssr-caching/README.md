@@ -25,7 +25,7 @@ now
 
 ## The idea behind the example
 
-React Server Side rendering is very costly operation. One of the best solution for this problem is cache already rendered pages.
+React Server Side rendering is very costly and takes a lot of server's CPU power for that. One of the best solutions for this problem is cache already rendered pages.
 That's what this example demonstrate.
 
-This app uses Next's [custom server and routing](https://github.com/zeit/next.js#custom-server-and-routing) mode. It also uses [express](https://expressjs.com/) to serve actual routing and page serving.
+This app uses Next's [custom server and routing](https://github.com/zeit/next.js#custom-server-and-routing) mode. It also uses [express](https://expressjs.com/) to handle routing and page serving.
