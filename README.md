@@ -311,6 +311,7 @@ export default ({ url }) => (
     <li><a href="./examples/custom-server">Basic custom server</a></li>
     <li><a href="./examples/custom-server-express">Express integration</a></li>
     <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
+    <li><a href="./examples/ssr-caching">SSR caching</a></li>
   </ul>
 </details></p>
 
