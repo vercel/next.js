@@ -21,7 +21,7 @@ app.prepare()
   })
 
   server.get('/blog/:id', (req, res) => {
-    const queryParams = { id: req.params.id }
+    const queryParams = { id: req.paradms.id }
     renderAndCache(req, res, '/blog', queryParams)
   })
 
@@ -53,7 +53,6 @@ function renderAndCache (req, res, pagePath, queryParams) {
       res.send(html)
     })
     .catch((err) => {
-      console.error(err.stack)
-      res.status(500).send('Internal Error')
+      app.renderError(err, req, res, pagePath, queryParams)
     })
 }
