@@ -1,0 +1,15 @@
+{
+  "name": "with-glamor",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "glamor": "^2.20.12",
+    "next": "^2.0.0-beta"
+  },
+  "author": "",
+  "license": "ISC"
+}
