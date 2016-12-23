@@ -43,7 +43,7 @@ function renderAndCache (req, res, pagePath, queryParams) {
     return
   }
 
-  // If not let's render it to HTML
+  // If not let's render the page into HTML
   app.renderToHTML(req, res, pagePath, queryParams)
     .then((html) => {
       // Let's cache this page
