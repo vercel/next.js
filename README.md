@@ -62,10 +62,10 @@ export default () => (
 
 #### Built-in CSS support
 
-<details>
+<p><details>
   <summary><b>Examples</b></summary>
-  - [Basic css](./examples/basic-css)
-</details>
+  <ul><li><a href="./examples/basic-css">Basic css</a></li></ul>
+</details></p>
 
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" resembling of Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
@@ -95,11 +95,7 @@ export default () => (
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul>
-		<li><a href="./examples/with-styled-components">Styled components</a></li>
-		<li><a href="./examples/with-styletron">Styletron</a></li>
-    <li><a href="./examples/with-glamor">Glamor</a></li>
-	</ul>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -124,10 +120,10 @@ export default () => (
 
 ### Populating `<head>`
 
-<details>
+<p><details>
   <summary><b>Examples</b></summary>
-  - [Head elements](./examples/head-elements)
-</details>
+  <ul><li><a href="./examples/head-elements">Head elements</a></li></ul>
+</details></p>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -186,12 +182,12 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ### Routing
 
-#### With `<Link>`
-
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/using-routing">Basic routing</a></li></ul>
 </details></p>
+
+#### With `<Link>`
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
