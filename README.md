@@ -481,7 +481,6 @@ module.exports = {
 Next.js uses Babel6 out of the box, which doesn't support default `module.exports`.
 ##### Invalid:
 ```js
-import React from 'react':
 //  bad import
 const Link = require('next/link').default;
 
@@ -492,7 +491,6 @@ module.exports = () => (
 ```
 ##### Valid:
 ```js
-import React from 'react';
 //  good import
 import Link from 'next/link';
 
