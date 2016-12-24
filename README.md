@@ -477,28 +477,7 @@ module.exports = {
 }
 ```
 
-#### Default Babel configuration
-Next.js uses Babel6 out of the box, which doesn't support default `module.exports`.
-##### Invalid:
-```js
-//  bad import
-const Link = require('next/link').default;
-
-//  bad export
-module.exports = () => (
-  <Link href='/'>Invalid</Link>
-)
-```
-##### Valid:
-```js
-//  good import
-import Link from 'next/link';
-
-//  good export
-export default () => (
-  <Link href='/'>Valid</Link>
-)
-```
+**Note:** Next.js uses Babel 6 out of the box, which doesn't support default `module.exports`. Every time you export a component, make sure you use the ES6 `export` syntax instead.
 
 ## Production deployment
 
