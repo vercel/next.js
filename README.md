@@ -262,11 +262,11 @@ You can also listen to different events happening inside the Router. For that, `
 
 Supported events:
 
-- `routeChangeStart(route, url)` - Fires when the route starts to change
-- `routeChangeComplete(route, url)` - Fires when route changed completely
+- `routeChangeStart(route, url)` - Fires when a route starts to change
+- `routeChangeComplete(route, url)` - Fires when a route changed completely
 - `routeChangeError(err, route, url)` - Fires when there's an error when changing routes
 
-Here's how to property listen to an event:
+Here's how to property listen to a router event:
 
 ```js
 Router.ready(() => {
