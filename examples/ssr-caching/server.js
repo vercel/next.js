@@ -21,7 +21,7 @@ app.prepare()
   })
 
   server.get('/blog/:id', (req, res) => {
-    const queryParams = { id: req.paradms.id }
+    const queryParams = { id: req.params.id }
     renderAndCache(req, res, '/blog', queryParams)
   })
 
