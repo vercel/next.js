@@ -182,12 +182,14 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ### Routing
 
+#### With `<Link>`
+
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/using-routing">Basic routing</a></li></ul>
+  <ul>
+    <li><a href="./examples/hello-world">Hello World</a></li>
+  </ul>
 </details></p>
-
-#### With `<Link>`
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
@@ -223,6 +225,14 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 
 #### Imperatively
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/using-router">Basic routing</a></li>
+    <li><a href="./examples/with-loading">With a page loading indicator</a></li>
+  </ul>
+</details></p>
+
 You can also do client-side page transitions using the `next/router`
 
 ```jsx
@@ -240,10 +250,33 @@ Above `Router` object comes with the following API:
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `ready(cb)` - fires the `cb` when router is ready (mostly used with [Router Events](#router-events))
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
+
+##### Router Events
+
+You can also listen to different events happening inside the Router. For that, `next/router` comes with a Node.js [EventEmitter](https://nodejs.org/api/events.html) compatible API.
+
+Supported events:
+
+- `routeChangeStart(route, url)` - Fires when the route starts to change
+- `routeChangeComplete(route, url)` - Fires when route changed completely
+- `routeChangeError(err, route, url)` - Fires when there's an error when changing routes
+
+Here's how to property listen to an event:
+
+```js
+Router.ready(() => {
+  Router.on('routeChangeStart', (route, url) => {
+    console.log('Route is changing to: ', route)
+  })
+})
+```
+
+> It is important to listen to these events with `Router.ready()`.
 
 ### Prefetching Pages
 
