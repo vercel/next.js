@@ -250,7 +250,6 @@ Above `Router` object comes with the following API:
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
-- `ready(cb)` - fires the `cb` when router is ready (mostly used with [Router Events](#router-events))
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
@@ -269,14 +268,10 @@ Supported events:
 Here's how to property listen to a router event:
 
 ```js
-Router.ready(() => {
-  Router.on('routeChangeStart', (route, url) => {
-    console.log('Route is changing to: ', route)
-  })
+Router.on('routeChangeStart', (route, url) => {
+  console.log('Route is changing to: ', route)
 })
 ```
-
-> It is important to listen to these events with `Router.ready()`.
 
 ### Prefetching Pages
 
