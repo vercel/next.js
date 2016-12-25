@@ -40,7 +40,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
 
   const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
   const errorDebugPath = join(nextPagesDir, '_error-debug.js')
-  entry[errorDebugEntry] = errorDebugPath
+  entry[errorDebugEntry] = defaultEntries.concat([errorDebugPath + '?entry'])
 
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 
