@@ -455,29 +455,19 @@ module.exports = {
 
 ### Customizing babel config
 
-In order to extend our usage of `babel`, you can define a function that extends its config via `next.config.js`.
-
-The following example config shows you how to use `babel-preset-stage-0` with your app.
+In order to extend our usage of `babel`, you can simply define a `.babelrc` file in the root of your app.
+If found, we'll use it. Here's an example `.babelrc` file:
 
 ```js
-// This file is not going through babel transformation.
-// So, we write it in vanilla JS
-// (But you could use ES2015 features supported by your Node.js version)
-
-module.exports = {
-  // config is the set of options we pass to our babel-loaders's query option
-  babel: function (config, { dev }) {
-    // Add the stage-0 preset.
-    // Make sure to use 'require.resolve' otherwise we won't be able to find it.
-    config.presets.push(require.resolve('babel-preset-stage-0'))
-
-    // Important: return the modified config
-    return config
-  }
+{
+  "presets": [
+    "next/babel",
+    "stage-0"
+  ],
 }
 ```
 
-**Note:** Next.js uses Babel 6 out of the box, which doesn't support default `module.exports`. Every time you export a component, make sure you use the ES6 `export` syntax instead.
+Although it's not required, you will need to add `next/babel` as a preset. That's the default preset we use for all Next.js apps.
 
 ## Production deployment
 

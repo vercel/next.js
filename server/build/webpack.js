@@ -1,5 +1,6 @@
 import { resolve, join } from 'path'
 import { createHash } from 'crypto'
+import { existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -84,18 +85,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     )
   }
 
-  let mainBabelOptions = {
-    babelrc: false,
+  const mainBabelOptions = {
+    babelrc: true,
     cacheDirectory: true,
     sourceMaps: dev ? 'both' : false,
-    presets: [
-      require.resolve('./babel/preset')
-    ]
+    presets: []
   }
 
-  if (config.babel) {
-    console.log('> Using "babel" config function defined in next.config.js.')
-    mainBabelOptions = await config.babel(mainBabelOptions, { dev })
+  const hasBabelRc = existsSync(join(dir, '.babelrc'))
+  if (hasBabelRc) {
+    console.log('> Using .babelrc defined in your app root')
+  } else {
+    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
   const loaders = (dev ? [{

@@ -1,15 +1,14 @@
 import { resolve, join, dirname } from 'path'
+import { existsSync } from 'fs'
 import { readFile, writeFile } from 'mz/fs'
 import { transform } from 'babel-core'
 import chokidar from 'chokidar'
 import mkdirp from 'mkdirp-then'
-import getConfig from '../../config'
 
 export default babel
 
 async function babel (dir, { dev = false } = {}) {
   dir = resolve(dir)
-  const config = getConfig('../')
 
   let src
   try {
@@ -23,14 +22,14 @@ async function babel (dir, { dev = false } = {}) {
   }
 
   let babelOptions = {
-    babelrc: false,
+    babelrc: true,
     sourceMaps: dev ? 'inline' : false,
-    presets: [require.resolve('./preset')]
+    presets: []
   }
 
-  if (config.babel) {
-    console.log('> Using "babel" config function defined in next.config.js.')
-    babelOptions = await config.babel(babelOptions, { dev })
+  const hasBabelRc = existsSync(join(dir, '.babelrc'))
+  if (!hasBabelRc) {
+    babelOptions.presets.push(require.resolve('./preset'))
   }
 
   const { code } = transform(src, babelOptions)
