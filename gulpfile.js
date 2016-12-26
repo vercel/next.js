@@ -15,7 +15,8 @@ gulp.task('compile', [
   'compile-bin',
   'compile-lib',
   'compile-server',
-  'compile-client'
+  'compile-client',
+  'remove-strict-mode'
 ])
 
 gulp.task('compile-bin', () => {
@@ -48,6 +49,16 @@ gulp.task('compile-client', () => {
   .pipe(babel(babelOptions))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Compiled client files'))
+})
+
+gulp.task('remove-strict-mode', ['compile-lib'], () => {
+  return gulp.src('dist/lib/eval-script.js')
+  .pipe(babel({
+    babelrc: false,
+    plugins: ['babel-plugin-transform-remove-strict-mode']
+  }))
+  .pipe(gulp.dest('dist/lib'))
+  .pipe(notify('Completed removing strict mode for eval script'))
 })
 
 gulp.task('copy', ['copy-pages'])
