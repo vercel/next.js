@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "node server.js"
+    "dev": "node server.js"
   },
   "dependencies": {
     "next": "^2.0.0-beta"
