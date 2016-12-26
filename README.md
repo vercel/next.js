@@ -206,6 +206,8 @@ export default () => (
 )
 ```
 
+__Note: use [`next/prefetch`](#prefetching-pages) for maximum performance, to link and prefetch at the same time in the background__
+
 Client-side routing behaves exactly like the browser:
 
 1. The component is fetched
