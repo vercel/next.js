@@ -3,7 +3,7 @@ import { resolve, relative, join, extname } from 'path'
 export default class WatchPagesPlugin {
   constructor (dir) {
     this.dir = resolve(dir, 'pages')
-    this.prevFileDependencies = null
+    this.prevFileDependencies = []
   }
 
   apply (compiler) {
