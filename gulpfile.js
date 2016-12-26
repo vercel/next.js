@@ -54,6 +54,7 @@ gulp.task('compile-client', () => {
 gulp.task('remove-strict-mode', ['compile-lib'], () => {
   return gulp.src('dist/lib/eval-script.js')
   .pipe(babel({
+    babelrc: false,
     plugins: ['babel-plugin-transform-remove-strict-mode']
   }))
   .pipe(gulp.dest('dist/lib'))
