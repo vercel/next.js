@@ -21,6 +21,7 @@ export default () => (
 
     <Link href='/'><a style={linkStyle}>Home</a></Link>
     <Link href='/about'><a style={linkStyle}>About</a></Link>
+    <Link href='/forever'><a style={linkStyle}>Forever</a></Link>
     <Link href='/non-existing'><a style={linkStyle}>Non Existing Page</a></Link>
   </div>
 )
