@@ -46,6 +46,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   }
 
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const minChunks = pages.filter((p) => p !== 'pages/_document.js').length
 
   const plugins = [
     new WriteFilePlugin({
@@ -57,7 +58,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
       filename: 'commons.js',
-      minChunks: Math.max(2, pages.length)
+      minChunks: Math.max(2, minChunks)
     })
   ]
 
