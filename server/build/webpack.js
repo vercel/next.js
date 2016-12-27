@@ -11,6 +11,7 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import getConfig from '../config'
 
+const documentPage = join('pages', '_document.js')
 const defaultPages = [
   '_error.js',
   '_error-debug.js',
@@ -46,7 +47,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   }
 
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
-  const minChunks = pages.filter((p) => p !== 'pages/_document.js').length
+  const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
     new WriteFilePlugin({

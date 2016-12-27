@@ -21,7 +21,7 @@ export default class WatchPagesPlugin {
       compilation.plugin('optimize-assets', (assets, callback) => {
         // transpile pages/_document.js and descendants,
         // but don't need the bundle file
-        delete assets['bundles/pages/_document.js']
+        delete assets[join('bundles', 'pages', '_document.js')]
         callback()
       })
     })
