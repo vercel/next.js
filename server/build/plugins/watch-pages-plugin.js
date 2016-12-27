@@ -13,7 +13,7 @@ for (const p of ['_error.js', '_document.js']) {
 export default class WatchPagesPlugin {
   constructor (dir) {
     this.dir = resolve(dir, 'pages')
-    this.prevFileDependencies = null
+    this.prevFileDependencies = []
   }
 
   apply (compiler) {
