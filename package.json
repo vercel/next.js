@@ -54,7 +54,7 @@
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.1.2",
-    "glamor": "2.20.13",
+    "glamor": "2.20.14",
     "glob-promise": "3.1.0",
     "htmlescape": "1.1.1",
     "is-windows-bash": "1.0.3",
