@@ -7,6 +7,15 @@ export default class WatchPagesPlugin {
   }
 
   apply (compiler) {
+    compiler.plugin('compilation', (compilation) => {
+      compilation.plugin('optimize-assets', (assets, callback) => {
+        // transpile pages/_document.js and descendants,
+        // but don't need the bundle file
+        delete assets['bundles/pages/_document.js']
+        callback()
+      })
+    })
+
     compiler.plugin('emit', (compilation, callback) => {
       // watch the pages directory
       compilation.contextDependencies =
