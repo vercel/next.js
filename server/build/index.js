@@ -1,5 +1,4 @@
 import webpack from './webpack'
-import babel from './babel'
 import clean from './clean'
 
 export default async function build (dir) {
@@ -8,10 +7,7 @@ export default async function build (dir) {
     clean(dir)
   ])
 
-  await Promise.all([
-    runCompiler(compiler),
-    babel(dir)
-  ])
+  await runCompiler(compiler)
 }
 
 function runCompiler (compiler) {
