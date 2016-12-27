@@ -15,17 +15,25 @@ const handlers = {
       return
     }
 
+    if (route === '/_document') {
+      window.location.reload()
+      return
+    }
+
     Router.reload(route)
   },
+
   change (route) {
+    if (route === '/_document') {
+      window.location.reload()
+      return
+    }
+
     const { Component } = Router.components[route] || {}
     if (Component && Component.__route === '/_error-debug') {
       // reload to recover from runtime errors
       Router.reload(route)
     }
-  },
-  hardReload () {
-    window.location.reload()
   }
 }
 

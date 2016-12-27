@@ -1,5 +1,15 @@
 import { resolve, relative, join, extname } from 'path'
 
+const hotMiddlewareClientPath = join(__dirname, '..', '..', '..', 'client/webpack-hot-middleware-client')
+
+const defaultPages = new Map()
+for (const p of ['_error.js', '_document.js']) {
+  defaultPages.set(
+    join('bundles', 'pages', p),
+    join(__dirname, '..', '..', '..', 'pages', p)
+  )
+}
+
 export default class WatchPagesPlugin {
   constructor (dir) {
     this.dir = resolve(dir, 'pages')
@@ -30,9 +40,6 @@ export default class WatchPagesPlugin {
     const getEntryName = (f) => {
       return join('bundles', relative(compiler.options.context, f))
     }
-    const errorPageName = join('bundles', 'pages', '_error.js')
-    const errorPagePath = join(__dirname, '..', '..', '..', 'pages', '_error.js')
-    const hotMiddlewareClientPath = join(__dirname, '..', '..', '..', 'client/webpack-hot-middleware-client')
 
     compiler.plugin('watch-run', (watching, callback) => {
       Object.keys(compiler.fileTimestamps)
@@ -40,7 +47,7 @@ export default class WatchPagesPlugin {
       .filter((f) => this.prevFileDependencies.indexOf(f) < 0)
       .forEach((f) => {
         const name = getEntryName(f)
-        if (name === errorPageName) {
+        if (defaultPages.has(name)) {
           compiler.removeEntry(name)
         }
 
@@ -56,10 +63,10 @@ export default class WatchPagesPlugin {
         const name = getEntryName(f)
         compiler.removeEntry(name)
 
-        if (name === errorPageName) {
+        if (defaultPages.has(name)) {
           compiler.addEntry([
             hotMiddlewareClientPath,
-            errorPagePath
+            defaultPages.get(name)
           ], name)
         }
       })
@@ -69,9 +76,7 @@ export default class WatchPagesPlugin {
   }
 
   isPageFile (f) {
-    return f.indexOf(this.dir) === 0 &&
-      relative(this.dir, f) !== '_document.js' &&
-      extname(f) === '.js'
+    return f.indexOf(this.dir) === 0 && extname(f) === '.js'
   }
 }
 
