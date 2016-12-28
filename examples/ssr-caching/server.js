@@ -2,7 +2,8 @@ const express = require('express')
 const next = require('next')
 const LRUCache = require('lru-cache')
 
-const app = next({ dir: '.', dev: true })
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dir: '.', dev })
 const handle = app.getRequestHandler()
 
 // This is where we cache our rendered HTML pages

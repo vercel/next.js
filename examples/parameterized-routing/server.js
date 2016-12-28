@@ -3,7 +3,8 @@ const { parse } = require('url')
 const next = require('next')
 const pathMatch = require('path-match')
 
-const app = next({ dev: true })
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
 const handle = app.getRequestHandler()
 const route = pathMatch()
 const match = route('/blog/:id')
