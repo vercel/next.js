@@ -7,5 +7,8 @@ cache:
   yarn: true
   directories:
     - node_modules
-install: yarn --ignore-engines
+install:
+  - curl -o- -L https://yarnpkg.com/install.sh | bash
+  - export PATH=$HOME/.yarn/bin:$PATH
+  - yarn --ignore-engines
 after_script: npm run coveralls
