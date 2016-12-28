@@ -5,7 +5,8 @@ const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
 const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
-const webpack = require('webpack-stream')
+const webpack = require('webpack')
+const webpackStream = require('webpack-stream')
 const del = require('del')
 const jest = require('gulp-jest')
 
@@ -88,29 +89,28 @@ gulp.task('build', [
 gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
   return gulp
   .src('client/next-prefetcher.js')
-  .pipe(webpack({
-    quiet: true,
+  .pipe(webpackStream({
     output: { filename: 'next-prefetcher-bundle.js' },
     plugins: [
-      new webpack.webpack.DefinePlugin({
+      new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify('production')
         }
       })
     ],
     module: {
-      loaders: [
+      rules: [
         {
           test: /\.js$/,
           exclude: /node_modules/,
-          loader: 'babel',
-          query: {
-            'babelrc': false,
-            'presets': [
+          loader: 'babel-loader',
+          options: {
+            babelrc: false,
+            presets: [
               ['env', {
-                'targets': {
+                targets: {
                   // All browsers which supports service workers
-                  'browsers': ['chrome 49', 'firefox 49', 'opera 41']
+                  browsers: ['chrome 49', 'firefox 49', 'opera 41']
                 }
               }]
             ]
@@ -118,7 +118,7 @@ gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
         }
       ]
     }
-  }))
+  }, webpack))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release prefetcher'))
 })

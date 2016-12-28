@@ -51,6 +51,14 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
+    new webpack.LoaderOptionsPlugin({
+      options: {
+        context: dir,
+        customInterpolateName (url, name, opts) {
+          return interpolateNames.get(this.resourcePath) || url
+        }
+      }
+    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
@@ -66,7 +74,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
 
   if (dev) {
     plugins.push(
-      new webpack.optimize.OccurrenceOrderPlugin(),
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoErrorsPlugin(),
       new DetachPlugin(),
@@ -104,7 +111,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
-  const loaders = (dev ? [{
+  const rules = (dev ? [{
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -126,13 +133,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
+    options: {
       name: 'dist/[path][name].[ext]'
     }
   }, {
-    loader: 'babel',
+    loader: 'babel-loader',
     include: nextPagesDir,
-    query: {
+    options: {
       babelrc: false,
       cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
@@ -150,7 +157,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     }
   }, {
     test: /\.js(\?[^?]*)?$/,
-    loader: 'babel',
+    loader: 'babel-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
@@ -165,7 +172,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: dev ? '/_webpack/' : null,
+      publicPath: '/_webpack/',
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
         hash.update(Date.now() + '')
@@ -176,28 +183,27 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       }
     },
     resolve: {
-      root: [
+      modules: [
         nodeModulesDir,
         join(dir, 'node_modules')
       ].concat(
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
+        .filter((p) => !!p)
       )
     },
     resolveLoader: {
-      root: [
+      modules: [
         nodeModulesDir,
         join(__dirname, 'loaders')
       ]
     },
     plugins,
     module: {
-      loaders
+      rules
     },
     devtool: dev ? 'inline-source-map' : false,
-    customInterpolateName: function (url, name, opts) {
-      return interpolateNames.get(this.resourcePath) || url
-    }
+    performance: { hints: false }
   }
 
   if (config.webpack) {
