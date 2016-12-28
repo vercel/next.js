@@ -25,7 +25,7 @@ module.exports = {
           'next/css': require.resolve('../../../lib/css'),
           'next/head': require.resolve('../../../lib/head'),
           'next/document': require.resolve('../../../server/document'),
-          'next/router': require.resolve('../../../server/router'),
+          'next/router': require.resolve('../../../lib/router'),
           'styled-jsx/style': require.resolve('styled-jsx/style')
         }
       }

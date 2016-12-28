@@ -31,5 +31,5 @@ const headManager = new HeadManager()
 const container = document.getElementById('__next')
 const appProps = { Component, props, router, headManager }
 
-if (ids) rehydrate(ids)
+if (ids && ids.length) rehydrate(ids)
 render(createElement(App, appProps), container)

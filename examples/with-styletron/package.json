@@ -1,0 +1,15 @@
+{
+  "name": "with-styletron",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^2.0.0-beta",
+    "styletron-client": "^2.2.0",
+    "styletron-react": "^2.2.1",
+    "styletron-server": "^2.2.0"
+  }
+}

@@ -62,8 +62,15 @@ async function doRender (req, res, pathname, query, {
       router: new Router(pathname, query)
     })
 
-    const html = (staticMarkup ? renderToStaticMarkup : renderToString)(app)
-    const head = Head.rewind() || defaultHead()
+    const render = staticMarkup ? renderToStaticMarkup : renderToString
+
+    let html
+    let head
+    try {
+      html = render(app)
+    } finally {
+      head = Head.rewind() || defaultHead()
+    }
     return { html, head }
   }
 

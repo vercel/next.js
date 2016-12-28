@@ -62,6 +62,11 @@ export default () => (
 
 #### Built-in CSS support
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/basic-css">Basic css</a></li></ul>
+</details></p>
+
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" resembling of Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
@@ -88,6 +93,11 @@ export default () => (
 
 #### CSS-in-JS
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li></ul>
+</details></p>
+
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
 ```jsx
@@ -97,13 +107,6 @@ export default () => (
 ```
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
-
-The following wiki pages provide examples for some popular styling solutions:
-
-- `glamor` (formerly `next/css`)
-- `styled-components`
-- `styletron`
-- `fela`
 
 ### Static file serving (e.g.: images)
 
@@ -116,6 +119,11 @@ export default () => (
 ```
 
 ### Populating `<head>`
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/head-elements">Head elements</a></li></ul>
+</details></p>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -135,6 +143,11 @@ export default () => (
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/data-fetch">Data fetch</a></li></ul>
+</details></p>
 
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
 
@@ -169,6 +182,11 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ### Routing
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/using-routing">Basic routing</a></li></ul>
+</details></p>
+
 #### With `<Link>`
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
@@ -187,6 +205,8 @@ export default () => (
   <p>Welcome to About!</p>
 )
 ```
+
+__Note: use [`next/prefetch`](#prefetching-pages) for maximum performance, to link and prefetch at the same time in the background__
 
 Client-side routing behaves exactly like the browser:
 
@@ -225,9 +245,14 @@ Above `Router` object comes with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` withing a component_
+_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
 ### Prefetching Pages
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
+</details></p>
 
 Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
 
@@ -278,6 +303,16 @@ export default ({ url }) => (
 
 ### Custom server and routing
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/custom-server">Basic custom server</a></li>
+    <li><a href="./examples/custom-server-express">Express integration</a></li>
+    <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
+    <li><a href="./examples/ssr-caching">SSR caching</a></li>
+  </ul>
+</details></p>
+
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
@@ -310,7 +345,7 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
-- `next(path: string, opts: object)` - `path` is 
+- `next(path: string, opts: object)` - `path` is
 - `next(opts: object)`
 
 Supported options:
@@ -319,6 +354,11 @@ Supported options:
 - `quiet` (`bool`) Display error messages with server information - default `false`
 
 ### Custom `<Document>`
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
+</details></p>
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
@@ -378,6 +418,11 @@ export default class Error extends React.Component {
 
 ### Custom configuration
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
+</details></p>
+
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
 Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
@@ -396,13 +441,35 @@ In order to extend our usage of `webpack`, you can define a function that extend
 The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
 
 ```js
+// This file is not going through babel transformation.
+// So, we write it in vanilla JS
+// (But you could use ES2015 features supported by your Node.js version)
+
 module.exports = {
-  webpack: (cfg, { dev }) => {
-    cfg.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
-    return cfg
+  webpack: (config, { dev }) => {
+    config.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
+
+    // Important: return the modified config
+    return config
   }
 }
 ```
+
+### Customizing babel config
+
+In order to extend our usage of `babel`, you can simply define a `.babelrc` file in the root of your app.
+If found, we'll use it. Here's an example `.babelrc` file:
+
+```js
+{
+  "presets": [
+    "next/babel",
+    "stage-0"
+  ],
+}
+```
+
+Although it's not required, you will need to add `next/babel` as a preset. That's the default preset we use for all Next.js apps.
 
 ## Production deployment
 
@@ -471,37 +538,9 @@ If you want to create re-usable React components that you can embed in your Next
 </details>
 
 <details>
-  <summary>How do I use CSS-in-JS solutions</summary>
+  <summary>How do I use CSS-in-JS solutions?</summary>
 
 Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use a CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
-
-
-### Compilation performance
-
-Parsing, prefixing, modularizing and hot-code-reloading CSS can be avoided by just using JavaScript.
-
-This results in better compilation performance and less memory usage (especially for large projects). No `cssom`, `postcss`, `cssnext` or transformation plugins.
-
-It also means fewer dependencies and fewer things for Next to do. Everything is Just JavaScript® (since JSX is completely optional)
-
-### Lifecycle performance
-
-Since every class name is invoked with the `css()` helper, Next.js can intelligently add or remove `<style>` elements that are not being used.
-
-This is important for server-side rendering, but also during the lifecycle of the page. Since Next.js enables `pushState` transitions that load components dynamically, unnecessary `<style>` elements would bring down performance over time.
-
-This is a very significant benefit over approaches like `require(‘xxxxx.css')`.
-
-### Correctness
-
-Since the class names and styles are defined as JavaScript objects, a variety of aids for correctness are much more easily enabled:
-
-- Linting
-- Type checking
-- Autocompletion
-
-While these are tractable for CSS itself, we don’t need to duplicate the efforts in tooling and libraries to accomplish them.
-
 </details>
 
 <details>
@@ -548,23 +587,7 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 <details>
 <summary>Can I use it with Redux?</summary>
 
-Yes! Here's an [example](https://github.com/zeit/next.js/wiki/Redux-example)
-</details>
-
-<details>
-<summary>Why does it load the runtime from a CDN by default?</summary>
-
-We intend for Next.js to be a great starting point for any website or app, no matter how small.
-
-If you’re building a very small mostly-content website, you still want to benefit from features like lazy-loading, a component architecture and module bundling.
-
-But in some cases, the size of React itself would far exceed the content of the page!
-
-For this reason we want to promote a situation where users can share the cache for the basic runtime across internet properties. The application code continues to load from your server as usual.
-
-We are committed to providing a great uptime and levels of security for our CDN. Even so, we also **automatically fall back** if the CDN script fails to load [with a simple trick](http://www.hanselman.com/blog/CDNsFailButYourScriptsDontHaveToFallbackFromCDNToLocalJQuery.aspx).
-
-To turn the CDN off, just set `module.exports = { cdn: false }` in `next.config.js`.
+Yes! Here's an [example](./examples/with-redux)
 </details>
 
 <details>

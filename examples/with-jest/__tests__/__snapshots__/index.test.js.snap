@@ -1,0 +1,7 @@
+exports[`With Snapshot Testing App shows "Hello world!" 1`] = `
+<div>
+  <p>
+    Hello World!
+  </p>
+</div>
+`;

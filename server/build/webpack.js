@@ -1,5 +1,6 @@
 import { resolve, join } from 'path'
 import { createHash } from 'crypto'
+import { existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -11,13 +12,18 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import getConfig from '../config'
 
-export default async function createCompiler (dir, { dev = false } = {}) {
-  dir = resolve(dir)
+const documentPage = join('pages', '_document.js')
+const defaultPages = [
+  '_error.js',
+  '_error-debug.js',
+  '_document.js'
+]
 
-  const pages = await glob('pages/**/*.js', {
-    cwd: dir,
-    ignore: 'pages/_document.js'
-  })
+export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
+  dir = resolve(dir)
+  const config = getConfig(dir)
+
+  const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {
     'main.js': dev ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
@@ -30,18 +36,19 @@ export default async function createCompiler (dir, { dev = false } = {}) {
   }
 
   const nextPagesDir = join(__dirname, '..', '..', 'pages')
+  const interpolateNames = new Map()
 
-  const errorEntry = join('bundles', 'pages', '_error.js')
-  const defaultErrorPath = join(nextPagesDir, '_error.js')
-  if (!entry[errorEntry]) {
-    entry[errorEntry] = defaultEntries.concat([defaultErrorPath + '?entry'])
+  for (const p of defaultPages) {
+    const entryName = join('bundles', 'pages', p)
+    const path = join(nextPagesDir, p)
+    if (!entry[entryName]) {
+      entry[entryName] = defaultEntries.concat([path + '?entry'])
+    }
+    interpolateNames.set(path, `dist/pages/${p}`)
   }
 
-  const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
-  const errorDebugPath = join(nextPagesDir, '_error-debug.js')
-  entry[errorDebugEntry] = errorDebugPath
-
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
     new webpack.LoaderOptionsPlugin({
@@ -61,7 +68,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
       filename: 'commons.js',
-      minChunks: Math.max(2, pages.length)
+      minChunks: Math.max(2, minChunks)
     })
   ]
 
@@ -73,9 +80,11 @@ export default async function createCompiler (dir, { dev = false } = {}) {
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
-      new WatchPagesPlugin(dir),
-      new FriendlyErrorsWebpackPlugin()
+      new WatchPagesPlugin(dir)
     )
+    if (!quiet) {
+      plugins.push(new FriendlyErrorsWebpackPlugin())
+    }
   } else {
     plugins.push(
       new webpack.DefinePlugin({
@@ -86,6 +95,20 @@ export default async function createCompiler (dir, { dev = false } = {}) {
         sourceMap: false
       })
     )
+  }
+
+  const mainBabelOptions = {
+    babelrc: true,
+    cacheDirectory: true,
+    sourceMaps: dev ? 'both' : false,
+    presets: []
+  }
+
+  const hasBabelRc = existsSync(join(dir, '.babelrc'))
+  if (hasBabelRc) {
+    console.log('> Using .babelrc defined in your app root')
+  } else {
+    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
   const rules = (dev ? [{
@@ -118,6 +141,7 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     include: nextPagesDir,
     options: {
       babelrc: false,
+      cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
       plugins: [
         [
@@ -138,19 +162,8 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    options: {
-      babelrc: false,
-      sourceMaps: dev ? 'both' : false,
-      presets: [
-        require.resolve('./babel/preset')
-      ]
-    }
+    query: mainBabelOptions
   }])
-
-  const interpolateNames = new Map([
-    [defaultErrorPath, 'dist/pages/_error.js'],
-    [errorDebugPath, 'dist/pages/_error-debug.js']
-  ])
 
   let webpackConfig = {
     context: dir,
@@ -192,9 +205,9 @@ export default async function createCompiler (dir, { dev = false } = {}) {
     devtool: dev ? 'inline-source-map' : false,
     performance: { hints: false }
   }
-  const config = getConfig(dir)
+
   if (config.webpack) {
-    console.log('> Using Webpack config function defined in next.config.js.')
+    console.log('> Using "webpack" config function defined in next.config.js.')
     webpackConfig = await config.webpack(webpackConfig, { dev })
   }
   return webpack(webpackConfig)
