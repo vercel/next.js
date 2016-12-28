@@ -4,6 +4,8 @@ node_js:
   - "6"
   - "4"
 cache:
+  yarn: true
   directories:
     - node_modules
+install: yarn --ignore-engines
 after_script: npm run coveralls
