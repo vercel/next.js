@@ -457,8 +457,13 @@ module.exports = {
 
 ### Customizing babel config
 
-In order to extend our usage of `babel`, you can simply define a `.babelrc` file in the root of your app.
-If found, we'll use it. Here's an example `.babelrc` file:
+In order to extend our usage of `babel`, you can simply define a `.babelrc` file at the root of your app. This file is optional.
+
+If found, we're going to consider it the *source of truth*, therefore it needs to define what next needs as well, which is the `next/babel` preset.
+
+This is designed so that you are not surprised by modifications we could make to the babel configurations.
+
+Here's an example `.babelrc` file:
 
 ```js
 {
@@ -468,9 +473,6 @@ If found, we'll use it. Here's an example `.babelrc` file:
   ],
 }
 ```
-
-You will need to add `next/babel` as a preset. This is the default preset for all Next.js apps.
-You can also create your own present based on [`next/babel`](https://github.com/zeit/next.js/blob/master/server/build/babel/preset.js)
 
 ## Production deployment
 
