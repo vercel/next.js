@@ -5,8 +5,10 @@ import zlib from 'zlib'
 export default async function gzipAssets (dir) {
   const nextDir = path.resolve(dir, '.next')
 
-  await gzip(path.resolve(nextDir, 'commons.js'))
-  await gzip(path.resolve(nextDir, 'main.js'))
+  await Promise.all([
+    gzip(path.resolve(nextDir, 'commons.js')),
+    gzip(path.resolve(nextDir, 'main.js'))
+  ])
 }
 
 export function gzip (filePath) {
