@@ -25,7 +25,7 @@ export default class Server {
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
-    this.config = getConfig(dir)
+    this.config = getConfig(this.dir)
 
     this.defineRoutes()
   }

@@ -5,7 +5,8 @@ const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
 const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
-const webpack = require('webpack-stream')
+const webpack = require('webpack')
+const webpackStream = require('webpack-stream')
 const del = require('del')
 const jest = require('gulp-jest')
 
@@ -15,7 +16,8 @@ gulp.task('compile', [
   'compile-bin',
   'compile-lib',
   'compile-server',
-  'compile-client'
+  'compile-client',
+  'remove-strict-mode'
 ])
 
 gulp.task('compile-bin', () => {
@@ -50,6 +52,16 @@ gulp.task('compile-client', () => {
   .pipe(notify('Compiled client files'))
 })
 
+gulp.task('remove-strict-mode', ['compile-lib'], () => {
+  return gulp.src('dist/lib/eval-script.js')
+  .pipe(babel({
+    babelrc: false,
+    plugins: ['babel-plugin-transform-remove-strict-mode']
+  }))
+  .pipe(gulp.dest('dist/lib'))
+  .pipe(notify('Completed removing strict mode for eval script'))
+})
+
 gulp.task('copy', ['copy-pages'])
 
 gulp.task('copy-pages', () => {
@@ -77,29 +89,28 @@ gulp.task('build', [
 gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
   return gulp
   .src('client/next-prefetcher.js')
-  .pipe(webpack({
-    quiet: true,
+  .pipe(webpackStream({
     output: { filename: 'next-prefetcher-bundle.js' },
     plugins: [
-      new webpack.webpack.DefinePlugin({
+      new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify('production')
         }
       })
     ],
     module: {
-      loaders: [
+      rules: [
         {
           test: /\.js$/,
           exclude: /node_modules/,
-          loader: 'babel',
-          query: {
-            'babelrc': false,
-            'presets': [
+          loader: 'babel-loader',
+          options: {
+            babelrc: false,
+            presets: [
               ['env', {
-                'targets': {
+                targets: {
                   // All browsers which supports service workers
-                  'browsers': ['chrome 49', 'firefox 49', 'opera 41']
+                  browsers: ['chrome 49', 'firefox 49', 'opera 41']
                 }
               }]
             ]
@@ -107,7 +118,7 @@ gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
         }
       ]
     }
-  }))
+  }, webpack))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release prefetcher'))
 })

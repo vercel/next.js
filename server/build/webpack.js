@@ -1,5 +1,6 @@
 import { resolve, join } from 'path'
 import { createHash } from 'crypto'
+import { existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -11,14 +12,18 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import getConfig from '../config'
 
+const documentPage = join('pages', '_document.js')
+const defaultPages = [
+  '_error.js',
+  '_error-debug.js',
+  '_document.js'
+]
+
 export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir)
 
-  const pages = await glob('pages/**/*.js', {
-    cwd: dir,
-    ignore: 'pages/_document.js'
-  })
+  const pages = await glob('pages/**/*.js', { cwd: dir })
 
   const entry = {
     'main.js': dev ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
@@ -31,20 +36,29 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   }
 
   const nextPagesDir = join(__dirname, '..', '..', 'pages')
+  const interpolateNames = new Map()
 
-  const errorEntry = join('bundles', 'pages', '_error.js')
-  const defaultErrorPath = join(nextPagesDir, '_error.js')
-  if (!entry[errorEntry]) {
-    entry[errorEntry] = defaultEntries.concat([defaultErrorPath + '?entry'])
+  for (const p of defaultPages) {
+    const entryName = join('bundles', 'pages', p)
+    const path = join(nextPagesDir, p)
+    if (!entry[entryName]) {
+      entry[entryName] = defaultEntries.concat([path + '?entry'])
+    }
+    interpolateNames.set(path, `dist/pages/${p}`)
   }
 
-  const errorDebugEntry = join('bundles', 'pages', '_error-debug.js')
-  const errorDebugPath = join(nextPagesDir, '_error-debug.js')
-  entry[errorDebugEntry] = errorDebugPath
-
   const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
+    new webpack.LoaderOptionsPlugin({
+      options: {
+        context: dir,
+        customInterpolateName (url, name, opts) {
+          return interpolateNames.get(this.resourcePath) || url
+        }
+      }
+    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
@@ -54,13 +68,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
       filename: 'commons.js',
-      minChunks: Math.max(2, pages.length)
+      minChunks: Math.max(2, minChunks)
     })
   ]
 
   if (dev) {
     plugins.push(
-      new webpack.optimize.OccurrenceOrderPlugin(),
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoErrorsPlugin(),
       new DetachPlugin(),
@@ -84,21 +97,21 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     )
   }
 
-  let mainBabelOptions = {
-    babelrc: false,
+  const mainBabelOptions = {
+    babelrc: true,
     cacheDirectory: true,
     sourceMaps: dev ? 'both' : false,
-    presets: [
-      require.resolve('./babel/preset')
-    ]
+    presets: []
   }
 
-  if (config.babel) {
-    console.log('> Using "babel" config function defined in next.config.js.')
-    mainBabelOptions = await config.babel(mainBabelOptions, { dev })
+  const hasBabelRc = existsSync(join(dir, '.babelrc'))
+  if (hasBabelRc) {
+    console.log('> Using .babelrc defined in your app root')
+  } else {
+    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
-  const loaders = (dev ? [{
+  const rules = (dev ? [{
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
@@ -120,13 +133,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
+    options: {
       name: 'dist/[path][name].[ext]'
     }
   }, {
-    loader: 'babel',
+    loader: 'babel-loader',
     include: nextPagesDir,
-    query: {
+    options: {
       babelrc: false,
       cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
@@ -144,18 +157,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     }
   }, {
     test: /\.js(\?[^?]*)?$/,
-    loader: 'babel',
+    loader: 'babel-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     query: mainBabelOptions
   }])
-
-  const interpolateNames = new Map([
-    [defaultErrorPath, 'dist/pages/_error.js'],
-    [errorDebugPath, 'dist/pages/_error-debug.js']
-  ])
 
   let webpackConfig = {
     context: dir,
@@ -164,7 +172,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       path: join(dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: dev ? '/_webpack/' : null,
+      publicPath: '/_webpack/',
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
         hash.update(Date.now() + '')
@@ -175,28 +183,27 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       }
     },
     resolve: {
-      root: [
+      modules: [
         nodeModulesDir,
         join(dir, 'node_modules')
       ].concat(
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
+        .filter((p) => !!p)
       )
     },
     resolveLoader: {
-      root: [
+      modules: [
         nodeModulesDir,
         join(__dirname, 'loaders')
       ]
     },
     plugins,
     module: {
-      loaders
+      rules
     },
     devtool: dev ? 'inline-source-map' : false,
-    customInterpolateName: function (url, name, opts) {
-      return interpolateNames.get(this.resourcePath) || url
-    }
+    performance: { hints: false }
   }
 
   if (config.webpack) {
