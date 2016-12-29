@@ -262,15 +262,17 @@ _Note: in order to programmatically change the route without triggering navigati
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `routeChangeStart(route, url)` - Fires when a route starts to change
-- `routeChangeComplete(route, url)` - Fires when a route changed completely
-- `routeChangeError(err, route, url)` - Fires when there's an error when changing routes
+- `routeChangeStart(url)` - Fires when a route starts to change
+- `routeChangeComplete(url)` - Fires when a route changed completely
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+
+> Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
 Here's how to property listen to the router event `routeChangeStart`:
 
 ```js
-Router.onRouteChangeStart = (route, url) => {
-  console.log('Route is changing to: ', route)
+Router.onRouteChangeStart = (url) => {
+  console.log('App is changing to: ', url)
 }
 ```
 
