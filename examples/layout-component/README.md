@@ -1,5 +1,5 @@
 
-# Hello World example
+# Layout component example
 
 ## How to use
 
