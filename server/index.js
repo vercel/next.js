@@ -217,17 +217,17 @@ export default class Server {
   async serveStaticWithGzip (req, res, path) {
     const encoding = accepts(req).encodings(['gzip'])
     if (encoding !== 'gzip') {
-      return await this.serveStatic(req, res, path)
+      return this.serveStatic(req, res, path)
     }
 
     const gzipPath = `${path}.gz`
     const exists = await fs.exists(gzipPath)
     if (!exists) {
-      return await this.serveStatic(req, res, path)
+      return this.serveStatic(req, res, path)
     }
 
     res.setHeader('Content-Encoding', 'gzip')
-    return await this.serveStatic(req, res, gzipPath)
+    return this.serveStatic(req, res, gzipPath)
   }
 
   serveStatic (req, res, path) {
