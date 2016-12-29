@@ -14,7 +14,7 @@ export default () => (
 
     { /* we imperatively prefetch on hover */ }
     <RegularLink href='/about'>
-      <a onMouseEnter={() => prefetch('/about') && console.log('prefetching /about!')}>About</a>
+      <a onMouseEnter={() => { prefetch('/about'); console.log('prefetching /about!') }}>About</a>
     </RegularLink>
 
     <Link href='/contact' prefetch={false}>
