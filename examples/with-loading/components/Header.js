@@ -4,9 +4,9 @@ import Link from 'next/link'
 import NProgress from 'nprogress'
 import Router from 'next/router'
 
-Router.on('routeChangeStart', () => NProgress.start())
-Router.on('routeChangeComplete', () => NProgress.done())
-Router.on('routeChangeError', () => NProgress.done())
+Router.onRouteChangeStart = () => NProgress.start()
+Router.onRouteChangeComplete = () => NProgress.done()
+Router.onRouteChangeError = () => NProgress.done()
 
 const linkStyle = {
   margin: '0 10px 0 0'

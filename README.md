@@ -257,20 +257,25 @@ _Note: in order to programmatically change the route without triggering navigati
 
 ##### Router Events
 
-You can also listen to different events happening inside the Router. For that, `next/router` comes with a Node.js [EventEmitter](https://nodejs.org/api/events.html) compatible API.
-
-Supported events:
+You can also listen to different events happening inside the Router.
+Here's a list of supported events:
 
 - `routeChangeStart(route, url)` - Fires when a route starts to change
 - `routeChangeComplete(route, url)` - Fires when a route changed completely
 - `routeChangeError(err, route, url)` - Fires when there's an error when changing routes
 
-Here's how to property listen to a router event:
+Here's how to property listen to the router event `routeChangeStart`:
 
 ```js
-Router.on('routeChangeStart', (route, url) => {
+Router.onRouteChangeStart = (route, url) => {
   console.log('Route is changing to: ', route)
-})
+}
+```
+
+If you are no longer want to listen to that event, you can simply unset the event listener like this:
+
+```js
+Router.onRouteChangeStart = null
 ```
 
 ### Prefetching Pages
