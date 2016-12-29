@@ -469,7 +469,8 @@ If found, we'll use it. Here's an example `.babelrc` file:
 }
 ```
 
-Although it's not required, you will need to add `next/babel` as a preset. That's the default preset we use for all Next.js apps.
+You will need to add `next/babel` as a preset. This is the default preset for all Next.js apps.
+You can also create your own present based on [`next/babel`](https://github.com/zeit/next.js/blob/master/server/build/babel/preset.js)
 
 ## Production deployment
 
