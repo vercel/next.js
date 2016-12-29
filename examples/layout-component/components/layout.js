@@ -15,9 +15,9 @@ export default ({ children, title = 'This is the default title' }) => (
         <Link href='/contact/'>Contact</Link>
       </nav>
     </header>
-    
+
     { children }
-    
+
     <footer>
       I`m here to stay
     </footer>
