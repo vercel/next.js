@@ -66,6 +66,7 @@
     "react": "15.4.1",
     "react-dom": "15.4.1",
     "react-hot-loader": "3.0.0-beta.6",
+    "recursive-readdir": "2.1.0",
     "send": "0.14.1",
     "source-map-support": "0.4.8",
     "strip-ansi": "3.0.1",

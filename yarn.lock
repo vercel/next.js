@@ -2147,9 +2147,9 @@ getpass@^0.1.1:
   dependencies:
     assert-plus "^1.0.0"
 
-glamor@2.20.18:
-  version "2.20.18"
-  resolved "https://registry.yarnpkg.com/glamor/-/glamor-2.20.18.tgz#02d730cb8c689abdfe5e57cfabcef4b54971eb87"
+glamor@2.20.19:
+  version "2.20.19"
+  resolved "https://registry.yarnpkg.com/glamor/-/glamor-2.20.19.tgz#2591ede49d0a62d808fb6e816d32ba70d279eeb5"
   dependencies:
     babel-runtime "^6.18.0"
     fbjs "^0.8.8"
@@ -3754,6 +3754,12 @@ minimatch@~0.2.11:
     lru-cache "2"
     sigmund "~1.0.0"
 
+minimatch@3.0.2:
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-3.0.2.tgz#0f398a7300ea441e9c348c83d98ab8c9dbf9c40a"
+  dependencies:
+    brace-expansion "^1.0.0"
+
 minimist@^1.1.0, minimist@^1.1.1, minimist@^1.2.0, minimist@1.2.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/minimist/-/minimist-1.2.0.tgz#a35008b20f41383eec1fb914f4cd5df79a264284"
@@ -4510,6 +4516,12 @@ rechoir@^0.6.2:
   resolved "https://registry.yarnpkg.com/rechoir/-/rechoir-0.6.2.tgz#85204b54dba82d5742e28c96756ef43af50e3384"
   dependencies:
     resolve "^1.1.6"
+
+recursive-readdir:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/recursive-readdir/-/recursive-readdir-2.1.0.tgz#78b7bfd79582d3d7596b8ff1bd29fbd50229f6aa"
+  dependencies:
+    minimatch "3.0.2"
 
 redbox-react@^1.2.5:
   version "1.3.3"

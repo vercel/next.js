@@ -101,7 +101,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
   const pagePath = join(dir, '.next', 'bundles', 'pages', `${page}.js`)
-  return serveStatic(req, res, pagePath)
+  return serveStaticWithGzip(req, res, pagePath)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
