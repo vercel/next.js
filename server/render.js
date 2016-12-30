@@ -162,7 +162,9 @@ export function serveStatic (req, res, path) {
     send(req, path)
     .on('error', (err) => {
       if (err.code === 'ENOENT') {
-        this.render404(req, res).then(resolve, reject)
+        res.statusCode = 404
+        res.end('Not Found')
+        resolve()
       } else {
         reject(err)
       }
