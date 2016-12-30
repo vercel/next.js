@@ -22,8 +22,7 @@ export default async function gzipAssets (dir) {
     const currentChunk = allAssets.splice(0, 10)
     if (currentChunk.length === 0) break
 
-    const promises = currentChunk.map((filePath) => gzip(filePath))
-    await Promise.all(promises)
+    await Promise.all(currentChunk.map(gzip))
   }
 }
 
