@@ -19,7 +19,7 @@ export default () => (
     <hr />
 
     <Post title='The final blog post'>
-      <P>C'est fin</P>
+      <P>C’est fin</P>
     </Post>
 
     <style jsx>{`

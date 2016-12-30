@@ -1,7 +1,9 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
 import http from 'http'
+import fs from 'mz/fs'
 import send from 'send'
+import accepts from 'accepts'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -61,12 +63,12 @@ export default class Server {
 
     this.router.get('/_next/main.js', async (req, res, params) => {
       const p = join(this.dir, '.next/main.js')
-      await this.serveStatic(req, res, p)
+      await this.serveStaticWithGzip(req, res, p)
     })
 
     this.router.get('/_next/commons.js', async (req, res, params) => {
       const p = join(this.dir, '.next/commons.js')
-      await this.serveStatic(req, res, p)
+      await this.serveStaticWithGzip(req, res, p)
     })
 
     this.router.get('/_next/pages/:path*', async (req, res, params) => {
@@ -210,6 +212,22 @@ export default class Server {
     }
 
     return renderErrorJSON(err, res, this.renderOpts)
+  }
+
+  async serveStaticWithGzip (req, res, path) {
+    const encoding = accepts(req).encodings(['gzip'])
+    if (encoding !== 'gzip') {
+      return this.serveStatic(req, res, path)
+    }
+
+    const gzipPath = `${path}.gz`
+    const exists = await fs.exists(gzipPath)
+    if (!exists) {
+      return this.serveStatic(req, res, path)
+    }
+
+    res.setHeader('Content-Encoding', 'gzip')
+    return this.serveStatic(req, res, gzipPath)
   }
 
   serveStatic (req, res, path) {
