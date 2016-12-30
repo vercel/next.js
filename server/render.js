@@ -44,13 +44,16 @@ async function doRender (req, res, pathname, query, {
 
   const [
     props,
-    component,
-    errorComponent
+    componentJson,
+    errorComponentJson
   ] = await Promise.all([
     Component.getInitialProps ? Component.getInitialProps(ctx) : {},
     read(join(dir, '.next', 'bundles', 'pages', page)),
     read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
   ])
+
+  const component = JSON.parse(componentJson).component
+  const errorComponent = JSON.parse(errorComponentJson).component
 
   // the response might be finshed on the getinitialprops call
   if (res.finished) return

@@ -10,6 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
+import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 
 const documentPage = join('pages', '_document.js')
@@ -77,6 +78,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoErrorsPlugin(),
       new DetachPlugin(),
+      new JsonPagesPlugin(),
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
