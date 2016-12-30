@@ -69,7 +69,7 @@
     "send": "0.14.1",
     "source-map-support": "0.4.8",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "0.3.0",
+    "styled-jsx": "0.3.1",
     "url": "0.11.0",
     "webpack": "2.2.0-rc.3",
     "webpack-dev-middleware": "1.9.0",
