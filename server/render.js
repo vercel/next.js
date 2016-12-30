@@ -1,6 +1,9 @@
 import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
+import fs from 'mz/fs'
+import send from 'send'
+import accepts from 'accepts'
 import requireModule from './require'
 import read from './read'
 import { Router } from '../lib/router'
@@ -96,14 +99,16 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (res, page, { dir = process.cwd() } = {}) {
-  const component = await read(join(dir, '.next', 'bundles', 'pages', page))
-  sendJSON(res, { component })
+export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
+  const pagePath = join(dir, '.next', 'bundles', 'pages', `${page}.js`)
+  return serveStatic(req, res, pagePath)
 }
 
-export async function renderErrorJSON (err, res, { dir = process.cwd(), dev = false } = {}) {
+export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
   const page = err && dev ? '/_error-debug' : '/_error'
-  const component = await read(join(dir, '.next', 'bundles', 'pages', page))
+  const pageSource = await read(join(dir, '.next', 'bundles', 'pages', page))
+  const { component } = JSON.parse(pageSource)
+
   sendJSON(res, {
     component,
     err: err && dev ? errorToJSON(err) : null
@@ -134,4 +139,35 @@ function errorToJSON (err) {
   }
 
   return json
+}
+
+export async function serveStaticWithGzip (req, res, path) {
+  const encoding = accepts(req).encodings(['gzip'])
+  if (encoding !== 'gzip') {
+    return serveStatic(req, res, path)
+  }
+
+  const gzipPath = `${path}.gz`
+  const exists = await fs.exists(gzipPath)
+  if (!exists) {
+    return serveStatic(req, res, path)
+  }
+
+  res.setHeader('Content-Encoding', 'gzip')
+  return serveStatic(req, res, gzipPath)
+}
+
+export function serveStatic (req, res, path) {
+  return new Promise((resolve, reject) => {
+    send(req, path)
+    .on('error', (err) => {
+      if (err.code === 'ENOENT') {
+        this.render404(req, res).then(resolve, reject)
+      } else {
+        reject(err)
+      }
+    })
+    .pipe(res)
+    .on('finish', resolve)
+  })
 }
