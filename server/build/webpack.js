@@ -78,11 +78,11 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoErrorsPlugin(),
       new DetachPlugin(),
-      new JsonPagesPlugin(),
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
-      new WatchPagesPlugin(dir)
+      new WatchPagesPlugin(dir),
+      new JsonPagesPlugin()
     )
     if (!quiet) {
       plugins.push(new FriendlyErrorsWebpackPlugin())
