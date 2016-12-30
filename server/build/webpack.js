@@ -70,7 +70,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       name: 'commons',
       filename: 'commons.js',
       minChunks: Math.max(2, minChunks)
-    })
+    }),
+    new JsonPagesPlugin()
   ]
 
   if (dev) {
@@ -81,8 +82,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       new DynamicEntryPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
-      new WatchPagesPlugin(dir),
-      new JsonPagesPlugin()
+      new WatchPagesPlugin(dir)
     )
     if (!quiet) {
       plugins.push(new FriendlyErrorsWebpackPlugin())
