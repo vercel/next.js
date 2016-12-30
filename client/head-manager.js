@@ -10,14 +10,14 @@ const DOMAttributeNames = {
 
 export default class HeadManager {
   constructor () {
-    this.requestId = null
+    this.updatePromise = null
   }
 
   updateHead (head) {
-    // perform batch update
-    window.cancelAnimationFrame(this.requestId)
-    this.requestId = window.requestAnimationFrame(() => {
-      this.requestId = null
+    const promise = this.updatePromise = Promise.resolve().then(() => {
+      if (promise !== this.updatePromise) return
+
+      this.updatePromise = null
       this.doUpdateHead(head)
     })
   }
