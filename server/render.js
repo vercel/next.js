@@ -108,12 +108,16 @@ export async function renderErrorJSON (err, res, { dir = process.cwd(), dev = fa
 }
 
 export function sendHTML (res, html) {
+  if (res.finished) return
+
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
   res.end(html)
 }
 
 export function sendJSON (res, obj) {
+  if (res.finished) return
+
   const json = JSON.stringify(obj)
   res.setHeader('Content-Type', 'application/json')
   res.setHeader('Content-Length', Buffer.byteLength(json))
