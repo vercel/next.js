@@ -282,6 +282,24 @@ If you are no longer want to listen to that event, you can simply unset the even
 Router.onRouteChangeStart = null
 ```
 
+##### Cancelled (Abort) Routes
+
+Sometimes, you might want to change a route before the current route gets completed. Current route may be downloading the page or running `getInitialProps`.
+In that case, we abort the current route and process with the new route.
+
+If you need, you could capture those cancelled routes via `routeChangeError` router event. See:
+
+```js
+Router.onRouteChangeError = (err, url) => {
+  if (err.cancelled) {
+    console.log(`Route to ${url} is cancelled!`)
+    return
+  }
+
+  // Some other error
+}
+```
+
 ### Prefetching Pages
 
 <p><details>
