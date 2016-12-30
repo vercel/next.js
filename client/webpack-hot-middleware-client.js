@@ -41,7 +41,8 @@ webpackHotMiddlewareClient.subscribe((obj) => {
   const fn = handlers[obj.action]
   if (fn) {
     const data = obj.data || []
-    fn(...data)
+    const route = data[0].replace(/[index]*\.json$/, '')
+    fn(route)
   } else {
     throw new Error('Unexpected action ' + obj.action)
   }
