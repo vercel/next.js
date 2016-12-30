@@ -122,7 +122,10 @@ export default () => (
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/head-elements">Head elements</a></li></ul>
+  <ul>
+    <li><a href="./examples/head-elements">Head elements</a></li>
+    <li><a href="./examples/layout-component">Layout component</a></li>
+  </ul>
 </details></p>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
