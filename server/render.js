@@ -5,7 +5,7 @@ import fs from 'mz/fs'
 import send from 'send'
 import accepts from 'accepts'
 import requireModule from './require'
-import read from './read'
+import readPage from './read-page'
 import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
@@ -47,16 +47,13 @@ async function doRender (req, res, pathname, query, {
 
   const [
     props,
-    componentJson,
-    errorComponentJson
+    component,
+    errorComponent
   ] = await Promise.all([
     Component.getInitialProps ? Component.getInitialProps(ctx) : {},
-    read(join(dir, '.next', 'bundles', 'pages', page)),
-    read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
+    readPage(join(dir, '.next', 'bundles', 'pages', page)),
+    readPage(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
   ])
-
-  const component = JSON.parse(componentJson).component
-  const errorComponent = JSON.parse(errorComponentJson).component
 
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
@@ -106,8 +103,7 @@ export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) 
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
   const page = err && dev ? '/_error-debug' : '/_error'
-  const pageSource = await read(join(dir, '.next', 'bundles', 'pages', page))
-  const { component } = JSON.parse(pageSource)
+  const component = await readPage(join(dir, '.next', 'bundles', 'pages', page))
 
   sendJSON(res, {
     component,
