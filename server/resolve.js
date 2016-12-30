@@ -26,11 +26,20 @@ function getPaths (id) {
   const i = sep === '/' ? id : id.replace(/\//g, sep)
 
   if (i.slice(-3) === '.js') return [i]
-  if (i[i.length - 1] === sep) return [i + 'index.js']
+  if (i.slice(-5) === '.json') return [i]
+
+  if (i[i.length - 1] === sep) {
+    return [
+      i + 'index.json',
+      i + 'index.js'
+    ]
+  }
 
   return [
     i + '.js',
-    join(i, 'index.js')
+    join(i, 'index.js'),
+    i + '.json',
+    join(i, 'index.json')
   ]
 }
 

@@ -12,6 +12,7 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
+import { pagePathToJson } from '../../lib/utils'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -33,7 +34,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   const defaultEntries = dev
     ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
   for (const p of pages) {
-    entry[join('bundles', p)] = defaultEntries.concat([`./${p}?entry`])
+    entry[pagePathToJson(join('bundles', p))] = defaultEntries.concat([`./${p}?entry`])
   }
 
   const nextPagesDir = join(__dirname, '..', '..', 'pages')
@@ -43,7 +44,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     const entryName = join('bundles', 'pages', p)
     const path = join(nextPagesDir, p)
     if (!entry[entryName]) {
-      entry[entryName] = defaultEntries.concat([path + '?entry'])
+      entry[pagePathToJson(entryName)] = defaultEntries.concat([path + '?entry'])
     }
     interpolateNames.set(path, `dist/pages/${p}`)
   }
