@@ -182,12 +182,14 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 ### Routing
 
+#### With `<Link>`
+
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/using-routing">Basic routing</a></li></ul>
+  <ul>
+    <li><a href="./examples/hello-world">Hello World</a></li>
+  </ul>
 </details></p>
-
-#### With `<Link>`
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
@@ -225,6 +227,14 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 
 #### Imperatively
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/using-router">Basic routing</a></li>
+    <li><a href="./examples/with-loading">With a page loading indicator</a></li>
+  </ul>
+</details></p>
+
 You can also do client-side page transitions using the `next/router`
 
 ```jsx
@@ -246,6 +256,49 @@ Above `Router` object comes with the following API:
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
+
+##### Router Events
+
+You can also listen to different events happening inside the Router.
+Here's a list of supported events:
+
+- `routeChangeStart(url)` - Fires when a route starts to change
+- `routeChangeComplete(url)` - Fires when a route changed completely
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+
+> Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
+
+Here's how to property listen to the router event `routeChangeStart`:
+
+```js
+Router.onRouteChangeStart = (url) => {
+  console.log('App is changing to: ', url)
+}
+```
+
+If you are no longer want to listen to that event, you can simply unset the event listener like this:
+
+```js
+Router.onRouteChangeStart = null
+```
+
+##### Cancelled (Abort) Routes
+
+Sometimes, you might want to change a route before the current route gets completed. Current route may be downloading the page or running `getInitialProps`.
+In that case, we abort the current route and process with the new route.
+
+If you need, you could capture those cancelled routes via `routeChangeError` router event. See:
+
+```js
+Router.onRouteChangeError = (err, url) => {
+  if (err.cancelled) {
+    console.log(`Route to ${url} is cancelled!`)
+    return
+  }
+
+  // Some other error
+}
+```
 
 ### Prefetching Pages
 
