@@ -4,7 +4,7 @@ import webpackHotMiddleware from 'webpack-hot-middleware'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
-import read from './read'
+import readPage from './read-page'
 
 export default class HotReloader {
   constructor (dir, { quiet } = {}) {
@@ -182,7 +182,7 @@ export default class HotReloader {
 
 function deleteCache (path) {
   delete require.cache[path]
-  delete read.cache[path]
+  delete readPage.cache[path]
 }
 
 function diff (a, b) {

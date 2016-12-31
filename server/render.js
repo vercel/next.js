@@ -1,8 +1,11 @@
 import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
+import fs from 'mz/fs'
+import send from 'send'
+import accepts from 'accepts'
 import requireModule from './require'
-import read from './read'
+import readPage from './read-page'
 import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
@@ -48,8 +51,8 @@ async function doRender (req, res, pathname, query, {
     errorComponent
   ] = await Promise.all([
     Component.getInitialProps ? Component.getInitialProps(ctx) : {},
-    read(join(dir, '.next', 'bundles', 'pages', page)),
-    read(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
+    readPage(join(dir, '.next', 'bundles', 'pages', page)),
+    readPage(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
   ])
 
   // the response might be finshed on the getinitialprops call
@@ -93,14 +96,15 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (res, page, { dir = process.cwd() } = {}) {
-  const component = await read(join(dir, '.next', 'bundles', 'pages', page))
-  sendJSON(res, { component })
+export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
+  const pagePath = join(dir, '.next', 'bundles', 'pages', `${page}.json`)
+  return serveStaticWithGzip(req, res, pagePath)
 }
 
-export async function renderErrorJSON (err, res, { dir = process.cwd(), dev = false } = {}) {
+export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
   const page = err && dev ? '/_error-debug' : '/_error'
-  const component = await read(join(dir, '.next', 'bundles', 'pages', page))
+  const component = await readPage(join(dir, '.next', 'bundles', 'pages', page))
+
   sendJSON(res, {
     component,
     err: err && dev ? errorToJSON(err) : null
@@ -135,4 +139,45 @@ function errorToJSON (err) {
   }
 
   return json
+}
+
+export async function serveStaticWithGzip (req, res, path) {
+  const encoding = accepts(req).encodings(['gzip'])
+  if (encoding !== 'gzip') {
+    return serveStatic(req, res, path)
+  }
+
+  try {
+    const gzipPath = `${path}.gz`
+    // fs.access before a file read is not recommeded due to race conditions.
+    // But in this case, this is totally fine because we know
+    // it's impossible to have a race condition like that.
+    // (Since we gzip AOT when called `next build`)
+    await fs.access(gzipPath, fs.constants.R_OK)
+
+    res.setHeader('Content-Encoding', 'gzip')
+    return serveStatic(req, res, gzipPath)
+  } catch (ex) {
+    if (ex.code === 'ENOENT') {
+      return serveStatic(req, res, path)
+    }
+    throw ex
+  }
+}
+
+export function serveStatic (req, res, path) {
+  return new Promise((resolve, reject) => {
+    send(req, path)
+    .on('error', (err) => {
+      if (err.code === 'ENOENT') {
+        res.statusCode = 404
+        res.end('Not Found')
+        resolve()
+      } else {
+        reject(err)
+      }
+    })
+    .pipe(res)
+    .on('finish', resolve)
+  })
 }

@@ -10,6 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
+import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 
 const documentPage = join('pages', '_document.js')
@@ -69,7 +70,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       name: 'commons',
       filename: 'commons.js',
       minChunks: Math.max(2, minChunks)
-    })
+    }),
+    new JsonPagesPlugin()
   ]
 
   if (dev) {

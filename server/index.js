@@ -1,15 +1,14 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
 import http from 'http'
-import fs from 'mz/fs'
-import send from 'send'
-import accepts from 'accepts'
 import {
   renderToHTML,
   renderErrorToHTML,
   renderJSON,
   renderErrorJSON,
-  sendHTML
+  sendHTML,
+  serveStatic,
+  serveStaticWithGzip
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
@@ -58,32 +57,32 @@ export default class Server {
   defineRoutes () {
     this.router.get('/_next-prefetcher.js', async (req, res, params) => {
       const p = join(__dirname, '../client/next-prefetcher-bundle.js')
-      await this.serveStatic(req, res, p)
+      await serveStatic(req, res, p)
     })
 
     this.router.get('/_next/main.js', async (req, res, params) => {
       const p = join(this.dir, '.next/main.js')
-      await this.serveStaticWithGzip(req, res, p)
+      await serveStaticWithGzip(req, res, p)
     })
 
     this.router.get('/_next/commons.js', async (req, res, params) => {
       const p = join(this.dir, '.next/commons.js')
-      await this.serveStaticWithGzip(req, res, p)
+      await serveStaticWithGzip(req, res, p)
     })
 
     this.router.get('/_next/pages/:path*', async (req, res, params) => {
-      const paths = params.path || []
+      const paths = params.path || ['index']
       const pathname = `/${paths.join('/')}`
-      await this.renderJSON(res, pathname)
+      await this.renderJSON(req, res, pathname)
     })
 
     this.router.get('/_next/:path+', async (req, res, params) => {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
-      await this.serveStatic(req, res, p)
+      await serveStatic(req, res, p)
     })
     this.router.get('/static/:path+', async (req, res, params) => {
       const p = join(this.dir, 'static', ...(params.path || []))
-      await this.serveStatic(req, res, p)
+      await serveStatic(req, res, p)
     })
 
     this.router.get('/:path*', async (req, res) => {
@@ -180,69 +179,38 @@ export default class Server {
     this.renderErrorToHTML(null, req, res, pathname, query)
   }
 
-  async renderJSON (res, page) {
+  async renderJSON (req, res, page) {
     if (this.dev) {
       const compilationErr = this.getCompilationError(page)
       if (compilationErr) {
-        return this.renderErrorJSON(compilationErr, res)
+        return this.renderErrorJSON(compilationErr, req, res)
       }
     }
 
     try {
-      await renderJSON(res, page, this.renderOpts)
+      await renderJSON(req, res, page, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
-        return this.renderErrorJSON(null, res)
+        return this.renderErrorJSON(null, req, res)
       } else {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
-        return this.renderErrorJSON(err, res)
+        return this.renderErrorJSON(err, req, res)
       }
     }
   }
 
-  async renderErrorJSON (err, res) {
+  async renderErrorJSON (err, req, res) {
     if (this.dev) {
       const compilationErr = this.getCompilationError('/_error')
       if (compilationErr) {
         res.statusCode = 500
-        return renderErrorJSON(compilationErr, res, this.renderOpts)
+        return renderErrorJSON(compilationErr, req, res, this.renderOpts)
       }
     }
 
-    return renderErrorJSON(err, res, this.renderOpts)
-  }
-
-  async serveStaticWithGzip (req, res, path) {
-    const encoding = accepts(req).encodings(['gzip'])
-    if (encoding !== 'gzip') {
-      return this.serveStatic(req, res, path)
-    }
-
-    const gzipPath = `${path}.gz`
-    const exists = await fs.exists(gzipPath)
-    if (!exists) {
-      return this.serveStatic(req, res, path)
-    }
-
-    res.setHeader('Content-Encoding', 'gzip')
-    return this.serveStatic(req, res, gzipPath)
-  }
-
-  serveStatic (req, res, path) {
-    return new Promise((resolve, reject) => {
-      send(req, path)
-      .on('error', (err) => {
-        if (err.code === 'ENOENT') {
-          this.render404(req, res).then(resolve, reject)
-        } else {
-          reject(err)
-        }
-      })
-      .pipe(res)
-      .on('finish', resolve)
-    })
+    return renderErrorJSON(err, req, res, this.renderOpts)
   }
 
   getCompilationError (page) {
