@@ -48,7 +48,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     interpolateNames.set(path, `dist/pages/${p}`)
   }
 
-  const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const appNodeModulesDir = join(dir, 'node_modules')
   const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
@@ -186,8 +187,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     },
     resolve: {
       modules: [
-        nodeModulesDir,
-        join(dir, 'node_modules')
+        nextNodeModulesDir,
+        appNodeModulesDir
       ].concat(
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
@@ -196,7 +197,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     },
     resolveLoader: {
       modules: [
-        nodeModulesDir,
+        nextNodeModulesDir,
+        appNodeModulesDir,
         join(__dirname, 'loaders')
       ]
     },
