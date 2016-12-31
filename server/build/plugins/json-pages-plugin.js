@@ -3,17 +3,27 @@ export default class JsonPagesPlugin {
     compiler.plugin('after-compile', (compilation, callback) => {
       const pages = Object
         .keys(compilation.assets)
-        .filter((filename) => /^bundles\/pages/.test(filename))
+        .filter((filename) => /^bundles\/pages.*\.js$/.test(filename))
+
+      const jsonPages = Object
+        .keys(compilation.assets)
+        .filter((filename) => /^bundles\/pages.*\.json$/.test(filename))
+
+      // Delete existing json pages
+      // Otherwise, we might keep JSON pages for deleted pages.
+      jsonPages.forEach((pagePath) => delete compilation.assets[pagePath])
 
       pages.forEach((pageName) => {
         const page = compilation.assets[pageName]
-        if (page.jsoned) return
+        delete compilation.assets[pageName]
 
         const content = page.source()
         const newContent = JSON.stringify({ component: content })
-        page.source = () => newContent
-        page.size = () => newContent.length
-        page.jsoned = true
+
+        compilation.assets[`${pageName}on`] = {
+          source: () => newContent,
+          size: () => newContent.length
+        }
       })
 
       callback()
