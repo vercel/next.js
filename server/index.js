@@ -8,7 +8,7 @@ import {
   renderErrorJSON,
   sendHTML,
   serveStatic,
-  serveStaticWithGzip
+  serveStaticWithCompression
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
@@ -62,12 +62,12 @@ export default class Server {
 
     this.router.get('/_next/main.js', async (req, res, params) => {
       const p = join(this.dir, '.next/main.js')
-      await serveStaticWithGzip(req, res, p)
+      await serveStaticWithCompression(req, res, p)
     })
 
     this.router.get('/_next/commons.js', async (req, res, params) => {
       const p = join(this.dir, '.next/commons.js')
-      await serveStaticWithGzip(req, res, p)
+      await serveStaticWithCompression(req, res, p)
     })
 
     this.router.get('/_next/pages/:path*', async (req, res, params) => {

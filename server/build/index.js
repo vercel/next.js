@@ -1,6 +1,6 @@
 import webpack from './webpack'
 import clean from './clean'
-import gzipAssets from './gzip'
+import compressAssets from './compress'
 
 export default async function build (dir) {
   const [compiler] = await Promise.all([
@@ -9,7 +9,7 @@ export default async function build (dir) {
   ])
 
   await runCompiler(compiler)
-  await gzipAssets(dir)
+  await compressAssets(dir)
 }
 
 function runCompiler (compiler) {
