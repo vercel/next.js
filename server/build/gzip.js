@@ -10,7 +10,7 @@ export default async function gzipAssets (dir) {
     path.join(nextDir, 'commons.js'),
     path.join(nextDir, 'main.js')
   ]
-  const pages = await glob('bundles/pages/**/*.js', { cwd: nextDir })
+  const pages = await glob('bundles/pages/**/*.json', { cwd: nextDir })
 
   const allAssets = [
     ...coreAssets,
