@@ -142,7 +142,7 @@ function errorToJSON (err) {
 }
 
 export async function serveStaticWithCompression (req, res, path) {
-  serveStaticWithBrotli (req, res, path) || serveStaticWithGzip (req, res, path) || serveStatic(req, res, path)
+  serveStaticWithBrotli(req, res, path) || serveStaticWithGzip(req, res, path) || serveStatic(req, res, path)
 }
 
 export async function serveStaticWithBrotli (req, res, path) {
