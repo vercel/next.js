@@ -5,6 +5,9 @@
   "main": "./dist/server/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
+  "publishConfig": {
+    "tag": "beta"
+  },
   "files": [
     "dist",
     "babel.js",
