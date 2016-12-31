@@ -2149,9 +2149,9 @@ getpass@^0.1.1:
   dependencies:
     assert-plus "^1.0.0"
 
-glamor@2.20.19:
-  version "2.20.19"
-  resolved "https://registry.yarnpkg.com/glamor/-/glamor-2.20.19.tgz#2591ede49d0a62d808fb6e816d32ba70d279eeb5"
+glamor@2.20.20:
+  version "2.20.20"
+  resolved "https://registry.yarnpkg.com/glamor/-/glamor-2.20.20.tgz#546cb86bfae760b0fd5c019ba859007d08e6238f"
   dependencies:
     babel-runtime "^6.18.0"
     fbjs "^0.8.8"
