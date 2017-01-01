@@ -23,18 +23,20 @@ export default class Error extends React.Component {
           <h2>{title}.</h2>
         </div>
       </div>
+      <style jsx global>{`
+        body { margin: 0 }
+      `}</style>
       <style jsx>{`
         .error {
           color: #000;
           background: #fff;
-          top: 0;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          position: absolute;
           font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif;
+          height: 100vh;
           text-align: center;
-          padding-top: 20%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
         }
 
         .desc {
@@ -50,7 +52,7 @@ export default class Error extends React.Component {
           border-right: 1px solid rgba(0, 0, 0,.3);
           margin: 0;
           margin-right: 20px;
-          padding: 10px 23px;
+          padding: 10px 23px 10px 0;
           font-size: 24px;
           font-weight: 500;
           vertical-align: top;
