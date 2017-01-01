@@ -98,7 +98,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
   const pagePath = join(dir, '.next', 'bundles', 'pages', `${page}.json`)
-  return serveStaticWithGzip(req, res, pagePath)
+  return serveStaticWithCompression(req, res, pagePath)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
@@ -141,10 +141,38 @@ function errorToJSON (err) {
   return json
 }
 
+export async function serveStaticWithCompression (req, res, path) {
+  serveStaticWithBrotli(req, res, path) || serveStaticWithGzip(req, res, path) || serveStatic(req, res, path)
+}
+
+export async function serveStaticWithBrotli (req, res, path) {
+  const encoding = accepts(req).encodings(['br'])
+  if (encoding !== 'br') {
+    return
+  }
+
+  try {
+    const brotliPath = `${path}.br`
+    // fs.access before a file read is not recommeded due to race conditions.
+    // But in this case, this is totally fine because we know
+    // it's impossible to have a race condition like that.
+    // (Since we compress AOT when called `next build`)
+    await fs.access(brotliPath, fs.constants.R_OK)
+
+    res.setHeader('Content-Encoding', 'br')
+    return serveStatic(req, res, brotliPath)
+  } catch (ex) {
+    if (ex.code === 'ENOENT') {
+      return
+    }
+    throw ex
+  }
+}
+
 export async function serveStaticWithGzip (req, res, path) {
   const encoding = accepts(req).encodings(['gzip'])
   if (encoding !== 'gzip') {
-    return serveStatic(req, res, path)
+    return
   }
 
   try {
@@ -159,7 +187,7 @@ export async function serveStaticWithGzip (req, res, path) {
     return serveStatic(req, res, gzipPath)
   } catch (ex) {
     if (ex.code === 'ENOENT') {
-      return serveStatic(req, res, path)
+      return
     }
     throw ex
   }

@@ -3,6 +3,14 @@ node_js:
   - "node"
   - "6"
   - "4"
+env:
+  - CXX=g++-4.8
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-4.8
 cache:
   yarn: true
   directories:

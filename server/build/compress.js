@@ -1,9 +1,10 @@
 import fs from 'fs'
 import path from 'path'
-import zlib from 'zlib'
+import iltorb from 'iltorb'
+import zopfli from 'node-zopfli'
 import glob from 'glob-promise'
 
-export default async function gzipAssets (dir) {
+export default async function compressAssets (dir) {
   const nextDir = path.resolve(dir, '.next')
 
   const coreAssets = [
@@ -18,11 +19,12 @@ export default async function gzipAssets (dir) {
   ]
 
   while (true) {
-    // gzip only 10 assets in parallel at a time.
+    // compress only 10 assets in parallel at a time.
     const currentChunk = allAssets.splice(0, 10)
     if (currentChunk.length === 0) break
 
     await Promise.all(currentChunk.map(gzip))
+    await Promise.all(currentChunk.map(brotli))
   }
 }
 
@@ -31,7 +33,18 @@ export function gzip (filePath) {
   const output = fs.createWriteStream(`${filePath}.gz`)
 
   return new Promise((resolve, reject) => {
-    const stream = input.pipe(zlib.createGzip()).pipe(output)
+    const stream = input.pipe(zopfli.createGzip()).pipe(output)
+    stream.on('error', reject)
+    stream.on('finish', resolve)
+  })
+}
+
+export function brotli (filePath) {
+  const input = fs.createReadStream(filePath)
+  const output = fs.createWriteStream(`${filePath}.br`)
+
+  return new Promise((resolve, reject) => {
+    const stream = input.pipe(iltorb.compressStream()).pipe(output)
     stream.on('error', reject)
     stream.on('finish', resolve)
   })
