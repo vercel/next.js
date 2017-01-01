@@ -169,15 +169,7 @@ export async function serveStaticWithGzip (req, res, path) {
 export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
-    .on('error', (err) => {
-      if (err.code === 'ENOENT') {
-        res.statusCode = 404
-        res.end('Not Found')
-        resolve()
-      } else {
-        reject(err)
-      }
-    })
+    .on('error', reject)
     .pipe(res)
     .on('finish', resolve)
   })
