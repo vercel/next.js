@@ -1,4 +1,5 @@
 import React from 'react'
+import Head from 'next/head'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
@@ -13,6 +14,9 @@ export default class Error extends React.Component {
       : (statusCode ? 'Internal Server Error' : 'An unexpected error has occurred')
 
     return <div className='error'>
+      <Head>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+      </Head>
       <div>
         {statusCode ? <h1>{statusCode}</h1> : null}
         <div className='desc'>
