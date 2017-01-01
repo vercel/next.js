@@ -3,7 +3,6 @@ import styleSheet from 'styled-components/lib/models/StyleSheet'
 
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
-    styleSheet.flush()
     const page = renderPage()
     const style = styleSheet.rules().map(rule => rule.cssText).join('\n')
     return { ...page, style }
