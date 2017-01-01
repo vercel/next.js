@@ -213,6 +213,30 @@ export default class Server {
     return renderErrorJSON(err, req, res, this.renderOpts)
   }
 
+  async serveStaticWithGzip (req, res, path) {
+    this._serveStatic(req, res, () => {
+      return serveStaticWithGzip(req, res, path)
+    })
+  }
+
+  serveStatic (req, res, path) {
+    this._serveStatic(req, res, () => {
+      return serveStatic(req, res, path)
+    })
+  }
+
+  async _serveStatic (req, res, fn) {
+    try {
+      await fn()
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        this.render404(req, res)
+      } else {
+        throw err
+      }
+    }
+  }
+
   getCompilationError (page) {
     if (!this.hotReloader) return
 
