@@ -5,6 +5,7 @@ import fs from 'mz/fs'
 import send from 'send'
 import accepts from 'accepts'
 import requireModule from './require'
+import resolvePath from './resolve'
 import readPage from './read-page'
 import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
@@ -97,7 +98,7 @@ async function doRender (req, res, pathname, query, {
 }
 
 export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
-  const pagePath = join(dir, '.next', 'bundles', 'pages', `${page}.json`)
+  const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
   return serveStaticWithGzip(req, res, pagePath)
 }
 
