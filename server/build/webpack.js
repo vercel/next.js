@@ -10,6 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
+import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 
 const documentPage = join('pages', '_document.js')
@@ -47,7 +48,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     interpolateNames.set(path, `dist/pages/${p}`)
   }
 
-  const nodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
   const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
@@ -69,7 +70,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       name: 'commons',
       filename: 'commons.js',
       minChunks: Math.max(2, minChunks)
-    })
+    }),
+    new JsonPagesPlugin()
   ]
 
   if (dev) {
@@ -184,8 +186,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     },
     resolve: {
       modules: [
-        nodeModulesDir,
-        join(dir, 'node_modules')
+        nextNodeModulesDir,
+        'node_modules'
       ].concat(
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
@@ -194,7 +196,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     },
     resolveLoader: {
       modules: [
-        nodeModulesDir,
+        nextNodeModulesDir,
+        'node_modules',
         join(__dirname, 'loaders')
       ]
     },

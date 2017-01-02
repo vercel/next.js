@@ -1,4 +1,5 @@
 import React from 'react'
+import Head from 'next/head'
 import ansiHTML from 'ansi-html'
 
 export default class ErrorDebug extends React.Component {
@@ -11,6 +12,9 @@ export default class ErrorDebug extends React.Component {
     const { name, message, stack, path } = this.props
 
     return <div className='errorDebug'>
+      <Head>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+      </Head>
       {path ? <div className='heading'>Error in {path}</div> : null}
       {
         name === 'ModuleBuildError'
@@ -25,13 +29,9 @@ export default class ErrorDebug extends React.Component {
       `}</style>
       <style jsx>{`
         .errorDebug {
-          height: 100vh;
+          height: 100%;
           padding: 16px;
           box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
         }
 
         .message {

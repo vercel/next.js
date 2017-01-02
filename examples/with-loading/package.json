@@ -1,0 +1,17 @@
+{
+  "name": "with-loading",
+  "version": "1.0.0",
+  "description": "This example features:",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^2.0.0-beta",
+    "nprogress": "^0.2.0"
+  },
+  "author": "",
+  "license": "ISC"
+}

@@ -1,10 +1,10 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import styleSheet from 'styled-components/lib/models/StyleSheet'
+import cxs from 'cxs'
 
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
     const page = renderPage()
-    const style = styleSheet.rules().map(rule => rule.cssText).join('\n')
+    let style = cxs.getCss()
     return { ...page, style }
   }
 

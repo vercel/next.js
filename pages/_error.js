@@ -1,4 +1,5 @@
 import React from 'react'
+import Head from 'next/head'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, xhr }) {
@@ -13,24 +14,29 @@ export default class Error extends React.Component {
       : (statusCode ? 'Internal Server Error' : 'An unexpected error has occurred')
 
     return <div className='error'>
+      <Head>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+      </Head>
       <div>
         {statusCode ? <h1>{statusCode}</h1> : null}
         <div className='desc'>
           <h2>{title}.</h2>
         </div>
       </div>
+      <style jsx global>{`
+        body { margin: 0 }
+      `}</style>
       <style jsx>{`
         .error {
           color: #000;
           background: #fff;
-          top: 0;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          position: absolute;
           font-family: -apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif;
+          height: 100vh;
           text-align: center;
-          padding-top: 20%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
         }
 
         .desc {
@@ -46,7 +52,7 @@ export default class Error extends React.Component {
           border-right: 1px solid rgba(0, 0, 0,.3);
           margin: 0;
           margin-right: 20px;
-          padding: 10px 23px;
+          padding: 10px 23px 10px 0;
           font-size: 24px;
           font-weight: 500;
           vertical-align: top;

@@ -1,14 +1,29 @@
 import fs from 'fs'
 import path from 'path'
 import zlib from 'zlib'
+import glob from 'glob-promise'
 
 export default async function gzipAssets (dir) {
   const nextDir = path.resolve(dir, '.next')
 
-  await Promise.all([
-    gzip(path.resolve(nextDir, 'commons.js')),
-    gzip(path.resolve(nextDir, 'main.js'))
-  ])
+  const coreAssets = [
+    path.join(nextDir, 'commons.js'),
+    path.join(nextDir, 'main.js')
+  ]
+  const pages = await glob('bundles/pages/**/*.json', { cwd: nextDir })
+
+  const allAssets = [
+    ...coreAssets,
+    ...pages.map(page => path.join(nextDir, page))
+  ]
+
+  while (true) {
+    // gzip only 10 assets in parallel at a time.
+    const currentChunk = allAssets.splice(0, 10)
+    if (currentChunk.length === 0) break
+
+    await Promise.all(currentChunk.map(gzip))
+  }
 }
 
 export function gzip (filePath) {
