@@ -11,8 +11,8 @@ export default ({ children, title = 'This is the default title' }) => (
     <header>
       <nav>
         <Link href='/'>Home</Link> |
-        <Link href='/about/'>About</Link> |
-        <Link href='/contact/'>Contact</Link>
+        <Link href='/about'>About</Link> |
+        <Link href='/contact'>Contact</Link>
       </nav>
     </header>
 
