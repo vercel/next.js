@@ -3,7 +3,7 @@ export default class JsonPagesPlugin {
     compiler.plugin('after-compile', (compilation, callback) => {
       const pages = Object
         .keys(compilation.assets)
-        .filter((filename) => /^bundles\/pages.*\.js$/.test(filename))
+        .filter((filename) => /^bundles[/\\]pages.*\.js$/.test(filename))
 
       pages.forEach((pageName) => {
         const page = compilation.assets[pageName]
