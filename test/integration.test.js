@@ -3,71 +3,69 @@
 'use strict'
 
 import { join } from 'path'
-import next from '../dist/server/next'
 import pkg from '../package.json'
+import next from '../dist/server/next'
+import {expectElement, setup, render, teardown} from 'next-test-helper'
 
+let app = null
 const dir = join(__dirname, 'fixtures', 'basic')
-const app = next({
-  dir,
-  dev: true,
-  staticMarkup: true,
-  quiet: true
-})
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('integration tests', () => {
-  beforeAll(() => app.prepare())
-
-  afterAll(() => app.close())
+  beforeAll(async () => {
+    app = await setup(dir, next)
+  })
+  afterAll(async () => await teardown())
 
   test('renders a stateless component', async () => {
-    const html = await render('/stateless')
-    expect(html.includes('<meta charset="utf-8" class="next-head"/>')).toBeTruthy()
-    expect(html.includes('<h1>My component!</h1>')).toBeTruthy()
+    const element = await render('/stateless')
+    expect(element.find('meta').attr('class')).toMatch('next-head')
+    expectElement(element.find('h1')).to.have.text('My component!')
   })
 
   test('renders a stateful component', async () => {
-    const html = await render('/stateful')
-    expect(html.includes('<div><p>The answer is 42</p></div>')).toBeTruthy()
+    const element = await render('/stateful')
+    expectElement(element.find('div p')).to.have.text('The answer is 42')
   })
 
   test('header helper renders header information', async () => {
-    const html = await (render('/head'))
-    expect(html.includes('<meta charset="iso-8859-5" class="next-head"/>')).toBeTruthy()
-    expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
-    expect(html.includes('<div><h1>I can haz meta tags</h1></div>')).toBeTruthy()
+    const element = await (render('/head'))
+    expect(element.find('meta[charset=iso-8859-5]').attr('class')).toMatch('next-head')
+    expect(element.find('meta[content="my meta"]').attr('class')).toMatch('next-head')
+    expectElement(element.find('div h1')).to.have.text('I can haz meta tags')
   })
 
   test('css helper renders styles', async () => {
-    const html = await render('/css')
+    const element = await render('/css')
+    const html = element.toString()
     expect(/\.css-\w+/.test(html)).toBeTruthy()
     expect(/<div class="css-\w+">This is red<\/div>/.test(html)).toBeTruthy()
   })
 
   test('renders styled jsx', async () => {
-    const html = await render('/styled-jsx')
+    const html = (await render('/styled-jsx')).toString()
     expect(html).toMatch(/<style id="__jsx-style-1401785258">p\[data-jsx="1401785258"] {color: blue }[^]+<\/style>/)
     expect(html.includes('<div data-jsx="1401785258"><p data-jsx="1401785258">This is blue</p></div>')).toBeTruthy()
   })
 
   test('renders properties populated asynchronously', async () => {
-    const html = await render('/async-props')
-    expect(html.includes('<p>Diego Milito</p>')).toBeTruthy()
+    const element = await render('/async-props')
+    expectElement(element.find('p')).to.have.text('Diego Milito')
   })
 
   test('renders a link component', async () => {
-    const html = await render('/link')
+    const html = (await render('/link')).toString()
     expect(html.includes('<a href="/about">About</a>')).toBeTruthy()
   })
 
   test('error', async () => {
-    const html = await render('/error')
+    const html = (await render('/error')).toString()
     expect(html).toMatch(/<pre class=".+">Error: This is an expected error\n[^]+<\/pre>/)
   })
 
   test('error 404', async () => {
-    const html = await render('/non-existent')
+    const html = (await render('/non-existent')).toString()
     expect(html).toMatch(/<h1 data-jsx=".+">404<\/h1>/)
     expect(html).toMatch(/<h2 data-jsx=".+">This page could not be found\.<\/h2>/)
   })
@@ -79,7 +77,7 @@ describe('integration tests', () => {
         this.finished = true
       }
     }
-    const html = await app.renderToHTML({}, res, '/finish-response', {})
+    const html = (await render('/finish-response', {}, {}, res)).toString()
     expect(html).toBeFalsy()
   })
 
@@ -116,7 +114,3 @@ describe('integration tests', () => {
     })
   })
 })
-
-function render (pathname, query = {}) {
-  return app.renderToHTML({}, {}, pathname, query)
-}
