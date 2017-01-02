@@ -49,11 +49,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   }
 
   const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
-  const appNodeModulesDir = await findClosestPath(dir, 'node_modules')
-  if (!appNodeModulesDir) {
-    console.error('> Cannot find a node_modules directory on the app root')
-    process.exit(-1)
-  }
+  const appNodeModulesDir = await findClosestPath(dir, 'node_modules') || nextNodeModulesDir
 
   const minChunks = pages.filter((p) => p !== documentPage).length
 
