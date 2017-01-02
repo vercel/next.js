@@ -29,13 +29,9 @@ export default class ErrorDebug extends React.Component {
       `}</style>
       <style jsx>{`
         .errorDebug {
-          height: 100vh;
+          height: 100%;
           padding: 16px;
           box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
         }
 
         .message {
