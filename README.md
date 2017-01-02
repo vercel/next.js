@@ -95,7 +95,7 @@ export default () => (
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li></ul>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:

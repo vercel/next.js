@@ -1,0 +1,15 @@
+{
+  "name": "with-cxs",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "cxs": "^3.0.0",
+    "next": "^2.0.0-beta"
+  },
+  "author": "",
+  "license": "ISC"
+}
