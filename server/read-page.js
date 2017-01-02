@@ -12,15 +12,11 @@ async function readPage (path) {
     return cache[f]
   }
 
-  let content = await fs.readFile(f, 'utf8')
+  const source = await fs.readFile(f, 'utf8')
+  const { component } = JSON.parse(source)
 
-  if (f.slice(-5) === '.json') {
-    const { component } = JSON.parse(content)
-    content = component
-  }
-
-  cache[f] = content
-  return content
+  cache[f] = component
+  return component
 }
 
 export default readPage
