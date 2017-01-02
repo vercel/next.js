@@ -1,6 +1,5 @@
 import { resolve, join } from 'path'
 import { createHash } from 'crypto'
-import { existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -12,6 +11,7 @@ import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
 import DetachPlugin from './plugins/detach-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
+import findClosestPath from '../find-closest-path'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -49,6 +49,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   }
 
   const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+  const appNodeModulesDir = await findClosestPath(dir, 'node_modules')
+  if (!appNodeModulesDir) {
+    console.error('> Cannot find a node_modules directory on the app root')
+    process.exit(-1)
+  }
+
   const minChunks = pages.filter((p) => p !== documentPage).length
 
   const plugins = [
@@ -99,16 +105,16 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     )
   }
 
+  const babelrcPath = await findClosestPath(dir, '.babelrc')
   const mainBabelOptions = {
-    babelrc: true,
+    babelrc: Boolean(babelrcPath),
     cacheDirectory: true,
     sourceMaps: dev ? 'both' : false,
     presets: []
   }
 
-  const hasBabelRc = existsSync(join(dir, '.babelrc'))
-  if (hasBabelRc) {
-    console.log('> Using .babelrc defined in your app root')
+  if (babelrcPath) {
+    console.log(`> Using .babelrc defined in: ${babelrcPath}`)
   } else {
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
@@ -187,7 +193,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     resolve: {
       modules: [
         nextNodeModulesDir,
-        'node_modules'
+        appNodeModulesDir
       ].concat(
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
@@ -197,7 +203,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     resolveLoader: {
       modules: [
         nextNodeModulesDir,
-        'node_modules',
+        appNodeModulesDir,
         join(__dirname, 'loaders')
       ]
     },

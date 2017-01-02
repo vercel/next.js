@@ -202,7 +202,7 @@ gulp.task('release', (cb) => {
     'compile',
     'build',
     'copy',
-    'test'
+    // 'test'
   ], cb)
 })
 
