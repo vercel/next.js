@@ -37,6 +37,7 @@ if (argv.help) {
 
 const dir = resolve(argv._[0] || '.')
 
+// Check if pages dir exists and warn if not
 exists(dir)
 .then(async () => {
   if (!(await exists(join(dir, 'pages')))) {
