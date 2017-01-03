@@ -1,7 +1,6 @@
 import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import fs from 'mz/fs'
 import send from 'send'
 import accepts from 'accepts'
 import requireModule from './require'
@@ -150,16 +149,11 @@ export async function serveStaticWithGzip (req, res, path) {
 
   try {
     const gzipPath = `${path}.gz`
-    // fs.access before a file read is not recommeded due to race conditions.
-    // But in this case, this is totally fine because we know
-    // it's impossible to have a race condition like that.
-    // (Since we gzip AOT when called `next build`)
-    await fs.access(gzipPath, fs.constants.R_OK)
-
     res.setHeader('Content-Encoding', 'gzip')
-    return serveStatic(req, res, gzipPath)
+    await serveStatic(req, res, gzipPath)
   } catch (ex) {
     if (ex.code === 'ENOENT') {
+      res.removeHeader('Content-Encoding')
       return serveStatic(req, res, path)
     }
     throw ex
