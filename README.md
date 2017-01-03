@@ -95,7 +95,7 @@ export default () => (
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li></ul>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -111,7 +111,7 @@ To use more sophisticated CSS-in-JS solutions, you typically have to implement s
 ### Static file serving (e.g.: images)
 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
-
+s
 ```jsx
 export default () => (
   <img src="/static/my-image.png" />
