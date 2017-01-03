@@ -1,12 +1,13 @@
 /* global jasmine, describe, beforeAll, afterAll */
 
 import next from '../../../dist/server/next'
+import fetch from 'node-fetch'
+import portFinder from 'portfinder'
 
 // test suits
 import xPoweredBy from './xpowered-by'
 import rendering from './rendering'
 import misc from './misc'
-import fetch from 'node-fetch'
 
 const app = next({
   dir: './examples/basic',
@@ -14,12 +15,14 @@ const app = next({
   quiet: true
 })
 
+let appPort
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('Basic Features', () => {
   beforeAll(async () => {
     await app.prepare()
-    await app.start(4004)
+    appPort = await findPort()
+    await app.start(appPort)
   })
   afterAll(() => app.close())
 
@@ -34,6 +37,15 @@ function renderingViaAPI (pathname, query = {}) {
 }
 
 function renderingViaHTTP (pathname, query = {}) {
-  const url = `http://localhost:${4004}${pathname}`
+  const url = `http://localhost:${appPort}${pathname}`
   return fetch(url).then((res) => res.text())
+}
+
+function findPort () {
+  return new Promise((resolve, reject) => {
+    portFinder.getPort((err, port) => {
+      if (err) return reject(err)
+      return resolve(port)
+    })
+  })
 }
