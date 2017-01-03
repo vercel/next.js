@@ -1,8 +1,9 @@
 /* global jasmine, describe, beforeAll, afterAll */
 
-import next from '../../../dist/server/next'
+import next from '../../../../dist/server/next'
 import fetch from 'node-fetch'
 import portFinder from 'portfinder'
+import { join } from 'path'
 
 // test suits
 import xPoweredBy from './xpowered-by'
@@ -10,7 +11,7 @@ import rendering from './rendering'
 import misc from './misc'
 
 const app = next({
-  dir: './examples/basic',
+  dir: join(__dirname, '../'),
   dev: true,
   quiet: true
 })

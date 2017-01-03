@@ -24,8 +24,8 @@
   "scripts": {
     "build": "gulp",
     "pretest": "npm run lint && npm run prepublish",
-    "test": "jest test/*.test.js test/**/*.test.js examples/**/test/*.test.js",
-    "testonly": "jest test/*.test.js test/**/*.test.js examples/**/test/*.test.js",
+    "test": "jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
+    "testonly": "jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
     "coverage": "npm run test -- --coverage",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "gulp release",

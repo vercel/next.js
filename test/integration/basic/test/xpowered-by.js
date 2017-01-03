@@ -1,5 +1,5 @@
 /* global describe, test, expect */
-import pkg from '../../../package.json'
+import pkg from '../../../../package.json'
 
 export default function (app) {
   describe('X-Powered-By header', () => {
