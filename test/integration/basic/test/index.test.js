@@ -1,8 +1,7 @@
 /* global jasmine, describe, beforeAll, afterAll */
 
-import next from '../../../../dist/server/next'
+import { next, findPort } from 'next-test-utils'
 import fetch from 'node-fetch'
-import portFinder from 'portfinder'
 import { join } from 'path'
 
 // test suits
@@ -40,13 +39,4 @@ function renderingViaAPI (pathname, query = {}) {
 function renderingViaHTTP (pathname, query = {}) {
   const url = `http://localhost:${appPort}${pathname}`
   return fetch(url).then((res) => res.text())
-}
-
-function findPort () {
-  return new Promise((resolve, reject) => {
-    portFinder.getPort((err, port) => {
-      if (err) return reject(err)
-      return resolve(port)
-    })
-  })
 }
