@@ -483,8 +483,6 @@ module.exports = {
 
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
 
-The following example shows how you can use [`react-svg-loader`](https://github.com/boopathi/react-svg-loader) to easily import any `.svg` file as a React component, without modification.
-
 ```js
 // This file is not going through babel transformation.
 // So, we write it in vanilla JS
@@ -492,13 +490,15 @@ The following example shows how you can use [`react-svg-loader`](https://github.
 
 module.exports = {
   webpack: (config, { dev }) => {
-    config.module.rules.push({ test: /\.svg$/, loader: 'babel!react-svg' })
-
-    // Important: return the modified config
+    // Perform customizations to config
+    
+    // Important: return the modified config
     return config
   }
 }
 ```
+
+*Warning: Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack and thus it won't work on the initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
 
 ### Customizing babel config
 
