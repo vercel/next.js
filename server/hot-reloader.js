@@ -135,6 +135,12 @@ export default class HotReloader {
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
+      watchOptions: {
+        ignored: [
+          /(^|[/\\])\../, // .dotfiles
+          /node_modules/
+        ]
+      },
       ...windowsSettings
     })
 
