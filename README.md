@@ -111,7 +111,7 @@ To use more sophisticated CSS-in-JS solutions, you typically have to implement s
 ### Static file serving (e.g.: images)
 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
-s
+
 ```jsx
 export default () => (
   <img src="/static/my-image.png" />
