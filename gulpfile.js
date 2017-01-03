@@ -193,7 +193,6 @@ gulp.task('default', [
   'compile',
   'build',
   'copy',
-  'test',
   'watch'
 ])
 
@@ -202,7 +201,6 @@ gulp.task('release', (cb) => {
     'compile',
     'build',
     'copy',
-    'test'
   ], cb)
 })
 

@@ -3,10 +3,10 @@
 'use strict'
 
 import { join } from 'path'
-import next from '../dist/server/next'
-import pkg from '../package.json'
+import next from '../../dist/server/next'
+import pkg from '../../package.json'
 
-const dir = join(__dirname, 'fixtures', 'basic')
+const dir = join(__dirname, '../fixtures', 'basic')
 const app = next({
   dir,
   dev: true,
@@ -16,7 +16,7 @@ const app = next({
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
-describe('integration tests', () => {
+describe('Basic Features', () => {
   beforeAll(() => app.prepare())
 
   afterAll(() => app.close())
