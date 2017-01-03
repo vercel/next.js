@@ -8,7 +8,6 @@ const sequence = require('run-sequence')
 const webpack = require('webpack')
 const webpackStream = require('webpack-stream')
 const del = require('del')
-const jest = require('gulp-jest')
 
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 
@@ -121,21 +120,6 @@ gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
   }, webpack))
   .pipe(gulp.dest('dist/client'))
   .pipe(notify('Built release prefetcher'))
-})
-
-gulp.task('test', ['compile'], () => {
-  return gulp.src('./test')
-  .pipe(jest.default({
-    coverage: true,
-    verbose: true,
-    config: {
-      rootDir: './test',
-      testEnvironment: 'node',
-      coveragePathIgnorePatterns: [
-        'test/.*'
-      ]
-    }
-  }))
 })
 
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
