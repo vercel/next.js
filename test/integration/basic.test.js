@@ -2,13 +2,11 @@
 
 'use strict'
 
-import { join } from 'path'
 import next from '../../dist/server/next'
 import pkg from '../../package.json'
 
-const dir = join(__dirname, '../fixtures', 'basic')
 const app = next({
-  dir,
+  dir: './examples/basic',
   dev: true,
   staticMarkup: true,
   quiet: true
