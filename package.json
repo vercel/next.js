@@ -76,7 +76,7 @@
     "url": "0.11.0",
     "webpack": "2.2.0-rc.3",
     "webpack-dev-middleware": "1.9.0",
-    "webpack-hot-middleware": "2.14.0",
+    "webpack-hot-middleware": "2.15.0",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
