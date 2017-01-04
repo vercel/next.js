@@ -1,9 +1,11 @@
 import portFinder from 'portfinder'
 
-import _next from '../../dist/server/next'
+import server from '../../dist/server/next'
+import build from '../../dist/server/build'
 import _pkg from '../../package.json'
 
-export const next = _next
+export const nextServer = server
+export const nextBuild = build
 export const pkg = _pkg
 
 export function findPort () {

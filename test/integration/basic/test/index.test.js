@@ -1,6 +1,6 @@
 /* global jasmine, describe, beforeAll, afterAll */
 
-import { next, findPort } from 'next-test-utils'
+import { nextServer, findPort } from 'next-test-utils'
 import fetch from 'node-fetch'
 import { join } from 'path'
 
@@ -9,7 +9,7 @@ import xPoweredBy from './xpowered-by'
 import rendering from './rendering'
 import misc from './misc'
 
-const app = next({
+const app = nextServer({
   dir: join(__dirname, '../'),
   dev: true,
   quiet: true
