@@ -148,7 +148,7 @@ export async function serveStaticWithGzip (req, res, path) {
   }
 
   try {
-    const gzipPath = `${path}.gz`
+    const gzipPath = `${path}.gzip`
     res.setHeader('Content-Encoding', 'gzip')
     await serveStatic(req, res, gzipPath)
   } catch (ex) {

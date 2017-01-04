@@ -2,9 +2,11 @@ import fs from 'fs'
 import path from 'path'
 import zlib from 'zlib'
 import glob from 'glob-promise'
+import getConfig from '../config'
 
 export default async function gzipAssets (dir) {
   const nextDir = path.resolve(dir, '.next')
+  const config = getConfig(dir)
 
   const coreAssets = [
     path.join(nextDir, 'commons.js'),
@@ -22,17 +24,23 @@ export default async function gzipAssets (dir) {
     const currentChunk = allAssets.splice(0, 10)
     if (currentChunk.length === 0) break
 
-    await Promise.all(currentChunk.map(gzip))
+    await Promise.all(currentChunk.map((f) => compress(config, f)))
   }
 }
 
-export function gzip (filePath) {
-  const input = fs.createReadStream(filePath)
-  const output = fs.createWriteStream(`${filePath}.gz`)
+export function compress (config, filePath) {
+  const compressionMap = config.compress || {
+    gzip: (f) => fs.createReadStream(f).pipe(zlib.createGzip())
+  }
 
-  return new Promise((resolve, reject) => {
-    const stream = input.pipe(zlib.createGzip()).pipe(output)
-    stream.on('error', reject)
-    stream.on('finish', resolve)
+  const promises = Object.keys(compressionMap).map((type) => {
+    return new Promise((resolve, reject) => {
+      const output = fs.createWriteStream(`${filePath}.${type}`)
+      const stream = compressionMap[type](filePath).pipe(output)
+      stream.on('error', reject)
+      stream.on('finish', resolve)
+    })
   })
+
+  return Promise.all(promises)
 }
