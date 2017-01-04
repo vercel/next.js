@@ -98,7 +98,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderJSON (req, res, page, { dir = process.cwd(), compressTypes } = {}) {
   const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
-  return serveStaticWithGzip(req, res, pagePath, compressTypes)
+  return serveStaticWithCompression(req, res, pagePath, compressTypes)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
@@ -141,7 +141,7 @@ function errorToJSON (err) {
   return json
 }
 
-export async function serveStaticWithGzip (req, res, path, compressTypes) {
+export async function serveStaticWithCompression (req, res, path, compressTypes) {
   const encoding = accepts(req).encodings(compressTypes)
   if (!encoding) {
     return serveStatic(req, res, path)
