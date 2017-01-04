@@ -26,10 +26,10 @@ export default class Server {
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(this.dir)
-    this.compressTypes = Object.keys(this.config.compress || { gzip: true })
+    this.supportedEncodings = Object.keys(this.config.compress || { gzip: true })
     this.renderOpts = {
       dir: this.dir,
-      compressTypes: this.compressTypes,
+      supportedEncodings: this.supportedEncodings,
       dev,
       staticMarkup
     }
@@ -68,12 +68,12 @@ export default class Server {
 
     this.router.get('/_next/main.js', async (req, res, params) => {
       const p = join(this.dir, '.next/main.js')
-      await serveStaticWithCompression(req, res, p, this.compressTypes)
+      await serveStaticWithCompression(req, res, p, this.supportedEncodings)
     })
 
     this.router.get('/_next/commons.js', async (req, res, params) => {
       const p = join(this.dir, '.next/commons.js')
-      await serveStaticWithCompression(req, res, p, this.compressTypes)
+      await serveStaticWithCompression(req, res, p, this.supportedEncodings)
     })
 
     this.router.get('/_next/pages/:path*', async (req, res, params) => {
@@ -221,7 +221,7 @@ export default class Server {
 
   async serveStaticWithCompression (req, res, path) {
     this._serveStatic(req, res, () => {
-      return serveStaticWithCompression(req, res, path, this.compressTypes)
+      return serveStaticWithCompression(req, res, path, this.supportedEncodings)
     })
   }
 

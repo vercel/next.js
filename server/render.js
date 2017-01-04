@@ -96,9 +96,9 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (req, res, page, { dir = process.cwd(), compressTypes } = {}) {
+export async function renderJSON (req, res, page, { dir = process.cwd(), supportedEncodings } = {}) {
   const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
-  return serveStaticWithCompression(req, res, pagePath, compressTypes)
+  return serveStaticWithCompression(req, res, pagePath, supportedEncodings)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
@@ -141,8 +141,10 @@ function errorToJSON (err) {
   return json
 }
 
-export async function serveStaticWithCompression (req, res, path, compressTypes) {
-  const encoding = accepts(req).encodings(compressTypes)
+export async function serveStaticWithCompression (req, res, path, supportedEncodings) {
+  const acceptingEncodings = accepts(req).encodings()
+  const encoding = supportedEncodings.find((e) => acceptingEncodings.indexOf(e) >= 0)
+
   if (!encoding) {
     return serveStatic(req, res, path)
   }

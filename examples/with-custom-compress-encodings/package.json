@@ -1,0 +1,17 @@
+{
+  "name": "shared-modules",
+  "version": "1.0.0",
+  "description": "This example features:",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "iltorb": "^1.0.13",
+    "next": "^2.0.0-beta"
+  },
+  "author": "",
+  "license": "ISC"
+}
