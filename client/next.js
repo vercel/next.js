@@ -29,7 +29,7 @@ export const router = createRouter(pathname, query, {
 
 const headManager = new HeadManager()
 const container = document.getElementById('__next')
-const appProps = { Component, props, router, headManager }
+const appProps = { Component, ErrorComponent, props, router, headManager }
 
 if (ids && ids.length) rehydrate(ids)
 render(createElement(App, appProps), container)
