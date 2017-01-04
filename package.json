@@ -89,7 +89,7 @@
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.1",
-    "gulp-jest": "^0.6.0",
+    "gulp-jest": "^1.0.0",
     "gulp-notify": "2.2.0",
     "husky": "0.12.0",
     "jest": "^18.0.0",
