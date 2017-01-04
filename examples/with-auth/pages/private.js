@@ -8,7 +8,6 @@ export default class Private extends React.Component {
   }
 
   componentDidMount () {
-    console.log('asd')
     this.onLogout = eve => logoutEvent(eve, this.props.url)
     window.addEventListener('storage', this.onLogout, false)
   }
