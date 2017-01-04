@@ -23,7 +23,7 @@
   },
   "scripts": {
     "build": "gulp",
-    "pretest": "npm run lint && npm run prepublish",
+    "pretest": "npm run lint && NODE_ENV=test npm run prepublish",
     "test": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js --coverage",
     "testonly": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
     "coveralls": "nyc report --temp-directory=./coverage --reporter=text-lcov | coveralls",
@@ -81,6 +81,7 @@
   "devDependencies": {
     "babel-eslint": "7.1.1",
     "babel-jest": "^18.0.0",
+    "babel-plugin-istanbul": "^3.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "babel-preset-env": "1.1.4",
     "benchmark": "2.1.3",

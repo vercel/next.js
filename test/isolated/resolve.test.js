@@ -1,7 +1,7 @@
 /* global describe, it, expect */
 
 import { join } from 'path'
-import resolve from '../../dist/server/resolve'
+import resolve from '../../server/resolve'
 
 const dataPath = join(__dirname, '_resolvedata')
 
