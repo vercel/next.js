@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 
-import shallowEquals from '../../lib/shallow-equals'
+import shallowEquals from '../../dist/lib/shallow-equals'
 
 describe('Shallow Equals', () => {
   it('should be true if both objects are the same', () => {
