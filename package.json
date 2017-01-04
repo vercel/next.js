@@ -24,9 +24,9 @@
   "scripts": {
     "build": "gulp",
     "pretest": "npm run lint && npm run prepublish",
-    "test": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
+    "test": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js --coverage",
     "testonly": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
-    "coverage": "npm run test -- --coverage",
+    "coveralls": "nyc report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "gulp release",
     "precommit": "npm run lint"
@@ -94,6 +94,7 @@
     "husky": "0.12.0",
     "jest": "^18.0.0",
     "node-fetch": "^1.6.3",
+    "nyc": "^10.0.0",
     "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
