@@ -22,11 +22,17 @@ export default class Server {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
-    this.renderOpts = { dir: this.dir, dev, staticMarkup }
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(this.dir)
+    this.compressTypes = Object.keys(this.config.compress || { gzip: true })
+    this.renderOpts = {
+      dir: this.dir,
+      compressTypes: this.compressTypes,
+      dev,
+      staticMarkup
+    }
 
     this.defineRoutes()
   }
@@ -62,12 +68,12 @@ export default class Server {
 
     this.router.get('/_next/main.js', async (req, res, params) => {
       const p = join(this.dir, '.next/main.js')
-      await serveStaticWithGzip(req, res, p)
+      await serveStaticWithGzip(req, res, p, this.compressTypes)
     })
 
     this.router.get('/_next/commons.js', async (req, res, params) => {
       const p = join(this.dir, '.next/commons.js')
-      await serveStaticWithGzip(req, res, p)
+      await serveStaticWithGzip(req, res, p, this.compressTypes)
     })
 
     this.router.get('/_next/pages/:path*', async (req, res, params) => {
@@ -215,7 +221,7 @@ export default class Server {
 
   async serveStaticWithGzip (req, res, path) {
     this._serveStatic(req, res, () => {
-      return serveStaticWithGzip(req, res, path)
+      return serveStaticWithGzip(req, res, path, this.compressTypes)
     })
   }
 
