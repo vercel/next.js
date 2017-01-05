@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 
-export default function (app, suiteName, render) {
+export default function ({ app }, suiteName, render) {
   async function get$ (path) {
     const html = await render(path)
     return cheerio.load(html)

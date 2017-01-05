@@ -1,7 +1,7 @@
 /* global describe, test, expect */
 import { pkg } from 'next-test-utils'
 
-export default function (app) {
+export default function ({ app }) {
   describe('X-Powered-By header', () => {
     test('set it by default', async () => {
       const req = { url: '/stateless' }

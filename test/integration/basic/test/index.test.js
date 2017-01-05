@@ -8,35 +8,37 @@ import { join } from 'path'
 import xPoweredBy from './xpowered-by'
 import rendering from './rendering'
 import misc from './misc'
+import clientNavigation from './client-navigation'
 
-const app = nextServer({
+const context = {}
+context.app = nextServer({
   dir: join(__dirname, '../'),
   dev: true,
-  quiet: true
+  quiet: false
 })
 
-let appPort
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
 
 describe('Basic Features', () => {
   beforeAll(async () => {
-    await app.prepare()
-    appPort = await findPort()
-    await app.start(appPort)
+    await context.app.prepare()
+    context.appPort = await findPort()
+    await context.app.start(context.appPort)
   })
-  afterAll(() => app.close())
+  afterAll(() => context.app.close())
 
-  rendering(app, 'Rendering via API', renderingViaAPI)
-  rendering(app, 'Rendering via HTTP', renderingViaHTTP)
-  xPoweredBy(app)
-  misc(app)
+  rendering(context, 'Rendering via API', renderingViaAPI)
+  rendering(context, 'Rendering via HTTP', renderingViaHTTP)
+  xPoweredBy(context)
+  misc(context)
+  clientNavigation(context)
 })
 
 function renderingViaAPI (pathname, query = {}) {
-  return app.renderToHTML({}, {}, pathname, query)
+  return context.app.renderToHTML({}, {}, pathname, query)
 }
 
 function renderingViaHTTP (pathname, query = {}) {
-  const url = `http://localhost:${appPort}${pathname}`
+  const url = `http://localhost:${context.appPort}${pathname}`
   return fetch(url).then((res) => res.text())
 }

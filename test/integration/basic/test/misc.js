@@ -1,6 +1,6 @@
 /* global describe, test, expect */
 
-export default function (app) {
+export default function ({ app }) {
   describe('Misc', () => {
     test('finishes response', async () => {
       const res = {

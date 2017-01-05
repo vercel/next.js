@@ -96,8 +96,10 @@
     "jest-cli": "^18.0.0",
     "node-fetch": "^1.6.3",
     "nyc": "^10.0.0",
+    "phantomjs-prebuilt": "^2.1.14",
     "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",
+    "selenium-webdriver": "^3.0.1",
     "standard": "8.6.0",
     "webpack-stream": "3.2.0"
   },
