@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "2.0.0-beta.12",
+  "version": "2.0.0-beta.13",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -75,7 +75,7 @@
     "url": "0.11.0",
     "webpack": "2.2.0-rc.3",
     "webpack-dev-middleware": "1.9.0",
-    "webpack-hot-middleware": "2.14.0",
+    "webpack-hot-middleware": "2.15.0",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
@@ -84,7 +84,7 @@
     "babel-jest": "^18.0.0",
     "babel-plugin-istanbul": "^3.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
-    "babel-preset-env": "1.1.4",
+    "babel-preset-env": "1.1.5",
     "benchmark": "2.1.3",
     "cheerio": "^0.22.0",
     "coveralls": "2.11.15",
