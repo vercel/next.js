@@ -2,6 +2,7 @@ import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
+import fs from 'mz/fs'
 import accepts from 'accepts'
 import requireModule from './require'
 import resolvePath from './resolve'
@@ -149,9 +150,14 @@ export async function serveStaticWithGzip (req, res, path) {
 
   try {
     const gzipPath = `${path}.gz`
+
+    // Check the existance of the gzipPath before serving it
+    await fs.stat(gzipPath)
+
     res.setHeader('Content-Encoding', 'gzip')
     await serveStatic(req, res, gzipPath)
   } catch (ex) {
+    // Handles the error thrown by fs.stat
     if (ex.code === 'ENOENT') {
       res.removeHeader('Content-Encoding')
       return serveStatic(req, res, path)
