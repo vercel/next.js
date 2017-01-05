@@ -1,10 +1,4 @@
 import webdriver from 'selenium-webdriver'
-import { chromedriver } from 'alto-saxophone'
-import { dirname } from 'path'
-
-// Add chromedriver vendor locaation to the path
-const sep = /^win/.test(process.platform) ? ';' : ':'
-process.env.PATH = `${dirname(chromedriver.binPath())}${sep}${process.env.PATH}`
 
 export const By = webdriver.By
 export const Until = webdriver.until

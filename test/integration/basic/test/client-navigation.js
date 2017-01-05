@@ -13,6 +13,8 @@ export default (context) => {
 
         const text = await driver.findElement(By.tagName('p')).getText()
         expect(text).toBe('This is the about page.')
+
+        await driver.quit()
       })
 
       it('should navigate via the client side', async () => {
@@ -27,6 +29,8 @@ export default (context) => {
 
         const counterText = await driver.findElement(By.id('counter')).getText()
         expect(counterText).toBe('Counter: 1')
+
+        await driver.quit()
       })
     })
 
@@ -39,6 +43,8 @@ export default (context) => {
 
         const text = await driver.findElement(By.tagName('p')).getText()
         expect(text).toBe('This is the home.')
+
+        await driver.quit()
       })
     })
   })
