@@ -1,18 +1,10 @@
-import webdriver from 'selenium-webdriver'
-
-export const By = webdriver.By
-export const Until = webdriver.until
+import wd from 'wd'
 
 export default async function (appPort, pathname) {
-  const driver = new webdriver.Builder()
-    .forBrowser('chrome')
-    .build()
-
-  // Wait for the page load event for maximum of 10 seconds.
-  driver.manage().timeouts().pageLoadTimeout(1000 * 10)
-
   const url = `http://localhost:${appPort}${pathname}`
-  await driver.get(url)
 
-  return driver
+  const browser = wd.promiseChainRemote('http://localhost:9515/')
+  await browser.init({browserName: 'chrome'}).get(url)
+
+  return browser
 }

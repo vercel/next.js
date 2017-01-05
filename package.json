@@ -99,8 +99,8 @@
     "nyc": "^10.0.0",
     "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",
-    "selenium-webdriver": "^3.0.1",
     "standard": "8.6.0",
+    "wd": "^1.1.1",
     "webpack-stream": "3.2.0"
   },
   "jest": {

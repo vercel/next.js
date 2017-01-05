@@ -1,50 +1,47 @@
 /* global describe, it, expect */
 
-import webdriver, { By, Until } from 'next-webdriver'
+import webdriver from 'next-webdriver'
 
 export default (context) => {
   describe('Client Navigation', () => {
     describe('with <Link/>', () => {
       it('should navigate the page', async () => {
-        const driver = await webdriver(context.appPort, '/nav')
+        const browser = await webdriver(context.appPort, '/nav')
+        const text = await browser
+          .elementByCss('a').click()
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p').text()
 
-        await driver.findElement(By.tagName('a')).click()
-        await driver.wait(Until.elementLocated(By.css('.nav-about')))
-
-        const text = await driver.findElement(By.tagName('p')).getText()
         expect(text).toBe('This is the about page.')
-
-        await driver.quit()
+        await browser.close()
       })
 
       it('should navigate via the client side', async () => {
-        const driver = await webdriver(context.appPort, '/nav')
+        const browser = await webdriver(context.appPort, '/nav')
 
-        await driver.findElement(By.id('increase')).click()
-        await driver.findElement(By.tagName('a')).click()
-        await driver.wait(Until.elementLocated(By.css('.nav-about')))
+        const counterText = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('a').click()
+          .waitForElementByCss('.nav-about')
+          .elementByCss('a').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('#counter').text()
 
-        await driver.findElement(By.tagName('a')).click()
-        await driver.wait(Until.elementLocated(By.css('.nav-home')))
-
-        const counterText = await driver.findElement(By.id('counter')).getText()
         expect(counterText).toBe('Counter: 1')
-
-        await driver.quit()
+        await browser.close()
       })
     })
 
     describe('with <a/> tag inside the <Link />', () => {
       it('should navigate the page', async () => {
-        const driver = await webdriver(context.appPort, '/nav/about')
+        const browser = await webdriver(context.appPort, '/nav/about')
+        const text = await browser
+          .elementByCss('a').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
 
-        await driver.findElement(By.tagName('a')).click()
-        await driver.wait(Until.elementLocated(By.css('.nav-home')))
-
-        const text = await driver.findElement(By.tagName('p')).getText()
         expect(text).toBe('This is the home.')
-
-        await driver.quit()
+        await browser.close()
       })
     })
   })
