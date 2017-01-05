@@ -14,7 +14,7 @@ const context = {}
 context.app = nextServer({
   dir: join(__dirname, '../'),
   dev: true,
-  quiet: false
+  quiet: true
 })
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000

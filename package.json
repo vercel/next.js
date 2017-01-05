@@ -79,6 +79,7 @@
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
+    "alto-saxophone": "^2.26.0",
     "babel-eslint": "7.1.1",
     "babel-jest": "^18.0.0",
     "babel-plugin-istanbul": "^3.0.0",
@@ -96,7 +97,6 @@
     "jest-cli": "^18.0.0",
     "node-fetch": "^1.6.3",
     "nyc": "^10.0.0",
-    "phantomjs-prebuilt": "^2.1.14",
     "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",
     "selenium-webdriver": "^3.0.1",
