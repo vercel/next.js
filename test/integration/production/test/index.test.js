@@ -1,8 +1,13 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
-import { nextServer, nextBuild, findPort } from 'next-test-utils'
 import fetch from 'node-fetch'
 import { join } from 'path'
+import {
+  nextServer,
+  nextBuild,
+  findPort,
+  renderViaHTTP
+} from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let app
@@ -26,7 +31,7 @@ describe('Production Usage', () => {
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
-      const html = await renderingViaHTTP('/')
+      const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
   })
@@ -71,8 +76,3 @@ describe('Production Usage', () => {
     })
   })
 })
-
-function renderingViaHTTP (pathname, query = {}) {
-  const url = `http://localhost:${appPort}${pathname}`
-  return fetch(url).then((res) => res.text())
-}

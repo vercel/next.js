@@ -1,8 +1,12 @@
 /* global jasmine, describe, beforeAll, afterAll */
 
-import { nextServer, findPort } from 'next-test-utils'
-import fetch from 'node-fetch'
 import { join } from 'path'
+import {
+  nextServer,
+  findPort,
+  renderViaAPI,
+  renderViaHTTP
+} from 'next-test-utils'
 
 // test suits
 import xPoweredBy from './xpowered-by'
@@ -27,18 +31,9 @@ describe('Basic Features', () => {
   })
   afterAll(() => context.app.close())
 
-  rendering(context, 'Rendering via API', renderingViaAPI)
-  rendering(context, 'Rendering via HTTP', renderingViaHTTP)
+  rendering(context, 'Rendering via API', (p, q) => renderViaAPI(context.app, p, q))
+  rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q))
   xPoweredBy(context)
   misc(context)
   clientNavigation(context)
 })
-
-function renderingViaAPI (pathname, query = {}) {
-  return context.app.renderToHTML({}, {}, pathname, query)
-}
-
-function renderingViaHTTP (pathname, query = {}) {
-  const url = `http://localhost:${context.appPort}${pathname}`
-  return fetch(url).then((res) => res.text())
-}

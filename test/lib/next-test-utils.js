@@ -1,4 +1,6 @@
 import portFinder from 'portfinder'
+import fetch from 'node-fetch'
+import qs from 'querystring'
 
 import server from '../../dist/server/next'
 import build from '../../dist/server/build'
@@ -15,4 +17,13 @@ export function findPort () {
       return resolve(port)
     })
   })
+}
+
+export function renderViaAPI (app, pathname, query = {}) {
+  return app.renderToHTML({}, {}, pathname, query)
+}
+
+export function renderViaHTTP (appPort, pathname, query = {}) {
+  const url = `http://localhost:${appPort}${pathname}?${qs.stringify(query)}`
+  return fetch(url).then((res) => res.text())
 }
