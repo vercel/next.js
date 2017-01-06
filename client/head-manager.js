@@ -11,7 +11,6 @@ const DOMAttributeNames = {
 export default class HeadManager {
   constructor () {
     this.updatePromise = null
-    this.unique = new Map()
   }
 
   updateHead (head) {
@@ -27,22 +26,6 @@ export default class HeadManager {
     const tags = {}
     head.forEach((h) => {
       const components = tags[h.type] || []
-
-      if (h.key) {
-        if (this.unique.has(h.key)) {
-          const c = this.unique.get(h.key)
-
-          if (components.indexOf(c) === -1) {
-            components.push(c)
-            tags[h.type] = components
-
-            return
-          }
-        }
-
-        this.unique.set(h.key, h)
-      }
-
       components.push(h)
       tags[h.type] = components
     })
