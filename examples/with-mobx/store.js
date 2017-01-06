@@ -1,6 +1,6 @@
 import { action, observable } from 'mobx'
 
-let store = null;
+let store = null
 
 class Store {
   @observable lastUpdate = 0
