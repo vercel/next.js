@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { inject, observer } from 'mobx-react'
-import Clock from '../components/Clock'
+import Clock from './Clock'
 
 @inject('store') @observer
 class Page extends React.Component {
