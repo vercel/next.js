@@ -153,6 +153,7 @@ export async function serveStaticWithGzip (req, res, path) {
     await serveStatic(req, res, gzipPath)
   } catch (ex) {
     if (ex.code === 'ENOENT') {
+      res.statusCode = 200
       res.removeHeader('Content-Encoding')
       return serveStatic(req, res, path)
     }
