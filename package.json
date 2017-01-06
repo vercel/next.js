@@ -30,7 +30,7 @@
     "test": "npm run testonly -- --coverage --forceExit",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
-    "prepublish": "gulp release",
+    "prepublish": "npm run lint && gulp release && npm run testonly -- --forceExit",
     "precommit": "npm run lint"
   },
   "standard": {
