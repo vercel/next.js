@@ -6,8 +6,8 @@ module.exports = {
   // Here's a list of common encoding types: https://goo.gl/ke7zOK
 
   // The first listed encoding has the higher priority over others.
-  //  In this case, it'll try to serve the `br` version if the browser supports it.
-  //  Otherwise, it'll server gzipped version.
+  //  In this case, first it'll try to serve the `br` version if the browser supports it.
+  //  Otherwise, it'll serve the gzipped version.
   compress: {
     br: function () {
       return iltorb.compressStream()
