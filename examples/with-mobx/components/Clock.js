@@ -1,6 +1,3 @@
-import React from 'react'
-import { inject, observer } from 'mobx-react'
-
 export default (props) => {
   return (
     <div className={props.light ? 'light' : ''}>
