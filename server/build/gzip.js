@@ -30,13 +30,24 @@ export default async function gzipAssets (dir) {
 
 export function compress (config, filePath) {
   const compressionMap = config.compress || {
-    gzip: (f) => fs.createReadStream(f).pipe(zlib.createGzip())
+    gzip: () => zlib.createGzip()
   }
 
   const promises = Object.keys(compressionMap).map((type) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+      const input = fs.createReadStream(filePath)
       const output = fs.createWriteStream(`${filePath}.${type}`)
-      const stream = compressionMap[type](filePath).pipe(output)
+      // We accept stream resolved via a promise or not
+      const compression = await compressionMap[type](filePath)
+
+      // We need to handle errors like this.
+      // See: http://stackoverflow.com/a/22389498
+      input.on('error', reject)
+      compression.on('error', reject)
+
+      const stream = input.pipe(compression).pipe(output)
+
+      // Handle the final stream
       stream.on('error', reject)
       stream.on('finish', resolve)
     })
