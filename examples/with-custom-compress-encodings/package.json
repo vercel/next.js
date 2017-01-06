@@ -1,5 +1,5 @@
 {
-  "name": "shared-modules",
+  "name": "with-custom-compress-encodings",
   "version": "1.0.0",
   "description": "This example features:",
   "main": "index.js",
