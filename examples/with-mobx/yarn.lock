@@ -2008,7 +2008,7 @@ negotiator@0.6.1:
   version "0.6.1"
   resolved "https://registry.yarnpkg.com/negotiator/-/negotiator-0.6.1.tgz#2b327184e8992101177b28563fb5e7102acd0ca9"
 
-next@beta:
+next@^2.0.0-beta:
   version "2.0.0-beta.15"
   resolved "https://registry.yarnpkg.com/next/-/next-2.0.0-beta.15.tgz#82f17118becd9b2e4795e1ba1ac6ae6b587b3e7e"
   dependencies:
