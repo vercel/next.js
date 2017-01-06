@@ -150,9 +150,9 @@ export async function serveStaticWithCompression (req, res, path, supportedEncod
   }
 
   try {
-    const gzipPath = `${path}.${encoding}`
+    const compressedPath = `${path}.${encoding}`
     res.setHeader('Content-Encoding', encoding)
-    await serveStatic(req, res, gzipPath)
+    await serveStatic(req, res, compressedPath)
   } catch (ex) {
     if (ex.code === 'ENOENT') {
       res.removeHeader('Content-Encoding')

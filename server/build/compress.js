@@ -4,7 +4,7 @@ import zlib from 'zlib'
 import glob from 'glob-promise'
 import getConfig from '../config'
 
-export default async function gzipAssets (dir) {
+export default async function compressAssets (dir) {
   const nextDir = path.resolve(dir, '.next')
   const config = getConfig(dir)
 
@@ -20,7 +20,7 @@ export default async function gzipAssets (dir) {
   ]
 
   while (true) {
-    // gzip only 10 assets in parallel at a time.
+    // compress only 10 assets in parallel at a time.
     const currentChunk = allAssets.splice(0, 10)
     if (currentChunk.length === 0) break
 
