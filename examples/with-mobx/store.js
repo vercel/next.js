@@ -1,10 +1,12 @@
 import { action, observable } from 'mobx'
 
+let store = null;
+
 class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor (isServer, lastUpdate) {
+  constructor(isServer, lastUpdate) {
     this.lastUpdate = lastUpdate
   }
 
@@ -18,13 +20,13 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-export const initStore = (isServer, lastUpdate = Date.now()) => {
+export function initStore(isServer, lastUpdate = Date.now()) {
   if (isServer && typeof window === 'undefined') {
     return new Store(isServer, lastUpdate)
   } else {
-    if (!window.store) {
-      window.store = new Store(isServer, lastUpdate)
+    if (store === null) {
+      store = new Store(isServer, lastUpdate)
     }
-    return window.store
+    return store
   }
 }
