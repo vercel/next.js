@@ -1,0 +1,12 @@
+{
+  "host": "with-feathersjs-app.feathersjs.com",
+  "port": 80,
+  "public": "../public/",
+  "auth": {
+    "idField": "id",
+    "token": {
+      "secret": "FEATHERS_AUTH_SECRET"
+    },
+    "local": {}
+  }
+}
