@@ -4,8 +4,8 @@ class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor(isServer, lastUpdate) {
-    this.lastUpdate = lastUpdate;
+  constructor (isServer, lastUpdate) {
+    this.lastUpdate = lastUpdate
   }
 
   @action start = () => {
