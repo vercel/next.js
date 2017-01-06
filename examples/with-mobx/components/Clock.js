@@ -1,15 +1,15 @@
 import React from 'react'
 import { inject, observer } from 'mobx-react'
 
-const Clock = inject('store')(observer(({store}) => {
+export default (props) => {
   return (
-    <div className={store.light ? 'light' : ''}>
-      {format(new Date(store.lastUpdate))}
+    <div className={props.light ? 'light' : ''}>
+      {format(new Date(props.lastUpdate))}
       <style jsx>{`
         div {
           padding: 15px;
-          display: inline-block;
           color: #82FA58;
+          display: inline-block;
           font: 50px menlo, monaco, monospace;
           background-color: #000;
         }
@@ -20,10 +20,8 @@ const Clock = inject('store')(observer(({store}) => {
       `}</style>
     </div>
   )
-}))
+}
 
 const format = t => `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`
 
 const pad = n => n < 10 ? `0${n}` : n
-
-export default Clock

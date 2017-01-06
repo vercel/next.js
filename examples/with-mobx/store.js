@@ -6,7 +6,7 @@ class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor(isServer, lastUpdate) {
+  constructor (isServer, lastUpdate) {
     this.lastUpdate = lastUpdate
   }
 
@@ -20,7 +20,7 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-export function initStore(isServer, lastUpdate = Date.now()) {
+export function initStore (isServer, lastUpdate = Date.now()) {
   if (isServer && typeof window === 'undefined') {
     return new Store(isServer, lastUpdate)
   } else {
