@@ -53,7 +53,7 @@ export default class WatchPagesPlugin {
 
         if (compiler.hasEntry(name)) return
 
-        const entries = [hotMiddlewareClientPath, f]
+        const entries = [hotMiddlewareClientPath, f + '?entry']
         compiler.addEntry(entries, name)
       })
 
@@ -66,7 +66,7 @@ export default class WatchPagesPlugin {
         if (defaultPages.has(name)) {
           compiler.addEntry([
             hotMiddlewareClientPath,
-            defaultPages.get(name)
+            defaultPages.get(name) + '?entry'
           ], name)
         }
       })

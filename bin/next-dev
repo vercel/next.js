@@ -37,14 +37,9 @@ if (argv.help) {
 
 const dir = resolve(argv._[0] || '.')
 
-const srv = new Server({ dir, dev: true })
-srv.start(argv.port)
+// Check if pages dir exists and warn if not
+exists(dir)
 .then(async () => {
-  if (!process.env.NOW) {
-    console.log(`> Ready on http://localhost:${argv.port}`)
-  }
-
-  // Check if pages dir exists and warn if not
   if (!(await exists(join(dir, 'pages')))) {
     if (await exists(join(dir, '..', 'pages'))) {
       console.error('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
@@ -52,6 +47,18 @@ srv.start(argv.port)
       console.error('> Couldn\'t find a `pages` directory. Please create one under the project root')
     }
     process.exit(1)
+  }
+})
+.catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
+
+const srv = new Server({ dir, dev: true })
+srv.start(argv.port)
+.then(async () => {
+  if (!process.env.NOW) {
+    console.log(`> Ready on http://localhost:${argv.port}`)
   }
 })
 .catch((err) => {

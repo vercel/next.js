@@ -175,6 +175,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: '/_webpack/',
+      strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
         hash.update(Date.now() + '')
