@@ -23,14 +23,15 @@
   },
   "scripts": {
     "build": "gulp",
+    "release": "gulp release",
     "pretestonly": "chromedriver &",
     "testonly": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
     "posttestonly": "pkill chromedriver",
-    "pretest": "npm run lint && NODE_ENV=test npm run prepublish",
+    "pretest": "npm run lint && NODE_ENV=test npm run release",
     "test": "npm run testonly -- --coverage --forceExit",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
-    "prepublish": "npm run lint && gulp release && npm run testonly -- --forceExit",
+    "prepublish": "npm run test && npm run release",
     "precommit": "npm run lint"
   },
   "standard": {
