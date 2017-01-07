@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "*",
+    "next": "^2.0.0-beta",
     "react-redux": "^5.0.1",
     "redux": "^3.6.0",
     "redux-thunk": "^2.1.0"

@@ -9,7 +9,7 @@ export const reducer = (state = { lastUpdate: 0, light: false }, action) => {
 }
 
 export const startClock = () => dispatch => {
-  setInterval(() => dispatch({ type: 'TICK', light: true, ts: Date.now() }), 800)
+  return setInterval(() => dispatch({ type: 'TICK', light: true, ts: Date.now() }), 800)
 }
 
 export const initStore = (reducer, initialState, isServer) => {
