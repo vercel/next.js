@@ -67,7 +67,7 @@
     "mz": "2.6.0",
     "path-match": "1.2.4",
     "react": "15.4.2",
-    "react-dom": "15.4.1",
+    "react-dom": "15.4.2",
     "react-hot-loader": "3.0.0-beta.6",
     "send": "0.14.1",
     "source-map-support": "0.4.8",
