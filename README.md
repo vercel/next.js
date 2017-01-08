@@ -522,6 +522,43 @@ Here's an example `.babelrc` file:
 }
 ```
 
+### Customizing compression encodings
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-custom-compress-encodings">With custom compress encodings</a></li></ul>
+</details></p>
+
+By default Next.js will compress your core JavaScript assets for `gzip` encoding while it builds(with `next build`) the app.
+If you need to add support for more encoding, you could simply add it via `next.config.js`.
+
+Here's an example config which adds supports for both [`br`](https://en.wikipedia.org/wiki/Brotli) and `gzip` encodings.
+
+```js
+var zlib = require('zlib')
+var iltorb = require('iltorb')
+
+module.exports = {
+  // Returns a map of compression streams for the types of encodings you want to support
+  // Here's a list of common encoding types: https://goo.gl/ke7zOK
+
+  // The first listed encoding has the higher priority over others.
+  //  In this case, first it'll try to serve the `br` version if the browser supports it.
+  //  Otherwise, it'll serve the gzipped version.
+  compress: {
+    br: function () {
+      return iltorb.compressStream()
+    },
+    gzip: function () {
+      // You can also return a promise which resolve a compression stream
+      return new Promise(function (resolve) {
+        resolve(zlib.createGzip())
+      })
+    }
+  }
+}
+```
+
 ## Production deployment
 
 To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:

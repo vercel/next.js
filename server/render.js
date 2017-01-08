@@ -96,9 +96,9 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
+export async function renderJSON (req, res, page, { dir = process.cwd(), supportedEncodings } = {}) {
   const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
-  return serveStaticWithGzip(req, res, pagePath)
+  return serveStaticWithCompression(req, res, pagePath, supportedEncodings)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
@@ -141,16 +141,18 @@ function errorToJSON (err) {
   return json
 }
 
-export async function serveStaticWithGzip (req, res, path) {
-  const encoding = accepts(req).encodings(['gzip'])
-  if (encoding !== 'gzip') {
+export async function serveStaticWithCompression (req, res, path, supportedEncodings) {
+  const acceptingEncodings = accepts(req).encodings()
+  const encoding = supportedEncodings.find((e) => acceptingEncodings.indexOf(e) >= 0)
+
+  if (!encoding) {
     return serveStatic(req, res, path)
   }
 
   try {
-    const gzipPath = `${path}.gz`
-    res.setHeader('Content-Encoding', 'gzip')
-    await serveStatic(req, res, gzipPath)
+    const compressedPath = `${path}.${encoding}`
+    res.setHeader('Content-Encoding', encoding)
+    await serveStatic(req, res, compressedPath)
   } catch (ex) {
     if (ex.code === 'ENOENT') {
       res.removeHeader('Content-Encoding')
