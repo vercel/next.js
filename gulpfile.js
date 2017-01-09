@@ -11,7 +11,6 @@ const del = require('del')
 const child_process = require('child_process')
 
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
-const chromedriver_pid_file = './node_modules/CHROMEDRIVER_PID'
 
 gulp.task('compile', [
   'compile-bin',
@@ -190,32 +189,31 @@ gulp.task('release', (cb) => {
   ], cb)
 })
 
-// We run following commands inside a NPM script chain.
-// So, this runs chromedriver inside a child process tree.
-// Therefore, it lasts throughout the lifetime of the original npm script.
-// Anyway, we need to make sure to kill it.
+// We run following task inside a NPM script chain and it runs chromedriver
+// inside a child process tree.
+// Even though we kill this task's process, chromedriver exists throughout
+// the lifetime of the original npm script.
 
-gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
-  const chromedriver = child_process.spawn('chromedriver', { stdio: 'inherit' })
-  setTimeout(() => {
-    cb()
-    fs.writeFileSync(chromedriver_pid_file, String(chromedriver.pid))
+gulp.task('start-chromedriver', (cb) => {
+  const processName = /^win/.test(process.platform)? 'chromedriver.cmd' : 'chromedriver'
+  const chromedriver = child_process.spawn(processName, { stdio: 'pipe' })
+
+  const timeoutHandler = setTimeout(() => {
+    // We need to do this, otherwise this task's process will keep waiting.
     process.exit(0)
-  }, 3000)
+  }, 2000)
+
+  chromedriver.stdout.pipe(process.stdin)
+  chromedriver.stderr.on('data', (data) => {
+    console.warn(data.toString('utf8'))
+    if (/Address already in use/.test(data.toString())) {
+      chromedriver.kill()
+      clearTimeout(timeoutHandler)
+      cb()
+    }
+  })
 })
 
-gulp.task('stop-chromedriver', () => {
-  const hasPid = fs.existsSync(chromedriver_pid_file)
-  if (!hasPid) return
-
-  const pid = fs.readFileSync(chromedriver_pid_file)
-  try {
-    process.kill(parseInt(pid))
-  } catch(ex) {
-    console.error(ex.message)
-  }
-  fs.unlinkSync(chromedriver_pid_file)
-})
 
 // avoid logging to the console
 // that we created a notification

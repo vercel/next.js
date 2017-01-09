@@ -26,7 +26,6 @@
     "release": "gulp release",
     "pretestonly": "gulp start-chromedriver",
     "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
-    "posttestonly": "gulp stop-chromedriver",
     "pretest": "npm run lint && cross-env NODE_ENV=test npm run release",
     "test": "npm run testonly -- --coverage --forceExit",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
