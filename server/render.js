@@ -149,24 +149,30 @@ export async function serveStaticWithGzip (req, res, path) {
     return serveStatic(req, res, path)
   }
 
+  const gzipPath = `${path}.gz`
+
   try {
-    const gzipPath = `${path}.gz`
-
-    // Check the existance of the gzipPath before serving it
+    // We need to check the existance of the gzipPath.
+    // Getting `ENOENT` error from the `serveStatic` is inconsistent and
+    // didn't work on all the cases.
+    //
+    // And this won't give us a race condition because we know that
+    // we don't add gzipped files at runtime.
     await fs.stat(gzipPath)
-
-    const contentType = mime.lookup(path) || 'application/octet-stream'
-    res.setHeader('Content-Type', contentType)
-    res.setHeader('Content-Encoding', 'gzip')
-    await serveStatic(req, res, gzipPath)
   } catch (ex) {
     // Handles the error thrown by fs.stat
     if (ex.code === 'ENOENT') {
-      res.removeHeader('Content-Encoding')
+      // Seems like there's no gzipped file. Let's serve the uncompressed file.
       return serveStatic(req, res, path)
     }
+
     throw ex
   }
+
+  const contentType = mime.lookup(path) || 'application/octet-stream'
+  res.setHeader('Content-Type', contentType)
+  res.setHeader('Content-Encoding', 'gzip')
+  return serveStatic(req, res, gzipPath)
 }
 
 export function serveStatic (req, res, path) {
