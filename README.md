@@ -143,7 +143,7 @@ export default () => (
 )
 ```
 
-To avoid duplicate tags in your head you can use the `key` property, which will make sure the tag is only rendered once:
+To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
 
 ```jsx
 import Head from 'next/head'
