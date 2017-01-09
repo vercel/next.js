@@ -153,7 +153,7 @@ export async function serveStaticWithGzip (req, res, path) {
 
   try {
     // We need to check the existance of the gzipPath.
-    // Getting `ENOENT` error from the `serveStatic` is inconsistance and
+    // Getting `ENOENT` error from the `serveStatic` is inconsistent and
     // didn't work on all the cases.
     //
     // And this won't give us a race condition because we know that
