@@ -8,7 +8,7 @@ const sequence = require('run-sequence')
 const webpack = require('webpack')
 const webpackStream = require('webpack-stream')
 const del = require('del')
-const { spawn } = require('child_process')
+const child_process = require('child_process')
 
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 const chromedriver_pid_file = './node_modules/CHROMEDRIVER_PID'
@@ -191,7 +191,7 @@ gulp.task('release', (cb) => {
 })
 
 gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
-  const chromedriver = spawn('chromedriver', { stdio: 'inherit', detached: true })
+  const chromedriver = child_process.pawn('chromedriver', { stdio: 'inherit', detached: true })
   setTimeout(() => {
     cb()
     fs.writeFileSync(chromedriver_pid_file, String(chromedriver.pid))
