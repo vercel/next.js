@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "*"
+    "next": "^2.0.0-beta"
   },
   "author": "",
   "license": "ISC"
