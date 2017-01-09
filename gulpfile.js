@@ -190,8 +190,13 @@ gulp.task('release', (cb) => {
   ], cb)
 })
 
+// We run following commands inside a NPM script chain.
+// So, this runs chromedriver inside a child process tree.
+// Therefore, it lasts throughout the lifetime of the original npm script.
+// Anyway, we need to make sure to kill it.
+
 gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
-  const chromedriver = child_process.pawn('chromedriver', { stdio: 'inherit', detached: true })
+  const chromedriver = child_process.spawn('chromedriver', { stdio: 'inherit' })
   setTimeout(() => {
     cb()
     fs.writeFileSync(chromedriver_pid_file, String(chromedriver.pid))
