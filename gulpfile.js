@@ -190,7 +190,7 @@ gulp.task('release', (cb) => {
   ], cb)
 })
 
-gulp.task('start-chromedriver', ['stop-chromedriver'], () => {
+gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
   const chromedriver = spawn('chromedriver', { stdio: 'inherit', detached: true })
   setTimeout(() => {
     cb()
