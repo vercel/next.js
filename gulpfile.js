@@ -10,6 +10,7 @@ const webpackStream = require('webpack-stream')
 const del = require('del')
 const child_process = require('child_process')
 
+const isWindows = /^win/.test(process.platform)
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 
 gulp.task('compile', [
@@ -194,26 +195,27 @@ gulp.task('release', (cb) => {
 // Even though we kill this task's process, chromedriver exists throughout
 // the lifetime of the original npm script.
 
-gulp.task('start-chromedriver', (cb) => {
-  const processName = /^win/.test(process.platform)? 'chromedriver.cmd' : 'chromedriver'
-  const chromedriver = child_process.spawn(processName, { stdio: 'pipe' })
+gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
+  const processName =  isWindows? 'chromedriver.cmd' : 'chromedriver'
+  const chromedriver = child_process.spawn(processName, { stdio: 'inherit' })
 
   const timeoutHandler = setTimeout(() => {
     // We need to do this, otherwise this task's process will keep waiting.
     process.exit(0)
   }, 2000)
-
-  chromedriver.stdout.pipe(process.stdin)
-  chromedriver.stderr.on('data', (data) => {
-    console.warn(data.toString('utf8'))
-    if (/Address already in use/.test(data.toString())) {
-      chromedriver.kill()
-      clearTimeout(timeoutHandler)
-      cb()
-    }
-  })
 })
 
+gulp.task('stop-chromedriver', () => {
+  try {
+    if (isWindows) {
+      child_process.execSync('taskkill /im chromedriver* /t /f', { stdio: 'ignore' })
+    } else {
+      child_process.execSync('pkill chromedriver', { stdio: 'ignore' })
+    }
+  } catch(ex) {
+    // Do nothing
+  }
+})
 
 // avoid logging to the console
 // that we created a notification
