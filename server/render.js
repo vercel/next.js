@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import accepts from 'accepts'
+import mime from 'mime-types'
 import requireModule from './require'
 import resolvePath from './resolve'
 import readPage from './read-page'
@@ -149,6 +150,8 @@ export async function serveStaticWithGzip (req, res, path) {
 
   try {
     const gzipPath = `${path}.gz`
+    const contentType = mime.lookup(path) || 'application/octet-stream'
+    res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Encoding', 'gzip')
     await serveStatic(req, res, gzipPath)
   } catch (ex) {
