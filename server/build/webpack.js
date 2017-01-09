@@ -5,6 +5,7 @@ import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
+import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
@@ -71,7 +72,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       filename: 'commons.js',
       minChunks: Math.max(2, minChunks)
     }),
-    new JsonPagesPlugin()
+    new JsonPagesPlugin(),
+    new CaseSensitivePathPlugin()
   ]
 
   if (dev) {

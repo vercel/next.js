@@ -16,6 +16,11 @@ self.addEventListener('activate', (e) => {
 })
 
 self.addEventListener('fetch', (e) => {
+  for (const a of e.request.headers.getAll('accept')) {
+    // bypass Server Sent Events
+    if (a === 'text/event-stream') return
+  }
+
   e.respondWith(getResponse(e.request))
 })
 

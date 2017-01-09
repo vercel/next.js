@@ -26,7 +26,7 @@ export default class HotReloader {
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
         fn(req, res, (err) => {
-          if (err) reject(err)
+          if (err) return reject(err)
           resolve()
         })
       })
@@ -47,7 +47,7 @@ export default class HotReloader {
     if (this.webpackDevMiddleware) {
       return new Promise((resolve, reject) => {
         this.webpackDevMiddleware.close((err) => {
-          if (err) reject(err)
+          if (err) return reject(err)
           resolve()
         })
       })

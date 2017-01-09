@@ -1,5 +1,6 @@
-import { join, sep } from 'path'
+import { join, sep, parse } from 'path'
 import fs from 'mz/fs'
+import glob from 'glob-promise'
 
 export default async function resolve (id) {
   const paths = getPaths(id)
@@ -51,5 +52,33 @@ async function isFile (p) {
     if (err.code === 'ENOENT') return false
     throw err
   }
+
+  // We need the path to be case sensitive
+  const realpath = await getTrueFilePath(p)
+  if (p !== realpath) return false
+
   return stat.isFile() || stat.isFIFO()
+}
+
+// This is based on the stackoverflow answer: http://stackoverflow.com/a/33139702/457224
+// We assume we'll get properly normalized path names as p
+async function getTrueFilePath (p) {
+  let fsPathNormalized = p
+  // OSX: HFS+ stores filenames in NFD (decomposed normal form) Unicode format,
+  // so we must ensure that the input path is in that format first.
+  if (process.platform === 'darwin') fsPathNormalized = fsPathNormalized.normalize('NFD')
+
+  // !! Windows: Curiously, the drive component mustn't be part of a glob,
+  // !! otherwise glob.sync() will invariably match nothing.
+  // !! Thus, we remove the drive component and instead pass it in as the 'cwd'
+  // !! (working dir.) property below.
+  var pathRoot = parse(fsPathNormalized).root
+  var noDrivePath = fsPathNormalized.slice(Math.max(pathRoot.length - 1, 0))
+
+  // Perform case-insensitive globbing (on Windows, relative to the drive /
+  // network share) and return the 1st match, if any.
+  // Fortunately, glob() with nocase case-corrects the input even if it is
+  // a *literal* path.
+  const result = await glob(noDrivePath, { nocase: true, cwd: pathRoot })
+  return result[0]
 }

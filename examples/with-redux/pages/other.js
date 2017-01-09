@@ -27,7 +27,7 @@ export default class Counter extends React.Component {
   render () {
     return (
       <Provider store={this.store}>
-        <Page title='Index Page' linkTo='/other' />
+        <Page title='Other Page' linkTo='/' />
       </Provider>
     )
   }
