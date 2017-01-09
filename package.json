@@ -24,10 +24,8 @@
   "scripts": {
     "build": "gulp",
     "release": "gulp release",
-    "pretestonly": "chromedriver &",
-    "testonly": "NODE_PATH=test/lib jest test/unit/*.test.js test/isolated/*.test.js test/integration/**/test/*.test.js",
-    "posttestonly": "pkill chromedriver",
-    "pretest": "npm run lint && NODE_ENV=test npm run release",
+    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
+    "pretest": "npm run lint && cross-env NODE_ENV=test npm run release",
     "test": "npm run testonly -- --coverage --forceExit",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
@@ -56,6 +54,7 @@
     "babel-preset-react": "6.16.0",
     "babel-runtime": "6.20.0",
     "case-sensitive-paths-webpack-plugin": "1.1.4",
+    "cross-env": "^3.1.4",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.1.2",
@@ -109,6 +108,9 @@
     "webpack-stream": "3.2.0"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathDirs": [
+      "test/"
+    ]
   }
 }
