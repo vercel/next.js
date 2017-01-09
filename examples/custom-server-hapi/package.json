@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "hapi": "^16.1.0",
+    "next": "^2.0.0-beta"
+  }
+}
