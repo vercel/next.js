@@ -54,8 +54,6 @@
     "babel-preset-react": "6.16.0",
     "babel-runtime": "6.20.0",
     "case-sensitive-paths-webpack-plugin": "1.1.4",
-    "cross-env": "^3.1.4",
-    "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.1.2",
     "glamor": "2.20.20",
@@ -105,7 +103,8 @@
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "wd": "^1.1.1",
-    "webpack-stream": "3.2.0"
+    "webpack-stream": "3.2.0",
+    "cross-env": "^3.1.4"
   },
   "jest": {
     "testEnvironment": "node",
