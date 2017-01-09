@@ -53,6 +53,7 @@
     "babel-preset-es2015": "6.18.0",
     "babel-preset-react": "6.16.0",
     "babel-runtime": "6.20.0",
+    "case-sensitive-paths-webpack-plugin": "1.1.4",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.1.2",
