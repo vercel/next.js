@@ -20,20 +20,24 @@ const {
 
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
+let lastProps
 
 export const router = createRouter(pathname, query, {
   Component,
   ErrorComponent,
-  ctx: { err }
+  err
 })
 
 const headManager = new HeadManager()
 const container = document.getElementById('__next')
-const defaultProps = { Component, ErrorComponent, props, router, headManager }
 
 if (ids && ids.length) rehydrate(ids)
 
-render()
+router.subscribe(({ Component, props, err }) => {
+  render({ Component, props, err })
+})
+
+render({ Component, props, err })
 
 export function render (props = {}) {
   try {
@@ -45,15 +49,20 @@ export function render (props = {}) {
 
 export async function renderError (err) {
   const { pathname, query } = router
-  const props = await ErrorComponent.getInitialProps({ err, pathname, query })
+  const props = await getInitialProps(ErrorComponent, { err, pathname, query })
   try {
-    doRender({ Component: ErrorComponent, props })
+    doRender({ Component: ErrorComponent, props, err })
   } catch (err2) {
     console.error(err2)
   }
 }
 
-function doRender (props) {
-  const appProps = { ...defaultProps, ...props }
+function doRender ({ Component, props = lastProps, err }) {
+  lastProps = props
+  const appProps = { Component, props, err, router, headManager }
   ReactDOM.render(createElement(App, appProps), container)
+}
+
+function getInitialProps (Component, ctx) {
+  return Component.getInitialProps ? Component.getInitialProps(ctx) : {}
 }

@@ -17,7 +17,6 @@ import getConfig from '../config'
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
   '_error.js',
-  '_error-debug.js',
   '_document.js'
 ]
 
