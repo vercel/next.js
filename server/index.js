@@ -123,7 +123,7 @@ export default class Server {
     sendHTML(res, html)
   }
 
-  async renderToHTML (req, res, pathname, query) {
+  async renderToHTML (req, res, pathname, query, opts = {}) {
     if (this.dev) {
       const compilationErr = this.getCompilationError(pathname)
       if (compilationErr) {
@@ -131,9 +131,11 @@ export default class Server {
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
       }
     }
+    
+    const _opts = Object.assign(this.renderOpts, opts)
 
     try {
-      return await renderToHTML(req, res, pathname, query, this.renderOpts)
+      return await renderToHTML(req, res, pathname, query, _opts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
