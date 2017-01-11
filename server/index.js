@@ -75,7 +75,8 @@ export default class Server {
       await serveStaticWithGzip(req, res, p)
     })
 
-    this.router.get('/_next/pages/:path*', async (req, res, params) => {
+    this.router.get('/_next/:buildId/pages/:path*', async (req, res, params) => {
+      this.handleBuildId(params.buildId, res)
       const paths = params.path || ['index']
       const pathname = `/${paths.join('/')}`
       await this.renderJSON(req, res, pathname)
