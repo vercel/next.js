@@ -1,5 +1,6 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
+import fs from 'mz/fs'
 import http from 'http'
 import {
   renderToHTML,
@@ -46,6 +47,8 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
+
+    this.renderOpts.buildId = await this._readBuildId()
   }
 
   async close () {
@@ -231,6 +234,20 @@ export default class Server {
     } catch (err) {
       if (err.code === 'ENOENT') {
         this.render404(req, res)
+      } else {
+        throw err
+      }
+    }
+  }
+
+  async _readBuildId () {
+    const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
+    try {
+      const buildId = await fs.readFile(buildIdPath, 'utf8')
+      return buildId.trim()
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return null
       } else {
         throw err
       }

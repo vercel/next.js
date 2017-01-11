@@ -85,11 +85,20 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup } = this.context._documentProps
+    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
+    const { buildId } = __NEXT_DATA__
 
-    return <div>
-      { staticMarkup ? null : <script type='text/javascript' src='/_next/commons.js' /> }
-      { staticMarkup ? null : <script type='text/javascript' src='/_next/main.js' /> }
-    </div>
+    const urls = [
+      '/_next/commons.js',
+      '/_next/main.js'
+    ].map((url) => buildId ? `${url}?__next_build_id=${buildId}` : url)
+
+    return (
+      <div>
+        {!staticMarkup && urls.map((url) => (
+          <script type='text/javascript' key={url} src={url} />
+        ))}
+      </div>
+    )
   }
 }
