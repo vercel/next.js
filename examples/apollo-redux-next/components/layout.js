@@ -14,10 +14,6 @@ class Layout extends Component {
           <title>{ title }</title>
           <meta charSet='utf-8' />
           <meta name='viewport' content='initial-scale=1.0, width=device-width' />
-          {/* Materialize css */}
-          <link href='https://fonts.googleapis.com/icon?family=Material+Icons' rel='stylesheet' />
-          <link href='https://fonts.googleapis.com/css?family=Roboto|Roboto+Condensed' rel='stylesheet' />
-          <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/css/materialize.min.css' />
         </Head>
         <header>
           <nav>
