@@ -1,5 +1,6 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
+import fs from 'mz/fs'
 import http from 'http'
 import {
   renderToHTML,
@@ -46,6 +47,8 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
+
+    this.renderOpts.buildId = await this.readBuildId()
   }
 
   async close () {
@@ -60,17 +63,20 @@ export default class Server {
       await serveStatic(req, res, p)
     })
 
-    this.router.get('/_next/main.js', async (req, res, params) => {
+    this.router.get('/_next/:buildId/main.js', async (req, res, params) => {
+      this.handleBuildId(params.buildId, res)
       const p = join(this.dir, '.next/main.js')
       await serveStaticWithGzip(req, res, p)
     })
 
-    this.router.get('/_next/commons.js', async (req, res, params) => {
+    this.router.get('/_next/:buildId/commons.js', async (req, res, params) => {
+      this.handleBuildId(params.buildId, res)
       const p = join(this.dir, '.next/commons.js')
       await serveStaticWithGzip(req, res, p)
     })
 
-    this.router.get('/_next/pages/:path*', async (req, res, params) => {
+    this.router.get('/_next/:buildId/pages/:path*', async (req, res, params) => {
+      this.handleBuildId(params.buildId, res)
       const paths = params.path || ['index']
       const pathname = `/${paths.join('/')}`
       await this.renderJSON(req, res, pathname)
@@ -235,6 +241,31 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  async readBuildId () {
+    const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
+    try {
+      const buildId = await fs.readFile(buildIdPath, 'utf8')
+      return buildId.trim()
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return '-'
+      } else {
+        throw err
+      }
+    }
+  }
+
+  handleBuildId (buildId, res) {
+    if (this.dev) return
+    if (buildId !== this.renderOpts.buildId) {
+      const errorMessage = 'Build id mismatch!' +
+        'Seems like the server and the client version of files are not the same.'
+      throw new Error(errorMessage)
+    }
+
+    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
   }
 
   getCompilationError (page) {

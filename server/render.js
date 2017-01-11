@@ -34,6 +34,7 @@ export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
 async function doRender (req, res, pathname, query, {
   err,
   page,
+  buildId,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
@@ -88,6 +89,7 @@ async function doRender (req, res, pathname, query, {
       props,
       pathname,
       query,
+      buildId,
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
