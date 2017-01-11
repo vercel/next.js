@@ -6,8 +6,8 @@
 Download the example (or clone the repo)[https://github.com/zeit/next.js.git]:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/hello-world
-cd hello-world
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/layout-componente
+cd layout-componente
 ```
 
 Install it and run:

@@ -7,8 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "*"
+    "next": "^2.0.0-beta.16"
   },
+  "babel": {},
   "author": "",
   "license": "ISC"
 }
