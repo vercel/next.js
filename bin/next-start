@@ -40,10 +40,10 @@ const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })
 
-exists(resolve(process.cwd(), '.next')).then(exists => {
+exists(resolve(dir, '.next')).then(exists => {
   if (!exists) {
     console.error(`> Error! The application should be compiled with \`next build\` first.`)
-    process.exit(0)
+    process.exit(1)
   }
   srv.start(argv.port)
 })
