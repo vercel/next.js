@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-import { resolve, join } from 'path'
+import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
 import {exists} from 'mz/fs'
-import { spawn } from 'cross-spawn'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -41,13 +40,11 @@ const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })
 
-exists(resolve(dir, '.next')).then(exists => {
+exists(resolve(process.cwd(), '.next')).then(exists => {
   if (!exists) {
-    console.log(`> Running \`next build\` first...`)
-    return spawn.sync(join(__dirname, 'next-build'), { stdio: 'inherit', customFds: [0, 1, 2] })
+    console.error(`> Error! The application should be compiled with \`next build\` first.`)
+    process.exit(0)
   }
-})
-.then(() => {
   srv.start(argv.port)
 })
 .then(() => {
