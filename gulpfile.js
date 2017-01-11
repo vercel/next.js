@@ -8,7 +8,7 @@ const sequence = require('run-sequence')
 const webpack = require('webpack')
 const webpackStream = require('webpack-stream')
 const del = require('del')
-const child_process = require('child_process')
+const childProcess = require('child_process')
 
 const isWindows = /^win/.test(process.platform)
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
@@ -197,7 +197,7 @@ gulp.task('release', (cb) => {
 
 gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
   const processName =  isWindows? 'chromedriver.cmd' : 'chromedriver'
-  const chromedriver = child_process.spawn(processName, { stdio: 'inherit' })
+  const chromedriver = childProcess.spawn(processName, { stdio: 'inherit' })
 
   const timeoutHandler = setTimeout(() => {
     // We need to do this, otherwise this task's process will keep waiting.
@@ -208,9 +208,9 @@ gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
 gulp.task('stop-chromedriver', () => {
   try {
     if (isWindows) {
-      child_process.execSync('taskkill /im chromedriver* /t /f', { stdio: 'ignore' })
+      childProcess.execSync('taskkill /im chromedriver* /t /f', { stdio: 'ignore' })
     } else {
-      child_process.execSync('pkill chromedriver', { stdio: 'ignore' })
+      childProcess.execSync('pkill chromedriver', { stdio: 'ignore' })
     }
   } catch(ex) {
     // Do nothing
