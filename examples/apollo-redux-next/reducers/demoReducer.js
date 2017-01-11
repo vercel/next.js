@@ -1,10 +1,10 @@
-import { SET_STRING } from '../actions/demoActions';
+import { SET_STRING } from '../actions/demoActions'
 
-export default function settingString(state: String = '', action: Object) {
+export default function settingString (state: String = '', action: Object) {
   switch (action.type) {
     case SET_STRING:
-      return action.theString;
+      return action.theString
     default:
-      return state;
+      return state
   }
 }
