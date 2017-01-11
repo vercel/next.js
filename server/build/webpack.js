@@ -146,7 +146,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
-    query: {
+    options: {
       babelrc: false,
       cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
@@ -159,7 +159,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     exclude (str) {
       return /node_modules/.test(str)
     },
-    query: mainBabelOptions
+    options: mainBabelOptions
   }])
 
   let webpackConfig = {
