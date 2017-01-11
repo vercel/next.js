@@ -249,7 +249,7 @@ export default class Server {
       return buildId.trim()
     } catch (err) {
       if (err.code === 'ENOENT') {
-        return null
+        return '-'
       } else {
         throw err
       }

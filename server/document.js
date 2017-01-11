@@ -87,7 +87,6 @@ export class NextScript extends Component {
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
     let { buildId } = __NEXT_DATA__
-    buildId = buildId || '-'
 
     return <div>
       { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/commons.js`} /> }
