@@ -3,6 +3,7 @@
 import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
+import {exists} from 'mz/fs'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -38,7 +39,14 @@ if (argv.help) {
 const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })
-srv.start(argv.port)
+
+exists(resolve(process.cwd(), '.next')).then(exists => {
+  if (!exists) {
+    console.error(`> Error! The application should be compiled with \`next build\` first.`)
+    process.exit(0)
+  }
+  srv.start(argv.port)
+})
 .then(() => {
   if (!process.env.NOW) {
     console.log(`> Ready on http://localhost:${argv.port}`)
@@ -48,3 +56,4 @@ srv.start(argv.port)
   console.error(err)
   process.exit(1)
 })
+
