@@ -83,7 +83,7 @@ export default class Server {
 
     this.router.get('/_webpack/:number', async (req, res, params) => {
       if (isNaN(params.number)) throw new Error('Webpack dynamic imports should be numbered')
-      const p = join(this.dir, `.next/${params.number}`)
+      const p = join(this.dir, '.next', params.number)
       await serveStaticWithGzip(req, res, p)
     })
 
