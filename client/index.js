@@ -41,21 +41,29 @@ export default (onError) => {
   render({ Component, props, err }, onError)
 }
 
-export function render (props, onError = renderErrorComponent) {
+export async function render (props, onError = renderErrorComponent) {
   try {
-    doRender(props)
+    await doRender(props)
   } catch (err) {
-    onError(err)
+    await onError(err)
   }
 }
 
 async function renderErrorComponent (err) {
   const { pathname, query } = router
   const props = await getInitialProps(ErrorComponent, { err, pathname, query })
-  doRender({ Component: ErrorComponent, props, err })
+  await doRender({ Component: ErrorComponent, props, err })
 }
 
-function doRender ({ Component, props, err }) {
+async function doRender ({ Component, props, err }) {
+  if (!props && Component &&
+    Component !== ErrorComponent &&
+    lastAppProps.Component === ErrorComponent) {
+    // fetch props if ErrorComponent was replaced with a page component by HMR
+    const { pathname, query } = router
+    props = await getInitialProps(Component, { err, pathname, query })
+  }
+
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
