@@ -12,6 +12,7 @@ export const pkg = _pkg
 
 export function findPort () {
   return new Promise((resolve, reject) => {
+    portFinder.basePort = 10000 + Math.ceil(Math.random() * 10000)
     portFinder.getPort((err, port) => {
       if (err) return reject(err)
       return resolve(port)
