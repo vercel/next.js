@@ -95,6 +95,13 @@ export default class Server {
       const p = join(__dirname, '..', 'client', ...(params.path || []))
       await serveStatic(req, res, p)
     })
+
+    this.router.get('/_webpack/:number', async (req, res, params) => {
+      if (isNaN(params.number)) throw new Error('Webpack dynamic imports should be numbered')
+      const p = join(this.dir, '.next', params.number)
+      await serveStaticWithGzip(req, res, p)
+    })
+
     this.router.get('/static/:path+', async (req, res, params) => {
       const p = join(this.dir, 'static', ...(params.path || []))
       await serveStatic(req, res, p)
