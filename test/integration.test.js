@@ -63,7 +63,7 @@ describe('integration tests', () => {
 
   test('error', async () => {
     const html = await render('/error')
-    expect(html).toMatch(/<pre class=".+">Error: This is an expected error\n[^]+<\/pre>/)
+    expect(html).toMatch(/<pre style=".+">Error: This is an expected error\n[^]+<\/pre>/)
   })
 
   test('error 404', async () => {

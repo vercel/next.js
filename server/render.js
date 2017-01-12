@@ -27,8 +27,7 @@ export async function renderError (err, req, res, pathname, query, opts) {
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  const page = err && opts.dev ? '/_error-debug' : '/_error'
-  return doRender(req, res, pathname, query, { ...opts, err, page })
+  return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
 }
 
 async function doRender (req, res, pathname, query, {
@@ -55,7 +54,7 @@ async function doRender (req, res, pathname, query, {
   ] = await Promise.all([
     Component.getInitialProps ? Component.getInitialProps(ctx) : {},
     readPage(join(dir, '.next', 'bundles', 'pages', page)),
-    readPage(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
+    readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
   ])
 
   // the response might be finshed on the getinitialprops call
@@ -65,6 +64,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component,
       props,
+      err,
       router: new Router(pathname, query)
     })
 
@@ -106,8 +106,7 @@ export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) 
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const page = err && dev ? '/_error-debug' : '/_error'
-  const component = await readPage(join(dir, '.next', 'bundles', 'pages', page))
+  const component = await readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
 
   sendJSON(res, {
     component,
