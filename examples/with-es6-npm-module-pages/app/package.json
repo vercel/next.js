@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "next": "^2.0.0-beta",
-    "my-components": "../components"
+    "my-components": "../my-components"
   },
   "author": "",
   "license": "ISC"
