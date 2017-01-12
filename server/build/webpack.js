@@ -73,7 +73,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // NOTE: it depends on the face that the entry funtion is always called
+        // NOTE: it depends on the fact that the entry funtion is always called
         // before applying CommonsChunkPlugin
         return count >= minChunks
       }
