@@ -21,7 +21,7 @@ context.app = nextServer({
   quiet: true
 })
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 
 describe('Basic Features', () => {
   beforeAll(async () => {
