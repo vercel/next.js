@@ -540,15 +540,15 @@ Add a field called `transpileModules` with an array of regexp patterns like this
 
 ```js
 module.exports = {
-  transpileModules ``````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````: [
+  transpileModules : [
     /react-button/
   ]
 }
 ```
 
-Here Next.js checks every imported module with above patterns and transpile them if matched. By default it uses `next/babel` preset, you can use a `.babelrc` file to [customize](#customizing-babel-config) as it you want.
+Here Next.js checks every imported module with above patterns and transpile them if matched. By default it uses `next/babel` preset, but you can use a `.babelrc` file to customize it as you want.
 
-In the above example, Next.js will transpile any module inside the `node_modules` which has "react-button" in it's pathname.
+In the above example, Next.js will transpile any module inside the `node_modules` directory which has "react-button" in it's pathname.
 
 > Note: Currently, Next.js only supports modules installed into `node_modules`. So, transpiling modules installed with `npm link <my-comp-name>` doesn't work well.
 
