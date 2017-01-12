@@ -13,8 +13,10 @@ export default class Statefull extends Component {
   }
 
   render () {
-    return <div>
-      <p>The answer is {this.state.answer}</p>
-    </div>
+    return (
+      <div>
+        <p id='answer'>The answer is {this.state.answer}</p>
+      </div>
+    )
   }
 }

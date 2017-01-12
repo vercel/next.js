@@ -23,13 +23,15 @@
   },
   "scripts": {
     "build": "gulp",
-    "pretest": "npm run lint",
-    "test": "gulp test",
-    "html-report": "nyc report --temp-directory=./coverage --reporter=html",
-    "jest": "jest --coverage",
-    "coveralls": "nyc report --temp-directory=./coverage --reporter=text-lcov | coveralls",
+    "release": "gulp release",
+    "pretestonly": "gulp start-chromedriver",
+    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
+    "posttestonly": "gulp stop-chromedriver",
+    "pretest": "npm run lint && cross-env NODE_ENV=test npm run release",
+    "test": "npm run testonly -- --coverage --forceExit",
+    "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
-    "prepublish": "gulp release",
+    "prepublish": "npm run test && npm run release",
     "precommit": "npm run lint"
   },
   "standard": {
@@ -84,24 +86,34 @@
   },
   "devDependencies": {
     "babel-eslint": "7.1.1",
+    "babel-jest": "^18.0.0",
+    "babel-plugin-istanbul": "^3.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "babel-preset-env": "1.1.8",
     "benchmark": "2.1.3",
+    "cheerio": "^0.22.0",
+    "chromedriver": "^2.26.1",
     "coveralls": "2.11.15",
     "gulp": "3.9.1",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.1",
-    "gulp-jest": "^1.0.0",
     "gulp-notify": "2.2.0",
     "husky": "0.12.0",
-    "jest": "^18.0.0",
+    "jest-cli": "^18.0.0",
+    "node-fetch": "^1.6.3",
     "nyc": "^10.0.0",
+    "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
-    "webpack-stream": "3.2.0"
+    "wd": "^1.1.1",
+    "webpack-stream": "3.2.0",
+    "cross-env": "^3.1.4"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathDirs": [
+      "test/"
+    ]
   }
 }

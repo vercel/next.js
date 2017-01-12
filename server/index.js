@@ -55,6 +55,15 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
+
+    if (this.http) {
+      await new Promise((resolve, reject) => {
+        this.http.close((err) => {
+          if (err) return reject(err)
+          return resolve()
+        })
+      })
+    }
   }
 
   defineRoutes () {
