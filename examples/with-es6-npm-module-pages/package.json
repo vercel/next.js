@@ -7,8 +7,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^2.0.0-beta",
-    "my-components": "../my-components"
+    "@kadira/react-button": "^1.0.2",
+    "next": "^2.0.0-beta"
   },
   "author": "",
   "license": "ISC"

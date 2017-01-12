@@ -26,9 +26,9 @@ now
 
 ## The idea behind the example
 
-This example shows how to transpile modules inside node_modules. With that, you can use NPM modules published with ES2015+ syntax inside your app.
+This example shows how to transpile modules installed with NPM. With that, you could publish internal component libraries to NPM without transpiling and use them directly inside your Next.js app.
 
-> By default those components get transpiled with the `next/babel` preset. You could also define a custom .babelrc in your app and define presets and plugins you want.
+> By default those components get transpiled with the `next/babel` preset. You could also define a custom .babelrc in your app and define presets and plugins as you want.
 
 You can do this by adding a field called `transpileModules` in the `next.config.js`. Here's an example config:
 
@@ -36,13 +36,13 @@ You can do this by adding a field called `transpileModules` in the `next.config.
 module.exports = {
   // You need to define an array of regular expressions here
   transpileModules: [
-    /my-components/
+    /react-button/
   ]
 }
 ```
 
-Here Next.js will transpile any module matched "my-components" in the path name.
+Here Next.js will transpile any module matches "react-button" in it's path name.
 
 ### Note
 
-We only transpile modules inside the `node_modules` directory only. So, `npm link` won't work in this case.
+We only transpile modules inside the `node_modules` directory. So, `npm link` won't work in this case.
