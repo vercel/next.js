@@ -1,7 +1,7 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
 import fs from 'mz/fs'
-import http from 'http'
+import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -38,7 +38,7 @@ export default class Server {
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
-        res.end('error')
+        res.end(STATUS_CODES[500])
       })
     }
   }
@@ -134,8 +134,14 @@ export default class Server {
     const fn = this.router.match(req, res)
     if (fn) {
       await fn()
-    } else {
+      return
+    }
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
       await this.render404(req, res)
+    } else {
+      res.statusCode = 501
+      res.end(STATUS_CODES[501])
     }
   }
 
