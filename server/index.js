@@ -14,6 +14,7 @@ import {
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
+import babelRegister from 'babel-register'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -30,6 +31,13 @@ export default class Server {
     this.config = getConfig(this.dir)
 
     this.defineRoutes()
+    babelRegister({
+      // If there's .babelrc file in the app path(or similar) it'll take the
+      // precedence over this.
+      presets: [require.resolve('./build/babel/preset')],
+      extensions: ['.js'],
+      only: this.config.transpileModules || []
+    })
   }
 
   getRequestHandler () {
