@@ -161,6 +161,7 @@ export async function serveStaticWithGzip (req, res, path) {
     // we don't add gzipped files at runtime.
     await fs.stat(gzipPath)
   } catch (ex) {
+    // Handles the error thrown by fs.stat
     if (ex.code === 'ENOENT') {
       // Seems like there's no gzipped file. Let's serve the uncompressed file.
       return serveStatic(req, res, path)
