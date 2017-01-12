@@ -143,30 +143,23 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   }, {
     loader: 'babel-loader',
     include: nextPagesDir,
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
     options: {
       babelrc: false,
       cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
-      plugins: [
-        [
-          require.resolve('babel-plugin-module-resolver'),
-          {
-            alias: {
-              'ansi-html': require.resolve('ansi-html'),
-              'styled-jsx/style': require.resolve('styled-jsx/style')
-            }
-          }
-        ]
-      ]
+      presets: [require.resolve('./babel/preset')]
     }
   }, {
     test: /\.js(\?[^?]*)?$/,
     loader: 'babel-loader',
-    include: [dir, nextPagesDir],
+    include: [dir],
     exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+      return /node_modules/.test(str)
     },
-    query: mainBabelOptions
+    options: mainBabelOptions
   }])
 
   let webpackConfig = {
