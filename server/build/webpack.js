@@ -156,12 +156,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     loader: 'babel-loader',
     include: [dir],
     exclude (str) {
-      for (let pattern of config.transpileModules || []) {
-        if (typeof pattern === 'string') {
-          pattern = new RegExp(pattern)
-        } else if (!(pattern === 'ABC')) {
-          const message = `Incorrect pattern in config.transpileModules: ${pattern}` +
-            'It accepts an array of strings or regular expression'
+      for (const pattern of config.transpileModules || []) {
+        if (!(pattern instanceof RegExp)) {
+          const message = `Incorrect pattern in config.transpileModules: "${pattern}".` +
+            'It accepts an array of regular expression'
           throw new Error(message)
         }
 

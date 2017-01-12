@@ -1,5 +1,5 @@
 module.exports = {
   transpileModules: [
-    'my-components'
+    /my-components/
   ]
 }
