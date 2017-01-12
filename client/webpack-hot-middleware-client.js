@@ -5,9 +5,9 @@ const handlers = {
   reload (route) {
     if (route === '/_error') {
       for (const r of Object.keys(Router.components)) {
-        const { Component } = Router.components[r]
-        if (Component.__route === '/_error-debug') {
-          // reload all '/_error-debug'
+        const { err } = Router.components[r]
+        if (err) {
+          // reload all error routes
           // which are expected to be errors of '/_error' routes
           Router.reload(r)
         }
@@ -29,8 +29,8 @@ const handlers = {
       return
     }
 
-    const { Component } = Router.components[route] || {}
-    if (Component && Component.__route === '/_error-debug') {
+    const { err } = Router.components[route] || {}
+    if (err) {
       // reload to recover from runtime errors
       Router.reload(route)
     }

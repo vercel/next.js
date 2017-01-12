@@ -57,7 +57,7 @@ export default function ({ app }, suiteName, render) {
 
     test('error', async () => {
       const $ = await get$('/error')
-      expect($('.message').text()).toMatch(/This is an expected error/)
+      expect($('pre').text()).toMatch(/This is an expected error/)
     })
 
     test('error 404', async () => {
