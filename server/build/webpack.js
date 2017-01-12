@@ -9,8 +9,6 @@ import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
-import DynamicEntryPlugin from './plugins/dynamic-entry-plugin'
-import DetachPlugin from './plugins/detach-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 
@@ -19,37 +17,42 @@ const defaultPages = [
   '_error.js',
   '_document.js'
 ]
+const nextPagesDir = join(__dirname, '..', '..', 'pages')
+const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
+const interpolateNames = new Map(defaultPages.map((p) => {
+  return [join(nextPagesDir, p), `dist/pages/${p}`]
+}))
 
 export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir)
-
-  const pages = await glob('pages/**/*.js', { cwd: dir })
-
-  const entry = {
-    'main.js': dev ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
-  }
-
   const defaultEntries = dev
     ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
-  for (const p of pages) {
-    entry[join('bundles', p)] = defaultEntries.concat([`./${p}?entry`])
-  }
+  const mainJS = dev
+    ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
-  const nextPagesDir = join(__dirname, '..', '..', 'pages')
-  const interpolateNames = new Map()
+  let minChunks
 
-  for (const p of defaultPages) {
-    const entryName = join('bundles', 'pages', p)
-    const path = join(nextPagesDir, p)
-    if (!entry[entryName]) {
-      entry[entryName] = defaultEntries.concat([path + '?entry'])
+  const entry = async () => {
+    const entries = { 'main.js': mainJS }
+
+    const pages = await glob('pages/**/*.js', { cwd: dir })
+    for (const p of pages) {
+      entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
     }
-    interpolateNames.set(path, `dist/pages/${p}`)
-  }
 
-  const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
-  const minChunks = pages.filter((p) => p !== documentPage).length
+    for (const p of defaultPages) {
+      const entryName = join('bundles', 'pages', p)
+      if (!entries[entryName]) {
+        entries[entryName] = [...defaultEntries, join(nextPagesDir, p) + '?entry']
+      }
+    }
+
+    // calculate minChunks of CommonsChunkPlugin for later use
+    minChunks = Math.max(2, pages.filter((p) => p !== documentPage).length)
+
+    return entries
+  }
 
   const plugins = [
     new webpack.LoaderOptionsPlugin({
@@ -69,7 +72,11 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
       filename: 'commons.js',
-      minChunks: Math.max(2, minChunks)
+      minChunks (module, count) {
+        // NOTE: it depends on the fact that the entry funtion is always called
+        // before applying CommonsChunkPlugin
+        return count >= minChunks
+      }
     }),
     new JsonPagesPlugin(),
     new CaseSensitivePathPlugin()
@@ -78,9 +85,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   if (dev) {
     plugins.push(
       new webpack.HotModuleReplacementPlugin(),
-      new webpack.NoErrorsPlugin(),
-      new DetachPlugin(),
-      new DynamicEntryPlugin(),
+      new webpack.NoEmitOnErrorsPlugin(),
       new UnlinkFilePlugin(),
       new WatchRemoveEventPlugin(),
       new WatchPagesPlugin(dir)
