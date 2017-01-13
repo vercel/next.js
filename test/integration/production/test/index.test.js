@@ -14,7 +14,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 20000
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 
 describe('Production Usage', () => {
   beforeAll(async () => {

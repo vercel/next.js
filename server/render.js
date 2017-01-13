@@ -14,7 +14,7 @@ import App from '../lib/app'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
-  sendHTML(res, html)
+  sendHTML(res, html, req.method)
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
@@ -23,7 +23,7 @@ export function renderToHTML (req, res, pathname, query, opts) {
 
 export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(res, html)
+  sendHTML(res, html, req.method)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
@@ -111,24 +111,24 @@ export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev
   sendJSON(res, {
     component,
     err: err && dev ? errorToJSON(err) : null
-  })
+  }, req.method)
 }
 
-export function sendHTML (res, html) {
+export function sendHTML (res, html, method) {
   if (res.finished) return
 
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(html)
+  res.end(method === 'HEAD' ? null : html)
 }
 
-export function sendJSON (res, obj) {
+export function sendJSON (res, obj, method) {
   if (res.finished) return
 
   const json = JSON.stringify(obj)
   res.setHeader('Content-Type', 'application/json')
   res.setHeader('Content-Length', Buffer.byteLength(json))
-  res.end(json)
+  res.end(method === 'HEAD' ? null : json)
 }
 
 function errorToJSON (err) {
