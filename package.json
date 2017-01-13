@@ -94,6 +94,7 @@
     "cheerio": "^0.22.0",
     "chromedriver": "^2.26.1",
     "coveralls": "2.11.15",
+    "cross-env": "^3.1.4",
     "gulp": "3.9.1",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
@@ -103,12 +104,10 @@
     "jest-cli": "^18.0.0",
     "node-fetch": "^1.6.3",
     "nyc": "^10.0.0",
-    "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "wd": "^1.1.1",
-    "webpack-stream": "3.2.0",
-    "cross-env": "^3.1.4"
+    "webpack-stream": "3.2.0"
   },
   "jest": {
     "testEnvironment": "node",
