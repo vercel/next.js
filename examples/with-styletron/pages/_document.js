@@ -5,8 +5,8 @@ export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
     const page = renderPage()
     const styletron = flush()
-    const css = styletron ? styletron.getCss() : null
-    return { ...page, css }
+    const stylesheets = styletron ? styletron.getStylesheets() : []
+    return { ...page, stylesheets }
   }
 
   render () {
@@ -14,7 +14,14 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          <style className='_styletron_hydrate_' dangerouslySetInnerHTML={{ __html: this.props.css }} />
+          {this.props.stylesheets.map((sheet, i) => (
+            <style
+              className="_styletron_hydrate_"
+              dangerouslySetInnerHTML={{ __html: sheet.css }}
+              media={sheet.media || ''}
+              key={i}
+            />
+          ))}
         </Head>
         <body>
           <Main />
