@@ -6,8 +6,8 @@ module.exports = {
 
     // We use preact for the production where it gives us better performance.
     return {
-      'react': env === 'client'? 'preact-compat/dist/preact-compat' : 'preact-compat',
-      'react-dom': env === 'client'? 'preact-compat/dist/preact-compat' : 'preact-compat'
+      'react': env === 'client' ? 'preact-compat/dist/preact-compat' : 'preact-compat',
+      'react-dom': env === 'client' ? 'preact-compat/dist/preact-compat' : 'preact-compat'
     }
   }
 }
