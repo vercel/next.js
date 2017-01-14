@@ -16,7 +16,7 @@ export default class MyDocument extends Document {
           <title>My page</title>
           {this.props.stylesheets.map((sheet, i) => (
             <style
-              className="_styletron_hydrate_"
+              className='_styletron_hydrate_'
               dangerouslySetInnerHTML={{ __html: sheet.css }}
               media={sheet.media || ''}
               key={i}

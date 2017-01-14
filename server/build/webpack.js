@@ -8,7 +8,6 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
-import WatchRemoveEventPlugin from './plugins/watch-remove-event-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 
@@ -87,7 +86,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoEmitOnErrorsPlugin(),
       new UnlinkFilePlugin(),
-      new WatchRemoveEventPlugin(),
       new WatchPagesPlugin(dir)
     )
     if (!quiet) {
