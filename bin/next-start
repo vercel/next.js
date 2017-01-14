@@ -41,9 +41,9 @@ const dir = resolve(argv._[0] || '.')
 
 // Load config and register aliases if provided
 const config = loadConfig(dir)
-if (config.aliases) {
-  const aliases = config.aliases({ dev: false, env: 'server' }) || {}
-  moduleAlias.addAliases(aliases)
+if (config.alias) {
+  const alias = config.alias({ dev: true, env: 'server' }) || {}
+  moduleAlias.addAliases(alias)
 }
 
 // We need to require server like this. That's because, we need to do it after

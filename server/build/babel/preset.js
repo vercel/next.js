@@ -32,7 +32,7 @@ export default function (context, options = {}) {
             // We need to support overriding our own aliases with
             // the user provided aliases.
             // That's why we are doing this at the end.
-            ...options.aliases
+            ...options.alias
           }
         }
       ]

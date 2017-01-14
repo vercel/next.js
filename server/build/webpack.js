@@ -54,9 +54,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     return entries
   }
 
-  let aliases = {}
-  if (config.aliases) {
-    aliases = config.aliases({ dev, env: 'client' }) || {}
+  let alias = {}
+  if (config.alias) {
+    alias = config.alias({ dev, env: 'client' }) || {}
   }
 
   const plugins = [
@@ -121,7 +121,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   if (hasBabelRc) {
     console.log('> Using .babelrc defined in your app root')
   } else {
-    mainBabelOptions.presets.push([require.resolve('./babel/preset'), { aliases }])
+    mainBabelOptions.presets.push([require.resolve('./babel/preset'), { alias }])
   }
 
   const rules = (dev ? [{
@@ -160,7 +160,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
       presets: [
-        [require.resolve('./babel/preset'), { aliases }]
+        [require.resolve('./babel/preset'), { alias }]
       ]
     }
   }, {
@@ -200,7 +200,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         .split(process.platform === 'win32' ? ';' : ':')
         .filter((p) => !!p)
       ),
-      alias: aliases
+      alias
     },
     resolveLoader: {
       modules: [
