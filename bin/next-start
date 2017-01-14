@@ -31,7 +31,7 @@ if (argv.help) {
 
     Options
       --port, -p      A port number on which to start the application
-      --help, -p      Displays this message
+      --help, -h      Displays this message
   `)
   process.exit(0)
 }
