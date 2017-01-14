@@ -65,7 +65,7 @@ if (config.aliases) {
 // We need to require server like this. That's because, we need to do it after
 // we register aliases.
 // If we've imported them, it'll required in the top of the page.
-const Server  = require('../server').default
+const Server = require('../server').default
 const srv = new Server({ dir, dev: true })
 srv.start(argv.port)
 .then(async () => {

@@ -54,6 +54,11 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     return entries
   }
 
+  let aliases = {}
+  if (config.aliases) {
+    aliases = config.aliases({ dev, env: 'client' }) || {}
+  }
+
   const plugins = [
     new webpack.LoaderOptionsPlugin({
       options: {
@@ -192,7 +197,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         (process.env.NODE_PATH || '')
         .split(process.platform === 'win32' ? ';' : ':')
         .filter((p) => !!p)
-      )
+      ),
+      alias: aliases
     },
     resolveLoader: {
       modules: [
