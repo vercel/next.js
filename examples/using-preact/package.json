@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^2.0.0-beta",
+    "next": "../..",
     "preact": "^7.1.0",
     "preact-compat": "^3.9.4"
   },

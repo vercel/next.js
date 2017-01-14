@@ -42,7 +42,7 @@ const dir = resolve(argv._[0] || '.')
 // Load config and register aliases if provided
 const config = loadConfig(dir)
 if (config.alias) {
-  const alias = config.alias({ dev: true, env: 'server' }) || {}
+  const alias = config.alias({ dev: false, env: 'server' }) || {}
   moduleAlias.addAliases(alias)
 }
 
