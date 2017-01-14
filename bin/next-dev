@@ -3,7 +3,8 @@ import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { exists } from 'mz/fs'
-import Server from '../server'
+import moduleAlias from 'module-alias'
+import loadConfig from '../server/config'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -54,6 +55,17 @@ exists(dir)
   process.exit(1)
 })
 
+// Load config and register aliases if provided
+const config = loadConfig(dir)
+if (config.aliases) {
+  const aliases = config.aliases({ dev: true, env: 'server' }) || {}
+  moduleAlias.addAliases(aliases)
+}
+
+// We need to require server like this. That's because, we need to do it after
+// we register aliases.
+// If we've imported them, it'll required in the top of the page.
+const Server  = require('../server').default
 const srv = new Server({ dir, dev: true })
 srv.start(argv.port)
 .then(async () => {

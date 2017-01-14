@@ -5,5 +5,12 @@ module.exports = {
       'react-dom': 'preact-compat/dist/preact-compat'
     }
     return config
+  },
+
+  aliases: function ({ dev, env }) {
+    return {
+      'react': 'preact-compat',
+      'react-dom': 'preact-compat'
+    }
   }
 }
