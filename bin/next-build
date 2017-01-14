@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-
 import { resolve, join } from 'path'
 import { exists } from 'mz/fs'
 import parseArgs from 'minimist'
 import build from '../server/build'
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {

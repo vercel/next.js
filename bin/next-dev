@@ -5,6 +5,8 @@ import parseArgs from 'minimist'
 import { exists } from 'mz/fs'
 import Server from '../server'
 
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
