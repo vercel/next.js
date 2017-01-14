@@ -1,6 +1,5 @@
 module.exports = {
   alias: function ({ dev, env }) {
-    console.log('DDD', dev, env)
     // For the development version, we'll use React.
     // Because, it support react hot loading and so on.
     if (dev) return {}
