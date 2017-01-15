@@ -3,11 +3,3 @@ module.exports = () => ({
     'postcss-cssnext': {}
   }
 })
-// function () {
-//   return {
-//     plugins: {
-//       require('postcss-custom-properties')({})
-//     }
-//     ]
-//   }
-// }
