@@ -65,7 +65,7 @@
     "is-windows-bash": "1.0.3",
     "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
-    "mime-types": "2.1.13",
+    "mime-types": "2.1.14",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mz": "2.6.0",
