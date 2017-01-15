@@ -19,6 +19,6 @@ export default ({ lastUpdate, light }) => {
   )
 }
 
-const format = t => `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`
+const format = t => `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
 
 const pad = n => n < 10 ? `0${n}` : n
