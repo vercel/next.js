@@ -1,6 +1,7 @@
 import { resolve, join } from 'path'
 import { parse } from 'url'
-import http from 'http'
+import fs from 'mz/fs'
+import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -37,7 +38,7 @@ export default class Server {
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
-        res.end('error')
+        res.end(STATUS_CODES[500])
       })
     }
   }
@@ -46,49 +47,72 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
+
+    this.renderOpts.buildId = await this.readBuildId()
   }
 
   async close () {
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
+
+    if (this.http) {
+      await new Promise((resolve, reject) => {
+        this.http.close((err) => {
+          if (err) return reject(err)
+          return resolve()
+        })
+      })
+    }
   }
 
   defineRoutes () {
-    this.router.get('/_next-prefetcher.js', async (req, res, params) => {
-      const p = join(__dirname, '../client/next-prefetcher-bundle.js')
-      await serveStatic(req, res, p)
-    })
+    const routes = {
+      '/_next-prefetcher.js': async (req, res, params) => {
+        const p = join(__dirname, '../client/next-prefetcher-bundle.js')
+        await this.serveStatic(req, res, p)
+      },
 
-    this.router.get('/_next/main.js', async (req, res, params) => {
-      const p = join(this.dir, '.next/main.js')
-      await serveStaticWithGzip(req, res, p)
-    })
+      '/_next/:buildId/main.js': async (req, res, params) => {
+        this.handleBuildId(params.buildId, res)
+        const p = join(this.dir, '.next/main.js')
+        await this.serveStaticWithGzip(req, res, p)
+      },
 
-    this.router.get('/_next/commons.js', async (req, res, params) => {
-      const p = join(this.dir, '.next/commons.js')
-      await serveStaticWithGzip(req, res, p)
-    })
+      '/_next/:buildId/commons.js': async (req, res, params) => {
+        this.handleBuildId(params.buildId, res)
+        const p = join(this.dir, '.next/commons.js')
+        await this.serveStaticWithGzip(req, res, p)
+      },
 
-    this.router.get('/_next/pages/:path*', async (req, res, params) => {
-      const paths = params.path || ['index']
-      const pathname = `/${paths.join('/')}`
-      await this.renderJSON(req, res, pathname)
-    })
+      '/_next/:buildId/pages/:path*': async (req, res, params) => {
+        this.handleBuildId(params.buildId, res)
+        const paths = params.path || ['index']
+        const pathname = `/${paths.join('/')}`
+        await this.renderJSON(req, res, pathname)
+      },
 
-    this.router.get('/_next/:path+', async (req, res, params) => {
-      const p = join(__dirname, '..', 'client', ...(params.path || []))
-      await serveStatic(req, res, p)
-    })
-    this.router.get('/static/:path+', async (req, res, params) => {
-      const p = join(this.dir, 'static', ...(params.path || []))
-      await serveStatic(req, res, p)
-    })
+      '/_next/:path+': async (req, res, params) => {
+        const p = join(__dirname, '..', 'client', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      },
 
-    this.router.get('/:path*', async (req, res) => {
-      const { pathname, query } = parse(req.url, true)
-      await this.render(req, res, pathname, query)
-    })
+      '/static/:path+': async (req, res, params) => {
+        const p = join(this.dir, 'static', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      },
+
+      '/:path*': async (req, res) => {
+        const { pathname, query } = parse(req.url, true)
+        await this.render(req, res, pathname, query)
+      }
+    }
+
+    for (const method of ['GET', 'HEAD']) {
+      for (const p of Object.keys(routes)) {
+        this.router.add(method, p, routes[p])
+      }
+    }
   }
 
   async start (port) {
@@ -110,8 +134,14 @@ export default class Server {
     const fn = this.router.match(req, res)
     if (fn) {
       await fn()
-    } else {
+      return
+    }
+
+    if (req.method === 'GET' || req.method === 'HEAD') {
       await this.render404(req, res)
+    } else {
+      res.statusCode = 501
+      res.end(STATUS_CODES[501])
     }
   }
 
@@ -120,7 +150,7 @@ export default class Server {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    sendHTML(res, html)
+    sendHTML(res, html, req.method)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -148,7 +178,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    sendHTML(res, html)
+    sendHTML(res, html, req.method)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -176,7 +206,7 @@ export default class Server {
   async render404 (req, res) {
     const { pathname, query } = parse(req.url, true)
     res.statusCode = 404
-    this.renderErrorToHTML(null, req, res, pathname, query)
+    this.renderError(null, req, res, pathname, query)
   }
 
   async renderJSON (req, res, page) {
@@ -235,6 +265,31 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  async readBuildId () {
+    const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
+    try {
+      const buildId = await fs.readFile(buildIdPath, 'utf8')
+      return buildId.trim()
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        return '-'
+      } else {
+        throw err
+      }
+    }
+  }
+
+  handleBuildId (buildId, res) {
+    if (this.dev) return
+    if (buildId !== this.renderOpts.buildId) {
+      const errorMessage = 'Build id mismatch!' +
+        'Seems like the server and the client version of files are not the same.'
+      throw new Error(errorMessage)
+    }
+
+    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
   }
 
   getCompilationError (page) {

@@ -8,10 +8,6 @@ export default class Router {
     this.routes = new Map()
   }
 
-  get (path, fn) {
-    this.add('GET', path, fn)
-  }
-
   add (method, path, fn) {
     const routes = this.routes.get(method) || new Set()
     routes.add({ match: route(path), fn })

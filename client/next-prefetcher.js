@@ -16,7 +16,9 @@ self.addEventListener('activate', (e) => {
 })
 
 self.addEventListener('fetch', (e) => {
-  for (const a of e.request.headers.getAll('accept')) {
+  const h = e.request.headers
+  const accept = h.getAll ? h.getAll('accept') : h.get('accept').split(',')
+  for (const a of accept) {
     // bypass Server Sent Events
     if (a === 'text/event-stream') return
   }

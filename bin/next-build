@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import { resolve, join } from 'path'
-import { exists } from 'mz/fs'
+import { existsSync } from 'fs'
 import parseArgs from 'minimist'
 import build from '../server/build'
+import { printAndExit } from '../lib/utils'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -29,21 +30,17 @@ if (argv.help) {
 const dir = resolve(argv._[0] || '.')
 
 // Check if pages dir exists and warn if not
-exists(dir)
-.then(async () => {
-  if (!(await exists(join(dir, 'pages')))) {
-    if (await exists(join(dir, '..', 'pages'))) {
-      console.error('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
-    } else {
-      console.error('> Couldn\'t find a `pages` directory. Please create one under the project root')
-    }
-    process.exit(1)
+if (!existsSync(dir)) {
+  printAndExit(`> No such directory exists as the project root: ${dir}`)
+}
+
+if (!existsSync(join(dir, 'pages'))) {
+  if (existsSync(join(dir, '..', 'pages'))) {
+    printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
   }
-})
-.catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+
+  printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+}
 
 build(dir)
 .catch((err) => {

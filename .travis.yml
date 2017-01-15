@@ -1,14 +1,23 @@
+sudo: required
+dist: trusty
+addons:
+  apt:
+    sources:
+      - google-chrome
+    packages:
+      - google-chrome-stable
 language: node_js
 node_js:
-  - "node"
-  - "6"
   - "4"
+  - "6"
 cache:
-  yarn: true
   directories:
     - node_modules
-install:
-  - curl -o- -L https://yarnpkg.com/install.sh | bash
-  - export PATH=$HOME/.yarn/bin:$PATH
-  - yarn --ignore-engines
+before_install:
+  - rm yarn.lock
+  - export DISPLAY=:99.0
+  - sh -e /etc/init.d/xvfb start
+  - sleep 3
+script:
+  - echo "No need to use npm test since it's done in the install section via 'npm prepublish'"
 after_script: npm run coveralls
