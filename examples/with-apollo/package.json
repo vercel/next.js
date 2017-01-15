@@ -1,0 +1,21 @@
+{
+  "name": "with-apollo",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "apollo-client": "^0.7.3",
+    "graphql": "^0.8.2",
+    "graphql-tag": "^1.2.3",
+    "next": "^2.0.0-beta",
+    "react-apollo": "^0.8.1",
+    "react-redux": "^5.0.2",
+    "redux": "^3.6.0",
+    "redux-thunk": "^2.1.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
