@@ -522,6 +522,45 @@ Here's an example `.babelrc` file:
 }
 ```
 
+### Adding module aliases
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/using-preact">Using Preact</a></li>
+    <li><a href="./examples/using-inferno">Using Inferno</a></li>
+  </ul>
+</details></p>
+
+When you are working with your app, you may want to alias some of your NPM modules for different reasons. Common examples are to support React Native Web and, to support React like frameworks like Preact and Inferno.
+
+Traditionally we do this with webpack's `require.resolve.alias`. But that's not enough for Next.js. We need to do that for node and babel as well. That's where you could use Next.js's built in `alias` configurations.
+
+In the following example, we add "preact" support to the production version of a Next.js app
+
+```js
+// file: next.config.js
+
+module.exports = {
+  alias: function ({ dev, env }) {
+    // For the development version, we'll use React.
+    // Because, it support react hot loading and so on.
+    if (dev) return {}
+
+    // We use preact for the production where it gives us better performance.
+    return {
+      'react': env === 'client' ? 'preact-compat/dist/preact-compat' : 'preact-compat',
+      'react-dom': env === 'client' ? 'preact-compat/dist/preact-compat' : 'preact-compat'
+    }
+  }
+}
+```
+
+Above `alias` function in `next.config.js` gets a context object as it's first argument with following fields:
+
+* dev - Boolean indicating whether it's running in the dev mode or not.
+* env - Indicate the environment app is running (either 'client' or 'server')
+
 ## Production deployment
 
 To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
