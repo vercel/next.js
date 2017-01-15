@@ -1,4 +1,4 @@
-# Next & Apollo Example
+# Apollo Example
 ## Demo
 https://next-apollo-example-wzgauwtkol.now.sh
 
