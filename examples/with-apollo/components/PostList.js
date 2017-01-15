@@ -60,6 +60,7 @@ function PostList (props) {
           display: flex;
         }
         button:before {
+          align-self: center;
           border-color: #fff transparent transparent transparent;
           border-style: solid;
           border-width: 6px 4px 0 4px;

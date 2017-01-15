@@ -1,6 +1,6 @@
 # Apollo Example
 ## Demo
-https://with-apollo-bryasbnsjj.now.sh
+https://with-apollo-oeaizzfwlu.now.sh
 
 ## How to use
 Install it and run
