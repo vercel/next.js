@@ -12,10 +12,7 @@ function PostList (props) {
     return <div>Loading</div>
   }
 
-  let button
-  if (allPosts.length < _allPostsMeta.count) {
-    button = <button onClick={() => loadMorePosts()}>Show More</button>
-  }
+  const areMorePosts = allPosts.length < _allPostsMeta.count
 
   return (
     <section>
@@ -30,8 +27,11 @@ function PostList (props) {
           </li>
         )}
       </ul>
-      {button}
+      {areMorePosts ? <button onClick={() => loadMorePosts()}><span />Show More</button> : ''}
       <style jsx>{`
+        section {
+          padding-bottom: 20px;
+        }
         li {
           display: block;
           margin-bottom: 10px;
@@ -55,18 +55,13 @@ function PostList (props) {
           margin: 0;
           padding: 0;
         }
-        button {
-          align-items: center;
-          display: flex;
-        }
         button:before {
           align-self: center;
-          border-color: #fff transparent transparent transparent;
           border-style: solid;
           border-width: 6px 4px 0 4px;
+          border-color: #ffffff transparent transparent transparent;
           content: "";
           height: 0;
-          margin-right: 5px;
           width: 0;
         }
       `}</style>

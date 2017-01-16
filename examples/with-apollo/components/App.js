@@ -21,10 +21,12 @@ export default (props) => (
         max-width: 650px;
       }
       button {
-        padding: 5px 7px;
+        align-items: center;
         background-color: #22BAD9;
         border: 0;
         color: white;
+        display: flex;
+        padding: 5px 7px;
       }
       button:focus {
         outline: none;
