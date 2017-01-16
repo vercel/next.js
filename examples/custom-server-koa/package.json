@@ -1,0 +1,13 @@
+{
+  "name": "custom-server-koa",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "koa": "^1.2.4",
+    "koa-router": "^5.4.0",
+    "next": "^2.0.0-beta"
+  }
+}
