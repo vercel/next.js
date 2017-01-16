@@ -327,7 +327,7 @@ export default () => (
 When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
 
 ```jsx
-<Link href='/contact' prefetch={false}>Home</Link>
+<Link href='/contact' prefetch={false}><a>Home</a></Link>
 ```
 
 #### Imperatively
