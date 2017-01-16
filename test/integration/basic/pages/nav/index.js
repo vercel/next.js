@@ -13,7 +13,7 @@ export default class extends Component {
   render () {
     return (
       <div className='nav-home'>
-        <Link href='/nav/about'>About</Link>
+        <Link href='/nav/about'><a>About</a></Link>
         <p>This is the home.</p>
         <div id='counter'>
           Counter: {counter}
