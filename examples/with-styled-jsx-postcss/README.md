@@ -5,7 +5,7 @@ This example features how you use PostCSS with styled-jsx via [styled-jsx-postcs
 
 ## How to use
 
-Download the example (or clone the repo)[https://github.com/zeit/next.js.git]:
+Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-styled-jsx-postcss
