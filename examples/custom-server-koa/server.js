@@ -8,8 +8,8 @@ const handle = app.getRequestHandler()
 
 app.prepare()
 .then(() => {
-  const server = new Koa
-  const router = new Router
+  const server = new Koa()
+  const router = new Router()
 
   router.get('/a', function *() {
     app.render(this.req, this.res, '/b', this.query)
