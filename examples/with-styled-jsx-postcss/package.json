@@ -1,0 +1,16 @@
+{
+  "name": "with-styled-jsx-postcss",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^2.0.0-beta",
+    "postcss-cssnext": "^2.9.0",
+    "styled-jsx-postcss": "^0.1.5"
+  },
+  "author": "Giuseppe Gurgone",
+  "license": "MIT"
+}
