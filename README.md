@@ -271,7 +271,7 @@ Here's a list of supported events:
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to property listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
 Router.onRouteChangeStart = (url) => {
