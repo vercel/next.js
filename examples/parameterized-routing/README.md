@@ -1,5 +1,5 @@
 
-# Parametrized routes example
+# Parametrized routes example (dynamic routing)
 
 ## How to use
 
