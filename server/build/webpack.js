@@ -106,7 +106,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
-    .map((p) => join(p))
 
   const mainBabelOptions = {
     babelrc: true,
