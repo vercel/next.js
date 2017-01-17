@@ -411,7 +411,7 @@ Supported options:
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
 ```jsx
-import Document, { Head, Main, NextScript } from `next/document`
+import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
