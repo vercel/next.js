@@ -22,7 +22,11 @@ export default (Component) => (
       }
 
       return {
-        initialState: store.getState(),
+        initialState: {
+          apollo: {
+            data: store.getState().apollo.data
+          }
+        },
         headers
       }
     }
