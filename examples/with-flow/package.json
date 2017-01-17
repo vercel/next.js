@@ -1,0 +1,20 @@
+{
+  "name": "with-flow",
+  "version": "1.0.0",    
+  "license": "MIT",
+  "author": "Jag Reehal",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "flow": "flow; test $? -eq 0 -o $? -eq 2",    
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^2.0.0-beta"
+  },
+  "devDependencies": {
+    "babel-eslint": "^7.1.1",
+    "babel-plugin-transform-flow-strip-types": "^6.21.0",    
+    "flow-bin": "^0.37.4"
+  }
+}
