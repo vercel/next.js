@@ -21,8 +21,14 @@ export default (Component) => (
         await getDataFromTree(app)
       }
 
+      const state = store.getState()
       return {
-        initialState: store.getState(),
+        initialState: {
+          ...state,
+          apollo: {
+            data: state.apollo.data
+          }
+        },
         headers
       }
     }
