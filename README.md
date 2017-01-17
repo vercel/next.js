@@ -271,7 +271,7 @@ Here's a list of supported events:
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to property listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
 Router.onRouteChangeStart = (url) => {
@@ -327,7 +327,7 @@ export default () => (
 When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
 
 ```jsx
-<Link href='/contact' prefetch={false}>Home</Link>
+<Link href='/contact' prefetch={false}><a>Home</a></Link>
 ```
 
 #### Imperatively

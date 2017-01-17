@@ -108,6 +108,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     )
   }
 
+  const nodePathList = (process.env.NODE_PATH || '')
+    .split(process.platform === 'win32' ? ';' : ':')
+    .filter((p) => !!p)
+
   const mainBabelOptions = {
     babelrc: true,
     cacheDirectory: true,
@@ -190,21 +194,19 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       }
     },
     resolve: {
+      alias,
       modules: [
         nextNodeModulesDir,
-        'node_modules'
-      ].concat(
-        (process.env.NODE_PATH || '')
-        .split(process.platform === 'win32' ? ';' : ':')
-        .filter((p) => !!p)
-      ),
-      alias
+        'node_modules',
+        ...nodePathList
+      ]
     },
     resolveLoader: {
       modules: [
         nextNodeModulesDir,
         'node_modules',
-        join(__dirname, 'loaders')
+        join(__dirname, 'loaders'),
+        ...nodePathList
       ]
     },
     plugins,

@@ -22,7 +22,7 @@ if (argv.help) {
       If no directory is provided the current directory will be used.
 
     Options
-      --help, -p      Displays this message
+      --help, -h      Displays this message
   `)
 
   process.exit(0)
