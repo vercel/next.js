@@ -77,6 +77,7 @@
     "source-map-support": "0.4.10",
     "strip-ansi": "3.0.1",
     "styled-jsx": "0.4.3",
+    "update-notifier": "^1.0.3",
     "url": "0.11.0",
     "uuid": "3.0.1",
     "webpack": "2.2.0-rc.6",
@@ -94,6 +95,7 @@
     "cheerio": "^0.22.0",
     "chromedriver": "^2.26.1",
     "coveralls": "2.11.15",
+    "cross-env": "^3.1.4",
     "gulp": "3.9.1",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
@@ -107,8 +109,7 @@
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "wd": "^1.1.1",
-    "webpack-stream": "3.2.0",
-    "cross-env": "^3.1.4"
+    "webpack-stream": "3.2.0"
   },
   "jest": {
     "testEnvironment": "node",

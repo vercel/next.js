@@ -5,8 +5,12 @@ import parseArgs from 'minimist'
 import { existsSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
+import pkg from '../../package.json'
+import updateNotifier from 'update-notifier'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
+
+updateNotifier({pkg}).notify()
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
