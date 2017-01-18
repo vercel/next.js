@@ -26,6 +26,13 @@ app.prepare()
     this.respond = false
   })
 
+  server.use(function *(next) {
+    // Koa doesn't seems to set the default statusCode.
+    // So, this middleware does that
+    this.res.statusCode = 200
+    yield next
+  })
+
   server.use(router.routes())
   server.listen(3000, (err) => {
     if (err) throw err
