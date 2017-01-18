@@ -3,13 +3,13 @@
 
 import React from 'react'
 
-const isWritable = (obj, p) => {
+const getWritableProto = (obj, p) => {
   const descr = Object.getOwnPropertyDescriptor(obj, p)
   if (descr) {
-    return descr.writable
+    return descr.writable ? obj : null
   }
   const proto = Object.getPrototypeOf(obj)
-  return proto ? isWritable(proto, p) : false
+  return proto ? getWritableProto(proto, p) : null
 }
 
 let patched = false
@@ -25,9 +25,10 @@ export default (handleError = () => {}) => {
 
   React.createElement = function (Component, ...rest) {
     if (typeof Component === 'function') {
-      const { prototype } = Component
+      let { prototype } = Component
       if (prototype && prototype.render) {
-        if (isWritable(prototype, 'render')) {
+        prototype = getWritableProto(prototype, 'render')
+        if (prototype) {
           prototype.render = wrapRender(prototype.render)
         }
       } else {
