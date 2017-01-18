@@ -10,9 +10,7 @@ import updateNotifier from 'update-notifier'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
-if (process.env.NODE_ENV === 'development') {
-  updateNotifier({pkg}).notify()
-}
+updateNotifier({pkg}).notify()
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
