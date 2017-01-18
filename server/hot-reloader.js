@@ -5,9 +5,11 @@ import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import readPage from './read-page'
+import getConfig from './config'
 
 export default class HotReloader {
   constructor (dir, { quiet } = {}) {
+    this.config = getConfig(dir)
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -130,7 +132,7 @@ export default class HotReloader {
       }
     } : {}
 
-    this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
+    let hotReloaderConfig = {
       publicPath: '/_webpack/',
       noInfo: true,
       quiet: true,
@@ -142,7 +144,14 @@ export default class HotReloader {
         ]
       },
       ...windowsSettings
-    })
+    }
+
+    if (this.config.hotReloader) {
+      console.log('> Using "hotReloader" config function defined in next.config.js.')
+      hotReloaderConfig = this.config.hotReloader(hotReloaderConfig)
+    }
+
+    this.webpackDevMiddleware = webpackDevMiddleware(compiler, hotReloaderConfig)
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
 

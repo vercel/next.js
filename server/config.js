@@ -5,6 +5,7 @@ const cache = new Map()
 
 const defaultConfig = {
   webpack: null,
+  hotReloader: null,
   poweredByHeader: true
 }
 
