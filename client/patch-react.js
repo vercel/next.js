@@ -3,6 +3,15 @@
 
 import React from 'react'
 
+const isWritable = (obj, p) => {
+  const descr = Object.getOwnPropertyDescriptor(obj, p)
+  if (descr) {
+    return descr.writable
+  }
+  const proto = Object.getPrototypeOf(obj)
+  return proto ? isWritable(proto, p) : false
+}
+
 let patched = false
 
 export default (handleError = () => {}) => {
@@ -18,7 +27,9 @@ export default (handleError = () => {}) => {
     if (typeof Component === 'function') {
       const { prototype } = Component
       if (prototype && prototype.render) {
-        prototype.render = wrapRender(prototype.render)
+        if (isWritable(prototype, 'render')) {
+          prototype.render = wrapRender(prototype.render)
+        }
       } else {
         // stateless component
         Component = wrapRender(Component)
