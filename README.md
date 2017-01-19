@@ -271,7 +271,7 @@ Here's a list of supported events:
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to property listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
 Router.onRouteChangeStart = (url) => {
@@ -327,7 +327,7 @@ export default () => (
 When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
 
 ```jsx
-<Link href='/contact' prefetch={false}>Home</Link>
+<Link href='/contact' prefetch={false}><a>Home</a></Link>
 ```
 
 #### Imperatively
@@ -356,6 +356,8 @@ export default ({ url }) => (
   <ul>
     <li><a href="./examples/custom-server">Basic custom server</a></li>
     <li><a href="./examples/custom-server-express">Express integration</a></li>
+    <li><a href="./examples/custom-server-hapi">Hapi integration</a></li>
+    <li><a href="./examples/custom-server-koa">Koa integration</a></li>
     <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="./examples/ssr-caching">SSR caching</a></li>
   </ul>
@@ -411,7 +413,7 @@ Supported options:
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
 
 ```jsx
-import Document, { Head, Main, NextScript } from `next/document`
+import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {

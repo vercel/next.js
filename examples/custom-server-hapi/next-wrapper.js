@@ -1,34 +1,8 @@
-const { Readable } = require('stream')
+const pathWrapper = (app, pathName, opts) => ({ raw, query }, hapiReply) =>
+app.renderToHTML(raw.req, raw.res, pathName, query, opts)
+.then(hapiReply)
 
-function pathWrapper (app, pathName, opts) {
-  return function (hapiRequest, hapiReply) {
-    return new Promise((resolve, reject) => {
-      app.render(hapiRequest.raw.req, hapiRequest.raw.res, pathName, hapiRequest.query, opts)
-        .catch(error => {
-          reject(error)
-        })
-        .then(() => {
-          return hapiReply(new Readable().wrap(hapiRequest.raw.res))
-        })
-    })
-  }
-}
+const defaultHandlerWrapper = app => ({ raw }, hapiReply) =>
+app.run(raw.req, raw.res)
 
-function defaultHandlerWrapper (app) {
-  return function (hapiRequest, hapiReply) {
-    return new Promise((resolve, reject) => {
-      app.run(hapiRequest.raw.req, hapiRequest.raw.res)
-        .catch(error => {
-          reject(error)
-        })
-        .then(() => {
-          return hapiReply(new Readable().wrap(hapiRequest.raw.res))
-        })
-    })
-  }
-}
-
-module.exports = {
-  pathWrapper,
-  defaultHandlerWrapper
-}
+module.exports = { pathWrapper, defaultHandlerWrapper }
