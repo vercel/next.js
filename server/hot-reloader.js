@@ -146,9 +146,9 @@ export default class HotReloader {
       ...windowsSettings
     }
 
-    if (this.config.hotReloader) {
+    if (this.config.webpackDevMiddleware) {
       console.log('> Using "hotReloader" config function defined in next.config.js.')
-      hotReloaderConfig = this.config.hotReloader(hotReloaderConfig)
+      hotReloaderConfig = this.config.webpackDevMiddleware(hotReloaderConfig)
     }
 
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, hotReloaderConfig)
