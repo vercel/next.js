@@ -132,7 +132,7 @@ export default class HotReloader {
       }
     } : {}
 
-    let hotReloaderConfig = {
+    let webpackDevMiddlewareConfig = {
       publicPath: '/_webpack/',
       noInfo: true,
       quiet: true,
@@ -147,11 +147,11 @@ export default class HotReloader {
     }
 
     if (this.config.webpackDevMiddleware) {
-      console.log('> Using "hotReloader" config function defined in next.config.js.')
-      hotReloaderConfig = this.config.webpackDevMiddleware(hotReloaderConfig)
+      console.log('> Using "webpackDevMiddleware" config function defined in next.config.js.')
+      webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(hotReloaderConfig)
     }
 
-    this.webpackDevMiddleware = webpackDevMiddleware(compiler, hotReloaderConfig)
+    this.webpackDevMiddleware = webpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
 
