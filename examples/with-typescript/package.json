@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "dev": "$(npm bin)/concurrently \"tsc --watch\" \"next \"",
+    "postinstall": "$(npm bin)/typings install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "next": "^1.2.3",
+    "react": "^15.4.2",
+    "ts-loader": "^1.3.3",
+    "typescript": "^2.1.5",
+    "typings": "*"
+  },
+  "devDependencies": {
+    "babel-preset-react": "^6.22.0",
+    "concurrently": "^3.1.0"
+  }
+}
