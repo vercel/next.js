@@ -1,11 +1,7 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-        "target": "es6",
-        "noImplicitAny": false,
-        "sourceMap": false,
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
+        "target": "es2015",
         "jsx": "react"
     }
 }
