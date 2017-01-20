@@ -410,7 +410,7 @@ Supported options:
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, extend the  `Document` class within your own `./Pages/_document.js`:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./Pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
 import Document, { Head, Main, NextScript } from 'next/document'
