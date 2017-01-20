@@ -1,0 +1,15 @@
+{
+  "name": "with-es6-npm-module-pages",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@kadira/react-button": "^1.0.2",
+    "next": "^2.0.0-beta"
+  },
+  "author": "",
+  "license": "ISC"
+}

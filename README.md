@@ -524,6 +524,36 @@ Here's an example `.babelrc` file:
 }
 ```
 
+### Transpile NPM modules
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-es6-npm-module-pages">Transpile NPM modules</a></li></ul>
+</details></p>
+
+By default, Next.js won't transpile any NPM modules installed into your app's `node_modules` directory.
+But you could ask to do so. With that, you could publish modules(specially component libraries) into NPM without transpiling. Then you can ask Next.js to do the transpiling.
+
+This will simplify your workflow on creating sharable components libraries and use those across teams. Additionally, you'll get chance to use the new Webpack features like tree-shaking.
+
+**Step to do that:**
+
+Add a field called `transpileModules` with an array of regexp patterns like this:
+
+```js
+module.exports = {
+  transpileModules : [
+    /react-button/
+  ]
+}
+```
+
+Here Next.js checks every imported module with above patterns and transpile them if matched. By default it uses `next/babel` preset, but you can use a `.babelrc` file to customize it as you want.
+
+In the above example, Next.js will transpile any module inside the `node_modules` directory which has "react-button" in it's pathname.
+
+> Note: Currently, Next.js only supports modules installed into `node_modules`. So, transpiling modules installed with `npm link <my-comp-name>` doesn't work well.
+
 ## Production deployment
 
 To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
