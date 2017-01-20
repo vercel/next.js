@@ -44,7 +44,7 @@
     "accepts": "1.3.3",
     "ansi-html": "0.0.7",
     "babel-core": "6.22.1",
-    "babel-generator": "6.21.0",
+    "babel-generator": "6.22.0",
     "babel-loader": "6.2.10",
     "babel-plugin-module-resolver": "2.4.0",
     "babel-plugin-react-require": "^3.0.0",
