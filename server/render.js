@@ -9,6 +9,7 @@ import requireModule from './require'
 import resolvePath from './resolve'
 import readPage from './read-page'
 import { Router } from '../lib/router'
+import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
@@ -52,7 +53,7 @@ async function doRender (req, res, pathname, query, {
     component,
     errorComponent
   ] = await Promise.all([
-    Component.getInitialProps ? Component.getInitialProps(ctx) : {},
+    loadGetInitialProps(Component, ctx),
     readPage(join(dir, '.next', 'bundles', 'pages', page)),
     readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
   ])
@@ -80,7 +81,7 @@ async function doRender (req, res, pathname, query, {
     return { html, head }
   }
 
-  const docProps = await Document.getInitialProps({ ...ctx, renderPage })
+  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
 
   const doc = createElement(Document, {
     __NEXT_DATA__: {
