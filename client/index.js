@@ -20,7 +20,7 @@ const {
 
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
-let lastAppProps = {}
+let lastAppProps
 
 export const router = createRouter(pathname, query, {
   Component,
