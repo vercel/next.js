@@ -48,7 +48,7 @@
     "babel-loader": "6.2.10",
     "babel-plugin-module-resolver": "2.4.0",
     "babel-plugin-react-require": "^3.0.0",
-    "babel-plugin-transform-async-to-generator": "6.16.0",
+    "babel-plugin-transform-async-to-generator": "6.22.0",
     "babel-plugin-transform-class-properties": "6.22.0",
     "babel-plugin-transform-object-rest-spread": "6.22.0",
     "babel-plugin-transform-runtime": "6.22.0",
