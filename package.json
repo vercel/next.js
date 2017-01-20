@@ -53,7 +53,7 @@
     "babel-plugin-transform-object-rest-spread": "6.20.2",
     "babel-plugin-transform-runtime": "6.15.0",
     "babel-preset-es2015": "6.18.0",
-    "babel-preset-react": "6.16.0",
+    "babel-preset-react": "6.22.0",
     "babel-runtime": "6.22.0",
     "case-sensitive-paths-webpack-plugin": "1.1.4",
     "cross-spawn": "5.0.1",
