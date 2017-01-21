@@ -55,6 +55,12 @@ export default function ({ app }, suiteName, render) {
       expect(link.text()).toBe('About')
     })
 
+    test('getInitialProps resolves to null', async () => {
+      const $ = await get$('/empty-get-initial-props')
+      const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+    })
+
     test('error', async () => {
       const $ = await get$('/error')
       expect($('pre').text()).toMatch(/This is an expected error/)
