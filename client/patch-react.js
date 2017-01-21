@@ -29,7 +29,7 @@ export default (handleError = () => {}) => {
             originalComponentWillMount.apply(this, args)
           }
 
-          this.render = wrapRender(this.render, this)
+          this.render = wrapRender(this.render)
         }
       } else {
         // stateless component
@@ -50,14 +50,14 @@ export default (handleError = () => {}) => {
     return forceUpdate.apply(this, args)
   }
 
-  function wrapRender (render, context) {
+  function wrapRender (render) {
     if (render.__wrapped) {
       return render.__wrapped
     }
 
     const _render = function (...args) {
       try {
-        return render.apply(context || this, args)
+        return render.apply(this, args)
       } catch (err) {
         handleError(err)
         return null
