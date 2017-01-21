@@ -3,6 +3,10 @@
 
 import React from 'react'
 
+/**
+ * Traverses the prototype chain, returning the prototype object
+ * on which the property is defined.
+ */
 const getWritableProto = (obj, p) => {
   const descr = Object.getOwnPropertyDescriptor(obj, p)
   if (descr) {
@@ -27,6 +31,9 @@ export default (handleError = () => {}) => {
     if (typeof Component === 'function') {
       let { prototype } = Component
       if (prototype && prototype.render) {
+        /**
+         * Get the prototype object on which `render` is defined.
+         */
         prototype = getWritableProto(prototype, 'render')
         if (prototype) {
           prototype.render = wrapRender(prototype.render)
