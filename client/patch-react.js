@@ -19,6 +19,18 @@ export default (handleError = () => {}) => {
       const { prototype } = Component
       if (prototype && prototype.render) {
         prototype.render = wrapRender(prototype.render)
+      } else if (prototype && prototype.constructor) {
+        // Still a React component instance, but there's no render method in
+        // prototype. This happens when the render method created with class-properties.
+        // With this fix, we'll wrap the render method in runtime when the component initialized
+        const originalComponentWillMount = prototype.componentWillMount
+        prototype.componentWillMount = function (...args) {
+          if (originalComponentWillMount) {
+            originalComponentWillMount.apply(this, args)
+          }
+
+          this.render = wrapRender(this.render, this)
+        }
       } else {
         // stateless component
         Component = wrapRender(Component)
@@ -38,14 +50,14 @@ export default (handleError = () => {}) => {
     return forceUpdate.apply(this, args)
   }
 
-  function wrapRender (render) {
+  function wrapRender (render, context) {
     if (render.__wrapped) {
       return render.__wrapped
     }
 
     const _render = function (...args) {
       try {
-        return render.apply(this, args)
+        return render.apply(context || this, args)
       } catch (err) {
         handleError(err)
         return null
@@ -54,7 +66,6 @@ export default (handleError = () => {}) => {
 
     // copy all properties
     Object.assign(_render, render)
-
     render.__wrapped = _render.__wrapped = _render
 
     return _render
