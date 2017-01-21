@@ -17,7 +17,9 @@ function PostList (props) {
   return (
     <section>
       <ul>
-        {allPosts.map((post, index) =>
+        {allPosts
+        .sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt))
+        .map((post, index) =>
           <li key={post.id}>
             <div>
               <span>{index + 1}. </span>
@@ -71,11 +73,12 @@ function PostList (props) {
 
 const allPosts = gql`
   query allPosts($first: Int!, $skip: Int!) {
-    allPosts(orderBy: votes_DESC, first: $first, skip: $skip) {
+    allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
       id
       title
       votes
       url
+      createdAt
     },
     _allPostsMeta {
       count

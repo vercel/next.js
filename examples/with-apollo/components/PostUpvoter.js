@@ -12,6 +12,9 @@ function PostUpvoter (props) {
           border: 1px solid #e4e4e4;
           color: #000;
         }
+        button:active {
+          background-color: transparent;
+        }
         button:before {
           align-self: center;
           border-color: transparent transparent #000000 transparent;

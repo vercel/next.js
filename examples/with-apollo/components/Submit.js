@@ -51,6 +51,7 @@ const createPost = gql`
       title
       votes
       url
+      createdAt
     }
   }
 `

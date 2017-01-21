@@ -28,6 +28,10 @@ export default (props) => (
         display: flex;
         padding: 5px 7px;
       }
+      button:active {
+        background-color: #1B9DB7;
+        transition: background-color .3s
+      }
       button:focus {
         outline: none;
       }
