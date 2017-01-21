@@ -5,6 +5,7 @@ import { rehydrate } from '../lib/css'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
+import { loadGetInitialProps } from '../lib/utils'
 
 const {
   __NEXT_DATA__: {
@@ -51,7 +52,7 @@ export async function render (props, onError = renderErrorComponent) {
 
 async function renderErrorComponent (err) {
   const { pathname, query } = router
-  const props = await getInitialProps(ErrorComponent, { err, pathname, query })
+  const props = await loadGetInitialProps(ErrorComponent, { err, pathname, query })
   await doRender({ Component: ErrorComponent, props, err })
 }
 
@@ -61,7 +62,7 @@ async function doRender ({ Component, props, err }) {
     lastAppProps.Component === ErrorComponent) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
     const { pathname, query } = router
-    props = await getInitialProps(Component, { err, pathname, query })
+    props = await loadGetInitialProps(Component, { err, pathname, query })
   }
 
   Component = Component || lastAppProps.Component
@@ -70,8 +71,4 @@ async function doRender ({ Component, props, err }) {
   const appProps = { Component, props, err, router, headManager }
   lastAppProps = appProps
   ReactDOM.render(createElement(App, appProps), container)
-}
-
-function getInitialProps (Component, ctx) {
-  return Component.getInitialProps ? Component.getInitialProps(ctx) : {}
 }
