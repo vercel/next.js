@@ -21,12 +21,12 @@ export default (handleError = () => {}) => {
       // assumes it's a class component if render method exists.
       const isClassComponent = Boolean(prototype && prototype.render) ||
         // subclass of React.Component or PureComponent with no render method.
+        // There's no render method in prototype
+        // when it's created with class-properties.
         prototype instanceof React.Component ||
         prototype instanceof React.PureComponent
 
       if (isClassComponent) {
-        // There's no render method in prototype
-        // when it's created with class-properties.
         if (prototype.render) {
           prototype.render = wrapRender(prototype.render)
         }
