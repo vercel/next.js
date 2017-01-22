@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "flow": "flow; test $? -eq 0 -o $? -eq 2",    
+    "flow": "flow",    
     "start": "next start"
   },
   "dependencies": {
