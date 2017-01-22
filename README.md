@@ -639,6 +639,13 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 </details>
 
 <details>
+  <summary>Can I use it with GraphQL?</summary>
+
+Yes! Here's an example with [Apollo](./examples/with-apollo).
+
+</details>
+
+<details>
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
