@@ -19,7 +19,7 @@ export default (handleError = () => {}) => {
       const { prototype } = Component
 
       // assumes it's a class component if render method exists.
-      const isClassComponent = !!(prototype && prototype.render) ||
+      const isClassComponent = Boolean(prototype && prototype.render) ||
         // subclass of React.Component or PureComponent with no render method.
         prototype instanceof React.Component ||
         prototype instanceof React.PureComponent
