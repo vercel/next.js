@@ -45,7 +45,6 @@ export default graphql(upvotePost, {
       variables: { id, votes },
       optimisticResponse: {
         updatePost: {
-          // Note that we can access the props of the container at `ownProps`
           id: ownProps.id,
           votes: ownProps.votes + 1
         }

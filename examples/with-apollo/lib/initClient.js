@@ -5,12 +5,7 @@ export const initClient = (headers) => {
   const client = new ApolloClient({
     ssrMode: IS_SERVER,
     headers,
-    dataIdFromObject: (result) => {
-      if (result.id) {
-        return result.id
-      }
-      return null
-    },
+    dataIdFromObject: result => result.id || null,
     networkInterface: createNetworkInterface({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn',
       opts: {
@@ -20,10 +15,9 @@ export const initClient = (headers) => {
   })
   if (IS_SERVER) {
     return client
-  } else {
-    if (!window.__APOLLO_CLIENT__) {
-      window.__APOLLO_CLIENT__ = client
-    }
-    return window.__APOLLO_CLIENT__
   }
+  if (!window.APOLLO_CLIENT) {
+    window.APOLLO_CLIENT = client
+  }
+  return window.APOLLO_CLIENT
 }

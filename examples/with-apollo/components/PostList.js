@@ -4,20 +4,17 @@ import PostUpvoter from './PostUpvoter'
 
 const POSTS_PER_PAGE = 10
 
-// The data prop, which is provided by the HOC below contains
-// a `loading` key while the query is in flight
 function PostList (props) {
-  const { data: { allPosts, loading, _allPostsMeta }, loadMorePosts } = props
-  if (loading) {
+  if (props.data.loading) {
     return <div>Loading</div>
   }
 
-  const areMorePosts = allPosts.length < _allPostsMeta.count
+  const areMorePosts = props.data.allPosts.length < props.data._allPostsMeta.count
 
   return (
     <section>
       <ul>
-        {allPosts
+        {props.data.allPosts
         .sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt))
         .map((post, index) =>
           <li key={post.id}>
@@ -29,7 +26,7 @@ function PostList (props) {
           </li>
         )}
       </ul>
-      {areMorePosts ? <button onClick={() => loadMorePosts()}><span />Show More</button> : ''}
+      {areMorePosts ? <button onClick={() => props.loadMorePosts()}><span />Show More</button> : ''}
       <style jsx>{`
         section {
           padding-bottom: 20px;
@@ -87,14 +84,14 @@ const allPosts = gql`
 `
 
 // The `graphql` wrapper executes a GraphQL query and makes the results
-// available on the `data` prop of the wrapped component (PostList here)
+// available on the `data` prop of the wrapped component (PostList)
 export default graphql(allPosts, {
-  options: (ownProps) => ({
+  options: {
     variables: {
       skip: 0,
       first: POSTS_PER_PAGE
     }
-  }),
+  },
   props: ({ data }) => ({
     data,
     loadMorePosts: () => {

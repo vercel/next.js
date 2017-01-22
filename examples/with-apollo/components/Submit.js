@@ -10,11 +10,13 @@ function Submit (props) {
       window.alert('Both fields are required.')
       return false
     }
+
     // prepend http if missing from url
     if (!url.match(/^[a-zA-Z]+:\/\//)) {
       url = `http://${url}`
     }
     props.createPost(title, url)
+
     // reset form
     e.target.elements.title.value = ''
     e.target.elements.url.value = ''
@@ -57,7 +59,7 @@ const createPost = gql`
 `
 
 export default graphql(createPost, {
-  props: ({ ownProps, mutate }) => ({
+  props: ({ mutate }) => ({
     createPost: (title, url) => mutate({
       variables: { title, url },
       updateQueries: {
