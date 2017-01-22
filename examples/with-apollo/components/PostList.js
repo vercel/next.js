@@ -4,17 +4,17 @@ import PostUpvoter from './PostUpvoter'
 
 const POSTS_PER_PAGE = 10
 
-function PostList (props) {
-  if (props.data.loading) {
+function PostList ({ data: { allPosts, loading, _allPostsMeta }, loadMorePosts }) {
+  if (loading) {
     return <div>Loading</div>
   }
 
-  const areMorePosts = props.data.allPosts.length < props.data._allPostsMeta.count
+  const areMorePosts = allPosts.length < _allPostsMeta.count
 
   return (
     <section>
       <ul>
-        {props.data.allPosts
+        {allPosts
         .sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt))
         .map((post, index) =>
           <li key={post.id}>
@@ -26,7 +26,7 @@ function PostList (props) {
           </li>
         )}
       </ul>
-      {areMorePosts ? <button onClick={() => props.loadMorePosts()}><span />Show More</button> : ''}
+      {areMorePosts ? <button onClick={() => loadMorePosts()}><span />Show More</button> : ''}
       <style jsx>{`
         section {
           padding-bottom: 20px;

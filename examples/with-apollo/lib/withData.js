@@ -1,7 +1,6 @@
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import React from 'react'
 import 'isomorphic-fetch'
-import { IS_SERVER } from './exenv'
 import { initClient } from './initClient'
 import { initStore } from './initStore'
 
@@ -12,7 +11,7 @@ export default (Component) => (
       const client = initClient(headers)
       const store = initStore(client, client.initialState)
 
-      if (IS_SERVER) {
+      if (!process.browser) {
         const app = (
           <ApolloProvider client={client} store={store}>
             <Component url={{ query: ctx.query, pathname: ctx.pathname }} />

@@ -1,13 +1,13 @@
 import Link from 'next/prefetch'
 
-export default (props) => (
+export default ({ pathname }) => (
   <header>
     <Link href='/'>
-      <a className={props.pathname === '/' && 'is-active'}>Home</a>
+      <a className={pathname === '/' && 'is-active'}>Home</a>
     </Link>
 
     <Link href='/about'>
-      <a className={props.pathname === '/about' && 'is-active'}>About</a>
+      <a className={pathname === '/about' && 'is-active'}>About</a>
     </Link>
 
     <style jsx>{`

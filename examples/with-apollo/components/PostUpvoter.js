@@ -2,10 +2,10 @@ import React from 'react'
 import gql from 'graphql-tag'
 import { graphql } from 'react-apollo'
 
-function PostUpvoter (props) {
+function PostUpvoter ({ upvote, votes, id }) {
   return (
-    <button onClick={() => props.upvote(props.id, props.votes + 1)}>
-      {props.votes}
+    <button onClick={() => upvote(id, votes + 1)}>
+      {votes}
       <style jsx>{`
         button {
           background-color: transparent;

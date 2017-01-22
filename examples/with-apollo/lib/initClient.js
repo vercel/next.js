@@ -1,9 +1,8 @@
 import ApolloClient, { createNetworkInterface } from 'apollo-client'
-import { IS_SERVER } from './exenv'
 
 export const initClient = (headers) => {
   const client = new ApolloClient({
-    ssrMode: IS_SERVER,
+    ssrMode: !process.browser,
     headers,
     dataIdFromObject: result => result.id || null,
     networkInterface: createNetworkInterface({
@@ -13,7 +12,7 @@ export const initClient = (headers) => {
       }
     })
   })
-  if (IS_SERVER) {
+  if (!process.browser) {
     return client
   }
   if (!window.APOLLO_CLIENT) {

@@ -1,11 +1,13 @@
 import gql from 'graphql-tag'
 import { graphql } from 'react-apollo'
 
-function Submit (props) {
+function Submit ({ createPost }) {
   function handleSubmit (e) {
     e.preventDefault()
+
     let title = e.target.elements.title.value
     let url = e.target.elements.url.value
+
     if (title === '' || url === '') {
       window.alert('Both fields are required.')
       return false
@@ -15,7 +17,8 @@ function Submit (props) {
     if (!url.match(/^[a-zA-Z]+:\/\//)) {
       url = `http://${url}`
     }
-    props.createPost(title, url)
+
+    createPost(title, url)
 
     // reset form
     e.target.elements.title.value = ''
