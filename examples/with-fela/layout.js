@@ -3,6 +3,6 @@ import { getRenderer, getMountNode } from './fela'
 
 export default ({ children }) => (
   <Provider renderer={getRenderer()} mountNode={getMountNode()}>
-      {children}
+    {children}
   </Provider>
 )
