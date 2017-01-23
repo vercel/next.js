@@ -99,7 +99,7 @@
     "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.1",
     "gulp-notify": "2.2.0",
-    "husky": "0.13.0",
+    "husky": "0.13.1",
     "jest-cli": "^18.0.0",
     "node-fetch": "^1.6.3",
     "nyc": "^10.0.0",
