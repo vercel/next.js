@@ -10,6 +10,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 ## How to use
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/zeit/next.js.svg)](https://greenkeeper.io/)
+
 Install it:
 
 ```bash
