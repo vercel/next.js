@@ -1,7 +1,6 @@
-import React = require('react')
+import * as React from 'react'
 
-const MyComponent = props => <div>
-  <p>This is my component</p>
-</div>
-
-export default MyComponent
+export default () =>
+  <div>
+    <p>This is my component</p>
+  </div>

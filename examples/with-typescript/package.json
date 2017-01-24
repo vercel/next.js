@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "dev": "concurrently \"tsc --watch\" \"next\""
+    "dev": "concurrently \"tsc --watch\" next"
   },
   "dependencies": {
     "next": "latest"
