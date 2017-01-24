@@ -410,9 +410,10 @@ Supported options:
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
+// ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
@@ -635,6 +636,13 @@ On the client side, we have a parameter call `as` on `<Link>` that _decorates_ t
 <summary>How do I fetch data?</summary>
 
 It’s up to you. `getInitialProps` is an `async` function (or a regular function that returns a `Promise`). It can retrieve data from anywhere.
+</details>
+
+<details>
+  <summary>Can I use it with GraphQL?</summary>
+
+Yes! Here's an example with [Apollo](./examples/with-apollo).
+
 </details>
 
 <details>
