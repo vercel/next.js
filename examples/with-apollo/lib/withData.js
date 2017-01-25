@@ -11,10 +11,15 @@ export default (Component) => (
       const client = initClient(headers)
       const store = initStore(client, client.initialState)
 
+      const props = {
+        url: { query: ctx.query, pathname: ctx.pathname },
+        ...await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
+      }
+
       if (!process.browser) {
         const app = (
           <ApolloProvider client={client} store={store}>
-            <Component url={{ query: ctx.query, pathname: ctx.pathname }} />
+            <Component {...props} />
           </ApolloProvider>
         )
         await getDataFromTree(app)
@@ -28,7 +33,8 @@ export default (Component) => (
             data: state.apollo.data
           }
         },
-        headers
+        headers,
+        ...props
       }
     }
 
@@ -41,7 +47,7 @@ export default (Component) => (
     render () {
       return (
         <ApolloProvider client={this.client} store={this.store}>
-          <Component url={this.props.url} />
+          <Component {...this.props} />
         </ApolloProvider>
       )
     }
