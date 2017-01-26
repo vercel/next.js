@@ -94,8 +94,10 @@ export default () => (
 #### CSS-in-JS
 
 <p><details>
-  <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li></ul>
+  <summary>
+    <b>Examples</b>
+    </summary>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -408,11 +410,13 @@ Supported options:
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
+  <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
+// ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
