@@ -70,7 +70,7 @@ export default graphql(createPost, {
           const newPost = mutationResult.data.createPost
           return Object.assign({}, previousResult, {
             // Append the new post
-            allPosts: [...previousResult.allPosts, newPost]
+            allPosts: [newPost, ...previousResult.allPosts]
           })
         }
       }

@@ -14,9 +14,7 @@ function PostList ({ data: { allPosts, loading, _allPostsMeta }, loadMorePosts }
   return (
     <section>
       <ul>
-        {allPosts
-        .sort((x, y) => new Date(y.createdAt) - new Date(x.createdAt))
-        .map((post, index) =>
+        {allPosts.map((post, index) =>
           <li key={post.id}>
             <div>
               <span>{index + 1}. </span>
