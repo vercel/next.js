@@ -98,7 +98,7 @@
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
     "gulp-cached": "1.1.1",
-    "gulp-notify": "2.2.0",
+    "gulp-notify": "3.0.0",
     "husky": "0.13.1",
     "jest-cli": "^18.0.0",
     "node-fetch": "^1.6.3",
