@@ -76,7 +76,7 @@
     "send": "0.14.1",
     "source-map-support": "0.4.10",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "0.5.1",
+    "styled-jsx": "0.5.2",
     "url": "0.11.0",
     "uuid": "3.0.1",
     "webpack": "2.2.0-rc.6",
