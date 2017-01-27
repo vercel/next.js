@@ -26,14 +26,23 @@ export default (handleError = () => {}) => {
         prototype instanceof React.Component ||
         prototype instanceof React.PureComponent
 
+      let dynamicWrapper = withWrapOwnRender
+
       if (isClassComponent) {
         if (prototype.render) {
-          prototype.render = wrapRender(prototype.render)
+          // Sometimes render method is created with only a getter.
+          // In that case we can't override it with a prototype. We need to
+          // do it dynamically.
+          if (canOverrideRender(prototype)) {
+            prototype.render = wrapRender(prototype.render)
+          } else {
+            dynamicWrapper = withWrapRenderAlways
+          }
         }
 
         // wrap the render method in runtime when the component initialized
         // for class-properties.
-        Component = wrap(Component, withWrapOwnRender)
+        Component = wrap(Component, dynamicWrapper)
       } else {
         // stateless component
         Component = wrapRender(Component)
@@ -73,6 +82,14 @@ export default (handleError = () => {}) => {
     }
     return result
   }
+
+  function withWrapRenderAlways (fn, ...args) {
+    const result = fn.apply(this, args)
+    if (this.render) {
+      this.render = wrapRender(this.render)
+    }
+    return result
+  }
 }
 
 function wrap (fn, around) {
@@ -92,4 +109,18 @@ function wrap (fn, around) {
   _fn.__wrapped = fn.__wrapped = _fn
 
   return _fn
+}
+
+function canOverrideRender (prototype) {
+  const original = prototype.render
+  let overridable = true
+
+  try {
+    prototype.render = 'Something'
+    prototype.render = original
+  } catch (ex) {
+    overridable = false
+  }
+
+  return overridable
 }
