@@ -21,7 +21,9 @@ and add a script to your package.json like this:
 ```json
 {
   "scripts": {
-    "dev": "next"
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
   }
 }
 ```

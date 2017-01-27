@@ -83,6 +83,8 @@ async function doRender (req, res, pathname, query, {
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
 
+  if (res.finished) return
+
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       component,
