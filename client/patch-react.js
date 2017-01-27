@@ -112,15 +112,8 @@ function wrap (fn, around) {
 }
 
 function canOverrideRender (prototype) {
-  const original = prototype.render
-  let overridable = true
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, 'render')
+  if (!descriptor) return true
 
-  try {
-    prototype.render = 'Something'
-    prototype.render = original
-  } catch (ex) {
-    overridable = false
-  }
-
-  return overridable
+  return descriptor.writable
 }
