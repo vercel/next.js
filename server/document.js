@@ -82,7 +82,6 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-
     const { buildId, assetPrefix } = __NEXT_DATA__
 
     return <div>
