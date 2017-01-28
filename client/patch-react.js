@@ -3,6 +3,19 @@
 
 import React from 'react'
 
+/**
+ * Traverses the prototype chain, returning the prototype object
+ * on which the property is defined.
+ */
+const getWritableProto = (obj, p) => {
+  const descr = Object.getOwnPropertyDescriptor(obj, p)
+  if (descr) {
+    return descr.writable ? obj : null
+  }
+  const proto = Object.getPrototypeOf(obj)
+  return proto ? getWritableProto(proto, p) : null
+}
+
 let patched = false
 
 export default (handleError = () => {}) => {
@@ -16,7 +29,7 @@ export default (handleError = () => {}) => {
 
   React.createElement = function (Component, ...rest) {
     if (typeof Component === 'function') {
-      const { prototype } = Component
+      let { prototype } = Component
 
       // assumes it's a class component if render method exists.
       const isClassComponent = Boolean(prototype && prototype.render) ||
@@ -28,7 +41,13 @@ export default (handleError = () => {}) => {
 
       if (isClassComponent) {
         if (prototype.render) {
-          prototype.render = wrapRender(prototype.render)
+          /**
+           * Get the prototype object on which `render` is defined.
+           */
+          prototype = getWritableProto(prototype, 'render')
+          if (prototype) {
+            prototype.render = wrapRender(prototype.render)
+          }
         }
 
         // wrap the render method in runtime when the component initialized
