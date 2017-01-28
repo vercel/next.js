@@ -100,9 +100,11 @@ export default class Server {
       '/static/:path+': async (req, res, params) => {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
-      },
+      }
+    }
 
-      '/:path*': async (req, res) => {
+    if (this.config.useFileSystemPublicRoutes) {
+      routes['/:path*'] = async (req, res) => {
         const { pathname, query } = parse(req.url, true)
         await this.render(req, res, pathname, query)
       }
