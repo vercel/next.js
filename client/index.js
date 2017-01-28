@@ -66,10 +66,12 @@ async function doRender ({ Component, props, err }) {
     props = await loadGetInitialProps(Component, { err, pathname, query })
   }
 
-  if (Component === ErrorComponent) {
+  // Remember scroll when ErrorComponent is being rendered to later restore it
+  if (!lastScroll && Component === ErrorComponent) {
+    const { pageXOffset, pageYOffset } = window
     lastScroll = {
-      x: window.pageXOffset,
-      y: window.pageYOffset
+      x: pageXOffset,
+      y: pageYOffset
     }
   }
 
@@ -83,7 +85,7 @@ async function doRender ({ Component, props, err }) {
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
     // Restore scroll after ErrorComponent was replaced with a page component by HMR
-    const {x, y} = lastScroll
+    const { x, y } = lastScroll
     window.scroll(x, y)
     lastScroll = false
   }
