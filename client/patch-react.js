@@ -16,24 +16,37 @@ export default (handleError = () => {}) => {
 
   React.createElement = function (Component, ...rest) {
     if (typeof Component === 'function') {
+      // We need to get the prototype which has the render method.
+      // It's possible to have render inside a deeper prototype due to
+      // class extending.
+      const prototypeWithRender = getRenderPrototype(Component)
       const { prototype } = Component
 
       // assumes it's a class component if render method exists.
-      const isClassComponent = Boolean(prototype && prototype.render) ||
+      const isClassComponent = Boolean(prototypeWithRender) ||
         // subclass of React.Component or PureComponent with no render method.
         // There's no render method in prototype
         // when it's created with class-properties.
         prototype instanceof React.Component ||
         prototype instanceof React.PureComponent
 
+      let dynamicWrapper = withWrapOwnRender
+
       if (isClassComponent) {
-        if (prototype.render) {
-          prototype.render = wrapRender(prototype.render)
+        if (prototypeWithRender) {
+          // Sometimes render method is created with only a getter.
+          // In that case we can't override it with a prototype. We need to
+          // do it dynamically.
+          if (canOverrideRender(prototypeWithRender)) {
+            prototypeWithRender.render = wrapRender(prototypeWithRender.render)
+          } else {
+            dynamicWrapper = withWrapRenderAlways
+          }
         }
 
         // wrap the render method in runtime when the component initialized
         // for class-properties.
-        Component = wrap(Component, withWrapOwnRender)
+        Component = wrap(Component, dynamicWrapper)
       } else {
         // stateless component
         Component = wrapRender(Component)
@@ -73,6 +86,14 @@ export default (handleError = () => {}) => {
     }
     return result
   }
+
+  function withWrapRenderAlways (fn, ...args) {
+    const result = fn.apply(this, args)
+    if (this.render) {
+      this.render = wrapRender(this.render)
+    }
+    return result
+  }
 }
 
 function wrap (fn, around) {
@@ -92,4 +113,21 @@ function wrap (fn, around) {
   _fn.__wrapped = fn.__wrapped = _fn
 
   return _fn
+}
+
+function getRenderPrototype (Component) {
+  let proto = Component.prototype
+
+  while (true) {
+    if (proto.hasOwnProperty('render')) return proto
+    proto = Object.getPrototypeOf(proto)
+    if (!proto) return null
+  }
+}
+
+function canOverrideRender (prototype) {
+  const descriptor = Object.getOwnPropertyDescriptor(prototype, 'render')
+  if (!descriptor) return true
+
+  return descriptor.writable
 }
