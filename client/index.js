@@ -22,6 +22,7 @@ const {
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 let lastAppProps
+let lastScroll
 
 export const router = createRouter(pathname, query, {
   Component,
@@ -65,10 +66,27 @@ async function doRender ({ Component, props, err }) {
     props = await loadGetInitialProps(Component, { err, pathname, query })
   }
 
+  if (Component === ErrorComponent) {
+    lastScroll = {
+      x: window.pageXOffset,
+      y: window.pageYOffset
+    }
+  }
+
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
   const appProps = { Component, props, err, router, headManager }
-  lastAppProps = appProps
   ReactDOM.render(createElement(App, appProps), container)
+
+  if (lastScroll &&
+    Component !== ErrorComponent &&
+    lastAppProps.Component === ErrorComponent) {
+    // Restore scroll after ErrorComponent was replaced with a page component by HMR
+    const {x, y} = lastScroll
+    window.scroll(x, y)
+    lastScroll = false
+  }
+
+  lastAppProps = appProps
 }
