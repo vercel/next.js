@@ -80,26 +80,17 @@ export class NextScript extends Component {
     _documentProps: PropTypes.any
   }
 
-  static defaultProps = {
-    prefix: '/'
-  }
-
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
 
-    let { buildId } = __NEXT_DATA__
+    const { buildId, assetPrefix } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
-      { staticMarkup ? null : <script type='text/javascript' src={this.assetURL(`/_next/${buildId}/commons.js`)} /> }
-      { staticMarkup ? null : <script type='text/javascript' src={this.assetURL(`/_next/${buildId}/main.js`)} /> }
+      { staticMarkup ? null : <script type='text/javascript' src={resolveURL(assetPrefix, `/_next/${buildId}/commons.js`)} /> }
+      { staticMarkup ? null : <script type='text/javascript' src={resolveURL(assetPrefix, `/_next/${buildId}/main.js`)} /> }
     </div>
-  }
-
-  assetURL (asset) {
-    const { prefix } = this.props
-    return resolveURL(prefix, asset)
   }
 }

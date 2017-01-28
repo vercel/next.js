@@ -35,6 +35,7 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
+  assetPrefix,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
@@ -66,7 +67,7 @@ async function doRender (req, res, pathname, query, {
       Component,
       props,
       err,
-      router: new Router(pathname, query)
+      router: new Router(pathname, query, { assetPrefix })
     })
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
@@ -93,6 +94,7 @@ async function doRender (req, res, pathname, query, {
       pathname,
       query,
       buildId,
+      assetPrefix,
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,

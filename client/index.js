@@ -15,7 +15,8 @@ const {
     ids,
     err,
     pathname,
-    query
+    query,
+    assetPrefix
   }
 } = window
 
@@ -26,7 +27,8 @@ let lastAppProps
 export const router = createRouter(pathname, query, {
   Component,
   ErrorComponent,
-  err
+  err,
+  assetPrefix
 })
 
 const headManager = new HeadManager()

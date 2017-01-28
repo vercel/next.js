@@ -5,7 +5,8 @@ const cache = new Map()
 
 const defaultConfig = {
   webpack: null,
-  poweredByHeader: true
+  poweredByHeader: true,
+  assetPrefix: '/'
 }
 
 export default function getConfig (dir) {
