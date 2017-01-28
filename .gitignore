@@ -9,6 +9,7 @@ npm-debug.log
 
 # other
 .next
+/examples/**/yarn.lock
 
 # coverage
 .nyc_output
