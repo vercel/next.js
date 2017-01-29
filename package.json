@@ -81,7 +81,7 @@
     "uuid": "3.0.1",
     "webpack": "2.2.0-rc.6",
     "webpack-dev-middleware": "1.9.0",
-    "webpack-hot-middleware": "2.15.0",
+    "webpack-hot-middleware": "2.16.0",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
