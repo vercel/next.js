@@ -4,7 +4,8 @@ const path = require('path')
 const NEXT_DIR = path.join(__dirname, '.next')
 
 const app = express()
-app.use('/_next/-', express.static(NEXT_DIR))
+// `-` is the default build ID. A real CDN would use a version number/etc here.
+app.use('/assets/-/', express.static(NEXT_DIR))
 
 app.listen(9999, err => {
   if (err) {

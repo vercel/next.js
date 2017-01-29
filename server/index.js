@@ -27,12 +27,7 @@ export default class Server {
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(this.dir)
-    this.renderOpts = {
-      dir: this.dir,
-      assetPrefix: this.config.assetPrefix,
-      dev,
-      staticMarkup
-    }
+    this.renderOpts = { dir: this.dir, dev, staticMarkup }
 
     this.defineRoutes()
   }
@@ -53,7 +48,8 @@ export default class Server {
       await this.hotReloader.start()
     }
 
-    this.renderOpts.buildId = await this.readBuildId()
+    const buildId = this.renderOpts.buildId = await this.readBuildId()
+    this.renderOpts.assetPrefix = this.config.assetPrefix({ buildId })
   }
 
   async close () {
