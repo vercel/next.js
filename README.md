@@ -4,7 +4,7 @@
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Slack Channel](https://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 
-Next.js is a minimalistic framework for server-rendered React applications.
+Next.js is a minimalistic frontend framework for universally rendering React applications.
 
 **NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)! **
 
