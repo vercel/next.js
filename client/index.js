@@ -81,9 +81,7 @@ async function doRender ({ Component, props, err }) {
   const appProps = { Component, props, err, router, headManager }
   ReactDOM.render(createElement(App, appProps), container)
 
-  if (lastScroll &&
-    Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent) {
+  if (lastScroll && Component !== ErrorComponent) {
     // Restore scroll after ErrorComponent was replaced with a page component by HMR
     const { x, y } = lastScroll
     window.scroll(x, y)
