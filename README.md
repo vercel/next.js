@@ -588,8 +588,7 @@ No in that it enforces a _structure_ so that we can do more advanced things like
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-- Routing with lazy component loading: `
->` (by importing `next/link`)
+- Routing with lazy component loading: `<Link>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
