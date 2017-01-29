@@ -8,6 +8,7 @@ import evalScript from '../lib/eval-script'
 import { loadGetInitialProps } from '../lib/utils'
 
 const {
+  CustomEvent,
   __NEXT_DATA__: {
     component,
     errorComponent,
@@ -22,7 +23,6 @@ const {
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 let lastAppProps
-let lastScroll
 
 export const router = createRouter(pathname, query, {
   Component,
@@ -66,14 +66,11 @@ async function doRender ({ Component, props, err }) {
     props = await loadGetInitialProps(Component, { err, pathname, query })
   }
 
-  // Remember scroll when ErrorComponent is being rendered to later restore it
-  if (!lastScroll && Component === ErrorComponent) {
-    const { pageXOffset, pageYOffset } = window
-    lastScroll = {
-      x: pageXOffset,
-      y: pageYOffset
-    }
-  }
+  // Try/catch is needed because IE11 has a CustomEvent implementation without contructor
+  try {
+    const event = new CustomEvent('before-reactdom-render', { detail: { Component } })
+    document.dispatchEvent(event)
+  } catch (e) {}
 
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
@@ -81,12 +78,11 @@ async function doRender ({ Component, props, err }) {
   const appProps = { Component, props, err, router, headManager }
   ReactDOM.render(createElement(App, appProps), container)
 
-  if (lastScroll && Component !== ErrorComponent) {
-    // Restore scroll after ErrorComponent was replaced with a page component by HMR
-    const { x, y } = lastScroll
-    window.scroll(x, y)
-    lastScroll = false
-  }
+  // Try/catch is needed because IE11 has a CustomEvent implementation without contructor
+  try {
+    const event = new CustomEvent('after-reactdom-render', { detail: { Component } })
+    document.dispatchEvent(event)
+  } catch (e) {}
 
   lastAppProps = appProps
 }
