@@ -17,7 +17,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   // bypass all requests except JSON pages.
-  if (!(/_next\/[\w-]*\/pages/.test(e.request.url))) return
+  if (!(/\/_next\/[^/]+\/pages\//.test(e.request.url))) return
 
   e.respondWith(getResponse(e.request))
 })
