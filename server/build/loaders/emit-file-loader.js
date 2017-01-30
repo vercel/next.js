@@ -15,7 +15,7 @@ module.exports = function (content, sourceMap) {
     presets: [
       'es2015'
     ],
-    sourceMaps: 'both',
+    sourceMaps: process.env.NODE_ENV === 'production' ? false : 'both',
     inputSourceMap: sourceMap
   })
 
