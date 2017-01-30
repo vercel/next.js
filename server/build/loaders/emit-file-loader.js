@@ -1,7 +1,6 @@
 import loaderUtils from 'loader-utils'
-import { transform } from 'babel-core'
 
-module.exports = function (content, sourceMap) {
+module.exports = function (content, sourceMap, options) {
   this.cacheable()
 
   const query = loaderUtils.parseQuery(this.query)
@@ -11,14 +10,15 @@ module.exports = function (content, sourceMap) {
   const opts = { context, content, regExp }
   const interpolatedName = loaderUtils.interpolateName(this, name, opts)
 
-  const transpiled = transform(content, {
-    presets: [
-      'es2015'
-    ],
-    sourceMaps: process.env.NODE_ENV === 'production' ? false : 'both',
-    inputSourceMap: sourceMap
-  })
+  const emit = (code, map) => {
+    this.emitFile(interpolatedName, code, map)
+    this.callback(null, code, map)
+  }
 
-  this.emitFile(interpolatedName, transpiled.code, transpiled.map)
-  this.callback(null, transpiled.code, transpiled.map)
+  if (query.transform) {
+    const transformed = query.transform({ content, sourceMap })
+    return emit(transformed.content, transformed.sourceMap)
+  }
+
+  return emit(content, sourceMap)
 }
