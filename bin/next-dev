@@ -61,6 +61,10 @@ srv.start(argv.port)
   }
 })
 .catch((err) => {
-  console.error(err)
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${argv.port} is already in use.\nUse \`npm run dev -- -p <some other port>\`.`)
+  } else {
+    console.error(err)
+  }
   process.exit(1)
 })
