@@ -66,5 +66,5 @@ srv.start(argv.port)
   } else {
     console.error(err)
   }
-  process.nextTick(function() { process.exit(1) })
+  process.nextTick(function () { process.exit(1) })
 })
