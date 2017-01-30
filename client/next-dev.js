@@ -17,17 +17,17 @@ require('react-hot-loader/patch')
 
 const next = window.next = require('./')
 
-next.default(onError)
+const emitter = next.default(onError)
 
 function onError (err) {
   // just show the debug screen but don't render ErrorComponent
   // so that the current component doesn't lose props
-  next.render({ err })
+  next.render({ err, emitter })
 }
 
 let lastScroll
 
-document.addEventListener('before-reactdom-render', ({ detail: { Component } }) => {
+emitter.on('before-reactdom-render', ({ Component }) => {
   // Remember scroll when ErrorComponent is being rendered to later restore it
   if (!lastScroll && Component === ErrorComponent) {
     const { pageXOffset, pageYOffset } = window
@@ -38,7 +38,7 @@ document.addEventListener('before-reactdom-render', ({ detail: { Component } }) 
   }
 })
 
-document.addEventListener('after-reactdom-render', ({ detail: { Component } }) => {
+emitter.on('after-reactdom-render', ({ Component }) => {
   if (lastScroll && Component !== ErrorComponent) {
     // Restore scroll after ErrorComponent was replaced with a page component by HMR
     const { x, y } = lastScroll

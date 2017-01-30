@@ -1,5 +1,6 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
+import { EventEmitter } from 'events'
 import HeadManager from './head-manager'
 import { rehydrate } from '../lib/css'
 import { createRouter } from '../lib/router'
@@ -8,7 +9,6 @@ import evalScript from '../lib/eval-script'
 import { loadGetInitialProps } from '../lib/utils'
 
 const {
-  CustomEvent,
   __NEXT_DATA__: {
     component,
     errorComponent,
@@ -34,13 +34,16 @@ const headManager = new HeadManager()
 const container = document.getElementById('__next')
 
 export default (onError) => {
+  const emitter = new EventEmitter()
   if (ids && ids.length) rehydrate(ids)
 
   router.subscribe(({ Component, props, err }) => {
-    render({ Component, props, err }, onError)
+    render({ Component, props, err, emitter }, onError)
   })
 
-  render({ Component, props, err }, onError)
+  render({ Component, props, err, emitter }, onError)
+
+  return emitter
 }
 
 export async function render (props, onError = renderErrorComponent) {
@@ -57,7 +60,7 @@ async function renderErrorComponent (err) {
   await doRender({ Component: ErrorComponent, props, err })
 }
 
-async function doRender ({ Component, props, err }) {
+async function doRender ({ Component, props, err, emitter }) {
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
@@ -66,11 +69,9 @@ async function doRender ({ Component, props, err }) {
     props = await loadGetInitialProps(Component, { err, pathname, query })
   }
 
-  // Try/catch is needed because IE11 has a CustomEvent implementation without contructor
-  try {
-    const event = new CustomEvent('before-reactdom-render', { detail: { Component } })
-    document.dispatchEvent(event)
-  } catch (e) {}
+  if (emitter) {
+    emitter.emit('before-reactdom-render', { Component })
+  }
 
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
@@ -78,11 +79,9 @@ async function doRender ({ Component, props, err }) {
   const appProps = { Component, props, err, router, headManager }
   ReactDOM.render(createElement(App, appProps), container)
 
-  // Try/catch is needed because IE11 has a CustomEvent implementation without contructor
-  try {
-    const event = new CustomEvent('after-reactdom-render', { detail: { Component } })
-    document.dispatchEvent(event)
-  } catch (e) {}
+  if (emitter) {
+    emitter.emit('after-reactdom-render', { Component })
+  }
 
   lastAppProps = appProps
 }
