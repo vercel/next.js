@@ -1,0 +1,14 @@
+{
+  "name": "with-fela",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "fela": "^4.1.2",
+    "next": "^2.0.0-beta",
+    "react-fela": "^4.1.2"
+  }
+}

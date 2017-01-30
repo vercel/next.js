@@ -3,10 +3,11 @@ import Header from '../components/Header'
 
 export default class Forever extends Component {
   // Add some delay
-  static getInitialProps () {
-    return new Promise((resolve) => {
+  static async getInitialProps () {
+    await new Promise((resolve) => {
       setTimeout(resolve, 3000)
     })
+    return {}
   }
 
   render () {
