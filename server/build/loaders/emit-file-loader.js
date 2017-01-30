@@ -1,6 +1,6 @@
 import loaderUtils from 'loader-utils'
 
-module.exports = function (content, sourceMap, options) {
+module.exports = function (content, sourceMap) {
   this.cacheable()
 
   const query = loaderUtils.parseQuery(this.query)
