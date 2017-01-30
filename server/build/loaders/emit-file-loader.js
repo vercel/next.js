@@ -1,4 +1,5 @@
 import loaderUtils from 'loader-utils'
+import { transform } from 'babel-core'
 
 module.exports = function (content, sourceMap) {
   this.cacheable()
@@ -10,7 +11,14 @@ module.exports = function (content, sourceMap) {
   const opts = { context, content, regExp }
   const interpolatedName = loaderUtils.interpolateName(this, name, opts)
 
-  this.emitFile(interpolatedName, content, sourceMap)
+  const transpiled = transform(content, {
+    presets: [
+      'es2015'
+    ],
+    sourceMaps: 'both',
+    inputSourceMap: sourceMap
+  })
 
-  this.callback(null, content, sourceMap)
+  this.emitFile(interpolatedName, transpiled.code, transpiled.map)
+  this.callback(null, transpiled.code, transpiled.map)
 }
