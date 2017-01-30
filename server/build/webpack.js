@@ -152,7 +152,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       transform ({ content, sourceMap }) {
         const transpiled = babelCore.transform(content, {
           presets: ['es2015'],
-          sourceMaps: process.env.NODE_ENV === 'production' ? false : 'both',
+          sourceMaps: dev ? 'both' : false,
           inputSourceMap: sourceMap
         })
 
