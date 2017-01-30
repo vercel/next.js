@@ -3,6 +3,7 @@ import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
+import getConfig from './config'
 import touch from 'touch'
 
 const ADDED = Symbol('added')
@@ -18,6 +19,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   const lastAccessPages = ['']
   const doneCallbacks = new EventEmitter()
   const invalidator = new Invalidator(devMiddleware)
+  const config = getConfig(dir)
   let touchedAPage = false
 
   compiler.plugin('make', function (compilation, done) {
@@ -67,7 +69,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     async ensurePage (page) {
       page = normalizePage(page)
 
-      const pagePath = join(dir, 'pages', page)
+      const pagePath = join(dir, config.pagesDirectory, page)
       const pathname = await resolvePath(pagePath)
       const name = join('bundles', pathname.substring(dir.length))
 

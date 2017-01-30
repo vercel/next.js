@@ -100,7 +100,7 @@ export default class HotReloader {
         // and to update error content
         const failed = failedChunkNames
 
-        const rootDir = join('bundles', 'pages')
+        const rootDir = join('bundles', this.config.pagesDirectory)
 
         for (const n of new Set([...added, ...removed, ...failed, ...succeeded])) {
           const route = toRoute(relative(rootDir, n))

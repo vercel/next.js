@@ -3,6 +3,7 @@ import { resolve, join, basename } from 'path'
 import parseArgs from 'minimist'
 import { exists, writeFile, mkdir } from 'mz/fs'
 import mkdirp from 'mkdirp-then'
+import getConfig from '../server/config'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -29,9 +30,11 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
+const config = getConfig(dir)
+const pagesDirectory = config.pagesDirectory
 
-if (basename(dir) === 'pages') {
-  console.warn('Your root directory is named "pages". This looks suspicious. You probably want to go one directory up.')
+if (basename(dir) === pagesDirectory) {
+  console.warn(`Your root directory is named "${pagesDirectory}". This looks suspicious. You probably want to go one directory up.`)
   process.exit(1)
 }
 
@@ -49,9 +52,9 @@ exists(dir)
     await mkdir(join(dir, 'static'))
   }
 
-  if (!await exists(join(dir, 'pages'))) {
-    await mkdir(join(dir, 'pages'))
-    await writeFile(join(dir, 'pages', 'index.js'), basePage)
+  if (!await exists(join(dir, pagesDirectory))) {
+    await mkdir(join(dir, pagesDirectory))
+    await writeFile(join(dir, pagesDirectory, 'index.js'), basePage)
   }
 })
 .catch((err) => {

@@ -1,8 +1,9 @@
-import { resolve, join } from 'path'
+import { join } from 'path'
+import getConfig from '../../config'
 
 export default class WatchPagesPlugin {
   constructor (dir) {
-    this.dir = resolve(dir, 'pages')
+    this.config = getConfig(dir)
   }
 
   apply (compiler) {
@@ -10,7 +11,7 @@ export default class WatchPagesPlugin {
       compilation.plugin('optimize-assets', (assets, callback) => {
         // transpile pages/_document.js and descendants,
         // but don't need the bundle file
-        delete assets[join('bundles', 'pages', '_document.js')]
+        delete assets[join('bundles', this.config.pagesDirectory, '_document.js')]
         callback()
       })
     })
@@ -19,7 +20,7 @@ export default class WatchPagesPlugin {
       // watch the pages directory
       compilation.contextDependencies = [
         ...compilation.contextDependencies,
-        this.dir
+        this.config.pagesDirectory
       ]
       callback()
     })
