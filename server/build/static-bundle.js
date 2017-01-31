@@ -15,8 +15,9 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
   const { staticModules } = config
   if (!staticModules) return
 
-  const requireFileName = join(dir, '.next', `__require-cache.js`)
-  await mkdirp(join(dir, '.next'))
+  const dotNextDir = join(dir, '.next')
+  const requireFileName = join(dotNextDir, `__require-cache.js`)
+  await mkdirp(dotNextDir)
   createRequireBundle(requireFileName, staticModules({ dev }))
 
   const plugins = []
@@ -42,11 +43,10 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
       rules: [
         {
           test: /\.js$/,
-          include: ['/tmp'],
+          include: [dotNextDir],
           loader: 'babel-loader',
           options: {
-            babelrc: 'false',
-            presets: ['es2015']
+            babelrc: 'false'
           }
         }
       ]
@@ -81,7 +81,7 @@ function createRequireBundle (filename, staticModules) {
     cache['react-dom'] = require('react-dom')
 
     // We also set the resolved path of react and react-dom to the cache
-    // So, that allowed us to externalize resolved react/react-dom with 
+    // So, that allowed us to externalize resolved react/react-dom with
     // still supporting their resolved paths
     cache['${require.resolve('react')}'] = require('react')
     cache['${require.resolve('react-dom')}'] = require('react-dom')
