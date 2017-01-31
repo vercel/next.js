@@ -119,12 +119,8 @@ export default class Server {
     await this.prepare()
     this.http = http.createServer(this.getRequestHandler())
     await new Promise((resolve, reject) => {
-      this.http.on('error', (error) => {
-        reject(error)
-      })
-      this.http.on('listening', () => {
-        resolve()
-      })
+      this.http.on('error', reject)
+      this.http.on('listening', () => resolve())
       this.http.listen(port, () => {})
     })
   }
