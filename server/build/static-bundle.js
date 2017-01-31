@@ -12,13 +12,12 @@ const nodePathList = (process.env.NODE_PATH || '')
 
 export default async function createStaticBundle (dir, { dev = false } = {}) {
   const config = getConfig(dir)
-  const { staticModules } = config
-  if (!staticModules) return
+  const staticModules = config.staticModules ? config.staticModules({ dev }) : []
 
   const dotNextDir = join(dir, '.next')
   const requireFileName = join(dotNextDir, `__require-cache.js`)
   await mkdirp(dotNextDir)
-  createRequireBundle(requireFileName, staticModules({ dev }))
+  createRequireBundle(requireFileName, staticModules)
 
   const plugins = []
 
