@@ -63,7 +63,7 @@ srv.start(argv.port)
 .catch((err) => {
   if (err.code === 'EADDRINUSE') {
     let errorMessage = `Port ${argv.port} is already in use.`
-    if (existsSync(join(dir, '..', 'package.json'))) {
+    if (existsSync(join(dir, 'package.json'))) {
       try {
         const appPackage = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
         const nextTuple = Object.entries(appPackage.scripts).find(i => i[1] === 'next')
