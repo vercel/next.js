@@ -1,8 +1,8 @@
-import getConfig from '../config'
-import { writeFileSync, unlinkSync } from 'fs'
+import fs from 'fs'
 import { join } from 'path'
-import UUID from 'uuid'
+import mkdirp from 'mkdirp-then'
 import webpack from 'webpack'
+import getConfig from '../config'
 import { runCompiler } from './'
 
 const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
@@ -15,8 +15,8 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
   const { staticModules } = config
   if (!staticModules) return
 
-  // TODO: Use a proper file for this
-  const requireFileName = join(dir, `${UUID.v4()}.js`)
+  const requireFileName = join(dir, '.next', `__require-cache.js`)
+  await mkdirp(join(dir, '.next'))
   createRequireBundle(requireFileName, staticModules({ dev }))
 
   const plugins = []
@@ -70,7 +70,7 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
   const compiler = webpack(webpackConfig)
   await runCompiler(compiler)
 
-  unlinkSync(requireFileName)
+  fs.unlinkSync(requireFileName)
 }
 
 function createRequireBundle (filename, staticModules) {
@@ -101,5 +101,5 @@ function createRequireBundle (filename, staticModules) {
     }
   `
 
-  writeFileSync(filename, requireCode, 'utf8')
+  fs.writeFileSync(filename, requireCode, 'utf8')
 }
