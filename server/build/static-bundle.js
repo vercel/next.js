@@ -35,7 +35,7 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
   }
 
   const webpackConfig = {
-    devtool: dev ? 'inline-source-map' : false,
+    devtool: false,
     entry: {
       'static-bundle.js': requireFileName
     },
