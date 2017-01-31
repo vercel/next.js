@@ -2,8 +2,9 @@
 
 import { resolve } from 'path'
 import parseArgs from 'minimist'
-import Server from '../server'
 import { existsSync } from 'fs'
+import moduleAlias from 'module-alias'
+import loadConfig from '../server/config'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
@@ -40,6 +41,17 @@ if (argv.help) {
 
 const dir = resolve(argv._[0] || '.')
 
+// Load config and register aliases if provided
+const config = loadConfig(dir)
+if (config.alias) {
+  const alias = config.alias({ dev: false, env: 'server' }) || {}
+  moduleAlias.addAliases(alias)
+}
+
+// We need to require server like this. That's because, we need to do it after
+// we register aliases.
+// If we've imported them, it'll required in the top of the page.
+const Server = require('../server').default
 const srv = new Server({ dir })
 
 if (!existsSync(resolve(dir, '.next'))) {

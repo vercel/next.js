@@ -1,9 +1,11 @@
 module.exports = {
-  webpack: function (config) {
-    config.resolve.alias = {
+  alias: function ({ dev, env }) {
+    if (dev) return {}
+
+    return {
       'react': 'inferno-compat',
+      'react-dom/server': 'inferno-server',
       'react-dom': 'inferno-compat'
     }
-    return config
   }
 }

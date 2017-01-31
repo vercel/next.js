@@ -53,6 +53,11 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     return entries
   }
 
+  let alias = {}
+  if (config.alias) {
+    alias = config.alias({ dev, env: 'client' }) || {}
+  }
+
   const plugins = [
     new webpack.LoaderOptionsPlugin({
       options: {
@@ -118,7 +123,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   if (hasBabelRc) {
     console.log('> Using .babelrc defined in your app root')
   } else {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
+    mainBabelOptions.presets.push([require.resolve('./babel/preset'), { alias }])
   }
 
   const rules = (dev ? [{
@@ -156,7 +161,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       babelrc: false,
       cacheDirectory: true,
       sourceMaps: dev ? 'both' : false,
-      presets: [require.resolve('./babel/preset')]
+      presets: [
+        [require.resolve('./babel/preset'), { alias }]
+      ]
     }
   }, {
     test: /\.js(\?[^?]*)?$/,
@@ -187,6 +194,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       }
     },
     resolve: {
+      alias,
       modules: [
         nextNodeModulesDir,
         'node_modules',
