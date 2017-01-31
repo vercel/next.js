@@ -54,6 +54,16 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     return entries
   }
 
+  const externals = {}
+  externals[require.resolve('react')] = 'react'
+  externals[require.resolve('react-dom')] = 'react-dom'
+
+  if (config.bundleModules) {
+    config.bundleModules.forEach((moduleName) => {
+      externals[moduleName] = moduleName
+    })
+  }
+
   const plugins = [
     new webpack.LoaderOptionsPlugin({
       options: {
@@ -221,6 +231,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     module: {
       rules
     },
+    externals,
     devtool: dev ? 'inline-source-map' : false,
     performance: { hints: false }
   }
