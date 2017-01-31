@@ -17,7 +17,7 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
 
   // TODO: Use a proper file for this
   const requireFileName = join(dir, `${UUID.v4()}.js`)
-  createRequireBundle(requireFileName, bundleModules)
+  createRequireBundle(requireFileName, bundleModules({ dev }))
 
   const plugins = []
 
