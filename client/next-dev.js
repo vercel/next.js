@@ -43,6 +43,6 @@ emitter.on('after-reactdom-render', ({ Component }) => {
     // Restore scroll after ErrorComponent was replaced with a page component by HMR
     const { x, y } = lastScroll
     window.scroll(x, y)
-    lastScroll = false
+    lastScroll = null
   }
 })
