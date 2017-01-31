@@ -2,7 +2,7 @@
 import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
 
@@ -62,7 +62,16 @@ srv.start(argv.port)
 })
 .catch((err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${argv.port} is already in use.\nUse \`npm run dev -- -p <some other port>\`.`)
+    let errorMessage = `Port ${argv.port} is already in use.`
+    if (existsSync(join(dir, '..', 'package.json'))) {
+      try {
+        const appPackage = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
+        const nextTuple = Object.entries(appPackage.scripts).find(i => i[1] === 'next')
+        errorMessage += `\nUse \`npm run ${nextTuple[0]} -- -p <some other port>\`.`
+      } catch (e) { }
+    }
+
+    console.error(errorMessage)
   } else {
     console.error(err)
   }
