@@ -76,6 +76,15 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
 function createRequireBundle (filename, bundleModules) {
   let requireCode = `
     var cache = {}
+    // We set react and react-dom to the cache by default
+    cache['react'] = require('react')
+    cache['react-dom'] = require('react-dom')
+
+    // We also set the resolved path of react and react-dom to the cache
+    // So, that allowed us to externalize resolved react/react-dom with 
+    // still supporting their resolved paths
+    cache['${require.resolve('react')}'] = require('react')
+    cache['${require.resolve('react-dom')}'] = require('react-dom')
   `
   bundleModules.forEach((module) => {
     requireCode += `cache['${module}'] = require('${module}') \n`

@@ -54,15 +54,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     return entries
   }
 
-  const externals = {}
-  externals[require.resolve('react')] = 'react'
-  externals[require.resolve('react-dom')] = 'react-dom'
+  const externals = [
+    // Add react and react-dom as externals always
+    'react',
+    'react-dom',
+    // Add the resolved versions of react and react-dom too
+    // Our static bundle knows how to handle these resolved paths.
+    require.resolve('react'),
+    require.resolve('react-dom'),
 
-  if (config.bundleModules) {
-    config.bundleModules.forEach((moduleName) => {
-      externals[moduleName] = moduleName
-    })
-  }
+    // Add bundleModules provided via the config
+    ...config.bundleModules
+  ]
 
   const plugins = [
     new webpack.LoaderOptionsPlugin({
