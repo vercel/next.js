@@ -121,7 +121,7 @@ export default class Server {
     await new Promise((resolve, reject) => {
       this.http.on('error', reject)
       this.http.on('listening', () => resolve())
-      this.http.listen(port, () => {})
+      this.http.listen(port)
     })
   }
 
