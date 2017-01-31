@@ -79,6 +79,12 @@ export default class Server {
         await this.serveStaticWithGzip(req, res, p)
       },
 
+      '/_next/:buildId/static-bundle.js': async (req, res, params) => {
+        this.handleBuildId(params.buildId, res)
+        const p = join(this.dir, '.next/static-bundle.js')
+        await this.serveStaticWithGzip(req, res, p)
+      },
+
       '/_next/:buildId/commons.js': async (req, res, params) => {
         this.handleBuildId(params.buildId, res)
         const p = join(this.dir, '.next/commons.js')

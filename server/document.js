@@ -87,6 +87,7 @@ export class NextScript extends Component {
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
+      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/static-bundle.js`} /> }
       { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/commons.js`} /> }
       { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/main.js`} /> }
     </div>

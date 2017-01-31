@@ -2,6 +2,7 @@ import { join, relative, sep } from 'path'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
 import isWindowsBash from 'is-windows-bash'
+import createStaticBundle from './build/static-bundle'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import readPage from './read-page'
@@ -39,6 +40,7 @@ export default class HotReloader {
       clean(this.dir)
     ])
 
+    createStaticBundle(this.dir, { dev: true })
     this.prepareMiddlewares(compiler)
     this.stats = await this.waitUntilValid()
   }

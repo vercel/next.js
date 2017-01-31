@@ -4,6 +4,7 @@ import path from 'path'
 import webpack from './webpack'
 import clean from './clean'
 import gzipAssets from './gzip'
+import createStaticBundle from './static-bundle'
 
 export default async function build (dir) {
   const [compiler] = await Promise.all([
@@ -12,11 +13,12 @@ export default async function build (dir) {
   ])
 
   await runCompiler(compiler)
+  await createStaticBundle(dir)
   await gzipAssets(dir)
   await writeBuildId(dir)
 }
 
-function runCompiler (compiler) {
+export function runCompiler (compiler) {
   return new Promise((resolve, reject) => {
     compiler.run((err, stats) => {
       if (err) return reject(err)
