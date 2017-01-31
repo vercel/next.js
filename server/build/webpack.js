@@ -63,8 +63,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     require.resolve('react'),
     require.resolve('react-dom'),
 
-    // Add bundleModules provided via the config
-    ...config.bundleModules ? config.bundleModules({ dev }) : []
+    // Add staticModules provided via the config
+    ...config.staticModules ? config.staticModules({ dev }) : []
   ]
 
   const plugins = [

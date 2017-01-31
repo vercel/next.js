@@ -12,12 +12,12 @@ const nodePathList = (process.env.NODE_PATH || '')
 
 export default async function createStaticBundle (dir, { dev = false } = {}) {
   const config = getConfig(dir)
-  const { bundleModules } = config
-  if (!bundleModules) return
+  const { staticModules } = config
+  if (!staticModules) return
 
   // TODO: Use a proper file for this
   const requireFileName = join(dir, `${UUID.v4()}.js`)
-  createRequireBundle(requireFileName, bundleModules({ dev }))
+  createRequireBundle(requireFileName, staticModules({ dev }))
 
   const plugins = []
 
@@ -73,7 +73,7 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
   unlinkSync(requireFileName)
 }
 
-function createRequireBundle (filename, bundleModules) {
+function createRequireBundle (filename, staticModules) {
   let requireCode = `
     var cache = {}
     // We set react and react-dom to the cache by default
@@ -86,7 +86,7 @@ function createRequireBundle (filename, bundleModules) {
     cache['${require.resolve('react')}'] = require('react')
     cache['${require.resolve('react-dom')}'] = require('react-dom')
   `
-  bundleModules.forEach((module) => {
+  staticModules.forEach((module) => {
     requireCode += `cache['${module}'] = require('${module}') \n`
   })
 
