@@ -10,7 +10,15 @@ module.exports = function (content, sourceMap) {
   const opts = { context, content, regExp }
   const interpolatedName = loaderUtils.interpolateName(this, name, opts)
 
-  this.emitFile(interpolatedName, content, sourceMap)
+  const emit = (code, map) => {
+    this.emitFile(interpolatedName, code, map)
+    this.callback(null, code, map)
+  }
 
-  this.callback(null, content, sourceMap)
+  if (query.transform) {
+    const transformed = query.transform({ content, sourceMap })
+    return emit(transformed.content, transformed.sourceMap)
+  }
+
+  return emit(content, sourceMap)
 }

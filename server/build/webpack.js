@@ -10,6 +10,7 @@ import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
+import * as babelCore from 'babel-core'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -144,7 +145,22 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
-      name: 'dist/[path][name].[ext]'
+      name: 'dist/[path][name].[ext]',
+      // By default, our babel config does not transpile ES2015 module syntax because
+      // webpack knows how to handle them. (That's how it can do tree-shaking)
+      // But Node.js doesn't know how to handle them. So, we have to transpile them here.
+      transform ({ content, sourceMap }) {
+        const transpiled = babelCore.transform(content, {
+          presets: ['es2015'],
+          sourceMaps: dev ? 'both' : false,
+          inputSourceMap: sourceMap
+        })
+
+        return {
+          content: transpiled.code,
+          sourceMap: transpiled.map
+        }
+      }
     }
   }, {
     loader: 'babel-loader',
