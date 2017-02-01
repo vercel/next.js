@@ -536,13 +536,13 @@ This is a performance specific configuration which gives us two major performanc
 
 #### 1. Reduce webpack's dev re-build time by 2x (or more)
 
-Webpack's rebuild time usually depend on the amount of code it needs to handle. Basically, most of those code is from NPM modules but not from your app's source code. With static modules, we are moving those NPM modules out of the webpack builder and serves directly.
+Webpack's rebuild time usually depend on the amount of code it needs to handle. Most of the code it needs to handle is not your app's source code, but NPM modules. With static modules we are serving those NPM modules directly, instead of passing them through webpack.
 
 With that change, webpack only handles your app's code. So, that's where we could gain the re-build performance.
 
 #### 2. Explicitly define common modules
 
-Our code splitting logic moves any common modules into a common bundle. But in order to do that, that module needs to be used in every page in our app. Practically, that's something hard to do.
+Our code splitting logic moves any common modules into a common bundle. But in order to do that, that module needs to be used in every page in our app. From experience, that is something that almost never happens for each common module.
 
 Because of that, some of the most used modules won't move into the common bundle and keep a copy of that module in each and every page in your app. That increases the overall size of the app.
 
