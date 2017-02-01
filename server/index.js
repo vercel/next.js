@@ -33,8 +33,8 @@ export default class Server {
   }
 
   getRequestHandler () {
-    return (req, res) => {
-      this.run(req, res)
+    return (req, res, url) => {
+      this.run(req, res, url)
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
@@ -126,12 +126,12 @@ export default class Server {
     })
   }
 
-  async run (req, res) {
+  async run (req, res, url) {
     if (this.hotReloader) {
       await this.hotReloader.run(req, res)
     }
 
-    const fn = this.router.match(req, res)
+    const fn = this.router.match(req, res, url)
     if (fn) {
       await fn()
       return
