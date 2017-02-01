@@ -119,10 +119,10 @@ export default class Server {
     await this.prepare()
     this.http = http.createServer(this.getRequestHandler())
     await new Promise((resolve, reject) => {
-      this.http.listen(port, (err) => {
-        if (err) return reject(err)
-        resolve()
-      })
+      // This code catches EADDRINUSE error if the port is already in use
+      this.http.on('error', reject)
+      this.http.on('listening', () => resolve())
+      this.http.listen(port)
     })
   }
 
