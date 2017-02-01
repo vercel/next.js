@@ -16,7 +16,7 @@ module.exports = function (content, sourceMap) {
   }
 
   if (query.transform) {
-    const transformed = query.transform({ content, sourceMap })
+    const transformed = query.transform({ content, sourceMap, interpolatedName })
     return emit(transformed.content, transformed.sourceMap)
   }
 
