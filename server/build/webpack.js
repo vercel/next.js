@@ -156,7 +156,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         }
 
         const transpiled = babelCore.transform(content, {
-          presets: ['es2015'],
+          presets: [require.resolve('babel-preset-es2015')],
           sourceMaps: dev ? 'both' : false,
           inputSourceMap: sourceMap
         })
