@@ -61,6 +61,11 @@ export default function ({ app }, suiteName, render) {
       expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
+    test('allows to import .json files', async () => {
+      const html = await render('/json')
+      expect(html.includes('Zeit')).toBeTruthy()
+    })
+
     test('error', async () => {
       const $ = await get$('/error')
       expect($('pre').text()).toMatch(/This is an expected error/)
