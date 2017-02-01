@@ -102,8 +102,8 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/:path*': async (req, res) => {
-        const { pathname, query } = parse(req.url, true)
+      '/:path*': async (req, res, { url }) => {
+        const { pathname, query } = url
         await this.render(req, res, pathname, query)
       }
     }

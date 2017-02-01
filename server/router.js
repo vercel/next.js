@@ -23,7 +23,7 @@ export default class Router {
       const params = r.match(pathname)
       if (params) {
         return async () => {
-          return r.fn(req, res, params)
+          return r.fn(req, res, { ...params, url })
         }
       }
     }
