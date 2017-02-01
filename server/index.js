@@ -34,6 +34,10 @@ export default class Server {
 
   getRequestHandler () {
     return (req, res, url) => {
+      if (!url || url.query === null) {
+        url = parse(req.url, true)
+      }
+
       this.run(req, res, url)
       .catch((err) => {
         if (!this.quiet) console.error(err)
@@ -138,7 +142,7 @@ export default class Server {
     }
 
     if (req.method === 'GET' || req.method === 'HEAD') {
-      await this.render404(req, res)
+      await this.render404(req, res, url)
     } else {
       res.statusCode = 501
       res.end(STATUS_CODES[501])
@@ -203,8 +207,8 @@ export default class Server {
     }
   }
 
-  async render404 (req, res) {
-    const { pathname, query } = parse(req.url, true)
+  async render404 (req, res, url = parse(req.url, true)) {
+    const { pathname, query } = url
     res.statusCode = 404
     this.renderError(null, req, res, pathname, query)
   }
