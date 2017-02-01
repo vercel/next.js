@@ -149,7 +149,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       // By default, our babel config does not transpile ES2015 module syntax because
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.
-      transform ({ content, sourceMap }) {
+      transform ({ content, sourceMap, interpolatedName }) {
+        // Only handle .js files
+        if (!(/\.js$/.test(interpolatedName))) {
+          return { content, sourceMap }
+        }
+
         const transpiled = babelCore.transform(content, {
           presets: ['es2015'],
           sourceMaps: dev ? 'both' : false,
