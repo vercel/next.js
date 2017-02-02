@@ -110,6 +110,7 @@
     "husky": "0.13.1",
     "jest-cli": "^18.0.0",
     "node-fetch": "^1.6.3",
+    "node-notifier": "^5.0.2",
     "nyc": "^10.0.0",
     "portfinder": "^1.0.10",
     "run-sequence": "1.2.2",

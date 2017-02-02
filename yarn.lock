@@ -3941,7 +3941,7 @@ node-notifier@^4.6.1:
     shellwords "^0.1.0"
     which "^1.0.5"
 
-node-notifier@^5.0.1:
+node-notifier@^5.0.1, node-notifier@^5.0.2:
   version "5.0.2"
   resolved "https://registry.yarnpkg.com/node-notifier/-/node-notifier-5.0.2.tgz#4438449fe69e321f941cef943986b0797032701b"
   dependencies:
