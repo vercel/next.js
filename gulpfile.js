@@ -5,8 +5,6 @@ const cache = require('gulp-cached')
 const notify_ = require('gulp-notify')
 const benchmark = require('gulp-benchmark')
 const sequence = require('run-sequence')
-const webpack = require('webpack')
-const webpackStream = require('webpack-stream')
 const del = require('del')
 const childProcess = require('child_process')
 
@@ -83,47 +81,6 @@ gulp.task('copy-bench-fixtures', () => {
   .pipe(gulp.dest('dist/bench/fixtures'))
 })
 
-gulp.task('build', [
-  'build-prefetcher'
-])
-
-gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
-  return gulp
-  .src('client/next-prefetcher.js')
-  .pipe(webpackStream({
-    output: { filename: 'next-prefetcher-bundle.js' },
-    plugins: [
-      new webpack.DefinePlugin({
-        'process.env': {
-          NODE_ENV: JSON.stringify('production')
-        }
-      })
-    ],
-    module: {
-      rules: [
-        {
-          test: /\.js$/,
-          exclude: /node_modules/,
-          loader: 'babel-loader',
-          options: {
-            babelrc: false,
-            presets: [
-              ['env', {
-                targets: {
-                  // All browsers which supports service workers
-                  browsers: ['chrome 49', 'firefox 49', 'opera 41']
-                }
-              }]
-            ]
-          }
-        }
-      ]
-    }
-  }, webpack))
-  .pipe(gulp.dest('dist/client'))
-  .pipe(notify('Built release prefetcher'))
-})
-
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
   return gulp.src('dist/bench/*.js', {read: false})
   .pipe(benchmark({
@@ -147,8 +104,7 @@ gulp.task('watch-bin', () => {
 
 gulp.task('watch-lib', () => {
   return gulp.watch('lib/**/*.js', [
-    'compile-lib',
-    'build'
+    'compile-lib'
   ])
 })
 
@@ -160,8 +116,7 @@ gulp.task('watch-server', () => {
 
 gulp.task('watch-client', () => {
   return gulp.watch('client/**/*.js', [
-    'compile-client',
-    'build'
+    'compile-client'
   ])
 })
 
@@ -177,7 +132,6 @@ gulp.task('clean', () => {
 
 gulp.task('default', [
   'compile',
-  'build',
   'copy',
   'watch'
 ])
@@ -185,7 +139,6 @@ gulp.task('default', [
 gulp.task('release', (cb) => {
   sequence('clean', [
     'compile',
-    'build',
     'copy',
   ], cb)
 })
