@@ -2,9 +2,10 @@
 import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
+import pkgUp from 'pkg-up'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
@@ -61,6 +62,15 @@ srv.start(argv.port)
   }
 })
 .catch((err) => {
-  console.error(err)
-  process.exit(1)
+  if (err.code === 'EADDRINUSE') {
+    let errorMessage = `Port ${argv.port} is already in use.`
+    const pkgAppPath = pkgUp.sync('.')
+    const appPackage = JSON.parse(readFileSync(pkgAppPath, 'utf8'))
+    const nextScript = Object.entries(appPackage.scripts).find(scriptLine => scriptLine[1] === 'next')
+    if (nextScript) errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+    console.error(errorMessage)
+  } else {
+    console.error(err)
+  }
+  process.nextTick(() => process.exit(1))
 })
