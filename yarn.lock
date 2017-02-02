@@ -2179,9 +2179,9 @@ fly-watch@^1.0.0:
     arrify "^1.0.1"
     chokidar "^1.6.1"
 
-fly@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/fly/-/fly-2.0.0.tgz#015ac87e46fe5a1421600c027b08f07fd2f16913"
+fly@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/fly/-/fly-2.0.1.tgz#8bbd4ed523a7772cc14ba5c72814a00378c31b3e"
   dependencies:
     bluebird "^3.4.7"
     clor "^5.0.0"
