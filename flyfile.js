@@ -51,8 +51,8 @@ exports['copy-bench-fixtures'] = function * (fly) {
 }
 
 exports.build = function * (fly) {
-  // yield fly.parallel(['copy', 'compile']).start('build-prefetcher')
-  yield fly.serial(['copy', 'compile', 'build-prefetcher'])
+  yield fly.parallel(['copy', 'compile']).start('build-prefetcher')
+  // yield fly.serial(['copy', 'compile', 'build-prefetcher'])
 }
 
 exports['build-prefetcher'] = function * (fly) {
@@ -94,25 +94,19 @@ exports['build-prefetcher'] = function * (fly) {
 }
 
 exports.bench = function * (fly) {
-  console.log('inside bench');
-  yield Promise.resolve()
-// ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
+  yield fly.parallel(['compile', 'compile-bench', 'copy', 'copy-bench-fixtures'])
   // yield fly.source('dist/bench/*.js').benchmark({
     // benchmark.reporters.etalon('RegExp#test')
   // })
 }
 
-// exports.watch = function * (fly) {
-// }
-
 exports.default = function * (fly) {
+  yield fly.start('build')
   yield fly.watch('bin/*', 'compile-bin')
   yield fly.watch('pages/**/*.js', 'copy')
   yield fly.watch('server/**/*.js', 'compile-server')
   yield fly.watch('client/**/*.js', ['compile-client', 'build-prefetcher'])
   yield fly.watch('lib/**/*.js', ['compile-lib', 'build-prefetcher'])
-  // yield fly.serial(['build', 'watch'])
-  // yield fly.start('watch')
 }
 
 exports.release = function * (fly) {
