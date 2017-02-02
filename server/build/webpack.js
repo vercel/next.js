@@ -154,11 +154,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         if (!(/\.js$/.test(interpolatedName))) {
           return { content, sourceMap }
         }
-
+        const babelRuntimePath = require.resolve('babel-runtime/package')
+          .replace(/[\\/]package\.json$/, '')
         const transpiled = babelCore.transform(content, {
           presets: [require.resolve('babel-preset-es2015')],
           sourceMaps: dev ? 'both' : false,
-          // Here we need to resolve styled-jsx/style to the absolute paths.
+          // Here we need to resolve all modules to the absolute paths.
           // Earlier we did it with the babel-preset.
           // But since we don't transpile ES2015 in the preset this is not resolving.
           // That's why we need to do it here.
@@ -168,7 +169,16 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
               require.resolve('babel-plugin-module-resolver'),
               {
                 alias: {
-                  'styled-jsx/style': require.resolve('styled-jsx/style')
+                  'babel-runtime': babelRuntimePath,
+                  react: require.resolve('react'),
+                  'react-dom': require.resolve('react-dom'),
+                  'react-dom/server': require.resolve('react-dom/server'),
+                  'next/link': require.resolve('../../lib/link'),
+                  'next/prefetch': require.resolve('../../lib/prefetch'),
+                  'next/css': require.resolve('../../lib/css'),
+                  'next/head': require.resolve('../../lib/head'),
+                  'next/document': require.resolve('../../server/document'),
+                  'next/router': require.resolve('../../lib/router')
                 }
               }
             ]
