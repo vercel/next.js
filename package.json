@@ -83,6 +83,7 @@
     "webpack": "2.2.1",
     "webpack-dev-middleware": "1.10.0",
     "webpack-hot-middleware": "2.16.1",
+    "whatwg-fetch": "^2.0.2",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {
@@ -95,6 +96,7 @@
     "cheerio": "^0.22.0",
     "chromedriver": "^2.26.1",
     "coveralls": "2.11.15",
+    "cross-env": "^3.1.4",
     "gulp": "3.9.1",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
@@ -108,8 +110,7 @@
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "wd": "^1.1.3",
-    "webpack-stream": "3.2.0",
-    "cross-env": "^3.1.4"
+    "webpack-stream": "3.2.0"
   },
   "jest": {
     "testEnvironment": "node",
