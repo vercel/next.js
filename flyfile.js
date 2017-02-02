@@ -5,8 +5,7 @@ const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
 
 exports.compile = function * (fly) {
-  // yield fly.parallel(['compile-bin', 'compile-server', 'compile-lib', 'compile-client'])
-  yield fly.serial(['compile-bin', 'compile-server', 'compile-lib', 'compile-client'])
+  yield fly.parallel(['compile-bin', 'compile-server', 'compile-lib', 'compile-client'])
   yield fly.start('remove-strict-mode')
 }
 
@@ -52,8 +51,7 @@ exports['copy-bench-fixtures'] = function * (fly) {
 }
 
 exports.build = function * (fly) {
-  // yield fly.parallel(['copy', 'compile'])
-  // yield fly.start('build-prefetcher')
+  // yield fly.parallel(['copy', 'compile']).start('build-prefetcher')
   yield fly.serial(['copy', 'compile', 'build-prefetcher'])
 }
 
