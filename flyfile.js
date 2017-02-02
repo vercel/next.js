@@ -55,9 +55,12 @@ exports.build = function * (fly) {
   // yield fly.serial(['copy', 'compile', 'build-prefetcher'])
 }
 
+const compiler = webpack(webpackConfig)
 exports['build-prefetcher'] = function * (fly) {
-  webpack(webpackConfig)
-  notify('Built release prefetcher')
+  compiler.run((err, stats) => {
+    if (err) throw err
+    notify('Built release prefetcher')
+  })
 }
 
 exports.bench = function * (fly) {

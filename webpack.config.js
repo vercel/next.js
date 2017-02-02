@@ -2,10 +2,9 @@ const { resolve } = require('path')
 const { DefinePlugin } = require('webpack')
 
 module.exports = {
-  // context: resolve(__dirname, 'client'),
   entry: './client/next-prefetcher.js',
   output: {
-    filename: '[name]-bundle.js',
+    filename: 'next-prefetcher-bundle.js',
     path: resolve(__dirname, 'dist/client')
   },
   plugins: [
