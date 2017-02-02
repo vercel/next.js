@@ -1,6 +1,8 @@
 import Head from 'next/head'
 import Link from 'next/link'
 
+import { PureComponent } from 'react'
+
 import Avatar from 'react-md/lib/Avatars'
 import Button from 'react-md/lib/Buttons/Button'
 import FontIcon from 'react-md/lib/FontIcons'
@@ -28,17 +30,23 @@ const drawerHeaderChildren = [
   />
 ]
 
-const NavigationLink = (props) => {
-  const { href, as, children, ..._props } = props
-  return (
-    <div {..._props}>
-      <Link href={href} as={as}>
-        <a className='md-list-tile' style={{padding: 0, overflow: 'hidden'}}>
-          {children}
-        </a>
-      </Link>
-    </div>
-  )
+class NavigationLink extends PureComponent {
+  // NOTE: Don't try using Stateless (function) component here. `ref` is
+  // required by React-MD/AccessibleFakeButton, but Stateless components
+  // don't have one by design:
+  // https://github.com/facebook/react/issues/4936
+  render () {
+    const { href, as, children, ..._props } = this.props
+    return (
+      <div {..._props} style={{padding: 0}}>
+        <Link href={href} as={as}>
+          <a className='md-list-tile md-list-tile--mini' style={{width: '100%', overflow: 'hidden'}}>
+            {children}
+          </a>
+        </Link>
+      </div>
+    )
+  }
 }
 
 export default () => {
