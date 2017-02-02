@@ -111,7 +111,8 @@ exports.default = function * (fly) {
   yield fly.watch('bin/*', 'compile-bin')
   yield fly.watch('pages/**/*.js', 'copy')
   yield fly.watch('server/**/*.js', 'compile-server')
-  yield fly.watch('{client,lib}/**/*.js', ['compile-client', 'compile-lib', 'build-prefetcher'])
+  yield fly.watch('client/**/*.js', ['compile-client', 'build-prefetcher'])
+  yield fly.watch('lib/**/*.js', ['compile-lib', 'build-prefetcher'])
   // yield fly.serial(['build', 'watch'])
   // yield fly.start('watch')
 }
