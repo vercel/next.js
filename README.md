@@ -382,15 +382,15 @@ const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const url = parse(req.url, true)
-    const { pathname, query } = url
+    const parsedUrl = parse(req.url, true)
+    const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
       app.render(req, res, '/b', query)
     } else if (pathname === '/b') {
       app.render(req, res, '/a', query)
     } else {
-      handle(req, res, url)
+      handle(req, res, parsedUrl)
     }
   })
   .listen(3000, (err) => {
