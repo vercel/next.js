@@ -124,27 +124,21 @@ exports.release = function * (fly) {
 // Even though we kill this task's process, chromedriver exists throughout
 // the lifetime of the original npm script.
 
-// gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
-//   const processName =  isWindows? 'chromedriver.cmd' : 'chromedriver'
-//   const chromedriver = childProcess.spawn(processName, { stdio: 'inherit' })
+exports['start-chromedriver'] = function * (fly) {
+  const processName =  isWindows ? 'chromedriver.cmd' : 'chromedriver'
+  const chromedriver = childProcess.spawn(processName, { stdio: 'inherit' })
+  // We need to do this, otherwise this task's process will keep waiting.
+  setTimeout(() => process.exit(0), 2000)
+}
 
-//   const timeoutHandler = setTimeout(() => {
-//     // We need to do this, otherwise this task's process will keep waiting.
-//     process.exit(0)
-//   }, 2000)
-// })
-
-// gulp.task('stop-chromedriver', () => {
-//   try {
-//     if (isWindows) {
-//       childProcess.execSync('taskkill /im chromedriver* /t /f', { stdio: 'ignore' })
-//     } else {
-//       childProcess.execSync('pkill chromedriver', { stdio: 'ignore' })
-//     }
-//   } catch(ex) {
-//     // Do nothing
-//   }
-// })
+exports['stop-chromedriver'] = function * (fly) {
+  try {
+    const cmd = isWindows ? 'taskkill /im chromedriver* /t /f' : 'pkill chromedriver'
+    childProcess.execSync(cmd, { stdio: 'ignore' })
+  } catch(err) {
+    // Do nothing
+  }
+}
 
 // notification helper
 function notify (msg) {
