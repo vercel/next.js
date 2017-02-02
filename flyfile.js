@@ -1,5 +1,6 @@
-const {resolve} = require('path')
 const webpack = require('webpack')
+const { resolve } = require('path')
+const notifier = require('node-notifier')
 const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
 
@@ -11,27 +12,27 @@ exports.compile = function * (fly) {
 
 exports['compile-bin'] = function * (fly, opts) {
   yield fly.source(opts.src || 'bin/*').babel().target('dist/bin')
-  // .pipe(notify('Compiled binaries'))
+  notify('Compiled binaries')
 }
 
 exports['compile-lib'] = function * (fly, opts) {
   yield fly.source(opts.src || 'lib/**/*.js').babel().target('dist/lib')
-  // .pipe(notify('Compiled lib files'))
+  notify('Compiled lib files')
 }
 
 exports['compile-server'] = function * (fly, opts) {
   yield fly.source(opts.src || 'server/**/*.js').babel().target('dist/server')
-  // .pipe(notify('Compiled server files'))
+  notify('Compiled server files')
 }
 
 exports['compile-client'] = function * (fly, opts) {
   yield fly.source(opts.src || 'client/**/*.js').babel().target('dist/client')
-  // .pipe(notify('Compiled client files'))
+  notify('Compiled client files')
 }
 
 exports['compile-bench'] = function * (fly, opts) {
   yield fly.source(opts.src || 'bench/*.js').babel().target('dist/bench')
-  // .pipe(notify('Compiled bench files'))
+  notify('Compiled bench files')
 }
 
 exports['remove-strict-mode'] = function * (fly) {
@@ -39,7 +40,7 @@ exports['remove-strict-mode'] = function * (fly) {
     babelrc: false,
     plugins: ['babel-plugin-transform-remove-strict-mode']
   }).target('dist/lib')
-  // .pipe(notify('Completed removing strict mode for eval script'))
+  notify('Completed removing strict mode for eval script')
 }
 
 exports.copy = function * (fly) {
@@ -91,7 +92,7 @@ exports['build-prefetcher'] = function * (fly) {
   //     }]
   //   }
   // })
-  // .pipe(notify('Built release prefetcher'))
+  notify('Built release prefetcher')
 }
 
 exports.bench = function * (fly) {
@@ -146,16 +147,11 @@ exports.release = function * (fly) {
 //   }
 // })
 
-// // avoid logging to the console
-// // that we created a notification
-// notify_.logLevel(0)
-
-// // notification helper
-// function notify (msg) {
-//   return notify_({
-//     title: '▲ Next',
-//     message: msg,
-//     icon: false,
-//     onLast: true
-//   })
-// }
+// notification helper
+function notify (msg) {
+  return notifier.notify({
+    title: '▲ Next',
+    message: msg,
+    icon: false
+  })
+}
