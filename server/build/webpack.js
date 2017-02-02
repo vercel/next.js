@@ -158,6 +158,21 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         const transpiled = babelCore.transform(content, {
           presets: [require.resolve('babel-preset-es2015')],
           sourceMaps: dev ? 'both' : false,
+          // Here we need to resolve styled-jsx/style to the absolute paths.
+          // Earlier we did it with the babel-preset.
+          // But since we don't transpile ES2015 in the preset this is not resolving.
+          // That's why we need to do it here.
+          // See more: https://github.com/zeit/next.js/issues/951
+          plugins: [
+            [
+              require.resolve('babel-plugin-module-resolver'),
+              {
+                alias: {
+                  'styled-jsx/style': require.resolve('styled-jsx/style')
+                }
+              }
+            ]
+          ],
           inputSourceMap: sourceMap
         })
 
