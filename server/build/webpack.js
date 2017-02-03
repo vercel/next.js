@@ -1,6 +1,5 @@
 import { resolve, join } from 'path'
 import { createHash } from 'crypto'
-import { existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -11,6 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
+import findBabelConfigLocation from './babel/find-config-location'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -115,9 +115,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     presets: []
   }
 
-  const hasBabelRc = existsSync(join(dir, '.babelrc'))
-  if (hasBabelRc) {
-    console.log('> Using .babelrc defined in your app root')
+  const configLocation = findBabelConfigLocation(dir)
+  if (configLocation) {
+    console.log(`> Using external babel configuration`)
+    console.log(`> location: "${configLocation}"`)
   } else {
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
