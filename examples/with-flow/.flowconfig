@@ -3,5 +3,6 @@
 [include]
 
 [libs]
+types/
 
 [options]
