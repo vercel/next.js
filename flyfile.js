@@ -51,8 +51,7 @@ exports['copy-bench-fixtures'] = function * (fly) {
 }
 
 exports.build = function * (fly) {
-  yield fly.parallel(['copy', 'compile']).start('build-prefetcher')
-  // yield fly.serial(['copy', 'compile', 'build-prefetcher'])
+  yield fly.serial(['copy', 'compile', 'build-prefetcher'])
 }
 
 const compiler = webpack(webpackConfig)
