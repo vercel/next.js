@@ -109,7 +109,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     .filter((p) => !!p)
 
   const mainBabelOptions = {
-    babelrc: true,
     cacheDirectory: true,
     sourceMaps: dev ? 'both' : false,
     presets: []
@@ -119,8 +118,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
   if (configLocation) {
     console.log(`> Using external babel configuration`)
     console.log(`> location: "${configLocation}"`)
+    mainBabelOptions.babelrc = true
   } else {
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
+    mainBabelOptions.babelrc = false
   }
 
   const rules = (dev ? [{
@@ -158,7 +159,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         const babelRuntimePath = require.resolve('babel-runtime/package')
           .replace(/[\\/]package\.json$/, '')
         const transpiled = babelCore.transform(content, {
-          presets: [require.resolve('babel-preset-es2015')],
+          babelrc: false,
           sourceMaps: dev ? 'both' : false,
           // Here we need to resolve all modules to the absolute paths.
           // Earlier we did it with the babel-preset.
@@ -166,6 +167,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
+            [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),
               {
