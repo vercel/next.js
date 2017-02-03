@@ -2043,9 +2043,9 @@ fly-clear@^1.0.0:
     bluebird "^3.4.7"
     rimraf "^2.5.4"
 
-fly-watch@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/fly-watch/-/fly-watch-1.0.0.tgz#c86c2bc47d9984fffebbcd512c11122e62202847"
+fly-watch@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/fly-watch/-/fly-watch-1.1.0.tgz#ae20e2272374070bc60427ccd8226b42a455bc29"
   dependencies:
     arrify "^1.0.1"
     chokidar "^1.6.1"
