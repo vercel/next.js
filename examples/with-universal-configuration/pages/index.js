@@ -1,5 +1,5 @@
-/* global MY_ENV_VARIABLE */
+/* global BACKEND_URL */
 
 export default () => (
-  <div>Hello visitor from { MY_ENV_VARIABLE }</div>
+  <div>Loading data from { BACKEND_URL }</div>
 )
