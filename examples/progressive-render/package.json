@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^2.0.0-beta",
+    "next": "latest",
     "react-no-ssr": "1.1.0"
   }
 }
