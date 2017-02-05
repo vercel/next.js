@@ -1,0 +1,12 @@
+{
+  "name": "progressive-render",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react-no-ssr": "1.1.0"
+  }
+}
