@@ -2,7 +2,6 @@ import React from 'react'
 import NoSSR from 'react-no-ssr'
 import Loading from '../components/Loading'
 
-
 export default () => (
   <main>
     <section>
