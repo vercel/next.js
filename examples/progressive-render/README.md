@@ -26,7 +26,7 @@ now
 
 Sometimes you want to **not** server render some parts of your application. That can be third party components without server render compatibility, components that depends on `window` and other only browsers APIs or just because that content isn't enough important for the user (eg. below the fold content).
 
-In that cases you can use `react-no-ssr` to wrap that client-only components and avoid server rendering it at all and then do the render in the client after the application has loaded.
+In that case you can wrap the component in `react-no-ssr` which will only render the component client-side.
 
 This example features:
 
