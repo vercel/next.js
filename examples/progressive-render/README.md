@@ -32,3 +32,5 @@ This example features:
 
 * An app with a component that must only be rendered in the client
 * A loading component that will be displayed before rendering the client-only component
+
+**Example**: https://progressive-render-raceuevkqw.now.sh/
