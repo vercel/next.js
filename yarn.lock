@@ -2052,6 +2052,12 @@ fly-clear@^1.0.0:
     bluebird "^3.4.7"
     rimraf "^2.5.4"
 
+fly-esnext@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/fly-esnext/-/fly-esnext-2.0.0.tgz#013bf89a89e86005decd312a884725904f38e9e7"
+  dependencies:
+    require-like "^0.1.2"
+
 fly-watch@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/fly-watch/-/fly-watch-1.1.0.tgz#ae20e2272374070bc60427ccd8226b42a455bc29"
@@ -4078,6 +4084,10 @@ request@2.79.0, request@^2.55.0, request@^2.79.0:
 require-directory@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/require-directory/-/require-directory-2.1.1.tgz#8c64ad5fd30dab1c976e2344ffe7f792a6a6df42"
+
+require-like@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/require-like/-/require-like-0.1.2.tgz#ad6f30c13becd797010c468afa775c0c0a6b47fa"
 
 require-main-filename@^1.0.1:
   version "1.0.1"

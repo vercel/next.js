@@ -4,82 +4,78 @@ const childProcess = require('child_process')
 const webpackConfig = require('./webpack.config')
 const isWindows = /^win/.test(process.platform)
 
-exports.compile = function * (fly) {
-  yield fly.parallel(['compile-bin', 'compile-server', 'compile-lib', 'compile-client'])
-  yield fly.start('remove-strict-mode')
+export async function compile(fly) {
+  await fly.parallel(['bin', 'server', 'lib', 'client'])
+  await fly.start('unrestrict')
 }
 
-exports['compile-bin'] = function * (fly, opts) {
-  yield fly.source(opts.src || 'bin/*').babel().target('dist/bin')
+export async function bin(fly, opts) {
+  await fly.source(opts.src || 'bin/*').babel().target('dist/bin')
   notify('Compiled binaries')
 }
 
-exports['compile-lib'] = function * (fly, opts) {
-  yield fly.source(opts.src || 'lib/**/*.js').babel().target('dist/lib')
+export async function lib(fly, opts) {
+  await fly.source(opts.src || 'lib/**/*.js').babel().target('dist/lib')
   notify('Compiled lib files')
 }
 
-exports['compile-server'] = function * (fly, opts) {
-  yield fly.source(opts.src || 'server/**/*.js').babel().target('dist/server')
+export async function server(fly, opts) {
+  await fly.source(opts.src || 'server/**/*.js').babel().target('dist/server')
   notify('Compiled server files')
 }
 
-exports['compile-client'] = function * (fly, opts) {
-  yield fly.source(opts.src || 'client/**/*.js').babel().target('dist/client')
+export async function client(fly, opts) {
+  await fly.source(opts.src || 'client/**/*.js').babel().target('dist/client')
   notify('Compiled client files')
 }
 
-exports['compile-bench'] = function * (fly, opts) {
-  yield fly.source(opts.src || 'bench/*.js').babel().target('dist/bench')
-  notify('Compiled bench files')
-}
-
-exports['remove-strict-mode'] = function * (fly) {
-  yield fly.source('dist/lib/eval-script.js').babel({
+export async function unrestrict(fly) {
+  await fly.source('dist/lib/eval-script.js').babel({
     babelrc: false,
     plugins: ['babel-plugin-transform-remove-strict-mode']
   }).target('dist/lib')
   notify('Completed removing strict mode for eval script')
 }
 
-exports.copy = function * (fly) {
-  yield fly.source('pages/**/*.js').target('dist/pages')
+export async function copy(fly) {
+  await fly.source('pages/**/*.js').target('dist/pages')
 }
 
-exports['copy-bench-fixtures'] = function * (fly) {
-  yield fly.source('bench/fixtures/**/*').target('dist/bench/fixtures')
-}
-
-exports.build = function * (fly) {
-  yield fly.serial(['copy', 'compile', 'build-prefetcher'])
+export async function build(fly) {
+  await fly.serial(['copy', 'compile', 'prefetcher'])
 }
 
 const compiler = webpack(webpackConfig)
-exports['build-prefetcher'] = function * (fly) {
+export async function prefetcher(fly) {
   compiler.run((err, stats) => {
     if (err) throw err
     notify('Built release prefetcher')
   })
 }
 
-exports.bench = function * (fly) {
-  yield fly.parallel(['compile', 'compile-bench', 'copy', 'copy-bench-fixtures'])
+export async function bench(fly) {
+  await fly.parallel(['compile', 'copy'])
+  // copy bench fixtures
+  await fly.source('bench/fixtures/**/*').target('dist/bench/fixtures')
+  // compile bench
+  await fly.source('bench/*.js').babel().target('dist/bench')
+  notify('Compiled bench files')
   // yield fly.source('dist/bench/*.js').benchmark({
     // benchmark.reporters.etalon('RegExp#test')
   // })
 }
 
-exports.default = function * (fly) {
-  yield fly.start('build')
-  yield fly.watch('bin/*', 'compile-bin')
-  yield fly.watch('pages/**/*.js', 'copy')
-  yield fly.watch('server/**/*.js', 'compile-server')
-  yield fly.watch('client/**/*.js', ['compile-client', 'build-prefetcher'])
-  yield fly.watch('lib/**/*.js', ['compile-lib', 'build-prefetcher'])
+export default async function (fly) {
+  await fly.start('build')
+  await fly.watch('bin/*', 'bin')
+  await fly.watch('pages/**/*.js', 'copy')
+  await fly.watch('server/**/*.js', 'server')
+  await fly.watch('client/**/*.js', ['client', 'prefetcher'])
+  await fly.watch('lib/**/*.js', ['lib', 'prefetcher'])
 }
 
-exports.release = function * (fly) {
-  yield fly.clear('dist').start('build')
+export async function release(fly) {
+  await fly.clear('dist').start('build')
 }
 
 // We run following task inside a NPM script chain and it runs chromedriver
@@ -87,14 +83,14 @@ exports.release = function * (fly) {
 // Even though we kill this task's process, chromedriver exists throughout
 // the lifetime of the original npm script.
 
-exports['start-chromedriver'] = function * (fly) {
+export async function pretest(fly) {
   const processName =  isWindows ? 'chromedriver.cmd' : 'chromedriver'
   const chromedriver = childProcess.spawn(processName, { stdio: 'inherit' })
   // We need to do this, otherwise this task's process will keep waiting.
   setTimeout(() => process.exit(0), 2000)
 }
 
-exports['stop-chromedriver'] = function * (fly) {
+export async function posttest(fly) {
   try {
     const cmd = isWindows ? 'taskkill /im chromedriver* /t /f' : 'pkill chromedriver'
     childProcess.execSync(cmd, { stdio: 'ignore' })
@@ -104,7 +100,7 @@ exports['stop-chromedriver'] = function * (fly) {
 }
 
 // notification helper
-function notify (msg) {
+function notify(msg) {
   return notifier.notify({
     title: '▲ Next',
     message: msg,
