@@ -34,8 +34,8 @@ declare module "next/router" {
     onRouteChangeStart: ?((url: string) => void);
     onRouteChangeComplete: ?((url: string) => void);
     onRouteChangeError: ?((err: Error & {cancelled: boolean}, url: string) => void);
-    push(url: string, as: ?string): void;
-    replace(url: string, as: ?string): void;
+    push(url: string, as: ?string): Promise<boolean>;
+    replace(url: string, as: ?string): Promise<boolean>;
   };
 }
 
