@@ -610,7 +610,7 @@ babel-plugin-transform-es2015-modules-amd@^6.22.0, babel-plugin-transform-es2015
     babel-runtime "^6.22.0"
     babel-template "^6.22.0"
 
-babel-plugin-transform-es2015-modules-commonjs@^6.22.0, babel-plugin-transform-es2015-modules-commonjs@^6.6.0:
+babel-plugin-transform-es2015-modules-commonjs@6.22.0, babel-plugin-transform-es2015-modules-commonjs@^6.22.0, babel-plugin-transform-es2015-modules-commonjs@^6.6.0:
   version "6.22.0"
   resolved "https://registry.yarnpkg.com/babel-plugin-transform-es2015-modules-commonjs/-/babel-plugin-transform-es2015-modules-commonjs-6.22.0.tgz#6ca04e22b8e214fb50169730657e7a07dc941145"
   dependencies:
@@ -1243,7 +1243,7 @@ cliui@^3.2.0:
     strip-ansi "^3.0.1"
     wrap-ansi "^2.0.0"
 
-clor@^5.0.0:
+clor@^5.0.1:
   version "5.0.1"
   resolved "https://registry.yarnpkg.com/clor/-/clor-5.0.1.tgz#597c9183a9ebc033d671721333c2ca862d1dfabf"
 
@@ -2036,17 +2036,17 @@ flatten@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/flatten/-/flatten-1.0.2.tgz#dae46a9d78fbe25292258cc1e780a41d95c03782"
 
-fly-babel@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/fly-babel/-/fly-babel-2.1.0.tgz#f18876dd779632fa859c7e55e951cb9eaf567a89"
+fly-babel@^2.1.1:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/fly-babel/-/fly-babel-2.1.1.tgz#bec3cb893b09fe2ceaff895ba87b2c96f05a5b69"
   dependencies:
     babel-core "^6.3.0"
     flatten "^1.0.2"
     read-pkg-up "^1.0.1"
 
-fly-clear@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/fly-clear/-/fly-clear-1.0.0.tgz#6244cbadf06bc3eabb89cca9541d38fd9e6c1548"
+fly-clear@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/fly-clear/-/fly-clear-1.0.1.tgz#6e14200478c741d72b217abd916b18c75211852c"
   dependencies:
     arrify "^1.0.1"
     bluebird "^3.4.7"
@@ -2058,19 +2058,19 @@ fly-esnext@^2.0.0:
   dependencies:
     require-like "^0.1.2"
 
-fly-watch@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/fly-watch/-/fly-watch-1.1.0.tgz#ae20e2272374070bc60427ccd8226b42a455bc29"
+fly-watch@^1.1.1:
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/fly-watch/-/fly-watch-1.1.1.tgz#2870081e80826faa5239379b4df97ae10aebae8d"
   dependencies:
     arrify "^1.0.1"
     chokidar "^1.6.1"
 
-fly@^2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/fly/-/fly-2.0.1.tgz#8bbd4ed523a7772cc14ba5c72814a00378c31b3e"
+fly@^2.0.2:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/fly/-/fly-2.0.2.tgz#9b4764a81f9d39f7b3b3a754cd00a68c4e8fbfb6"
   dependencies:
     bluebird "^3.4.7"
-    clor "^5.0.0"
+    clor "^5.0.1"
     glob "^7.1.1"
     minimist "^1.2.0"
     mkdirp "^0.5.1"
