@@ -674,6 +674,10 @@ As we were researching options for server-rendering React that didn’t involve 
 
 Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
 
+## Contributing
+
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ## Authors
 
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
