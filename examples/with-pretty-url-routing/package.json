@@ -7,6 +7,6 @@
   "dependencies": {
     "express": "^4.14.1",
     "next": "^2.0.0-beta.23",
-    "next-url-prettifier": "^1.0.1"
+    "next-url-prettifier": "^1.0.2"
   }
 }

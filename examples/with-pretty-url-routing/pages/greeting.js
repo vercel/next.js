@@ -1,5 +1,5 @@
 import React from 'react'
-import Link from 'next-url-prettifier/lib/link'
+import {Link} from 'next-url-prettifier'
 import {Router} from '../routes'
 
 export default class GreetingPage extends React.Component {
