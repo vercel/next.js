@@ -35,7 +35,7 @@ export default class Server {
   getRequestHandler () {
     return (req, res, parsedUrl) => {
       if (!parsedUrl || parsedUrl.query === null) {
-        parsedUrl = parse(req.url, true)
+        throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
       }
 
       this.run(req, res, parsedUrl)
@@ -121,7 +121,11 @@ export default class Server {
 
   async start (port) {
     await this.prepare()
-    this.http = http.createServer(this.getRequestHandler())
+    const handle = this.getRequestHandler()
+    this.http = http.createServer((req, res) => {
+      const parsedUrl = parse(req.url, true)
+      return handle(req, res, parsedUrl)
+    })
     await new Promise((resolve, reject) => {
       // This code catches EADDRINUSE error if the port is already in use
       this.http.on('error', reject)
