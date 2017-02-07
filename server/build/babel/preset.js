@@ -4,6 +4,7 @@ const babelRuntimePath = require.resolve('babel-runtime/package')
 module.exports = {
   presets: [
     [require.resolve('babel-preset-es2015'), { modules: false }],
+    require.resolve('babel-preset-es2016'),
     require.resolve('babel-preset-react')
   ],
   plugins: [
