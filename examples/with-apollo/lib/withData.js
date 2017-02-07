@@ -29,7 +29,9 @@ export default (Component) => (
       return {
         initialState: {
           ...state,
-          [client.reduxRootKey]: client.getInitialState()
+          [client.reduxRootKey]: {
+            data: client.getInitialState().data
+          }
         },
         headers,
         ...props
