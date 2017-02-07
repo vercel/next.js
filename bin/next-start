@@ -10,7 +10,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
-    hn: 'hostname',
+    H: 'hostname',
     p: 'port'
   },
   boolean: ['h'],
@@ -35,7 +35,7 @@ if (argv.help) {
 
     Options
       --port, -p      A port number on which to start the application
-      --hostname, -hn Hostname on which to start the application
+      --hostname, -H Hostname on which to start the application
       --help, -h      Displays this message
   `)
   process.exit(0)
