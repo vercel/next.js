@@ -1,7 +1,9 @@
 import ApolloClient, { createNetworkInterface } from 'apollo-client'
 
-export const initClient = (headers) => {
-  const client = new ApolloClient({
+let apolloClient = null
+
+function createClient (headers) {
+  return new ApolloClient({
     ssrMode: !process.browser,
     headers,
     dataIdFromObject: result => result.id || null,
@@ -12,11 +14,14 @@ export const initClient = (headers) => {
       }
     })
   })
+}
+
+export const initClient = (headers) => {
   if (!process.browser) {
-    return client
+    return createClient(headers)
   }
-  if (!window.APOLLO_CLIENT) {
-    window.APOLLO_CLIENT = client
+  if (!apolloClient) {
+    apolloClient = createClient(headers)
   }
-  return window.APOLLO_CLIENT
+  return apolloClient
 }

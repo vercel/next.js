@@ -16,12 +16,8 @@ self.addEventListener('activate', (e) => {
 })
 
 self.addEventListener('fetch', (e) => {
-  const h = e.request.headers
-  const accept = h.getAll ? h.getAll('accept') : h.get('accept').split(',')
-  for (const a of accept) {
-    // bypass Server Sent Events
-    if (a === 'text/event-stream') return
-  }
+  // bypass all requests except JSON pages.
+  if (!(/\/_next\/[^/]+\/pages\//.test(e.request.url))) return
 
   e.respondWith(getResponse(e.request))
 })

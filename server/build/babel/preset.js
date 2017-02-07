@@ -3,7 +3,7 @@ const babelRuntimePath = require.resolve('babel-runtime/package')
 
 module.exports = {
   presets: [
-    require.resolve('babel-preset-es2015'),
+    [require.resolve('babel-preset-es2015'), { modules: false }],
     require.resolve('babel-preset-react')
   ],
   plugins: [
@@ -26,8 +26,7 @@ module.exports = {
           'next/css': require.resolve('../../../lib/css'),
           'next/head': require.resolve('../../../lib/head'),
           'next/document': require.resolve('../../../server/document'),
-          'next/router': require.resolve('../../../lib/router'),
-          'styled-jsx/style': require.resolve('styled-jsx/style')
+          'next/router': require.resolve('../../../lib/router')
         }
       }
     ]

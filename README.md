@@ -376,19 +376,21 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 
-const app = next({ dev: true })
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const { pathname, query } = parse(req.url, true)
+    const parsedUrl = parse(req.url, true)
+    const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
       app.render(req, res, '/b', query)
     } else if (pathname === '/b') {
       app.render(req, res, '/a', query)
     } else {
-      handle(req, res)
+      handle(req, res, parsedUrl)
     }
   })
   .listen(3000, (err) => {
@@ -588,8 +590,7 @@ No in that it enforces a _structure_ so that we can do more advanced things like
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-- Routing with lazy component loading: `
->` (by importing `next/link`)
+- Routing with lazy component loading: `<Link>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
@@ -672,6 +673,10 @@ As we were researching options for server-rendering React that didn’t involve 
 ## Roadmap
 
 Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
+
+## Contributing
+
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Authors
 
