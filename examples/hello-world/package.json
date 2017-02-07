@@ -7,7 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "*"
+    "next": "*",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
   },
   "author": "",
   "license": "ISC"
