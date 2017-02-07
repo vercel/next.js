@@ -29,8 +29,8 @@ export default (Component) => (
       return {
         initialState: {
           ...state,
-          apollo: {
-            data: state.apollo.data
+          [client.reduxRootKey]: {
+            data: client.getInitialState().data
           }
         },
         headers,
