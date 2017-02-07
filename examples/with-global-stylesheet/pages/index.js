@@ -1,11 +1,11 @@
 import React from 'react'
 
-import style from './style.scss'
+import stylesheet from './style.scss'
 // or, if you work with plain css
-// import style from './style.css'
+// import stylesheet from './style.css'
 
 export default () =>
   <div>
-    <style>{ style }</style>
+    <style dangerouslySetInnerHTML={{ __html: stylesheet }} />
     <p>ciao</p>
   </div>
