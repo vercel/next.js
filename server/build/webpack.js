@@ -1,6 +1,5 @@
 import { resolve, join } from 'path'
 import { createHash } from 'crypto'
-import { existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -11,6 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
+import findBabelConfigLocation from './babel/find-config-location'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -122,17 +122,19 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     .filter((p) => !!p)
 
   const mainBabelOptions = {
-    babelrc: true,
     cacheDirectory: true,
     sourceMaps: dev ? 'both' : false,
     presets: []
   }
 
-  const hasBabelRc = existsSync(join(dir, '.babelrc'))
-  if (hasBabelRc) {
-    console.log('> Using .babelrc defined in your app root')
+  const configLocation = findBabelConfigLocation(dir)
+  if (configLocation) {
+    console.log(`> Using external babel configuration`)
+    console.log(`> location: "${configLocation}"`)
+    mainBabelOptions.babelrc = true
   } else {
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
+    mainBabelOptions.babelrc = false
   }
 
   const rules = (dev ? [{
@@ -162,10 +164,42 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       // By default, our babel config does not transpile ES2015 module syntax because
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.
-      transform ({ content, sourceMap }) {
+      transform ({ content, sourceMap, interpolatedName }) {
+        // Only handle .js files
+        if (!(/\.js$/.test(interpolatedName))) {
+          return { content, sourceMap }
+        }
+        const babelRuntimePath = require.resolve('babel-runtime/package')
+          .replace(/[\\/]package\.json$/, '')
         const transpiled = babelCore.transform(content, {
-          presets: ['es2015'],
+          babelrc: false,
           sourceMaps: dev ? 'both' : false,
+          // Here we need to resolve all modules to the absolute paths.
+          // Earlier we did it with the babel-preset.
+          // But since we don't transpile ES2015 in the preset this is not resolving.
+          // That's why we need to do it here.
+          // See more: https://github.com/zeit/next.js/issues/951
+          plugins: [
+            [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
+            [
+              require.resolve('babel-plugin-module-resolver'),
+              {
+                alias: {
+                  'babel-runtime': babelRuntimePath,
+                  react: require.resolve('react'),
+                  'react-dom': require.resolve('react-dom'),
+                  'react-dom/server': require.resolve('react-dom/server'),
+                  'next/link': require.resolve('../../lib/link'),
+                  'next/prefetch': require.resolve('../../lib/prefetch'),
+                  'next/css': require.resolve('../../lib/css'),
+                  'next/head': require.resolve('../../lib/head'),
+                  'next/document': require.resolve('../../server/document'),
+                  'next/router': require.resolve('../../lib/router'),
+                  'styled-jsx/style': require.resolve('styled-jsx/style')
+                }
+              }
+            ]
+          ],
           inputSourceMap: sourceMap
         })
 
