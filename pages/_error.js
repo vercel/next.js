@@ -2,8 +2,8 @@ import React from 'react'
 import Head from 'next/head'
 
 export default class Error extends React.Component {
-  static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
+  static getInitialProps ({ res, jsonPageRes }) {
+    const statusCode = res ? res.statusCode : (jsonPageRes ? jsonPageRes.status : null)
     return { statusCode }
   }
 
