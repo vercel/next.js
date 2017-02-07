@@ -9,16 +9,18 @@ export const reducer = (state = { lastUpdate: 0, light: false }, action) => {
 }
 
 export const startClock = () => dispatch => {
-  setInterval(() => dispatch({ type: 'TICK', light: true, ts: Date.now() }), 800)
+  return setInterval(() => dispatch({ type: 'TICK', light: true, ts: Date.now() }), 800)
 }
+
+let store = null
 
 export const initStore = (reducer, initialState, isServer) => {
   if (isServer && typeof window === 'undefined') {
     return createStore(reducer, initialState, applyMiddleware(thunkMiddleware))
   } else {
-    if (!window.store) {
-      window.store = createStore(reducer, initialState, applyMiddleware(thunkMiddleware))
+    if (!store) {
+      store = createStore(reducer, initialState, applyMiddleware(thunkMiddleware))
     }
-    return window.store
+    return store
   }
 }

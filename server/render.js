@@ -2,17 +2,20 @@ import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
+import fs from 'mz/fs'
 import accepts from 'accepts'
+import mime from 'mime-types'
 import requireModule from './require'
 import resolvePath from './resolve'
 import readPage from './read-page'
 import { Router } from '../lib/router'
+import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
-  sendHTML(res, html)
+  sendHTML(res, html, req.method)
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
@@ -21,17 +24,17 @@ export function renderToHTML (req, res, pathname, query, opts) {
 
 export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(res, html)
+  sendHTML(res, html, req.method)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  const page = err && opts.dev ? '/_error-debug' : '/_error'
-  return doRender(req, res, pathname, query, { ...opts, err, page })
+  return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
 }
 
 async function doRender (req, res, pathname, query, {
   err,
   page,
+  buildId,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
@@ -50,9 +53,9 @@ async function doRender (req, res, pathname, query, {
     component,
     errorComponent
   ] = await Promise.all([
-    Component.getInitialProps ? Component.getInitialProps(ctx) : {},
+    loadGetInitialProps(Component, ctx),
     readPage(join(dir, '.next', 'bundles', 'pages', page)),
-    readPage(join(dir, '.next', 'bundles', 'pages', dev ? '_error-debug' : '_error'))
+    readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
   ])
 
   // the response might be finshed on the getinitialprops call
@@ -62,6 +65,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component,
       props,
+      err,
       router: new Router(pathname, query)
     })
 
@@ -77,7 +81,9 @@ async function doRender (req, res, pathname, query, {
     return { html, head }
   }
 
-  const docProps = await Document.getInitialProps({ ...ctx, renderPage })
+  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+
+  if (res.finished) return
 
   const doc = createElement(Document, {
     __NEXT_DATA__: {
@@ -86,6 +92,7 @@ async function doRender (req, res, pathname, query, {
       props,
       pathname,
       query,
+      buildId,
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
@@ -102,30 +109,29 @@ export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) 
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const page = err && dev ? '/_error-debug' : '/_error'
-  const component = await readPage(join(dir, '.next', 'bundles', 'pages', page))
+  const component = await readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
 
   sendJSON(res, {
     component,
     err: err && dev ? errorToJSON(err) : null
-  })
+  }, req.method)
 }
 
-export function sendHTML (res, html) {
+export function sendHTML (res, html, method) {
   if (res.finished) return
 
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(html)
+  res.end(method === 'HEAD' ? null : html)
 }
 
-export function sendJSON (res, obj) {
+export function sendJSON (res, obj, method) {
   if (res.finished) return
 
   const json = JSON.stringify(obj)
   res.setHeader('Content-Type', 'application/json')
   res.setHeader('Content-Length', Buffer.byteLength(json))
-  res.end(json)
+  res.end(method === 'HEAD' ? null : json)
 }
 
 function errorToJSON (err) {
@@ -147,17 +153,30 @@ export async function serveStaticWithGzip (req, res, path) {
     return serveStatic(req, res, path)
   }
 
+  const gzipPath = `${path}.gz`
+
   try {
-    const gzipPath = `${path}.gz`
-    res.setHeader('Content-Encoding', 'gzip')
-    await serveStatic(req, res, gzipPath)
+    // We need to check the existance of the gzipPath.
+    // Getting `ENOENT` error from the `serveStatic` is inconsistent and
+    // didn't work on all the cases.
+    //
+    // And this won't give us a race condition because we know that
+    // we don't add gzipped files at runtime.
+    await fs.stat(gzipPath)
   } catch (ex) {
+    // Handles the error thrown by fs.stat
     if (ex.code === 'ENOENT') {
-      res.removeHeader('Content-Encoding')
+      // Seems like there's no gzipped file. Let's serve the uncompressed file.
       return serveStatic(req, res, path)
     }
+
     throw ex
   }
+
+  const contentType = mime.lookup(path) || 'application/octet-stream'
+  res.setHeader('Content-Type', contentType)
+  res.setHeader('Content-Encoding', 'gzip')
+  return serveStatic(req, res, gzipPath)
 }
 
 export function serveStatic (req, res, path) {

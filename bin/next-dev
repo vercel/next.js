@@ -2,8 +2,12 @@
 import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
-import { exists } from 'mz/fs'
+import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
+import { printAndExit } from '../lib/utils'
+import pkgUp from 'pkg-up'
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -30,12 +34,25 @@ if (argv.help) {
 
     Options
       --port, -p      A port number on which to start the application
-      --help, -p      Displays this message
+      --help, -h      Displays this message
   `)
   process.exit(0)
 }
 
 const dir = resolve(argv._[0] || '.')
+
+// Check if pages dir exists and warn if not
+if (!existsSync(dir)) {
+  printAndExit(`> No such directory exists as the project root: ${dir}`)
+}
+
+if (!existsSync(join(dir, 'pages'))) {
+  if (existsSync(join(dir, '..', 'pages'))) {
+    printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+  }
+
+  printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+}
 
 const srv = new Server({ dir, dev: true })
 srv.start(argv.port)
@@ -43,18 +60,17 @@ srv.start(argv.port)
   if (!process.env.NOW) {
     console.log(`> Ready on http://localhost:${argv.port}`)
   }
-
-  // Check if pages dir exists and warn if not
-  if (!(await exists(join(dir, 'pages')))) {
-    if (await exists(join(dir, '..', 'pages'))) {
-      console.error('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
-    } else {
-      console.error('> Couldn\'t find a `pages` directory. Please create one under the project root')
-    }
-    process.exit(1)
-  }
 })
 .catch((err) => {
-  console.error(err)
-  process.exit(1)
+  if (err.code === 'EADDRINUSE') {
+    let errorMessage = `Port ${argv.port} is already in use.`
+    const pkgAppPath = pkgUp.sync('.')
+    const appPackage = JSON.parse(readFileSync(pkgAppPath, 'utf8'))
+    const nextScript = Object.entries(appPackage.scripts).find(scriptLine => scriptLine[1] === 'next')
+    if (nextScript) errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+    console.error(errorMessage)
+  } else {
+    console.error(err)
+  }
+  process.nextTick(() => process.exit(1))
 })

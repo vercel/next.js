@@ -26,7 +26,7 @@ export default class HotReloader {
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
         fn(req, res, (err) => {
-          if (err) reject(err)
+          if (err) return reject(err)
           resolve()
         })
       })
@@ -47,7 +47,7 @@ export default class HotReloader {
     if (this.webpackDevMiddleware) {
       return new Promise((resolve, reject) => {
         this.webpackDevMiddleware.close((err) => {
-          if (err) reject(err)
+          if (err) return reject(err)
           resolve()
         })
       })
@@ -122,9 +122,14 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
+    const ignored = [
+      /(^|[/\\])\../, // .dotfiles
+      /node_modules/
+    ]
     const windowsSettings = isWindowsBash() ? {
       lazy: false,
       watchOptions: {
+        ignored,
         aggregateTimeout: 300,
         poll: true
       }
@@ -135,12 +140,7 @@ export default class HotReloader {
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
-      watchOptions: {
-        ignored: [
-          /(^|[/\\])\../, // .dotfiles
-          /node_modules/
-        ]
-      },
+      watchOptions: { ignored },
       ...windowsSettings
     })
 
