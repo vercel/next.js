@@ -1,0 +1,19 @@
+{
+  "name": "with-mobx",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "mobx": "^2.7.0",
+    "mobx-react": "^4.0.4",
+    "next": "^2.0.0-beta"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-plugin-transform-decorators-legacy": "^1.3.4"
+  }
+}

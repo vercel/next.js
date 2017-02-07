@@ -1,7 +1,4 @@
-import React from 'react'
-import { connect } from 'react-redux'
-
-export default connect(state => state)(({ lastUpdate, light }) => {
+export default ({ lastUpdate, light }) => {
   return (
     <div className={light ? 'light' : ''}>
       {format(new Date(lastUpdate))}
@@ -20,8 +17,8 @@ export default connect(state => state)(({ lastUpdate, light }) => {
       `}</style>
     </div>
   )
-})
+}
 
-const format = t => `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`
+const format = t => `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
 
 const pad = n => n < 10 ? `0${n}` : n

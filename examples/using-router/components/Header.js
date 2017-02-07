@@ -2,9 +2,9 @@ import Router from 'next/router'
 
 export default () => (
   <div>
-    <Link href='/'>Home</Link>
-    <Link href='/about'>About</Link>
-    <Link href='/error'>Error</Link>
+    <Link href='/'><a>Home</a></Link>
+    <Link href='/about'><a>About</a></Link>
+    <Link href='/error'><a>Error</a></Link>
   </div>
 )
 

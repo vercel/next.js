@@ -21,7 +21,9 @@ and add a script to your package.json like this:
 ```json
 {
   "scripts": {
-    "dev": "next"
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
   }
 }
 ```
@@ -94,8 +96,10 @@ export default () => (
 #### CSS-in-JS
 
 <p><details>
-  <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li></ul>
+  <summary>
+    <b>Examples</b>
+    </summary>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -122,7 +126,10 @@ export default () => (
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/head-elements">Head elements</a></li></ul>
+  <ul>
+    <li><a href="./examples/head-elements">Head elements</a></li>
+    <li><a href="./examples/layout-component">Layout component</a></li>
+  </ul>
 </details></p>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
@@ -268,7 +275,7 @@ Here's a list of supported events:
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to property listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
 Router.onRouteChangeStart = (url) => {
@@ -324,7 +331,7 @@ export default () => (
 When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
 
 ```jsx
-<Link href='/contact' prefetch={false}>Home</Link>
+<Link href='/contact' prefetch={false}><a>Home</a></Link>
 ```
 
 #### Imperatively
@@ -353,6 +360,8 @@ export default ({ url }) => (
   <ul>
     <li><a href="./examples/custom-server">Basic custom server</a></li>
     <li><a href="./examples/custom-server-express">Express integration</a></li>
+    <li><a href="./examples/custom-server-hapi">Hapi integration</a></li>
+    <li><a href="./examples/custom-server-koa">Koa integration</a></li>
     <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="./examples/ssr-caching">SSR caching</a></li>
   </ul>
@@ -367,19 +376,21 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 
-const app = next({ dev: true })
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const { pathname, query } = parse(req.url, true)
+    const parsedUrl = parse(req.url, true)
+    const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
       app.render(req, res, '/b', query)
     } else if (pathname === '/b') {
       app.render(req, res, '/a', query)
     } else {
-      handle(req, res)
+      handle(req, res, parsedUrl)
     }
   })
   .listen(3000, (err) => {
@@ -403,12 +414,14 @@ Supported options:
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
+  <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
-import Document, { Head, Main, NextScript } from `next/document`
+// ./pages/_document.js
+import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
@@ -577,8 +590,7 @@ No in that it enforces a _structure_ so that we can do more advanced things like
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-- Routing with lazy component loading: `
->` (by importing `next/link`)
+- Routing with lazy component loading: `<Link>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
@@ -633,6 +645,13 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 </details>
 
 <details>
+  <summary>Can I use it with GraphQL?</summary>
+
+Yes! Here's an example with [Apollo](./examples/with-apollo).
+
+</details>
+
+<details>
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
@@ -655,9 +674,14 @@ As we were researching options for server-rendering React that didn’t involve 
 
 Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
 
+## Contributing
+
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ## Authors
 
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))

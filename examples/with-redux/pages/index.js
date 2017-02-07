@@ -1,13 +1,13 @@
 import React from 'react'
 import { Provider } from 'react-redux'
 import { reducer, initStore, startClock } from '../store'
-import Clock from '../components/Clock'
+import Page from '../components/Page'
 
 export default class Counter extends React.Component {
   static getInitialProps ({ req }) {
     const isServer = !!req
     const store = initStore(reducer, null, isServer)
-    store.dispatch({ type: 'TICK', ts: Date.now() })
+    store.dispatch({ type: 'TICK', light: !isServer, ts: Date.now() })
     return { initialState: store.getState(), isServer }
   }
 
@@ -27,7 +27,7 @@ export default class Counter extends React.Component {
   render () {
     return (
       <Provider store={this.store}>
-        <Clock />
+        <Page title='Index Page' linkTo='/other' />
       </Provider>
     )
   }

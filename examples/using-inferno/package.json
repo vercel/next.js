@@ -1,0 +1,16 @@
+{
+  "name": "using-inferno",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^2.0.0-beta",
+    "inferno": "^1.0.7",
+    "inferno-compat": "^1.0.7"
+  },
+  "author": "",
+  "license": "MIT"
+}
