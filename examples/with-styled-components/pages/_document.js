@@ -16,8 +16,8 @@ export default class MyDocument extends Document {
         <Head>
           <title>My page</title>
           <link
-            href="https://fonts.googleapis.com/css?family=Lato"
-            rel="stylesheet"
+            href='https://fonts.googleapis.com/css?family=Lato'
+            rel='stylesheet'
           />
           <style dangerouslySetInnerHTML={{ __html: this.props.style }} />
         </Head>
