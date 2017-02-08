@@ -1,18 +1,17 @@
 const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\/]package\.json$/, '')
 
-module.exports = {
-  presets: [
-    [require.resolve('babel-preset-es2015'), { modules: false }],
-    require.resolve('babel-preset-react')
-  ],
-  plugins: [
+export default function preset (ctx, options = {}) {
+  const {
+    styledJsx = true
+  } = options
+
+  const plugins = [
     require.resolve('babel-plugin-react-require'),
     require.resolve('babel-plugin-transform-async-to-generator'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
     require.resolve('babel-plugin-transform-class-properties'),
     require.resolve('babel-plugin-transform-runtime'),
-    require.resolve('styled-jsx/babel'),
     [
       require.resolve('babel-plugin-module-resolver'),
       {
@@ -28,4 +27,16 @@ module.exports = {
       }
     ]
   ]
+
+  if (styledJsx) {
+    plugins.push(require.resolve('styled-jsx/babel'))
+  }
+
+  return {
+    presets: [
+      [require.resolve('babel-preset-es2015'), { modules: false }],
+      require.resolve('babel-preset-react')
+    ],
+    plugins
+  }
 }

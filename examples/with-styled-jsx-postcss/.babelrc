@@ -1,6 +1,6 @@
 {
   "presets": [
-    "next/babel"
+    ["next/babel", { styledJsx: false }]
   ],
   "plugins": [
     "styled-jsx-postcss/babel"
