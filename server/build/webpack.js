@@ -173,9 +173,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
               {
                 alias: {
                   'babel-runtime': babelRuntimePath,
-                  react: require.resolve('react'),
-                  'react-dom': require.resolve('react-dom'),
-                  'react-dom/server': require.resolve('react-dom/server'),
                   'next/link': require.resolve('../../lib/link'),
                   'next/prefetch': require.resolve('../../lib/prefetch'),
                   'next/css': require.resolve('../../lib/css'),
