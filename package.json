@@ -48,12 +48,11 @@
     "babel-loader": "6.2.10",
     "babel-plugin-module-resolver": "2.5.0",
     "babel-plugin-react-require": "^3.0.0",
-    "babel-plugin-transform-async-to-generator": "6.22.0",
     "babel-plugin-transform-class-properties": "6.22.0",
     "babel-plugin-transform-es2015-modules-commonjs": "6.22.0",
     "babel-plugin-transform-object-rest-spread": "6.22.0",
     "babel-plugin-transform-runtime": "6.22.0",
-    "babel-preset-es2015": "6.22.0",
+    "babel-preset-latest": "6.22.0",
     "babel-preset-react": "6.22.0",
     "babel-runtime": "6.22.0",
     "case-sensitive-paths-webpack-plugin": "1.1.4",
@@ -94,6 +93,7 @@
     "cheerio": "^0.22.0",
     "chromedriver": "^2.26.1",
     "coveralls": "2.11.16",
+    "cross-env": "^3.1.4",
     "gulp": "3.9.1",
     "gulp-babel": "6.1.2",
     "gulp-benchmark": "1.1.1",
@@ -107,10 +107,7 @@
     "run-sequence": "1.2.2",
     "standard": "8.6.0",
     "wd": "^1.1.3",
-    "webpack-stream": "3.2.0",
-    "cross-env": "^3.1.4",
-    "react": "15.4.2",
-    "react-dom": "15.4.2"
+    "webpack-stream": "3.2.0"
   },
   "peerDependencies": {
     "react": "^15.4.2",
