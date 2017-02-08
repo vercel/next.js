@@ -32,7 +32,7 @@ if (argv.help) {
 
     Options
       --port, -p      A port number on which to start the application
-      --hostname, -H Hostname on which to start the application
+      --hostname, -H  Hostname on which to start the application
       --help, -h      Displays this message
   `)
   process.exit(0)
@@ -50,7 +50,8 @@ if (!existsSync(resolve(dir, '.next', 'BUILD_ID'))) {
 srv.start(argv.port, argv.hostname)
 .then(() => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname}:${argv.port}`)
+    console.warn(argv)
+    console.log(`> Ready on http://${argv.hostname && typeof argv.hostname !== 'boolean' ? argv.hostname : 'localhost'}:${argv.port}`)
   }
 })
 .catch((err) => {
