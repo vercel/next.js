@@ -14,10 +14,7 @@ const argv = parseArgs(process.argv.slice(2), {
     p: 'port'
   },
   boolean: ['h'],
-  default: {
-    p: 3000,
-    hostname: 'localhost'
-  }
+  default: { p: 3000 }
 })
 
 if (argv.help) {
