@@ -179,6 +179,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
                   'next/head': require.resolve('../../lib/head'),
                   'next/document': require.resolve('../../server/document'),
                   'next/router': require.resolve('../../lib/router'),
+                  'next/error': require.resolve('../../lib/error'),
                   'styled-jsx/style': require.resolve('styled-jsx/style')
                 }
               }
