@@ -10,7 +10,7 @@ npm run dev  # to compile TypeScript files and to run next.js
 Output JS files are aside the related TypeScript ones.  
 
 ## To fix  
-It tsconfig.json the options `jsx="react"` compiles JSX syntax into nested React.createElement calls.  
+In tsconfig.json the options `jsx="react"` compiles JSX syntax into nested React.createElement calls.  
 This solution doesn't work well with some Next.js features like `next/head` or `next/link`.  
 The workaround is to create JS files that just return the mentioned module and require them from TSX files.  
 Like  
