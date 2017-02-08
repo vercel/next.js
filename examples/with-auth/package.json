@@ -1,0 +1,21 @@
+{
+  "name": "auth-next",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "1.15.2",
+    "emailjs": "1.0.8",
+    "express": "4.14.0",
+    "express-session": "1.14.2",
+    "isomorphic-fetch": "2.2.1",
+    "next": "2.0.0-beta.12",
+    "passwordless": "1.1.2",
+    "passwordless-memorystore": "0.0.1"
+  },
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}

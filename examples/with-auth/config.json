@@ -1,0 +1,6 @@
+{
+  "baseURL": "http://localhost:3000",
+  "email": {
+    "sender": "your@email.org"
+  }
+}
