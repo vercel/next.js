@@ -5,7 +5,10 @@ const cache = new Map()
 
 const defaultConfig = {
   webpack: null,
-  poweredByHeader: true
+  poweredByHeader: true,
+  assetPrefix ({ buildId }) {
+    return `/_next/${buildId}/`
+  }
 }
 
 export default function getConfig (dir) {
