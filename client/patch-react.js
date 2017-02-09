@@ -107,6 +107,7 @@ function wrap (fn, around) {
 
   // copy all properties
   Object.assign(_fn, fn)
+  _fn.displayName = fn.displayName || fn.name
 
   _fn.prototype = fn.prototype
 
