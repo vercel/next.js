@@ -34,8 +34,12 @@ export default class Server {
 
   getRequestHandler () {
     return (req, res, parsedUrl) => {
-      if (!parsedUrl || parsedUrl.query === null) {
+      if (!parsedUrl) {
         parsedUrl = parse(req.url, true)
+      }
+
+      if (!parsedUrl.query) {
+        throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
       }
 
       this.run(req, res, parsedUrl)
