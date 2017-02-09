@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "dev": "concurrently \"tsc --watch\" next"
+  },
+  "dependencies": {
+    "next": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "^15.0.1",
+    "concurrently": "^3.1.0",
+    "typescript": "^2.1.5"
+  }
+}
