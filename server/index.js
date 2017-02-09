@@ -125,10 +125,7 @@ export default class Server {
 
   async start (port) {
     await this.prepare()
-    const handle = this.getRequestHandler()
-    this.http = http.createServer((req, res) => {
-      return handle(req, res)
-    })
+    this.http = http.createServer(this.getRequestHandler())
     await new Promise((resolve, reject) => {
       // This code catches EADDRINUSE error if the port is already in use
       this.http.on('error', reject)
