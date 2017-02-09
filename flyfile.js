@@ -10,7 +10,7 @@ export async function compile(fly) {
 }
 
 export async function bin(fly, opts) {
-  await fly.source(opts.src || 'bin/*').babel().target('dist/bin')
+  await fly.source(opts.src || 'bin/*').babel().target('dist/bin', {mode: 0o755})
   notify('Compiled binaries')
 }
 
