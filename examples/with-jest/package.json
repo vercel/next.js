@@ -15,9 +15,8 @@
     "babel-jest": "^18.0.0",
     "enzyme": "^2.5.1",
     "jest-cli": "^18.0.0",
-    "react": "^15.3.2",
-    "react-addons-test-utils": "^15.3.2",
-    "react-dom": "^15.3.2",
-    "react-test-renderer": "^15.4.1"
+    "react-addons-test-utils": "^15.4.2",
+    "babel-preset-es2015": "^6.22.0",
+    "react-test-renderer": "^15.4.2"
   }
 }
