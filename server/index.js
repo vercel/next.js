@@ -127,8 +127,7 @@ export default class Server {
     await this.prepare()
     const handle = this.getRequestHandler()
     this.http = http.createServer((req, res) => {
-      const parsedUrl = parse(req.url, true)
-      return handle(req, res, parsedUrl)
+      return handle(req, res)
     })
     await new Promise((resolve, reject) => {
       // This code catches EADDRINUSE error if the port is already in use
