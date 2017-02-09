@@ -33,8 +33,16 @@ export default class Server {
   }
 
   getRequestHandler () {
-    return (req, res) => {
-      this.run(req, res)
+    return (req, res, parsedUrl) => {
+      if (!parsedUrl) {
+        parsedUrl = parse(req.url, true)
+      }
+
+      if (!parsedUrl.query) {
+        throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
+      }
+
+      this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
@@ -102,8 +110,8 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/:path*': async (req, res) => {
-        const { pathname, query } = parse(req.url, true)
+      '/:path*': async (req, res, params, parsedUrl) => {
+        const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query)
       }
     }
@@ -119,26 +127,26 @@ export default class Server {
     await this.prepare()
     this.http = http.createServer(this.getRequestHandler())
     await new Promise((resolve, reject) => {
-      this.http.listen(port, (err) => {
-        if (err) return reject(err)
-        resolve()
-      })
+      // This code catches EADDRINUSE error if the port is already in use
+      this.http.on('error', reject)
+      this.http.on('listening', () => resolve())
+      this.http.listen(port)
     })
   }
 
-  async run (req, res) {
+  async run (req, res, parsedUrl) {
     if (this.hotReloader) {
       await this.hotReloader.run(req, res)
     }
 
-    const fn = this.router.match(req, res)
+    const fn = this.router.match(req, res, parsedUrl)
     if (fn) {
       await fn()
       return
     }
 
     if (req.method === 'GET' || req.method === 'HEAD') {
-      await this.render404(req, res)
+      await this.render404(req, res, parsedUrl)
     } else {
       res.statusCode = 501
       res.end(STATUS_CODES[501])
@@ -203,8 +211,8 @@ export default class Server {
     }
   }
 
-  async render404 (req, res) {
-    const { pathname, query } = parse(req.url, true)
+  async render404 (req, res, parsedUrl = parse(req.url, true)) {
+    const { pathname, query } = parsedUrl
     res.statusCode = 404
     this.renderError(null, req, res, pathname, query)
   }

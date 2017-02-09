@@ -26,7 +26,7 @@ describe('Shallow Equals', () => {
     expect(shallowEquals(a, b)).toBe(false)
   })
 
-  it('should be false if objects if only they matched deeply', () => {
+  it('should be false if objects matched deeply', () => {
     const a = { aa: 10, bb: { a: 10 } }
     const b = { aa: 10, bb: { a: 10 } }
     expect(shallowEquals(a, b)).toBe(false)
