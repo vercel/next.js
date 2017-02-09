@@ -20,7 +20,7 @@ class Page extends React.Component {
         <h1>{this.props.title}</h1>
         <Clock lastUpdate={this.props.store.lastUpdate} light={this.props.store.light} />
         <nav>
-          <Link href={this.props.linkTo}>Navigate</Link>
+          <Link href={this.props.linkTo}><a>Navigate</a></Link>
         </nav>
       </div>
     )

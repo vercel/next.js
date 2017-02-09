@@ -13,3 +13,8 @@ npm-debug.log
 # coverage
 .nyc_output
 coverage
+
+# editors
+.idea/*
+*.iml
+*.sublime-*

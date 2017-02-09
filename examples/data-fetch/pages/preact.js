@@ -15,7 +15,7 @@ export default class MyPage extends React.Component {
     return (
       <div>
         <p>Preact has {this.props.stars} ⭐️</p>
-        <Link href='/'>I bet next has more stars (?)</Link>
+        <Link href='/'><a>I bet next has more stars (?)</a></Link>
       </div>
     )
   }

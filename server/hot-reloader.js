@@ -122,9 +122,14 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
+    const ignored = [
+      /(^|[/\\])\../, // .dotfiles
+      /node_modules/
+    ]
     const windowsSettings = isWindowsBash() ? {
       lazy: false,
       watchOptions: {
+        ignored,
         aggregateTimeout: 300,
         poll: true
       }
@@ -135,12 +140,7 @@ export default class HotReloader {
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
-      watchOptions: {
-        ignored: [
-          /(^|[/\\])\../, // .dotfiles
-          /node_modules/
-        ]
-      },
+      watchOptions: { ignored },
       ...windowsSettings
     })
 

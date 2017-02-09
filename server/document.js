@@ -69,13 +69,8 @@ export class Main extends Component {
   }
 
   render () {
-    const { html, __NEXT_DATA__, staticMarkup } = this.context._documentProps
-    return <div>
-      <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-      {staticMarkup ? null : <script dangerouslySetInnerHTML={{
-        __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
-      }} />}
-    </div>
+    const { html } = this.context._documentProps
+    return <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
   }
 }
 
@@ -89,6 +84,9 @@ export class NextScript extends Component {
     let { buildId } = __NEXT_DATA__
 
     return <div>
+      {staticMarkup ? null : <script dangerouslySetInnerHTML={{
+        __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
+      }} />}
       { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/commons.js`} /> }
       { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/main.js`} /> }
     </div>

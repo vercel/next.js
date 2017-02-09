@@ -5,6 +5,8 @@ import parseArgs from 'minimist'
 import Server from '../server'
 import { existsSync } from 'fs'
 
+process.env.NODE_ENV = process.env.NODE_ENV || 'production'
+
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
@@ -31,7 +33,7 @@ if (argv.help) {
 
     Options
       --port, -p      A port number on which to start the application
-      --help, -p      Displays this message
+      --help, -h      Displays this message
   `)
   process.exit(0)
 }
@@ -40,8 +42,8 @@ const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })
 
-if (!existsSync(resolve(dir, '.next'))) {
-  console.error(`> Could not find the '.next' directory! Try building your app with 'next build' before starting the server.`)
+if (!existsSync(resolve(dir, '.next', 'BUILD_ID'))) {
+  console.error(`> Could not find a valid build in the '.next' directory! Try building your app with 'next build' before starting the server.`)
   process.exit(1)
 }
 
