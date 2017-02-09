@@ -37,6 +37,7 @@ _**NOTE! the README on the `master` branch might not match that of the [latest s
 - [Production deployment](#production-deployment)
 - [FAQ](#faq)
 - [Roadmap](#roadmap)
+- [Contributing](#contributing)
 - [Authors](#authors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
