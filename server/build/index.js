@@ -1,3 +1,6 @@
+import fs from 'mz/fs'
+import uuid from 'uuid'
+import path from 'path'
 import webpack from './webpack'
 import clean from './clean'
 import gzipAssets from './gzip'
@@ -10,6 +13,7 @@ export default async function build (dir) {
 
   await runCompiler(compiler)
   await gzipAssets(dir)
+  await writeBuildId(dir)
 }
 
 function runCompiler (compiler) {
@@ -28,4 +32,10 @@ function runCompiler (compiler) {
       resolve()
     })
   })
+}
+
+async function writeBuildId (dir) {
+  const buildIdPath = path.resolve(dir, '.next', 'BUILD_ID')
+  const buildId = uuid.v4()
+  await fs.writeFile(buildIdPath, buildId, 'utf8')
 }

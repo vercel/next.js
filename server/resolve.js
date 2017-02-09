@@ -31,8 +31,8 @@ function getPaths (id) {
 
   if (i[i.length - 1] === sep) {
     return [
-      i + 'index.json',
-      i + 'index.js'
+      i + 'index.js',
+      i + 'index.json'
     ]
   }
 

@@ -8,8 +8,9 @@ const sequence = require('run-sequence')
 const webpack = require('webpack')
 const webpackStream = require('webpack-stream')
 const del = require('del')
-const jest = require('gulp-jest')
+const childProcess = require('child_process')
 
+const isWindows = /^win/.test(process.platform)
 const babelOptions = JSON.parse(fs.readFileSync('.babelrc', 'utf-8'))
 
 gulp.task('compile', [
@@ -123,21 +124,6 @@ gulp.task('build-prefetcher', ['compile-lib', 'compile-client'], () => {
   .pipe(notify('Built release prefetcher'))
 })
 
-gulp.task('test', ['compile'], () => {
-  return gulp.src('./test')
-  .pipe(jest.default({
-    coverage: true,
-    verbose: true,
-    config: {
-      rootDir: './test',
-      testEnvironment: 'node',
-      coveragePathIgnorePatterns: [
-        'test/.*'
-      ]
-    }
-  }))
-})
-
 gulp.task('bench', ['compile', 'copy', 'compile-bench', 'copy-bench-fixtures'], () => {
   return gulp.src('dist/bench/*.js', {read: false})
   .pipe(benchmark({
@@ -193,7 +179,6 @@ gulp.task('default', [
   'compile',
   'build',
   'copy',
-  'test',
   'watch'
 ])
 
@@ -202,8 +187,34 @@ gulp.task('release', (cb) => {
     'compile',
     'build',
     'copy',
-    'test'
   ], cb)
+})
+
+// We run following task inside a NPM script chain and it runs chromedriver
+// inside a child process tree.
+// Even though we kill this task's process, chromedriver exists throughout
+// the lifetime of the original npm script.
+
+gulp.task('start-chromedriver', ['stop-chromedriver'], (cb) => {
+  const processName =  isWindows? 'chromedriver.cmd' : 'chromedriver'
+  const chromedriver = childProcess.spawn(processName, { stdio: 'inherit' })
+
+  const timeoutHandler = setTimeout(() => {
+    // We need to do this, otherwise this task's process will keep waiting.
+    process.exit(0)
+  }, 2000)
+})
+
+gulp.task('stop-chromedriver', () => {
+  try {
+    if (isWindows) {
+      childProcess.execSync('taskkill /im chromedriver* /t /f', { stdio: 'ignore' })
+    } else {
+      childProcess.execSync('pkill chromedriver', { stdio: 'ignore' })
+    }
+  } catch(ex) {
+    // Do nothing
+  }
 })
 
 // avoid logging to the console
