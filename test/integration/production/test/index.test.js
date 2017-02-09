@@ -5,13 +5,15 @@ import { join } from 'path'
 import {
   nextServer,
   nextBuild,
-  findPort,
+  startApp,
+  stopApp,
   renderViaHTTP
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-let app
 let appPort
+let server
+let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 
 describe('Production Usage', () => {
@@ -23,11 +25,10 @@ describe('Production Usage', () => {
       quiet: true
     })
 
-    await app.prepare()
-    appPort = await findPort()
-    await app.start(appPort)
+    server = await startApp(app)
+    appPort = server.address().port
   })
-  afterAll(() => app.close())
+  afterAll(() => stopApp(server))
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
