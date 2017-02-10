@@ -6,9 +6,45 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
-**NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)! **
+_**NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)!**_
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- https://github.com/thlorenz/doctoc -->
+
+- [How to use](#how-to-use)
+  - [Setup](#setup)
+  - [Automatic code splitting](#automatic-code-splitting)
+  - [CSS](#css)
+    - [Built-in CSS support](#built-in-css-support)
+    - [CSS-in-JS](#css-in-js)
+  - [Static file serving (e.g.: images)](#static-file-serving-eg-images)
+  - [Populating `<head>`](#populating-head)
+  - [Fetching data and component lifecycle](#fetching-data-and-component-lifecycle)
+  - [Routing](#routing)
+    - [With `<Link>`](#with-link)
+    - [Imperatively](#imperatively)
+      - [Router Events](#router-events)
+  - [Prefetching Pages](#prefetching-pages)
+    - [With `<Link>`](#with-link-1)
+    - [Imperatively](#imperatively-1)
+  - [Custom server and routing](#custom-server-and-routing)
+  - [Custom `<Document>`](#custom-document)
+  - [Custom error handling](#custom-error-handling)
+  - [Custom configuration](#custom-configuration)
+  - [Customizing webpack config](#customizing-webpack-config)
+  - [Customizing babel config](#customizing-babel-config)
+- [Production deployment](#production-deployment)
+- [FAQ](#faq)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Authors](#authors)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## How to use
+
+### Setup
 
 Install it:
 
@@ -21,7 +57,9 @@ and add a script to your package.json like this:
 ```json
 {
   "scripts": {
-    "dev": "next"
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
   }
 }
 ```
@@ -94,8 +132,10 @@ export default () => (
 #### CSS-in-JS
 
 <p><details>
-  <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li></ul>
+  <summary>
+    <b>Examples</b>
+    </summary>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -356,6 +396,7 @@ export default ({ url }) => (
   <ul>
     <li><a href="./examples/custom-server">Basic custom server</a></li>
     <li><a href="./examples/custom-server-express">Express integration</a></li>
+    <li><a href="./examples/custom-server-hapi">Hapi integration</a></li>
     <li><a href="./examples/custom-server-koa">Koa integration</a></li>
     <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="./examples/ssr-caching">SSR caching</a></li>
@@ -371,19 +412,21 @@ const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
 
-const app = next({ dev: true })
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const { pathname, query } = parse(req.url, true)
+    const parsedUrl = parse(req.url, true)
+    const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
       app.render(req, res, '/b', query)
     } else if (pathname === '/b') {
       app.render(req, res, '/a', query)
     } else {
-      handle(req, res)
+      handle(req, res, parsedUrl)
     }
   })
   .listen(3000, (err) => {
@@ -407,11 +450,13 @@ Supported options:
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
+  <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. But we still make it possible to override that:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
+// ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
@@ -467,11 +512,6 @@ export default class Error extends React.Component {
 
 ### Custom configuration
 
-<p><details>
-  <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
-</details></p>
-
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
 Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
@@ -505,6 +545,11 @@ module.exports = {
 *Warning: Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack and thus it won't work on the initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
 
 ### Customizing babel config
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
+</details></p>
 
 In order to extend our usage of `babel`, you can simply define a `.babelrc` file at the root of your app. This file is optional.
 
@@ -581,8 +626,7 @@ No in that it enforces a _structure_ so that we can do more advanced things like
 - Automatic code splitting
 
 In addition, Next.js provides two built-in features that are critical for every single website:
-- Routing with lazy component loading: `
->` (by importing `next/link`)
+- Routing with lazy component loading: `<Link>` (by importing `next/link`)
 - A way for components to alter `<head>`: `<Head>` (by importing `next/head`)
 
 If you want to create re-usable React components that you can embed in your Next.js app or other React applications, using `create-react-app` is a great idea. You can later `import` it and keep your codebase clean!
@@ -637,6 +681,13 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 </details>
 
 <details>
+  <summary>Can I use it with GraphQL?</summary>
+
+Yes! Here's an example with [Apollo](./examples/with-apollo).
+
+</details>
+
+<details>
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
@@ -658,6 +709,10 @@ As we were researching options for server-rendering React that didn’t involve 
 ## Roadmap
 
 Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
+
+## Contributing
+
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Authors
 
