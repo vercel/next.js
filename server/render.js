@@ -65,7 +65,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component,
       props,
-      err,
+      err: dev ? err : null,
       router: new Router(pathname, query)
     })
 
