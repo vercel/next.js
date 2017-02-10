@@ -714,7 +714,7 @@ babel-plugin-transform-object-rest-spread@6.22.0:
     babel-plugin-syntax-object-rest-spread "^6.8.0"
     babel-runtime "^6.22.0"
 
-babel-plugin-transform-react-constant-elements@^6.22.0, babel-plugin-transform-react-constant-elements@^6.5.0:
+babel-plugin-transform-react-constant-elements@^6.22.0:
   version "6.22.0"
   resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-constant-elements/-/babel-plugin-transform-react-constant-elements-6.22.0.tgz#4af456f80d283e8be00f00f12852354defa08ee1"
   dependencies:
@@ -723,12 +723,6 @@ babel-plugin-transform-react-constant-elements@^6.22.0, babel-plugin-transform-r
 babel-plugin-transform-react-display-name@^6.22.0:
   version "6.22.0"
   resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-display-name/-/babel-plugin-transform-react-display-name-6.22.0.tgz#077197520fa8562b8d3da4c3c4b0b1bdd7853f26"
-  dependencies:
-    babel-runtime "^6.22.0"
-
-babel-plugin-transform-react-inline-elements@^6.6.5:
-  version "6.22.0"
-  resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-inline-elements/-/babel-plugin-transform-react-inline-elements-6.22.0.tgz#6687211a32b49a52f22c573a2b5504a25ef17c53"
   dependencies:
     babel-runtime "^6.22.0"
 
@@ -759,10 +753,6 @@ babel-plugin-transform-react-pure-class-to-function@^1.0.1:
   resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-pure-class-to-function/-/babel-plugin-transform-react-pure-class-to-function-1.0.1.tgz#32a649c97d653250b419cfd1489331b0290d9ee4"
   dependencies:
     babel-helper-is-react-class "^1.0.0"
-
-babel-plugin-transform-react-remove-prop-types@^0.2.5:
-  version "0.2.12"
-  resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-remove-prop-types/-/babel-plugin-transform-react-remove-prop-types-0.2.12.tgz#3406696df0b8b456089f9d726d27e7e123d2f929"
 
 babel-plugin-transform-react-remove-prop-types@^0.3.2:
   version "0.3.2"
@@ -879,15 +869,6 @@ babel-preset-latest@6.22.0:
     babel-preset-es2015 "^6.22.0"
     babel-preset-es2016 "^6.22.0"
     babel-preset-es2017 "^6.22.0"
-
-babel-preset-react-optimize@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/babel-preset-react-optimize/-/babel-preset-react-optimize-1.0.1.tgz#c23509fba7cbc76d7de7050e7d26bcd22bc304e8"
-  dependencies:
-    babel-plugin-transform-react-constant-elements "^6.5.0"
-    babel-plugin-transform-react-inline-elements "^6.6.5"
-    babel-plugin-transform-react-pure-class-to-function "^1.0.1"
-    babel-plugin-transform-react-remove-prop-types "^0.2.5"
 
 babel-preset-react@6.22.0:
   version "6.22.0"
