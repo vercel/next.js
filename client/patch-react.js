@@ -90,7 +90,7 @@ export default (handleError = () => {}) => {
   function withWrapRenderAlways (fn, ...args) {
     const result = fn.apply(this, args)
     if (this.render) {
-      this.render = wrapRender(this.render)
+      Object.defineProperty(this, 'render', { writable: true, value: wrapRender(this.render) })
     }
     return result
   }
