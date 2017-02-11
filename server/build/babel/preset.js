@@ -4,8 +4,7 @@ const babelRuntimePath = require.resolve('babel-runtime/package')
 
 const productionPlugins = isProduction ? [
   require.resolve('babel-plugin-transform-react-constant-elements'),
-  require.resolve('babel-plugin-transform-react-remove-prop-types'),
-  require.resolve('babel-plugin-transform-react-pure-class-to-function')
+  require.resolve('babel-plugin-transform-react-remove-prop-types')
 ] : []
 
 module.exports = {
