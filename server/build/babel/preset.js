@@ -1,33 +1,38 @@
+const isProduction = process.env.NODE_ENV === 'production'
 const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\/]package\.json$/, '')
 
+const productionPlugins = isProduction ? [
+  require.resolve('babel-plugin-transform-react-constant-elements'),
+  require.resolve('babel-plugin-transform-react-remove-prop-types')
+] : []
+
 module.exports = {
   presets: [
-    require.resolve('babel-preset-es2015'),
+    [require.resolve('babel-preset-latest'), {
+      'es2015': { modules: false }
+    }],
     require.resolve('babel-preset-react')
   ],
   plugins: [
     require.resolve('babel-plugin-react-require'),
-    require.resolve('babel-plugin-transform-async-to-generator'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
     require.resolve('babel-plugin-transform-class-properties'),
     require.resolve('babel-plugin-transform-runtime'),
     require.resolve('styled-jsx/babel'),
+    ...productionPlugins,
     [
       require.resolve('babel-plugin-module-resolver'),
       {
         alias: {
           'babel-runtime': babelRuntimePath,
-          react: require.resolve('react'),
-          'react-dom': require.resolve('react-dom'),
-          'react-dom/server': require.resolve('react-dom/server'),
           'next/link': require.resolve('../../../lib/link'),
           'next/prefetch': require.resolve('../../../lib/prefetch'),
           'next/css': require.resolve('../../../lib/css'),
           'next/head': require.resolve('../../../lib/head'),
           'next/document': require.resolve('../../../server/document'),
           'next/router': require.resolve('../../../lib/router'),
-          'styled-jsx/style': require.resolve('styled-jsx/style')
+          'next/error': require.resolve('../../../lib/error')
         }
       }
     ]

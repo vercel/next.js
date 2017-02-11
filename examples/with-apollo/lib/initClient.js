@@ -1,22 +1,27 @@
 import ApolloClient, { createNetworkInterface } from 'apollo-client'
 
-export const initClient = (headers) => {
-  const client = new ApolloClient({
+let apolloClient = null
+
+function createClient (headers) {
+  return new ApolloClient({
     ssrMode: !process.browser,
-    headers,
     dataIdFromObject: result => result.id || null,
     networkInterface: createNetworkInterface({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn',
       opts: {
         credentials: 'same-origin'
+        // Pass headers here if your graphql server requires them
       }
     })
   })
+}
+
+export const initClient = (headers) => {
   if (!process.browser) {
-    return client
+    return createClient(headers)
   }
-  if (!window.APOLLO_CLIENT) {
-    window.APOLLO_CLIENT = client
+  if (!apolloClient) {
+    apolloClient = createClient(headers)
   }
-  return window.APOLLO_CLIENT
+  return apolloClient
 }
