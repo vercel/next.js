@@ -21,7 +21,7 @@ const argv = parseArgs(process.argv.slice(2), {
   }
 })
 
-if(argv.hostname === '') {
+if (argv.hostname === '') {
   console.error(`> Provided hostname argument has no value`)
   process.exit(1)
 }
