@@ -1,7 +1,7 @@
 import { join } from 'path'
 import buildConfigChain from 'babel-core/lib/transformation/file/options/build-config-chain'
 
-export default function findBabelConfigLocation (dir) {
+export default function findBabelConfig (dir) {
   // We need to provide a location of a filename inside the `dir`.
   // For the name of the file, we could be provide anything.
   const filename = join(dir, 'filename.js')
@@ -12,5 +12,5 @@ export default function findBabelConfigLocation (dir) {
   // That's the config we are passing as the "options" below
   const configList = buildConfigChain(options).filter(i => i.loc !== 'base')
 
-  return configList[0] ? configList[0].loc : null
+  return configList[0]
 }
