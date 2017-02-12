@@ -443,7 +443,7 @@ The `next` API is as follows:
 Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
-- `quiet` (`bool`) Display error messages with server information - default `false`
+- `quiet` (`bool`) Hide error messages containing server information - default `false`
 
 ### Custom `<Document>`
 
