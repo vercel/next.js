@@ -14,8 +14,14 @@ const argv = parseArgs(process.argv.slice(2), {
     p: 'port'
   },
   boolean: ['h'],
+  string: ['H'],
   default: { p: 3000 }
 })
+
+if (argv.hostname === '') {
+  console.error(`> Provided hostname argument has no value`)
+  process.exit(1)
+}
 
 if (argv.help) {
   console.log(`
@@ -50,11 +56,10 @@ if (!existsSync(resolve(dir, '.next', 'BUILD_ID'))) {
 srv.start(argv.port, argv.hostname)
 .then(() => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname && typeof argv.hostname !== 'boolean' ? argv.hostname : 'localhost'}:${argv.port}`)
+    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
   }
 })
 .catch((err) => {
   console.error(err)
   process.exit(1)
 })
-
