@@ -14,6 +14,7 @@ const argv = parseArgs(process.argv.slice(2), {
     p: 'port'
   },
   boolean: ['h'],
+  string: ['H'],
   default: { p: 3000 }
 })
 
@@ -57,4 +58,3 @@ srv.start(argv.port, argv.hostname)
   console.error(err)
   process.exit(1)
 })
-

@@ -130,11 +130,7 @@ export default class Server {
       // This code catches EADDRINUSE error if the port is already in use
       this.http.on('error', reject)
       this.http.on('listening', () => resolve())
-      if (hostname && typeof hostname !== 'boolean') {
-        this.http.listen(port, hostname)
-      } else {
-        this.http.listen(port)
-      }
+      this.http.listen(port, hostname)
     })
   }
 
