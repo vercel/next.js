@@ -122,7 +122,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     // In that case, we should add our default preset.
     // That's why we need to do this.
     const { options } = externalBabelConfig
-    mainBabelOptions.babelrc = options.babelrc === false ? options.babelrc : true
+    mainBabelOptions.babelrc = options.babelrc !== false
   } else {
     mainBabelOptions.babelrc = false
   }
