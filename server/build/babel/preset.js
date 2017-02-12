@@ -7,10 +7,21 @@ const productionPlugins = isProduction ? [
   require.resolve('babel-plugin-transform-react-remove-prop-types')
 ] : []
 
+const es2015Config = {}
+
+// Do not transform ES2015 modules if we are inside Next.js
+// That's because webpack2 knows how to handle it.
+// (And that's how it can do code splitting)
+//
+// But in other environements like Jest, we should transform it.
+if (process.env.INSIDE_NEXT) {
+  es2015Config.modules = false
+}
+
 module.exports = {
   presets: [
     [require.resolve('babel-preset-latest'), {
-      'es2015': { modules: false }
+      'es2015': es2015Config
     }],
     require.resolve('babel-preset-react')
   ],
