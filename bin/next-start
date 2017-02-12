@@ -15,8 +15,16 @@ const argv = parseArgs(process.argv.slice(2), {
   },
   boolean: ['h'],
   string: ['H'],
-  default: { p: 3000 }
+  default: {
+    p: 3000,
+    H: '0.0.0.0'
+  }
 })
+
+if(argv.hostname === '') {
+  console.error(`> Provided hostname argument has no value`)
+  process.exit(1)
+}
 
 if (argv.help) {
   console.log(`
@@ -49,9 +57,10 @@ if (!existsSync(resolve(dir, '.next', 'BUILD_ID'))) {
 }
 
 srv.start(argv.port, argv.hostname)
-.then(() => {
+.then((server) => {
+  const {address, port} = server.address()
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname && typeof argv.hostname !== 'boolean' ? argv.hostname : 'localhost'}:${argv.port}`)
+    console.log(`> Ready on http://${address}:${port}`)
   }
 })
 .catch((err) => {
