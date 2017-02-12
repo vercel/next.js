@@ -41,12 +41,11 @@ export default (handleError = () => {}) => {
             prototypeWithRender.render = wrapRender(prototypeWithRender.render)
           } else {
             dynamicWrapper = withWrapRenderAlways
+            // wrap the render method in runtime when the component initialized
+            // for class-properties.
+            Component = wrap(Component, dynamicWrapper)
           }
         }
-
-        // wrap the render method in runtime when the component initialized
-        // for class-properties.
-        Component = wrap(Component, dynamicWrapper)
       } else {
         // stateless component
         Component = wrapRender(Component)
