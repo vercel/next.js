@@ -10,7 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
-import findBabelConfigLocation from './babel/find-config-location'
+import findBabelConfig from './babel/find-config'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -114,14 +114,22 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     presets: []
   }
 
-  const configLocation = findBabelConfigLocation(dir)
-  if (configLocation) {
+  const externalBabelConfig = findBabelConfig(dir)
+  if (externalBabelConfig) {
     console.log(`> Using external babel configuration`)
-    console.log(`> location: "${configLocation}"`)
-    mainBabelOptions.babelrc = true
+    console.log(`> location: "${externalBabelConfig.loc}"`)
+    // It's possible to turn off babelrc support via babelrc itself.
+    // In that case, we should add our default preset.
+    // That's why we need to do this.
+    const { options } = externalBabelConfig
+    mainBabelOptions.babelrc = options.babelrc !== false
   } else {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
     mainBabelOptions.babelrc = false
+  }
+
+  // Add our default preset if the no "babelrc" found.
+  if (!mainBabelOptions.babelrc) {
+    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
   const rules = (dev ? [{
