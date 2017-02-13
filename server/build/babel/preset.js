@@ -3,7 +3,6 @@ const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\/]package\.json$/, '')
 
 const productionPlugins = isProduction ? [
-  require.resolve('babel-plugin-transform-react-constant-elements'),
   require.resolve('babel-plugin-transform-react-remove-prop-types')
 ] : []
 
