@@ -1,6 +1,7 @@
 import { join, relative, sep } from 'path'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
+import dynamicEntryMiddleware from './dynamic-entry-middleware'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
@@ -145,10 +146,12 @@ export default class HotReloader {
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+    this.dynamicEntryMiddleware = dynamicEntryMiddleware(this.webpackDevMiddleware, compiler)
 
     this.middlewares = [
       this.webpackDevMiddleware,
-      this.webpackHotMiddleware
+      this.webpackHotMiddleware,
+      this.dynamicEntryMiddleware
     ]
   }
 
