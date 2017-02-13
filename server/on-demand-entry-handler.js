@@ -1,7 +1,7 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 
-export default function dynamicEntryHandler (devMiddleware, compiler, { dir, dev }) {
+export default function onDemandEntryHandler (devMiddleware, compiler, { dir, dev }) {
   // TODO: Make this a LRU cache
   const entries = {}
   let doingEntries = {}

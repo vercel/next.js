@@ -1,7 +1,7 @@
 import { join, relative, sep } from 'path'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
-import dynamicEntryHandler from './dynamic-entry-handler'
+import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
@@ -146,7 +146,7 @@ export default class HotReloader {
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
-    this.dynamicEntries = dynamicEntryHandler(this.webpackDevMiddleware, compiler, {
+    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
       dir: this.dir,
       dev: true
     })
@@ -191,7 +191,7 @@ export default class HotReloader {
   }
 
   ensureEntry (name, entry) {
-    return this.dynamicEntries.ensureEntry(name, entry)
+    return this.onDemandEntries.ensureEntry(name, entry)
   }
 }
 
