@@ -2,6 +2,7 @@
 // based on https://gist.github.com/Aldredcz/4d63b0a9049b00f54439f8780be7f0d8
 
 import React from 'react'
+import getOwnPropertyDescriptors from 'object.getownpropertydescriptors'
 
 let patched = false
 
@@ -105,11 +106,11 @@ function wrap (fn, around) {
     return around.call(this, fn, ...args)
   }
 
-  // copy all properties
-  Object.assign(_fn, fn)
-  _fn.displayName = fn.displayName || fn.name
-
-  _fn.prototype = fn.prototype
+  for (const [k, d] of Object.entries(getOwnPropertyDescriptors(fn))) {
+    try {
+      Object.defineProperty(_fn, k, d)
+    } catch () {}
+  }
 
   _fn.__wrapped = fn.__wrapped = _fn
 

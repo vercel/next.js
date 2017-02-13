@@ -72,6 +72,7 @@
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mz": "2.6.0",
+    "object.getownpropertydescriptors": "2.0.3",
     "path-match": "1.2.4",
     "pkg-up": "1.0.0",
     "react-hot-loader": "3.0.0-beta.6",
