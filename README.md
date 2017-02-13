@@ -445,6 +445,8 @@ Supported options:
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
 
+Then, change your `build` script to `NODE_ENV=production node server.js`.
+
 ### Custom `<Document>`
 
 <p><details>
@@ -587,8 +589,8 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
   },
   "scripts": {
     "dev": "next",
-    "build": "NODE_ENV=production next build",
-    "start": "NODE_ENV=production next start"
+    "build": "next build",
+    "start": "next start"
   }
 }
 ```
