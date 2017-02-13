@@ -23,9 +23,9 @@ export default class Server {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
-    this.renderOpts = { dir: this.dir, dev, staticMarkup }
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
+    this.renderOpts = { dir: this.dir, dev, staticMarkup, hotReloader: this.hotReloader }
     this.http = null
     this.config = getConfig(this.dir)
 
@@ -97,6 +97,7 @@ export default class Server {
         this.handleBuildId(params.buildId, res)
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
+
         await this.renderJSON(req, res, pathname)
       },
 
