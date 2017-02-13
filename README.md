@@ -445,7 +445,7 @@ Supported options:
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
 
-Then, change your `build` script to `NODE_ENV=production node server.js`.
+Then, change your `start` script to `NODE_ENV=production node server.js`.
 
 ### Custom `<Document>`
 
