@@ -2,7 +2,6 @@
 // based on https://gist.github.com/Aldredcz/4d63b0a9049b00f54439f8780be7f0d8
 
 import React from 'react'
-import getOwnPropertyDescriptors from 'object.getownpropertydescriptors'
 
 let patched = false
 
@@ -106,7 +105,7 @@ function wrap (fn, around) {
     return around.call(this, fn, ...args)
   }
 
-  for (const [k, d] of Object.entries(getOwnPropertyDescriptors(fn))) {
+  for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(fn))) {
     try {
       Object.defineProperty(_fn, k, d)
     } catch (e) {}
