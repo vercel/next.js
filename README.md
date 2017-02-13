@@ -49,7 +49,7 @@ _**NOTE! the README on the `master` branch might not match that of the [latest s
 Install it:
 
 ```bash
-npm install next --save
+npm install next react react-dom --save
 ```
 
 and add a script to your package.json like this:
