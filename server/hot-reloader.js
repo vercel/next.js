@@ -146,7 +146,10 @@ export default class HotReloader {
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
-    this.dynamicEntryMiddleware = dynamicEntryMiddleware(this.webpackDevMiddleware, compiler)
+    this.dynamicEntryMiddleware = dynamicEntryMiddleware(this.webpackDevMiddleware, compiler, {
+      dir: this.dir,
+      dev: true
+    })
 
     this.middlewares = [
       this.webpackDevMiddleware,

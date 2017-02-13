@@ -6,7 +6,6 @@ import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -37,8 +36,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     const entries = { 'main.js': mainJS }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    for (const p of pages) {
-      entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+    // In the dev environment, dynamic pages middleware will take care of
+    // managing pages.
+    if (!dev) {
+      for (const p of pages) {
+        entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+      }
     }
 
     for (const p of defaultPages) {
@@ -86,8 +89,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     plugins.push(
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoEmitOnErrorsPlugin(),
-      new UnlinkFilePlugin(),
-      new WatchPagesPlugin(dir)
+      new UnlinkFilePlugin()
     )
     if (!quiet) {
       plugins.push(new FriendlyErrorsWebpackPlugin())
