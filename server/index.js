@@ -42,7 +42,7 @@ export default class Server {
         throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
       }
 
-      this.run(req, res, parsedUrl)
+      return this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
@@ -252,7 +252,7 @@ export default class Server {
   }
 
   async serveStaticWithGzip (req, res, path) {
-    this._serveStatic(req, res, () => {
+    await this._serveStatic(req, res, () => {
       return serveStaticWithGzip(req, res, path)
     })
   }
