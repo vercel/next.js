@@ -109,7 +109,7 @@ function wrap (fn, around) {
   for (const [k, d] of Object.entries(getOwnPropertyDescriptors(fn))) {
     try {
       Object.defineProperty(_fn, k, d)
-    } catch () {}
+    } catch (e) {}
   }
 
   _fn.__wrapped = fn.__wrapped = _fn
