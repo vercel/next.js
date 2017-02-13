@@ -36,9 +36,15 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     const entries = { 'main.js': mainJS }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    // In the dev environment, dynamic pages middleware will take care of
+    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+
+    // In the dev environment, dynamic pages handler will take care of
     // managing pages.
-    if (!dev) {
+    if (dev) {
+      for (const p of devPages) {
+        entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+      }
+    } else {
       for (const p of pages) {
         entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
       }
