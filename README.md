@@ -587,8 +587,8 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
   },
   "scripts": {
     "dev": "next",
-    "build": "next build",
-    "start": "next start"
+    "build": "NODE_ENV=production next build",
+    "start": "NODE_ENV=production next start"
   }
 }
 ```
