@@ -189,6 +189,10 @@ export default class HotReloader {
   send (action, ...args) {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
+
+  ensureEntry (name, entry) {
+    return this.dynamicEntries.ensureEntry(name, entry)
+  }
 }
 
 function deleteCache (path) {

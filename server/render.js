@@ -212,6 +212,5 @@ async function ensurePage (page, { dir, hotReloader }) {
     `${pathname}?entry`
   ]
 
-  await hotReloader.dynamicEntries.ensureEntry(name, entry)
+  await hotReloader.ensureEntry(name, entry)
 }
-
