@@ -4,5 +4,6 @@ app.renderToHTML(raw.req, raw.res, pathName, query, opts)
 
 const defaultHandlerWrapper = app => ({ raw, url }, hapiReply) =>
 app.run(raw.req, raw.res, url)
+.then(hapiReply)
 
 module.exports = { pathWrapper, defaultHandlerWrapper }
