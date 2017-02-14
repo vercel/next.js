@@ -95,7 +95,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
         // If there's no entry.
         // Then it seems like an weird issue.
-        const message = `Client pings but we have no entry for page: ${page}`
+        const message = `Client pings, but there's no entry for page: ${page}`
         console.error(message)
         res.status = 500
         res.end(message)
@@ -114,12 +114,12 @@ function addEntry (compilation, context, name, entry) {
   })
 }
 
-function disposeInactiveEntries (devMiddleware, entries, maxAge) {
+function disposeInactiveEntries (devMiddleware, entries, maxInactiveAge) {
   const disposingPages = []
 
   Object.keys(entries).forEach((page) => {
     const { lastActiveTime } = entries[page]
-    if (Date.now() - lastActiveTime > maxAge) {
+    if (Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
     }
   })
@@ -128,11 +128,13 @@ function disposeInactiveEntries (devMiddleware, entries, maxAge) {
     disposingPages.forEach((page) => {
       delete entries[page]
     })
-    console.log(`> Disposing inactive pages: ${disposingPages.join(', ')}`)
+    console.log(`> Disposing inactive page(s): ${disposingPages.join(', ')}`)
     devMiddleware.invalidate()
   }
 }
 
+// /index and / is the same. So, we need to identify both pages as the same.
+// This also applies to sub pages as well.
 function normalizePage (page) {
   return page.replace(/\/index$/, '/')
 }

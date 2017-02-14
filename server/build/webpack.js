@@ -38,7 +38,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     const pages = await glob('pages/**/*.js', { cwd: dir })
     const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
 
-    // In the dev environment, dynamic pages handler will take care of
+    // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
     if (dev) {
       for (const p of devPages) {
