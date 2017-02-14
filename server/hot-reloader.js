@@ -197,6 +197,7 @@ export default class HotReloader {
 }
 
 function deleteCache (path) {
+  console.log('DELETE', path)
   delete require.cache[path]
   delete readPage.cache[path]
 }

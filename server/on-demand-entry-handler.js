@@ -13,7 +13,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
   compiler.plugin('make', function (compilation, done) {
     const allEntries = Object.keys(entries).map((page) => {
-      console.log('XXXXXX', page)
       const { name, entry } = entries[page]
       doingEntries[page] = true
       return addEntry(compilation, this.context, name, entry)
@@ -28,8 +27,9 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
   compiler.plugin('done', function (stats) {
     // Call all the doneCallbacks
-    Object.keys(doingEntries).forEach((name) => {
-      doneCallbacks.emit(name)
+    Object.keys(doingEntries).forEach((page) => {
+      entries[page].lastActiveTime = Date.now()
+      doneCallbacks.emit(page)
     })
 
     completedEntries = doingEntries
@@ -37,6 +37,11 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
     console.log('DONE')
   })
+
+  setInterval(function () {
+    const maxInactiveAge = 1000 * 15 // 15 secs
+    disposeInactiveEntries(devMiddleware, entries, maxInactiveAge)
+  }, 5000)
 
   return {
     async ensurePage (page) {
@@ -77,9 +82,22 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
         if (!/^\/on-demand-entries-ping/.test(req.url)) return next()
 
         const { query } = parse(req.url, true)
-        console.log(`Hit: ${query.page}`)
-        res.status = 200
-        res.end('Success')
+        const entry = entries[query.page]
+
+        // If there's an entry
+        if (entry) {
+          entry.lastActiveTime = Date.now()
+          res.status = 200
+          res.end('Success')
+          return
+        }
+
+        // If there's no entry.
+        // Then it seems like an weird issue.
+        const message = `Client pings but we have no entry for page: ${query.page}`
+        console.error(message)
+        res.status = 500
+        res.end(message)
       }
     }
   }
@@ -93,4 +111,21 @@ function addEntry (compilation, context, name, entry) {
       resolve()
     })
   })
+}
+
+function disposeInactiveEntries (devMiddleware, entries, maxAge) {
+  let disposedCount = 0
+
+  Object.keys(entries).forEach((page) => {
+    const { lastActiveTime } = entries[page]
+    if (Date.now() - lastActiveTime > maxAge) {
+      console.log('Disposing', page)
+      disposedCount++
+      delete entries[page]
+    }
+  })
+
+  if (disposedCount > 0) {
+    devMiddleware.invalidate()
+  }
 }
