@@ -56,7 +56,7 @@
     "babel-plugin-transform-react-remove-prop-types": "^0.3.2",
     "babel-plugin-transform-runtime": "6.22.0",
     "babel-preset-latest": "6.22.0",
-    "babel-preset-react": "6.22.0",
+    "babel-preset-react": "6.23.0",
     "babel-runtime": "6.22.0",
     "case-sensitive-paths-webpack-plugin": "1.1.4",
     "cross-spawn": "5.0.1",
