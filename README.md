@@ -49,7 +49,7 @@ _**NOTE! the README on the `master` branch might not match that of the [latest s
 Install it:
 
 ```bash
-npm install next --save
+npm install next react react-dom --save
 ```
 
 and add a script to your package.json like this:
@@ -444,6 +444,8 @@ Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
+
+Then, change your `start` script to `NODE_ENV=production node server.js`.
 
 ### Custom `<Document>`
 
