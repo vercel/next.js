@@ -1,9 +1,19 @@
-/* global describe, it, expect */
+/* global describe, it, expect, beforeAll */
 
 import webdriver from 'next-webdriver'
 
-export default (context) => {
+export default (context, render) => {
   describe('Client Navigation', () => {
+    beforeAll(async function () {
+      // pre-build pages before doing tests
+      await Promise.all([
+        render('/empty-get-initial-props'),
+        render('/nav'),
+        render('/nav/about'),
+        render('/nav/querystring')
+      ])
+    })
+
     describe('with <Link/>', () => {
       it('should navigate the page', async () => {
         const browser = await webdriver(context.appPort, '/nav')

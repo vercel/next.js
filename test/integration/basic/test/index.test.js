@@ -35,5 +35,5 @@ describe('Basic Features', () => {
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q))
   xPoweredBy(context)
   misc(context)
-  clientNavigation(context)
+  clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })
