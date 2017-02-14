@@ -216,7 +216,6 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
-
 `getInitialProps` receives a context object with the following properties:
 
 - `pathname` - path section of URL
