@@ -1,8 +1,10 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
+import { join } from 'path'
+import { parse } from 'url'
+import resolvePath from './resolve'
 
 export default function onDemandEntryHandler (devMiddleware, compiler, { dir, dev }) {
-  // TODO: Make this a LRU cache
   const entries = {}
   let doingEntries = {}
   let completedEntries = {}
@@ -10,9 +12,10 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
   const doneCallbacks = new EventEmitter()
 
   compiler.plugin('make', function (compilation, done) {
-    const allEntries = Object.keys(entries).map((name) => {
-      doingEntries[name] = true
-      const entry = entries[name]
+    const allEntries = Object.keys(entries).map((page) => {
+      console.log('XXXXXX', page)
+      const { name, entry } = entries[page]
+      doingEntries[page] = true
       return addEntry(compilation, this.context, name, entry)
     })
 
@@ -36,19 +39,29 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
   })
 
   return {
-    ensureEntry (name, entry) {
-      return new Promise((resolve, reject) => {
-        if (completedEntries[name]) {
+    async ensurePage (page) {
+      const pagePath = join(dir, 'pages', page)
+      const pathname = await resolvePath(pagePath)
+      const name = join('bundles', pathname.substring(dir.length))
+
+      const entry = [
+        join(__dirname, '..', 'client/webpack-hot-middleware-client'),
+        join(__dirname, '..', 'client', 'on-demand-entries-client'),
+        `${pathname}?entry`
+      ]
+
+      await new Promise((resolve, reject) => {
+        if (completedEntries[page]) {
           return resolve()
         }
 
-        if (entries[name]) {
-          doneCallbacks.on(name, processCallback)
+        if (entries[page]) {
+          doneCallbacks.on(page, processCallback)
           return
         }
 
-        entries[name] = entry
-        doneCallbacks.on(name, processCallback)
+        entries[page] = { name, entry }
+        doneCallbacks.on(page, processCallback)
 
         devMiddleware.invalidate()
 
@@ -57,6 +70,17 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
           resolve()
         }
       })
+    },
+
+    middleware () {
+      return function (req, res, next) {
+        if (!/^\/on-demand-entries-ping/.test(req.url)) return next()
+
+        const { query } = parse(req.url, true)
+        console.log(`Hit: ${query.page}`)
+        res.status = 200
+        res.end('Success')
+      }
     }
   }
 }

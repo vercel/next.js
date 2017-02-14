@@ -153,7 +153,8 @@ export default class HotReloader {
 
     this.middlewares = [
       this.webpackDevMiddleware,
-      this.webpackHotMiddleware
+      this.webpackHotMiddleware,
+      this.onDemandEntries.middleware()
     ]
   }
 
@@ -190,8 +191,8 @@ export default class HotReloader {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
-  ensureEntry (name, entry) {
-    return this.onDemandEntries.ensureEntry(name, entry)
+  ensurePage (page) {
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 

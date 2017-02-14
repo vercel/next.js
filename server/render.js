@@ -203,14 +203,5 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (!hotReloader) return
   if (page === '_error' || page === '_document') return
 
-  const pagePath = join(dir, 'pages', page)
-  const pathname = await resolvePath(pagePath)
-  const name = join('bundles', pathname.substring(dir.length))
-
-  const entry = [
-    join(__dirname, '..', 'client/webpack-hot-middleware-client'),
-    `${pathname}?entry`
-  ]
-
-  await hotReloader.ensureEntry(name, entry)
+  await hotReloader.ensurePage(page)
 }
