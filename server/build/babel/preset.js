@@ -6,7 +6,6 @@ const envPlugins = {
     require.resolve('babel-plugin-transform-react-jsx-source')
   ],
   'production': [
-    require.resolve('babel-plugin-transform-react-constant-elements'),
     require.resolve('babel-plugin-transform-react-remove-prop-types')
   ]
 }
