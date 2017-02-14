@@ -35,7 +35,7 @@ export default class HotReloader {
 
   async start () {
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      webpack(this.dir, null, { dev: true, quiet: this.quiet }),
       clean(this.dir)
     ])
 
