@@ -9,6 +9,7 @@ npm-debug.log
 
 # other
 .next
+.next-*
 
 # coverage
 .nyc_output

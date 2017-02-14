@@ -4,16 +4,19 @@ import path from 'path'
 import webpack from './webpack'
 import clean from './clean'
 import gzipAssets from './gzip'
+import replaceCurrentBuild from './replace'
 
 export default async function build (dir) {
-  const [compiler] = await Promise.all([
-    webpack(dir),
-    clean(dir)
-  ])
+  const distFolder = '.next'
+  const buildFolder = `.next-${uuid.v4()}`
+  const compiler = await webpack(dir, buildFolder)
 
   await runCompiler(compiler)
-  await gzipAssets(dir)
-  await writeBuildId(dir)
+  const oldFolder = await replaceCurrentBuild(dir, buildFolder, distFolder)
+  await gzipAssets(dir, distFolder)
+  await writeBuildId(dir, distFolder)
+
+  clean(dir, oldFolder)
 }
 
 function runCompiler (compiler) {
@@ -34,8 +37,8 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildId (dir) {
-  const buildIdPath = path.resolve(dir, '.next', 'BUILD_ID')
+async function writeBuildId (dir, distFolder) {
+  const buildIdPath = path.resolve(dir, distFolder, 'BUILD_ID')
   const buildId = uuid.v4()
   await fs.writeFile(buildIdPath, buildId, 'utf8')
 }
