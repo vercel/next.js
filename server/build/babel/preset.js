@@ -1,11 +1,17 @@
-const isProduction = process.env.NODE_ENV === 'production'
 const babelRuntimePath = require.resolve('babel-runtime/package')
   .replace(/[\\/]package\.json$/, '')
 
-const productionPlugins = isProduction ? [
-  require.resolve('babel-plugin-transform-react-constant-elements'),
-  require.resolve('babel-plugin-transform-react-remove-prop-types')
-] : []
+const envPlugins = {
+  'development': [
+    require.resolve('babel-plugin-transform-react-jsx-source')
+  ],
+  'production': [
+    require.resolve('babel-plugin-transform-react-constant-elements'),
+    require.resolve('babel-plugin-transform-react-remove-prop-types')
+  ]
+}
+
+const plugins = envPlugins[process.env.NODE_ENV] || []
 
 module.exports = {
   presets: [
@@ -20,7 +26,7 @@ module.exports = {
     require.resolve('babel-plugin-transform-class-properties'),
     require.resolve('babel-plugin-transform-runtime'),
     require.resolve('styled-jsx/babel'),
-    ...productionPlugins,
+    ...plugins,
     [
       require.resolve('babel-plugin-module-resolver'),
       {
