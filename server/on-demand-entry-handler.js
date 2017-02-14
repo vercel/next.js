@@ -21,8 +21,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
     Promise.all(allEntries)
       .then(() => done())
       .catch(done)
-
-    console.log('MAKE')
   })
 
   compiler.plugin('done', function (stats) {
@@ -34,8 +32,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
     completedEntries = doingEntries
     doingEntries = {}
-
-    console.log('DONE')
   })
 
   setInterval(function () {
@@ -45,6 +41,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
   return {
     async ensurePage (page) {
+      page = normalizePage(page)
+
       const pagePath = join(dir, 'pages', page)
       const pathname = await resolvePath(pagePath)
       const name = join('bundles', pathname.substring(dir.length))
@@ -65,6 +63,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
           return
         }
 
+        console.log(`> Building page: ${page}`)
+
         entries[page] = { name, entry }
         doneCallbacks.on(page, processCallback)
 
@@ -82,7 +82,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
         if (!/^\/on-demand-entries-ping/.test(req.url)) return next()
 
         const { query } = parse(req.url, true)
-        const entry = entries[query.page]
+        const page = normalizePage(query.page)
+        const entry = entries[page]
 
         // If there's an entry
         if (entry) {
@@ -94,7 +95,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
 
         // If there's no entry.
         // Then it seems like an weird issue.
-        const message = `Client pings but we have no entry for page: ${query.page}`
+        const message = `Client pings but we have no entry for page: ${page}`
         console.error(message)
         res.status = 500
         res.end(message)
@@ -114,18 +115,24 @@ function addEntry (compilation, context, name, entry) {
 }
 
 function disposeInactiveEntries (devMiddleware, entries, maxAge) {
-  let disposedCount = 0
+  const disposingPages = []
 
   Object.keys(entries).forEach((page) => {
     const { lastActiveTime } = entries[page]
     if (Date.now() - lastActiveTime > maxAge) {
-      console.log('Disposing', page)
-      disposedCount++
-      delete entries[page]
+      disposingPages.push(page)
     }
   })
 
-  if (disposedCount > 0) {
+  if (disposingPages.length > 0) {
+    disposingPages.forEach((page) => {
+      delete entries[page]
+    })
+    console.log(`> Disposing inactive pages: ${disposingPages.join(', ')}`)
     devMiddleware.invalidate()
   }
+}
+
+function normalizePage (page) {
+  return page.replace(/\/index$/, '/')
 }
