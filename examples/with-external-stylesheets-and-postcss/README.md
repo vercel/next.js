@@ -11,12 +11,12 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 
 cd with-external-stylesheet-and-postcss
 ```
 
-To get this example running you just need to
+To get this example running you must
 
     npm install .
     npm run dev
 
-Visit [http://localhost:3000](http://localhost:3000) and try edit `pages/style.css`. Your changes should be picked up instantly.
+Visit [http://localhost:3000](http://localhost:3000) and try edit `pages/styles.css`. Your changes should be picked up instantly.
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
