@@ -1,6 +1,5 @@
 import fs from 'fs'
 import { join } from 'path'
-import mkdirp from 'mkdirp-then'
 import webpack from 'webpack'
 import getConfig from '../config'
 import { runCompiler } from './'
@@ -10,13 +9,12 @@ const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
 
-export default async function createStaticBundle (dir, { dev = false } = {}) {
+export default async function createStaticBundle (dir, buildFolder, { dev = false } = {}) {
   const config = getConfig(dir)
   const staticModules = config.staticModules ? config.staticModules({ dev }) : []
 
-  const dotNextDir = join(dir, '.next')
-  const requireFileName = join(dotNextDir, `__require-cache.js`)
-  await mkdirp(dotNextDir)
+  const dotNextDir = join(dir, buildFolder)
+  const requireFileName = join(dotNextDir, '__require-cache.js')
   createRequireBundle(requireFileName, staticModules)
 
   const plugins = []
@@ -59,7 +57,7 @@ export default async function createStaticBundle (dir, { dev = false } = {}) {
       ]
     },
     output: {
-      path: join(dir, '.next'),
+      path: join(dir, buildFolder),
       filename: '[name]',
       library: 'require',
       libraryTarget: 'var'

@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "next": "^2.0.0-beta",
-    "nprogress": "^0.2.0"
+    "nprogress": "^0.2.0",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
   },
   "author": "",
   "license": "ISC"

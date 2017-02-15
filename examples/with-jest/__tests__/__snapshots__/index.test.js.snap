@@ -1,6 +1,8 @@
 exports[`With Snapshot Testing App shows "Hello world!" 1`] = `
-<div>
-  <p>
+<div
+  data-jsx={2648947580}>
+  <p
+    data-jsx={2648947580}>
     Hello World!
   </p>
 </div>

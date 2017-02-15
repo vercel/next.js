@@ -3,9 +3,10 @@
 import { join } from 'path'
 import {
   nextServer,
-  findPort,
   renderViaAPI,
-  renderViaHTTP
+  renderViaHTTP,
+  startApp,
+  stopApp
 } from 'next-test-utils'
 
 // test suits
@@ -25,11 +26,10 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 
 describe('Basic Features', () => {
   beforeAll(async () => {
-    await context.app.prepare()
-    context.appPort = await findPort()
-    await context.app.start(context.appPort)
+    context.server = await startApp(context.app)
+    context.appPort = context.server.address().port
   })
-  afterAll(() => context.app.close())
+  afterAll(() => stopApp(context.server))
 
   rendering(context, 'Rendering via API', (p, q) => renderViaAPI(context.app, p, q))
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q))

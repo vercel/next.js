@@ -90,7 +90,7 @@ export default (handleError = () => {}) => {
   function withWrapRenderAlways (fn, ...args) {
     const result = fn.apply(this, args)
     if (this.render) {
-      this.render = wrapRender(this.render)
+      Object.defineProperty(this, 'render', { writable: true, value: wrapRender(this.render) })
     }
     return result
   }
@@ -105,10 +105,11 @@ function wrap (fn, around) {
     return around.call(this, fn, ...args)
   }
 
-  // copy all properties
-  Object.assign(_fn, fn)
-
-  _fn.prototype = fn.prototype
+  for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(fn))) {
+    try {
+      Object.defineProperty(_fn, k, d)
+    } catch (e) {}
+  }
 
   _fn.__wrapped = fn.__wrapped = _fn
 

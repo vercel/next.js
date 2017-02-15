@@ -9,6 +9,8 @@
   "dependencies": {
     "next": "^2.0.0-beta",
     "postcss-cssnext": "^2.9.0",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
     "styled-jsx-postcss": "^0.1.5"
   },
   "author": "Giuseppe Gurgone",

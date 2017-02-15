@@ -59,5 +59,29 @@ export default (context) => {
         await browser.close()
       })
     })
+
+    describe('with the same page but different querystring', () => {
+      it('should navigate the page', async () => {
+        const browser = await webdriver(context.appPort, '/nav/querystring?id=1')
+        const text = await browser
+          .elementByCss('#next-id-link').click()
+          .waitForElementByCss('.nav-id-2')
+          .elementByCss('p').text()
+
+        expect(text).toBe('2')
+        await browser.close()
+      })
+
+      it('should remove querystring', async () => {
+        const browser = await webdriver(context.appPort, '/nav/querystring?id=1')
+        const text = await browser
+          .elementByCss('#main-page').click()
+          .waitForElementByCss('.nav-id-0')
+          .elementByCss('p').text()
+
+        expect(text).toBe('0')
+        await browser.close()
+      })
+    })
   })
 }
