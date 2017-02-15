@@ -214,6 +214,8 @@ Notice that to load data when the page loads, we use `getInitialProps` which is 
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
 
+_Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
+
 `getInitialProps` receives a context object with the following properties:
 
 - `pathname` - path section of URL
