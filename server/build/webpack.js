@@ -87,6 +87,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         return count >= minChunks
       }
     }),
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+    }),
     new JsonPagesPlugin(),
     new CaseSensitivePathPlugin()
   ]
@@ -102,9 +105,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }
   } else {
     plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify('production')
-      }),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
