@@ -4,7 +4,11 @@ import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 
-export default function onDemandEntryHandler (devMiddleware, compiler, { dir, dev }) {
+export default function onDemandEntryHandler (devMiddleware, compiler, {
+  dir,
+  dev,
+  maxInactiveAge = 1000 * 25
+}) {
   const entries = {}
   let doingEntries = {}
   let completedEntries = {}
@@ -35,7 +39,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, { dir, de
   })
 
   setInterval(function () {
-    const maxInactiveAge = 1000 * 15 // 15 secs
     disposeInactiveEntries(devMiddleware, entries, maxInactiveAge)
   }, 5000)
 
