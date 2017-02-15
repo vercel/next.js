@@ -1,18 +1,16 @@
-import fs from 'fs'
-import path from 'path'
-import uuid from 'uuid'
+import { rename } from 'mz/fs'
+import { join } from 'path'
 
-export default function replaceCurrentBuild (dir, buildFolder, distFolder) {
-  const distDir = path.resolve(dir, distFolder)
-  const buildDir = path.resolve(dir, buildFolder)
-  const oldDir = path.resolve(dir, `.next-${uuid.v4()}`)
+export default async function replaceCurrentBuild (dir, buildDir) {
+  const _dir = join(dir, '.next')
+  const _buildDir = join(buildDir, '.next')
+  const oldDir = join(buildDir, '.next.old')
 
-  return new Promise((resolve, reject) => {
-    fs.rename(distDir, oldDir, () => {
-      fs.rename(buildDir, distDir, (err) => {
-        if (err) return reject(err)
-        resolve(oldDir)
-      })
-    })
-  })
+  try {
+    await rename(_dir, oldDir)
+  } catch (err) {
+    if (err.code !== 'ENOENT') throw err
+  }
+  await rename(_buildDir, _dir)
+  return oldDir
 }
