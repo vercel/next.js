@@ -91,7 +91,7 @@
     "babel-jest": "^18.0.0",
     "babel-plugin-istanbul": "^3.0.0",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
-    "babel-preset-env": "1.1.8",
+    "babel-preset-es2015": "6.22.0",
     "benchmark": "2.1.3",
     "cheerio": "^0.22.0",
     "chromedriver": "^2.26.1",
