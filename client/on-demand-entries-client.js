@@ -10,8 +10,8 @@ Router.onRouteChangeComplete = function (...args) {
   originalOnRouteChangeComplete(...args)
 }
 
-// Ping every 5 seconds
-setInterval(ping, 5000)
+// Ping every 3 seconds
+setInterval(ping, 3000)
 
 function ping () {
   const url = `/on-demand-entries-ping?page=${Router.pathname}`

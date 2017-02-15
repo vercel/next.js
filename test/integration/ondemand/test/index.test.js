@@ -8,7 +8,6 @@ import {
   stopApp,
   waitFor
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 const context = {}
 context.app = nextServer({
@@ -31,25 +30,21 @@ describe('On Demand Entries', () => {
     expect(pageContent.includes('Index Page')).toBeTruthy()
   })
 
-  it('should compile pages with client side <Link />', async () => {
-    const browser = await webdriver(context.appPort, '/')
-    await browser.elementByCss('#about-link').click()
-
-    // Wait for 3 secs until the pages gets compiled
-    await waitFor(1000 * 3)
-    const pageContent = await browser.elementByCss('p').text()
-
+  it('should compile pages for JSON page requests', async () => {
+    const pageContent = await renderViaHTTP(context.appPort, '/_next/-/pages/about')
     expect(pageContent.includes('About Page')).toBeTruthy()
-    await browser.close()
   })
 
   it('should dispose inactive pages', async () => {
+    await renderViaHTTP(context.appPort, '/_next/-/pages/about')
     const aboutPagePath = resolve(__dirname, '../.next/bundles/pages/about.json')
     expect(existsSync(aboutPagePath)).toBeTruthy()
 
-    // Wait for page to get disposed
-    await waitFor(1000 * 15)
-
-    expect(existsSync(aboutPagePath)).toBeFalsy()
+    // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
+    // for disposing /about
+    while (true) {
+      await waitFor(1000 * 1)
+      if (!existsSync(aboutPagePath)) return
+    }
   })
 })
