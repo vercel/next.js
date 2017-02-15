@@ -1,0 +1,30 @@
+{
+  "name": "with-auth",
+  "version": "1.0.0",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "express": "^4.14.0",
+    "express-session": "^1.14.2",
+    "isomorphic-fetch": "^2.2.1",
+    "lusca": "^1.4.1",
+    "next": "^2.0.0-beta.23",
+    "nodemailer": "^2.7.0",
+    "orm": "^3.2.3",
+    "passport": "^0.3.2",
+    "passport-facebook": "^2.1.1",
+    "passport-google-oauth": "^1.0.0",
+    "passport-twitter": "^1.0.4",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
+    "session-file-store": "^1.0.0",
+    "sqlite3": "^3.1.8",
+    "uuid": "^3.0.1"
+  },
+  "scripts": {
+    "dev": "node index.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node index.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
