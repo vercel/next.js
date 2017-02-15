@@ -34,11 +34,15 @@ export default class Server {
 
   getRequestHandler () {
     return (req, res, parsedUrl) => {
-      if (!parsedUrl || parsedUrl.query === null) {
+      if (!parsedUrl) {
         parsedUrl = parse(req.url, true)
       }
 
-      this.run(req, res, parsedUrl)
+      if (!parsedUrl.query) {
+        throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
+      }
+
+      return this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
@@ -119,14 +123,14 @@ export default class Server {
     }
   }
 
-  async start (port) {
+  async start (port, hostname) {
     await this.prepare()
     this.http = http.createServer(this.getRequestHandler())
     await new Promise((resolve, reject) => {
       // This code catches EADDRINUSE error if the port is already in use
       this.http.on('error', reject)
       this.http.on('listening', () => resolve())
-      this.http.listen(port)
+      this.http.listen(port, hostname)
     })
   }
 
@@ -248,7 +252,7 @@ export default class Server {
   }
 
   async serveStaticWithGzip (req, res, path) {
-    this._serveStatic(req, res, () => {
+    await this._serveStatic(req, res, () => {
       return serveStaticWithGzip(req, res, path)
     })
   }

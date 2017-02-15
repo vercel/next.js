@@ -1,16 +1,19 @@
-import React from 'react'
+import {Component} from 'react'
 import Header from '../components/Header'
 import Router from 'next/router'
 
-const ErrorPage = ({ aa }) => (
-  <div>
-    <Header />
-    <p>This should not be rendered via SSR</p>
-  </div>
-)
+export default class extends Component {
+  static getInitialProps () {
+    console.log(Router.pathname)
+    return {}
+  }
 
-ErrorPage.getInitialProps = () => {
-  console.log(Router.pathname)
+  render () {
+    return (
+      <div>
+        <Header />
+        <p>This should not be rendered via SSR</p>
+      </div>
+    )
+  }
 }
-
-export default ErrorPage

@@ -6,14 +6,50 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
-**NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)! **
+_**NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)!**_
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- https://github.com/thlorenz/doctoc -->
+
+- [How to use](#how-to-use)
+  - [Setup](#setup)
+  - [Automatic code splitting](#automatic-code-splitting)
+  - [CSS](#css)
+    - [Built-in CSS support](#built-in-css-support)
+    - [CSS-in-JS](#css-in-js)
+  - [Static file serving (e.g.: images)](#static-file-serving-eg-images)
+  - [Populating `<head>`](#populating-head)
+  - [Fetching data and component lifecycle](#fetching-data-and-component-lifecycle)
+  - [Routing](#routing)
+    - [With `<Link>`](#with-link)
+    - [Imperatively](#imperatively)
+      - [Router Events](#router-events)
+  - [Prefetching Pages](#prefetching-pages)
+    - [With `<Link>`](#with-link-1)
+    - [Imperatively](#imperatively-1)
+  - [Custom server and routing](#custom-server-and-routing)
+  - [Custom `<Document>`](#custom-document)
+  - [Custom error handling](#custom-error-handling)
+  - [Custom configuration](#custom-configuration)
+  - [Customizing webpack config](#customizing-webpack-config)
+  - [Customizing babel config](#customizing-babel-config)
+- [Production deployment](#production-deployment)
+- [FAQ](#faq)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Authors](#authors)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## How to use
+
+### Setup
 
 Install it:
 
 ```bash
-npm install next --save
+npm install next react react-dom --save
 ```
 
 and add a script to your package.json like this:
@@ -177,6 +213,8 @@ export default class extends React.Component {
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
+
+_Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
 `getInitialProps` receives a context object with the following properties:
 
@@ -404,7 +442,9 @@ The `next` API is as follows:
 Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
-- `quiet` (`bool`) Display error messages with server information - default `false`
+- `quiet` (`bool`) Hide error messages containing server information - default `false`
+
+Then, change your `start` script to `NODE_ENV=production node server.js`.
 
 ### Custom `<Document>`
 
@@ -473,11 +513,6 @@ export default class Error extends React.Component {
 
 ### Custom configuration
 
-<p><details>
-  <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
-</details></p>
-
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
 
 Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
@@ -511,6 +546,11 @@ module.exports = {
 *Warning: Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack and thus it won't work on the initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
 
 ### Customizing babel config
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
+</details></p>
 
 In order to extend our usage of `babel`, you can simply define a `.babelrc` file at the root of your app. This file is optional.
 
@@ -670,6 +710,10 @@ As we were researching options for server-rendering React that didn’t involve 
 ## Roadmap
 
 Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
+
+## Contributing
+
+Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Authors
 

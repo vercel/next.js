@@ -10,7 +10,7 @@ import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
-import findBabelConfigLocation from './babel/find-config-location'
+import findBabelConfig from './babel/find-config'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -23,7 +23,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
   return [join(nextPagesDir, p), `dist/pages/${p}`]
 }))
 
-export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
+export default async function createCompiler (dir, buildFolder, { dev = false, quiet = false } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir)
   const defaultEntries = dev
@@ -114,14 +114,22 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     presets: []
   }
 
-  const configLocation = findBabelConfigLocation(dir)
-  if (configLocation) {
+  const externalBabelConfig = findBabelConfig(dir)
+  if (externalBabelConfig) {
     console.log(`> Using external babel configuration`)
-    console.log(`> location: "${configLocation}"`)
-    mainBabelOptions.babelrc = true
+    console.log(`> location: "${externalBabelConfig.loc}"`)
+    // It's possible to turn off babelrc support via babelrc itself.
+    // In that case, we should add our default preset.
+    // That's why we need to do this.
+    const { options } = externalBabelConfig
+    mainBabelOptions.babelrc = options.babelrc !== false
   } else {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
     mainBabelOptions.babelrc = false
+  }
+
+  // Add our default preset if the no "babelrc" found.
+  if (!mainBabelOptions.babelrc) {
+    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
   const rules = (dev ? [{
@@ -173,15 +181,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
               {
                 alias: {
                   'babel-runtime': babelRuntimePath,
-                  react: require.resolve('react'),
-                  'react-dom': require.resolve('react-dom'),
-                  'react-dom/server': require.resolve('react-dom/server'),
                   'next/link': require.resolve('../../lib/link'),
                   'next/prefetch': require.resolve('../../lib/prefetch'),
                   'next/css': require.resolve('../../lib/css'),
                   'next/head': require.resolve('../../lib/head'),
                   'next/document': require.resolve('../../server/document'),
                   'next/router': require.resolve('../../lib/router'),
+                  'next/error': require.resolve('../../lib/error'),
                   'styled-jsx/style': require.resolve('styled-jsx/style')
                 }
               }
@@ -222,7 +228,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     context: dir,
     entry,
     output: {
-      path: join(dir, '.next'),
+      path: join(dir, buildFolder || '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: '/_webpack/',
