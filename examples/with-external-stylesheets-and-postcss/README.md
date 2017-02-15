@@ -26,7 +26,7 @@ now
 
 # Why
 
-External CSS is neat and keeps your JS clean. PostCSS is amazing for extended features.
+External CSS is neat and keeps your JS clean. PostCSS is amazing for extended features, such as nesting. CSS Modules keep your class names “local”.
 
 # Known bugs
 
