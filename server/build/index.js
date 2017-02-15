@@ -1,22 +1,29 @@
+import { tmpdir } from 'os'
+import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
-import path from 'path'
+import del from 'del'
 import webpack from './webpack'
-import clean from './clean'
 import gzipAssets from './gzip'
 import replaceCurrentBuild from './replace'
 
 export default async function build (dir) {
-  const distFolder = '.next'
-  const buildFolder = `.next-${uuid.v4()}`
-  const compiler = await webpack(dir, buildFolder)
+  const buildDir = join(tmpdir(), uuid.v4())
+  const compiler = await webpack(dir, { buildDir })
 
-  await runCompiler(compiler)
-  const oldFolder = await replaceCurrentBuild(dir, buildFolder, distFolder)
-  await gzipAssets(dir, distFolder)
-  await writeBuildId(dir, distFolder)
+  try {
+    await runCompiler(compiler)
+    await gzipAssets(buildDir)
+    await writeBuildId(buildDir)
+  } catch (err) {
+    console.error(`> Failed to build on ${buildDir}`)
+    throw err
+  }
 
-  clean(dir, oldFolder)
+  await replaceCurrentBuild(dir, buildDir)
+
+  // no need to wait
+  del(buildDir)
 }
 
 function runCompiler (compiler) {
@@ -37,8 +44,8 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildId (dir, distFolder) {
-  const buildIdPath = path.resolve(dir, distFolder, 'BUILD_ID')
+async function writeBuildId (dir) {
+  const buildIdPath = join(dir, '.next', 'BUILD_ID')
   const buildId = uuid.v4()
   await fs.writeFile(buildIdPath, buildId, 'utf8')
 }

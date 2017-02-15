@@ -3,8 +3,8 @@ import path from 'path'
 import zlib from 'zlib'
 import glob from 'glob-promise'
 
-export default async function gzipAssets (dir, buildFolder = '.next') {
-  const nextDir = path.resolve(dir, buildFolder)
+export default async function gzipAssets (dir) {
+  const nextDir = path.resolve(dir, '.next')
 
   const coreAssets = [
     path.join(nextDir, 'commons.js'),
