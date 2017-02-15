@@ -19,6 +19,7 @@ export default class extends Component {
       <div className='nav-home'>
         <Link href='/nav/about'><a id='about-link' style={linkStyle}>About</a></Link>
         <Link href='/empty-get-initial-props'><a id='empty-props' style={linkStyle}>Empty Props</a></Link>
+        <Link href='/nav/self-reload'><a id='self-reload-link'>Self Reload</a></Link>
         <p>This is the home.</p>
         <div id='counter'>
           Counter: {counter}
