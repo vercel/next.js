@@ -1,7 +1,6 @@
 const webpack = require('webpack')
 const notifier = require('node-notifier')
 const childProcess = require('child_process')
-const webpackConfig = require('./webpack.config')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile(fly) {
@@ -42,15 +41,7 @@ export async function copy(fly) {
 }
 
 export async function build(fly) {
-  await fly.serial(['copy', 'compile', 'prefetcher'])
-}
-
-const compiler = webpack(webpackConfig)
-export async function prefetcher(fly) {
-  compiler.run((err, stats) => {
-    if (err) throw err
-    notify('Built release prefetcher')
-  })
+  await fly.serial(['copy', 'compile'])
 }
 
 export async function bench(fly) {
@@ -70,8 +61,8 @@ export default async function (fly) {
   await fly.watch('bin/*', 'bin')
   await fly.watch('pages/**/*.js', 'copy')
   await fly.watch('server/**/*.js', 'server')
-  await fly.watch('client/**/*.js', ['client', 'prefetcher'])
-  await fly.watch('lib/**/*.js', ['lib', 'prefetcher'])
+  await fly.watch('client/**/*.js', ['client'])
+  await fly.watch('lib/**/*.js', ['lib'])
 }
 
 export async function release(fly) {
