@@ -26,3 +26,5 @@ now
 ## The idea behind the example
 
 This example shows how to analyze the output bundles using [webpack-bundle-analyzer](https://github.com/th0r/webpack-bundle-analyzer#as-plugin)
+
+To view the stats use `webpack-bundle-analyzer .next/stats.json`
