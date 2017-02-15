@@ -28,7 +28,7 @@
     "pretestonly": "fly pretest",
     "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
     "posttestonly": "fly posttest",
-    "pretest": "npm run lint && cross-env NODE_ENV=test npm run release",
+    "pretest": "npm run lint && cross-env NODE_ENV=test-build npm run release",
     "test": "npm run testonly -- --coverage --forceExit",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",

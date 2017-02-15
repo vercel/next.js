@@ -6,8 +6,17 @@
     "transform-runtime"
   ],
   "env": {
-    "test": {
+    "test-build": {
       "plugins": ["istanbul"]
+    },
+    "test": {
+      "presets": [
+        // To transpile import statements into commonjs.
+        // That's because Jest(runs in Node.js) don't know how to handle them.
+        "es2015",
+        // To let test apps(and Jest) to use Next's babel preset
+        "./babel"
+       ]
     }
   }
 }
