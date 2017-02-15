@@ -42,7 +42,6 @@
     ]
   },
   "dependencies": {
-    "accepts": "1.3.3",
     "ansi-html": "0.0.7",
     "babel-core": "6.23.1",
     "babel-generator": "6.22.0",
@@ -69,7 +68,6 @@
     "is-windows-bash": "1.0.3",
     "json-loader": "0.5.4",
     "loader-utils": "0.2.16",
-    "mime-types": "2.1.14",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mz": "2.6.0",

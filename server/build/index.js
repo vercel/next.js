@@ -3,7 +3,6 @@ import uuid from 'uuid'
 import path from 'path'
 import webpack from './webpack'
 import clean from './clean'
-import gzipAssets from './gzip'
 import replaceCurrentBuild from './replace'
 
 export default async function build (dir) {
@@ -13,7 +12,6 @@ export default async function build (dir) {
 
   await runCompiler(compiler)
   const oldFolder = await replaceCurrentBuild(dir, buildFolder, distFolder)
-  await gzipAssets(dir, distFolder)
   await writeBuildId(dir, distFolder)
 
   clean(dir, oldFolder)
