@@ -36,13 +36,13 @@ export default class HotReloader {
 
   async start () {
     const [compiler] = await Promise.all([
-      webpack(this.dir, null, { dev: true, quiet: this.quiet }),
+      webpack(this.dir, { dev: true, quiet: this.quiet }),
       clean(this.dir)
     ])
 
     this.prepareMiddlewares(compiler)
     this.stats = await this.waitUntilValid()
-    await createStaticBundle(this.dir, '.next', { dev: true })
+    await createStaticBundle(this.dir, { dev: true })
   }
 
   async stop () {

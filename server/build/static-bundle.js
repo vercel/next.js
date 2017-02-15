@@ -9,11 +9,11 @@ const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
 
-export default async function createStaticBundle (dir, buildFolder, { dev = false } = {}) {
+export default async function createStaticBundle (dir, { dev = false } = {}) {
   const config = getConfig(dir)
   const staticModules = config.staticModules ? config.staticModules({ dev }) : []
 
-  const dotNextDir = join(dir, buildFolder)
+  const dotNextDir = join(dir, '.next')
   const requireFileName = join(dotNextDir, '__require-cache.js')
   createRequireBundle(requireFileName, staticModules)
 
@@ -57,7 +57,7 @@ export default async function createStaticBundle (dir, buildFolder, { dev = fals
       ]
     },
     output: {
-      path: join(dir, buildFolder),
+      path: dotNextDir,
       filename: '[name]',
       library: 'require',
       libraryTarget: 'var'
