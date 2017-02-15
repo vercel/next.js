@@ -1,6 +1,6 @@
 # External stylesheets with PostCSS example
 
-This is an example of using external stylesheets and PostCSS.
+This is an example of using external stylesheets and PostCSS, heavily influenced by @davibe's [`with-global-stylesheet`](https://github.com/zeit/next.js/tree/master/examples/with-global-stylesheet).
 
 ## How to use
 
