@@ -344,40 +344,37 @@ Router.onRouteChangeError = (err, url) => {
   <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
 </details></p>
 
-Next.js exposes a module that configures a `ServiceWorker` automatically to prefetch pages: `next/prefetch`.
+Next.js has an API which allows you to prefetch pages.
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
+> With prefetching Next.js only download JS code. When the page is getting rendered, you may need to wait for the data.
+
 #### With `<Link>`
 
-You can substitute your usage of `<Link>` with the default export of `next/prefetch`. For example:
+You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those pages in the background.
 
 ```jsx
-import Link from 'next/prefetch'
+import Link from 'next/link'
+
 // example header component
 export default () => (
   <nav>
     <ul>
-      <li><Link href='/'><a>Home</a></Link></li>
-      <li><Link href='/about'><a>About</a></Link></li>
-      <li><Link href='/contact'><a>Contact</a></Link></li>
+      <li><Link prefetch ref='/'><a>Home</a></Link></li>
+      <li><Link prefetch href='/about'><a>About</a></Link></li>
+      <li><Link prefetch href='/contact'><a>Contact</a></Link></li>
     </ul>
   </nav>
 )
 ```
 
-When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed. To turn off prefetching on a per-`<Link>` basis, you can use the `prefetch` attribute:
-
-```jsx
-<Link href='/contact' prefetch={false}><a>Home</a></Link>
-```
-
 #### Imperatively
 
-Most needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
+Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
-import { prefetch } from 'next/prefetch'
+import Router from 'next/router'
 export default ({ url }) => (
   <div>
     <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
@@ -385,7 +382,7 @@ export default ({ url }) => (
     </a>
     {
       // but we can prefetch it!
-      prefetch('/dynamic')
+      Router.prefetch('/dynamic')
     }
   </div>
 )
