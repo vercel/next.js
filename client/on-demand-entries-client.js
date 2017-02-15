@@ -7,7 +7,7 @@ import 'whatwg-fetch'
 const originalOnRouteChangeComplete = Router.onRouteChangeComplete
 Router.onRouteChangeComplete = function (...args) {
   ping()
-  originalOnRouteChangeComplete(...args)
+  if (originalOnRouteChangeComplete) originalOnRouteChangeComplete(...args)
 }
 
 // Ping every 3 seconds
