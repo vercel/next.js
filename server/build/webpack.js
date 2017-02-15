@@ -22,7 +22,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
   return [join(nextPagesDir, p), `dist/pages/${p}`]
 }))
 
-export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
+export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir)
   const defaultEntries = dev
@@ -236,7 +236,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     context: dir,
     entry,
     output: {
-      path: join(dir, '.next'),
+      path: join(buildDir || dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: '/_webpack/',

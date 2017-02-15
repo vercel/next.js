@@ -105,11 +105,11 @@ function wrap (fn, around) {
     return around.call(this, fn, ...args)
   }
 
-  // copy all properties
-  Object.assign(_fn, fn)
-  _fn.displayName = fn.displayName || fn.name
-
-  _fn.prototype = fn.prototype
+  for (const [k, d] of Object.entries(Object.getOwnPropertyDescriptors(fn))) {
+    try {
+      Object.defineProperty(_fn, k, d)
+    } catch (e) {}
+  }
 
   _fn.__wrapped = fn.__wrapped = _fn
 

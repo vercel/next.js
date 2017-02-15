@@ -3,6 +3,9 @@
 
 This example features how you use PostCSS with styled-jsx via [styled-jsx-postcss](https://github.com/giuseppeg/styled-jsx-postcss)
 
+N.B. In order to integrate `styled-jsx-postcss` with Next.js you need to patch Next.js'
+babel preset. See [babel-preset.js](./babel-preset.js) and [.babelrc](./.babelrc).
+
 ## How to use
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
