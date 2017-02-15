@@ -7,7 +7,7 @@ module.exports = {
         analyzerMode: 'disabled',
         // For all options see https://github.com/th0r/webpack-bundle-analyzer#as-plugin
         generateStatsFile: true,
-        // Will be available at `./next/stats.json`
+        // Will be available at `.next/stats.json`
         statsFilename: 'stats.json'
       })
     )
