@@ -1,9 +1,0 @@
-{
-  "presets": [
-    // To let test apps(and Jest) to use Next's babel preset
-    "../babel",
-    // To transpile import statements into commonjs.
-    // That's because Jest(runs in Node.js) don't know how to handle them.
-    "es2015"
-   ]
-}
