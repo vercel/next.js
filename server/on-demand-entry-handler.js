@@ -10,7 +10,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   maxInactiveAge = 1000 * 25
 }) {
   const entries = {}
-  let doingEntries = {}
+  let buildingEntries = {}
   let completedEntries = {}
 
   const doneCallbacks = new EventEmitter()
@@ -18,7 +18,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   compiler.plugin('make', function (compilation, done) {
     const allEntries = Object.keys(entries).map((page) => {
       const { name, entry } = entries[page]
-      doingEntries[page] = true
+      buildingEntries[page] = true
       return addEntry(compilation, this.context, name, entry)
     })
 
@@ -29,13 +29,13 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
   compiler.plugin('done', function (stats) {
     // Call all the doneCallbacks
-    Object.keys(doingEntries).forEach((page) => {
+    Object.keys(buildingEntries).forEach((page) => {
       entries[page].lastActiveTime = Date.now()
       doneCallbacks.emit(page)
     })
 
-    completedEntries = doingEntries
-    doingEntries = {}
+    completedEntries = buildingEntries
+    buildingEntries = {}
   })
 
   setInterval(function () {
@@ -88,6 +88,9 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         const page = normalizePage(query.page)
         const entry = entries[page]
 
+        // We don't need to maintain active state for currently building entries
+        if (buildingEntries[page]) return
+
         // If there's an entry
         if (entry) {
           entry.lastActiveTime = Date.now()
@@ -122,6 +125,11 @@ function disposeInactiveEntries (devMiddleware, entries, maxInactiveAge) {
 
   Object.keys(entries).forEach((page) => {
     const { lastActiveTime } = entries[page]
+
+    // This means this entry is currently building
+    // We don't need to dispose those entries.
+    if (!lastActiveTime) return
+
     if (Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
     }
