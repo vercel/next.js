@@ -4,7 +4,6 @@ import fs from 'mz/fs'
 import uuid from 'uuid'
 import del from 'del'
 import webpack from './webpack'
-import gzipAssets from './gzip'
 import replaceCurrentBuild from './replace'
 
 export default async function build (dir) {
@@ -13,7 +12,6 @@ export default async function build (dir) {
 
   try {
     await runCompiler(compiler)
-    await gzipAssets(buildDir)
     await writeBuildId(buildDir)
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)

@@ -8,8 +8,7 @@ import {
   renderJSON,
   renderErrorJSON,
   sendHTML,
-  serveStatic,
-  serveStaticWithGzip
+  serveStatic
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
@@ -84,13 +83,13 @@ export default class Server {
       '/_next/:buildId/main.js': async (req, res, params) => {
         this.handleBuildId(params.buildId, res)
         const p = join(this.dir, '.next/main.js')
-        await this.serveStaticWithGzip(req, res, p)
+        await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/commons.js': async (req, res, params) => {
         this.handleBuildId(params.buildId, res)
         const p = join(this.dir, '.next/commons.js')
-        await this.serveStaticWithGzip(req, res, p)
+        await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
@@ -249,12 +248,6 @@ export default class Server {
     }
 
     return renderErrorJSON(err, req, res, this.renderOpts)
-  }
-
-  async serveStaticWithGzip (req, res, path) {
-    await this._serveStatic(req, res, () => {
-      return serveStaticWithGzip(req, res, path)
-    })
   }
 
   serveStatic (req, res, path) {
