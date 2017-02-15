@@ -7,7 +7,7 @@ Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-webpack-bundle-analyzer
-cd hello-world
+cd with-webpack-bundle-analyzer
 ```
 
 Install it and run:
@@ -26,3 +26,5 @@ now
 ## The idea behind the example
 
 This example shows how to analyze the output bundles using [webpack-bundle-analyzer](https://github.com/th0r/webpack-bundle-analyzer#as-plugin)
+
+To view the stats use `npm run bundle:view`
