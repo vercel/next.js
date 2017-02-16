@@ -1,5 +1,8 @@
 {
-  "presets": ["latest", "react"],
+  "presets": [
+    "latest",
+    "react"
+  ],
   "plugins": [
     "transform-object-rest-spread",
     "transform-class-properties",
@@ -7,14 +10,13 @@
   ],
   "env": {
     "test-build": {
-      "plugins": ["istanbul"]
+      "plugins": [
+        "istanbul"
+      ]
     },
     "test": {
       "presets": [
-        // To transpile import statements into commonjs.
-        // That's because Jest(runs in Node.js) don't know how to handle them.
         "es2015",
-        // To let test apps(and Jest) to use Next's babel preset
         "./babel"
        ]
     }
