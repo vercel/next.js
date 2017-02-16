@@ -602,7 +602,7 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, u
 
 <details>
   <summary>Is this production ready?</summary>
-  Next.js has been powering `https://zeit.co` since its inception.
+  Next.js has been powering `https://zeit.co` since its inception. Did you know `https://www.npmjs.com` is running on Next.js as well?
 
   We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
 </details>
