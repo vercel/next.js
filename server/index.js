@@ -157,7 +157,7 @@ export default class Server {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    sendHTML(res, html, req.method)
+    return sendHTML(res, html, req.method)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -185,7 +185,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    sendHTML(res, html, req.method)
+    return sendHTML(res, html, req.method)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -213,7 +213,7 @@ export default class Server {
   async render404 (req, res, parsedUrl = parse(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
-    this.renderError(null, req, res, pathname, query)
+    return this.renderError(null, req, res, pathname, query)
   }
 
   async renderJSON (req, res, page) {
@@ -225,7 +225,7 @@ export default class Server {
     }
 
     try {
-      await renderJSON(req, res, page, this.renderOpts)
+      return await renderJSON(req, res, page, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
@@ -250,15 +250,9 @@ export default class Server {
     return renderErrorJSON(err, req, res, this.renderOpts)
   }
 
-  serveStatic (req, res, path) {
-    this._serveStatic(req, res, () => {
-      return serveStatic(req, res, path)
-    })
-  }
-
-  async _serveStatic (req, res, fn) {
+  async serveStatic (req, res, path) {
     try {
-      await fn()
+      return await serveStatic(req, res, path)
     } catch (err) {
       if (err.code === 'ENOENT') {
         this.render404(req, res)
