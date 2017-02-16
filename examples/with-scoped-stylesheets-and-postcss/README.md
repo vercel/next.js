@@ -1,14 +1,14 @@
-# External stylesheets with PostCSS example
+# Scoped stylesheets with PostCSS example
 
-This is an example of using external stylesheets and PostCSS, heavily influenced by @davibe's [`with-global-stylesheet`](https://github.com/zeit/next.js/tree/master/examples/with-global-stylesheet).
+This is an example of using scoped stylesheets and PostCSS, heavily influenced by @davibe's [`with-global-stylesheet`](https://github.com/zeit/next.js/tree/master/examples/with-global-stylesheet).
 
 ## How to use
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-global-stylesheet
-cd with-external-stylesheet-and-postcss
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-scoped-stylesheets-and-postcss
+cd with-scoped-stylesheets-and-postcss
 ```
 
 To get this example running you must
@@ -26,7 +26,7 @@ now
 
 # Why
 
-External CSS is neat and keeps your JS clean. PostCSS is amazing for extended features, such as nesting. CSS Modules keep your class names “local”.
+Scoped CSS is neat and keeps your JS clean. PostCSS is amazing for extended features, such as nesting. CSS Modules keep your class names “local”.
 
 # Known bugs
 
