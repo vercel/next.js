@@ -70,6 +70,7 @@
     "loader-utils": "0.2.16",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
+    "mv": "^2.1.1",
     "mz": "2.6.0",
     "path-match": "1.2.4",
     "pkg-up": "1.0.0",

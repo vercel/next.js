@@ -1,4 +1,4 @@
-import { rename } from 'mz/fs'
+import mv from 'mv'
 import { join } from 'path'
 
 export default async function replaceCurrentBuild (dir, buildDir) {
@@ -7,10 +7,15 @@ export default async function replaceCurrentBuild (dir, buildDir) {
   const oldDir = join(buildDir, '.next.old')
 
   try {
-    await rename(_dir, oldDir)
+    await move(_dir, oldDir)
   } catch (err) {
     if (err.code !== 'ENOENT') throw err
   }
-  await rename(_buildDir, _dir)
+  await move(_buildDir, _dir)
   return oldDir
+}
+
+function move (from, to) {
+  return new Promise((resolve, reject) =>
+    mv(from, to, err => err ? reject(err) : resolve()))
 }
