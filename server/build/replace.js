@@ -17,5 +17,5 @@ export default async function replaceCurrentBuild (dir, buildDir) {
 
 function move (from, to) {
   return new Promise((resolve, reject) =>
-    mv(from, to, err => err && reject(err) || resolve()))
+    mv(from, to, err => err ? reject(err) : resolve()))
 }
