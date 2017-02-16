@@ -4,21 +4,22 @@ import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 
+const ADDED = Symbol()
+const BUILDING = Symbol()
+const BUILT = Symbol()
+
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
   maxInactiveAge = 1000 * 25
 }) {
   const entries = {}
-  let buildingEntries = {}
-  let completedEntries = {}
-
   const doneCallbacks = new EventEmitter()
 
   compiler.plugin('make', function (compilation, done) {
     const allEntries = Object.keys(entries).map((page) => {
       const { name, entry } = entries[page]
-      buildingEntries[page] = true
+      entries[page].status = BUILDING
       return addEntry(compilation, this.context, name, entry)
     })
 
@@ -29,13 +30,14 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
   compiler.plugin('done', function (stats) {
     // Call all the doneCallbacks
-    Object.keys(buildingEntries).forEach((page) => {
+    Object.keys(entries).forEach((page) => {
+      const entryInfo = entries[page]
+      if (entryInfo.status !== BUILDING) return
+
+      entryInfo.status = BUILT
       entries[page].lastActiveTime = Date.now()
       doneCallbacks.emit(page)
     })
-
-    completedEntries = buildingEntries
-    buildingEntries = {}
   })
 
   setInterval(function () {
@@ -57,18 +59,23 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       ]
 
       await new Promise((resolve, reject) => {
-        if (completedEntries[page]) {
-          return resolve()
-        }
+        const entryInfo = entries[page]
 
-        if (entries[page]) {
-          doneCallbacks.on(page, processCallback)
-          return
+        if (entryInfo) {
+          if (entryInfo.status === BUILT) {
+            resolve()
+            return
+          }
+
+          if (entryInfo.status === BUILDING) {
+            doneCallbacks.on(page, processCallback)
+            return
+          }
         }
 
         console.log(`> Building page: ${page}`)
 
-        entries[page] = { name, entry }
+        entries[page] = { name, entry, status: ADDED }
         doneCallbacks.on(page, processCallback)
 
         devMiddleware.invalidate()
@@ -86,25 +93,25 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
         const { query } = parse(req.url, true)
         const page = normalizePage(query.page)
-        const entry = entries[page]
-
-        // We don't need to maintain active state for currently building entries
-        if (buildingEntries[page]) return
-
-        // If there's an entry
-        if (entry) {
-          entry.lastActiveTime = Date.now()
-          res.status = 200
-          res.end('Success')
-          return
-        }
+        const entryInfo = entries[page]
 
         // If there's no entry.
         // Then it seems like an weird issue.
-        const message = `Client pings, but there's no entry for page: ${page}`
-        console.error(message)
-        res.status = 500
-        res.end(message)
+        if (!entryInfo) {
+          const message = `Client pings, but there's no entry for page: ${page}`
+          console.error(message)
+          res.status = 500
+          res.end(message)
+          return
+        }
+
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) return
+
+        // If there's an entryInfo
+        entryInfo.lastActiveTime = Date.now()
+        res.status = 200
+        res.end('Success')
       }
     }
   }
@@ -124,11 +131,11 @@ function disposeInactiveEntries (devMiddleware, entries, maxInactiveAge) {
   const disposingPages = []
 
   Object.keys(entries).forEach((page) => {
-    const { lastActiveTime } = entries[page]
+    const { lastActiveTime, status } = entries[page]
 
-    // This means this entry is currently building
+    // This means this entry is currently building or just added
     // We don't need to dispose those entries.
-    if (!lastActiveTime) return
+    if (status !== BUILT) return
 
     if (Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
