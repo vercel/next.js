@@ -713,7 +713,7 @@ Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadm
 
 ## Contributing
 
-Please see our [CONTRIBUTING.md](./contributing.md)
+Please see our [contributing.md](./contributing.md)
 
 ## Authors
 
