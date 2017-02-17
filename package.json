@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "2.0.0-beta.29",
+  "version": "2.0.0-beta.30",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -32,7 +32,7 @@
     "test": "npm run testonly -- --coverage --forceExit",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
-    "prepublish": "npm run test && npm run release",
+    "prepublish": "npm run release",
     "precommit": "npm run lint"
   },
   "standard": {
