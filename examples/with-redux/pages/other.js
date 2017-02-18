@@ -1,6 +1,6 @@
 import React from 'react'
-import { reducer, initStore, startClock } from '../store'
-import withRedux  from 'next-redux-wrapper';
+import { initStore, startClock } from '../store'
+import withRedux from 'next-redux-wrapper'
 import Page from '../components/Page'
 
 class Counter extends React.Component {
