@@ -1,6 +1,6 @@
 import React from 'react'
 import { reducer, initStore, startClock } from '../store'
-import wrapper  from 'next-redux-wrapper';
+import withRedux  from 'next-redux-wrapper';
 import Page from '../components/Page'
 
 class Counter extends React.Component {
@@ -24,4 +24,4 @@ class Counter extends React.Component {
   }
 }
 
-export default wrapper(initStore)(Counter)
+export default withRedux(initStore)(Counter)
