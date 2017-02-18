@@ -1,11 +1,11 @@
 import React from 'react'
-import { reducer, initStore, startClock } from '../store'
-import withRedux  from 'next-redux-wrapper';
+import { nextConnect, reducer, startClock, setPageTitle } from '../store'
 import Page from '../components/Page'
 
 class Counter extends React.Component {
   static getInitialProps ({ store, isServer }) {
     store.dispatch({ type: 'TICK', light: !isServer, ts: Date.now() })
+    store.dispatch({ type: 'SET_PAGE_TITLE', title: 'Index Page' })
     return { isServer }
   }
 
@@ -19,9 +19,9 @@ class Counter extends React.Component {
 
   render () {
     return (
-      <Page title='Index Page' linkTo='/other' />
+      <Page title={this.props.title} linkTo='/other' />
     )
   }
 }
 
-export default withRedux(initStore)(Counter)
+export default nextConnect((state) => state)(Counter)
