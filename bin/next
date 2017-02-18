@@ -6,21 +6,14 @@ import { watchFile } from 'fs'
 import pkg from '../../package.json'
 
 if (pkg.peerDependencies) {
-  let peerDependencyUnavailable = false
-
   Object.keys(pkg.peerDependencies).forEach(dependency => {
     try {
       // When 'npm link' is used it checks the clone location. Not the project.
       require.resolve(dependency)
     } catch (err) {
       console.log(`${dependency} not found. Please install ${dependency} using 'npm install ${dependency}'`)
-      peerDependencyUnavailable = true
     }
   })
-
-  if (peerDependencyUnavailable) {
-    process.exit(1)
-  }
 }
 
 const defaultCommand = 'dev'
