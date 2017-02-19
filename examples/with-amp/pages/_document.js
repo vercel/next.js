@@ -1,5 +1,5 @@
 import Document, { Head } from 'next/document'
-import { DOMProperty } from 'react-dom/../lib/ReactInjection'
+import { DOMProperty } from 'react-dom/lib/ReactInjection'
 
 // By default React limit the set of valid DOM elements and attributes
 // (https://github.com/facebook/react/issues140) this config whitelist

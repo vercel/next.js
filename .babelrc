@@ -1,13 +1,24 @@
 {
-  "presets": ["latest", "react"],
+  "presets": [
+    "latest",
+    "react"
+  ],
   "plugins": [
     "transform-object-rest-spread",
     "transform-class-properties",
     "transform-runtime"
   ],
   "env": {
+    "test-build": {
+      "plugins": [
+        "istanbul"
+      ]
+    },
     "test": {
-      "plugins": ["istanbul"]
+      "presets": [
+        "es2015",
+        "./babel"
+       ]
     }
   }
 }

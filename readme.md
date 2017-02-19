@@ -361,7 +361,7 @@ import Link from 'next/link'
 export default () => (
   <nav>
     <ul>
-      <li><Link prefetch ref='/'><a>Home</a></Link></li>
+      <li><Link prefetch href='/'><a>Home</a></Link></li>
       <li><Link prefetch href='/about'><a>About</a></Link></li>
       <li><Link prefetch href='/contact'><a>Contact</a></Link></li>
     </ul>
@@ -749,7 +749,7 @@ Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadm
 
 ## Contributing
 
-Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
+Please see our [contributing.md](./contributing.md)
 
 ## Authors
 

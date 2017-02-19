@@ -24,7 +24,7 @@ export default async function build (dir) {
   await replaceCurrentBuild(dir, buildDir)
 
   // no need to wait
-  del(buildDir)
+  del(buildDir, { force: true })
 }
 
 export function runCompiler (compiler) {
