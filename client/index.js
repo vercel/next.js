@@ -73,20 +73,14 @@ async function doRender ({ Component, props, err, emitter }) {
     emitter.emit('before-reactdom-render', { Component })
   }
 
-  if (!Component && lastAppProps) {
-    Component = lastAppProps.Component
-  }
+  Component = Component || lastAppProps.Component
+  props = props || lastAppProps.props
 
-  if (!props && lastAppProps) {
-    props = lastAppProps.props
-  }
-
-  const appProps = { Component: Component || ErrorComponent, props: props || {}, err, router, headManager }
+  const appProps = { Component, props, err, router, headManager }
+  lastAppProps = appProps
   ReactDOM.render(createElement(App, appProps), container)
 
   if (emitter) {
     emitter.emit('after-reactdom-render', { Component })
   }
-
-  lastAppProps = appProps
 }
