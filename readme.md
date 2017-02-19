@@ -253,7 +253,7 @@ export default () => (
 )
 ```
 
-__Note: use [`next/prefetch`](#prefetching-pages) for maximum performance, to link and prefetch at the same time in the background__
+__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
 
 Client-side routing behaves exactly like the browser:
 
