@@ -93,7 +93,12 @@ export default class Server {
       },
 
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ buildIdMismatch: true }))
+          return
+        }
+
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
         await this.renderJSON(req, res, pathname)
@@ -277,14 +282,13 @@ export default class Server {
   }
 
   handleBuildId (buildId, res) {
-    if (this.dev) return
+    if (this.dev) return true
     if (buildId !== this.renderOpts.buildId) {
-      const errorMessage = 'Build id mismatch!' +
-        'Seems like the server and the client version of files are not the same.'
-      throw new Error(errorMessage)
+      return false
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    return true
   }
 
   getCompilationError (page) {
