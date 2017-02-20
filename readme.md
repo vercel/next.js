@@ -25,7 +25,6 @@ _**NOTE! the README on the `master` branch might not match that of the [latest s
     - [With `<Link>`](#with-link)
     - [Imperatively](#imperatively)
       - [Router Events](#router-events)
-      - [Reload Hooks](#reload-hooks)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
@@ -335,27 +334,6 @@ Router.onRouteChangeError = (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
-}
-```
-
-##### Reload Hooks
-
-Between new deployments, Next.js might reload your app when you are navigating pages. With that, your app's client side state might get destroyed. In that case, you can use our reload hooks to restore that state after the reload.
-
-Let's assume our client side state stored in a variable called `state`. Then this is how we use reload hooks to restore the state .
-
-```js
-let state = {}
-
-Router.onBeforeReload = function (key) {
-  localStorage.setItem(key, JSON.stringify(state))
-}
-
-Router.onAfterReload = function (key) {
-  const data = (localStorage.getItem(key))
-  if (!data) return
-
-  const state = JSON.parse(data)
 }
 ```
 
