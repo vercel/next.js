@@ -82,8 +82,7 @@ export default class Server {
 
       '/_next/:buildId/main.js': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
-          reloadTheBrowser(res)
-          return
+          throwBuildIdMismatchError()
         }
 
         const p = join(this.dir, '.next/main.js')
@@ -92,8 +91,7 @@ export default class Server {
 
       '/_next/:buildId/commons.js': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
-          reloadTheBrowser(res)
-          return
+          throwBuildIdMismatchError()
         }
 
         const p = join(this.dir, '.next/commons.js')
@@ -311,7 +309,6 @@ export default class Server {
   }
 }
 
-function reloadTheBrowser (res) {
-  res.setHeader('Content-Type', 'text/javascript')
-  res.end('location.reload()')
+function throwBuildIdMismatchError () {
+  throw new Error('BUILD_ID Mismatched!')
 }
