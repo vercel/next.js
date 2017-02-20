@@ -81,19 +81,32 @@ export default class Server {
       },
 
       '/_next/:buildId/main.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          reloadTheBrowser(res)
+          return
+        }
+
         const p = join(this.dir, '.next/main.js')
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/commons.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          reloadTheBrowser(res)
+          return
+        }
+
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ buildIdMismatch: true }))
+          return
+        }
+
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
         await this.renderJSON(req, res, pathname)
@@ -277,14 +290,13 @@ export default class Server {
   }
 
   handleBuildId (buildId, res) {
-    if (this.dev) return
+    if (this.dev) return true
     if (buildId !== this.renderOpts.buildId) {
-      const errorMessage = 'Build id mismatch!' +
-        'Seems like the server and the client version of files are not the same.'
-      throw new Error(errorMessage)
+      return false
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    return true
   }
 
   getCompilationError (page) {
@@ -297,4 +309,9 @@ export default class Server {
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }
+}
+
+function reloadTheBrowser (res) {
+  res.setHeader('Content-Type', 'text/javascript')
+  res.end('location.reload()')
 }
