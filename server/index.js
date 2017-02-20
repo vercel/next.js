@@ -81,13 +81,21 @@ export default class Server {
       },
 
       '/_next/:buildId/main.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          reloadTheBrowser(res)
+          return
+        }
+
         const p = join(this.dir, '.next/main.js')
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/commons.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          reloadTheBrowser(res)
+          return
+        }
+
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
       },
@@ -301,4 +309,9 @@ export default class Server {
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }
+}
+
+function reloadTheBrowser (res) {
+  res.setHeader('Content-Type', 'text/javascript')
+  res.end('location.reload()')
 }
