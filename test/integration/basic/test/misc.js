@@ -1,6 +1,6 @@
 /* global describe, test, expect */
 
-export default function ({ app }) {
+export default function (context) {
   describe('Misc', () => {
     test('finishes response', async () => {
       const res = {
@@ -9,7 +9,7 @@ export default function ({ app }) {
           this.finished = true
         }
       }
-      const html = await app.renderToHTML({}, res, '/finish-response', {})
+      const html = await context.app.renderToHTML({}, res, '/finish-response', {})
       expect(html).toBeFalsy()
     })
   })
