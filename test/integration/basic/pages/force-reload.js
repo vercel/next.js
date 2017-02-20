@@ -1,6 +1,6 @@
 /* global localStorage */
 import React, { Component } from 'react'
-import Router, { _reload } from 'next/router'
+import Router, { _forceReload } from 'next/router'
 
 let counter = 0
 
@@ -18,7 +18,7 @@ export default class extends Component {
           Counter: {counter}
         </div>
         <button id='increase' onClick={() => this.increase()}>Increase</button>
-        <button id='reload' onClick={() => _reload()}>Reload</button>
+        <button id='reload' onClick={() => _forceReload()}>Reload</button>
       </div>
     )
   }
