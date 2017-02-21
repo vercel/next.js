@@ -77,11 +77,12 @@ async function doRender ({ Component, props, err, emitter }) {
   props = props || lastAppProps.props
 
   const appProps = { Component, props, err, router, headManager }
+  // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
+  lastAppProps = appProps
+
   ReactDOM.render(createElement(App, appProps), container)
 
   if (emitter) {
     emitter.emit('after-reactdom-render', { Component })
   }
-
-  lastAppProps = appProps
 }
