@@ -4,7 +4,7 @@ let storeMemoized = null
 
 const getStore = (initialState) => {
   let store = null
-  if (typeof window == 'undefined') {
+  if (typeof window === 'undefined') {
     store = createStore(initialState)
   } else {
     if (!storeMemoized) {
