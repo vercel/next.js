@@ -1,5 +1,4 @@
-import { Provider} from 'refnux'
-
+import {Provider} from 'refnux'
 import getStore from './getStore'
 
 // The `withRefnux` "decorator"
@@ -9,12 +8,11 @@ import getStore from './getStore'
 // - passes `store` to Component's `getInitialProps` so that it can dispatch actions
 
 const withRefnux = (getInitialState, Component) => {
-
   const Wrapper = (props) => {
     var store = props.store
     // if getInitialProps was executed on the server we get a store
     // that's missing non-serializable functions.
-    // Because of this we need to recreate the store based on the 
+    // Because of this we need to recreate the store based on the
     // state coming from the server.
     if (!store.dispatch) {
       store = getStore(props.store.state)
@@ -37,6 +35,5 @@ const withRefnux = (getInitialState, Component) => {
 
   return Wrapper
 }
-
 
 export default withRefnux
