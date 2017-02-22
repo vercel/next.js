@@ -73,7 +73,7 @@ To see how simple it is, check out the [sample app - Nextgram](https://github.co
 
 ## Usage Guide
 
-### CSS
+### Styling
 
 #### Built-in CSS Support
 
