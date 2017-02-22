@@ -16,20 +16,20 @@ export default (context) => {
         await browser.close()
       })
 
-      it('should navigate via the client side', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
+      // it('should navigate via the client side', async () => {
+      //   const browser = await webdriver(context.appPort, '/nav')
 
-        const counterText = await browser
-          .elementByCss('#increase').click()
-          .elementByCss('#about-link').click()
-          .waitForElementByCss('.nav-about')
-          .elementByCss('#home-link').click()
-          .waitForElementByCss('.nav-home')
-          .elementByCss('#counter').text()
+      //   const counterText = await browser
+      //     .elementByCss('#increase').click()
+      //     .elementByCss('#about-link').click()
+      //     .waitForElementByCss('.nav-about')
+      //     .elementByCss('#home-link').click()
+      //     .waitForElementByCss('.nav-home')
+      //     .elementByCss('#counter').text()
 
-        expect(counterText).toBe('Counter: 1')
-        await browser.close()
-      })
+      //   expect(counterText).toBe('Counter: 1')
+      //   await browser.close()
+      // })
     })
 
     describe('with <a/> tag inside the <Link />', () => {
