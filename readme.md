@@ -399,7 +399,7 @@ The API is defined as follows:
 
 - `prefetch(url: string): void` &ndash; Prefetches given url.
 
-### Custom server and routing
+### Custom Server and Routing
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -413,11 +413,12 @@ The API is defined as follows:
   </ul>
 </details></p>
 
-Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
+Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically. In order to customize routes, use route patterns, etc. use the `next` module with your custom server code.
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
+// server.js
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
@@ -446,16 +447,30 @@ app.prepare().then(() => {
 })
 ```
 
-The `next` API is as follows:
-- `next(path: string, opts: object)` - `path` is
-- `next(opts: object)`
+#### Programmatic API
 
-Supported options:
-- `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
-- `dir` (`string`) where the Next project is located - default `'.'`
-- `quiet` (`bool`) Hide error messages containing server information - default `false`
+Create an instance by calling `next` as follows:
 
-Then, change your `start` script to `NODE_ENV=production node server.js`.
+- `next(options?: Object): Server` &ndash; Creates a `next/server` instance.
+
+Supported `options` are:
+
+- `dir: string` &ndash; Where the Next.js project is located. Defaults to `'.'`.
+- `dev: boolean` &ndash; Whether to launch Next.js in development mode (enables hot reloading). Defaults to `false`.
+- `staticMarkup: boolean` &ndash; Whether to render pages to static markup (i.e. call [`ReactDOMServer.renderToStaticMarkup()`](https://facebook.github.io/react/docs/react-dom-server.html#rendertostaticmarkup)). Defaults to `false`.
+- `quiet: boolean` &ndash; Whether to hide error messages containing server information. Defaults to `false`.
+
+A `Server`'s API looks like this:
+
+- `getRequestHandler(): () => Promise` &ndash; Returns a `handle` function resolving a given url.
+  - `handle(req: Object, res: Object, parsedUrl?: Object): Promise` &ndash; Resolves when requested url is rendered successfully. `req`/`res` correspond to HTTP request/result objects. `parsedUrl` defaults to `url.parse(req.url, true)`.
+- `prepare(): Promise` &ndash; Prepares the server for handling requests. Must resolve before calling `handle()` or `render` functions.
+- `close(): Promise` &ndash; Shuts down the server.
+- `start(port: number, hostname: string): Promise` &ndash; Starts an HTTP server at given `hostname` and `port`.
+- `render(req: Object, res: Object, pathname: string, query: Object): Promise` &ndash; Renders a given `pathname`. `req`/`res` correspond to HTTP request/result objects.
+- `renderJSON(req: Object, res: Object, page: string, opts: { dir?: string }): Promise` &ndash; Renders a given page (inside `pages/`) as JSON representation. `req`/`res` correspond to HTTP request/result objects. `opts.dir` defaults to `process.cwd()`.
+- `renderError(err: Object, req: Object, res: Object, pathname: String, query: Object)` &ndash; [Renders error page](#error-handling) with the given error.
+- `renderErrorJSON(err: Object, req: Object, res: Object)` &ndash; Renders error page as JSON representation.
 
 ### Custom `<Document>`
 
