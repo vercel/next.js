@@ -341,49 +341,63 @@ Router.onRouteChangeError = (err, url) => {
   <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
 </details></p>
 
-Next.js has an API which allows you to prefetch pages.
+Next.js exposes an API to prefetch pages.
 
-Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
+> Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
-> With prefetching Next.js only download JS code. When the page is getting rendered, you may need to wait for the data.
+:information_source: When prefetching, Next.js only downloads the code. Once the page is getting rendered you may still need to wait for data.
 
-#### With `<Link>`
+#### Using the `<Link>` Component
 
-You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those pages in the background.
+To prefetch a route substitute your usage of [`<Link>`](#using-the-link-component) with the default export of `next/prefetch`. For example:
 
 ```jsx
-import Link from 'next/link'
+// components/navigation.js
+import Link from 'next/prefetch'
 
-// example header component
 export default () => (
   <nav>
     <ul>
-      <li><Link prefetch href='/'><a>Home</a></Link></li>
-      <li><Link prefetch href='/about'><a>About</a></Link></li>
-      <li><Link prefetch href='/contact'><a>Contact</a></Link></li>
+      <li><Link href='/'><a>Home</a></Link></li>
+      <li><Link href='/about'><a>About</a></Link></li>
+      <li><Link href='/contact'><a>Contact</a></Link></li>
     </ul>
   </nav>
 )
 ```
 
-#### Imperatively
+When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed.
 
-Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
+The `<Link>` component from `next/prefetch` accepts an additional boolean property `prefetch`. This enables turning off prefetching on a per-`<Link>` basis.
 
 ```jsx
-import Router from 'next/router'
+<Link href='/contact' prefetch={false}><a>Home</a></Link>
+```
+
+#### Imperatively Using `prefetch` Function
+
+Most needs are addressed by using `<Link>`. With the `prefetch` function we also expose an imperative API for advanced usage:
+
+```jsx
+// pages/my-page.js
+import { prefetch } from 'next/prefetch'
+
 export default ({ url }) => (
   <div>
-    <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
-      A route transition will happen after 100ms
+    <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 1000) }>
+      Click here and a route transition will happen after 1s...
     </a>
     {
       // but we can prefetch it!
-      Router.prefetch('/dynamic')
+      prefetch('/dynamic')
     }
   </div>
 )
 ```
+
+The API is defined as follows:
+
+- `prefetch(url: string): void` &ndash; Prefetches given url.
 
 ### Custom server and routing
 
