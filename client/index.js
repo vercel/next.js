@@ -6,7 +6,7 @@ import { rehydrate } from '../lib/css'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
-import { loadGetInitialProps } from '../lib/utils'
+import { loadGetInitialProps, getURL } from '../lib/utils'
 
 const {
   __NEXT_DATA__: {
@@ -25,7 +25,7 @@ const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 let lastAppProps
 
-export const router = createRouter(pathname, query, {
+export const router = createRouter(pathname, query, getURL(), {
   Component,
   ErrorComponent,
   err
