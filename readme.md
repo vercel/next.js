@@ -73,17 +73,6 @@ To see how simple it is, check out the [sample app - Nextgram](https://github.co
 
 ## Usage Guide
 
-### Automatic code splitting
-
-Every `import` you declare gets bundled and served with each page. That means pages never load unnecessary code!
-
-```jsx
-import cowsay from 'cowsay-browser'
-export default () => (
-  <pre>{ cowsay.say({ text: 'hi there!' }) }</pre>
-)
-```
-
 ### CSS
 
 #### Built-in CSS support
