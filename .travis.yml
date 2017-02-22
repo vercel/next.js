@@ -18,6 +18,4 @@ before_install:
   - export DISPLAY=:99.0
   - sh -e /etc/init.d/xvfb start
   - sleep 3
-script:
-  - echo "No need to use npm test since it's done in the install section via 'npm prepublish'"
 after_script: npm run coveralls
