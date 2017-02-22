@@ -71,7 +71,7 @@ For a production ready build run `npm run build` and serve it via `npm start`. :
 
 To see how simple it is, check out the [sample app - Nextgram](https://github.com/zeit/nextgram).
 
-## How to use
+## Usage Guide
 
 ### Automatic code splitting
 
