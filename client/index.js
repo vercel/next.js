@@ -17,7 +17,8 @@ const {
     err,
     pathname,
     query
-  }
+  },
+  location
 } = window
 
 const Component = evalScript(component).default
@@ -37,11 +38,12 @@ export default (onError) => {
   const emitter = new EventEmitter()
   if (ids && ids.length) rehydrate(ids)
 
-  router.subscribe(({ Component, props, err }) => {
-    render({ Component, props, err, emitter }, onError)
+  router.subscribe(({ Component, props, hash, err }) => {
+    render({ Component, props, err, hash, emitter }, onError)
   })
 
-  render({ Component, props, err, emitter }, onError)
+  const hash = location.hash.substring(1)
+  render({ Component, props, hash, err, emitter }, onError)
 
   return emitter
 }
@@ -60,7 +62,7 @@ async function renderErrorComponent (err) {
   await doRender({ Component: ErrorComponent, props, err })
 }
 
-async function doRender ({ Component, props, err, emitter }) {
+async function doRender ({ Component, props, hash, err, emitter }) {
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
@@ -76,7 +78,7 @@ async function doRender ({ Component, props, err, emitter }) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, props, err, router, headManager }
+  const appProps = { Component, props, hash, err, router, headManager }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
