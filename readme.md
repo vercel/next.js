@@ -514,29 +514,69 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage(): {html: string, head: Array[React.Element]}` &ndash; A callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-### Custom error handling
+### Error handling
 
-404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
+#### Custom Error Page
+
+404 and 500 errors are handled both client and server side by a default component `<Error>`. If you wish to override it, export a component from `pages/_error.js`:
 
 ```jsx
+// pages/_error.js
 import React from 'react'
+
 export default class Error extends React.Component {
+
   static getInitialProps ({ res, xhr }) {
     const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
-    return { statusCode }
+    const env = xhr ? 'client' : 'server'
+
+    return { statusCode, client }
   }
 
   render () {
     return (
       <p>{
         this.props.statusCode
-        ? `An error ${this.props.statusCode} occurred on server`
-        : 'An error occurred on client'
+        ? `An error ${this.props.statusCode} occurred on ${this.props.env}`
+        : 'An unknown error occurred.'
       }</p>
     )
   }
 }
 ```
+
+As shown above you may receive error information via arguments passed to `getInitialProps`.
+
+#### Using `<Error>` Component
+
+You may wish to render the error page from within a component. For this scenario we expose the `<Error>` component at `next/error`. Consider the following example:
+
+```js
+// pages/index.js
+import React from 'react'
+import ErrorPage from 'next/error'
+import fetch from 'isomorphic-fetch'
+
+export default class extends React.Component {
+
+  static async getInitialProps({ query }) {
+    const data = await fetch(`/my-endpoint.json?user=${query.user}`)
+    return { data }
+  }
+
+  render() {
+    if(this.props.data.error) {
+      return <ErrorPage statusCode={404} />
+    } else {
+      return <h1>Hello {data.name}</h1>
+    }
+  }
+}
+```
+
+`<Error>` accepts the following properties:
+
+- `statusCode?: number` &ndash; The HTTP status code.
 
 ### Custom configuration
 
