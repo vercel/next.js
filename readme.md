@@ -13,27 +13,30 @@ Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at 
 
 :warning: **[`readme.md`](https://github.com/zeit/next.js/blob/master/readme.md) on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest).**
 
-## Table Of Contents
+## Getting Started
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-<!-- https://github.com/thlorenz/doctoc -->
-
-:construction: t.b.d. :construction:
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-## How to use
-
-### Setup
-
-Install it:
+For starters, make sure to create a directory and `package.json` inside to begin working from.
 
 ```bash
-npm install next react react-dom --save
+mkdir next-project && cd next-project
+npm init -y
 ```
 
-and add a script to your package.json like this:
+Hereafter it takes __three simple steps__ to set up your app.
+
+### Install the `next` package
+
+First up, install Next.js via [npm](https://npmjs.com/package/next):
+
+```bash
+npm install next --save
+```
+
+:information_source: Make sure you are running  at least the current [Node.js LTS](https://nodejs.org/en/download/) version.
+
+### Setup `npm` Scripts
+
+Next, add a few scripts to your `package.json` which will give you some easy commands to _develop, build_ and _start_ your app.
 
 ```json
 {
@@ -45,26 +48,30 @@ and add a script to your package.json like this:
 }
 ```
 
-After that, the file-system is the main API. Every `.js` file becomes a route that gets automatically processed and rendered.
+### Add a Page
 
-Populate `./pages/index.js` inside your project:
+By default Next.js maps routes to the file system. It looks for React components inside a `pages` directory, with the home page being `index.js`. Just create this file and populate it as follows:
 
 ```jsx
+// pages/index.js
 export default () => (
-  <div>Welcome to next.js!</div>
+  <div>Welcome to Next.js!</div>
 )
 ```
 
-and then just run `npm run dev` and go to `http://localhost:3000`
+Finally run `npm run dev` and open `http://localhost:3000`.
 
-So far, we get:
+For a production ready build run `npm run build` and serve it via `npm start`. :boom:
 
-- Automatic transpilation and bundling (with webpack and babel)
-- Hot code reloading
-- Server rendering and indexing of `./pages`
-- Static file serving. `./static/` is mapped to `/static/`
+> So far, we get:
+>
+> - Automatic transpilation and bundling (with [Babel](https://babeljs.io/) and [webpack](https://webpack.js.org/))
+> - Hot code reloading
+> - Server rendering and indexing of `./pages/`
 
-To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
+To see how simple it is, check out the [sample app - Nextgram](https://github.com/zeit/nextgram).
+
+## How to use
 
 ### Automatic code splitting
 
