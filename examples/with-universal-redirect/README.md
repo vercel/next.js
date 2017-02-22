@@ -26,3 +26,6 @@ now
 ## The idea behind the example
 
 Shows how to implement redirects for non-existent pages with [next-universal-redirect](https://github.com/timneutkens/next-universal-redirect)
+
+Example: [with-universal-redirect.now.sh](https://with-universal-redirect.now.sh/)
+
