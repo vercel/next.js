@@ -129,9 +129,9 @@ export default () => (
 
 :information_source: _To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define a [custom `<Document>`](#custom-document) that wraps each page._
 
-### Static file serving (e.g.: images)
+### Serving Static Files (e.g.: images)
 
-Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
+Create a folder called `static` in your project's root directory. This is where all your static files will live. In your code you may reference these files at the `/static/:filename` route.
 
 ```jsx
 export default () => (
