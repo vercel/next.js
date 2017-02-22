@@ -514,7 +514,7 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage(): {html: string, head: Array[React.Element]}` &ndash; A callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-### Error handling
+### Error Handling
 
 #### Custom Error Page
 
