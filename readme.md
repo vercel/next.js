@@ -167,45 +167,51 @@ export default () => (
 
 :information_source: Contents of `<head>` declared outside of [`_document.js`](#custom-document) get cleared upon unmounting the component. Make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added.
 
-### Fetching data and component lifecycle
+### Fetching Initial Data
 
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/data-fetch">Data fetch</a></li></ul>
 </details></p>
 
-When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
+Next.js allows for pages to declare a static [async](https://zeit.co/blog/async-and-await) method `getInitialProps`. It may fetch initial [`props`](https://facebook.github.io/react/docs/components-and-props.html) for pages.
+
+Just export a component as `class` that `extends React.Component` like you would when using [React's built-in lifecycle methods](https://facebook.github.io/react/docs/react-component.html#the-component-lifecycle).
 
 ```jsx
+// pages/hello.js
 import React from 'react'
-export default class extends React.Component {
+
+export default class Hello extends React.Component {
+
   static async getInitialProps ({ req }) {
-    return req
-      ? { userAgent: req.headers['user-agent'] }
-      : { userAgent: navigator.userAgent }
+    return process.browser
+      ? { userAgent: navigator.userAgent }
+      : { userAgent: req.headers['user-agent'] }
   }
+
   render () {
     return <div>
-      Hello World {this.props.userAgent}
+      Hello {this.props.userAgent}
     </div>
   }
 }
 ```
 
-Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
+We expect the return value of `getInitialProps` to resolve to a JavaScript plain `Object` which then populates the page's `props`.
 
-For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
+:information_source: _`getInitialProps` will execute on the server or the client&mdash;never both. For the initial page load it will be executed on the server only. When navigation to a different route using the [routing APIs](#client-side-routing) it will be executed on the client only._
 
-_Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
+#### Parameters for `getInitialProps`
 
-`getInitialProps` receives a context object with the following properties:
+`getInitialProps` receives a `context` object with the following properties:
 
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
-- `req` - HTTP request object (server only)
-- `res` - HTTP response object (server only)
-- `xhr` - XMLHttpRequest object (client only)
-- `err` - Error object if any error is encountered during the rendering
+- `pathname: string` &ndash; Path section of URL
+- `query: Object` &ndash; Query string section of URL, parsed as an object
+- `req?: Object` &ndash; HTTP request object (server only)
+- `res?: Object` &ndash; HTTP response object (server only)
+- `xhr?: Object` &ndash; `XMLHttpRequest` object (client only)
+- `err?: Error` &ndash; `Error` object if any error is encountered during rendering
 
 ### Routing
 
