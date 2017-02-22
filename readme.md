@@ -149,10 +149,11 @@ export default () => (
   </ul>
 </details></p>
 
-We expose a built-in component for appending elements to the `<head>` of the page.
+We expose a component `<Head>` for appending elements to the `<head>` of the page.
 
 ```jsx
 import Head from 'next/head'
+
 export default () => (
   <div>
     <Head>
@@ -164,7 +165,7 @@ export default () => (
 )
 ```
 
-_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+:information_source: Contents of `<head>` declared outside of [`_document.js`](#custom-document) get cleared upon unmounting the component. Make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added.
 
 ### Fetching data and component lifecycle
 
