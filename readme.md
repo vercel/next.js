@@ -213,9 +213,9 @@ We expect the return value of `getInitialProps` to resolve to a JavaScript plain
 - `xhr?: Object` &ndash; `XMLHttpRequest` object (client only)
 - `err?: Error` &ndash; `Error` object if any error is encountered during rendering
 
-### Routing
+### Client-Side Routing
 
-#### With `<Link>`
+#### Using the `<Link>` Component
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -224,11 +224,12 @@ We expect the return value of `getInitialProps` to resolve to a JavaScript plain
   </ul>
 </details></p>
 
-Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
+Client-side transitions between routes may be enabled via the exposed `<Link>` component. Consider these two pages:
 
 ```jsx
 // pages/index.js
 import Link from 'next/link'
+
 export default () => (
   <div>Click <Link href="/about"><a>here</a></Link> to read more</div>
 )
@@ -241,24 +242,33 @@ export default () => (
 )
 ```
 
-__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
+The `<Link>` component accepts the following `props`:
+
+- `href: string` &ndash; the path to link to.
+- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#custom-server-and-routing).
+
+:information_source: _The `<Link>` component doesn't implicitly render an `<a>` tag. This is so you can choose any element you'd like (e.g. `<button>`). Also, in case it's child is in fact an `<a>` element, the `href` property on `<Link>` gets passed down. This prevents you from having to repeat it._
 
 Client-side routing behaves exactly like the browser:
 
-1. The component is fetched
-2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
-3. After 1 and 2 complete, `pushState` is performed and the new component rendered
+1. The component is fetched.
+2. If it defines [`getInitialProps`](#fetching-initial-data), data is fetched. If an error occurs, [`_error.js`](#error-handling) is rendered.
+3. After 1 and 2 complete, [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) is performed and the new component rendered.
 
-Each top-level component receives a `url` property with the following API:
+:information_source: _For maximum performance use [`next/prefetch`](#prefetching-pages) to link to and prefetch a page at the same time._
 
-- `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
+#### Imperatively Using the `url` Property
 
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+Each page component receives a `url` property, an object with the following API:
 
-#### Imperatively
+- `pathname: string` &ndash; Current path excluding the query string
+- `query: Object` &ndash; Parsed query string. Defaults to `{}`.
+- `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
+- `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
+
+The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-the-link-component).
+
+#### Imperatively Using the `Router` Class
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -268,41 +278,31 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
   </ul>
 </details></p>
 
-You can also do client-side page transitions using the `next/router`
+You may also perform client-side page transitions using `next/router`.
 
 ```jsx
 import Router from 'next/router'
 
 export default () => (
-  <div>Click <span onClick={() => Router.push('/about')}>here</span> to read more</div>
+  <div>Click <span onClick={() => Router.push('/about')}>here</span> to read more.</div>
 )
 ```
 
 Above `Router` object comes with the following API:
 
-- `route` - `String` of the current route
-- `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `route: string` &ndash; Current route.
+- `pathname: string` &ndash; Current path excluding the query string.
+- `query: Object` &ndash; Parsed query string. Defaults to `{}`.
+- `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
+- `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
 
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-the-link-component).
 
-_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
+:information_source: _In order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component as [described above](#imperatively-using-the-url-property)_.
 
 ##### Router Events
 
-You can also listen to different events happening inside the Router.
-Here's a list of supported events:
-
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
-- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
-
-> Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
-
-Here's how to properly listen to the router event `routeChangeStart`:
+You may implement listeners for events being fired inside the Router.
 
 ```js
 Router.onRouteChangeStart = (url) => {
@@ -310,30 +310,27 @@ Router.onRouteChangeStart = (url) => {
 }
 ```
 
-If you are no longer want to listen to that event, you can simply unset the event listener like this:
+These are the supported event listeners:
+
+- `onRouteChangeStart(url: string): void` &ndash; Called when a route starts to change. Defaults to `null`.
+- `onRouteChangeComplete(url: string): void` &ndash; Called when a route changed completely. Defaults to `null`.
+- `onRouteChangeError(err: Error & {cancelled: boolean}, url: string): void` &ndash; Called when an error occurs douring a route change. Defaults to `null`.
+
+:information_source: _Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), the value of `url` will be the value of `as`._
+
+If you no longer want to listen to an event, simply unset the listener like this:
 
 ```js
 Router.onRouteChangeStart = null
 ```
 
-If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contained a `cancelled` property set to `true`.
+In case loading of a route is canceled (e.g. by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contain a `cancelled` property set to `true`.
 
 ```js
 Router.onRouteChangeError = (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
-}
-```
-
-If you change a route while in between a new deployment, we can't navigate the app via client side. We need to do a full browser navigation. We do it automatically for you.
-
-But you can customize that via `Route.onAppUpdated` event like this:
-
-```js
-Router.onAppUpdated = (nextUrl) => {
-  // persist the local state
-  location.href = nextUrl
 }
 ```
 
