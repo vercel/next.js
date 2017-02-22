@@ -119,7 +119,7 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testPathDirs": [
+    "roots": [
       "test/"
     ]
   }
