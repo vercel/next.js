@@ -75,20 +75,22 @@ To see how simple it is, check out the [sample app - Nextgram](https://github.co
 
 ### CSS
 
-#### Built-in CSS support
+#### Built-in CSS Support
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/basic-css">Basic css</a></li></ul>
+  <ul><li><a href="./examples/basic-css">Basic CSS</a></li></ul>
 </details></p>
 
-We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" resembling of Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
+We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support _shadow CSS_ resembling of [Web Components](https://en.wikipedia.org/wiki/Web_Components), which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
 export default () => (
   <div>
     Hello world
-    <p>scoped!</p>
+
+    <p>The following Styles are scoped to this component, yay!</p>
+
     <style jsx>{`
       p {
         color: blue;
@@ -106,24 +108,26 @@ export default () => (
 )
 ```
 
+Check out [styled-jsx](https://github.com/zeit/styled-jsx) for more info on what's possible.
+
 #### CSS-in-JS
 
 <p><details>
   <summary>
     <b>Examples</b>
     </summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">CXS</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
 </details></p>
 
-It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
+We support any existing _CSS-in-JS_ solution. The simplest one being inline styles:
 
 ```jsx
 export default () => (
-  <p style={{ color: 'red' }}>hi there</p>
+  <p style={{ color: 'red' }}>Hi there.</p>
 )
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
+:information_source: _To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define a [custom `<Document>`](#custom-document) that wraps each page._
 
 ### Static file serving (e.g.: images)
 
