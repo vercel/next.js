@@ -480,13 +480,14 @@ A `Server`'s API looks like this:
   <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
-// ./pages/_document.js
+// pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
+
   static async getInitialProps (ctx) {
     const props = await Document.getInitialProps(ctx)
     return { ...props, customValue: 'hi there!' }
@@ -509,9 +510,9 @@ export default class MyDocument extends Document {
 }
 ```
 
-The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
+The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-initial-data) hooks, with one addition:
 
-- `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
+- `renderPage(): {html: string, head: Array[React.Element]}` &ndash; A callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
 ### Custom error handling
 
