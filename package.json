@@ -67,7 +67,7 @@
     "http-status": "1.0.1",
     "is-windows-bash": "1.0.3",
     "json-loader": "0.5.4",
-    "loader-utils": "1.0.1",
+    "loader-utils": "1.0.2",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
@@ -119,7 +119,7 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testPathDirs": [
+    "roots": [
       "test/"
     ]
   }
