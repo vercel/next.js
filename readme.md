@@ -578,31 +578,39 @@ export default class extends React.Component {
 
 - `statusCode?: number` &ndash; The HTTP status code.
 
-### Custom configuration
+### Configuring Behavior
 
-For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
-
-Note: `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build.
+For advanced usage, you may customize behavior of Next.js by providing a file `next.config.js`in your project's root.
 
 ```javascript
 // next.config.js
 module.exports = {
+  // Note: This file is not going through Babel transformation.
+  // So, we write it in vanilla JS
+  // (But you could use ES2015 features supported by your Node.js version)
+
   /* config options here */
+
 }
 ```
 
-### Customizing webpack config
+:information_source: _`next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build._
 
-In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
+We support the following configuration properties
+
+- `poweredByHeader: boolean` &ndash; Adds the HTTP header `X-Powered-By:` with Next.js version information to server results. Defaults to `true`.
+- `webpack: () => Object` &ndash; A function returning a modified webpack configuration. [Check out the detailed info](#customizing-webpack-config).
+
+#### Customizing webpack Configuration
+
+In order to extend [our usage of webpack](./server/build/webpack.js), you may define a function that extends its `config` via `next.config.js`.
 
 ```js
-// This file is not going through babel transformation.
-// So, we write it in vanilla JS
-// (But you could use ES2015 features supported by your Node.js version)
-
+// next.config.js
 module.exports = {
   webpack: (config, { dev }) => {
-    // Perform customizations to config
+
+    /* Perform customizations to config */
     
     // Important: return the modified config
     return config
@@ -610,24 +618,22 @@ module.exports = {
 }
 ```
 
-*Warning: Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack and thus it won't work on the initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
+:warning: *Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack. Thus it won't work on initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
 
-### Customizing babel config
+#### Customizing Babel Config
 
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
 </details></p>
 
-In order to extend our usage of `babel`, you can simply define a `.babelrc` file at the root of your app. This file is optional.
+In order to extend [our usage of Babel](./server/build/babel/preset.js) you may simply define a `.babelrc` file at the root of your app. This file is optional.
 
-If found, we're going to consider it the *source of truth*, therefore it needs to define what next needs as well, which is the `next/babel` preset.
-
-This is designed so that you are not surprised by modifications we could make to the babel configurations.
+:information_source: _If found, we're going to consider it the *source of truth*, therefore it needs to define what next needs as well, which is the `next/babel` preset. This is designed so that you are not surprised by modifications we could make to our Babel configuration._
 
 Here's an example `.babelrc` file:
 
-```js
+```json
 {
   "presets": [
     "next/babel",
