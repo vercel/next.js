@@ -786,7 +786,10 @@ Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadm
 
 ## Contributing
 
-Please see our [contributing.md](./contributing.md)
+Feel free to bring up any issues you're having with Next.js.
+You may [open an issue](https://github.com/zeit/next.js/issues/new) or [join our Slack Channel](https://zeit.chat/)
+
+For development, please refer to [contributing.md](./contributing.md)
 
 ## Authors
 
