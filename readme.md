@@ -3,7 +3,7 @@
 > A complete framework for Universal JavaScript applications with zero setup.
 
 Next.js helps you write high performing web apps that render in the browser and on the server.
-It provides essential tools to develop, compile and serve your code without getting in the way once it's time to customize functionality. We built it on top common tools such as [React](https://facebook.github.io/react/), [Babel](https://babeljs.io/) and [webpack](https://webpack.js.org/) and added what we felt was missing.
+It provides essential tools to develop, compile and serve your code without getting in the way once it's time to customize functionality. We built it on top of common tools such as [React](https://facebook.github.io/react/), [Babel](https://babeljs.io/) and [webpack](https://webpack.js.org/) and added what we felt was missing.
 
 Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at zeit.co") or jump ahead to the [Getting Started](#getting-started) guide.
 
