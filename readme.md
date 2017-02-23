@@ -75,7 +75,7 @@ First up, install Next.js via [npm](https://npmjs.com/package/next):
 npm install next --save
 ```
 
-:information_source: Make sure you are running  at least the current [Node.js LTS](https://nodejs.org/en/download/) version.
+:information_source: _Make sure you are running  at least the current [Node.js LTS](https://nodejs.org/en/download/) version._
 
 ### Setup `npm` Scripts
 
@@ -208,7 +208,7 @@ export default () => (
 )
 ```
 
-:information_source: Contents of `<head>` declared outside of [`_document.js`](#custom-document) get cleared upon unmounting the component. Make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added.
+:information_source: _Contents of `<head>` declared outside of [`_document.js`](#custom-document) get cleared upon unmounting the component. Make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added._
 
 ### Fetching Initial Data
 
@@ -388,7 +388,7 @@ Next.js exposes an API to prefetch pages.
 
 > Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
-:information_source: When prefetching, Next.js only downloads the code. Once the page is getting rendered you may still need to wait for data.
+:information_source: _When prefetching, Next.js only downloads the code. Once the page is getting rendered you may still need to wait for data._
 
 #### Using the `<Link>` Component
 
