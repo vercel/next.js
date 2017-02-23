@@ -53,7 +53,7 @@ Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at 
 
 ## Getting Started
 
-For starters, make sure to create a directory and `package.json` inside to begin working from.
+For starters, make sure to create a project directory and `package.json` inside, to begin working from.
 
 ```bash
 mkdir next-project && cd next-project
@@ -97,7 +97,7 @@ export default () => (
 )
 ```
 
-Finally run `npm run dev` and open `http://localhost:300`.
+Finally run `npm run dev` and open `http://localhost:3000`.
 
 For production run `npm run build` and serve it via `npm start`. :boom:
 
