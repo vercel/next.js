@@ -345,7 +345,7 @@ The `as` parameter for `push` and `replace` corresponds to the equally named [`<
 
 ##### Router Events
 
-You may implement listeners for events being fired inside the Router.
+You may want to implement listeners for events being fired inside the Router.
 
 ```js
 Router.onRouteChangeStart = (url) => {
@@ -357,7 +357,7 @@ These are the supported event listeners:
 
 - `onRouteChangeStart(url: string): void` &ndash; Called when a route starts to change. Defaults to `null`.
 - `onRouteChangeComplete(url: string): void` &ndash; Called when a route changed completely. Defaults to `null`.
-- `onRouteChangeError(err: Error & {cancelled: boolean}, url: string): void` &ndash; Called when an error occurs douring a route change. Defaults to `null`.
+- `onRouteChangeError(err: Error & {cancelled: boolean}, url: string): void` &ndash; Called when an error occurs during a route change. Defaults to `null`.
 
 :information_source: _Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), the value of `url` will be the value of `as`._
 
