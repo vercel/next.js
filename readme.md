@@ -492,9 +492,9 @@ app.prepare().then(() => {
 
 #### Programmatic API
 
-Create an instance by calling `next` as follows:
+Create an instance by calling `next()` as follows:
 
-- `next(options?: Object): Server` &ndash; Creates a `next/server` instance.
+- `next(options?: Object): Server` &ndash; Creates a `Server` instance.
 
 Supported `options` are:
 
@@ -508,12 +508,12 @@ A `Server`'s API looks like this:
 - `getRequestHandler(): () => Promise` &ndash; Returns a `handle` function resolving a given url.
   - `handle(req: Object, res: Object, parsedUrl?: Object): Promise` &ndash; Resolves when requested url is rendered successfully. `req`/`res` correspond to HTTP request/result objects. `parsedUrl` defaults to `url.parse(req.url, true)`.
 - `prepare(): Promise` &ndash; Prepares the server for handling requests. Must resolve before calling `handle()` or `render` functions.
-- `close(): Promise` &ndash; Shuts down the server.
 - `start(port: number, hostname: string): Promise` &ndash; Starts an HTTP server at given `hostname` and `port`.
+- `close(): Promise` &ndash; Shuts down the server.
 - `render(req: Object, res: Object, pathname: string, query: Object): Promise` &ndash; Renders a given `pathname`. `req`/`res` correspond to HTTP request/result objects.
 - `renderJSON(req: Object, res: Object, page: string, opts: { dir?: string }): Promise` &ndash; Renders a given page (inside `pages/`) as JSON representation. `req`/`res` correspond to HTTP request/result objects. `opts.dir` defaults to `process.cwd()`.
-- `renderError(err: Object, req: Object, res: Object, pathname: String, query: Object)` &ndash; [Renders error page](#error-handling) with the given error.
-- `renderErrorJSON(err: Object, req: Object, res: Object)` &ndash; Renders error page as JSON representation.
+- `renderError(err: Object, req: Object, res: Object, pathname: String, query: Object)` &ndash; [Renders the error page](#error-handling) with the given error.
+- `renderErrorJSON(err: Object, req: Object, res: Object)` &ndash; Renders the error page as JSON representation.
 
 ### Custom `<Document>`
 
@@ -523,7 +523,7 @@ A `Server`'s API looks like this:
   <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `pages/_document.js`, where you can extend the `Document` class:
+Pages in `Next.js` skip the definition of the surrounding document markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
 // pages/_document.js
@@ -573,7 +573,7 @@ export default class Error extends React.Component {
     const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
     const env = xhr ? 'client' : 'server'
 
-    return { statusCode, client }
+    return { statusCode, env }
   }
 
   render () {
@@ -623,7 +623,7 @@ export default class extends React.Component {
 
 ### Configuring Behavior
 
-For advanced usage, you may customize behavior of Next.js by providing a file `next.config.js`in your project's root.
+For advanced usage, you may customize behavior of Next.js by providing a file `next.config.js` in your project's root.
 
 ```javascript
 // next.config.js
@@ -637,14 +637,14 @@ module.exports = {
 }
 ```
 
-:information_source: _`next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases, and not included in the browser build._
+:information_source: _`next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next server and build phases. It is not included in the browser build._
 
 We support the following configuration properties
 
 - `poweredByHeader: boolean` &ndash; Adds the HTTP header `X-Powered-By:` with Next.js version information to server results. Defaults to `true`.
 - `webpack: () => Object` &ndash; A function returning a modified webpack configuration. [Check out the detailed info](#customizing-webpack-config).
 
-#### Customizing webpack Configuration
+#### Customizing webpack Config
 
 In order to extend [our usage of webpack](./server/build/webpack.js), you may define a function that extends its `config` via `next.config.js`.
 
@@ -672,7 +672,7 @@ module.exports = {
 
 In order to extend [our usage of Babel](./server/build/babel/preset.js) you may simply define a `.babelrc` file at the root of your app. This file is optional.
 
-:information_source: _If found, we're going to consider it the *source of truth*, therefore it needs to define what next needs as well, which is the `next/babel` preset. This is designed so that you are not surprised by modifications we could make to our Babel configuration._
+:information_source: _If found, we're going to consider it the **source of truth**, therefore it needs to define what we need as well, which is the `next/babel` preset. This is designed so that you are not surprised by modifications we could make to our Babel configuration._
 
 Here's an example `.babelrc` file:
 
@@ -753,7 +753,7 @@ If you want to create re-usable React components that you can embed in your Next
 <details>
   <summary>How do I use CSS-in-JS solutions?</summary>
 
-Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use a CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
+Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use a CSS-in-JS solution in your Next.js app by just including your favorite library [as mentioned before](#css-in-js) in the document.
 </details>
 
 <details>
@@ -788,7 +788,7 @@ We tested the flexibility of the routing with some interesting scenarios. For an
 
 We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
 
-On the client side, we have a parameter call `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
+On the client side, we provide a parameter `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
 </details>
 
 <details>
@@ -830,9 +830,9 @@ Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadm
 ## Contributing
 
 Feel free to bring up any issues you're having with Next.js.
-You may [open an issue](https://github.com/zeit/next.js/issues/new) or [join our Slack Channel](https://zeit.chat/)
+You may [open an issue](https://github.com/zeit/next.js/issues/new) or [join our Slack Channel](https://zeit.chat/).
 
-For development, please refer to [contributing.md](./contributing.md)
+For development, please refer to [contributing.md](./contributing.md).
 
 ## Authors
 
