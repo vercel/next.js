@@ -27,26 +27,21 @@ Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at 
   - [Styling](#styling)
     - [Built-in CSS Support](#built-in-css-support)
     - [CSS-in-JS](#css-in-js)
-  - [Serving Static Files (e.g.: images)](#serving-static-files-eg-images)
-  - [Populating `<head>`](#populating-head)
+  - [Serving Static Files (e.g. images)](#serving-static-files-eg-images)
+  - [Populating `<head/>`](#populating-head)
   - [Fetching Initial Data](#fetching-initial-data)
-    - [Parameters for `getInitialProps`](#parameters-for-getinitialprops)
-  - [Client-Side Routing](#client-side-routing)
-    - [Using the `<Link>` Component](#using-the-link-component)
-    - [Imperatively Using the `url` Property](#imperatively-using-the-url-property)
-    - [Imperatively Using the `Router` Class](#imperatively-using-the-router-class)
-      - [Router Events](#router-events)
-  - [Prefetching Pages](#prefetching-pages)
-    - [Using the `<Link>` Component](#using-the-link-component-1)
-    - [Imperatively Using `prefetch` Function](#imperatively-using-prefetch-function)
-  - [Custom Server and Routing](#custom-server-and-routing)
-    - [Programmatic API](#programmatic-api)
-  - [Custom `<Document>`](#custom-document)
-  - [Error Handling](#error-handling)
+  - [Routing Client-Side](#routing-client-side)
+    - [Using `<Link/>` Component](#using-link-component)
+    - [Using `url` Property](#using-url-property)
+    - [Using `Router` Class](#using-router-class)
+    - [Prefetching Pages](#prefetching-pages)
+  - [Routing Server-Side](#routing-server-side)
+  - [Customizing `<Document/>`](#customizing-document)
+  - [Handling Errors](#handling-errors)
     - [Custom Error Page](#custom-error-page)
-    - [Using `<Error>` Component](#using-error-component)
+    - [Using `<Error/>` Component](#using-error-component)
   - [Configuring Behavior](#configuring-behavior)
-    - [Customizing webpack Configuration](#customizing-webpack-configuration)
+    - [Customizing webpack Config](#customizing-webpack-config)
     - [Customizing Babel Config](#customizing-babel-config)
 - [Production Deployment](#production-deployment)
 - [FAQ](#faq)
@@ -170,9 +165,9 @@ export default () => (
 )
 ```
 
-:information_source: _To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define a [custom `<Document>`](#custom-document) that wraps each page._
+:information_source: _To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define a [custom `<Document>`](#customizing-document) that wraps each page._
 
-### Serving Static Files (e.g.: images)
+### Serving Static Files (e.g. images)
 
 Create a folder called `static` in your project's root directory. This is where all your static files will live. In your code you may reference these files at the `/static/:filename` route.
 
@@ -182,7 +177,7 @@ export default () => (
 )
 ```
 
-### Populating `<head>`
+### Populating `<head/>`
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -208,7 +203,7 @@ export default () => (
 )
 ```
 
-:information_source: _Contents of `<head>` declared outside of [`_document.js`](#custom-document) get cleared upon unmounting the component. Make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added._
+:information_source: _Contents of `<head>` declared outside of [`_document.js`](#customizing-document) get cleared upon unmounting the component. Make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added._
 
 ### Fetching Initial Data
 
@@ -243,9 +238,7 @@ export default class Hello extends React.Component {
 
 We expect the return value of `getInitialProps` to resolve to a JavaScript plain `Object` which then populates the page's `props`.
 
-:information_source: _`getInitialProps` will execute on the server or the client&mdash;never both. For the initial page load it will be executed on the server only. When navigation to a different route using the [routing APIs](#client-side-routing) it will be executed on the client only._
-
-#### Parameters for `getInitialProps`
+:information_source: _`getInitialProps` will execute on the server or the client&mdash;never both. For the initial page load it will be executed on the server only. When navigation to a different route using the [routing APIs](#routing-client-side) it will be executed on the client only._
 
 `getInitialProps` receives a `context` object with the following properties:
 
@@ -256,9 +249,9 @@ We expect the return value of `getInitialProps` to resolve to a JavaScript plain
 - `xhr?: Object` &ndash; `XMLHttpRequest` object (client only)
 - `err?: Error` &ndash; `Error` object if any error is encountered during rendering
 
-### Client-Side Routing
+### Routing Client-Side
 
-#### Using the `<Link>` Component
+#### Using `<Link/>` Component
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -288,30 +281,30 @@ export default () => (
 The `<Link>` component accepts the following `props`:
 
 - `href: string` &ndash; the path to link to.
-- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#custom-server-and-routing).
+- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#routing-server-side).
 
 :information_source: _The `<Link>` component doesn't implicitly render an `<a>` tag. This is so you can choose any element you'd like (e.g. `<button>`). Also, in case it's child is in fact an `<a>` element, the `href` property on `<Link>` gets passed down. This prevents you from having to repeat it._
 
 Client-side routing behaves exactly like the browser:
 
 1. The component is fetched.
-2. If it defines [`getInitialProps`](#fetching-initial-data), data is fetched. If an error occurs, [`_error.js`](#error-handling) is rendered.
+2. If it defines [`getInitialProps`](#fetching-initial-data), data is fetched. If an error occurs, [`_error.js`](#handling-errors) is rendered.
 3. After 1 and 2 complete, [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) is performed and the new component rendered.
 
 :information_source: _For maximum performance use [`next/prefetch`](#prefetching-pages) to link to and prefetch a page at the same time._
 
-#### Imperatively Using the `url` Property
+#### Using `url` Property
 
-Each page component receives a `url` property, an object with the following API:
+For routing imperatively each page component receives a `url` property, an object with the following API:
 
 - `pathname: string` &ndash; Current path excluding the query string
 - `query: Object` &ndash; Parsed query string. Defaults to `{}`.
 - `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
 - `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
 
-The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-the-link-component).
+The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-link-component).
 
-#### Imperatively Using the `Router` Class
+#### Using `Router` Class
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -339,9 +332,9 @@ Above `Router` object comes with the following API:
 - `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
 - `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
 
-The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-the-link-component).
+The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-link-component).
 
-:information_source: _In order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component as [described above](#imperatively-using-the-url-property)_.
+:information_source: _In order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component as [described above](#using-url-property)_.
 
 ##### Router Events
 
@@ -377,7 +370,7 @@ Router.onRouteChangeError = (err, url) => {
 }
 ```
 
-### Prefetching Pages
+#### Prefetching Pages
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -390,9 +383,9 @@ Next.js exposes an API to prefetch pages.
 
 :information_source: _When prefetching, Next.js only downloads the code. Once the page is getting rendered you may still need to wait for data._
 
-#### Using the `<Link>` Component
+##### Using `<Link/>` Component
 
-To prefetch a route substitute your usage of [`<Link>`](#using-the-link-component) with the default export of `next/prefetch`. For example:
+To prefetch a route substitute your usage of [`<Link>`](#using-link-component) with the default export of `next/prefetch`. For example:
 
 ```jsx
 // components/navigation.js
@@ -417,7 +410,7 @@ The `<Link>` component from `next/prefetch` accepts an additional boolean proper
 <Link href='/contact' prefetch={false}><a>Home</a></Link>
 ```
 
-#### Imperatively Using `prefetch` Function
+##### Using `prefetch` Function
 
 Most needs are addressed by using `<Link>`. With the `prefetch` function we also expose an imperative API for advanced usage:
 
@@ -442,7 +435,7 @@ The API is defined as follows:
 
 - `prefetch(url: string): void` &ndash; Prefetches given url.
 
-### Custom Server and Routing
+### Routing Server-Side
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -490,8 +483,6 @@ app.prepare().then(() => {
 })
 ```
 
-#### Programmatic API
-
 Create an instance by calling `next()` as follows:
 
 - `next(options?: Object): Server` &ndash; Creates a `Server` instance.
@@ -512,10 +503,10 @@ A `Server`'s API looks like this:
 - `close(): Promise` &ndash; Shuts down the server.
 - `render(req: Object, res: Object, pathname: string, query: Object): Promise` &ndash; Renders a given `pathname`. `req`/`res` correspond to HTTP request/result objects.
 - `renderJSON(req: Object, res: Object, page: string, opts: { dir?: string }): Promise` &ndash; Renders a given page (inside `pages/`) as JSON representation. `req`/`res` correspond to HTTP request/result objects. `opts.dir` defaults to `process.cwd()`.
-- `renderError(err: Object, req: Object, res: Object, pathname: String, query: Object)` &ndash; [Renders the error page](#error-handling) with the given error.
+- `renderError(err: Object, req: Object, res: Object, pathname: String, query: Object)` &ndash; [Renders the error page](#handling-errors) with the given error.
 - `renderErrorJSON(err: Object, req: Object, res: Object)` &ndash; Renders the error page as JSON representation.
 
-### Custom `<Document>`
+### Customizing `<Document/>`
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -557,7 +548,7 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage(): {html: string, head: Array[React.Element]}` &ndash; A callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-### Error Handling
+### Handling Errors
 
 #### Custom Error Page
 
@@ -590,7 +581,7 @@ export default class Error extends React.Component {
 
 As shown above you may receive error information via arguments passed to `getInitialProps`.
 
-#### Using `<Error>` Component
+#### Using `<Error/>` Component
 
 You may wish to render the error page from within a component. For this scenario we expose the `<Error>` component at `next/error`. Consider the following example:
 
@@ -786,7 +777,7 @@ We tested the flexibility of the routing with some interesting scenarios. For an
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We [added](#custom-server-and-routing) the ability to map between an arbitrary URL and any component by supplying a request handler.
+We [added](#routing-server-side) the ability to map between an arbitrary URL and any component by supplying a request handler.
 
 On the client side, we provide a parameter `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
 </details>
