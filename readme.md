@@ -253,7 +253,7 @@ export default () => (
 )
 ```
 
-__Note: use [`next/prefetch`](#prefetching-pages) for maximum performance, to link and prefetch at the same time in the background__
+__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
 
 Client-side routing behaves exactly like the browser:
 
@@ -310,6 +310,7 @@ Here's a list of supported events:
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
 - `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
@@ -337,6 +338,17 @@ Router.onRouteChangeError = (err, url) => {
 }
 ```
 
+If you change a route while in between a new deployment, we can't navigate the app via client side. We need to do a full browser navigation. We do it automatically for you.
+
+But you can customize that via `Route.onAppUpdated` event like this:
+
+```js
+Router.onAppUpdated = (nextUrl) => {
+  // persist the local state
+  location.href = nextUrl
+}
+```
+
 ### Prefetching Pages
 
 <p><details>
@@ -361,7 +373,7 @@ import Link from 'next/link'
 export default () => (
   <nav>
     <ul>
-      <li><Link prefetch ref='/'><a>Home</a></Link></li>
+      <li><Link prefetch href='/'><a>Home</a></Link></li>
       <li><Link prefetch href='/about'><a>About</a></Link></li>
       <li><Link prefetch href='/contact'><a>Contact</a></Link></li>
     </ul>
@@ -713,7 +725,7 @@ Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadm
 
 ## Contributing
 
-Please see our [CONTRIBUTING.md](./CONTRIBUTING.md)
+Please see our [contributing.md](./contributing.md)
 
 ## Authors
 

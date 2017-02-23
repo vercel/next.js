@@ -1,0 +1,27 @@
+{
+  "name": "next.js-with-scoped-stylesheets-and-postcss",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "author": "Thomas Lindstrøm <t@hom.as>",
+  "license": "ISC",
+  "dependencies": {
+    "babel-plugin-wrap-in-js": "^1.1.1",
+    "css-loader": "^0.26.1",
+    "next": "^2.0.0-beta.26",
+    "postcss-cssnext": "^2.9.0",
+    "postcss-loader": "^1.3.0",
+    "raw-loader": "^0.5.1",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
+    "skeleton-loader": "0.0.7",
+    "val-loader": "^0.5.0"
+  },
+  "devDependencies": {
+    "now": "^3.1.0"
+  }
+}

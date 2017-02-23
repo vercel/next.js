@@ -81,19 +81,30 @@ export default class Server {
       },
 
       '/_next/:buildId/main.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          throwBuildIdMismatchError()
+        }
+
         const p = join(this.dir, '.next/main.js')
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/commons.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          throwBuildIdMismatchError()
+        }
+
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ buildIdMismatch: true }))
+          return
+        }
+
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
 
@@ -158,7 +169,7 @@ export default class Server {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    sendHTML(res, html, req.method)
+    return sendHTML(res, html, req.method)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -186,7 +197,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    sendHTML(res, html, req.method)
+    return sendHTML(res, html, req.method)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -214,7 +225,7 @@ export default class Server {
   async render404 (req, res, parsedUrl = parse(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
-    this.renderError(null, req, res, pathname, query)
+    return this.renderError(null, req, res, pathname, query)
   }
 
   async renderJSON (req, res, page) {
@@ -226,7 +237,7 @@ export default class Server {
     }
 
     try {
-      await renderJSON(req, res, page, this.renderOpts)
+      return await renderJSON(req, res, page, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
@@ -251,15 +262,9 @@ export default class Server {
     return renderErrorJSON(err, req, res, this.renderOpts)
   }
 
-  serveStatic (req, res, path) {
-    this._serveStatic(req, res, () => {
-      return serveStatic(req, res, path)
-    })
-  }
-
-  async _serveStatic (req, res, fn) {
+  async serveStatic (req, res, path) {
     try {
-      await fn()
+      return await serveStatic(req, res, path)
     } catch (err) {
       if (err.code === 'ENOENT') {
         this.render404(req, res)
@@ -284,14 +289,13 @@ export default class Server {
   }
 
   handleBuildId (buildId, res) {
-    if (this.dev) return
+    if (this.dev) return true
     if (buildId !== this.renderOpts.buildId) {
-      const errorMessage = 'Build id mismatch!' +
-        'Seems like the server and the client version of files are not the same.'
-      throw new Error(errorMessage)
+      return false
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    return true
   }
 
   getCompilationError (page) {
@@ -304,4 +308,8 @@ export default class Server {
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }
+}
+
+function throwBuildIdMismatchError () {
+  throw new Error('BUILD_ID Mismatched!')
 }

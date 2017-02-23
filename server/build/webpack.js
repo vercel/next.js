@@ -10,6 +10,7 @@ import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
 import findBabelConfig from './babel/find-config'
+import rootModuleRelativePath from './root-module-relative-path'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -21,6 +22,8 @@ const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 const interpolateNames = new Map(defaultPages.map((p) => {
   return [join(nextPagesDir, p), `dist/pages/${p}`]
 }))
+
+const relativeResolve = rootModuleRelativePath(require)
 
 export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
   dir = resolve(dir)
@@ -172,8 +175,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         if (!(/\.js$/.test(interpolatedName))) {
           return { content, sourceMap }
         }
-        const babelRuntimePath = require.resolve('babel-runtime/package')
-          .replace(/[\\/]package\.json$/, '')
+
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
@@ -188,15 +190,15 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
               require.resolve('babel-plugin-module-resolver'),
               {
                 alias: {
-                  'babel-runtime': babelRuntimePath,
-                  'next/link': require.resolve('../../lib/link'),
-                  'next/prefetch': require.resolve('../../lib/prefetch'),
-                  'next/css': require.resolve('../../lib/css'),
-                  'next/head': require.resolve('../../lib/head'),
-                  'next/document': require.resolve('../../server/document'),
-                  'next/router': require.resolve('../../lib/router'),
-                  'next/error': require.resolve('../../lib/error'),
-                  'styled-jsx/style': require.resolve('styled-jsx/style')
+                  'babel-runtime': relativeResolve('babel-runtime/package'),
+                  'next/link': relativeResolve('../../lib/link'),
+                  'next/prefetch': relativeResolve('../../lib/prefetch'),
+                  'next/css': relativeResolve('../../lib/css'),
+                  'next/head': relativeResolve('../../lib/head'),
+                  'next/document': relativeResolve('../../server/document'),
+                  'next/router': relativeResolve('../../lib/router'),
+                  'next/error': relativeResolve('../../lib/error'),
+                  'styled-jsx/style': relativeResolve('styled-jsx/style')
                 }
               }
             ]

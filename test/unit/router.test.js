@@ -2,10 +2,11 @@
 import Router from '../../dist/lib/router/router'
 
 describe('Router', () => {
+  const request = { clone: () => null }
   describe('.prefetch()', () => {
     it('should prefetch a given page', async () => {
       const router = new Router('/', {})
-      const promise = Promise.resolve()
+      const promise = Promise.resolve(request)
       const route = 'routex'
       router.doFetchRoute = (r) => {
         expect(r).toBe(route)
@@ -19,7 +20,7 @@ describe('Router', () => {
     it('should stop if it\'s prefetching already', async () => {
       const router = new Router('/', {})
       const route = 'routex'
-      router.fetchingRoutes[route] = Promise.resolve()
+      router.fetchingRoutes[route] = Promise.resolve(request)
       router.doFetchRoute = () => { throw new Error('Should not happen') }
       await router.prefetch(route)
     })
@@ -48,7 +49,7 @@ describe('Router', () => {
       const router = new Router('/', {})
       const routes = ['route1', 'route2', 'route3', 'route4']
 
-      router.doFetchRoute = () => Promise.resolve()
+      router.doFetchRoute = () => Promise.resolve(request)
 
       await router.prefetch(routes[0])
       await router.prefetch(routes[1])
