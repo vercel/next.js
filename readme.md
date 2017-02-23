@@ -102,9 +102,9 @@ export default () => (
 )
 ```
 
-Finally run `npm run dev` and open `http://localhost:3000`.
+Finally run `npm run dev` and open `http://localhost:300`.
 
-For a production ready build run `npm run build` and serve it via `npm start`. :boom:
+For production run `npm run build` and serve it via `npm start`. :boom:
 
 > So far, we get:
 >
