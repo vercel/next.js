@@ -20,7 +20,7 @@ Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at 
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [Getting Started](#getting-started)
-  - [Install the `next` package](#install-the-next-package)
+  - [Install the `next` Package](#install-the-next-package)
   - [Setup `npm` Scripts](#setup-npm-scripts)
   - [Add a Page](#add-a-page)
 - [Usage Guide](#usage-guide)
@@ -35,7 +35,7 @@ Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at 
     - [Using `url` Property](#using-url-property)
     - [Using `Router` Class](#using-router-class)
     - [Prefetching Pages](#prefetching-pages)
-  - [Routing Server-Side](#routing-server-side)
+  - [Customizing Server Routes](#customizing-server-routes)
   - [Customizing `<Document/>`](#customizing-document)
   - [Handling Errors](#handling-errors)
     - [Custom Error Page](#custom-error-page)
@@ -62,7 +62,7 @@ npm init -y
 
 Hereafter it takes __three simple steps__ to set up your app.
 
-### Install the `next` package
+### Install the `next` Package
 
 First up, install Next.js via [npm](https://npmjs.com/package/next):
 
@@ -281,7 +281,7 @@ export default () => (
 The `<Link>` component accepts the following `props`:
 
 - `href: string` &ndash; the path to link to.
-- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#routing-server-side).
+- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#customizing-server-routes).
 
 :information_source: _The `<Link>` component doesn't implicitly render an `<a>` tag. This is so you can choose any element you'd like (e.g. `<button>`). Also, in case it's child is in fact an `<a>` element, the `href` property on `<Link>` gets passed down. This prevents you from having to repeat it._
 
@@ -435,7 +435,7 @@ The API is defined as follows:
 
 - `prefetch(url: string): void` &ndash; Prefetches given url.
 
-### Routing Server-Side
+### Customizing Server Routes
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -777,7 +777,7 @@ We tested the flexibility of the routing with some interesting scenarios. For an
 <details>
 <summary>How do I define a custom fancy route?</summary>
 
-We [added](#routing-server-side) the ability to map between an arbitrary URL and any component by supplying a request handler.
+We [added](#customizing-server-routes) the ability to map between an arbitrary URL and any component by supplying a request handler.
 
 On the client side, we provide a parameter `as` on `<Link>` that _decorates_ the URL differently from the URL it _fetches_.
 </details>
