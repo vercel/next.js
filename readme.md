@@ -642,7 +642,7 @@ Here's an example `.babelrc` file:
 }
 ```
 
-## Production deployment
+## Production Deployment
 
 To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
 
@@ -669,7 +669,7 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 
 Then run `now` and enjoy!
 
-Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
+:information_source: _We recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)._
 
 ## FAQ
 
