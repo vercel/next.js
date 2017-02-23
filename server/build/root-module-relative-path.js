@@ -7,20 +7,20 @@
 
 import { sep } from 'path'
 
-const RELATIVE_START = new RegExp(`\\${sep}node_modules\\${sep}`)
+const RELATIVE_START = `node_modules${sep}`
 
 // Pass in the module's `require` object since it's module-specific.
 export default (moduleRequire) => (path) => {
   // package.json removed because babel-runtime is resolved as
   // "babel-runtime/package"
   const absolutePath = moduleRequire.resolve(path)
-    .replace(new RegExp(`\\${sep}package\\.json$`), '')
+    .replace(/[\\/]package\.json$/, '')
 
-  const relativeStart = RELATIVE_START.exec(absolutePath)
+  const relativeStartIndex = absolutePath.indexOf(RELATIVE_START)
 
-  if (!relativeStart) {
+  if (relativeStartIndex === -1) {
     return absolutePath
   }
 
-  return absolutePath.substring(relativeStart.index + relativeStart[0].length)
+  return absolutePath.substring(relativeStartIndex + RELATIVE_START.length)
 }
