@@ -13,6 +13,49 @@ Read the [introductory post](https://zeit.co/blog/next "Next.js introduction at 
 
 :warning: **[`readme.md`](https://github.com/zeit/next.js/blob/master/readme.md) on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest).**
 
+## Table Of Contents
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+<!-- https://github.com/thlorenz/doctoc -->
+
+- [Getting Started](#getting-started)
+  - [Install the `next` package](#install-the-next-package)
+  - [Setup `npm` Scripts](#setup-npm-scripts)
+  - [Add a Page](#add-a-page)
+- [Usage Guide](#usage-guide)
+  - [Styling](#styling)
+    - [Built-in CSS Support](#built-in-css-support)
+    - [CSS-in-JS](#css-in-js)
+  - [Serving Static Files (e.g.: images)](#serving-static-files-eg-images)
+  - [Populating `<head>`](#populating-head)
+  - [Fetching Initial Data](#fetching-initial-data)
+    - [Parameters for `getInitialProps`](#parameters-for-getinitialprops)
+  - [Client-Side Routing](#client-side-routing)
+    - [Using the `<Link>` Component](#using-the-link-component)
+    - [Imperatively Using the `url` Property](#imperatively-using-the-url-property)
+    - [Imperatively Using the `Router` Class](#imperatively-using-the-router-class)
+      - [Router Events](#router-events)
+  - [Prefetching Pages](#prefetching-pages)
+    - [Using the `<Link>` Component](#using-the-link-component-1)
+    - [Imperatively Using `prefetch` Function](#imperatively-using-prefetch-function)
+  - [Custom Server and Routing](#custom-server-and-routing)
+    - [Programmatic API](#programmatic-api)
+  - [Custom `<Document>`](#custom-document)
+  - [Error Handling](#error-handling)
+    - [Custom Error Page](#custom-error-page)
+    - [Using `<Error>` Component](#using-error-component)
+  - [Configuring Behavior](#configuring-behavior)
+    - [Customizing webpack Configuration](#customizing-webpack-configuration)
+    - [Customizing Babel Config](#customizing-babel-config)
+- [Production Deployment](#production-deployment)
+- [FAQ](#faq)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Authors](#authors)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Getting Started
 
 For starters, make sure to create a directory and `package.json` inside to begin working from.
