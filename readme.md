@@ -64,10 +64,10 @@ Hereafter it takes __three simple steps__ to set up your app.
 
 ### Install the `next` Package
 
-First up, install Next.js via [npm](https://npmjs.com/package/next):
+First up, install Next.js and it's peer dependencies via [npm](https://npmjs.com/package/next):
 
 ```bash
-npm install next --save
+npm install next react react-dom --save
 ```
 
 :information_source: _Make sure you are running  at least the current [Node.js LTS](https://nodejs.org/en/download/) version._
@@ -291,7 +291,7 @@ Client-side routing behaves exactly like the browser:
 2. If it defines [`getInitialProps`](#fetching-initial-data), data is fetched. If an error occurs, [`_error.js`](#handling-errors) is rendered.
 3. After 1 and 2 complete, [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) is performed and the new component rendered.
 
-:information_source: _For maximum performance use [`next/prefetch`](#prefetching-pages) to link to and prefetch a page at the same time._
+:information_source: _For maximum performance use [`<Link prefetch/>`](#prefetching-pages) to link to and prefetch a page at the same time._
 
 #### Using `url` Property
 
@@ -351,6 +351,7 @@ These are the supported event listeners:
 - `onRouteChangeStart(url: string): void` &ndash; Called when a route starts to change. Defaults to `null`.
 - `onRouteChangeComplete(url: string): void` &ndash; Called when a route changed completely. Defaults to `null`.
 - `onRouteChangeError(err: Error & {cancelled: boolean}, url: string): void` &ndash; Called when an error occurs during a route change. Defaults to `null`.
+- `onAppUpdated(nextRoute: string)` - Fires when switching pages and there's a new version of the app.
 
 :information_source: _Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), the value of `url` will be the value of `as`._
 
@@ -367,6 +368,17 @@ Router.onRouteChangeError = (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
+}
+```
+
+If you change a route while in between a new deployment, we can't navigate the app client-side. We need to do a full browser refresh. Next.js takes care of this for you automatically.
+
+But you may customize said behavior via `Router.onAppUpdated` like this:
+
+```js
+Router.onAppUpdated = (nextRoute) => {
+  // persist the local state
+  location.href = nextRoute
 }
 ```
 
