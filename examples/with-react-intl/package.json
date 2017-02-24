@@ -1,9 +1,6 @@
 {
-  "name": "react-intl-example-next",
+  "name": "with-react-intl",
   "version": "1.0.0",
-  "description": "React Intl Next.js Example App",
-  "author": "Eric Ferraiuolo <edf@ericf.me>",
-  "license": "BSD-3-Clause",
   "scripts": {
     "dev": "node server.js",
     "build": "next build && node ./scripts/default-lang",
@@ -18,5 +15,7 @@
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
     "react-intl": "^2.2.3"
-  }
+  },
+  "author": "",
+  "license": "ISC"
 }
