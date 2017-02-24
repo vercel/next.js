@@ -7,19 +7,19 @@ export default class extends Document {
 
     // see https://github.com/nfl/react-helmet#server-usage for more information
     // 'head' was occupied by 'page.head', we cannot use it
-    return { ...page, helmetHead: Helmet.rewind() }
+    return { ...page, helmet: Helmet.rewind() }
   }
 
   // should render on <html>
   get helmetHtmlAttrComponents () {
-    return this.props.helmetHead.htmlAttributes.toComponent()
+    return this.props.helmet.htmlAttributes.toComponent()
   }
 
   // should render on <head>
   get helmetHeadComponents () {
-    return Object.keys(this.props.helmetHead)
+    return Object.keys(this.props.helmet)
         .filter(el => el !== 'htmlAttributes') // remove htmlAttributes which is not for <head> but for <html>
-        .map(el => this.props.helmetHead[el].toComponent())
+        .map(el => this.props.helmet[el].toComponent())
   }
 
   get helmetJsx () {
