@@ -253,7 +253,7 @@ export default () => (
 )
 ```
 
-__Note: use [`next/prefetch`](#prefetching-pages) for maximum performance, to link and prefetch at the same time in the background__
+__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
 
 Client-side routing behaves exactly like the browser:
 
@@ -310,6 +310,7 @@ Here's a list of supported events:
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
 - `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
@@ -334,6 +335,17 @@ Router.onRouteChangeError = (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
+}
+```
+
+If you change a route while in between a new deployment, we can't navigate the app via client side. We need to do a full browser navigation. We do it automatically for you.
+
+But you can customize that via `Route.onAppUpdated` event like this:
+
+```js
+Router.onAppUpdated = (nextUrl) => {
+  // persist the local state
+  location.href = nextUrl
 }
 ```
 

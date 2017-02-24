@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "2.0.0-beta.31",
+  "version": "2.0.0-beta.32",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -60,14 +60,14 @@
     "case-sensitive-paths-webpack-plugin": "1.1.4",
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
-    "friendly-errors-webpack-plugin": "1.3.1",
+    "friendly-errors-webpack-plugin": "1.4.0",
     "glamor": "2.20.23",
     "glob-promise": "3.1.0",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
     "is-windows-bash": "1.0.3",
     "json-loader": "0.5.4",
-    "loader-utils": "0.2.16",
+    "loader-utils": "1.0.2",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
@@ -98,13 +98,13 @@
     "chromedriver": "2.26.1",
     "coveralls": "2.11.16",
     "cross-env": "3.1.4",
-    "fly": "2.0.4",
+    "fly": "2.0.5",
     "fly-babel": "2.1.1",
     "fly-clear": "1.0.1",
     "fly-esnext": "2.0.0",
     "fly-watch": "1.1.1",
     "husky": "0.13.1",
-    "jest-cli": "18.0.0",
+    "jest-cli": "19.0.1",
     "node-fetch": "1.6.3",
     "node-notifier": "5.0.2",
     "nyc": "10.0.0",
@@ -119,7 +119,7 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testPathDirs": [
+    "roots": [
       "test/"
     ]
   }
