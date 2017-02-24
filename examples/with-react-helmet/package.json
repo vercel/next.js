@@ -1,5 +1,5 @@
 {
-  "name": "with-helmet",
+  "name": "with-react-helmet",
   "scripts": {
     "dev": "next",
     "build": "next build",
