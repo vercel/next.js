@@ -1,4 +1,4 @@
-/* global fetch */
+/* global fetch, location */
 
 import Router from '../lib/router'
 import 'whatwg-fetch'
@@ -16,6 +16,14 @@ setInterval(ping, 3000)
 function ping () {
   const url = `/on-demand-entries-ping?page=${Router.pathname}`
   fetch(url)
+    .then((res) => {
+      return res.json()
+    })
+    .then((payload) => {
+      if (payload.invalid) {
+        location.reload()
+      }
+    })
     .catch((err) => {
       console.error(`Error with on-demand-entries-ping: ${err.message}`)
     })

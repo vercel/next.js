@@ -101,8 +101,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         if (!entryInfo) {
           const message = `Client pings, but there's no entry for page: ${page}`
           console.error(message)
-          res.status = 500
-          res.end(message)
+          sendJson(res, { invalid: true })
           return
         }
 
@@ -113,8 +112,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         lastAccessPages.pop()
         lastAccessPages.unshift(page)
         entryInfo.lastActiveTime = Date.now()
-        res.status = 200
-        res.end('Success')
+
+        sendJson(res, { success: true })
       }
     }
   }
@@ -163,4 +162,10 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
 // This also applies to sub pages as well.
 function normalizePage (page) {
   return page.replace(/\/index$/, '/')
+}
+
+function sendJson (res, payload) {
+  res.setHeader('Content-Type', 'application/json')
+  res.status = 200
+  res.end(JSON.stringify(payload))
 }
