@@ -14,6 +14,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   maxInactiveAge = 1000 * 25
 }) {
   const entries = {}
+  const lastAccessPages = ['']
   const doneCallbacks = new EventEmitter()
 
   compiler.plugin('make', function (compilation, done) {
@@ -41,7 +42,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   })
 
   setInterval(function () {
-    disposeInactiveEntries(devMiddleware, entries, maxInactiveAge)
+    disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
   }, 5000)
 
   return {
@@ -109,6 +110,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         if (entryInfo.status !== BUILT) return
 
         // If there's an entryInfo
+        lastAccessPages.pop()
+        lastAccessPages.unshift(page)
         entryInfo.lastActiveTime = Date.now()
         res.status = 200
         res.end('Success')
@@ -127,7 +130,7 @@ function addEntry (compilation, context, name, entry) {
   })
 }
 
-function disposeInactiveEntries (devMiddleware, entries, maxInactiveAge) {
+function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxInactiveAge) {
   const disposingPages = []
 
   Object.keys(entries).forEach((page) => {
@@ -136,6 +139,11 @@ function disposeInactiveEntries (devMiddleware, entries, maxInactiveAge) {
     // This means this entry is currently building or just added
     // We don't need to dispose those entries.
     if (status !== BUILT) return
+
+    // We should not build the last accessed page even we didn't get any pings
+    // Sometimes, it's possible our XHR ping to wait before completing other requests.
+    // In that case, we should not dispose the current viewing page
+    if (lastAccessPages[0] === page) return
 
     if (Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
