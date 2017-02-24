@@ -5,8 +5,8 @@ export default class extends Document {
   static async getInitialProps ({ renderPage }) {
     const page = renderPage()
 
-      // see https://github.com/nfl/react-helmet#server-usage for more information
-      // 'head' was occupied by 'page.head', we cannot use it
+    // see https://github.com/nfl/react-helmet#server-usage for more information
+    // 'head' was occupied by 'page.head', we cannot use it
     return { ...page, helmetHead: Helmet.rewind() }
   }
 
@@ -18,8 +18,8 @@ export default class extends Document {
   // should render on <head>
   get helmetHeadComponents () {
     return Object.keys(this.props.helmetHead)
-      .filter(el => el !== 'htmlAttributes') // remove htmlAttributes which is not for <head> but for <html>
-      .map(el => this.props.helmetHead[el].toComponent())
+        .filter(el => el !== 'htmlAttributes') // remove htmlAttributes which is not for <head> but for <html>
+        .map(el => this.props.helmetHead[el].toComponent())
   }
 
   get helmetJsx () {
