@@ -83,7 +83,7 @@
     "uuid": "3.0.1",
     "webpack": "2.2.1",
     "webpack-dev-middleware": "1.10.1",
-    "webpack-hot-middleware": "2.17.0",
+    "webpack-hot-middleware": "2.17.1",
     "whatwg-fetch": "2.0.2",
     "write-file-webpack-plugin": "3.4.2"
   },
