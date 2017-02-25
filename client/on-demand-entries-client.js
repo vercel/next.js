@@ -10,21 +10,27 @@ Router.onRouteChangeComplete = function (...args) {
   if (originalOnRouteChangeComplete) originalOnRouteChangeComplete(...args)
 }
 
-// Ping every 3 seconds
-setInterval(ping, 3000)
-
-function ping () {
-  const url = `/on-demand-entries-ping?page=${Router.pathname}`
-  fetch(url)
-    .then((res) => {
-      return res.json()
-    })
-    .then((payload) => {
-      if (payload.invalid) {
-        location.reload()
-      }
-    })
-    .catch((err) => {
-      console.error(`Error with on-demand-entries-ping: ${err.message}`)
-    })
+async function ping () {
+  try {
+    const url = `/on-demand-entries-ping?page=${Router.pathname}`
+    const res = await fetch(url)
+    const payload = await res.json()
+    if (payload.invalid) {
+      location.reload()
+    }
+  } catch (err) {
+    console.error(`Error with on-demand-entries-ping: ${err.message}`)
+  }
 }
+
+async function runPinger () {
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 5000))
+    await ping()
+  }
+}
+
+runPinger()
+  .catch((err) => {
+    console.error(err)
+  })
