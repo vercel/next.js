@@ -37,6 +37,10 @@ export default class Server {
         parsedUrl = parse(req.url, true)
       }
 
+      if (parsedUrl.href && !parsedUrl.query) {
+        throw new Error('Please add `true` as second argument to `url.parse`. Example: url.parse(req, true). See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
+      }
+
       if (!parsedUrl.query) {
         throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
       }
