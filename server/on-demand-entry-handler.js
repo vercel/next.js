@@ -3,6 +3,7 @@ import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
+import touch from 'touch'
 
 const ADDED = Symbol()
 const BUILDING = Symbol()
@@ -16,6 +17,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   const entries = {}
   const lastAccessPages = ['']
   const doneCallbacks = new EventEmitter()
+  let touchedAPage = false
 
   compiler.plugin('make', function (compilation, done) {
     const allEntries = Object.keys(entries).map((page) => {
@@ -34,6 +36,17 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     Object.keys(entries).forEach((page) => {
       const entryInfo = entries[page]
       if (entryInfo.status !== BUILDING) return
+
+      // With this, we are triggering a filesystem based watch trigger
+      // It'll memorize some timestamp related info related to common files used
+      // in the page
+      // That'll reduce the page building time significantly.
+      if (!touchedAPage) {
+        setTimeout(() => {
+          touch.sync(entryInfo.pathname)
+        }, 0)
+        touchedAPage = true
+      }
 
       entryInfo.status = BUILT
       entries[page].lastActiveTime = Date.now()
@@ -76,7 +89,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
         console.log(`> Building page: ${page}`)
 
-        entries[page] = { name, entry, status: ADDED }
+        entries[page] = { name, entry, pathname, status: ADDED }
         doneCallbacks.on(page, processCallback)
 
         devMiddleware.invalidate()
