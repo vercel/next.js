@@ -3,11 +3,9 @@ import Helmet from 'react-helmet'
 
 export default class extends Document {
   static async getInitialProps ({ renderPage }) {
-    const page = renderPage()
-
     // see https://github.com/nfl/react-helmet#server-usage for more information
-    // 'head' was occupied by 'page.head', we cannot use it
-    return { ...page, helmet: Helmet.rewind() }
+    // 'head' was occupied by 'renderPage().head', we cannot use it
+    return { ...renderPage(), helmet: Helmet.rewind() }
   }
 
   // should render on <html>
@@ -24,7 +22,11 @@ export default class extends Document {
 
   get helmetJsx () {
     return (<Helmet
+      htmlAttributes={{lang: 'en'}}
       title='Hello next.js!'
+      meta={[
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+      ]}
     />)
   }
 
