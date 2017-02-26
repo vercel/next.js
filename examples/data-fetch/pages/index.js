@@ -1,6 +1,6 @@
 
 import React from 'react'
-import Link from 'next/prefetch'
+import Link from 'next/link'
 import 'isomorphic-fetch'
 
 export default class MyPage extends React.Component {
@@ -15,7 +15,7 @@ export default class MyPage extends React.Component {
     return (
       <div>
         <p>Next.js has {this.props.stars} ⭐️</p>
-        <Link href='/preact'><a>How about preact?</a></Link>
+        <Link prefetch href='/preact'><a>How about preact?</a></Link>
       </div>
     )
   }
