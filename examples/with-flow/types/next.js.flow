@@ -17,7 +17,7 @@ declare module "next/head" {
 }
 
 declare module "next/link" {
-  declare module.exports: Class<React$Component<void, {href: string}, any>>;
+  declare module.exports: Class<React$Component<void, {href: string, prefetch?: bool}, any>>;
 }
 
 declare module "next/error" {
