@@ -118,6 +118,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
           return
         }
 
+        sendJson(res, { success: true })
+
         // We don't need to maintain active state of anything other than BUILT entries
         if (entryInfo.status !== BUILT) return
 
@@ -125,8 +127,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         lastAccessPages.pop()
         lastAccessPages.unshift(page)
         entryInfo.lastActiveTime = Date.now()
-
-        sendJson(res, { success: true })
       }
     }
   }
