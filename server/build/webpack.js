@@ -41,7 +41,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
     for (const p of pages) {
-      entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+      entries[join('bundles', p.toLowerCase())] = [...defaultEntries, `./${p}?entry`]
     }
 
     for (const p of defaultPages) {
