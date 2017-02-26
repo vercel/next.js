@@ -24,12 +24,6 @@ declare module "next/error" {
   declare module.exports: Class<React$Component<void, {statusCode: number}, any>>;
 }
 
-declare module "next/prefetch" {
-  declare export var prefetch: (url: string) => any;
-  declare export var reloadIfPrefetched: any;
-  declare export default Class<React$Component<void, {href: string, prefetch?: boolean}, any>>;
-}
-
 declare module "next/router" {
   declare module.exports: {
     route: string;
