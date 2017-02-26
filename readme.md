@@ -473,11 +473,13 @@ Pages in `Next.js` skip the definition of the surrounding document's markup. For
 ```jsx
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
+import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
-  static async getInitialProps (ctx) {
-    const props = await Document.getInitialProps(ctx)
-    return { ...props, customValue: 'hi there!' }
+  static getInitialProps ({ renderPage }) {
+    const {html, head} = renderPage()
+    const styles = flush()
+    return { html, head, styles }
   }
 
   render () {
