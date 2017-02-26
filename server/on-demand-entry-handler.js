@@ -1,23 +1,19 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
-import { createServer } from 'http'
 import { join } from 'path'
+import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
-import WebSocket from 'ws'
 
 const ADDED = Symbol()
 const BUILDING = Symbol()
 const BUILT = Symbol()
 
-export default async function onDemandEntryHandler (devMiddleware, compiler, {
+export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
   maxInactiveAge = 1000 * 25
 }) {
-  const server = await getServer()
-  const wss = new WebSocket.Server({ server })
-
   const entries = {}
   const lastAccessPages = ['']
   const doneCallbacks = new EventEmitter()
@@ -61,31 +57,6 @@ export default async function onDemandEntryHandler (devMiddleware, compiler, {
   setInterval(function () {
     disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
   }, 5000)
-
-  wss.on('connection', (conn) => {
-    conn.on('message', (message) => {
-      const parsedMessage = JSON.parse(message)
-      const page = normalizePage(parsedMessage.page)
-      const entryInfo = entries[page]
-
-      // If there's no entry.
-      // Then it seems like an weird issue.
-      if (!entryInfo) {
-        const message = `Client pings, but there's no entry for page: ${page}`
-        console.error(message)
-        conn.send(JSON.stringify({ invalid: true }))
-        return
-      }
-
-      // We don't need to maintain active state of anything other than BUILT entries
-      if (entryInfo.status !== BUILT) return
-
-      // If there's an entryInfo
-      lastAccessPages.pop()
-      lastAccessPages.unshift(page)
-      entryInfo.lastActiveTime = Date.now()
-    })
-  })
 
   return {
     async ensurePage (page) {
@@ -132,25 +103,31 @@ export default async function onDemandEntryHandler (devMiddleware, compiler, {
 
     middleware () {
       return function (req, res, next) {
-        if (!/^\/on-demand-entries-pinger-port/.test(req.url)) return next()
+        if (!/^\/on-demand-entries-ping/.test(req.url)) return next()
 
-        sendJson(res, {
-          port: server.address().port
-        })
+        const { query } = parse(req.url, true)
+        const page = normalizePage(query.page)
+        const entryInfo = entries[page]
+
+        // If there's no entry.
+        // Then it seems like an weird issue.
+        if (!entryInfo) {
+          const message = `Client pings, but there's no entry for page: ${page}`
+          console.error(message)
+          sendJson(res, { invalid: true })
+          return
+        }
+
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) return
+
+        // If there's an entryInfo
+        lastAccessPages.pop()
+        lastAccessPages.unshift(page)
+        entryInfo.lastActiveTime = Date.now()
+
+        sendJson(res, { success: true })
       }
-    },
-
-    close () {
-      return new Promise((resolve, reject) => {
-        server.close((err) => {
-          if (err) {
-            reject(err)
-            return
-          }
-
-          resolve()
-        })
-      })
     }
   }
 }
@@ -204,18 +181,4 @@ function sendJson (res, payload) {
   res.setHeader('Content-Type', 'application/json')
   res.status = 200
   res.end(JSON.stringify(payload))
-}
-
-function getServer () {
-  return new Promise((resolve, reject) => {
-    const server = createServer()
-    server.listen((err) => {
-      if (err) {
-        reject(err)
-        return
-      }
-
-      resolve(server)
-    })
-  })
 }

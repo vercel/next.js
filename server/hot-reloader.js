@@ -49,13 +49,12 @@ export default class HotReloader {
 
   async stop () {
     if (this.webpackDevMiddleware) {
-      await new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         this.webpackDevMiddleware.close((err) => {
           if (err) return reject(err)
           resolve()
         })
       })
-      await this.onDemandEntries.close()
     }
   }
 
@@ -150,7 +149,7 @@ export default class HotReloader {
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
-    this.onDemandEntries = await onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
+    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
       dir: this.dir,
       dev: true,
       ...this.config.onDemandEntries
