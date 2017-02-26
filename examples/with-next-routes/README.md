@@ -5,8 +5,8 @@
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/named-routes
-cd named-routes
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-next-routes
+cd with-next-routes
 ```
 
 Install it and run:
