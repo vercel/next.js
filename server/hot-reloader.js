@@ -1,10 +1,12 @@
 import { join, relative, sep } from 'path'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
+import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import readPage from './read-page'
+import getConfig from './config'
 
 export default class HotReloader {
   constructor (dir, { quiet } = {}) {
@@ -20,6 +22,8 @@ export default class HotReloader {
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
+
+    this.config = getConfig(dir)
   }
 
   async run (req, res) {
@@ -145,10 +149,16 @@ export default class HotReloader {
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
+      dir: this.dir,
+      dev: true,
+      ...this.config.onDemandEntries
+    })
 
     this.middlewares = [
       this.webpackDevMiddleware,
-      this.webpackHotMiddleware
+      this.webpackHotMiddleware,
+      this.onDemandEntries.middleware()
     ]
   }
 
@@ -183,6 +193,10 @@ export default class HotReloader {
 
   send (action, ...args) {
     this.webpackHotMiddleware.publish({ action, data: args })
+  }
+
+  ensurePage (page) {
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 
