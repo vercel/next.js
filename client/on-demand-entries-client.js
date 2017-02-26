@@ -3,13 +3,6 @@
 import Router from '../lib/router'
 import fetch from 'unfetch'
 
-// Ping on every page change
-const originalOnRouteChangeComplete = Router.onRouteChangeComplete
-Router.onRouteChangeComplete = function (...args) {
-  ping()
-  if (originalOnRouteChangeComplete) originalOnRouteChangeComplete(...args)
-}
-
 async function ping () {
   try {
     const url = `/on-demand-entries-ping?page=${Router.pathname}`
