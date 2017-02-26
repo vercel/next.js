@@ -1,35 +1,16 @@
 import React, { Component, PropTypes } from 'react'
 import htmlescape from 'htmlescape'
-import { renderStatic } from 'glamor/server'
 import flush from 'styled-jsx/server'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    let head
-    let rendered
-    let styles
-    try {
-      rendered = renderStatic(() => {
-        const page = renderPage()
-        head = page.head
-        return page.html
-      })
-    } finally {
-      styles = flush()
-    }
-    const { html, css, ids } = rendered
-    const nextCSS = { css, ids, styles }
-    return { html, head, nextCSS }
+    const {html, head} = renderPage()
+    const styles = flush()
+    return { html, head, styles }
   }
 
   static childContextTypes = {
     _documentProps: PropTypes.any
-  }
-
-  constructor (props) {
-    super(props)
-    const { __NEXT_DATA__, nextCSS } = props
-    if (nextCSS) __NEXT_DATA__.ids = nextCSS.ids
   }
 
   getChildContext () {
@@ -53,11 +34,10 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, nextCSS } = this.context._documentProps
+    const { head, styles } = this.context._documentProps
     return <head>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
-      {nextCSS && nextCSS.css ? <style dangerouslySetInnerHTML={{ __html: nextCSS.css }} /> : null}
-      {nextCSS && nextCSS.styles ? nextCSS.styles : null}
+      {styles || null}
       {this.props.children}
     </head>
   }
