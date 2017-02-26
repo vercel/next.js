@@ -61,7 +61,6 @@
     "cross-spawn": "5.0.1",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.4.0",
-    "glamor": "2.20.23",
     "glob-promise": "3.1.0",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
@@ -79,13 +78,13 @@
     "source-map-support": "0.4.11",
     "strip-ansi": "3.0.1",
     "styled-jsx": "0.5.7",
-    "touch": "^1.0.0",
+    "touch": "1.0.0",
+    "unfetch": "2.1.0",
     "url": "0.11.0",
     "uuid": "3.0.1",
     "webpack": "2.2.1",
     "webpack-dev-middleware": "1.10.1",
     "webpack-hot-middleware": "2.17.1",
-    "whatwg-fetch": "2.0.2",
     "write-file-webpack-plugin": "3.4.2"
   },
   "devDependencies": {

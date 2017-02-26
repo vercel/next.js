@@ -1,7 +1,7 @@
-/* global fetch, location */
+/* global location */
 
 import Router from '../lib/router'
-import 'whatwg-fetch'
+import fetch from 'unfetch'
 
 // Ping on every page change
 const originalOnRouteChangeComplete = Router.onRouteChangeComplete
