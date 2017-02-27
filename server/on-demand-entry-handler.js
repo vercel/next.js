@@ -47,7 +47,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       if (!touchedAPage) {
         setTimeout(() => {
           touch.sync(entryInfo.pathname)
-        }, 0)
+        }, 1000)
         touchedAPage = true
       }
 
