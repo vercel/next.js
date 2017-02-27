@@ -149,17 +149,20 @@ export default class HotReloader {
     })
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
-    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
-      dir: this.dir,
-      dev: true,
-      ...this.config.onDemandEntries
-    })
 
     this.middlewares = [
       this.webpackDevMiddleware,
-      this.webpackHotMiddleware,
-      this.onDemandEntries.middleware()
+      this.webpackHotMiddleware
     ]
+
+    if (this.config.onDemandEntries) {
+      this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
+        dir: this.dir,
+        dev: true,
+        ...this.config.onDemandEntries
+      })
+      this.middlewares.push(this.onDemandEntries.middleware())
+    }
   }
 
   waitUntilValid () {
@@ -196,7 +199,9 @@ export default class HotReloader {
   }
 
   ensurePage (page) {
-    return this.onDemandEntries.ensurePage(page)
+    if (this.onDemandEntries) {
+      return this.onDemandEntries.ensurePage(page)
+    }
   }
 }
 

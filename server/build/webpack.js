@@ -7,6 +7,7 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
+import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
 import findBabelConfig from './babel/find-config'
@@ -39,12 +40,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     const entries = { 'main.js': mainJS }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+    const corePages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
-    if (dev) {
-      for (const p of devPages) {
+    if (dev && config.onDemandEntries) {
+      for (const p of corePages) {
         entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
       }
     } else {
@@ -103,8 +104,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       new webpack.NoEmitOnErrorsPlugin(),
       new UnlinkFilePlugin()
     )
+
     if (!quiet) {
       plugins.push(new FriendlyErrorsWebpackPlugin())
+    }
+
+    if (!config.onDemandEntries) {
+      plugins.push(new WatchPagesPlugin(dir))
     }
   } else {
     plugins.push(
