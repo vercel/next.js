@@ -17,9 +17,12 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   const entries = {}
   const lastAccessPages = ['']
   const doneCallbacks = new EventEmitter()
+  const invalidator = new Invalidator(devMiddleware)
   let touchedAPage = false
 
   compiler.plugin('make', function (compilation, done) {
+    invalidator.startBuilding()
+
     const allEntries = Object.keys(entries).map((page) => {
       const { name, entry } = entries[page]
       entries[page].status = BUILDING
@@ -44,7 +47,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       if (!touchedAPage) {
         setTimeout(() => {
           touch.sync(entryInfo.pathname)
-        }, 0)
+        }, 1000)
         touchedAPage = true
       }
 
@@ -52,6 +55,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       entries[page].lastActiveTime = Date.now()
       doneCallbacks.emit(page)
     })
+
+    invalidator.doneBuilding()
   })
 
   setInterval(function () {
@@ -92,7 +97,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         entries[page] = { name, entry, pathname, status: ADDED }
         doneCallbacks.on(page, processCallback)
 
-        devMiddleware.invalidate()
+        invalidator.invalidate()
 
         function processCallback (err) {
           if (err) return reject(err)
@@ -181,4 +186,40 @@ function sendJson (res, payload) {
   res.setHeader('Content-Type', 'application/json')
   res.status = 200
   res.end(JSON.stringify(payload))
+}
+
+// Make sure only one invalidation happens at a time
+// Otherwise, webpack hash gets changed and it'll force the client to reload.
+class Invalidator {
+  constructor (devMiddleware) {
+    this.devMiddleware = devMiddleware
+    this.building = false
+    this.rebuildAgain = false
+  }
+
+  invalidate () {
+    // If there's a current build is processing, we won't abort it by invalidating.
+    // (If aborted, it'll cause a client side hard reload)
+    // But let it to invalidate just after the completion.
+    // So, it can re-build the queued pages at once.
+    if (this.building) {
+      this.rebuildAgain = true
+      return
+    }
+
+    this.building = true
+    this.devMiddleware.invalidate()
+  }
+
+  startBuilding () {
+    this.building = true
+  }
+
+  doneBuilding () {
+    this.building = false
+    if (this.rebuildAgain) {
+      this.rebuildAgain = false
+      this.invalidate()
+    }
+  }
 }
