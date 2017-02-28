@@ -282,6 +282,7 @@ The `<Link>` component accepts the following `props`:
 
 - `href: string` &ndash; the path to link to.
 - `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#customizing-server-routes).
+- `prefetch?: boolean` &ndash; Prefetches the route. Defaults to `false`. Read [more about prefetching](#prefetching-pages).
 
 :information_source: _The `<Link>` component doesn't implicitly render an `<a>` tag. This is so you can choose any element you'd like (e.g. `<button>`). Also, in case it's child is in fact an `<a>` element, the `href` property on `<Link>` gets passed down. This prevents you from having to repeat it._
 
@@ -331,6 +332,7 @@ Above `Router` object comes with the following API:
 - `query: Object` &ndash; Parsed query string. Defaults to `{}`.
 - `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
 - `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
+- `prefetch(url: string): Promise` &ndash; Prefetches a given url. Works analogous to the `prefetch` prop on [`<Link/>`](#using-link-component). [Read more here](#prefetching-pages).
 
 The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-link-component).
 
@@ -397,38 +399,30 @@ Next.js exposes an API to prefetch pages.
 
 ##### Using `<Link/>` Component
 
-To prefetch a route substitute your usage of [`<Link>`](#using-link-component) with the default export of `next/prefetch`. For example:
+To prefetch a route simply add the prop `prefetch` to the corresponding `<Link/>`. For example:
 
 ```jsx
 // components/navigation.js
-import Link from 'next/prefetch'
+import Link from 'next/link'
 
 export default () => (
   <nav>
     <ul>
-      <li><Link href='/'><a>Home</a></Link></li>
-      <li><Link href='/about'><a>About</a></Link></li>
-      <li><Link href='/contact'><a>Contact</a></Link></li>
+      <li><Link prefetch href='/'><a>Home</a></Link></li>
+      <li><Link prefetch href='/about'><a>About</a></Link></li>
+      <li><Link prefetch href='/contact'><a>Contact</a></Link></li>
     </ul>
   </nav>
 )
 ```
 
-When this higher-level `<Link>` component is first used, the `ServiceWorker` gets installed.
-
-The `<Link>` component from `next/prefetch` accepts an additional boolean property `prefetch`. This enables turning off prefetching on a per-`<Link>` basis.
-
-```jsx
-<Link href='/contact' prefetch={false}><a>Home</a></Link>
-```
-
 ##### Using `prefetch` Function
 
-Most needs are addressed by using `<Link>`. With the `prefetch` function we also expose an imperative API for advanced usage:
+Most prefetching needs are addressed by using `<Link/>`. With the `prefetch` method on `next/router` we also expose an imperative API for advanced usage:
 
 ```jsx
 // pages/my-page.js
-import { prefetch } from 'next/prefetch'
+import Router from 'next/router'
 
 export default ({ url }) => (
   <div>
@@ -437,13 +431,13 @@ export default ({ url }) => (
     </a>
     {
       // but we can prefetch it!
-      prefetch('/dynamic')
+      Router.prefetch('/dynamic')
     }
   </div>
 )
 ```
 
-The API is defined as follows:
+The method is defined as follows:
 
 - `prefetch(url: string): void` &ndash; Prefetches given url.
 
