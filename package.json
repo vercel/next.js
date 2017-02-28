@@ -110,7 +110,7 @@
     "nyc": "10.0.0",
     "react": "15.4.2",
     "react-dom": "15.4.2",
-    "standard": "8.6.0",
+    "standard": "9.0.0",
     "wd": "1.1.3"
   },
   "peerDependencies": {
