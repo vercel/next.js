@@ -28,14 +28,6 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('I can haz meta tags')).toBeTruthy()
     })
 
-    test('css helper renders styles', async () => {
-      const $ = await get$('/css')
-      const redBox = $('#red-box')
-
-      expect(redBox.text()).toBe('This is red')
-      expect(redBox.attr('class')).toMatch(/^css-/)
-    })
-
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
       const styleId = $('#blue-box').attr('data-jsx')

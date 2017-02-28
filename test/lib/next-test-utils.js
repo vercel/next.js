@@ -47,3 +47,7 @@ function promiseCall (obj, method, ...args) {
     obj[method](...newArgs)
   })
 }
+
+export function waitFor (millis) {
+  return new Promise((resolve) => setTimeout(resolve, millis))
+}

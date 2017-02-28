@@ -17,17 +17,11 @@ declare module "next/head" {
 }
 
 declare module "next/link" {
-  declare module.exports: Class<React$Component<void, {href: string}, any>>;
+  declare module.exports: Class<React$Component<void, {href: string, prefetch?: bool}, any>>;
 }
 
 declare module "next/error" {
   declare module.exports: Class<React$Component<void, {statusCode: number}, any>>;
-}
-
-declare module "next/prefetch" {
-  declare export var prefetch: (url: string) => any;
-  declare export var reloadIfPrefetched: any;
-  declare export default Class<React$Component<void, {href: string, prefetch?: boolean}, any>>;
 }
 
 declare module "next/router" {

@@ -477,6 +477,8 @@ const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
+    // Be sure to pass `true` as the second argument to `url.parse`.
+    // This tells it to parse the query portion of the URL.
     const parsedUrl = parse(req.url, true)
     const { pathname, query } = parsedUrl
 
@@ -531,12 +533,13 @@ Pages in `Next.js` skip the definition of the surrounding document markup. For e
 ```jsx
 // pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
+import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
-
-  static async getInitialProps (ctx) {
-    const props = await Document.getInitialProps(ctx)
-    return { ...props, customValue: 'hi there!' }
+  static getInitialProps ({ renderPage }) {
+    const {html, head} = renderPage()
+    const styles = flush()
+    return { html, head, styles }
   }
 
   render () {
