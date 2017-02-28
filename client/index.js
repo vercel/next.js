@@ -2,7 +2,6 @@ import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import { EventEmitter } from 'events'
 import HeadManager from './head-manager'
-import { rehydrate } from '../lib/css'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
@@ -13,7 +12,6 @@ const {
     component,
     errorComponent,
     props,
-    ids,
     err,
     pathname,
     query
@@ -36,7 +34,6 @@ const container = document.getElementById('__next')
 
 export default (onError) => {
   const emitter = new EventEmitter()
-  if (ids && ids.length) rehydrate(ids)
 
   router.subscribe(({ Component, props, hash, err }) => {
     render({ Component, props, err, hash, emitter }, onError)

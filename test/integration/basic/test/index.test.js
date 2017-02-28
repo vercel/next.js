@@ -28,6 +28,26 @@ describe('Basic Features', () => {
   beforeAll(async () => {
     context.server = await startApp(context.app)
     context.appPort = context.server.address().port
+
+    // pre-build all pages at the start
+    await Promise.all([
+      renderViaHTTP(context.appPort, '/async-props'),
+      renderViaHTTP(context.appPort, '/empty-get-initial-props'),
+      renderViaHTTP(context.appPort, '/error'),
+      renderViaHTTP(context.appPort, '/finish-response'),
+      renderViaHTTP(context.appPort, '/head'),
+      renderViaHTTP(context.appPort, '/json'),
+      renderViaHTTP(context.appPort, '/link'),
+      renderViaHTTP(context.appPort, '/stateful'),
+      renderViaHTTP(context.appPort, '/stateless'),
+      renderViaHTTP(context.appPort, '/styled-jsx'),
+
+      renderViaHTTP(context.appPort, '/nav'),
+      renderViaHTTP(context.appPort, '/nav/about'),
+      renderViaHTTP(context.appPort, '/nav/querystring'),
+      renderViaHTTP(context.appPort, '/nav/self-reload'),
+      renderViaHTTP(context.appPort, '/nav/hash-changes')
+    ])
   })
   afterAll(() => stopApp(context.server))
 
@@ -35,5 +55,5 @@ describe('Basic Features', () => {
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q))
   xPoweredBy(context)
   misc(context)
-  clientNavigation(context)
+  clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })

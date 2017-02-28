@@ -2,7 +2,7 @@
 
 import webdriver from 'next-webdriver'
 
-export default (context) => {
+export default (context, render) => {
   describe('Client Navigation', () => {
     describe('with <Link/>', () => {
       it('should navigate the page', async () => {
