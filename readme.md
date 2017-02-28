@@ -439,7 +439,7 @@ export default ({ url }) => (
 
 The method is defined as follows:
 
-- `prefetch(url: string): void` &ndash; Prefetches given url.
+- `prefetch(url: string): Promise` &ndash; Prefetches given url.
 
 ### Customizing Server Routes
 
