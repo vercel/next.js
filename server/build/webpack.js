@@ -85,6 +85,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
+        // In the dev we use on-deman-entries.
+        // So, it makes no sense to use commonChunks with that.
+        if (dev) return false
+
         // NOTE: it depends on the fact that the entry funtion is always called
         // before applying CommonsChunkPlugin
         return count >= minChunks
