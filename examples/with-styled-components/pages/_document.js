@@ -4,8 +4,8 @@ import styleSheet from 'styled-components/lib/models/StyleSheet'
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
     const page = renderPage()
-    const style = styleSheet.rules().map(rule => rule.cssText).join('\n')
-    return { ...page, style }
+    const styles = styleSheet.rules().map(rule => rule.cssText).join('\n')
+    return { ...page, styles }
   }
 
   render () {
@@ -13,7 +13,6 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          <style dangerouslySetInnerHTML={{ __html: this.props.style }} />
         </Head>
         <body>
           <Main />

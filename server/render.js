@@ -32,11 +32,15 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
+  hotReloader,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
 } = {}) {
   page = page || pathname
+
+  await ensurePage(page, { dir, hotReloader })
+
   let [Component, Document] = await Promise.all([
     requireModule(join(dir, '.next', 'dist', 'pages', page)),
     requireModule(join(dir, '.next', 'dist', 'pages', '_document'))
@@ -100,7 +104,8 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
+export async function renderJSON (req, res, page, { dir = process.cwd(), hotReloader } = {}) {
+  await ensurePage(page, { dir, hotReloader })
   const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
   return serveStatic(req, res, pagePath)
 }
@@ -157,4 +162,11 @@ export function serveStatic (req, res, path) {
     .pipe(res)
     .on('finish', resolve)
   })
+}
+
+async function ensurePage (page, { dir, hotReloader }) {
+  if (!hotReloader) return
+  if (page === '_error' || page === '_document') return
+
+  await hotReloader.ensurePage(page)
 }

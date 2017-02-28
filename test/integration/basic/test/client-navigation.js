@@ -2,7 +2,7 @@
 
 import webdriver from 'next-webdriver'
 
-export default (context) => {
+export default (context, render) => {
   describe('Client Navigation', () => {
     describe('with <Link/>', () => {
       it('should navigate the page', async () => {
@@ -117,6 +117,66 @@ export default (context) => {
           .waitForElementByCss('.nav-home')
 
         await browser.close()
+      })
+    })
+
+    describe('with hash changes', () => {
+      describe('when hash change via Link', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-link').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 0')
+
+          await browser.close()
+        })
+      })
+
+      describe('when hash change via A tag', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-a').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 0')
+
+          await browser.close()
+        })
+      })
+
+      describe('when hash get removed', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-a').click()
+            .elementByCss('#page-url').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 1')
+
+          await browser.close()
+        })
+      })
+
+      describe('when hash changed to a different hash', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-a').click()
+            .elementByCss('#via-link').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 0')
+
+          await browser.close()
+        })
       })
     })
   })

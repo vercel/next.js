@@ -6,7 +6,6 @@ import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -40,8 +39,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     const entries = { 'main.js': mainJS }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    for (const p of pages) {
-      entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+
+    // In the dev environment, on-demand-entry-handler will take care of
+    // managing pages.
+    if (dev) {
+      for (const p of devPages) {
+        entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+      }
+    } else {
+      for (const p of pages) {
+        entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+      }
     }
 
     for (const p of defaultPages) {
@@ -76,10 +85,17 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
+        // In the dev we use on-deman-entries.
+        // So, it makes no sense to use commonChunks with that.
+        if (dev) return false
+
         // NOTE: it depends on the fact that the entry funtion is always called
         // before applying CommonsChunkPlugin
         return count >= minChunks
       }
+    }),
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
     new JsonPagesPlugin(),
     new CaseSensitivePathPlugin()
@@ -89,17 +105,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     plugins.push(
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoEmitOnErrorsPlugin(),
-      new UnlinkFilePlugin(),
-      new WatchPagesPlugin(dir)
+      new UnlinkFilePlugin()
     )
     if (!quiet) {
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
     plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify('production')
-      }),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
