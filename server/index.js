@@ -1,5 +1,6 @@
 import { resolve, join } from 'path'
-import { parse } from 'url'
+import { parse as parseUrl } from 'url'
+import { parse as parseQs } from 'querystring'
 import fs from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
 import {
@@ -33,8 +34,14 @@ export default class Server {
 
   getRequestHandler () {
     return (req, res, parsedUrl) => {
-      if (!parsedUrl || parsedUrl && !parsedUrl.query) {
-        parsedUrl = parse(req.url, true)
+      // Parse url if parsedUrl not provided
+      if (!parsedUrl) {
+        parsedUrl = parseUrl(req.url, true)
+      }
+
+      // Parse the querystring ourselves if the user doesn't handle querystring parsing
+      if (typeof parsedUrl.query === 'string') {
+        parsedUrl.query = parseQs(parsedUrl.query)
       }
 
       return this.run(req, res, parsedUrl)
@@ -218,7 +225,7 @@ export default class Server {
     }
   }
 
-  async render404 (req, res, parsedUrl = parse(req.url, true)) {
+  async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
     return this.renderError(null, req, res, pathname, query)
