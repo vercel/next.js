@@ -11,26 +11,24 @@ app.prepare()
   const server = new Koa()
   const router = new Router()
 
-  router.get('/a', function *() {
-    app.render(this.req, this.res, '/b', this.query)
-    this.respond = false
+  router.get('/a', async ctx => {
+    await app.render(ctx.req, ctx.res, '/b', ctx.query)
+    ctx.respond = false
   })
 
-  router.get('/b', function *() {
-    app.render(this.req, this.res, '/a', this.query)
-    this.respond = false
+  router.get('/b', async ctx => {
+    await app.render(ctx.req, ctx.res, '/a', ctx.query)
+    ctx.respond = false
   })
 
-  router.get('*', function *() {
-    handle(this.req, this.res)
-    this.respond = false
+  router.get('*', async ctx => {
+    await handle(ctx.req, ctx.res)
+    ctx.respond = false
   })
 
-  server.use(function *(next) {
-    // Koa doesn't seems to set the default statusCode.
-    // So, this middleware does that
-    this.res.statusCode = 200
-    yield next
+  server.use(async (ctx, next) => {
+    ctx.res.statusCode = 200
+    await next()
   })
 
   server.use(router.routes())
