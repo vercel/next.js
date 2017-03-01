@@ -60,7 +60,7 @@
     "case-sensitive-paths-webpack-plugin": "1.1.4",
     "cross-spawn": "5.1.0",
     "del": "2.2.2",
-    "friendly-errors-webpack-plugin": "1.5.0",
+    "friendly-errors-webpack-plugin": "1.6.0",
     "glob-promise": "3.1.0",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
