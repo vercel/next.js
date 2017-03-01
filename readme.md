@@ -351,6 +351,8 @@ Router.onAppUpdated = (nextUrl) => {
 
 ### Prefetching Pages
 
+(This is a production only feature)
+
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
