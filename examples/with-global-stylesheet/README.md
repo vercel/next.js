@@ -9,7 +9,7 @@ Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-global-stylesheet
-cd with-global-stylesheet 
+cd with-global-stylesheet
 ```
 
 To get this example running you just need to
@@ -17,7 +17,7 @@ To get this example running you just need to
     npm install .
     npm run dev
 
-Visit [http://localhost:300](http://localhost:300) and try to modify `pages/style.scss` changing color. Your changes should be picked up instantly.
+Visit [http://localhost:300](http://localhost:300) and try to modify `styles/index.scss` changing color. Your changes should be picked up instantly.
 
 Also see it working with plain css here
 ![example](example.gif)
@@ -31,14 +31,17 @@ now
 
 ## The idea behind the example
 
-The strategy here is to transpile the stylesheet file to a css-in-js file so that it can be loaded and hot reloaded both on the server and the client. For this purpose i created a babel loader plugin called [babel-loader-wrap-in-js](https://github.com/davibe/babel-plugin-wrap-in-js)
+The strategy here is to transpile the stylesheet file to a css-in-js file so that it can be loaded and hot reloaded both on the server and the client. For this purpose I created a babel loader plugin called [babel-loader-wrap-in-js](https://github.com/davibe/babel-plugin-wrap-in-js).
 
-This project shows how you can set it up. Have a look at
+Another babel plugin [module-resolver](https://github.com/tleunen/babel-plugin-module-resolver) enables us to import stylesheets from js (e.g. pages or components) through a `styles` directory alias rather than relative paths.
+
+The `sass-loader` is configured with `includePaths: ['styles', 'node_modules']` so that your scss can `@import` from those places, again without relative paths, for maximum convenience and ability to use npm-published libraries.  Furthermore, `glob` paths are also supported, so one could for example add `'node_modules/@material/*'` to the `includePaths`, which would make [material-components-web](https://github.com/material-components/material-components-web) (if you'd like) even easier to work with.
+
+This project shows how you can set it up. Have a look at:
 - .babelrc
 - next.config.js
-- pages/style.scss
 - pages/index.js
-
+- styles/index.scss
 
 Please, report any issue on enhancement related to this example to its original
 github repository https://github.com/davibe/next.js-css-global-style-test
