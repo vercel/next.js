@@ -5,7 +5,6 @@ import Clock from './Clock'
 
 @inject('store') @observer
 class Page extends React.Component {
-
   componentDidMount () {
     this.props.store.start()
   }

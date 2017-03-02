@@ -8,7 +8,6 @@ const linkStyle = {
 }
 
 export default class extends Component {
-
   increase () {
     counter++
     this.forceUpdate()
