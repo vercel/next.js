@@ -44,18 +44,6 @@ export async function build(fly) {
   await fly.serial(['copy', 'compile'])
 }
 
-export async function bench(fly) {
-  await fly.parallel(['compile', 'copy'])
-  // copy bench fixtures
-  await fly.source('bench/fixtures/**/*').target('dist/bench/fixtures')
-  // compile bench
-  await fly.source('bench/*.js').babel().target('dist/bench')
-  notify('Compiled bench files')
-  // yield fly.source('dist/bench/*.js').benchmark({
-    // benchmark.reporters.etalon('RegExp#test')
-  // })
-}
-
 export default async function (fly) {
   await fly.start('build')
   await fly.watch('bin/*', 'bin')

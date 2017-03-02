@@ -4,7 +4,7 @@ import cxs from 'cxs'
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
     const page = renderPage()
-    let style = cxs.getCss()
+    const style = cxs.getCss()
     return { ...page, style }
   }
 
