@@ -91,20 +91,13 @@ export default class Server {
       },
 
       '/_next/:hash/main.js': async (req, res, params) => {
-        if (params.hash !== this.buildStats['main.js'].hash) {
-          throwNoHashError()
-        }
-
-        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+        this.handleBuildHash('main.js', params.hash, res)
         const p = join(this.dir, '.next/main.js')
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/commons.js': async (req, res, params) => {
-        if (params.hash !== this.buildStats['commons.js'].hash) {
-          throwNoHashError()
-        }
-
+        this.handleBuildHash('commons.js', params.hash, res)
         res.setHeader('Cache-Control', 'max-age=365000000, immutable')
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
@@ -304,8 +297,13 @@ export default class Server {
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }
-}
 
-function throwNoHashError () {
-  throw new Error('Invalid Build File Hash')
+  handleBuildHash (filename, hash, res) {
+    if (this.dev) return
+    if (hash !== this.buildStats[filename].hash) {
+      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+    }
+
+    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+  }
 }
