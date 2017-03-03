@@ -5,9 +5,9 @@ import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
 
-const ADDED = Symbol()
-const BUILDING = Symbol()
-const BUILT = Symbol()
+const ADDED = Symbol('added')
+const BUILDING = Symbol('building')
+const BUILT = Symbol('built')
 
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
