@@ -13,6 +13,7 @@ export default async function build (dir) {
   try {
     const webpackStats = await runCompiler(compiler)
     await writeBuildStats(buildDir, webpackStats)
+    await writeBuildId(buildDir)
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)
     throw err
@@ -54,4 +55,10 @@ async function writeBuildStats (dir, webpackStats) {
 
   const buildStatsPath = join(dir, '.next', 'build-stats.json')
   await fs.writeFile(buildStatsPath, JSON.stringify(chunkHashMap), 'utf8')
+}
+
+async function writeBuildId (dir) {
+  const buildIdPath = join(dir, '.next', 'BUILD_ID')
+  const buildId = uuid.v4()
+  await fs.writeFile(buildIdPath, buildId, 'utf8')
 }
