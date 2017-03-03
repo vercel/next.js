@@ -61,14 +61,14 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    let { buildId } = __NEXT_DATA__
+    let { buildStats } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
-      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/commons.js`} /> }
-      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/main.js`} /> }
+      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildStats['commons.js'].hash}/commons.js`} /> }
+      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildStats['main.js'].hash}/main.js`} /> }
     </div>
   }
 }

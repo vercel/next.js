@@ -25,9 +25,16 @@ export default class Server {
     this.quiet = quiet
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
-    this.renderOpts = { dir: this.dir, dev, staticMarkup, hotReloader: this.hotReloader }
     this.http = null
     this.config = getConfig(this.dir)
+    this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
+    this.renderOpts = {
+      dev,
+      staticMarkup,
+      dir: this.dir,
+      hotReloader: this.hotReloader,
+      buildStats: this.buildStats
+    }
 
     this.defineRoutes()
   }
@@ -83,31 +90,27 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/main.js': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          throwBuildIdMismatchError()
+      '/_next/:hash/main.js': async (req, res, params) => {
+        if (params.hash !== this.buildStats['main.js'].hash) {
+          throwNoHashError()
         }
 
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
         const p = join(this.dir, '.next/main.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/commons.js': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          throwBuildIdMismatchError()
+      '/_next/:hash/commons.js': async (req, res, params) => {
+        if (params.hash !== this.buildStats['commons.js'].hash) {
+          throwNoHashError()
         }
 
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/pages/:path*': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ buildIdMismatch: true }))
-          return
-        }
-
+      '/_next/pages/:path*': async (req, res, params) => {
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
 
@@ -291,16 +294,6 @@ export default class Server {
     }
   }
 
-  handleBuildId (buildId, res) {
-    if (this.dev) return true
-    if (buildId !== this.renderOpts.buildId) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-    return true
-  }
-
   getCompilationError (page) {
     if (!this.hotReloader) return
 
@@ -313,6 +306,6 @@ export default class Server {
   }
 }
 
-function throwBuildIdMismatchError () {
-  throw new Error('BUILD_ID Mismatched!')
+function throwNoHashError () {
+  throw new Error('Invalid Build File Hash')
 }
