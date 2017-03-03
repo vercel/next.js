@@ -1,7 +1,7 @@
 import { resolve, join } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
-import fs from 'mz/fs'
+import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
@@ -28,12 +28,14 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir)
     this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
+    this.buildId = !dev ? this.readBuildId() : null
     this.renderOpts = {
       dev,
       staticMarkup,
       dir: this.dir,
       hotReloader: this.hotReloader,
-      buildStats: this.buildStats
+      buildStats: this.buildStats,
+      buildId: this.buildId
     }
 
     this.defineRoutes()
@@ -64,8 +66,6 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
-
-    this.renderOpts.buildId = await this.readBuildId()
   }
 
   async close () {
@@ -107,6 +107,7 @@ export default class Server {
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
 
+        res.setHeader('Next-Build-Id', this.buildId)
         await this.renderJSON(req, res, pathname)
       },
 
@@ -273,18 +274,10 @@ export default class Server {
     }
   }
 
-  async readBuildId () {
+  readBuildId () {
     const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
-    try {
-      const buildId = await fs.readFile(buildIdPath, 'utf8')
-      return buildId.trim()
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        return '-'
-      } else {
-        throw err
-      }
-    }
+    const buildId = fs.readFileSync(buildIdPath, 'utf8')
+    return buildId.trim()
   }
 
   getCompilationError (page) {
