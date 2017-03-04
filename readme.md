@@ -270,6 +270,24 @@ Each top-level component receives a `url` property with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
+##### With URL object
+The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href={{ pathname: 'about', query: { name: 'Zeit' }}}<a>here</a></Link> to read more</div>
+)
+```
+
+That will generate the URL string `/about?name=Zeit`, you can use the following parameters:
+
+- `pathname` - `String` of the link path excluding the query string. If it doesn't start with `/` is automatically added
+- `query` - `Object` with the parsed query string. Optional, if you set `search` this is ignored
+- `hash` - `String` with the fragment to be used after a `#` character. Optional, if it doesn't start with `#` is automatically added
+- `search` - `String` with the stringified query. Optional, if it doesn't start with `?` is automatically added
+
 #### Imperatively
 
 <p><details>
@@ -301,6 +319,24 @@ Above `Router` object comes with the following API:
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
+
+##### With URL object
+You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an url.
+
+```jsx
+import Router from 'next/router'
+
+const handler = () => Router.push({
+  pathname: 'about',
+  query: { name: 'Zeit' }
+})
+
+export default () => (
+  <div>Click <span onClick={handler}>here</span> to read more</div>
+)
+```
+
+This uses of the same exact parameters as in the `<Link>` component.
 
 ##### Router Events
 
