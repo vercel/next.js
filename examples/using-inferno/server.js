@@ -3,9 +3,10 @@ const moduleAlias = require('module-alias')
 
 // For the development version, we'll use React.
 // Because, it support react hot loading and so on.
-if (dev) {
-  moduleAlias.addAlias('react', 'preact-compat')
-  moduleAlias.addAlias('react-dom', 'preact-compat')
+if (!dev) {
+  moduleAlias.addAlias('react', 'inferno-compat')
+  moduleAlias.addAlias('react-dom/server', 'inferno-server')
+  moduleAlias.addAlias('react-dom', 'inferno-compat')
 }
 
 const { createServer } = require('http')
