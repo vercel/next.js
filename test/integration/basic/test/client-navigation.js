@@ -181,7 +181,7 @@ export default (context, render) => {
     })
 
     describe('with shallow routing', () => {
-      it('should not update the url without running getInitialProps', async () => {
+      it('should update the url without running getInitialProps', async () => {
         const browser = await webdriver(context.appPort, '/nav/shallow-routing')
         const counter = await browser
           .elementByCss('#increase').click()
@@ -196,7 +196,7 @@ export default (context, render) => {
         await browser.close()
       })
 
-      it('should handle back button and should not run getInitialProps', async () => {
+      it('should handle the back button and should not run getInitialProps', async () => {
         const browser = await webdriver(context.appPort, '/nav/shallow-routing')
         let counter = await browser
           .elementByCss('#increase').click()
