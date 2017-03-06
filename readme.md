@@ -25,6 +25,7 @@ _**NOTE! the README on the `master` branch might not match that of the [latest s
     - [With `<Link>`](#with-link)
     - [Imperatively](#imperatively)
       - [Router Events](#router-events)
+      - [Shallow Routing](#shallow-routing)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
@@ -384,6 +385,45 @@ Router.onAppUpdated = (nextUrl) => {
   location.href = nextUrl
 }
 ```
+
+##### Shallow Routing
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>
+  </ul>
+</details></p>
+
+Shallow routig allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+
+You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
+
+```jsx
+// Current URL is "/"
+const href = '/?counter=10'
+const as = href
+Router.push(href, as, { shallow: true })
+```
+
+Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.url` inside the `Component`.
+
+You can watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
+
+```jsx
+componentWillReceiveProps(nextProps) {
+  const { pathname, query } = nextProps.url
+  // fetch data based on the new query
+}
+```
+
+> NOTES:
+> 
+> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
+> ```js
+> Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
+> ```
+> Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even we asked to do shallow routing.
 
 ### Prefetching Pages
 

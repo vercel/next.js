@@ -37,10 +37,13 @@ Another babel plugin [module-resolver](https://github.com/tleunen/babel-plugin-m
 
 The `sass-loader` is configured with `includePaths: ['styles', 'node_modules']` so that your scss can `@import` from those places, again without relative paths, for maximum convenience and ability to use npm-published libraries.  Furthermore, `glob` paths are also supported, so one could for example add `'node_modules/@material/*'` to the `includePaths`, which would make [material-components-web](https://github.com/material-components/material-components-web) (if you'd like) even easier to work with.
 
+Furthermore, PostCSS is used to [pre-process](https://blog.madewithenvy.com/webpack-2-postcss-cssnext-fdcd2fd7d0bd#.r6t2d0smy) both `css` and `scss` stylesheets, the latter after Sass pre-processing.  This is to illustrate `@import 'normalize.css';` from `node_modules` thanks to `postcss-easy-import`.  [Autoprefixer](https://github.com/postcss/autoprefixer) is also added as a "best practice".  Consider [cssnext](http://cssnext.io) instead, which includes `autoprefixer` as well as many other CSS spec features.
+
 This project shows how you can set it up. Have a look at:
 - .babelrc
 - next.config.js
 - pages/index.js
+- postcss.config.js
 - styles/index.scss
 
 Please, report any issue on enhancement related to this example to its original

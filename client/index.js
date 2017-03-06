@@ -7,6 +7,15 @@ import App from '../lib/app'
 import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 
+// Polyfill Promise globally
+// This is needed because Webpack2's dynamic loading(common chunks) code
+// depends on Promise.
+// So, we need to polyfill it.
+// See: https://github.com/webpack/webpack/issues/4254
+if (!window.Promise) {
+  window.Promise = Promise
+}
+
 const {
   __NEXT_DATA__: {
     component,
