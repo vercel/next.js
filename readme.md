@@ -384,7 +384,7 @@ componentWillReceiveProps(nextProps) {
 
 > NOTES:
 > 
-> Shallow routing works **only** for the same page URL changes.
+> Shallow routing works **only** for same page URL changes.
 > 
 > For an example, let's assume we've another page called "about".
 > Now you are changing a URL like this:
