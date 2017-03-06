@@ -355,7 +355,7 @@ Router.onAppUpdated = (nextUrl) => {
 <p><details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>li>
+    <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>
   </ul>
 </details></p>
 
