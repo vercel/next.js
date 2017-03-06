@@ -26,7 +26,7 @@ export default class Index extends React.Component {
     const { url } = this.props
     const currentCounter = url.query.counter ? parseInt(url.query.counter) : 0
     const href = `/?counter=${currentCounter + 1}`
-    Router.push(href, href, { resolve: false })
+    Router.push(href, href, { shallow: true })
   }
 
   render () {
@@ -39,7 +39,7 @@ export default class Index extends React.Component {
         <button onClick={() => this.reload()}>Reload</button>
         <button onClick={() => this.incrementStateCounter()}>Change State Counter</button>
         <p>"getInitialProps" ran for "{initialPropsCounter}" times.</p>
-        <p>Route changed for "{url.query.counter || 0}" times.</p>
+        <p>Counter: "{url.query.counter || 0}".</p>
       </div>
     )
   }

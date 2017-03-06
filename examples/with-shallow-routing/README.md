@@ -1,5 +1,5 @@
 
-# Hello World example
+# Shallow Routing Example
 
 ## How to use
 
@@ -25,4 +25,6 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic idea behind Next. We have 2 pages: `pages/index.js` and `pages/about.js`. The former responds to `/` requests and the latter to `/about`. Using `next/link` you can add hyperlinks between them with universal routing capabilities.
+With shallow routing, we could change the URL without actually running the `getInitialProps` every time you change the URL.
+
+We do this passing the `shallow: true` option to `Router.push` or `Router.replace`.
