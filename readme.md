@@ -359,23 +359,22 @@ Router.onAppUpdated = (nextUrl) => {
   </ul>
 </details></p>
 
-With shallow routing you could chnage the URL without running `getInitialProps` of the page. You'll receive the updated "pathname" and the "query" via the `url` prop of the page.
+Shallow routig allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
 
 You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
 
-```js
+```jsx
 // Current URL is "/"
 const href = '/?counter=10'
 const as = href
 Router.push(href, as, { shallow: true })
 ```
 
-Now, the URL is updated to "/?counter=10" and page is re-rendered. 
-You can see the updated URL with `this.props.url` inside the Component.
+Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.url` inside the `Component`.
 
-You can also watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
+You can watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
 
-```
+```jsx
 componentWillReceiveProps(nextProps) {
   const { pathname, query } = nextProps.url
   // fetch data based on the new query
@@ -384,15 +383,11 @@ componentWillReceiveProps(nextProps) {
 
 > NOTES:
 > 
-> Shallow routing works **only** for same page URL changes.
-> 
-> For an example, let's assume we've another page called "about".
-> Now you are changing a URL like this:
+> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
 > ```js
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
 > ```
-> Since that's a new page, it'll run "getInitialProps" of the "about" page  even we asked to do shallow routing.
-
+> Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even we asked to do shallow routing.
 
 ### Prefetching Pages
 
