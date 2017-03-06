@@ -1,23 +1,23 @@
 {
-    "name": "with-external-scoped-css",
-    "version": "1.0.0",
-    "main": "index.js",
-    "license": "MIT",
-    "author": "Guilherme Diego <guidiego.expgames@gmail.com>",
-    "scripts": {
-        "start": "next"
-    },
-    "devDependencies": {
-        "babel-loader": "^6.3.2",
-        "babel-plugin-css-modules-transform": "^1.2.1",
-        "babel-preset-airbnb": "^2.2.3",
-        "babel-preset-es2015": "^6.22.0",
-        "babel-preset-react": "^6.23.0",
-        "css-loader": "^0.26.2",
-        "isomorphic-style-loader": "^1.1.0",
-        "next": "^2.0.0-beta.17",
-        "postcss-loader": "^1.3.3",
-        "react": "^15.4.2",
-        "react-dom": "^15.4.2"
-    }
+  "name": "with-external-scoped-css",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "author": "Guilherme Diego <guidiego.expgames@gmail.com>",
+  "scripts": {
+    "start": "next"
+  },
+  "devDependencies": {
+    "babel-loader": "^6.3.2",
+    "babel-plugin-css-modules-transform": "^1.2.1",
+    "babel-preset-airbnb": "^2.2.3",
+    "babel-preset-es2015": "^6.22.0",
+    "babel-preset-react": "^6.23.0",
+    "css-loader": "^0.26.2",
+    "isomorphic-style-loader": "^1.1.0",
+    "next": "^2.0.0-beta.17",
+    "postcss-loader": "^1.3.3",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  }
 }
