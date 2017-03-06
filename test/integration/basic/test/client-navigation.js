@@ -179,5 +179,62 @@ export default (context, render) => {
         })
       })
     })
+
+    describe('with shallow routing', () => {
+      it('should not update the url without running getInitialProps', async () => {
+        const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+        const counter = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#increase').click()
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 2')
+
+        const getInitialPropsRunCount = await browser
+          .elementByCss('#get-initial-props-run-count').text()
+        expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
+
+        await browser.close()
+      })
+
+      it('should handle back button and should not run getInitialProps', async () => {
+        const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+        let counter = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#increase').click()
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 2')
+
+        counter = await browser
+          .back()
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 1')
+
+        const getInitialPropsRunCount = await browser
+          .elementByCss('#get-initial-props-run-count').text()
+        expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
+
+        await browser.close()
+      })
+
+      it('should run getInitialProps always when rending the page to the screen', async () => {
+        const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+
+        const counter = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#increase').click()
+          .elementByCss('#home-link').click()
+          .waitForElementByCss('.nav-home')
+          .back()
+          .waitForElementByCss('.shallow-routing')
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 2')
+
+        const getInitialPropsRunCount = await browser
+          .elementByCss('#get-initial-props-run-count').text()
+        expect(getInitialPropsRunCount).toBe('getInitialProps run count: 2')
+
+        await browser.close()
+      })
+    })
   })
 }

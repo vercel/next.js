@@ -46,7 +46,8 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/about'),
       renderViaHTTP(context.appPort, '/nav/querystring'),
       renderViaHTTP(context.appPort, '/nav/self-reload'),
-      renderViaHTTP(context.appPort, '/nav/hash-changes')
+      renderViaHTTP(context.appPort, '/nav/hash-changes'),
+      renderViaHTTP(context.appPort, '/nav/shallow-routing')
     ])
   })
   afterAll(() => stopApp(context.server))
