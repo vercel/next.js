@@ -388,8 +388,10 @@ componentWillReceiveProps(nextProps) {
 > 
 > For an example, let's assume we've another page called "about".
 > Now you are changing a URL like this:
-> `Router.push('/about?counter=10', '/about?counter=10', { shallow: true })`
-> Since that's a new page, it'll run "getInitialProps" of the "about" page  even we ask to do shallow routing.
+> ```js
+> Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
+> ```
+> Since that's a new page, it'll run "getInitialProps" of the "about" page  even we asked to do shallow routing.
 
 
 ### Prefetching Pages
