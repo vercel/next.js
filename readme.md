@@ -627,6 +627,42 @@ Here's an example `.babelrc` file:
 }
 ```
 
+### Defining Static Modules
+
+This is a performance specific configuration which gives us two major performance benefits:
+
+#### 1. Reduce webpack's dev re-build time by 2x (or more)
+
+Webpack's rebuild time usually depend on the amount of code it needs to handle. Most of the code it needs to handle is not your app's source code, but NPM modules. With static modules we are serving those NPM modules directly, instead of passing them through webpack.
+
+With that change, webpack only handles your app's code. So, that's where we could gain the re-build performance.
+
+#### 2. Explicitly define common modules
+
+Our code splitting logic moves any common modules into a common bundle. But in order to do that, that module needs to be used in every page in our app. From experience, that is something that almost never happens for each common module.
+
+Because of that, some of the most used modules won't move into the common bundle and keep a copy of that module in each and every page in your app. That increases the overall size of the app.
+
+In that case, we could mark that module as a "static module" and then it'll move into the static bundle.
+
+#### Usage
+
+Add following content into your `next.config.js`.
+
+```js
+module.exports = {
+  staticModules: function(options) {
+    // use options.dev flag to add modules to the bundle based on the env.
+    return [
+      'material-ui',
+      'material-ui/svg-icons'
+    ]
+  }
+}
+```
+
+Here we mark `material-ui` and `material-ui/svg-icons` as static modules. Likewise, you could add modules you want into that array.
+
 ## Production deployment
 
 To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:

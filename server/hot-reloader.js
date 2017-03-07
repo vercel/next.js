@@ -3,6 +3,7 @@ import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
+import createStaticBundle from './build/static-bundle'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import readPage from './read-page'
@@ -45,6 +46,7 @@ export default class HotReloader {
 
     this.prepareMiddlewares(compiler)
     this.stats = await this.waitUntilValid()
+    await createStaticBundle(this.dir, { dev: true })
   }
 
   async stop () {

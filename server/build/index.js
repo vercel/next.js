@@ -4,7 +4,9 @@ import fs from 'mz/fs'
 import uuid from 'uuid'
 import del from 'del'
 import webpack from './webpack'
+
 import replaceCurrentBuild from './replace'
+import createStaticBundle from './static-bundle'
 
 export default async function build (dir) {
   const buildDir = join(tmpdir(), uuid.v4())
@@ -12,6 +14,7 @@ export default async function build (dir) {
 
   try {
     await runCompiler(compiler)
+    await createStaticBundle(buildDir)
     await writeBuildId(buildDir)
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)
@@ -24,7 +27,7 @@ export default async function build (dir) {
   del(buildDir, { force: true })
 }
 
-function runCompiler (compiler) {
+export function runCompiler (compiler) {
   return new Promise((resolve, reject) => {
     compiler.run((err, stats) => {
       if (err) return reject(err)
