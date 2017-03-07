@@ -298,8 +298,9 @@ Above `Router` object comes with the following API:
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `changeState(method, url, as=url)` - change the `history.state` directly. value for `method` should be either `pushState` or `replaceState`.
 
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+The `as` parameter for `push`, `replace` and `changeState` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
