@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
-    "build": "next build",
+    "clean": "rimraf .\\node_modules\\.cache",
+    "build-dev": "npm run clean && next build --env=development",
+    "build-prod": "npm run clean && next build --env=production",
     "start": "next start"
   },
   "dependencies": {
@@ -12,6 +14,8 @@
     "react-dom": "^15.4.2"
   },
   "devDependencies": {
+    "command-line-args": "^4.0.2",
+    "rimraf": "^2.6.1",
     "babel-plugin-transform-define": "^1.2.0"
   },
   "author": "",
