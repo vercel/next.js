@@ -190,13 +190,19 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
+          presets: [
+            [require.resolve('babel-preset-env'), {
+              targets: {
+                node: 'current'
+              }
+            }]
+          ],
           // Here we need to resolve all modules to the absolute paths.
           // Earlier we did it with the babel-preset.
           // But since we don't transpile ES2015 in the preset this is not resolving.
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
-            [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),
               {

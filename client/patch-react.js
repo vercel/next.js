@@ -6,6 +6,9 @@ import React from 'react'
 let patched = false
 
 export default (handleError = () => {}) => {
+  // Temporarly stop patching React to support native class syntax for React
+  if (React) return
+
   if (patched) {
     throw new Error('React is already monkeypatched')
   }

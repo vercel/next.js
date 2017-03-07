@@ -13,8 +13,11 @@ const plugins = envPlugins[process.env.NODE_ENV] || []
 
 module.exports = {
   presets: [
-    [require.resolve('babel-preset-latest'), {
-      'es2015': { modules: false }
+    [require.resolve('babel-preset-env'), {
+      modules: false,
+      targets: {
+        browsers: ['last 2 Chrome versions']
+      }
     }],
     require.resolve('babel-preset-react')
   ],
