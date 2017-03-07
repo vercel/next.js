@@ -98,7 +98,6 @@ export default class Server {
 
       '/_next/:hash/commons.js': async (req, res, params) => {
         this.handleBuildHash('commons.js', params.hash, res)
-        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
       },
