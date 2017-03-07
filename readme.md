@@ -282,12 +282,7 @@ export default () => (
 )
 ```
 
-That will generate the URL string `/about?name=Zeit`, you can use the following parameters:
-
-- `pathname` - `String` of the link path excluding the query string. If it doesn't start with `/` is automatically added
-- `query` - `Object` with the parsed query string. Optional, if you set `search` this is ignored
-- `hash` - `String` with the fragment to be used after a `#` character. Optional, if it doesn't start with `#` is automatically added
-- `search` - `String` with the stringified query. Optional, if it doesn't start with `?` is automatically added
+That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
 #### Imperatively
 
