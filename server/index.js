@@ -28,7 +28,7 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir)
     this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
-    this.buildId = !dev ? this.readBuildId() : null
+    this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
       staticMarkup,
@@ -103,11 +103,16 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/pages/:path*': async (req, res, params) => {
+      '/_next/:buildId/pages/:path*': async (req, res, params) => {
+        if (!this.handleBuildId(params.buildId, res)) {
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ buildIdMismatch: true }))
+          return
+        }
+
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
 
-        res.setHeader('Next-Build-Id', this.buildId)
         await this.renderJSON(req, res, pathname)
       },
 
@@ -278,6 +283,16 @@ export default class Server {
     const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
     const buildId = fs.readFileSync(buildIdPath, 'utf8')
     return buildId.trim()
+  }
+
+  handleBuildId (buildId, res) {
+    if (this.dev) return true
+    if (buildId !== this.renderOpts.buildId) {
+      return false
+    }
+
+    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    return true
   }
 
   getCompilationError (page) {

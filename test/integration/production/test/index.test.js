@@ -40,7 +40,7 @@ describe('Production Usage', () => {
   describe('JSON pages', () => {
     describe('when asked for a normal page', () => {
       it('should serve the normal page', async () => {
-        const url = `http://localhost:${appPort}/_next/pages`
+        const url = `http://localhost:${appPort}/_next/${app.renderOpts.buildId}/pages`
         const res = await fetch(url, { compress: false })
         expect(res.headers.get('Content-Encoding')).toBeNull()
 
@@ -51,7 +51,7 @@ describe('Production Usage', () => {
 
     describe('when asked for a page with an unknown encoding', () => {
       it('should serve the normal page', async () => {
-        const url = `http://localhost:${appPort}/_next/pages`
+        const url = `http://localhost:${appPort}/_next/${app.renderOpts.buildId}/pages`
         const res = await fetch(url, {
           compress: false,
           headers: {
