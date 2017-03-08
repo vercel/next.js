@@ -2,12 +2,14 @@ import wd from 'wd'
 
 export default async function (appPort, pathname) {
   const url = `http://localhost:${appPort}${pathname}`
-  console.warn(`> Start loading browser with url: ${url}`)
+  console.log(`> Start loading browser with url: ${url}`)
 
+  // Sometimes browser won't initialize due to some random issues.
+  // So, we need to timeout the initialization and retry again.
   for (let lc = 0; lc < 5; lc++) {
     try {
       const browser = await getBrowser(url, 5000)
-      console.warn(`> Complete loading browser with url: ${url}`)
+      console.log(`> Complete loading browser with url: ${url}`)
       return browser
     } catch (ex) {
       console.warn(`> Error when loading browser with url: ${url}`)
@@ -16,7 +18,7 @@ export default async function (appPort, pathname) {
     }
   }
 
-  console.warn(`> Tried 5 times. Cannot load the browser for url: ${url}`)
+  console.error(`> Tried 5 times. Cannot load the browser for url: ${url}`)
   throw new Error(`Couldn't start the browser for url: ${url}`)
 }
 
