@@ -59,16 +59,25 @@ export class NextScript extends Component {
     _documentProps: PropTypes.any
   }
 
+  getChunkScript (filename) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    let { buildStats } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : '-'
+
+    return (
+      <script type='text/javascript' src={`/_next/${hash}/${filename}`} />
+    )
+  }
+
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    let { buildId } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
-      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/commons.js`} /> }
-      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/main.js`} /> }
+      { staticMarkup ? null : this.getChunkScript('commons.js') }
+      { staticMarkup ? null : this.getChunkScript('main.js') }
     </div>
   }
 }
