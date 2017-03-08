@@ -311,6 +311,7 @@ Here's a list of supported events:
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
 - `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `beforeHistoryChange(url)` - Fires just before changing the browser's history
 - `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
