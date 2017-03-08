@@ -13,7 +13,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the about page.')
-        await browser.close()
+        browser.close()
       })
 
       it('should navigate via the client side', async () => {
@@ -28,7 +28,7 @@ export default (context, render) => {
           .elementByCss('#counter').text()
 
         expect(counterText).toBe('Counter: 1')
-        await browser.close()
+        browser.close()
       })
     })
 
@@ -41,7 +41,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        await browser.close()
+        browser.close()
       })
     })
 
@@ -56,7 +56,7 @@ export default (context, render) => {
         const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
         expect(preText.includes(expectedErrorMessage)).toBeTruthy()
 
-        await browser.close()
+        browser.close()
       })
     })
 
@@ -69,7 +69,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('2')
-        await browser.close()
+        browser.close()
       })
 
       it('should remove querystring', async () => {
@@ -80,7 +80,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('0')
-        await browser.close()
+        browser.close()
       })
     })
 
@@ -95,7 +95,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(countAfterClicked).toBe('COUNT: 1')
-        await browser.close()
+        browser.close()
       })
 
       it('should always replace the state', async () => {
@@ -116,7 +116,7 @@ export default (context, render) => {
           .back()
           .waitForElementByCss('.nav-home')
 
-        await browser.close()
+        browser.close()
       })
     })
 
@@ -131,7 +131,7 @@ export default (context, render) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          await browser.close()
+          browser.close()
         })
       })
 
@@ -145,7 +145,7 @@ export default (context, render) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          await browser.close()
+          browser.close()
         })
       })
 
@@ -160,7 +160,7 @@ export default (context, render) => {
 
           expect(counter).toBe('COUNT: 1')
 
-          await browser.close()
+          browser.close()
         })
       })
 
@@ -175,7 +175,7 @@ export default (context, render) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          await browser.close()
+          browser.close()
         })
       })
     })
@@ -193,7 +193,7 @@ export default (context, render) => {
           .elementByCss('#get-initial-props-run-count').text()
         expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
 
-        await browser.close()
+        browser.close()
       })
 
       it('should handle the back button and should not run getInitialProps', async () => {
@@ -213,7 +213,7 @@ export default (context, render) => {
           .elementByCss('#get-initial-props-run-count').text()
         expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
 
-        await browser.close()
+        browser.close()
       })
 
       it('should run getInitialProps always when rending the page to the screen', async () => {
@@ -233,7 +233,7 @@ export default (context, render) => {
           .elementByCss('#get-initial-props-run-count').text()
         expect(getInitialPropsRunCount).toBe('getInitialProps run count: 2')
 
-        await browser.close()
+        browser.close()
       })
     })
   })
