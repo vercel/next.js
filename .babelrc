@@ -9,11 +9,6 @@
     "transform-runtime"
   ],
   "env": {
-    "test-build": {
-      "plugins": [
-        "istanbul"
-      ]
-    },
     "test": {
       "presets": [
         "es2015",
