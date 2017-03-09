@@ -226,19 +226,39 @@ _Note: `getInitialProps` can **not** be used in children components. Only in `pa
 - `xhr` - XMLHttpRequest object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
-### Routing
-
-#### With `<Link>`
+### Client-side routing
 
 <p><details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/hello-world">Hello World</a></li>
+    <li><a href="./examples/using-router">Basic routing</a></li>
+    <li><a href="./examples/with-loading">With a page loading indicator</a></li>
+    <li><a href="./examples/with-prefetching">Prefetching</a></li>
   </ul>
 </details></p>
 
-Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
+Client-side routing behaves exactly like the browser:
+1. The component is fetched
+2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
+3. After 1 and 2 complete, `pushState` is performed and the new component rendered
 
+It can be triggered declaratively using `<Link>`, or imperatively using `next/router`.
+
+#### Declaratively with `<Link>`
+
+API:
+- `href` - the real link URL
+- `as` (optional) - _decoration_ of the URL. Useful if you configured custom (dynamic or parameterized) routes on the server.
+- `prefetch` (optional) - for maximum performance, to prefetch in the background. NB: enabled only in production.
+
+If you need to know the current route, each page under `pages/` receives a `url` property with the following API:
+- `pathname` - `String` of the current path excluding the query string
+- `query` - `Object` with the parsed query string. Defaults to `{}`
+
+<details>
+  <summary>Basic example (only using `<Link href>`).</summary>
+  
 ```jsx
 // pages/index.js
 import Link from 'next/link'
@@ -254,35 +274,29 @@ export default () => (
 )
 ```
 
-__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
+</details>
 
-Client-side routing behaves exactly like the browser:
+#### Imperatively with `next/router`
 
-1. The component is fetched
-2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
-3. After 1 and 2 complete, `pushState` is performed and the new component rendered
-
-Each top-level component receives a `url` property with the following API:
-
+API:
+- `route` - `String` of the current route
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `push(url, as=url, { shallow: <boolean> })` - performs a `pushState` call with the given url
+- `replace(url, as=url, { shallow: <boolean> })` - performs a `replaceState` call with the given url
+- `prefetch(url)` - for maximum performance, to prefetch in the background. NB: enabled only in production.
+- `onRouteChangeStart(url)` - Fires when a route starts to change
+- `onRouteChangeComplete(url)` - Fires when a route changed completely
+- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
+  - `err.cancelled` is set to `true` when the route loading is cancelled (e.g. when clicking two links in quick succession)
+- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onAppUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component._
 
-#### Imperatively
-
-<p><details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="./examples/using-router">Basic routing</a></li>
-    <li><a href="./examples/with-loading">With a page loading indicator</a></li>
-  </ul>
-</details></p>
-
-You can also do client-side page transitions using the `next/router`
-
+<details>
+  <summary>Basic example (only using `push(url)`).</summary>
+  
 ```jsx
 import Router from 'next/router'
 
@@ -291,32 +305,30 @@ export default () => (
 )
 ```
 
-Above `Router` object comes with the following API:
+</details>
 
-- `route` - `String` of the current route
-- `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
+<details>
+  <summary>Prefetching example.</summary>
 
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
+```jsx
+import Router from 'next/router'
+export default ({ url }) => (
+  <div>
+    <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
+      A route transition will happen after 100ms
+    </a>
+    {
+      // but we can prefetch it!
+      Router.prefetch('/dynamic')
+    }
+  </div>
+)
+```
 
-_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
+</details>
 
-##### Router Events
-
-You can also listen to different events happening inside the Router.
-Here's a list of supported events:
-
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
-
-> Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
-
-Here's how to properly listen to the router event `routeChangeStart`:
+<details>
+  <summary>Listening to the `routeChangeStart` event example.</summary>
 
 ```js
 Router.onRouteChangeStart = (url) => {
@@ -324,25 +336,11 @@ Router.onRouteChangeStart = (url) => {
 }
 ```
 
-If you are no longer want to listen to that event, you can simply unset the event listener like this:
+</details>
 
-```js
-Router.onRouteChangeStart = null
-```
+To stop listening, unset the event listener: `Router.onRouteChangeStart = null`.
 
-If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contained a `cancelled` property set to `true`.
-
-```js
-Router.onRouteChangeError = (err, url) => {
-  if (err.cancelled) {
-    console.log(`Route to ${url} was cancelled!`)
-  }
-}
-```
-
-If you change a route while in between a new deployment, we can't navigate the app via client side. We need to do a full browser navigation. We do it automatically for you.
-
-But you can customize that via `Route.onAppUpdated` event like this:
+If a route change occurs in the middle of a new deployment, the app cannot navigate via client-side and will instead automatically do a full server-side routing. This behaviour can be customized _via_ `Route.onAppUpdated`:
 
 ```js
 Router.onAppUpdated = (nextUrl) => {
@@ -362,7 +360,7 @@ Router.onAppUpdated = (nextUrl) => {
 
 Shallow routig allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
 
-You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
+You can do this by invoking either `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
 
 ```jsx
 // Current URL is "/"
@@ -384,64 +382,15 @@ componentWillReceiveProps(nextProps) {
 
 > NOTES:
 > 
-> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
+> Shallow routing works **only** for same-page URL changes. For an example, let's assume we've another page called `about`, and you run this:
 > ```js
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
 > ```
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even we asked to do shallow routing.
 
-### Prefetching Pages
-
-(This is a production only feature)
-
-<p><details>
-  <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
-</details></p>
-
-Next.js has an API which allows you to prefetch pages.
-
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 > With prefetching Next.js only download JS code. When the page is getting rendered, you may need to wait for the data.
-
-#### With `<Link>`
-
-You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those pages in the background.
-
-```jsx
-import Link from 'next/link'
-
-// example header component
-export default () => (
-  <nav>
-    <ul>
-      <li><Link prefetch href='/'><a>Home</a></Link></li>
-      <li><Link prefetch href='/about'><a>About</a></Link></li>
-      <li><Link prefetch href='/contact'><a>Contact</a></Link></li>
-    </ul>
-  </nav>
-)
-```
-
-#### Imperatively
-
-Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
-
-```jsx
-import Router from 'next/router'
-export default ({ url }) => (
-  <div>
-    <a onClick={ () => setTimeout(() => url.pushTo('/dynamic'), 100) }>
-      A route transition will happen after 100ms
-    </a>
-    {
-      // but we can prefetch it!
-      Router.prefetch('/dynamic')
-    }
-  </div>
-)
-```
 
 ### Custom server and routing
 
