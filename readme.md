@@ -239,6 +239,7 @@ _Note: `getInitialProps` can **not** be used in children components. Only in `pa
 </details></p>
 
 Client-side routing behaves exactly like the browser:
+
 1. The component is fetched
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
 3. After 1 and 2 complete, `pushState` is performed and the new component rendered
