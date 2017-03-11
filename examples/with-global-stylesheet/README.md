@@ -17,7 +17,7 @@ To get this example running you just need to
     npm install .
     npm run dev
 
-Visit [http://localhost:300](http://localhost:300) and try to modify `styles/index.scss` changing color. Your changes should be picked up instantly.
+Visit [http://localhost:3000](http://localhost:3000) and try to modify `styles/index.scss` changing color. Your changes should be picked up instantly.
 
 Also see it working with plain css here
 ![example](example.gif)
