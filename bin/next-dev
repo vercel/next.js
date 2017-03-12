@@ -3,9 +3,11 @@ import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { existsSync, readFileSync } from 'fs'
-import Server from '../server'
+import getConfig from '../server/config'
 import { printAndExit } from '../lib/utils'
 import pkgUp from 'pkg-up'
+
+const { Server } = getConfig(process.cwd())
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 

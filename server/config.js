@@ -1,11 +1,13 @@
 import { join } from 'path'
 import { existsSync } from 'fs'
+import Server from './index'
 
 const cache = new Map()
 
 const defaultConfig = {
   webpack: null,
-  poweredByHeader: true
+  poweredByHeader: true,
+  Server
 }
 
 export default function getConfig (dir) {

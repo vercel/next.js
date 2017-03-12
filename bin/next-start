@@ -2,8 +2,10 @@
 
 import { resolve } from 'path'
 import parseArgs from 'minimist'
-import Server from '../server'
+import getConfig from '../server/config'
 import { existsSync } from 'fs'
+
+const { Server } = getConfig(process.cwd())
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
