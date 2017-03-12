@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "next": "beta",
+    "path-match": "1.2.4",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  }
+}

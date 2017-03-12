@@ -236,5 +236,33 @@ export default (context, render) => {
         browser.close()
       })
     })
+
+    describe('with URL objects', () => {
+      it('should work with <Link/>', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+        const text = await browser
+          .elementByCss('#query-string-link').click()
+          .waitForElementByCss('.nav-querystring')
+          .elementByCss('p').text()
+        expect(text).toBe('10')
+
+        expect(await browser.url())
+          .toBe(`http://localhost:${context.appPort}/nav/querystring/10#10`)
+        browser.close()
+      })
+
+      it('should work with "Router.push"', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+        const text = await browser
+          .elementByCss('#query-string-button').click()
+          .waitForElementByCss('.nav-querystring')
+          .elementByCss('p').text()
+        expect(text).toBe('10')
+
+        expect(await browser.url())
+          .toBe(`http://localhost:${context.appPort}/nav/querystring/10#10`)
+        browser.close()
+      })
+    })
   })
 }
