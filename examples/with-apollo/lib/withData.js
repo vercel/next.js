@@ -26,10 +26,11 @@ export default (Component) => (
       }
 
       const state = store.getState()
+
       return {
         initialState: {
           ...state,
-          [client.reduxRootKey]: {
+          apollo: {
             data: client.getInitialState().data
           }
         },
