@@ -272,6 +272,14 @@ Each top-level component receives a `url` property with the following API:
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-url-object-routing">With URL Object Routing</a></li>
+  </ul>
+</details></p>
+
 The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
 
 ```jsx
