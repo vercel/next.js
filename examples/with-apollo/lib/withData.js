@@ -1,6 +1,6 @@
-import { ApolloProvider, getDataFromTree } from 'react-apollo'
-import React from 'react'
 import 'isomorphic-fetch'
+import React from 'react'
+import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import { initClient } from './initClient'
 import { initStore } from './initStore'
 

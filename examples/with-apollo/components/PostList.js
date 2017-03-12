@@ -1,5 +1,4 @@
-import gql from 'graphql-tag'
-import { graphql } from 'react-apollo'
+import { gql, graphql } from 'react-apollo'
 import PostUpvoter from './PostUpvoter'
 
 const POSTS_PER_PAGE = 10
