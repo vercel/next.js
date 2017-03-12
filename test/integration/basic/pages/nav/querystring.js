@@ -8,7 +8,7 @@ export default class AsyncProps extends React.Component {
 
   render () {
     return (
-      <div>
+      <div className='nav-querystring'>
         <Link href={`/nav/querystring?id=${parseInt(this.props.id) + 1}`}>
           <a id='next-id-link'>Click here</a>
         </Link>
