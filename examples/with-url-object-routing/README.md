@@ -1,12 +1,12 @@
-# URL object routing (dynamic routing)
+# URL object routing
 
 ## How to use
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/url-object-routing
-cd url-object-routing
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-url-object-routing
+cd with-url-object-routing
 ```
 
 Install it and run:
