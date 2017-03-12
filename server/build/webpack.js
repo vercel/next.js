@@ -6,11 +6,11 @@ import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import WatchPagesPlugin from './plugins/watch-pages-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
-import findBabelConfigLocation from './babel/find-config-location'
+import findBabelConfig from './babel/find-config'
+import rootModuleRelativePath from './root-module-relative-path'
 
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
@@ -23,22 +23,41 @@ const interpolateNames = new Map(defaultPages.map((p) => {
   return [join(nextPagesDir, p), `dist/pages/${p}`]
 }))
 
-export default async function createCompiler (dir, { dev = false, quiet = false } = {}) {
+const relativeResolve = rootModuleRelativePath(require)
+
+export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir)
-  const defaultEntries = dev
-    ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
+  const defaultEntries = dev ? [
+    join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+    join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
+  ] : []
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
   let minChunks
 
   const entry = async () => {
-    const entries = { 'main.js': mainJS }
+    const entries = {
+      'main.js': [
+        ...defaultEntries,
+        mainJS
+      ]
+    }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    for (const p of pages) {
-      entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+
+    // In the dev environment, on-demand-entry-handler will take care of
+    // managing pages.
+    if (dev) {
+      for (const p of devPages) {
+        entries[join('bundles', p)] = `./${p}?entry`
+      }
+    } else {
+      for (const p of pages) {
+        entries[join('bundles', p)] = `./${p}?entry`
+      }
     }
 
     for (const p of defaultPages) {
@@ -73,10 +92,17 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
+        // In the dev we use on-deman-entries.
+        // So, it makes no sense to use commonChunks with that.
+        if (dev) return false
+
         // NOTE: it depends on the fact that the entry funtion is always called
         // before applying CommonsChunkPlugin
         return count >= minChunks
       }
+    }),
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
     new JsonPagesPlugin(),
     new CaseSensitivePathPlugin()
@@ -86,17 +112,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     plugins.push(
       new webpack.HotModuleReplacementPlugin(),
       new webpack.NoEmitOnErrorsPlugin(),
-      new UnlinkFilePlugin(),
-      new WatchPagesPlugin(dir)
+      new UnlinkFilePlugin()
     )
     if (!quiet) {
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
     plugins.push(
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify('production')
-      }),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
@@ -114,14 +136,22 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     presets: []
   }
 
-  const configLocation = findBabelConfigLocation(dir)
-  if (configLocation) {
+  const externalBabelConfig = findBabelConfig(dir)
+  if (externalBabelConfig) {
     console.log(`> Using external babel configuration`)
-    console.log(`> location: "${configLocation}"`)
-    mainBabelOptions.babelrc = true
+    console.log(`> location: "${externalBabelConfig.loc}"`)
+    // It's possible to turn off babelrc support via babelrc itself.
+    // In that case, we should add our default preset.
+    // That's why we need to do this.
+    const { options } = externalBabelConfig
+    mainBabelOptions.babelrc = options.babelrc !== false
   } else {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
     mainBabelOptions.babelrc = false
+  }
+
+  // Add our default preset if the no "babelrc" found.
+  if (!mainBabelOptions.babelrc) {
+    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
   const rules = (dev ? [{
@@ -156,8 +186,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
         if (!(/\.js$/.test(interpolatedName))) {
           return { content, sourceMap }
         }
-        const babelRuntimePath = require.resolve('babel-runtime/package')
-          .replace(/[\\/]package\.json$/, '')
+
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
@@ -172,17 +201,15 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
               require.resolve('babel-plugin-module-resolver'),
               {
                 alias: {
-                  'babel-runtime': babelRuntimePath,
-                  react: require.resolve('react'),
-                  'react-dom': require.resolve('react-dom'),
-                  'react-dom/server': require.resolve('react-dom/server'),
-                  'next/link': require.resolve('../../lib/link'),
-                  'next/prefetch': require.resolve('../../lib/prefetch'),
-                  'next/css': require.resolve('../../lib/css'),
-                  'next/head': require.resolve('../../lib/head'),
-                  'next/document': require.resolve('../../server/document'),
-                  'next/router': require.resolve('../../lib/router'),
-                  'styled-jsx/style': require.resolve('styled-jsx/style')
+                  'babel-runtime': relativeResolve('babel-runtime/package'),
+                  'next/link': relativeResolve('../../lib/link'),
+                  'next/prefetch': relativeResolve('../../lib/prefetch'),
+                  'next/css': relativeResolve('../../lib/css'),
+                  'next/head': relativeResolve('../../lib/head'),
+                  'next/document': relativeResolve('../../server/document'),
+                  'next/router': relativeResolve('../../lib/router'),
+                  'next/error': relativeResolve('../../lib/error'),
+                  'styled-jsx/style': relativeResolve('styled-jsx/style')
                 }
               }
             ]
@@ -222,7 +249,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false 
     context: dir,
     entry,
     output: {
-      path: join(dir, '.next'),
+      path: join(buildDir || dir, '.next'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: '/_webpack/',

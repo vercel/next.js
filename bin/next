@@ -5,6 +5,17 @@ import { spawn } from 'cross-spawn'
 import { watchFile } from 'fs'
 import pkg from '../../package.json'
 
+if (pkg.peerDependencies) {
+  Object.keys(pkg.peerDependencies).forEach(dependency => {
+    try {
+      // When 'npm link' is used it checks the clone location. Not the project.
+      require.resolve(dependency)
+    } catch (err) {
+      console.warn(`${dependency} not found. Please install ${dependency} using 'npm install ${dependency}'`)
+    }
+  })
+}
+
 const defaultCommand = 'dev'
 const commands = new Set([
   'init',

@@ -1,35 +1,16 @@
 import React, { Component, PropTypes } from 'react'
 import htmlescape from 'htmlescape'
-import { renderStatic } from 'glamor/server'
 import flush from 'styled-jsx/server'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    let head
-    let rendered
-    let styles
-    try {
-      rendered = renderStatic(() => {
-        const page = renderPage()
-        head = page.head
-        return page.html
-      })
-    } finally {
-      styles = flush()
-    }
-    const { html, css, ids } = rendered
-    const nextCSS = { css, ids, styles }
-    return { html, head, nextCSS }
+    const {html, head} = renderPage()
+    const styles = flush()
+    return { html, head, styles }
   }
 
   static childContextTypes = {
     _documentProps: PropTypes.any
-  }
-
-  constructor (props) {
-    super(props)
-    const { __NEXT_DATA__, nextCSS } = props
-    if (nextCSS) __NEXT_DATA__.ids = nextCSS.ids
   }
 
   getChildContext () {
@@ -53,11 +34,10 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, nextCSS } = this.context._documentProps
+    const { head, styles } = this.context._documentProps
     return <head>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
-      {nextCSS && nextCSS.css ? <style dangerouslySetInnerHTML={{ __html: nextCSS.css }} /> : null}
-      {nextCSS && nextCSS.styles ? nextCSS.styles : null}
+      {styles || null}
       {this.props.children}
     </head>
   }
@@ -79,16 +59,25 @@ export class NextScript extends Component {
     _documentProps: PropTypes.any
   }
 
+  getChunkScript (filename) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    let { buildStats } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : '-'
+
+    return (
+      <script type='text/javascript' src={`/_next/${hash}/${filename}`} />
+    )
+  }
+
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    let { buildId } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
-      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/commons.js`} /> }
-      { staticMarkup ? null : <script type='text/javascript' src={`/_next/${buildId}/main.js`} /> }
+      { staticMarkup ? null : this.getChunkScript('commons.js') }
+      { staticMarkup ? null : this.getChunkScript('main.js') }
     </div>
   }
 }

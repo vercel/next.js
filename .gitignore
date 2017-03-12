@@ -1,14 +1,12 @@
 # build output
 dist
+.next
 
 # dependencies
 node_modules
 
 # logs
 npm-debug.log
-
-# other
-.next
 
 # coverage
 .nyc_output

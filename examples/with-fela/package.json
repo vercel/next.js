@@ -9,6 +9,8 @@
   "dependencies": {
     "fela": "^4.1.2",
     "next": "^2.0.0-beta",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
     "react-fela": "^4.1.2"
   }
 }

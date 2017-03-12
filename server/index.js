@@ -1,6 +1,7 @@
 import { resolve, join } from 'path'
-import { parse } from 'url'
-import fs from 'mz/fs'
+import { parse as parseUrl } from 'url'
+import { parse as parseQs } from 'querystring'
+import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
@@ -8,8 +9,7 @@ import {
   renderJSON,
   renderErrorJSON,
   sendHTML,
-  serveStatic,
-  serveStaticWithGzip
+  serveStatic
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
@@ -23,22 +23,37 @@ export default class Server {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
-    this.renderOpts = { dir: this.dir, dev, staticMarkup }
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(this.dir)
+    this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
+    this.buildId = !dev ? this.readBuildId() : '-'
+    this.renderOpts = {
+      dev,
+      staticMarkup,
+      dir: this.dir,
+      hotReloader: this.hotReloader,
+      buildStats: this.buildStats,
+      buildId: this.buildId
+    }
 
     this.defineRoutes()
   }
 
   getRequestHandler () {
     return (req, res, parsedUrl) => {
-      if (!parsedUrl || parsedUrl.query === null) {
-        parsedUrl = parse(req.url, true)
+      // Parse url if parsedUrl not provided
+      if (!parsedUrl) {
+        parsedUrl = parseUrl(req.url, true)
       }
 
-      this.run(req, res, parsedUrl)
+      // Parse the querystring ourselves if the user doesn't handle querystring parsing
+      if (typeof parsedUrl.query === 'string') {
+        parsedUrl.query = parseQs(parsedUrl.query)
+      }
+
+      return this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
@@ -51,8 +66,6 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
-
-    this.renderOpts.buildId = await this.readBuildId()
   }
 
   async close () {
@@ -77,22 +90,28 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/main.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+      '/_next/:hash/main.js': async (req, res, params) => {
+        this.handleBuildHash('main.js', params.hash, res)
         const p = join(this.dir, '.next/main.js')
-        await this.serveStaticWithGzip(req, res, p)
+        await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/commons.js': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+      '/_next/:hash/commons.js': async (req, res, params) => {
+        this.handleBuildHash('commons.js', params.hash, res)
         const p = join(this.dir, '.next/commons.js')
-        await this.serveStaticWithGzip(req, res, p)
+        await this.serveStatic(req, res, p)
       },
 
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
-        this.handleBuildId(params.buildId, res)
+        if (!this.handleBuildId(params.buildId, res)) {
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ buildIdMismatch: true }))
+          return
+        }
+
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
+
         await this.renderJSON(req, res, pathname)
       },
 
@@ -119,14 +138,14 @@ export default class Server {
     }
   }
 
-  async start (port) {
+  async start (port, hostname) {
     await this.prepare()
     this.http = http.createServer(this.getRequestHandler())
     await new Promise((resolve, reject) => {
       // This code catches EADDRINUSE error if the port is already in use
       this.http.on('error', reject)
       this.http.on('listening', () => resolve())
-      this.http.listen(port)
+      this.http.listen(port, hostname)
     })
   }
 
@@ -154,7 +173,7 @@ export default class Server {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    sendHTML(res, html, req.method)
+    return sendHTML(res, html, req.method)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -182,7 +201,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    sendHTML(res, html, req.method)
+    return sendHTML(res, html, req.method)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -207,10 +226,10 @@ export default class Server {
     }
   }
 
-  async render404 (req, res, parsedUrl = parse(req.url, true)) {
+  async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
-    this.renderError(null, req, res, pathname, query)
+    return this.renderError(null, req, res, pathname, query)
   }
 
   async renderJSON (req, res, page) {
@@ -222,7 +241,7 @@ export default class Server {
     }
 
     try {
-      await renderJSON(req, res, page, this.renderOpts)
+      return await renderJSON(req, res, page, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
@@ -247,21 +266,9 @@ export default class Server {
     return renderErrorJSON(err, req, res, this.renderOpts)
   }
 
-  async serveStaticWithGzip (req, res, path) {
-    this._serveStatic(req, res, () => {
-      return serveStaticWithGzip(req, res, path)
-    })
-  }
-
-  serveStatic (req, res, path) {
-    this._serveStatic(req, res, () => {
-      return serveStatic(req, res, path)
-    })
-  }
-
-  async _serveStatic (req, res, fn) {
+  async serveStatic (req, res, path) {
     try {
-      await fn()
+      return await serveStatic(req, res, path)
     } catch (err) {
       if (err.code === 'ENOENT') {
         this.render404(req, res)
@@ -271,29 +278,20 @@ export default class Server {
     }
   }
 
-  async readBuildId () {
+  readBuildId () {
     const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
-    try {
-      const buildId = await fs.readFile(buildIdPath, 'utf8')
-      return buildId.trim()
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        return '-'
-      } else {
-        throw err
-      }
-    }
+    const buildId = fs.readFileSync(buildIdPath, 'utf8')
+    return buildId.trim()
   }
 
   handleBuildId (buildId, res) {
-    if (this.dev) return
+    if (this.dev) return true
     if (buildId !== this.renderOpts.buildId) {
-      const errorMessage = 'Build id mismatch!' +
-        'Seems like the server and the client version of files are not the same.'
-      throw new Error(errorMessage)
+      return false
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    return true
   }
 
   getCompilationError (page) {
@@ -305,5 +303,14 @@ export default class Server {
     const id = join(this.dir, '.next', 'bundles', 'pages', page)
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
+  }
+
+  handleBuildHash (filename, hash, res) {
+    if (this.dev) return
+    if (hash !== this.buildStats[filename].hash) {
+      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+    }
+
+    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
   }
 }

@@ -2,9 +2,6 @@ import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
-import fs from 'mz/fs'
-import accepts from 'accepts'
-import mime from 'mime-types'
 import requireModule from './require'
 import resolvePath from './resolve'
 import readPage from './read-page'
@@ -35,11 +32,16 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
+  buildStats,
+  hotReloader,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
 } = {}) {
   page = page || pathname
+
+  await ensurePage(page, { dir, hotReloader })
+
   let [Component, Document] = await Promise.all([
     requireModule(join(dir, '.next', 'dist', 'pages', page)),
     requireModule(join(dir, '.next', 'dist', 'pages', '_document'))
@@ -65,7 +67,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component,
       props,
-      err,
+      err: dev ? err : null,
       router: new Router(pathname, query)
     })
 
@@ -93,6 +95,7 @@ async function doRender (req, res, pathname, query, {
       pathname,
       query,
       buildId,
+      buildStats,
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
@@ -103,9 +106,10 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (req, res, page, { dir = process.cwd() } = {}) {
+export async function renderJSON (req, res, page, { dir = process.cwd(), hotReloader } = {}) {
+  await ensurePage(page, { dir, hotReloader })
   const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
-  return serveStaticWithGzip(req, res, pagePath)
+  return serveStatic(req, res, pagePath)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
@@ -147,43 +151,24 @@ function errorToJSON (err) {
   return json
 }
 
-export async function serveStaticWithGzip (req, res, path) {
-  const encoding = accepts(req).encodings(['gzip'])
-  if (encoding !== 'gzip') {
-    return serveStatic(req, res, path)
-  }
-
-  const gzipPath = `${path}.gz`
-
-  try {
-    // We need to check the existance of the gzipPath.
-    // Getting `ENOENT` error from the `serveStatic` is inconsistent and
-    // didn't work on all the cases.
-    //
-    // And this won't give us a race condition because we know that
-    // we don't add gzipped files at runtime.
-    await fs.stat(gzipPath)
-  } catch (ex) {
-    // Handles the error thrown by fs.stat
-    if (ex.code === 'ENOENT') {
-      // Seems like there's no gzipped file. Let's serve the uncompressed file.
-      return serveStatic(req, res, path)
-    }
-
-    throw ex
-  }
-
-  const contentType = mime.lookup(path) || 'application/octet-stream'
-  res.setHeader('Content-Type', contentType)
-  res.setHeader('Content-Encoding', 'gzip')
-  return serveStatic(req, res, gzipPath)
-}
-
 export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
+    .on('directory', () => {
+      // We don't allow directories to be read.
+      const err = new Error('No directory access')
+      err.code = 'ENOENT'
+      reject(err)
+    })
     .on('error', reject)
     .pipe(res)
     .on('finish', resolve)
   })
+}
+
+async function ensurePage (page, { dir, hotReloader }) {
+  if (!hotReloader) return
+  if (page === '_error' || page === '_document') return
+
+  await hotReloader.ensurePage(page)
 }

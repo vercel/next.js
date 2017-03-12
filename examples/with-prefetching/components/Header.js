@@ -1,23 +1,23 @@
-import Link, { prefetch } from 'next/prefetch'
-import RegularLink from 'next/link'
+import Router from 'next/router'
+import Link from 'next/link'
 
 export default () => (
   <div>
     { /* Prefetch using the declarative API */ }
-    <Link href='/'>
+    <Link prefetch href='/'>
       <a>Home</a>
     </Link>
 
-    <Link href='/features'>
+    <Link prefetch href='/features'>
       <a>Features</a>
     </Link>
 
     { /* we imperatively prefetch on hover */ }
-    <RegularLink href='/about'>
-      <a onMouseEnter={() => { prefetch('/about'); console.log('prefetching /about!') }}>About</a>
-    </RegularLink>
+    <Link href='/about'>
+      <a onMouseEnter={() => { Router.prefetch('/about'); console.log('prefetching /about!') }}>About</a>
+    </Link>
 
-    <Link href='/contact' prefetch={false}>
+    <Link href='/contact'>
       <a>Contact (<small>NO-PREFETCHING</small>)</a>
     </Link>
 

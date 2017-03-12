@@ -1,14 +1,19 @@
 {
-  "presets": ["es2015", "react"],
+  "presets": [
+    "latest",
+    "react"
+  ],
   "plugins": [
-    "transform-async-to-generator",
     "transform-object-rest-spread",
     "transform-class-properties",
     "transform-runtime"
   ],
   "env": {
     "test": {
-      "plugins": ["istanbul"]
+      "presets": [
+        "es2015",
+        "./babel"
+       ]
     }
   }
 }

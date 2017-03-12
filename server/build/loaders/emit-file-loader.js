@@ -3,7 +3,7 @@ import loaderUtils from 'loader-utils'
 module.exports = function (content, sourceMap) {
   this.cacheable()
 
-  const query = loaderUtils.parseQuery(this.query)
+  const query = loaderUtils.getOptions(this)
   const name = query.name || '[hash].[ext]'
   const context = query.context || this.options.context
   const regExp = query.regExp
