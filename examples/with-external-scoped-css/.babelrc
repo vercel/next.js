@@ -1,10 +1,11 @@
 {
-  "presets": ["airbnb", "es2015", "react"],
+  "presets": ["next/babel"],
   "plugins": [
     [
       "css-modules-transform", {
-        "extensions": [".css", ".scss"],
-        "extractCss": "./static/css/bundle.css"
+        "extensions": [".css", ".sass"],
+        "extractCss": "./static/css/bundle.css",
+        "preprocessCss": "./pre-processor.js"
       }
     ]
   ]
