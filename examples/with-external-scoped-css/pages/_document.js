@@ -11,7 +11,7 @@ export default class MyDocument extends Document {
     return (
       <html>
         <Head>
-          <link rel="stylesheet" href="/static/css/bundle.css" />
+          <link rel='stylesheet' href='/static/css/bundle.css' />
         </Head>
         <body>
           {this.props.customValue}
