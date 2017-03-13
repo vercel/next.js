@@ -104,7 +104,7 @@
     "fly-clear": "1.0.1",
     "fly-esnext": "2.0.0",
     "fly-watch": "1.1.1",
-    "husky": "0.13.2",
+    "husky": "0.13.3-0",
     "jest-cli": "19.0.1",
     "node-fetch": "1.6.3",
     "node-notifier": "5.0.2",
