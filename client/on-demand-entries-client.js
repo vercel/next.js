@@ -4,7 +4,7 @@ import Router from '../lib/router'
 import fetch from 'unfetch'
 
 Router.ready(() => {
-  Router.router.on('routeChangeComplete', ping)
+  Router.router.events.on('routeChangeComplete', ping)
 })
 
 async function ping () {
