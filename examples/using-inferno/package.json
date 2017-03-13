@@ -7,13 +7,11 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "inferno": "^1.0.7",
-    "inferno-compat": "^1.0.7",
-    "inferno-server": "^1.3.0-rc.9",
+    "inferno": "^1.4.0",
+    "inferno-compat": "^1.4.0",
+    "inferno-server": "^1.4.0",
     "module-alias": "^2.0.0",
-    "next": "^2.0.0-beta",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "next": "^2.0.0-beta"
   },
   "author": "",
   "license": "MIT"
