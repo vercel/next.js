@@ -68,6 +68,7 @@
     "json-loader": "0.5.4",
     "loader-utils": "1.0.3",
     "minimist": "1.2.0",
+    "mitt": "1.1.0",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
     "mz": "2.6.0",
