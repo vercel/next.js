@@ -3,11 +3,9 @@
 import Router from '../lib/router'
 import fetch from 'unfetch'
 
-const originalRouteChangeComplete = Router.onRouteChangeComplete
-Router.onRouteChangeComplete = (...args) => {
-  if (originalRouteChangeComplete) originalRouteChangeComplete(...args)
-  ping()
-}
+Router.ready(() => {
+  Router.router.on('routeChangeComplete', ping)
+})
 
 async function ping () {
   try {
