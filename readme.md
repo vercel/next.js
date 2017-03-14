@@ -292,6 +292,16 @@ export default () => (
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
+The default behaviour for the `<Link>` component is to `push` a new url into the stack. You can use the `replace` prop to prevent adding a new entry.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href='/about' replace><a>here</a></Link> to read more</div>
+)
+```
+
 #### Imperatively
 
 <p><details>
