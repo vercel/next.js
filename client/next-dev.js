@@ -1,17 +1,7 @@
-import patch from './patch-react'
 import evalScript from '../lib/eval-script'
 
 const { __NEXT_DATA__: { errorComponent } } = window
 const ErrorComponent = evalScript(errorComponent).default
-
-// apply patch first
-patch((err) => {
-  console.error(err)
-
-  Promise.resolve().then(() => {
-    onError(err)
-  })
-})
 
 require('react-hot-loader/patch')
 
