@@ -42,7 +42,7 @@ declare module "next/document" {
   declare export var Main: Class<React$Component<void, any, any>>;
   declare export var NextScript: Class<React$Component<void, any, any>>;
   declare export default Class<React$Component<void, any, any>> & {
-    getInitialProps: (ctx: {pathname: string, query: any, req?: any, res?: any, xhr?: any, err?: any}) => Promise<any>;
+    getInitialProps: (ctx: {pathname: string, query: any, req?: any, res?: any, jsonPageRes?: any, err?: any}) => Promise<any>;
     renderPage(cb: Function): void;
   };
 }
