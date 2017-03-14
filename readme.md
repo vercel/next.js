@@ -25,6 +25,7 @@ _**NOTE! the README on the `master` branch might not match that of the [latest s
     - [With `<Link>`](#with-link)
     - [Imperatively](#imperatively)
       - [Router Events](#router-events)
+      - [Shallow Routing](#shallow-routing)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
@@ -270,6 +271,27 @@ Each top-level component receives a `url` property with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
+##### With URL object
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-url-object-routing">With URL Object Routing</a></li>
+  </ul>
+</details></p>
+
+The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href={{ pathname: 'about', query: { name: 'Zeit' }}}<a>here</a></Link> to read more</div>
+)
+```
+
+That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
+
 #### Imperatively
 
 <p><details>
@@ -302,6 +324,24 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
+##### With URL object
+You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an url.
+
+```jsx
+import Router from 'next/router'
+
+const handler = () => Router.push({
+  pathname: 'about',
+  query: { name: 'Zeit' }
+})
+
+export default () => (
+  <div>Click <span onClick={handler}>here</span> to read more</div>
+)
+```
+
+This uses of the same exact parameters as in the `<Link>` component.
+
 ##### Router Events
 
 You can also listen to different events happening inside the Router.
@@ -310,6 +350,7 @@ Here's a list of supported events:
 - `routeChangeStart(url)` - Fires when a route starts to change
 - `routeChangeComplete(url)` - Fires when a route changed completely
 - `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `beforeHistoryChange(url)` - Fires just before changing the browser's history
 - `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
@@ -348,6 +389,45 @@ Router.onAppUpdated = (nextUrl) => {
   location.href = nextUrl
 }
 ```
+
+##### Shallow Routing
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>
+  </ul>
+</details></p>
+
+Shallow routig allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+
+You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
+
+```jsx
+// Current URL is "/"
+const href = '/?counter=10'
+const as = href
+Router.push(href, as, { shallow: true })
+```
+
+Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.url` inside the `Component`.
+
+You can watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
+
+```jsx
+componentWillReceiveProps(nextProps) {
+  const { pathname, query } = nextProps.url
+  // fetch data based on the new query
+}
+```
+
+> NOTES:
+> 
+> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
+> ```js
+> Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
+> ```
+> Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even we asked to do shallow routing.
 
 ### Prefetching Pages
 

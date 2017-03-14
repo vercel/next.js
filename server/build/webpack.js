@@ -28,15 +28,22 @@ const relativeResolve = rootModuleRelativePath(require)
 export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir)
-  const defaultEntries = dev
-    ? [join(__dirname, '..', '..', 'client/webpack-hot-middleware-client')] : []
+  const defaultEntries = dev ? [
+    join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+    join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
+  ] : []
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
   let minChunks
 
   const entry = async () => {
-    const entries = { 'main.js': mainJS }
+    const entries = {
+      'main.js': [
+        ...defaultEntries,
+        mainJS
+      ]
+    }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
     const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
@@ -45,11 +52,11 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     // managing pages.
     if (dev) {
       for (const p of devPages) {
-        entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+        entries[join('bundles', p)] = `./${p}?entry`
       }
     } else {
       for (const p of pages) {
-        entries[join('bundles', p)] = [...defaultEntries, `./${p}?entry`]
+        entries[join('bundles', p)] = `./${p}?entry`
       }
     }
 

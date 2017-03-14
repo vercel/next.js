@@ -1,4 +1,4 @@
-import ApolloClient, { createNetworkInterface } from 'apollo-client'
+import { ApolloClient, createNetworkInterface } from 'react-apollo'
 
 let apolloClient = null
 

@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import { EventEmitter } from 'events'
+import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
@@ -42,7 +42,7 @@ const headManager = new HeadManager()
 const container = document.getElementById('__next')
 
 export default (onError) => {
-  const emitter = new EventEmitter()
+  const emitter = mitt()
 
   router.subscribe(({ Component, props, hash, err }) => {
     render({ Component, props, err, hash, emitter }, onError)
