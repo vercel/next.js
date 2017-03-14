@@ -263,6 +263,40 @@ export default (context, render) => {
           .toBe(`http://localhost:${context.appPort}/nav/querystring/10#10`)
         browser.close()
       })
+
+      it('should work with the "replace" prop', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        let stackLength = await browser
+          .eval('window.history.length')
+
+        expect(stackLength).toBe(2)
+
+        // Navigation to /about using a replace link should maintain the url stack length
+        const text = await browser
+          .elementByCss('#about-replace-link').click()
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the about page.')
+
+        stackLength = await browser
+          .eval('window.history.length')
+
+        expect(stackLength).toBe(2)
+
+        // Going back to the home with a regular link will augment the history count
+        await browser
+          .elementByCss('#home-link').click()
+          .waitForElementByCss('.nav-home')
+
+        stackLength = await browser
+          .eval('window.history.length')
+
+        expect(stackLength).toBe(3)
+
+        browser.close()
+      })
     })
   })
 }
