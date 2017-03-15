@@ -1,17 +1,21 @@
 {
-  "name": "test-css",
+  "name": "with-external-scoped-css",
   "version": "1.0.0",
   "main": "index.js",
-  "license": "MIT",
-  "author": "Guilherme Diego <guidiego.expgames@gmail.com>",
+  "license": "ISC",
+  "author": "",
   "scripts": {
-    "start": "next"
+    "start": "next",
+    "build": "next build",
+    "run": "next start"
+  },
+  "dependencies":{
+    "next": "^2.0.0-beta",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
   },
   "devDependencies": {
     "babel-plugin-css-modules-transform": "^1.2.1",
-    "next": "^2.0.0-beta.17",
     "node-sass": "^4.5.0",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
   }
 }

@@ -1,5 +1,5 @@
 ## Scoped Style with external CSS file
-The motivation for this example is using scoped css from external files and in the end generate a compiled `.css` on static to use in the final application.
+The motivation for this example is using scoped css from external files and in the end generate a compiled static `.css` file to use in production..
 
 #### Running That
 
@@ -9,11 +9,10 @@ yarn start
 ```
 
 #### Supported Langs
-The plugin supports `less`, `scss` and `css` extension. Is possible using another pre-processor creating a function to compile the code. In the example I use `sass` as my css' pre processor
+The plugin supports the `less`, `scss` and `css` file extensions. It is possible to add support for another pre-processor by creating a function to compile the code. In the example we use `sass` as our css pre-processor
 
 To edit the types you need to go to `.babelrc`
 
 
-#### Problems
-- Next haven't support to auto-reload in files that not be JS and JSX, this is frutasting, so you need to edit something on JS to compile your css :/ 
-- Sometimes cache come in and you need to reload with (shift + r) to clear and got the new css file version
+#### Attention Points
+- Next.js doesn't have support for watching `*.css files. So you will have to edit a Javascript file to re-compile the css. In the future this will be fixed by [#823](https://github.com/zeit/next.js/pull/823).
