@@ -17,7 +17,8 @@
     "document.js",
     "prefetch.js",
     "router.js",
-    "error.js"
+    "error.js",
+    "server.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
