@@ -704,7 +704,7 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 
 Then run `now` and enjoy!
 
-Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment']('https://github.com/zeit/next.js/wiki/Deployment') section of the wiki.
+Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
 
