@@ -432,7 +432,7 @@ componentWillReceiveProps(nextProps) {
 ```
 
 > NOTES:
-> 
+>
 > Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
 > ```js
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
@@ -679,7 +679,7 @@ Here's an example `.babelrc` file:
 
 ## Production deployment
 
-To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
+To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
 
 ```bash
 next build
@@ -703,6 +703,8 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 ```
 
 Then run `now` and enjoy!
+
+Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment']('https://github.com/zeit/next.js/wiki/Deployment') section of the wiki.
 
 Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
 
