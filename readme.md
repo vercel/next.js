@@ -223,7 +223,7 @@ _Note: `getInitialProps` can **not** be used in children components. Only in `pa
 - `query` - query string section of URL parsed as an object
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
-- `xhr` - XMLHttpRequest object (client only)
+- `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
 ### Routing
@@ -602,8 +602,8 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 ```jsx
 import React from 'react'
 export default class Error extends React.Component {
-  static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
+  static getInitialProps ({ res, jsonPageRes }) {
+    const statusCode = res ? res.statusCode : (jsonPageRes ? jsonPageRes.status : null)
     return { statusCode }
   }
 
