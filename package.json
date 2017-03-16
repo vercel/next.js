@@ -107,7 +107,7 @@
     "husky": "0.13.3-0",
     "jest-cli": "19.0.1",
     "node-fetch": "1.6.3",
-    "node-notifier": "5.0.2",
+    "node-notifier": "5.1.2",
     "nyc": "10.0.0",
     "react": "15.4.2",
     "react-dom": "15.4.2",
