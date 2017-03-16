@@ -1,11 +1,20 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import { EventEmitter } from 'events'
+import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
-import { loadGetInitialProps } from '../lib/utils'
+import { loadGetInitialProps, getURL } from '../lib/utils'
+
+// Polyfill Promise globally
+// This is needed because Webpack2's dynamic loading(common chunks) code
+// depends on Promise.
+// So, we need to polyfill it.
+// See: https://github.com/webpack/webpack/issues/4254
+if (!window.Promise) {
+  window.Promise = Promise
+}
 
 const {
   __NEXT_DATA__: {
@@ -15,14 +24,15 @@ const {
     err,
     pathname,
     query
-  }
+  },
+  location
 } = window
 
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 let lastAppProps
 
-export const router = createRouter(pathname, query, {
+export const router = createRouter(pathname, query, getURL(), {
   Component,
   ErrorComponent,
   err
@@ -32,13 +42,14 @@ const headManager = new HeadManager()
 const container = document.getElementById('__next')
 
 export default (onError) => {
-  const emitter = new EventEmitter()
+  const emitter = mitt()
 
-  router.subscribe(({ Component, props, err }) => {
-    render({ Component, props, err, emitter }, onError)
+  router.subscribe(({ Component, props, hash, err }) => {
+    render({ Component, props, err, hash, emitter }, onError)
   })
 
-  render({ Component, props, err, emitter }, onError)
+  const hash = location.hash.substring(1)
+  render({ Component, props, hash, err, emitter }, onError)
 
   return emitter
 }
@@ -57,7 +68,7 @@ async function renderErrorComponent (err) {
   await doRender({ Component: ErrorComponent, props, err })
 }
 
-async function doRender ({ Component, props, err, emitter }) {
+async function doRender ({ Component, props, hash, err, emitter }) {
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
@@ -73,7 +84,7 @@ async function doRender ({ Component, props, err, emitter }) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, props, err, router, headManager }
+  const appProps = { Component, props, hash, err, router, headManager }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 

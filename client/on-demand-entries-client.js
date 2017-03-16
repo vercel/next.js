@@ -3,6 +3,10 @@
 import Router from '../lib/router'
 import fetch from 'unfetch'
 
+Router.ready(() => {
+  Router.router.events.on('routeChangeComplete', ping)
+})
+
 async function ping () {
   try {
     const url = `/_next/on-demand-entries-ping?page=${Router.pathname}`

@@ -5,9 +5,9 @@ import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
 
-const ADDED = Symbol()
-const BUILDING = Symbol()
-const BUILT = Symbol()
+const ADDED = Symbol('added')
+const BUILDING = Symbol('building')
+const BUILT = Symbol('built')
 
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
@@ -71,11 +71,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       const pathname = await resolvePath(pagePath)
       const name = join('bundles', pathname.substring(dir.length))
 
-      const entry = [
-        join(__dirname, '..', 'client/webpack-hot-middleware-client'),
-        join(__dirname, '..', 'client', 'on-demand-entries-client'),
-        `${pathname}?entry`
-      ]
+      const entry = `${pathname}?entry`
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]

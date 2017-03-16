@@ -1,4 +1,3 @@
-const webpack = require('webpack')
 const notifier = require('node-notifier')
 const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)

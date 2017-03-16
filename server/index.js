@@ -1,6 +1,7 @@
 import { resolve, join } from 'path'
-import { parse } from 'url'
-import fs from 'mz/fs'
+import { parse as parseUrl } from 'url'
+import { parse as parseQs } from 'querystring'
+import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
@@ -24,21 +25,32 @@ export default class Server {
     this.quiet = quiet
     this.router = new Router()
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
-    this.renderOpts = { dir: this.dir, dev, staticMarkup, hotReloader: this.hotReloader }
     this.http = null
     this.config = getConfig(this.dir)
+    this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
+    this.buildId = !dev ? this.readBuildId() : '-'
+    this.renderOpts = {
+      dev,
+      staticMarkup,
+      dir: this.dir,
+      hotReloader: this.hotReloader,
+      buildStats: this.buildStats,
+      buildId: this.buildId
+    }
 
     this.defineRoutes()
   }
 
   getRequestHandler () {
     return (req, res, parsedUrl) => {
+      // Parse url if parsedUrl not provided
       if (!parsedUrl) {
-        parsedUrl = parse(req.url, true)
+        parsedUrl = parseUrl(req.url, true)
       }
 
-      if (!parsedUrl.query) {
-        throw new Error('Please provide a parsed url to `handle` as third parameter. See https://github.com/zeit/next.js#custom-server-and-routing for an example.')
+      // Parse the querystring ourselves if the user doesn't handle querystring parsing
+      if (typeof parsedUrl.query === 'string') {
+        parsedUrl.query = parseQs(parsedUrl.query)
       }
 
       return this.run(req, res, parsedUrl)
@@ -54,8 +66,6 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
-
-    this.renderOpts.buildId = await this.readBuildId()
   }
 
   async close () {
@@ -80,20 +90,14 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/main.js': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          throwBuildIdMismatchError()
-        }
-
+      '/_next/:hash/main.js': async (req, res, params) => {
+        this.handleBuildHash('main.js', params.hash, res)
         const p = join(this.dir, '.next/main.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/commons.js': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          throwBuildIdMismatchError()
-        }
-
+      '/_next/:hash/commons.js': async (req, res, params) => {
+        this.handleBuildHash('commons.js', params.hash, res)
         const p = join(this.dir, '.next/commons.js')
         await this.serveStatic(req, res, p)
       },
@@ -222,7 +226,7 @@ export default class Server {
     }
   }
 
-  async render404 (req, res, parsedUrl = parse(req.url, true)) {
+  async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
     return this.renderError(null, req, res, pathname, query)
@@ -274,18 +278,10 @@ export default class Server {
     }
   }
 
-  async readBuildId () {
+  readBuildId () {
     const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
-    try {
-      const buildId = await fs.readFile(buildIdPath, 'utf8')
-      return buildId.trim()
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        return '-'
-      } else {
-        throw err
-      }
-    }
+    const buildId = fs.readFileSync(buildIdPath, 'utf8')
+    return buildId.trim()
   }
 
   handleBuildId (buildId, res) {
@@ -308,8 +304,13 @@ export default class Server {
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }
-}
 
-function throwBuildIdMismatchError () {
-  throw new Error('BUILD_ID Mismatched!')
+  handleBuildHash (filename, hash, res) {
+    if (this.dev) return
+    if (hash !== this.buildStats[filename].hash) {
+      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+    }
+
+    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+  }
 }

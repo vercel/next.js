@@ -1,4 +1,4 @@
-# <img width="112" alt="Next.js" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
+<img width="112" alt="Next.js" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
 > A complete framework for universal JavaScript applications with zero setup.
 
@@ -64,7 +64,7 @@ Hereafter it takes __three simple steps__ to set up your app.
 
 ### Install the `next` Package
 
-First up, install Next.js and it's peer dependencies via [npm](https://npmjs.com/package/next):
+First up, install Next.js and its peer dependencies via [npm](https://npmjs.com/package/next):
 
 ```bash
 npm install next react react-dom --save
@@ -106,6 +106,7 @@ For production run `npm run build` and serve it via `npm start`. :boom:
 > - Automatic transpilation and bundling (with [Babel](https://babeljs.io/) and [webpack](https://webpack.js.org/))
 > - Hot code reloading
 > - Server rendering and indexing of `./pages/`
+> - Static file serving. `./static/` is mapped to `/static/`
 
 To see how simple it is, check out the [sample app - Nextgram](https://github.com/zeit/nextgram).
 
@@ -236,6 +237,8 @@ export default class Hello extends React.Component {
 }
 ```
 
+Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
+
 We expect the return value of `getInitialProps` to resolve to a JavaScript plain `Object` which then populates the page's `props`.
 
 :information_source: _`getInitialProps` will execute on the server or the client&mdash;never both. For the initial page load it will be executed on the server only. When navigation to a different route using the [routing APIs](#routing-client-side) it will be executed on the client only._
@@ -246,13 +249,12 @@ We expect the return value of `getInitialProps` to resolve to a JavaScript plain
 - `query: Object` &ndash; Query string section of URL, parsed as an object
 - `req?: Object` &ndash; HTTP request object (server only)
 - `res?: Object` &ndash; HTTP response object (server only)
-- `xhr?: Object` &ndash; `XMLHttpRequest` object (client only)
+- `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response)
 - `err?: Error` &ndash; `Error` object if any error is encountered during rendering
 
 ### Routing Client-Side
 
 #### Using `<Link/>` Component
-
 <p><details>
   <summary><b>Examples</b></summary>
   <ul>
@@ -262,6 +264,7 @@ We expect the return value of `getInitialProps` to resolve to a JavaScript plain
 
 Client-side transitions between routes may be enabled via the exposed `<Link>` component. Consider these two pages:
 
+
 ```jsx
 // pages/index.js
 import Link from 'next/link'
@@ -269,6 +272,7 @@ import Link from 'next/link'
 export default () => (
   <div>Click <Link href="/about"><a>here</a></Link> to read more</div>
 )
+
 ```
 
 ```jsx
@@ -281,32 +285,25 @@ export default () => (
 The `<Link>` component accepts the following `props`:
 
 - `href: string` &ndash; the path to link to.
-- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#customizing-server-routes).
-- `prefetch?: boolean` &ndash; Prefetches the route. Defaults to `false`. Read [more about prefetching](#prefetching-pages).
-
 :information_source: _The `<Link>` component doesn't implicitly render an `<a>` tag. This is so you can choose any element you'd like (e.g. `<button>`). Also, in case it's child is in fact an `<a>` element, the `href` property on `<Link>` gets passed down. This prevents you from having to repeat it._
-
+- `as?: string` &ndash; An optional _decoration_ of the URL. Useful if you configured [custom routes on the server](#customizing-server-routes).
 Client-side routing behaves exactly like the browser:
+- `prefetch?: boolean` &ndash; Prefetches the route. Defaults to `false`. Read [more about prefetching](#prefetching-pages).
 
 1. The component is fetched.
 2. If it defines [`getInitialProps`](#fetching-initial-data), data is fetched. If an error occurs, [`_error.js`](#handling-errors) is rendered.
 3. After 1 and 2 complete, [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) is performed and the new component rendered.
-
 :information_source: _For maximum performance use [`<Link prefetch/>`](#prefetching-pages) to link to and prefetch a page at the same time._
+
 
 #### Using `url` Property
 
 For routing imperatively each page component receives a `url` property, an object with the following API:
-
 - `pathname: string` &ndash; Current path excluding the query string
 - `query: Object` &ndash; Parsed query string. Defaults to `{}`.
-- `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
-- `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
-
 The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-link-component).
 
 #### Using `Router` Class
-
 <p><details>
   <summary><b>Examples</b></summary>
   <ul>
@@ -323,6 +320,7 @@ import Router from 'next/router'
 export default () => (
   <div>Click <span onClick={() => Router.push('/about')}>here</span> to read more.</div>
 )
+
 ```
 
 Above `Router` object comes with the following API:
@@ -330,8 +328,9 @@ Above `Router` object comes with the following API:
 - `route: string` &ndash; Current route.
 - `pathname: string` &ndash; Current path excluding the query string.
 - `query: Object` &ndash; Parsed query string. Defaults to `{}`.
-- `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()_method) call with the given url. Returns `true` on success, else `false`.
-- `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()_method) call with the given url. Returns `true` on success, else `false`.
+- `push(url: string, as?: string): boolean` &ndash; Performs a [`pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_pushState()) method call with the given url. Returns `true` on success, else `false`.
+- `replace(url: string, as?: string): boolean` &ndash; Performs a [`replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History_API#Example_of_replaceState()) method call with the given url. Returns `true` on success, else `false`.
+
 - `prefetch(url: string): Promise` &ndash; Prefetches a given url. Works analogous to the `prefetch` prop on [`<Link/>`](#using-link-component). [Read more here](#prefetching-pages).
 
 The `as` parameter for `push` and `replace` corresponds to the equally named [`<Link>` property](#using-link-component).
@@ -384,7 +383,48 @@ Router.onAppUpdated = (nextRoute) => {
 }
 ```
 
+##### Shallow Routing
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>
+  </ul>
+</details></p>
+
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+
+You can do this by invoking either `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
+
+```jsx
+// Current URL is "/"
+const href = '/?counter=10'
+const as = href
+Router.push(href, as, { shallow: true })
+```
+
+Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.url` inside the `Component`.
+
+You can watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
+
+```jsx
+componentWillReceiveProps(nextProps) {
+  const { pathname, query } = nextProps.url
+  // fetch data based on the new query
+}
+```
+
+> NOTES:
+>
+> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
+> ```js
+> Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
+> ```
+> Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even we asked to do shallow routing.
+
 #### Prefetching Pages
+
+(This is a production only feature)
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -569,8 +609,8 @@ import React from 'react'
 
 export default class Error extends React.Component {
 
-  static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
+  static getInitialProps ({ res, jsonPageRes }) {
+    const statusCode = res ? res.statusCode : (jsonPageRes ? jsonPageRes.status : null)
     const env = xhr ? 'client' : 'server'
 
     return { statusCode, env }
@@ -687,7 +727,7 @@ Here's an example `.babelrc` file:
 
 ## Production Deployment
 
-To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
+To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
 
 ```bash
 next build
@@ -711,6 +751,8 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 ```
 
 Then run `now` and enjoy!
+
+Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 :information_source: _We recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)._
 
