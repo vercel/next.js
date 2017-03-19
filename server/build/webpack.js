@@ -52,18 +52,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     // managing pages.
     if (dev) {
       for (const p of devPages) {
-        entries[join('bundles', p)] = `./${p}?entry`
+        entries[join('bundles', p)] = [`./${p}?entry`]
       }
     } else {
       for (const p of pages) {
-        entries[join('bundles', p)] = `./${p}?entry`
+        entries[join('bundles', p)] = [`./${p}?entry`]
       }
     }
 
     for (const p of defaultPages) {
       const entryName = join('bundles', 'pages', p)
       if (!entries[entryName]) {
-        entries[entryName] = [...defaultEntries, join(nextPagesDir, p) + '?entry']
+        entries[entryName] = [join(nextPagesDir, p) + '?entry']
       }
     }
 

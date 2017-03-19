@@ -71,7 +71,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       const pathname = await resolvePath(pagePath)
       const name = join('bundles', pathname.substring(dir.length))
 
-      const entry = `${pathname}?entry`
+      const entry = [`${pathname}?entry`]
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
