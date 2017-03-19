@@ -25,3 +25,5 @@ now
 ## The idea behind the example
 
 This example show how you can use Next.js inside an Electron application to avoid a lot of configuration, have routes and use server-render to speed up the initial render of the application.
+
+> **Warning**: This run a local server, so the user can access it from the browser. To avoid this we check the user-agent, but it's not 100% secure and can be skipped.
