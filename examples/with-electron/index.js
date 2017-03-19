@@ -16,7 +16,21 @@ function createWindow() {
   .then(() => {
     // create a server to handle every router with next
     // (usually you don't need pretty urls in electron)
-    const server = createServer((req, res) => handler(req, res))
+    // for security reasons we only allow GET requests
+    const server = createServer((req, res) => {
+      res.setHeader('Access-Control-Request-Method', 'GET')
+
+      if (req.method !== 'GET') {
+        res.writeHead(405)
+        res.end('Method Not Allowed')
+        return
+      }
+
+      return handler(req, res)
+    })
+
+    // the port should be random to avoid problems if
+    // it's already in use
     server.listen(3000, (error) => {
       if (error) throw error
 
