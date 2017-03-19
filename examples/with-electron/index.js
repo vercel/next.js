@@ -18,6 +18,14 @@ function createWindow() {
     // (usually you don't need pretty urls in electron)
     // for security reasons we only allow GET requests
     const server = createServer((req, res) => {
+      // if the request is not from an Electron app
+      // we response with a 404 status code
+      if (req.headers['user-agent'].indexOf('Electron') === -1) {
+        res.writeHead(404)
+        res.end()
+        return
+      }
+
       res.setHeader('Access-Control-Request-Method', 'GET')
 
       if (req.method !== 'GET') {
@@ -37,7 +45,7 @@ function createWindow() {
       // after the server starts create the electron browser window
       win = new BrowserWindow({
         height: 768,
-        width: 1024
+        width: 1024,
       })
 
       // open our server URL
