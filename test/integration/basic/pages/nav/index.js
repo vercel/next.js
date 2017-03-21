@@ -33,6 +33,7 @@ export default class extends Component {
         >
           <a id='query-string-link' style={linkStyle}>QueryString</a>
         </Link>
+        <Link href='/nav/about' replace><a id='about-replace-link' style={linkStyle}>Replace state</a></Link>
         <button
           onClick={() => this.visitQueryStringPage()}
           style={linkStyle}

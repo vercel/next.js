@@ -65,7 +65,7 @@ export class NextScript extends Component {
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
-      <script type='text/javascript' src={`/_next/${hash}/${filename}`} />
+      <script type='text/javascript' src={`/_next/${hash}/${filename}`} defer />
     )
   }
 
