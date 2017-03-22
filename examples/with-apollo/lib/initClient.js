@@ -2,7 +2,7 @@ import { ApolloClient, createNetworkInterface } from 'react-apollo'
 
 let apolloClient = null
 
-function _initClient (headers, initialState = {}) {
+function _initClient (headers, initialState) {
   return new ApolloClient({
     initialState,
     ssrMode: !process.browser,
@@ -17,7 +17,7 @@ function _initClient (headers, initialState = {}) {
   })
 }
 
-export const initClient = (headers, initialState) => {
+export const initClient = (headers, initialState = {}) => {
   if (!process.browser) {
     return _initClient(headers, initialState)
   }
