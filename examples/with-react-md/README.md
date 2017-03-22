@@ -1,6 +1,8 @@
 
 # Example app with react-md
 
+![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
+
 ## How to use
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
@@ -14,6 +16,7 @@ Install it and run:
 
 ```bash
 npm install
+ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
 npm run dev
 ```
 

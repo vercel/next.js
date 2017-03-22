@@ -223,7 +223,7 @@ _Note: `getInitialProps` can **not** be used in children components. Only in `pa
 - `query` - query string section of URL parsed as an object
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
-- `xhr` - XMLHttpRequest object (client only)
+- `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
 ### Routing
@@ -291,6 +291,16 @@ export default () => (
 ```
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
+
+The default behaviour for the `<Link>` component is to `push` a new url into the stack. You can use the `replace` prop to prevent adding a new entry.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href='/about' replace><a>here</a></Link> to read more</div>
+)
+```
 
 #### Imperatively
 
@@ -399,7 +409,7 @@ Router.onAppUpdated = (nextUrl) => {
   </ul>
 </details></p>
 
-Shallow routig allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
 
 You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
 
@@ -422,7 +432,7 @@ componentWillReceiveProps(nextProps) {
 ```
 
 > NOTES:
-> 
+>
 > Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
 > ```js
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
@@ -592,8 +602,8 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 ```jsx
 import React from 'react'
 export default class Error extends React.Component {
-  static getInitialProps ({ res, xhr }) {
-    const statusCode = res ? res.statusCode : (xhr ? xhr.status : null)
+  static getInitialProps ({ res, jsonPageRes }) {
+    const statusCode = res ? res.statusCode : (jsonPageRes ? jsonPageRes.status : null)
     return { statusCode }
   }
 
@@ -669,7 +679,7 @@ Here's an example `.babelrc` file:
 
 ## Production deployment
 
-To deploy, instead of running `next`, you probably want to build ahead of time. Therefore, building and starting are separate commands:
+To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
 
 ```bash
 next build
@@ -693,6 +703,8 @@ For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like f
 ```
 
 Then run `now` and enjoy!
+
+Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
 
