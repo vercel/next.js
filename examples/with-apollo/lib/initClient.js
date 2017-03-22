@@ -2,8 +2,9 @@ import { ApolloClient, createNetworkInterface } from 'react-apollo'
 
 let apolloClient = null
 
-function createClient (headers) {
+function createClient (headers, initialState = {}) {
   return new ApolloClient({
+    initialState,
     ssrMode: !process.browser,
     dataIdFromObject: result => result.id || null,
     networkInterface: createNetworkInterface({
@@ -16,12 +17,12 @@ function createClient (headers) {
   })
 }
 
-export const initClient = (headers) => {
+export const initClient = (headers, initialState) => {
   if (!process.browser) {
-    return createClient(headers)
+    return createClient(headers, initialState)
   }
   if (!apolloClient) {
-    apolloClient = createClient(headers)
+    apolloClient = createClient(headers, initialState)
   }
   return apolloClient
 }

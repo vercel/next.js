@@ -41,7 +41,7 @@ export default (Component) => (
 
     constructor (props) {
       super(props)
-      this.client = initClient(this.props.headers)
+      this.client = initClient(this.props.headers, this.props.initialState)
       this.store = initStore(this.client, this.props.initialState)
     }
 

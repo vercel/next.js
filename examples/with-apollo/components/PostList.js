@@ -5,6 +5,7 @@ const POSTS_PER_PAGE = 10
 
 function PostList ({ data: { allPosts, loading, _allPostsMeta }, loadMorePosts }) {
   if (allPosts && allPosts.length) {
+    console.log(allPosts.length)
     const areMorePosts = allPosts.length < _allPostsMeta.count
     return (
       <section>
@@ -96,12 +97,12 @@ export default graphql(allPosts, {
           skip: data.allPosts.length
         },
         updateQuery: (previousResult, { fetchMoreResult }) => {
-          if (!fetchMoreResult.data) {
+          if (!fetchMoreResult) {
             return previousResult
           }
           return Object.assign({}, previousResult, {
             // Append the new posts results to the old one
-            allPosts: [...previousResult.allPosts, ...fetchMoreResult.data.allPosts]
+            allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
           })
         }
       })
