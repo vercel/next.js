@@ -3,9 +3,9 @@
 
 ## How to use
 
-First, create a new Firebase project and copy and paste the config that it provides
-into firebaseConfig.js. For this example I've created a single database type called
-"posts", you'll need to create that for it to work.
+First, create a Firebase project and copy and paste the config that it generates
+into firebaseConfig.js. For this example I created a single database type called
+"posts", you'll need to do that for it to work.
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
