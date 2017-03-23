@@ -46,8 +46,8 @@ function runCompiler (compiler) {
 }
 
 async function writeBuildStats (dir) {
-  // Here we can't use the hash in chunks.
-  // That's because app.js has no related chunk.
+  // Here we can't use the hashes in the webpack chunks.
+  // That's because the "app.js" is not tight with a chunk.
   // It's created with merging the few assets. (commons.js and main.js)
   // So, we need to generate the hash ourself.
   const assetHashMap = {

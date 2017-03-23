@@ -65,7 +65,11 @@ export class NextScript extends Component {
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
-      <script type='text/javascript' src={`/_next/${hash}/${filename}`} {...additionalProps} />
+      <script
+        type='text/javascript'
+        src={`/_next/${hash}/${filename}`}
+        {...additionalProps}
+      />
     )
   }
 
@@ -80,7 +84,7 @@ export class NextScript extends Component {
       )
     }
 
-    // In the production mode, we have a single asset
+    // In the production mode, we have a single asset with all the JS content.
     // So, we can load the script with async
     return this.getChunkScript('app.js', { async: true })
   }
