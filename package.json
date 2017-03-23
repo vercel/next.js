@@ -89,7 +89,7 @@
     "write-file-webpack-plugin": "4.0.0"
   },
   "devDependencies": {
-    "babel-eslint": "7.1.1",
+    "babel-eslint": "7.2.0",
     "babel-jest": "18.0.0",
     "babel-plugin-istanbul": "4.1.1",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
