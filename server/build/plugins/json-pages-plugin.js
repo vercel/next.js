@@ -1,9 +1,18 @@
+import getConfig from '../../config'
+
 export default class JsonPagesPlugin {
+  constructor (dir) {
+    this.config = getConfig(dir)
+  }
+
   apply (compiler) {
     compiler.plugin('after-compile', (compilation, callback) => {
+      const regex = new RegExp(`^bundles/${this.config.pagesDirectory}.*.js$`)
       const pages = Object
         .keys(compilation.assets)
-        .filter((filename) => /^bundles[/\\]pages.*\.js$/.test(filename))
+        .filter((filename) => {
+          return filename.match(regex)
+        })
 
       pages.forEach((pageName) => {
         const page = compilation.assets[pageName]

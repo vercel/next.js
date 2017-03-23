@@ -1,4 +1,5 @@
 import { resolve, relative } from 'path'
+import getConfig from '../../config'
 
 module.exports = function (content, sourceMap) {
   this.cacheable()
@@ -34,7 +35,9 @@ module.exports = function (content, sourceMap) {
 const nextPagesDir = resolve(__dirname, '..', '..', '..', 'pages')
 
 function getRoute (loaderContext) {
-  const pagesDir = resolve(loaderContext.options.context, 'pages')
+  const config = getConfig(loaderContext.options.context)
+  const pagesDirectory = config.pagesDirectory
+  const pagesDir = resolve(loaderContext.options.context, pagesDirectory)
   const { resourcePath } = loaderContext
   const dir = [pagesDir, nextPagesDir]
   .find((d) => resourcePath.indexOf(d) === 0)

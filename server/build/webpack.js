@@ -19,9 +19,6 @@ const defaultPages = [
 ]
 const nextPagesDir = join(__dirname, '..', '..', 'pages')
 const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
-const interpolateNames = new Map(defaultPages.map((p) => {
-  return [join(nextPagesDir, p), `dist/pages/${p}`]
-}))
 
 const relativeResolve = rootModuleRelativePath(require)
 
@@ -34,6 +31,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   ] : []
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
+  const interpolateNames = new Map(defaultPages.map((p) => {
+    return [join(nextPagesDir, p), `dist/${config.pagesDirectory}/${p}`]
+  }))
 
   let minChunks
 
@@ -45,8 +45,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       ]
     }
 
-    const pages = await glob('pages/**/*.js', { cwd: dir })
-    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+    const pages = await glob(`${config.pagesDirectory}/**/*.js`, { cwd: dir })
+    const devPages = pages.filter((p) => p === `${config.pagesDirectory}/_document.js` || p === `${config.pagesDirectory}/_error.js`)
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
@@ -61,7 +61,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }
 
     for (const p of defaultPages) {
-      const entryName = join('bundles', 'pages', p)
+      const entryName = join('bundles', config.pagesDirectory, p)
       if (!entries[entryName]) {
         entries[entryName] = [join(nextPagesDir, p) + '?entry']
       }
@@ -104,7 +104,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
-    new JsonPagesPlugin(),
+    new JsonPagesPlugin(dir),
     new CaseSensitivePathPlugin()
   ]
 
@@ -158,7 +158,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
-      join(dir, 'pages'),
+      join(dir, config.pagesDirectory),
       nextPagesDir
     ]
   }, {

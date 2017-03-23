@@ -102,7 +102,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/pages/:path*': async (req, res, params) => {
+      [`/_next/:buildId/${this.config.pagesDirectory}/:path*`]: async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify({ buildIdMismatch: true }))
@@ -300,7 +300,7 @@ export default class Server {
     const errors = this.hotReloader.getCompilationErrors()
     if (!errors.size) return
 
-    const id = join(this.dir, '.next', 'bundles', 'pages', page)
+    const id = join(this.dir, '.next', 'bundles', this.config.pagesDirectory, page)
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }

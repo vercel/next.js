@@ -4,6 +4,7 @@ import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
+import getConfig from '../server/config'
 import { printAndExit } from '../lib/utils'
 import pkgUp from 'pkg-up'
 
@@ -40,18 +41,20 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
+const config = getConfig(dir)
+const pagesDirectory = config.pagesDirectory
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
   printAndExit(`> No such directory exists as the project root: ${dir}`)
 }
 
-if (!existsSync(join(dir, 'pages'))) {
-  if (existsSync(join(dir, '..', 'pages'))) {
-    printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+if (!existsSync(join(dir, pagesDirectory))) {
+  if (existsSync(join(dir, '..', pagesDirectory))) {
+    printAndExit(`> No \`${pagesDirectory}\` directory found. Did you mean to run \`next\` in the parent (\`../\`) directory?`)
   }
 
-  printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+  printAndExit(`> Couldn't find a \`${pagesDirectory}\` directory. Please create one under the project root`)
 }
 
 const srv = new Server({ dir, dev: true })
