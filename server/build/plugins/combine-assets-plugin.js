@@ -1,19 +1,21 @@
+// This pulgin merge a set of assets into a single asset
+// This should be only used with text assets,
+// otherwise the result is unpredictable.
 export default class CombineAssetsPlugin {
+  constructor ({ input, output }) {
+    this.input = input
+    this.output = output
+  }
+
   apply (compiler) {
     compiler.plugin('after-compile', (compilation, callback) => {
-      const input = [
-        'commons.js',
-        'main.js'
-      ]
-      const output = 'app.js'
-
       let newSource = ''
-      input.forEach((name) => {
+      this.input.forEach((name) => {
         newSource += `${compilation.assets[name].source()}\n`
         delete compilation.assets[name]
       })
 
-      compilation.assets[output] = {
+      compilation.assets[this.output] = {
         source: () => newSource,
         size: () => newSource.length
       }

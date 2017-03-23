@@ -120,7 +120,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }
   } else {
     plugins.push(
-      new CombineAssetsPlugin(),
+      new CombineAssetsPlugin({
+        input: ['commons.js', 'main.js'],
+        output: 'app.js'
+      }),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false

@@ -80,6 +80,8 @@ export class NextScript extends Component {
       )
     }
 
+    // In the production mode, we have a single asset
+    // So, we can load the script with async
     return this.getChunkScript('app.js', { async: true })
   }
 
