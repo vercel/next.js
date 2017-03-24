@@ -7,6 +7,7 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
+import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
 import findBabelConfig from './babel/find-config'
@@ -119,6 +120,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }
   } else {
     plugins.push(
+      new CombineAssetsPlugin({
+        input: ['commons.js', 'main.js'],
+        output: 'app.js'
+      }),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false

@@ -59,14 +59,34 @@ export class NextScript extends Component {
     _documentProps: PropTypes.any
   }
 
-  getChunkScript (filename) {
+  getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
     let { buildStats } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
-      <script type='text/javascript' src={`/_next/${hash}/${filename}`} defer />
+      <script
+        type='text/javascript'
+        src={`/_next/${hash}/${filename}`}
+        {...additionalProps}
+      />
     )
+  }
+
+  getScripts () {
+    const { dev } = this.context._documentProps
+    if (dev) {
+      return (
+        <div>
+          { this.getChunkScript('commons.js') }
+          { this.getChunkScript('main.js') }
+        </div>
+      )
+    }
+
+    // In the production mode, we have a single asset with all the JS content.
+    // So, we can load the script with async
+    return this.getChunkScript('app.js', { async: true })
   }
 
   render () {
@@ -76,8 +96,7 @@ export class NextScript extends Component {
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
-      { staticMarkup ? null : this.getChunkScript('commons.js') }
-      { staticMarkup ? null : this.getChunkScript('main.js') }
+      {staticMarkup ? null : this.getScripts()}
     </div>
   }
 }
