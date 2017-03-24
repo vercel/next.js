@@ -8,12 +8,11 @@ export default class Homepage extends Component {
   static async getInitialProps ({ req }) {
     const isServer = !!req
     const translations = await getTranslation('pt', 'common', 'http://localhost:3000/static/locales/')
-    const i18n = startI18n(translations, isServer)
 
     return { isServer, translations }
   }
 
-  constructor(props) {
+  constructor (props) {
     super(props)
 
     this.i18n = startI18n(props.translations)
@@ -21,7 +20,7 @@ export default class Homepage extends Component {
 
   render (props) {
     return (
-      <I18nextProvider i18n={ this.i18n }>
+      <I18nextProvider i18n={this.i18n}>
         <Title />
       </ I18nextProvider>
     )

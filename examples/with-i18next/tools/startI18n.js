@@ -8,7 +8,7 @@ const startI18n = file => {
     ns: ['common'],
     defaultNS: 'common',
     debug: false
-  });
+  })
 }
 
-export default startI18n;
+export default startI18n
