@@ -1,4 +1,4 @@
-// This pulgin combines a set of assets into a single asset
+// This plugin combines a set of assets into a single asset
 // This should be only used with text assets,
 // otherwise the result is unpredictable.
 export default class CombineAssetsPlugin {
