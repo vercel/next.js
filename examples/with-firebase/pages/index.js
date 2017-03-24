@@ -5,27 +5,27 @@ import Header from '../components/header'
 import withFirebase from '../components/withFirebase'
 
 class Index extends Component {
-  constructor() {
+  constructor () {
     super()
     this.state = {
-      value: '',
+      value: ''
     }
     this.handleChange = this.handleChange.bind(this)
     this.handleSubmit = this.handleSubmit.bind(this)
   }
 
-  handleChange(e) {
+  handleChange (e) {
     this.setState({ value: e.target.value })
   }
 
-  handleSubmit(e) {
+  handleSubmit (e) {
     e.preventDefault()
     const { value } = this.state
     database().ref('posts').push({ text: value })
     this.setState({ value: '' })
   }
 
-  render() {
+  render () {
     const { user, posts } = this.props
     const { value } = this.state
 
@@ -37,7 +37,7 @@ class Index extends Component {
           ? <div>
             <form onSubmit={this.handleSubmit}>
               <label>Add a post</label>
-              <input type="text" onChange={this.handleChange} value={value} />
+              <input type={'text'} onChange={this.handleChange} value={value} />
             </form>
             <ul>
               { posts &&

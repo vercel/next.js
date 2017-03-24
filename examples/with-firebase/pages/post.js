@@ -3,7 +3,7 @@ import withFirebase from '../components/withFirebase'
 import Header from '../components/header'
 
 class Post extends Component {
-  render() {
+  render () {
     const { url: { query: { id } }, posts, user } = this.props
     return <div>
       <Header user={user} />

@@ -12,31 +12,31 @@ try {
 
 const store = {
   user: null,
-  posts: null,
+  posts: null
 }
 
-export default function withFirebase(WrappedComponent) {
+export default function withFirebase (WrappedComponent) {
   return class extends Component {
-    constructor(props) {
+    constructor (props) {
       super(props)
       this.state = {
         user: store.user,
-        messages: store.messages,
+        messages: store.messages
       }
       this.updateUserState = this.updateUserState.bind(this)
       this.updateMessages = this.updateMessages.bind(this)
     }
 
-    componentDidMount() {
+    componentDidMount () {
       this.unsubscribe = auth().onAuthStateChanged(this.updateUserState)
     }
 
-    componentWillUnmount() {
+    componentWillUnmount () {
       this.unsubscribe()
       database().ref('posts').off()
     }
 
-    updateUserState(user) {
+    updateUserState (user) {
       if (user) {
         database().ref('posts').on('value', snap => this.updateMessages(snap.val()))
       } else {
@@ -46,12 +46,12 @@ export default function withFirebase(WrappedComponent) {
       this.setState({ user })
     }
 
-    updateMessages(posts) {
+    updateMessages (posts) {
       store.messages = posts
       this.setState({ posts })
     }
 
-    render() {
+    render () {
       const { user, posts } = this.state
       return <WrappedComponent user={user} posts={posts} {...this.props} />
     }

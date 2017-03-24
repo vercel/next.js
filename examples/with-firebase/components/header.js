@@ -1,20 +1,20 @@
-import React, { PropTypes } from 'react'
+import React from 'react'
 import { auth } from 'firebase'
 import Link from 'next/link'
 
 const provider = new auth.GoogleAuthProvider()
 
-function login() {
+function login () {
   auth().signInWithPopup(provider)
 }
 
-function logout() {
+function logout () {
   auth().signOut()
 }
 
 export default ({ user }) => (
   <header>
-    <Link href="/"><a>Home</a></Link>
+    <Link href={'/'}><a>Home</a></Link>
     {
       user
       ? <button onClick={logout}>Sign out</button>
