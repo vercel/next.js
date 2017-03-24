@@ -1,14 +1,14 @@
 import React, { Component } from 'react'
 import { I18nextProvider } from 'react-i18next'
-import startI18n from './i18n'
+import startI18n from '../tools/startI18n'
 import { getTranslation } from '../tools/translationHelpers'
+import Title from '../components/Title'
 
 export default class Homepage extends Component {
   static async getInitialProps ({ req }) {
     const isServer = !!req
-    const translations = await getTranslation('en', 'common')
+    const translations = await getTranslation('pt', 'common', 'http://localhost:3000/static/locales/')
     const i18n = startI18n(translations, isServer)
-
 
     return { isServer, translations }
   }
@@ -22,7 +22,7 @@ export default class Homepage extends Component {
   render (props) {
     return (
       <I18nextProvider i18n={ this.i18n }>
-        <h1>hello world</h1>
+        <Title />
       </ I18nextProvider>
     )
   }
