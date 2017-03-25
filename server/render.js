@@ -142,9 +142,9 @@ function errorToJSON (err) {
   const { name, message, stack } = err
   const json = { name, message, stack }
 
-  if (name === 'ModuleBuildError') {
-    // webpack compilation error
-    const { module: { rawRequest } } = err
+  if (err.module) {
+    // rawRequest contains the filename of the module which has the error.
+    const { rawRequest } = err.module
     json.module = { rawRequest }
   }
 
