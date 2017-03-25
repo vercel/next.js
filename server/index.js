@@ -102,6 +102,12 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
+      '/_next/:hash/app.js': async (req, res, params) => {
+        this.handleBuildHash('app.js', params.hash, res)
+        const p = join(this.dir, '.next/app.js')
+        await this.serveStatic(req, res, p)
+      },
+
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           res.setHeader('Content-Type', 'application/json')

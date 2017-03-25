@@ -5,14 +5,15 @@ import uuid from 'uuid'
 import del from 'del'
 import webpack from './webpack'
 import replaceCurrentBuild from './replace'
+import md5File from 'md5-file/promise'
 
 export default async function build (dir) {
   const buildDir = join(tmpdir(), uuid.v4())
   const compiler = await webpack(dir, { buildDir })
 
   try {
-    const webpackStats = await runCompiler(compiler)
-    await writeBuildStats(buildDir, webpackStats)
+    await runCompiler(compiler)
+    await writeBuildStats(buildDir)
     await writeBuildId(buildDir)
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)
@@ -44,17 +45,18 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildStats (dir, webpackStats) {
-  const chunkHashMap = {}
-  webpackStats.chunks
-    // We are not interested about pages
-    .filter(({ files }) => !/^bundles/.test(files[0]))
-    .forEach(({ hash, files }) => {
-      chunkHashMap[files[0]] = { hash }
-    })
-
+async function writeBuildStats (dir) {
+  // Here we can't use hashes in webpack chunks.
+  // That's because the "app.js" is not tied to a chunk.
+  // It's created by merging a few assets. (commons.js and main.js)
+  // So, we need to generate the hash ourself.
+  const assetHashMap = {
+    'app.js': {
+      hash: await md5File(join(dir, '.next', 'app.js'))
+    }
+  }
   const buildStatsPath = join(dir, '.next', 'build-stats.json')
-  await fs.writeFile(buildStatsPath, JSON.stringify(chunkHashMap), 'utf8')
+  await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
 }
 
 async function writeBuildId (dir) {

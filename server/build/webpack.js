@@ -7,6 +7,7 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import JsonPagesPlugin from './plugins/json-pages-plugin'
+import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
 import findBabelConfig from './babel/find-config'
@@ -52,18 +53,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     // managing pages.
     if (dev) {
       for (const p of devPages) {
-        entries[join('bundles', p)] = `./${p}?entry`
+        entries[join('bundles', p)] = [`./${p}?entry`]
       }
     } else {
       for (const p of pages) {
-        entries[join('bundles', p)] = `./${p}?entry`
+        entries[join('bundles', p)] = [`./${p}?entry`]
       }
     }
 
     for (const p of defaultPages) {
       const entryName = join('bundles', 'pages', p)
       if (!entries[entryName]) {
-        entries[entryName] = [...defaultEntries, join(nextPagesDir, p) + '?entry']
+        entries[entryName] = [join(nextPagesDir, p) + '?entry']
       }
     }
 
@@ -119,6 +120,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }
   } else {
     plugins.push(
+      new CombineAssetsPlugin({
+        input: ['commons.js', 'main.js'],
+        output: 'app.js'
+      }),
       new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
