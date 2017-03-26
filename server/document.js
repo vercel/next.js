@@ -78,7 +78,6 @@ export class NextScript extends Component {
     if (dev) {
       return (
         <div>
-          { this.getChunkScript('manifest.js') }
           { this.getChunkScript('commons.js') }
           { this.getChunkScript('main.js') }
         </div>

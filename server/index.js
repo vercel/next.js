@@ -90,12 +90,6 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/manifest.js': async (req, res, params) => {
-        this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, '.next/manifest.js')
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/:hash/main.js': async (req, res, params) => {
         this.handleBuildHash('main.js', params.hash, res)
         const p = join(this.dir, '.next/main.js')

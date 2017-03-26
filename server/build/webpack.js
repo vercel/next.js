@@ -93,25 +93,14 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
-        // Instead, we move all the code in node_modules into this chunk.
-        // With that, we could gain better performance for page-rebuild process.
-        if (dev) {
-          return module.context && module.context.indexOf('node_modules') >= 0
-        }
+        // In the dev we use on-deman-entries.
+        // So, it makes no sense to use commonChunks with that.
+        if (dev) return false
 
         // NOTE: it depends on the fact that the entry funtion is always called
         // before applying CommonsChunkPlugin
         return count >= minChunks
       }
-    }),
-    // This chunk contains all the webpack related code. So, all the changes
-    // related to that happens to this chunk.
-    // It won't touch commons.js and that gives us much better re-build perf.
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'manifest',
-      filename: 'manifest.js'
     }),
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
@@ -132,7 +121,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   } else {
     plugins.push(
       new CombineAssetsPlugin({
-        input: ['manifest.js', 'commons.js', 'main.js'],
+        input: ['commons.js', 'main.js'],
         output: 'app.js'
       }),
       new webpack.optimize.UglifyJsPlugin({
