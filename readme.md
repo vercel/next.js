@@ -6,8 +6,6 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
-_**NOTE! the README on the `master` branch might not match that of the [latest stable release](https://github.com/zeit/next.js/releases/latest)!**_
-
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 <!-- https://github.com/thlorenz/doctoc -->
@@ -712,7 +710,7 @@ Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, u
 
 <details>
   <summary>Is this production ready?</summary>
-  Next.js has been powering `https://zeit.co` since its inception.
+  Next.js has been powering https://zeit.co since its inception.
 
   We’re ecstatic about both the developer experience and end-user performance, so we decided to share it with the community.
 </details>

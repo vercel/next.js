@@ -58,6 +58,12 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('Zeit')).toBeTruthy()
     })
 
+    test('default export is not a React Component', async () => {
+      const $ = await get$('/no-default-export')
+      const pre = $('pre')
+      expect(pre.text()).toMatch(/The default export is not a React Component/)
+    })
+
     test('error', async () => {
       const $ = await get$('/error')
       expect($('pre').text()).toMatch(/This is an expected error/)
