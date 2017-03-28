@@ -540,7 +540,7 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
-- `next(path: string, opts: object)` - `path` is
+- `next(path: string, opts: object)` - `path` is where the Next project is located
 - `next(opts: object)`
 
 Supported options:
