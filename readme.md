@@ -73,7 +73,7 @@ export default () => (
 )
 ```
 
-and then just run `npm run dev` and go to `http://localhost:3000`
+and then just run `npm run dev` and go to `http://localhost:3000`.  For another port, run `npm run dev -- -p 3001`.
 
 So far, we get:
 
