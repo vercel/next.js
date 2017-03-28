@@ -109,7 +109,7 @@
     "jest-cli": "19.0.1",
     "node-fetch": "1.6.3",
     "node-notifier": "5.1.2",
-    "nyc": "10.0.0",
+    "nyc": "10.2.0",
     "react": "15.4.2",
     "react-dom": "15.4.2",
     "standard": "9.0.2",
