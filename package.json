@@ -33,13 +33,17 @@
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
-    "precommit": "npm run lint"
+    "precommit": "lint-staged"
   },
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**"
     ]
+  },
+  "lint-staged": {
+    "*.js": "standard",
+    "bin/*": "standard"
   },
   "dependencies": {
     "ansi-html": "0.0.7",
@@ -107,6 +111,7 @@
     "fly-watch": "1.1.1",
     "husky": "0.13.3",
     "jest-cli": "19.0.1",
+    "lint-staged": "^3.4.0",
     "node-fetch": "1.6.3",
     "node-notifier": "5.1.2",
     "nyc": "10.0.0",
