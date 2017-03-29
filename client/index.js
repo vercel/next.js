@@ -4,7 +4,6 @@ import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
-import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import ErrorDebugComponent from '../lib/error-debug'
 
@@ -19,8 +18,6 @@ if (!window.Promise) {
 
 const {
   __NEXT_DATA__: {
-    component,
-    errorComponent,
     props,
     err,
     pathname,
@@ -29,15 +26,11 @@ const {
   location
 } = window
 
-const Component = evalScript(component).default
-const ErrorComponent = evalScript(errorComponent).default
+let Component
+let ErrorComponent
 let lastAppProps
 
-export const router = createRouter(pathname, query, getURL(), {
-  Component,
-  ErrorComponent,
-  err
-})
+export let router
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
@@ -45,13 +38,31 @@ const errorContainer = document.getElementById('__next-error')
 
 export default () => {
   const emitter = mitt()
+  window.__NEXT_DATA__.emitter = emitter
 
-  router.subscribe(({ Component, props, hash, err }) => {
-    render({ Component, props, err, hash, emitter })
+  emitter.on('page-loaded', (name) => {
+    if (name.endsWith('_error.js')) {
+      ErrorComponent = window.__NEXT_DATA__[name]
+    } else {
+      Component = window.__NEXT_DATA__[name]
+    }
+
+    if (Component && ErrorComponent) {
+      const hash = location.hash.substring(1)
+
+      router = createRouter(pathname, query, getURL(), {
+        Component,
+        ErrorComponent,
+        err
+      })
+
+      router.subscribe(({Component, props, hash, err}) => {
+        render({Component, props, err, hash, emitter})
+      })
+
+      render({Component, props, hash, err, emitter})
+    }
   })
-
-  const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
 
   return emitter
 }
@@ -76,7 +87,7 @@ export async function render (props) {
 export async function renderError (error) {
   const prod = process.env.NODE_ENV === 'production'
   // We need to unmount the current app component because it's
-  // in the inconsistant state.
+  // in the inconsistent state.
   // Otherwise, we need to face issues when the issue is fixed and
   // it's get notified via HMR
   ReactDOM.unmountComponentAtNode(appContainer)
