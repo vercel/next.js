@@ -1,5 +1,6 @@
 const express = require('express')
 const next = require('next')
+const { parse } = require('url')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
@@ -18,7 +19,7 @@ app.prepare()
   })
 
   server.get('*', (req, res) => {
-    return handle(req, res)
+    return handle(req, res, parse(req.url, true))
   })
 
   server.listen(3000, (err) => {
