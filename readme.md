@@ -215,7 +215,7 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
-You can also define the `getInitialProps` lyfecicle method for stateless components:
+You can also define the `getInitialProps` lifecycle method for stateless components:
 
 ```jsx
 const Page = ({ stars }) => <div>Next stars: {stars}</div>
