@@ -27,7 +27,7 @@ now
 ## The idea behind the example
 
 This example, just like `with-react` and `with-mobx` examples, shows how to manage a global state in your web-application. 
-In this case we are using refnux which is an alternative, simpler, purely functional store state manager.
+In this case we are using [refnux](https://github.com/algesten/refnux) which is an alternative, simpler, purely functional store state manager.
 
 We have two very similar pages (page1.js, page2.js). They both
 

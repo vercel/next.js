@@ -5,8 +5,10 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "express": "^4.14.1",
-    "next": "^2.0.0-beta.23",
-    "next-url-prettifier": "^1.0.2"
+    "express": "^4.15.2",
+    "next": "^2.0.0",
+    "next-url-prettifier": "^1.0.2",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
   }
 }
