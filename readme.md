@@ -215,6 +215,20 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
+You can also define the `getInitialProps` lifecycle method for stateless components:
+
+```jsx
+const Page = ({ stars }) => <div>Next stars: {stars}</div>
+
+Page.getInitialProps = async ({ req }) => {
+  const res = await fetch('https://api.github.com/repos/zeit/next.js')
+  const json = await res.json()
+  return { stars: json.stargazers_count }
+}
+
+export default Page
+```
+
 `getInitialProps` receives a context object with the following properties:
 
 - `pathname` - path section of URL
