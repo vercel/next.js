@@ -1,6 +1,6 @@
 {
-  "name": "with-apollo",
-  "version": "1.0.1",
+  "name": "with-apollo-and-redux",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,7 +10,8 @@
     "graphql": "^0.9.1",
     "next": "^2.0.0-beta",
     "react": "^15.4.2",
-    "react-apollo": "^1.0.0-rc.3"
+    "react-apollo": "^1.0.0-rc.2",
+    "redux": "^3.6.0"
   },
   "author": "",
   "license": "ISC"
