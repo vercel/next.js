@@ -50,7 +50,7 @@
     "babel-core": "6.24.0",
     "babel-generator": "6.24.0",
     "babel-loader": "6.4.1",
-    "babel-plugin-module-resolver": "2.6.0",
+    "babel-plugin-module-resolver": "2.6.2",
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-class-properties": "6.22.0",
     "babel-plugin-transform-es2015-modules-commonjs": "6.24.0",
