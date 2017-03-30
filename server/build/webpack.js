@@ -280,7 +280,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       }
     },
     resolve: {
-      extensions: ['', '.js', '.json'],
+      extensions: ['.js', '.json'],
       modules: [
         nextNodeModulesDir,
         'node_modules',
