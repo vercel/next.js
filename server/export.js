@@ -108,6 +108,9 @@
     // copy component bundle over
      await fs.copy(bundlePath, join(htmlPath, 'index.json'))
    }))
+
+   // copy over the static/
+   await fs.copy(join(root, 'static'), join(exportPath, 'static'))
  }
 
 // Turn the path into a route
