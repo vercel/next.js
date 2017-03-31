@@ -38,8 +38,7 @@ export const router = createRouter(pathname, query, getURL(), {
   ErrorComponent,
   err,
   formatURL: exported && function (buildId, route) {
-    route = route && route.replace(/\/$/, '')
-    return route + '/index.json'
+    return route ? route.replace(/\/$/, '') + '/index.json' : '/index.json'
   }
 })
 
