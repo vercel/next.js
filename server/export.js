@@ -45,7 +45,7 @@
      const pageName = getPageName(pageDir, page)
      const Component = require(page).default
      const query = {}
-     const ctx = { pathname, query, export: true }
+     const ctx = { pathname, query, build: true }
      const bundlePath = await resolve(join(nextPath, 'bundles', 'pages', pageName))
 
      const [

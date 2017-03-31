@@ -39,7 +39,7 @@ const dir = resolve(root, argv._[0] || 'build')
 
 // Check if pages dir exists and warn if not
 if (!existsSync(root)) {
-  printAndExit(`> No such directory exists as the project root: ${dir}`)
+  printAndExit(`> No such directory exists as the project root: ${root}`)
 }
 
 if (!existsSync(join(root, 'pages'))) {
