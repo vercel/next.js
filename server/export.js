@@ -21,13 +21,13 @@
 
  export default async function Export ({
   staticMarkup = false,
-  root = process.cwd(),
-  dir = 'build',
+  dir = process.cwd(),
+  out = 'site',
   dev = false
 } = {}) {
-   const nextPath = join(root, '.next')
+   const nextPath = join(dir, '.next')
    const pageDir = join(nextPath, 'dist', 'pages')
-   const exportPath = pathResolve(root, dir)
+   const exportPath = pathResolve(dir, out)
 
    let pages = await glob(join(pageDir, '**', '*.js'))
    pages = pages.filter(page => basename(page)[0] !== '_')
@@ -45,7 +45,7 @@
      const pageName = getPageName(pageDir, page)
      const Component = require(page).default
      const query = {}
-     const ctx = { pathname, query, build: true }
+     const ctx = { pathname, query }
      const bundlePath = await resolve(join(nextPath, 'bundles', 'pages', pageName))
 
      const [
@@ -110,7 +110,7 @@
    }))
 
    // copy over the static/
-   await fs.copy(join(root, 'static'), join(exportPath, 'static'))
+   await fs.copy(join(dir, 'static'), join(exportPath, 'static'))
  }
 
 // Turn the path into a route
