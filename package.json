@@ -61,7 +61,7 @@
     "babel-preset-latest": "6.24.0",
     "babel-preset-react": "6.23.0",
     "babel-runtime": "6.23.0",
-    "case-sensitive-paths-webpack-plugin": "1.1.4",
+    "case-sensitive-paths-webpack-plugin": "2.0.0",
     "cross-spawn": "5.1.0",
     "del": "2.2.2",
     "friendly-errors-webpack-plugin": "1.5.0",
