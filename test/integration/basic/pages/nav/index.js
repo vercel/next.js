@@ -27,6 +27,7 @@ export default class extends Component {
         <Link href='/empty-get-initial-props'><a id='empty-props' style={linkStyle}>Empty Props</a></Link>
         <Link href='/nav/self-reload'><a id='self-reload-link' style={linkStyle}>Self Reload</a></Link>
         <Link href='/nav/shallow-routing'><a id='shallow-routing-link' style={linkStyle}>Shallow Routing</a></Link>
+        <Link href='/nav/redirect'><a id='redirect-link' style={linkStyle}>Redirect</a></Link>
         <Link
           href={{ pathname: '/nav/querystring', query: { id: 10 } }}
           as={{ pathname: '/nav/querystring/10', hash: '10' }}
