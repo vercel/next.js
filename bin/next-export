@@ -29,7 +29,7 @@ if (argv.help) {
     If no directory is provided, <dir> will be <root>/build.
 
     <root> represents where the compiled <dir> folder should go.
-    If no directory is provided, .next will be created in the current directory.
+    If no directory is provided, <root> will be the current directory.
   `)
   process.exit(0)
 }
