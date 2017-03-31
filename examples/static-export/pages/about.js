@@ -12,7 +12,7 @@ export default class About extends Component {
     return {}
   }
 
-  static async getBuildProps (ctx) {
+  static async getStaticInitialProps (ctx) {
     console.log('build props', ctx)
     return {}
   }
