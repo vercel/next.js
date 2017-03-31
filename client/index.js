@@ -18,6 +18,7 @@ if (!window.Promise) {
 
 const {
   __NEXT_DATA__: {
+    exported,
     component,
     errorComponent,
     props,
@@ -35,7 +36,11 @@ let lastAppProps
 export const router = createRouter(pathname, query, getURL(), {
   Component,
   ErrorComponent,
-  err
+  err,
+  formatURL: exported && function (buildId, route) {
+    route = route && route.replace(/\/$/, '')
+    return route + '/index.json'
+  }
 })
 
 const headManager = new HeadManager()

@@ -61,13 +61,13 @@ export class NextScript extends Component {
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats } = __NEXT_DATA__
+    let { buildStats, exported } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
       <script
         type='text/javascript'
-        src={`/_next/${hash}/${filename}`}
+        src={exported ? `/${filename}` : `/_next/${hash}/${filename}`}
         {...additionalProps}
       />
     )
