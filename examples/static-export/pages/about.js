@@ -7,17 +7,13 @@ export default class About extends Component {
     this.state = {}
   }
 
-  static async getInitialProps ({ build }) {
-    // this will get triggered on export!
-    // useful for pulling in markdown files
-    // during the build and doing other
-    // custom logic
-    if (build) return {}
+  static async getInitialProps (ctx) {
+    console.log('loading about!', ctx)
+    return {}
+  }
 
-    // Errors during the build will halt the build
-    // Errors on the client-side will get routed to "An unexpected error has occurred."
-    // throw new Error("can't build on client-side!")
-
+  static async getBuildProps (ctx) {
+    console.log('build props', ctx)
     return {}
   }
 

@@ -4,7 +4,7 @@
 
  import { join, basename, dirname, extname, relative, resolve as pathResolve } from 'path'
  import { renderToString, renderToStaticMarkup } from 'react-dom/server'
- import { loadGetInitialProps } from '../lib/utils'
+ import { loadGetBuildProps } from '../lib/utils'
  import Head, { defaultHead } from '../lib/head'
  import { Router } from '../lib/router'
  import { createElement } from 'react'
@@ -53,7 +53,7 @@
       component,
       errorComponent
     ] = await Promise.all([
-      loadGetInitialProps(Component, ctx),
+      loadGetBuildProps(Component, ctx),
       readPage(bundlePath),
       readPage(join(nextPath, 'bundles', 'pages', '_error'))
     ])
@@ -79,7 +79,7 @@
        return { html, head }
      }
 
-     const docProps = await loadGetInitialProps(Document, Object.assign(ctx, { renderPage }))
+     const docProps = await loadGetBuildProps(Document, Object.assign(ctx, { renderPage }))
      const doc = createElement(Document, Object.assign({
        __NEXT_DATA__: {
          component: component,
