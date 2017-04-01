@@ -6,7 +6,6 @@ import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
-import ErrorDebugComponent from '../lib/error-debug'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -40,57 +39,33 @@ export const router = createRouter(pathname, query, getURL(), {
 })
 
 const headManager = new HeadManager()
-const appContainer = document.getElementById('__next')
-const errorContainer = document.getElementById('__next-error')
+const container = document.getElementById('__next')
 
-export default () => {
+export default (onError) => {
   const emitter = mitt()
 
   router.subscribe(({ Component, props, hash, err }) => {
-    render({ Component, props, err, hash, emitter })
+    render({ Component, props, err, hash, emitter }, onError)
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
+  render({ Component, props, hash, err, emitter }, onError)
 
   return emitter
 }
 
-export async function render (props) {
-  if (props.err) {
-    await renderError(props.err)
-    return
-  }
-
+export async function render (props, onError = renderErrorComponent) {
   try {
     await doRender(props)
   } catch (err) {
-    if (err.abort) return
-    await renderError(err)
+    await onError(err)
   }
 }
 
-// This method handles all runtime and debug errors.
-// 404 and 500 errors are special kind of errors
-// and they are still handle via the main render method.
-export async function renderError (error) {
-  const prod = process.env.NODE_ENV === 'production'
-  // We need to unmount the current app component because it's
-  // in the inconsistant state.
-  // Otherwise, we need to face issues when the issue is fixed and
-  // it's get notified via HMR
-  ReactDOM.unmountComponentAtNode(appContainer)
-
-  const errorMessage = `${error.message}\n${error.stack}`
-  console.error(errorMessage)
-
-  if (prod) {
-    const initProps = { err: error, pathname, query }
-    const props = await loadGetInitialProps(ErrorComponent, initProps)
-    ReactDOM.render(createElement(ErrorComponent, props), errorContainer)
-  } else {
-    ReactDOM.render(createElement(ErrorDebugComponent, { error }), errorContainer)
-  }
+async function renderErrorComponent (err) {
+  const { pathname, query } = router
+  const props = await loadGetInitialProps(ErrorComponent, { err, pathname, query })
+  await doRender({ Component: ErrorComponent, props, err })
 }
 
 async function doRender ({ Component, props, hash, err, emitter }) {
@@ -113,9 +88,7 @@ async function doRender ({ Component, props, hash, err, emitter }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  // We need to clear any existing runtime error messages
-  ReactDOM.unmountComponentAtNode(errorContainer)
-  ReactDOM.render(createElement(App, appProps), appContainer)
+  ReactDOM.render(createElement(App, appProps), container)
 
   if (emitter) {
     emitter.emit('after-reactdom-render', { Component })
