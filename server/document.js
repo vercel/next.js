@@ -63,15 +63,15 @@ export class Head extends Component {
     const devScripts = ['manifest.js', 'commons.js', 'main.js']
     const prodScripts = ['app.js']
     if (dev) {
-      return devScripts.map(s => this.getPreloadScript(s))
+      return devScripts.map(s => this.getPreloadScript(s, { key: s }))
     } else {
-      return prodScripts.map(s => this.getPreloadScript(s))
+      return prodScripts.map(s => this.getPreloadScript(s, { key: s }))
     }
   }
 
   getPreloadPages (page) {
     const pageSegments = ['/_error', page]
-    return pageSegments.map(pageSegment => this.getPreloadPage(pageSegment))
+    return pageSegments.map(pageSegment => this.getPreloadPage(pageSegment, { key: pageSegment }))
   }
 
   render () {
@@ -125,6 +125,7 @@ export class NextScript extends Component {
   getPageScripts (page) {
     const pageSegments = ['/_error', page]
     return pageSegments.map(pageSegment => <script
+      key={pageSegment}
       type='text/javascript'
       src={`/_next/-/pages${pageSegment}`}
       defer
