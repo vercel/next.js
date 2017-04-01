@@ -1,4 +1,5 @@
 import evalScript from '../lib/eval-script'
+import ReactReconciler from 'react-dom/lib/ReactReconciler'
 
 const { __NEXT_DATA__: { errorComponent } } = window
 const ErrorComponent = evalScript(errorComponent).default
@@ -7,12 +8,18 @@ require('react-hot-loader/patch')
 
 const next = window.next = require('./')
 
-const emitter = next.default(onError)
+const emitter = next.default()
 
-function onError (err) {
-  // just show the debug screen but don't render ErrorComponent
-  // so that the current component doesn't lose props
-  next.render({ err, emitter })
+// This is a patch to catch most of the errors throw inside React components.
+const originalMountComponent = ReactReconciler.mountComponent
+ReactReconciler.mountComponent = function (...args) {
+  try {
+    return originalMountComponent(...args)
+  } catch (err) {
+    next.renderError(err)
+    err.abort = true
+    throw err
+  }
 }
 
 let lastScroll

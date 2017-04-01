@@ -50,7 +50,12 @@ export class Main extends Component {
 
   render () {
     const { html } = this.context._documentProps
-    return <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
+    return (
+      <div>
+        <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
+        <div id='__next-error' />
+      </div>
+    )
   }
 }
 
