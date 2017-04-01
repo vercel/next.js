@@ -9,6 +9,7 @@ import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
+import ErrorDebug from '../lib/error-debug'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
@@ -67,7 +68,6 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component,
       props,
-      err: dev ? err : null,
       router: new Router(pathname, query)
     })
 
@@ -75,12 +75,18 @@ async function doRender (req, res, pathname, query, {
 
     let html
     let head
+    let errorHtml = ''
     try {
       html = render(app)
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    return { html, head }
+
+    if (err && dev) {
+      errorHtml = render(createElement(ErrorDebug, { error: err }))
+    }
+
+    return { html, head, errorHtml }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
