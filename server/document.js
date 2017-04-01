@@ -4,9 +4,9 @@ import flush from 'styled-jsx/server'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    const {html, head} = renderPage()
+    const { html, head, errorHtml } = renderPage()
     const styles = flush()
-    return { html, head, styles }
+    return { html, head, errorHtml, styles }
   }
 
   static childContextTypes = {
@@ -49,11 +49,11 @@ export class Main extends Component {
   }
 
   render () {
-    const { html } = this.context._documentProps
+    const { html, errorHtml } = this.context._documentProps
     return (
       <div>
         <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-        <div id='__next-error' />
+        <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </div>
     )
   }
