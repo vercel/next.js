@@ -423,7 +423,7 @@ Router.onAppUpdated = (nextUrl) => {
 
 Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
 
-You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
+You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
 ```jsx
 // Current URL is "/"
