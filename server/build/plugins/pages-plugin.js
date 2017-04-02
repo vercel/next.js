@@ -1,6 +1,7 @@
 export default class PagesPlugin {
   apply (compiler) {
     const isBundledPage = /^bundles[/\\]pages.*\.js$/
+    const matchRouteName = /^bundles[/\\]pages[/\\](.*)\.js$/
     compiler.plugin('after-compile', (compilation, callback) => {
       const pages = Object
         .keys(compilation.namedChunks)
@@ -11,15 +12,13 @@ export default class PagesPlugin {
         const {name: pageName, entryModule: {id}} = chunk
         const page = compilation.assets[pageName]
         delete compilation.assets[pageName]
-
+        const routeName = matchRouteName.exec(pageName)[1]
         const content = page.source()
         const newContent = `(
-        function(nextData) {
+        function(pageLoader) {
           ${content}
-          nextData['${pageName}'] = webpackJsonp([],[],[${id}]).default
-          nextData.emitter.emit('page-loaded','${pageName}');
-          console.log('${pageName} loaded');
-        })(__NEXT_DATA__)`
+          pageLoader.registerPage('${routeName}',webpackJsonp([],[],[${id}]).default)
+        })(__NEXT_DATA__.pageLoader)`
 
         compilation.assets[pageName] = {
           source: () => newContent,

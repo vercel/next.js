@@ -4,6 +4,7 @@ import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
+import PageLoader from '../lib/page-loader'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import ErrorDebugComponent from '../lib/error-debug'
 
@@ -26,11 +27,15 @@ const {
   location
 } = window
 
-let Component
-let ErrorComponent
-let lastAppProps
+// create a pageLoader and attach it to __NEXT_DATA__
+export const pageLoader = new PageLoader(window.__NEXT_DATA__)
+window.__NEXT_DATA__.pageLoader = pageLoader
 
-export let router
+let lastAppProps
+export const router = createRouter(pathname, query, getURL(), {
+  pageLoader,
+  err
+})
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
@@ -38,30 +43,27 @@ const errorContainer = document.getElementById('__next-error')
 
 export default () => {
   const emitter = mitt()
-  window.__NEXT_DATA__.emitter = emitter
+  const hash = location.hash.substring(1)
 
-  emitter.on('page-loaded', (name) => {
-    if (name.endsWith('_error.js')) {
-      ErrorComponent = window.__NEXT_DATA__[name]
-    } else {
-      Component = window.__NEXT_DATA__[name]
-    }
+  if (err) {
+    const errorComponentLoaded = pageLoader.onPageLoaded('/_error', (Component) => {
+      render({ Component, props, hash, err, emitter })
+      errorComponentLoaded()
+    })
+  } else {
+    const componentLoaded = pageLoader.onPageLoaded(pathname, (Component) => {
+      render({ Component, props, hash, err, emitter })
+      componentLoaded()
+    })
+  }
 
-    if (Component && ErrorComponent) {
-      const hash = location.hash.substring(1)
-
-      router = createRouter(pathname, query, getURL(), {
-        Component,
-        ErrorComponent,
-        err
-      })
-
-      router.subscribe(({Component, props, hash, err}) => {
-        render({Component, props, err, hash, emitter})
-      })
-
-      render({Component, props, hash, err, emitter})
-    }
+  // trigger mounting of the component for this route
+  pageLoader.mountPageBundle(pathname)
+  // trigger mounting of the error component as well
+  pageLoader.mountPageBundle('/_error')
+  // subscribe to any route changes, and render
+  router.subscribe(({ Component, props, hash, err }) => {
+    render({ Component, props, err, hash, emitter })
   })
 
   return emitter
@@ -69,7 +71,8 @@ export default () => {
 
 export async function render (props) {
   if (props.err) {
-    await renderError(props.err)
+    lastAppProps = props
+    await renderError(props.err, props.Component)
     return
   }
 
@@ -84,7 +87,7 @@ export async function render (props) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (error) {
+export async function renderError (error, ErrorComponent) {
   const prod = process.env.NODE_ENV === 'production'
   // We need to unmount the current app component because it's
   // in the inconsistent state.
@@ -105,9 +108,7 @@ export async function renderError (error) {
 }
 
 async function doRender ({ Component, props, hash, err, emitter }) {
-  if (!props && Component &&
-    Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent) {
+  if (!props && Component && lastAppProps.err && !err) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
     const { pathname, query } = router
     props = await loadGetInitialProps(Component, { err, pathname, query })
