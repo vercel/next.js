@@ -34,10 +34,12 @@ export class Head extends Component {
   }
 
   getPreloadPage (pageSegment, additionalProps = {}) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    const { buildId = '-' } = __NEXT_DATA__
     return (
       <link
         rel='preload'
-        href={`/_next/-/pages${pageSegment}`}
+        href={`/_next/${buildId}/pages${pageSegment}`}
         as='script'
         {...additionalProps}
       />
@@ -124,10 +126,13 @@ export class NextScript extends Component {
 
   getPageScripts (page) {
     const pageSegments = ['/_error', page]
+    const { __NEXT_DATA__ } = this.context._documentProps
+    const { buildId = '-' } = __NEXT_DATA__
+
     return pageSegments.map(pageSegment => <script
       key={pageSegment}
       type='text/javascript'
-      src={`/_next/-/pages${pageSegment}`}
+      src={`/_next/${buildId}/pages${pageSegment}`}
       defer
     />)
   }

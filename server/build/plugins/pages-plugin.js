@@ -18,6 +18,7 @@ export default class PagesPlugin {
           ${content}
           nextData['${pageName}'] = webpackJsonp([],[],[${id}]).default
           nextData.emitter.emit('page-loaded','${pageName}');
+          console.log('${pageName} loaded');
         })(__NEXT_DATA__)`
 
         compilation.assets[pageName] = {
