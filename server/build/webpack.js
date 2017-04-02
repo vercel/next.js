@@ -265,7 +265,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     context: dir,
     entry,
     output: {
-      path: join(buildDir || dir, '.next'),
+      path: join(buildDir || dir, config.options.dist)),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: '/_webpack/',
@@ -305,6 +305,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   if (config.webpack) {
     console.log('> Using "webpack" config function defined in next.config.js.')
     webpackConfig = await config.webpack(webpackConfig, { dev })
+  } else {
+    console.log(config)
   }
   return webpack(webpackConfig)
 }
