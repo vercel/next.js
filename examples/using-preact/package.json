@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "module-alias": "^2.0.0",
-    "next": "^2.0.0-beta",
+    "next": "latest",
     "preact": "^7.2.0",
     "preact-compat": "^3.14.0"
   },
