@@ -1,8 +1,13 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
-        "target": "es2015",
-        "jsx": "react",
-        "allowJs": true
-    }
+        "jsx": "react-native",
+        "outDir": "",
+        "target": "es6",
+        "module": "es2015",
+        "moduleResolution": "node",
+        "strictNullChecks": true
+    },
+    "include": [
+        "typescript/**/*"
+    ]
 }
