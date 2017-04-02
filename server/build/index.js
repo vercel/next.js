@@ -8,18 +8,16 @@ import webpack from './webpack'
 import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
-
 export default async function build (dir) {
   const buildDir = join(tmpdir(), uuid.v4())
   const compiler = await webpack(dir, { buildDir })
 
   try {
     await runCompiler(compiler)
-    console.log('no!');
+
+    // Pass in both the buildDir and the dir to retrieve config
     await writeBuildStats(buildDir, dir)
-    console.log('yes!');
     await writeBuildId(buildDir, dir)
-    console.log('maybe!!');
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)
     throw err
@@ -52,8 +50,6 @@ function runCompiler (compiler) {
 
 async function writeBuildStats (buildDir, dir) {
   const dist = getConfig(dir).options.dist
-  console.log('this is a dist', dist);
-  console.log('dist', buildDir);
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)

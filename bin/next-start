@@ -46,8 +46,9 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
+const dist = getConfig(dir).options.dist
+
 const srv = new Server({ dir })
-const dist = getConfig(dir).options.dist;
 
 if (!existsSync(resolve(dir, dist, 'BUILD_ID'))) {
   console.error(`> Could not find a valid build in the '${dist}' directory! Try building your app with 'next build' before starting the server.`)
