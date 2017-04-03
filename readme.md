@@ -641,7 +641,6 @@ module.exports = {
 }
 ```
 
-
 ### Customizing webpack config
 
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
