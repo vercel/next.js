@@ -7,7 +7,7 @@ export default class JsonPagesPlugin {
 
       pages.forEach((pageName) => {
         const page = compilation.assets[pageName]
-        delete compilation.assets[pageName]
+        // delete compilation.assets[pageName]
 
         const content = page.source()
         const newContent = JSON.stringify({ component: content })

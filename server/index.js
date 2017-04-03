@@ -13,7 +13,7 @@ import {
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
-import { resolveFromList } from './resolve'
+import resolvePath, { resolveFromList } from './resolve'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -125,6 +125,28 @@ export default class Server {
         const pathname = `/${paths.join('/')}`
 
         await this.renderJSON(req, res, pathname)
+      },
+
+      '/_next/:buildId/page/:path*': async (req, res, params) => {
+        const paths = params.path || ['']
+        const pathname = `/${paths.join('/')}`
+
+        await this.hotReloader.ensurePage(pathname)
+
+        if (!this.handleBuildId(params.buildId, res)) {
+          res.setHeader('Content-Type', 'text/javascript')
+          // TODO: Handle buildId mismatches properly.
+          res.end(`
+            var error = new Error('INVALID_BUILD_ID')
+            error.buildIdMismatched = true
+            NEXT_PAGE_LOADER.registerPage('${pathname}', error)
+          `)
+          return
+        }
+
+        const path = join(this.dir, '.next', 'client-bundles', 'pages', pathname)
+        const realPath = await resolvePath(path)
+        await this.serveStatic(req, res, realPath)
       },
 
       '/_next/:path+': async (req, res, params) => {

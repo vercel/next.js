@@ -7,6 +7,7 @@ import App from '../lib/app'
 import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import ErrorDebugComponent from '../lib/error-debug'
+import PageLoader from '../lib/page-loader'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -24,10 +25,13 @@ const {
     props,
     err,
     pathname,
-    query
+    query,
+    buildId
   },
   location
 } = window
+
+window.NEXT_PAGE_LOADER = new PageLoader(buildId)
 
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
