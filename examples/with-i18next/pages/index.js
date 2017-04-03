@@ -5,11 +5,10 @@ import { getTranslation } from '../tools/translationHelpers'
 import Title from '../components/Title'
 
 export default class Homepage extends Component {
-  static async getInitialProps ({ req }) {
-    const isServer = !!req
+  static async getInitialProps () {
     const translations = await getTranslation('pt', 'common', 'http://localhost:3000/static/locales/')
 
-    return { isServer, translations }
+    return { translations }
   }
 
   constructor (props) {
