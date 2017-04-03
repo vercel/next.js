@@ -31,6 +31,7 @@ export default class Index extends Component {
         <div>{this.state.answer}</div>
         <br />
         <Link href='/movies'><a>Check out the movies</a></Link>
+        <a onClick={() => (document.location.pathname = '/about')}>Go to my about page</a>
       </div>
     )
   }
