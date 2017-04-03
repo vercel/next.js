@@ -47,7 +47,7 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
-const dist = getConfig(dir).options.dist
+const dist = getConfig(dir).distDir
 
 const srv = new Server({ dir })
 

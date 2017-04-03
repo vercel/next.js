@@ -637,9 +637,7 @@ You can specify a name to use for a custom build directory. For example, the fol
 ```javascript
 // next.config.js
 module.exports = {
-  options: {
-    dist: 'build'
-  }
+  distDir: 'build'
 }
 ```
 

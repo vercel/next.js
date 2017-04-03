@@ -49,7 +49,7 @@ function runCompiler (compiler) {
 }
 
 async function writeBuildStats (buildDir, dir) {
-  const dist = getConfig(dir).options.dist
+  const dist = getConfig(dir).distDir
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)
@@ -64,7 +64,7 @@ async function writeBuildStats (buildDir, dir) {
 }
 
 async function writeBuildId (buildDir, dir) {
-  const dist = getConfig(dir).options.dist
+  const dist = getConfig(dir).distDir
   const buildIdPath = join(buildDir, dist, 'BUILD_ID')
   const buildId = uuid.v4()
   await fs.writeFile(buildIdPath, buildId, 'utf8')

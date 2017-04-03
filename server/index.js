@@ -27,7 +27,7 @@ export default class Server {
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(this.dir)
-    this.dist = this.config.options.dist
+    this.dist = this.config.distDir
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {

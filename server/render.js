@@ -43,7 +43,7 @@ async function doRender (req, res, pathname, query, {
 
   await ensurePage(page, { dir, hotReloader })
 
-  const dist = getConfig(dir).options.dist
+  const dist = getConfig(dir).distDir
 
   let [Component, Document] = await Promise.all([
     requireModule(join(dir, dist, 'dist', 'pages', page)),
@@ -110,14 +110,14 @@ async function doRender (req, res, pathname, query, {
 }
 
 export async function renderJSON (req, res, page, { dir = process.cwd(), hotReloader } = {}) {
-  const dist = getConfig(dir).options.dist
+  const dist = getConfig(dir).distDir
   await ensurePage(page, { dir, hotReloader })
   const pagePath = await resolvePath(join(dir, dist, 'bundles', 'pages', page))
   return serveStatic(req, res, pagePath)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const dist = getConfig(dir).options.dist
+  const dist = getConfig(dir).distDir
   const component = await readPage(join(dir, dist, 'bundles', 'pages', '_error'))
 
   sendJSON(res, {
