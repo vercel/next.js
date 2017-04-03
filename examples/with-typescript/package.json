@@ -6,8 +6,10 @@
     "next": "latest"
   },
   "devDependencies": {
-    "@types/react": "^15.0.1",
+    "@types/react": "^15.0.21",
     "concurrently": "^3.1.0",
-    "typescript": "^2.1.5"
+    "typescript": "2.2.1",
+    "react":"latest",
+    "react-dom":"latest"
   }
 }

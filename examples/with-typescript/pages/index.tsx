@@ -1,8 +1,8 @@
-import * as React from 'react'
+import Link from 'next/link'
 import MyComponent from '../components/MyComponent'
-
-export default () => 
+export default () =>
   <div>
-    <h1>Hello world</h1>
+    <p>Hello there</p>
     <MyComponent />
+    <Link prefetch href='/pagewithasync'><a>Reactpage</a></Link>
   </div>
