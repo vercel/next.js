@@ -131,7 +131,9 @@ export default class Server {
         const paths = params.path || ['']
         const pathname = `/${paths.join('/')}`
 
-        await this.hotReloader.ensurePage(pathname)
+        if (this.dev) {
+          await this.hotReloader.ensurePage(pathname)
+        }
 
         if (!this.handleBuildId(params.buildId, res)) {
           res.setHeader('Content-Type', 'text/javascript')
