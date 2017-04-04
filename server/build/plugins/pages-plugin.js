@@ -12,7 +12,7 @@ export default class PagesPlugin {
       pages.forEach((chunk) => {
         const page = compilation.assets[chunk.name]
         const pageName = matchRouteName.exec(chunk.name)[1]
-        const routeName = `/${pageName.replace(/index$/, '')}`
+        const routeName = `/${pageName.replace(/[/\\]index$/, '')}`
 
         const content = page.source()
         const newContent = `

@@ -31,13 +31,13 @@ const {
   location
 } = window
 
-window.NEXT_PAGE_LOADER = new PageLoader(buildId)
-
+const pageLoader = window.NEXT_PAGE_LOADER = new PageLoader(buildId)
 const Component = evalScript(component).default
 const ErrorComponent = evalScript(errorComponent).default
 let lastAppProps
 
 export const router = createRouter(pathname, query, getURL(), {
+  pageLoader,
   Component,
   ErrorComponent,
   err
