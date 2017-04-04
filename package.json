@@ -90,7 +90,7 @@
     "uuid": "3.0.1",
     "webpack": "2.3.3",
     "webpack-dev-middleware": "1.10.1",
-    "webpack-hot-middleware": "2.17.1",
+    "webpack-hot-middleware": "2.18.0",
     "write-file-webpack-plugin": "4.0.0"
   },
   "devDependencies": {
