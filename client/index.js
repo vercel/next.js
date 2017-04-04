@@ -19,6 +19,7 @@ if (!window.Promise) {
 
 const {
   __NEXT_DATA__: {
+    exported,
     component,
     errorComponent,
     props,
@@ -36,7 +37,10 @@ let lastAppProps
 export const router = createRouter(pathname, query, getURL(), {
   Component,
   ErrorComponent,
-  err
+  err,
+  formatURL: exported && function (buildId, route) {
+    return route ? route.replace(/\/$/, '') + '/index.json' : '/index.json'
+  }
 })
 
 const headManager = new HeadManager()
@@ -98,6 +102,9 @@ async function doRender ({ Component, props, hash, err, emitter }) {
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
+    const { pathname, query } = router
+    props = await loadGetInitialProps(Component, { err, pathname, query })
+  } else if (exported && !lastAppProps) {
     const { pathname, query } = router
     props = await loadGetInitialProps(Component, { err, pathname, query })
   }
