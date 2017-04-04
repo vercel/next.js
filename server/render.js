@@ -112,30 +112,14 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (req, res, page, { dir = process.cwd(), hotReloader } = {}) {
-  await ensurePage(page, { dir, hotReloader })
-  const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
-  return serveStatic(req, res, pagePath)
-}
-
 export async function renderScript (req, res, page, opts) {
   try {
-    if (opts.dev) {
-      await opts.hotReloader.ensurePage(page)
-    }
-
     const path = join(opts.dir, '.next', 'client-bundles', 'pages', page)
     const realPath = await resolvePath(path)
     await serveStatic(req, res, realPath)
   } catch (err) {
     if (err.code === 'ENOENT') {
-      res.setHeader('Content-Type', 'text/javascript')
-      res.end(`
-        var error = new Error('Page not exists: ${page}')
-        error.pageNotFound = true
-        error.statusCode = 404
-        NEXT_PAGE_LOADER.registerPage('${page}', error)
-      `)
+      renderScriptError(req, res, page, err, {}, opts)
       return
     }
 
@@ -144,6 +128,17 @@ export async function renderScript (req, res, page, opts) {
 }
 
 export async function renderScriptError (req, res, page, error, customFields, opts) {
+  if (error.code === 'ENOENT') {
+    res.setHeader('Content-Type', 'text/javascript')
+    res.end(`
+      var error = new Error('Page not exists: ${page}')
+      error.pageNotFound = true
+      error.statusCode = 404
+      NEXT_PAGE_LOADER.registerPage('${page}', error)
+    `)
+    return
+  }
+
   res.setHeader('Content-Type', 'text/javascript')
   const errorJson = {
     ...errorToJSON(error),
@@ -154,15 +149,6 @@ export async function renderScriptError (req, res, page, error, customFields, op
     var error = ${JSON.stringify(errorJson)}
     NEXT_PAGE_LOADER.registerPage('${page}', error)
   `)
-}
-
-export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const component = await readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
-
-  sendJSON(res, {
-    component,
-    err: err && dev ? errorToJSON(err) : null
-  }, req.method)
 }
 
 export function sendHTML (res, html, method) {

@@ -6,8 +6,6 @@ import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
-  renderJSON,
-  renderErrorJSON,
   sendHTML,
   serveStatic,
   renderScript,
@@ -124,16 +122,20 @@ export default class Server {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
 
-          await renderScriptError(req, res, page, error, customFields, this.renderOpts)
-          return
+          return await renderScriptError(req, res, page, error, customFields, this.renderOpts)
         }
 
         if (this.dev) {
+          try {
+            await this.hotReloader.ensurePage(page)
+          } catch (error) {
+            return await renderScriptError(req, res, page, error, {}, this.renderOpts)
+          }
+
           const compilationErr = this.getCompilationError(page)
           if (compilationErr) {
             const customFields = { buildError: true }
-            await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
-            return
+            return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
           }
         }
 
@@ -257,40 +259,6 @@ export default class Server {
     return this.renderError(null, req, res, pathname, query)
   }
 
-  async renderJSON (req, res, page) {
-    if (this.dev) {
-      const compilationErr = this.getCompilationError(page)
-      if (compilationErr) {
-        return this.renderErrorJSON(compilationErr, req, res)
-      }
-    }
-
-    try {
-      return await renderJSON(req, res, page, this.renderOpts)
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        res.statusCode = 404
-        return this.renderErrorJSON(null, req, res)
-      } else {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        return this.renderErrorJSON(err, req, res)
-      }
-    }
-  }
-
-  async renderErrorJSON (err, req, res) {
-    if (this.dev) {
-      const compilationErr = this.getCompilationError('/_error')
-      if (compilationErr) {
-        res.statusCode = 500
-        return renderErrorJSON(compilationErr, req, res, this.renderOpts)
-      }
-    }
-
-    return renderErrorJSON(err, req, res, this.renderOpts)
-  }
-
   async serveStatic (req, res, path) {
     try {
       return await serveStatic(req, res, path)
@@ -301,10 +269,6 @@ export default class Server {
         throw err
       }
     }
-  }
-
-  serveScript (req, res, path) {
-    return serveStatic(req, res, path)
   }
 
   readBuildId () {
