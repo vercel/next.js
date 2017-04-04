@@ -9,11 +9,13 @@ import {
   renderJSON,
   renderErrorJSON,
   sendHTML,
-  serveStatic
+  serveStatic,
+  renderScript,
+  renderScriptError
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
-import resolvePath, { resolveFromList } from './resolve'
+import { resolveFromList } from './resolve'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -114,41 +116,28 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/pages/:path*': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ buildIdMismatch: true }))
-          return
-        }
-
-        const paths = params.path || ['index']
-        const pathname = `/${paths.join('/')}`
-
-        await this.renderJSON(req, res, pathname)
-      },
-
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
-        const pathname = `/${paths.join('/')}`
-
-        if (this.dev) {
-          await this.hotReloader.ensurePage(pathname)
-        }
+        const page = `/${paths.join('/')}`
 
         if (!this.handleBuildId(params.buildId, res)) {
-          res.setHeader('Content-Type', 'text/javascript')
-          // TODO: Handle buildId mismatches properly.
-          res.end(`
-            var error = new Error('INVALID_BUILD_ID')
-            error.buildIdMismatched = true
-            NEXT_PAGE_LOADER.registerPage('${pathname}', error)
-          `)
+          const error = new Error('INVALID_BUILD_ID')
+          const customFields = { buildIdMismatched: true }
+
+          await renderScriptError(req, res, page, error, customFields, this.renderOpts)
           return
         }
 
-        const path = join(this.dir, '.next', 'client-bundles', 'pages', pathname)
-        const realPath = await resolvePath(path)
-        await this.serveStatic(req, res, realPath)
+        if (this.dev) {
+          const compilationErr = this.getCompilationError(page)
+          if (compilationErr) {
+            const customFields = { buildError: true }
+            await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
+            return
+          }
+        }
+
+        await renderScript(req, res, page, this.renderOpts)
       },
 
       '/_next/:path+': async (req, res, params) => {
@@ -312,6 +301,10 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  serveScript (req, res, path) {
+    return serveStatic(req, res, path)
   }
 
   readBuildId () {
