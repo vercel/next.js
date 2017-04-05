@@ -1,5 +1,5 @@
 
-# Example app with glamor
+# Example app with [glamorous](https://github.com/kentcdodds/glamorous)
 
 ## How to use
 
