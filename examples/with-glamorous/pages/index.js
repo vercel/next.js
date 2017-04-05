@@ -1,6 +1,13 @@
 import React from 'react'
-import { css } from 'glamor'
+import { style, rehydrate, css } from 'glamor'
 import glamorous from 'glamorous'
+
+// Adds server generated styles to glamor cache.
+// Has to run before any `style()` calls
+// '__NEXT_DATA__.ids' is set in '_document.js'
+if (typeof window !== 'undefined') {
+  rehydrate(window.__NEXT_DATA__.ids)
+}
 
 export default () => {
   css.global('html, body', { padding: '3rem 1rem', margin: 0, background: 'papayawhip', 'min-height': '100%', 'font-family': 'Helvetica, Arial, sans-serif', 'font-size': '24px' })
