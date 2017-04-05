@@ -4,7 +4,6 @@ import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import App from '../lib/app'
-import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import ErrorDebugComponent from '../lib/error-debug'
 import PageLoader from '../lib/page-loader'
@@ -20,8 +19,6 @@ if (!window.Promise) {
 
 const {
   __NEXT_DATA__: {
-    component,
-    errorComponent,
     props,
     err,
     pathname,
@@ -32,8 +29,13 @@ const {
 } = window
 
 const pageLoader = window.NEXT_PAGE_LOADER = new PageLoader(buildId)
-const Component = evalScript(component).default
-const ErrorComponent = evalScript(errorComponent).default
+if (window.NEXT_LOADED_PAGES) {
+  window.NEXT_LOADED_PAGES.forEach((fn) => fn())
+  delete window.NEXT_LOADED_PAGES
+}
+
+const ErrorComponent = pageLoader.loadPageSync('/_error')
+const Component = pageLoader.loadPageSync(pathname) || ErrorComponent
 let lastAppProps
 
 export const router = createRouter(pathname, query, getURL(), {

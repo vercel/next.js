@@ -12,12 +12,21 @@ export default class PagesPlugin {
       pages.forEach((chunk) => {
         const page = compilation.assets[chunk.name]
         const pageName = matchRouteName.exec(chunk.name)[1]
-        const routeName = `/${pageName.replace(/[/\\]index$/, '')}`
+        const routeName = `/${pageName.replace(/[/\\]?index$/, '')}`
 
         const content = page.source()
         const newContent = `
-          var comp = ${content}
-          NEXT_PAGE_LOADER.registerPage('${routeName}', null, comp.default)
+          function loadPage () {
+            var comp = ${content}
+            window.NEXT_PAGE_LOADER.registerPage('${routeName}', null, comp.default)
+          }
+
+          if (window.NEXT_PAGE_LOADER) {
+            loadPage()
+          } else {
+            window.NEXT_LOADED_PAGES = window.NEXT_LOADED_PAGES || []
+            window.NEXT_LOADED_PAGES.push(loadPage)
+          }
         `
         // Replace the current asset
         // TODO: We need to move "client-bundles" back to "bundles" once we remove
