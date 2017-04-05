@@ -25,6 +25,6 @@ now
 
 ## The idea behind the example
 
-This example features how to use [glamorous](https://github.com/kentcdodds/glamorous) as the styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx). It also incoroporates [glamor](https://github.com/threepointone/glamor) since `glamor` is a dependency for `glamorous`.
+This example features how to use [glamorous](https://github.com/kentcdodds/glamorous) as the styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx). It also incorporates [glamor](https://github.com/threepointone/glamor) since `glamor` is a dependency for `glamorous`.
 
 We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseedo-elements and CSS animations.
