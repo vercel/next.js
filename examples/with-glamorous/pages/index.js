@@ -1,5 +1,5 @@
 import React from 'react'
-import { style, rehydrate, css } from 'glamor'
+import { rehydrate, css } from 'glamor'
 import glamorous from 'glamorous'
 
 // Adds server generated styles to glamor cache.
@@ -13,12 +13,12 @@ export default () => {
   css.global('html, body', { padding: '3rem 1rem', margin: 0, background: 'papayawhip', 'min-height': '100%', 'font-family': 'Helvetica, Arial, sans-serif', 'font-size': '24px' })
 
   const basicStyles = {
-    'background-color': 'white',
+    backgroundColor: 'white',
     color: 'cornflowerblue',
     border: '1px solid lightgreen',
-    'border-right': 'none',
-    'border-bottom': 'none',
-    'box-shadow': '5px 5px 0 0 lightgreen, 10px 10px 0 0 lightyellow',
+    borderRight: 'none',
+    borderBottom: 'none',
+    boxShadow: '5px 5px 0 0 lightgreen, 10px 10px 0 0 lightyellow',
     transition: 'all 0.1s linear',
     margin: `3rem 0`,
     padding: `1rem 0.5rem`
@@ -27,12 +27,12 @@ export default () => {
   const hoverStyles = {
     ':hover': {
       color: 'white',
-      'background-color': 'lightgray',
-      'border-color': 'aqua',
-      'box-shadow': `-15px -15px 0 0 aqua, -30px -30px 0 0 cornflowerblue`
+      backgroundColor: 'lightgray',
+      borderColor: 'aqua',
+      boxShadow: `-15px -15px 0 0 aqua, -30px -30px 0 0 cornflowerblue`
     },
     '& code': {
-      'background-color': 'linen'
+      backgroundColor: 'linen'
     }
   }
 
