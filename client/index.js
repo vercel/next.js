@@ -35,7 +35,15 @@ if (window.NEXT_LOADED_PAGES) {
 }
 
 const ErrorComponent = pageLoader.loadPageSync('/_error')
-const Component = pageLoader.loadPageSync(pathname) || ErrorComponent
+let Component
+
+try {
+  Component = pageLoader.loadPageSync(pathname)
+} catch (err) {
+  console.error(`${err.message}\n${err.stack}`)
+  Component = ErrorComponent
+}
+
 let lastAppProps
 
 export const router = createRouter(pathname, query, getURL(), {

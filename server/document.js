@@ -95,25 +95,16 @@ export class NextScript extends Component {
     return this.getChunkScript('app.js', { async: true })
   }
 
-  getMainComponents () {
-    const { component, errorComponent } = this.context._documentProps
-
-    return (
-      <div>
-        <script dangerouslySetInnerHTML={{ __html: component }} />
-        <script dangerouslySetInnerHTML={{ __html: errorComponent }} />
-      </div>
-    )
-  }
-
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
+    const { pathname, buildId } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
         __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
       }} />}
-      {staticMarkup ? null : this.getMainComponents()}
+      <script type='text/javascript' src={`/_next/${buildId}/page${pathname}`} />
+      <script type='text/javascript' src={`/_next/${buildId}/page/_error`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }

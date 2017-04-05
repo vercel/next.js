@@ -114,6 +114,18 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
+      '/_next/:buildId/page/_error': async (req, res, params) => {
+        if (!this.handleBuildId(params.buildId, res)) {
+          const error = new Error('INVALID_BUILD_ID')
+          const customFields = { buildIdMismatched: true }
+
+          return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
+        }
+
+        const p = join(this.dir, '.next/client-bundles/pages/_error.js')
+        await this.serveStatic(req, res, p)
+      },
+
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
