@@ -1,8 +1,8 @@
-import evalScript from '../lib/eval-script'
+// import evalScript from '../lib/eval-script'
 import ReactReconciler from 'react-dom/lib/ReactReconciler'
 
-const { __NEXT_DATA__: { errorComponent } } = window
-const ErrorComponent = evalScript(errorComponent).default
+// const { __NEXT_DATA__: { errorComponent } } = window
+const ErrorComponent = {}
 
 require('react-hot-loader/patch')
 

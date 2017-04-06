@@ -19,12 +19,12 @@ import getConfig from './config'
 import pkg from '../../package'
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
+  constructor ({dir = '.', dev = false, staticMarkup = false, quiet = false} = {}) {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
+    this.hotReloader = dev ? new HotReloader(this.dir, {quiet}) : null
     this.http = null
     this.config = getConfig(this.dir)
     this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
@@ -54,11 +54,11 @@ export default class Server {
       }
 
       return this.run(req, res, parsedUrl)
-      .catch((err) => {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        res.end(STATUS_CODES[500])
-      })
+        .catch((err) => {
+          if (!this.quiet) console.error(err)
+          res.statusCode = 500
+          res.end(STATUS_CODES[500])
+        })
     }
   }
 
@@ -116,15 +116,13 @@ export default class Server {
 
       '/_next/:buildId/pages/:path*': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ buildIdMismatch: true }))
-          return
+          return this.render404(req, res)
         }
 
         const paths = params.path || ['index']
         const pathname = `/${paths.join('/')}`
-
-        await this.renderJSON(req, res, pathname)
+        const p = join(this.dir, '.next/bundles/pages', `${pathname}.js`)
+        await this.serveStatic(req, res, p)
       },
 
       '/_next/:path+': async (req, res, params) => {
@@ -138,7 +136,7 @@ export default class Server {
       },
 
       '/:path*': async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
+        const {pathname, query} = parsedUrl
         await this.render(req, res, pathname, query)
       }
     }
@@ -239,7 +237,7 @@ export default class Server {
   }
 
   async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
-    const { pathname, query } = parsedUrl
+    const {pathname, query} = parsedUrl
     res.statusCode = 404
     return this.renderError(null, req, res, pathname, query)
   }

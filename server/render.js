@@ -52,13 +52,9 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query }
 
   const [
-    props,
-    component,
-    errorComponent
+    props
   ] = await Promise.all([
-    loadGetInitialProps(Component, ctx),
-    readPage(join(dir, '.next', 'bundles', 'pages', page)),
-    readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
+    loadGetInitialProps(Component, ctx)
   ])
 
   // the response might be finshed on the getinitialprops call
@@ -95,8 +91,6 @@ async function doRender (req, res, pathname, query, {
 
   const doc = createElement(Document, {
     __NEXT_DATA__: {
-      component,
-      errorComponent,
       props,
       pathname,
       query,
@@ -104,6 +98,7 @@ async function doRender (req, res, pathname, query, {
       buildStats,
       err: (err && dev) ? errorToJSON(err) : null
     },
+    page,
     dev,
     staticMarkup,
     ...docProps

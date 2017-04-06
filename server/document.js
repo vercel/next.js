@@ -33,12 +33,57 @@ export class Head extends Component {
     _documentProps: PropTypes.any
   }
 
+  getPreloadPage (pageSegment, additionalProps = {}) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    const { buildId = '-' } = __NEXT_DATA__
+    return (
+      <link
+        rel='preload'
+        href={`/_next/${buildId}/pages${pageSegment}`}
+        as='script'
+        {...additionalProps}
+      />
+    )
+  }
+
+  getPreloadScript (filename, additionalProps = {}) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    let { buildStats } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : '-'
+
+    return (
+      <link
+        rel='preload'
+        href={`/_next/${hash}/${filename}`}
+        as='script'
+        {...additionalProps}
+      />
+    )
+  }
+
+  getPreloadScripts (dev = true) {
+    const devScripts = ['manifest.js', 'commons.js', 'main.js']
+    const prodScripts = ['app.js']
+    if (dev) {
+      return devScripts.map(s => this.getPreloadScript(s, { key: s }))
+    } else {
+      return prodScripts.map(s => this.getPreloadScript(s, { key: s }))
+    }
+  }
+
+  getPreloadPages (page) {
+    const pageSegments = ['/_error', page]
+    return pageSegments.map(pageSegment => this.getPreloadPage(pageSegment, { key: pageSegment }))
+  }
+
   render () {
-    const { head, styles } = this.context._documentProps
+    const { head, styles, dev, page } = this.context._documentProps
     return <head>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
       {this.props.children}
+      {this.getPreloadScripts(dev)}
+      {this.getPreloadPages(page)}
     </head>
   }
 }
@@ -73,26 +118,46 @@ export class NextScript extends Component {
       <script
         type='text/javascript'
         src={`/_next/${hash}/${filename}`}
+        defer
         {...additionalProps}
       />
     )
   }
 
+  getPageScripts (page) {
+    const pageSegments = ['/_error', page]
+    const { __NEXT_DATA__ } = this.context._documentProps
+    const { buildId = '-' } = __NEXT_DATA__
+
+    return pageSegments.map(pageSegment => <script
+      key={pageSegment}
+      type='text/javascript'
+      src={`/_next/${buildId}/pages${pageSegment}`}
+      defer
+    />)
+  }
+
   getScripts () {
-    const { dev } = this.context._documentProps
+    const { dev, page } = this.context._documentProps
     if (dev) {
       return (
         <div>
           { this.getChunkScript('manifest.js') }
           { this.getChunkScript('commons.js') }
           { this.getChunkScript('main.js') }
+          { this.getPageScripts(page) }
         </div>
       )
     }
 
     // In the production mode, we have a single asset with all the JS content.
     // So, we can load the script with async
-    return this.getChunkScript('app.js', { async: true })
+    return (
+      <div>
+        { this.getChunkScript('app.js') }
+        { this.getPageScripts(page) }
+      </div>
+    )
   }
 
   render () {
