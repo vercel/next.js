@@ -7,6 +7,7 @@ import del from 'del'
 import webpack from './webpack'
 import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
+import mkdirp from 'mkdirp-then'
 
 export default async function build (dir) {
   const buildDir = join(tmpdir(), uuid.v4())
@@ -50,6 +51,7 @@ function runCompiler (compiler) {
 
 async function writeBuildStats (buildDir, dir) {
   const dist = getConfig(dir).distDir
+  await mkdirp(join(buildDir, dist))
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)
@@ -65,6 +67,7 @@ async function writeBuildStats (buildDir, dir) {
 
 async function writeBuildId (buildDir, dir) {
   const dist = getConfig(dir).distDir
+  await mkdirp(join(buildDir, dist))
   const buildIdPath = join(buildDir, dist, 'BUILD_ID')
   const buildId = uuid.v4()
   await fs.writeFile(buildIdPath, buildId, 'utf8')
