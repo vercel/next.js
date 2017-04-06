@@ -4,7 +4,6 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import requireModule from './require'
 import resolvePath from './resolve'
-import readPage from './read-page'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
@@ -50,16 +49,7 @@ async function doRender (req, res, pathname, query, {
   Component = Component.default || Component
   Document = Document.default || Document
   const ctx = { err, req, res, pathname, query }
-
-  const [
-    props,
-    component,
-    errorComponent
-  ] = await Promise.all([
-    loadGetInitialProps(Component, ctx),
-    readPage(join(dir, '.next', 'bundles', 'pages', page)),
-    readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
-  ])
+  const props = await loadGetInitialProps(Component, ctx)
 
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
@@ -103,8 +93,6 @@ async function doRender (req, res, pathname, query, {
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
-    component,
-    errorComponent,
     staticMarkup,
     ...docProps
   })
