@@ -103,7 +103,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
         // NOTE: it depends on the fact that the entry funtion is always called
         // before applying CommonsChunkPlugin
-        return count >= minChunks
+        return count >= minChunks * 0.5
       }
     }),
     // This chunk contains all the webpack related code. So, all the changes
