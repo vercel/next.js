@@ -34,30 +34,32 @@ if (window.__NEXT_LOADED_PAGES__) {
   delete window.__NEXT_LOADED_PAGES__
 }
 
-const ErrorComponent = pageLoader.loadPageSync('/_error')
-let Component
-
-try {
-  Component = pageLoader.loadPageSync(pathname)
-} catch (err) {
-  console.error(`${err.message}\n${err.stack}`)
-  Component = ErrorComponent
-}
-
-let lastAppProps
-
-export const router = createRouter(pathname, query, getURL(), {
-  pageLoader,
-  Component,
-  ErrorComponent,
-  err
-})
-
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
-export default () => {
+let lastAppProps
+export let router
+export let ErrorComponent
+let Component
+
+export default async () => {
+  ErrorComponent = await pageLoader.loadPage('/_error')
+
+  try {
+    Component = await pageLoader.loadPage(pathname)
+  } catch (err) {
+    console.error(`${err.message}\n${err.stack}`)
+    Component = ErrorComponent
+  }
+
+  router = createRouter(pathname, query, getURL(), {
+    pageLoader,
+    Component,
+    ErrorComponent,
+    err
+  })
+
   const emitter = mitt()
 
   router.subscribe(({ Component, props, hash, err }) => {
@@ -120,7 +122,7 @@ async function doRender ({ Component, props, hash, err, emitter }) {
   }
 
   if (emitter) {
-    emitter.emit('before-reactdom-render', { Component })
+    emitter.emit('before-reactdom-render', { Component, ErrorComponent })
   }
 
   Component = Component || lastAppProps.Component
@@ -135,6 +137,6 @@ async function doRender ({ Component, props, hash, err, emitter }) {
   ReactDOM.render(createElement(App, appProps), appContainer)
 
   if (emitter) {
-    emitter.emit('after-reactdom-render', { Component })
+    emitter.emit('after-reactdom-render', { Component, ErrorComponent })
   }
 }
