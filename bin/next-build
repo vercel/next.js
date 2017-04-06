@@ -22,8 +22,9 @@ if (argv.help) {
     Usage
       $ next build <dir>
 
-    <dir> represents where the compiled .next folder should go.
-    If no directory is provided, .next will be created in the current directory
+    <dir> represents where the compiled dist folder should go.
+    If no directory is provided, the dist folder will be created in the current directory.
+    You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
   `)
   process.exit(0)
 }

@@ -265,7 +265,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     context: dir,
     entry,
     output: {
-      path: join(buildDir || dir, '.next'),
+      path: join(buildDir || dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: '/_webpack/',

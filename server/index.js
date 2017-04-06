@@ -27,7 +27,8 @@ export default class Server {
     this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
     this.http = null
     this.config = getConfig(this.dir)
-    this.buildStats = !dev ? require(join(this.dir, '.next', 'build-stats.json')) : null
+    this.dist = this.config.distDir
+    this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
@@ -92,25 +93,25 @@ export default class Server {
 
       '/_next/:hash/manifest.js': async (req, res, params) => {
         this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, '.next/manifest.js')
+        const p = join(this.dir, `${this.dist}/manifest.js`)
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/main.js': async (req, res, params) => {
         this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, '.next/main.js')
+        const p = join(this.dir, `${this.dist}/main.js`)
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/commons.js': async (req, res, params) => {
         this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, '.next/commons.js')
+        const p = join(this.dir, `${this.dist}/commons.js`)
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/app.js': async (req, res, params) => {
         this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, '.next/app.js')
+        const p = join(this.dir, `${this.dist}/app.js`)
         await this.serveStatic(req, res, p)
       },
 
@@ -291,7 +292,7 @@ export default class Server {
   }
 
   readBuildId () {
-    const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
+    const buildIdPath = join(this.dir, this.dist, 'BUILD_ID')
     const buildId = fs.readFileSync(buildIdPath, 'utf8')
     return buildId.trim()
   }
@@ -312,7 +313,7 @@ export default class Server {
     const errors = this.hotReloader.getCompilationErrors()
     if (!errors.size) return
 
-    const id = join(this.dir, '.next', 'bundles', 'pages', page)
+    const id = join(this.dir, this.dist, 'bundles', 'pages', page)
     const p = resolveFromList(id, errors.keys())
     if (p) return errors.get(p)[0]
   }

@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import requireModule from './require'
+import getConfig from './config'
 import resolvePath from './resolve'
 import readPage from './read-page'
 import { Router } from '../lib/router'
@@ -43,9 +44,11 @@ async function doRender (req, res, pathname, query, {
 
   await ensurePage(page, { dir, hotReloader })
 
+  const dist = getConfig(dir).distDir
+
   let [Component, Document] = await Promise.all([
-    requireModule(join(dir, '.next', 'dist', 'pages', page)),
-    requireModule(join(dir, '.next', 'dist', 'pages', '_document'))
+    requireModule(join(dir, dist, 'dist', 'pages', page)),
+    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
   ])
   Component = Component.default || Component
   Document = Document.default || Document
@@ -57,8 +60,8 @@ async function doRender (req, res, pathname, query, {
     errorComponent
   ] = await Promise.all([
     loadGetInitialProps(Component, ctx),
-    readPage(join(dir, '.next', 'bundles', 'pages', page)),
-    readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
+    readPage(join(dir, dist, 'bundles', 'pages', page)),
+    readPage(join(dir, dist, 'bundles', 'pages', '_error'))
   ])
 
   // the response might be finshed on the getinitialprops call
@@ -113,13 +116,15 @@ async function doRender (req, res, pathname, query, {
 }
 
 export async function renderJSON (req, res, page, { dir = process.cwd(), hotReloader } = {}) {
+  const dist = getConfig(dir).distDir
   await ensurePage(page, { dir, hotReloader })
-  const pagePath = await resolvePath(join(dir, '.next', 'bundles', 'pages', page))
+  const pagePath = await resolvePath(join(dir, dist, 'bundles', 'pages', page))
   return serveStatic(req, res, pagePath)
 }
 
 export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const component = await readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
+  const dist = getConfig(dir).distDir
+  const component = await readPage(join(dir, dist, 'bundles', 'pages', '_error'))
 
   sendJSON(res, {
     component,
