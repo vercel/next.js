@@ -644,6 +644,17 @@ module.exports = {
 }
 ```
 
+#### Setting a custom build directory
+
+You can specify a name to use for a custom build directory. For example, the following config will create a `build` folder instead of a `.next` folder. If no configuration is specified then next will create a `.next` folder.
+
+```javascript
+// next.config.js
+module.exports = {
+  distDir: 'build'
+}
+```
+
 ### Customizing webpack config
 
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
@@ -718,7 +729,7 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
-Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
+Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
 
 ## FAQ
 

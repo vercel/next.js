@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import requireModule from './require'
+import getConfig from './config'
 import resolvePath from './resolve'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
@@ -42,9 +43,11 @@ async function doRender (req, res, pathname, query, {
 
   await ensurePage(page, { dir, hotReloader })
 
+  const dist = getConfig(dir).distDir
+
   let [Component, Document] = await Promise.all([
-    requireModule(join(dir, '.next', 'dist', 'pages', page)),
-    requireModule(join(dir, '.next', 'dist', 'pages', '_document'))
+    requireModule(join(dir, dist, 'dist', 'pages', page)),
+    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
   ])
   Component = Component.default || Component
   Document = Document.default || Document
