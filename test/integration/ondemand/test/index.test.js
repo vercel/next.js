@@ -37,7 +37,7 @@ describe('On Demand Entries', () => {
 
   it('should dispose inactive pages', async () => {
     await renderViaHTTP(context.appPort, '/_next/-/pages/about')
-    const aboutPagePath = resolve(__dirname, '../.next/client-bundles/pages/about.js')
+    const aboutPagePath = resolve(__dirname, '../.next/bundles/pages/about.js')
     expect(existsSync(aboutPagePath)).toBeTruthy()
 
     // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking

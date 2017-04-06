@@ -57,8 +57,8 @@ async function doRender (req, res, pathname, query, {
     errorComponent
   ] = await Promise.all([
     loadGetInitialProps(Component, ctx),
-    readPage(join(dir, '.next', 'client-bundles', 'pages', page)),
-    readPage(join(dir, '.next', 'client-bundles', 'pages', '_error'))
+    readPage(join(dir, '.next', 'bundles', 'pages', page)),
+    readPage(join(dir, '.next', 'bundles', 'pages', '_error'))
   ])
 
   // the response might be finshed on the getinitialprops call
@@ -114,7 +114,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderScript (req, res, page, opts) {
   try {
-    const path = join(opts.dir, '.next', 'client-bundles', 'pages', page)
+    const path = join(opts.dir, '.next', 'bundles', 'pages', page)
     const realPath = await resolvePath(path)
     await serveStatic(req, res, realPath)
   } catch (err) {

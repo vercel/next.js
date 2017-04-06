@@ -28,11 +28,8 @@ export default class PagesPlugin {
             window.NEXT_LOADED_PAGES.push(loadPage)
           }
         `
-        // Replace the current asset
-        // TODO: We need to move "client-bundles" back to "bundles" once we remove
-        // all the JSON eval stuff
-        delete compilation.assets[chunk.name]
-        compilation.assets[`client-bundles/pages/${pageName}.js`] = {
+        // Replace the exisiting chunk with the new content
+        compilation.assets[chunk.name] = {
           source: () => newContent,
           size: () => newContent.length
         }
