@@ -17,8 +17,10 @@ export default class PagesPlugin {
         const content = page.source()
         const newContent = `
           function loadPage () {
-            var comp = ${content}
-            window.__NEXT_PAGE_LOADER__.registerPage('${routeName}', null, comp.default)
+            window.__NEXT_PAGE_LOADER__.registerPage('${routeName}', function(cb) {
+              var comp = ${content}
+              cb(null, comp.default)
+            })
           }
 
           if (window.__NEXT_PAGE_LOADER__) {
