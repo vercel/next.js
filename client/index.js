@@ -29,9 +29,9 @@ const {
 } = window
 
 const pageLoader = window.__NEXT_PAGE_LOADER__ = new PageLoader(buildId)
-if (window.NEXT_LOADED_PAGES) {
-  window.NEXT_LOADED_PAGES.forEach((fn) => fn())
-  delete window.NEXT_LOADED_PAGES
+if (window.__NEXT_LOADED_PAGES__) {
+  window.__NEXT_LOADED_PAGES__.forEach((fn) => fn())
+  delete window.__NEXT_LOADED_PAGES__
 }
 
 const ErrorComponent = pageLoader.loadPageSync('/_error')

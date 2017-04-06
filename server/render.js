@@ -141,8 +141,8 @@ export async function renderScriptError (req, res, page, error, customFields, op
       if (window.__NEXT_PAGE_LOADER__) {
         loadPage()
       } else {
-        window.NEXT_LOADED_PAGES = window.NEXT_LOADED_PAGES || []
-        window.NEXT_LOADED_PAGES.push(loadPage)
+        window.__NEXT_LOADED_PAGES__ = window.__NEXT_LOADED_PAGES__ || []
+        window.__NEXT_LOADED_PAGES__.push(loadPage)
       }
     `)
     return
@@ -163,8 +163,8 @@ export async function renderScriptError (req, res, page, error, customFields, op
     if (window.__NEXT_PAGE_LOADER__) {
       loadPage()
     } else {
-      window.NEXT_LOADED_PAGES = window.NEXT_LOADED_PAGES || []
-      window.NEXT_LOADED_PAGES.push(loadPage)
+      window.__NEXT_LOADED_PAGES__ = window.__NEXT_LOADED_PAGES__ || []
+      window.__NEXT_LOADED_PAGES__.push(loadPage)
     }
   `)
 }
