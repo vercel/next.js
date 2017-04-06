@@ -28,7 +28,7 @@ const {
   location
 } = window
 
-const pageLoader = window.NEXT_PAGE_LOADER = new PageLoader(buildId)
+const pageLoader = window.__NEXT_PAGE_LOADER__ = new PageLoader(buildId)
 if (window.NEXT_LOADED_PAGES) {
   window.NEXT_LOADED_PAGES.forEach((fn) => fn())
   delete window.NEXT_LOADED_PAGES

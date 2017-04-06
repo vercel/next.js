@@ -18,10 +18,10 @@ export default class PagesPlugin {
         const newContent = `
           function loadPage () {
             var comp = ${content}
-            window.NEXT_PAGE_LOADER.registerPage('${routeName}', null, comp.default)
+            window.__NEXT_PAGE_LOADER__.registerPage('${routeName}', null, comp.default)
           }
 
-          if (window.NEXT_PAGE_LOADER) {
+          if (window.__NEXT_PAGE_LOADER__) {
             loadPage()
           } else {
             window.NEXT_LOADED_PAGES = window.NEXT_LOADED_PAGES || []

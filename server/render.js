@@ -135,10 +135,10 @@ export async function renderScriptError (req, res, page, error, customFields, op
         var error = new Error('Page not exists: ${page}')
         error.pageNotFound = true
         error.statusCode = 404
-        NEXT_PAGE_LOADER.registerPage('${page}', error)
+        __NEXT_PAGE_LOADER__.registerPage('${page}', error)
       }
       
-      if (window.NEXT_PAGE_LOADER) {
+      if (window.__NEXT_PAGE_LOADER__) {
         loadPage()
       } else {
         window.NEXT_LOADED_PAGES = window.NEXT_LOADED_PAGES || []
@@ -157,10 +157,10 @@ export async function renderScriptError (req, res, page, error, customFields, op
   res.end(`
     function loadPage () {
       var error = ${JSON.stringify(errorJson)}
-      NEXT_PAGE_LOADER.registerPage('${page}', error)
+      __NEXT_PAGE_LOADER__.registerPage('${page}', error)
     }
     
-    if (window.NEXT_PAGE_LOADER) {
+    if (window.__NEXT_PAGE_LOADER__) {
       loadPage()
     } else {
       window.NEXT_LOADED_PAGES = window.NEXT_LOADED_PAGES || []
