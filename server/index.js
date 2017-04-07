@@ -18,6 +18,11 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 
+const internalPrefixes = [
+  /^\/_next\//,
+  /^\/static\//
+]
+
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
     this.dir = resolve(dir)
@@ -298,15 +303,8 @@ export default class Server {
   }
 
   isInternalUrl (req) {
-    const prefixes = [
-      '/_next/',
-      '/_webpack/',
-      '/__webpack_hmr',
-      '/static'
-    ]
-
-    for (const prefix of prefixes) {
-      if (req.url.indexOf(prefix) === 0) {
+    for (const prefix of internalPrefixes) {
+      if (prefix.test(req.url)) {
         return true
       }
     }
