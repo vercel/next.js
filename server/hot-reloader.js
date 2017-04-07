@@ -140,7 +140,7 @@ export default class HotReloader {
     } : {}
 
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
-      publicPath: '/_webpack/',
+      publicPath: '/_next/webpack/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
@@ -148,7 +148,10 @@ export default class HotReloader {
       ...windowsSettings
     })
 
-    this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+    this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
+      path: '/_next/webpack-hmr',
+      log: false
+    })
     this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
       dir: this.dir,
       dev: true,
