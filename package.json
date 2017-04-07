@@ -99,7 +99,7 @@
     "babel-jest": "18.0.0",
     "babel-plugin-istanbul": "4.1.1",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
-    "babel-preset-es2015": "6.24.0",
+    "babel-preset-es2015": "6.24.1",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
     "chromedriver": "2.29.0",
