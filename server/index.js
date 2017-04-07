@@ -182,6 +182,10 @@ export default class Server {
   }
 
   async render (req, res, pathname, query) {
+    if (this.isInternalUrl(req)) {
+      return this.getRequestHandler()(req, res)
+    }
+
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
@@ -289,6 +293,23 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  isInternalUrl (req) {
+    const prefixes = [
+      '/_next/',
+      '/_webpack/',
+      '/__webpack_hmr',
+      '/static'
+    ]
+
+    for (const prefix of prefixes) {
+      if (req.url.indexOf(prefix) === 0) {
+        return true
+      }
+    }
+
+    return false
   }
 
   readBuildId () {
