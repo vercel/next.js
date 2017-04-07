@@ -36,7 +36,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
-  let minChunks
+  let totalPages
 
   const entry = async () => {
     const entries = {
@@ -68,8 +68,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       }
     }
 
-    // calculate minChunks of CommonsChunkPlugin for later use
-    minChunks = Math.max(2, pages.filter((p) => p !== documentPage).length)
+    totalPages = pages.filter((p) => p !== documentPage).length
 
     return entries
   }
@@ -101,9 +100,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           return module.context && module.context.indexOf('node_modules') >= 0
         }
 
-        // NOTE: it depends on the fact that the entry funtion is always called
-        // before applying CommonsChunkPlugin
-        return count >= minChunks
+        // Move modules used in at-least 1/2 of the total pages into commons.
+        return count >= totalPages * 0.5
       }
     }),
     // This chunk contains all the webpack related code. So, all the changes
