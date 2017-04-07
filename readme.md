@@ -33,6 +33,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Custom configuration](#custom-configuration)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
+  - [Customizing code splitting](#customizing-code-splitting)
 - [Production deployment](#production-deployment)
 - [FAQ](#faq)
 - [Roadmap](#roadmap)
@@ -697,6 +698,36 @@ Here's an example `.babelrc` file:
     "next/babel",
     "stage-0"
   ],
+}
+```
+
+### Customizing code splitting
+
+By default Next.js comes with a good enough code spliting setup. It will move any module used in at-least the 1/2 of all the pages into the common bundle. 
+
+Those modules will be included in the `app.js` which will be loaded with all the pages.
+
+The default setup will work for most of the use-cases. But sometimes you may need to configure it yourself. So, we provide an easy way to configure it via our `next.config.js`.
+
+Here are some examples:
+
+**Move everything inside node_modules into commons**
+
+```
+module.exports = {
+  moveModuleToCommons: function (modulePath, usedInPages, totalPages) {
+    return modulePath.indexOf('node_modules') >= 0
+  }
+}
+```
+
+**Move module used in at-least 80% of all the pages into commons.**
+
+```
+module.exports = {
+  moveModuleToCommons: function (modulePath, usedInPages, totalPages) {
+    return usedInPages >= totalPages * 0.8
+  }
 }
 ```
 

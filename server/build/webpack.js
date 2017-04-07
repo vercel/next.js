@@ -36,7 +36,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
-  let minChunks
+  let totalPages
 
   const entry = async () => {
     const entries = {
@@ -68,8 +68,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       }
     }
 
-    // calculate minChunks of CommonsChunkPlugin for later use
-    minChunks = Math.max(2, pages.filter((p) => p !== documentPage).length)
+    // calculate total amount of pages except the `_document.js`.
+    totalPages = pages.filter((p) => p !== documentPage).length
 
     return entries
   }
@@ -94,16 +94,20 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       filename: 'commons.js',
       minChunks (module, count) {
         // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
+        // So, it makes no sense to use commonChunks based on the totalPages count.
         // Instead, we move all the code in node_modules into this chunk.
         // With that, we could gain better performance for page-rebuild process.
         if (dev) {
           return module.context && module.context.indexOf('node_modules') >= 0
         }
 
-        // NOTE: it depends on the fact that the entry funtion is always called
-        // before applying CommonsChunkPlugin
-        return count >= minChunks
+        // Allow user to decide which module to move into commons
+        if (config.moveModuleToCommons) {
+          return config.moveModuleToCommons(module.context, count, totalPages)
+        }
+
+        // Move modules used in at-least 1/2 of the total pages into commons
+        return count >= totalPages * 0.5
       }
     }),
     // This chunk contains all the webpack related code. So, all the changes
