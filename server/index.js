@@ -42,25 +42,27 @@ export default class Server {
     this.defineRoutes()
   }
 
-  getRequestHandler () {
-    return (req, res, parsedUrl) => {
-      // Parse url if parsedUrl not provided
-      if (!parsedUrl) {
-        parsedUrl = parseUrl(req.url, true)
-      }
-
-      // Parse the querystring ourselves if the user doesn't handle querystring parsing
-      if (typeof parsedUrl.query === 'string') {
-        parsedUrl.query = parseQs(parsedUrl.query)
-      }
-
-      return this.run(req, res, parsedUrl)
-      .catch((err) => {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        res.end(STATUS_CODES[500])
-      })
+  handleRequest (req, res, parsedUrl) {
+    // Parse url if parsedUrl not provided
+    if (!parsedUrl) {
+      parsedUrl = parseUrl(req.url, true)
     }
+
+    // Parse the querystring ourselves if the user doesn't handle querystring parsing
+    if (typeof parsedUrl.query === 'string') {
+      parsedUrl.query = parseQs(parsedUrl.query)
+    }
+
+    return this.run(req, res, parsedUrl)
+    .catch((err) => {
+      if (!this.quiet) console.error(err)
+      res.statusCode = 500
+      res.end(STATUS_CODES[500])
+    })
+  }
+
+  getRequestHandler () {
+    return this.handleRequest.bind(this)
   }
 
   async prepare () {
@@ -181,9 +183,9 @@ export default class Server {
     }
   }
 
-  async render (req, res, pathname, query) {
+  async render (req, res, pathname, query, parsedUrl) {
     if (this.isInternalUrl(req)) {
-      return this.getRequestHandler()(req, res)
+      return this.handleRequest(req, res, parsedUrl)
     }
 
     if (this.config.poweredByHeader) {
