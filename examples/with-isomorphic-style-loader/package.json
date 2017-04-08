@@ -1,0 +1,30 @@
+{
+  "name": "with-isomorphic-style-loader",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "browserslist": [
+    ">1%",
+    "last 4 versions",
+    "Firefox ESR",
+    "not ie < 9"
+  ],
+  "dependencies": {
+    "isomorphic-style-loader": "^1.1.0",
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^6.7.7",
+    "css-loader": "^0.28.0",
+    "glob-promise": "^3.1.0",
+    "postcss-global-import": "^1.0.0",
+    "postcss-import": "^9.1.0",
+    "postcss-loader": "^1.3.3",
+    "webpack": "^2.3.3"
+  }
+}
