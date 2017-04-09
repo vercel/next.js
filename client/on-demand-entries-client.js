@@ -9,7 +9,7 @@ Router.ready(() => {
 
 async function ping () {
   try {
-    const url = `/_next/on-demand-entries-ping?page=${Router.pathname}`
+    const url = `/_next/hmr/on-demand-entries-ping?page=${Router.pathname}`
     const res = await fetch(url)
     const payload = await res.json()
     if (payload.invalid) {
