@@ -80,6 +80,7 @@
     "mz": "2.6.0",
     "path-match": "1.2.4",
     "pkg-up": "1.0.0",
+    "prop-types": "15.5.6",
     "react-hot-loader": "3.0.0-beta.6",
     "send": "0.15.1",
     "source-map-support": "0.4.14",
@@ -116,8 +117,8 @@
     "node-fetch": "1.6.3",
     "node-notifier": "5.1.2",
     "nyc": "10.2.0",
-    "react": "15.4.2",
-    "react-dom": "15.4.2",
+    "react": "15.5.3",
+    "react-dom": "15.5.3",
     "standard": "9.0.2",
     "wd": "1.2.0"
   },
