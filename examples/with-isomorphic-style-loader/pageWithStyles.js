@@ -2,13 +2,9 @@ import React, { Component, PropTypes } from 'react'
 
 export default function pageWithStyles (WrappedComponent) {
   class PageWithStyles extends Component {
-    static getInitialProps ({ req }) {
-      return { isServer: !!req }
-    }
-
     getChildContext () {
-      return {
-        insertCss: (...styles) => {
+      const insertCss = typeof window === 'undefined'
+        ? (...styles) => {
           styles.forEach((style) => {
             const cssText = style._getCss()
             if (!~this.props.css.indexOf(cssText)) {
@@ -16,7 +12,12 @@ export default function pageWithStyles (WrappedComponent) {
             }
           })
         }
-      }
+        : (...styles) => {
+          const removeCss = styles.map(x => x._insertCss())
+
+          return () => { removeCss.forEach(f => f()) }
+        }
+      return { insertCss }
     }
 
     render () {

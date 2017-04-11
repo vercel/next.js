@@ -3,10 +3,15 @@ const { join } = require('path')
 
 module.exports = {
   webpack: function (config, { dev }) {
-    const entry = async () => {
-      const entries = {}
-      const cssFiles = await glob('**/*.css', { cwd: config.context, ignore: 'node_modules/**/*' })
-      cssFiles.forEach((file) => { entries[join('dist', file)] = [`./${file}?entry`] })
+    const entry = config.entry
+    // Also bundle pages for server
+    config.entry = async () => {
+      const entries = await entry()
+      const pages = await glob('pages/**/*.js', { cwd: config.context })
+      const nextPages = await glob('node_modules/next/dist/pages/**/*.js', { cwd: config.context })
+      pages.concat(nextPages).forEach((file) => {
+        entries[join('dist', file.replace('node_modules/next/dist', ''))] = [`./${file}?entry`]
+      })
       return entries
     }
     const cssConfig = {
@@ -31,19 +36,18 @@ module.exports = {
       ]
     }
 
-    // Add to next config for client-side bundles
+    // Remove emit-file-loader to bundle pages on server-side
+    config.module.rules = config.module.rules.filter((rule) =>
+      rule.loader !== 'emit-file-loader'
+    )
+
+    // Remove chunking plugins that cause problems
+    config.plugins = config.plugins.filter((plugin) =>
+      !/Chunk/.test(plugin.constructor.name)
+    )
+
     config.module.rules.push(cssConfig)
-    return [config, {
-      // Server config
-      // Target is Node-only
-      target: 'async-node',
-      entry,
-      context: config.context,
-      output: config.output,
-      devtool: config.devtool,
-      module: {
-        rules: [cssConfig]
-      }
-    }]
+
+    return config
   }
 }
