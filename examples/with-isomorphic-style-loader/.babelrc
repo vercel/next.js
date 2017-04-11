@@ -1,0 +1,8 @@
+{
+  "presets": [
+    "next/babel"
+  ],
+  "plugins": [
+    "transform-es2015-modules-commonjs"
+  ]
+}
