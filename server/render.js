@@ -2,6 +2,8 @@ import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
+import generateETag from 'etag'
+import fresh from 'fresh'
 import requireModule from './require'
 import getConfig from './config'
 import resolvePath from './resolve'
@@ -14,7 +16,7 @@ import ErrorDebug from '../lib/error-debug'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
-  sendHTML(res, html, req.method)
+  sendHTML(req, res, html, req.method)
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
@@ -23,7 +25,7 @@ export function renderToHTML (req, res, pathname, query, opts) {
 
 export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(res, html, req.method)
+  sendHTML(req, res, html, req.method)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
@@ -132,9 +134,17 @@ export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev
   }, req.method)
 }
 
-export function sendHTML (res, html, method) {
+export function sendHTML (req, res, html, method) {
   if (res.finished) return
+  const etag = generateETag(html)
 
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return
+  }
+
+  res.setHeader('ETag', etag)
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
   res.end(method === 'HEAD' ? null : html)

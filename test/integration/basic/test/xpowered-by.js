@@ -4,7 +4,7 @@ import { pkg } from 'next-test-utils'
 export default function ({ app }) {
   describe('X-Powered-By header', () => {
     test('set it by default', async () => {
-      const req = { url: '/stateless' }
+      const req = { url: '/stateless', headers: {} }
       const headers = {}
       const res = {
         setHeader (key, value) {
@@ -18,7 +18,7 @@ export default function ({ app }) {
     })
 
     test('do not set it when poweredByHeader==false', async () => {
-      const req = { url: '/stateless' }
+      const req = { url: '/stateless', headers: {} }
       const originalConfigValue = app.config.poweredByHeader
       app.config.poweredByHeader = false
       const res = {
