@@ -120,7 +120,7 @@
     "wd": "1.2.0"
   },
   "peerDependencies": {
-    "react": "^15.4.2",
+    "react": "^15.5.4",
     "react-dom": "^15.4.2"
   },
   "jest": {
