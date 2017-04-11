@@ -147,7 +147,7 @@ export default class Server {
 
           const compilationErr = this.getCompilationError(page)
           if (compilationErr) {
-            const customFields = { buildError: true }
+            const customFields = { statusCode: 500 }
             return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
           }
         }
