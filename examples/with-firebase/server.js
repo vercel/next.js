@@ -9,11 +9,10 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-const serviceAccount = require('./firebase')
 const firebase = admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(require('./firebase')),
   databaseURL: "https://log-me-in-b7816.firebaseio.com",
-})
+}, 'server')
 
 app.prepare()
 .then(() => {
@@ -29,6 +28,24 @@ app.prepare()
     httpOnly: true,
     cookie: { maxAge: 604800000 } // week
   }))
+
+  server.post('/api/login', (req, res) => {
+    if (!req.body) return res.sendStatus(400)
+
+    const token = req.body.token
+    firebase.auth().verifyIdToken(token)
+      .then((decodedToken) => {
+        req.session.decodedToken = decodedToken
+        return decodedToken
+      })
+      .then((decodedToken) => res.json({ status: true, decodedToken }))
+      .catch((error) => res.json({ error }))
+  })
+
+  server.post('/api/logout', (req, res) => {
+    req.session.decodedToken = null
+    res.json({ status: true })
+  });
 
   server.get('*', (req, res) => {
     return handle(req, res)
