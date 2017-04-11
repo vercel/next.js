@@ -28,11 +28,13 @@ const {
   location
 } = window
 
-const pageLoader = window.__NEXT_PAGE_LOADER__ = new PageLoader(buildId)
-if (window.__NEXT_LOADED_PAGES__) {
-  window.__NEXT_LOADED_PAGES__.forEach((fn) => fn())
-  delete window.__NEXT_LOADED_PAGES__
-}
+const pageLoader = new PageLoader(buildId)
+window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
+  pageLoader.registerPage(route, fn)
+})
+delete window.__NEXT_LOADED_PAGES__
+
+window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')

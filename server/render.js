@@ -122,20 +122,12 @@ export async function renderScriptError (req, res, page, error, customFields, op
   if (error.code === 'ENOENT') {
     res.setHeader('Content-Type', 'text/javascript')
     res.end(`
-      function loadPage () {
+      window.__NEXT_REGISTER_PAGE('${page}', function() {
         var error = new Error('Page not exists: ${page}')
         error.statusCode = 404
-        __NEXT_PAGE_LOADER__.registerPage('${page}', function(cb) {
-          cb(error)
-        })
-      }
-      
-      if (window.__NEXT_PAGE_LOADER__) {
-        loadPage()
-      } else {
-        window.__NEXT_LOADED_PAGES__ = window.__NEXT_LOADED_PAGES__ || []
-        window.__NEXT_LOADED_PAGES__.push(loadPage)
-      }
+
+        return { error: error }
+      })
     `)
     return
   }
@@ -147,19 +139,10 @@ export async function renderScriptError (req, res, page, error, customFields, op
   }
 
   res.end(`
-    function loadPage () {
+    window.__NEXT_REGISTER_PAGE('${page}', function() {
       var error = ${JSON.stringify(errorJson)}
-      __NEXT_PAGE_LOADER__.registerPage('${page}', function(cb) {
-        cb(error)
-      })
-    }
-    
-    if (window.__NEXT_PAGE_LOADER__) {
-      loadPage()
-    } else {
-      window.__NEXT_LOADED_PAGES__ = window.__NEXT_LOADED_PAGES__ || []
-      window.__NEXT_LOADED_PAGES__.push(loadPage)
-    }
+      return { error: error }
+    })
   `)
 }
 

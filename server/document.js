@@ -101,7 +101,15 @@ export class NextScript extends Component {
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
-        __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
+        __html: `
+          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+          module={}
+          __NEXT_LOADED_PAGES__ = []
+
+          __NEXT_REGISTER_PAGE = function (route, fn) {
+            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+          }
+        `
       }} />}
       <script async type='text/javascript' src={`/_next/${buildId}/page${pathname}`} />
       <script async type='text/javascript' src={`/_next/${buildId}/page/_error`} />

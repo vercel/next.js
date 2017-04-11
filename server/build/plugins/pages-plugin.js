@@ -16,19 +16,10 @@ export default class PagesPlugin {
 
         const content = page.source()
         const newContent = `
-          function loadPage () {
-            window.__NEXT_PAGE_LOADER__.registerPage('${routeName}', function(cb) {
-              var comp = ${content}
-              cb(null, comp.default)
-            })
-          }
-
-          if (window.__NEXT_PAGE_LOADER__) {
-            loadPage()
-          } else {
-            window.__NEXT_LOADED_PAGES__ = window.__NEXT_LOADED_PAGES__ || []
-            window.__NEXT_LOADED_PAGES__.push(loadPage)
-          }
+          window.__NEXT_REGISTER_PAGE('${routeName}', function() {
+            var comp = ${content}
+            return { page: comp.default }
+          })
         `
         // Replace the exisiting chunk with the new content
         compilation.assets[chunk.name] = {
