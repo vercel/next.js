@@ -35,14 +35,14 @@ export class Head extends Component {
 
   getChunkPreloadLink (filename) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats } = __NEXT_DATA__
+    let { buildStats, assetPrefix } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
       <link
         key={filename}
         rel='preload'
-        href={`/_next/${hash}/${filename}`}
+        href={`${assetPrefix}/_next/${hash}/${filename}`}
         as='script'
       />
     )
@@ -66,11 +66,11 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <head>
-      <link rel='preload' href={`/_next/${buildId}/page${pathname}`} as='script' />
-      <link rel='preload' href={`/_next/${buildId}/page/_error`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
