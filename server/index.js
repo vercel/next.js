@@ -36,7 +36,8 @@ export default class Server {
       dir: this.dir,
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
-      buildId: this.buildId
+      buildId: this.buildId,
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
     }
 
     this.defineRoutes()

@@ -102,13 +102,13 @@ export class NextScript extends Component {
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats } = __NEXT_DATA__
+    let { buildStats, assetPrefix } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
       <script
         type='text/javascript'
-        src={`/_next/${hash}/${filename}`}
+        src={`${assetPrefix}/_next/${hash}/${filename}`}
         {...additionalProps}
       />
     )
@@ -133,7 +133,7 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -147,8 +147,8 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async type='text/javascript' src={`/_next/${buildId}/page${pathname}`} />
-      <script async type='text/javascript' src={`/_next/${buildId}/page/_error`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
