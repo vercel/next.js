@@ -33,9 +33,45 @@ export class Head extends Component {
     _documentProps: PropTypes.any
   }
 
+  getChunkPreloadLink (filename) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    let { buildStats } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : '-'
+
+    return (
+      <link
+        key={filename}
+        rel='preload'
+        href={`/_next/${hash}/${filename}`}
+        as='script'
+      />
+    )
+  }
+
+  getPreloadMainLinks () {
+    const { dev } = this.context._documentProps
+    if (dev) {
+      return [
+        this.getChunkPreloadLink('manifest.js'),
+        this.getChunkPreloadLink('commons.js'),
+        this.getChunkPreloadLink('main.js')
+      ]
+    }
+
+    // In the production mode, we have a single asset with all the JS content.
+    return [
+      this.getChunkPreloadLink('app.js')
+    ]
+  }
+
   render () {
-    const { head, styles } = this.context._documentProps
+    const { head, styles, __NEXT_DATA__ } = this.context._documentProps
+    const { pathname, buildId } = __NEXT_DATA__
+
     return <head>
+      <link rel='preload' href={`/_next/${buildId}/page${pathname}`} as='script' />
+      <link rel='preload' href={`/_next/${buildId}/page/_error`} as='script' />
+      {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
       {this.props.children}
