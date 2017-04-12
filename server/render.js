@@ -123,7 +123,7 @@ export async function renderScriptError (req, res, page, error, customFields, op
     res.setHeader('Content-Type', 'text/javascript')
     res.end(`
       window.__NEXT_REGISTER_PAGE('${page}', function() {
-        var error = new Error('Page not exists: ${page}')
+        var error = new Error('Page does not exist: ${page}')
         error.statusCode = 404
 
         return { error: error }
