@@ -36,7 +36,6 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing babel config](#customizing-babel-config)
 - [Production deployment](#production-deployment)
 - [FAQ](#faq)
-- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Authors](#authors)
 
@@ -844,10 +843,6 @@ Unlike PHP, we benefit from the ES6 module system and every file exports a **com
 As we were researching options for server-rendering React that didn’t involve a large number of steps, we came across [react-page](https://github.com/facebookarchive/react-page) (now deprecated), a similar approach to Next.js by the creator of React Jordan Walke.
 
 </details>
-
-## Roadmap
-
-Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
 
 ## Contributing
 
