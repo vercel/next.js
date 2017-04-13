@@ -11,7 +11,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [How to use](#how-to-use)
-  - [Gettin Started](#getting-started)
+  - [Getting Started](#getting-started)
   - [Setup](#setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
@@ -45,7 +45,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
 ## How to use
 
 ### Gettin Started
-A step by step interactive guide of next features is available at [learnnextjs](https://learnnextjs.com/)
+A step by step interactive guide of next features is available at [learnnextjs.com](https://learnnextjs.com/)
 
 ### Setup
 
