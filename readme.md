@@ -44,7 +44,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 ## How to use
 
-### Gettin Started
+### Getting Started
+
 A step by step interactive guide of next features is available at [learnnextjs.com](https://learnnextjs.com/)
 
 ### Setup
