@@ -5,7 +5,6 @@ import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
-import readPage from './read-page'
 import getConfig from './config'
 
 export default class HotReloader {
@@ -205,7 +204,6 @@ export default class HotReloader {
 
 function deleteCache (path) {
   delete require.cache[path]
-  delete readPage.cache[path]
 }
 
 function diff (a, b) {

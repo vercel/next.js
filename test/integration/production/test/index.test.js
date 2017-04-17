@@ -1,6 +1,5 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
-import fetch from 'node-fetch'
 import { join } from 'path'
 import {
   nextServer,
@@ -9,6 +8,7 @@ import {
   stopApp,
   renderViaHTTP
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -37,32 +37,16 @@ describe('Production Usage', () => {
     })
   })
 
-  describe('JSON pages', () => {
-    describe('when asked for a normal page', () => {
-      it('should serve the normal page', async () => {
-        const url = `http://localhost:${appPort}/_next/${app.renderOpts.buildId}/pages`
-        const res = await fetch(url, { compress: false })
-        expect(res.headers.get('Content-Encoding')).toBeNull()
+  describe('With navigation', () => {
+    it('should navigate via client side', async () => {
+      const browser = await webdriver(appPort, '/')
+      const text = await browser
+          .elementByCss('a').click()
+          .waitForElementByCss('.about-page')
+          .elementByCss('div').text()
 
-        const page = await res.json()
-        expect(page.component).toBeDefined()
-      })
-    })
-
-    describe('when asked for a page with an unknown encoding', () => {
-      it('should serve the normal page', async () => {
-        const url = `http://localhost:${appPort}/_next/${app.renderOpts.buildId}/pages`
-        const res = await fetch(url, {
-          compress: false,
-          headers: {
-            'Accept-Encoding': 'br'
-          }
-        })
-        expect(res.headers.get('Content-Encoding')).toBeNull()
-
-        const page = await res.json()
-        expect(page.component).toBeDefined()
-      })
+      expect(text).toBe('About Page')
+      browser.close()
     })
   })
 })
