@@ -277,7 +277,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
         // append hash id for cache busting
         return `webpack:///${resourcePath}?${id}`
-      }
+      },
+      // This saves chunks with the name given via require.ensure()
+      chunkFilename: '[name]'
     },
     resolve: {
       modules: [
