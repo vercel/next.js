@@ -34,6 +34,7 @@ module.exports = {
           'next/link': relativeResolve('../../../lib/link'),
           'next/prefetch': relativeResolve('../../../lib/prefetch'),
           'next/css': relativeResolve('../../../lib/css'),
+          'next/dynamic': relativeResolve('../../../lib/dynamic'),
           'next/head': relativeResolve('../../../lib/head'),
           'next/document': relativeResolve('../../../server/document'),
           'next/router': relativeResolve('../../../lib/router'),

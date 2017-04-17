@@ -10,6 +10,7 @@ import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
+import { flushChunks } from '../lib/dynamic'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
@@ -74,12 +75,13 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
+    const chunks = flushChunks()
 
     if (err && dev) {
       errorHtml = render(createElement(ErrorDebug, { error: err }))
     }
 
-    return { html, head, errorHtml }
+    return { html, head, errorHtml, chunks }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })

@@ -8,18 +8,35 @@ const TYPE_IMPORT = 'Import'
 
 const buildImport = (args) => (template(`
   (
-    new Promise((resolve) => {
-      if (process.pid) {
-        eval('require.ensure = (deps, callback) => (callback(require))')
-      }
+    typeof window === 'undefined' ? 
+      {
+        then(cb) {
+          eval('require.ensure = function (deps, callback) { callback(require) }')
+          require.ensure([], (require) => {
+            let m = require(SOURCE)
+            m = m.default || m
+            m.__webpackChunkName = '${args.name}.js'
+            cb(m);
+          }, 'chunks/${args.name}.js');
+        },
+        catch() {}
+      } :
+      {
+        then(cb) {
+          const weakId = require.resolveWeak(SOURCE)
+          try {
+            const weakModule = __webpack_require__(weakId)
+            return cb(weakModule.default || weakModule)
+          } catch (err) {}
 
-      require.ensure([], (require) => {
-        let m = require(SOURCE)
-        m = m.default || m
-        m.__webpackChunkName = '${args.name}.js'
-        resolve(m);
-      }, 'chunks/${args.name}.js');
-    })
+          require.ensure([], (require) => {
+            let m = require(SOURCE)
+            m = m.default || m
+            cb(m);
+          }, 'chunks/${args.name}.js');
+        },
+        catch () {}
+      }
   )
 `))
 

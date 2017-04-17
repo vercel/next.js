@@ -23,7 +23,8 @@ const {
     err,
     pathname,
     query,
-    buildId
+    buildId,
+    chunks
   },
   location
 } = window
@@ -34,7 +35,13 @@ window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
 })
 delete window.__NEXT_LOADED_PAGES__
 
+window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
+  pageLoader.registerChunk(chunkName, fn)
+})
+delete window.__NEXT_LOADED_CHUNKS__
+
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
+window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
@@ -46,6 +53,11 @@ export let ErrorComponent
 let Component
 
 export default async () => {
+  // Wait for all the dynamic chunks to get loaded
+  for (const chunkName of chunks) {
+    await pageLoader.waitForChunk(chunkName)
+  }
+
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {

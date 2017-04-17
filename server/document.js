@@ -4,9 +4,9 @@ import flush from 'styled-jsx/server'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml } = renderPage()
+    const { html, head, errorHtml, chunks } = renderPage()
     const styles = flush()
-    return { html, head, errorHtml, styles }
+    return { html, head, errorHtml, chunks, styles }
   }
 
   static childContextTypes = {
@@ -64,6 +64,18 @@ export class Head extends Component {
     ]
   }
 
+  getPreloadDynamicChunks () {
+    const { chunks } = this.context._documentProps
+    return chunks.map((chunk) => (
+      <link
+        key={chunk}
+        rel='preload'
+        href={`/_webpack/chunks/${chunk}`}
+        as='script'
+      />
+    ))
+  }
+
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
     const { pathname, buildId } = __NEXT_DATA__
@@ -71,6 +83,7 @@ export class Head extends Component {
     return <head>
       <link rel='preload' href={`/_next/${buildId}/page${pathname}`} as='script' />
       <link rel='preload' href={`/_next/${buildId}/page/_error`} as='script' />
+      {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
@@ -131,9 +144,27 @@ export class NextScript extends Component {
     return this.getChunkScript('app.js', { async: true })
   }
 
+  getDynamicChunks () {
+    const { chunks } = this.context._documentProps
+    return (
+      <div>
+        {chunks.map((chunk) => (
+          <script
+            async
+            key={chunk}
+            type='text/javascript'
+            src={`/_webpack/chunks/${chunk}`}
+          />
+        ))}
+      </div>
+    )
+  }
+
   render () {
-    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
     const { pathname, buildId } = __NEXT_DATA__
+
+    __NEXT_DATA__.chunks = chunks
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -141,14 +172,20 @@ export class NextScript extends Component {
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
           module={}
           __NEXT_LOADED_PAGES__ = []
+          __NEXT_LOADED_CHUNKS__ = []
 
           __NEXT_REGISTER_PAGE = function (route, fn) {
             __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+          }
+
+          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
           }
         `
       }} />}
       <script async type='text/javascript' src={`/_next/${buildId}/page${pathname}`} />
       <script async type='text/javascript' src={`/_next/${buildId}/page/_error`} />
+      {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </div>
   }

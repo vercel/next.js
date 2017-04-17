@@ -1,9 +1,9 @@
 import React from 'react'
 import Header from '../components/Header'
 import Counter from '../components/Counter'
-import withImport from '../lib/with-import'
+import dynamic from 'next/dynamic'
 
-const DynamicComponent = withImport(import('../components/hello'))
+const DynamicComponent = dynamic(import('../components/hello'))
 
 export default () => (
   <div>
