@@ -17,6 +17,7 @@ export default class Index extends Component {
     this.state = {
       user: this.props.user,
       value: '',
+      messages: this.props.messages,
     }
 
     this.handleChange = this.handleChange.bind(this);
