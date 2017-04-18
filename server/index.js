@@ -18,6 +18,11 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 
+const internalPrefixes = [
+  /^\/_next\//,
+  /^\/static\//
+]
+
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
     this.dir = resolve(dir)
@@ -36,31 +41,34 @@ export default class Server {
       dir: this.dir,
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
-      buildId: this.buildId
+      buildId: this.buildId,
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
     }
 
     this.defineRoutes()
   }
 
-  getRequestHandler () {
-    return (req, res, parsedUrl) => {
-      // Parse url if parsedUrl not provided
-      if (!parsedUrl) {
-        parsedUrl = parseUrl(req.url, true)
-      }
-
-      // Parse the querystring ourselves if the user doesn't handle querystring parsing
-      if (typeof parsedUrl.query === 'string') {
-        parsedUrl.query = parseQs(parsedUrl.query)
-      }
-
-      return this.run(req, res, parsedUrl)
-      .catch((err) => {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        res.end(STATUS_CODES[500])
-      })
+  handleRequest (req, res, parsedUrl) {
+    // Parse url if parsedUrl not provided
+    if (!parsedUrl) {
+      parsedUrl = parseUrl(req.url, true)
     }
+
+    // Parse the querystring ourselves if the user doesn't handle querystring parsing
+    if (typeof parsedUrl.query === 'string') {
+      parsedUrl.query = parseQs(parsedUrl.query)
+    }
+
+    return this.run(req, res, parsedUrl)
+    .catch((err) => {
+      if (!this.quiet) console.error(err)
+      res.statusCode = 500
+      res.end(STATUS_CODES[500])
+    })
+  }
+
+  getRequestHandler () {
+    return this.handleRequest.bind(this)
   }
 
   async prepare () {
@@ -92,7 +100,7 @@ export default class Server {
       },
 
       // This is to support, webpack dynamic imports in production.
-      '/_webpack/chunks/:name': async (req, res, params) => {
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
         res.setHeader('Cache-Control', 'max-age=365000000, immutable')
         const p = join(this.dir, '.next', 'chunks', params.name)
         await this.serveStatic(req, res, p)
@@ -215,12 +223,16 @@ export default class Server {
     }
   }
 
-  async render (req, res, pathname, query) {
+  async render (req, res, pathname, query, parsedUrl) {
+    if (this.isInternalUrl(req)) {
+      return this.handleRequest(req, res, parsedUrl)
+    }
+
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    return sendHTML(res, html, req.method)
+    return sendHTML(req, res, html, req.method)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -248,7 +260,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(res, html, req.method)
+    return sendHTML(req, res, html, req.method)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -289,6 +301,16 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  isInternalUrl (req) {
+    for (const prefix of internalPrefixes) {
+      if (prefix.test(req.url)) {
+        return true
+      }
+    }
+
+    return false
   }
 
   readBuildId () {

@@ -1,4 +1,5 @@
-import React, { Component, PropTypes } from 'react'
+import React, { Component } from 'react'
+import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
@@ -35,14 +36,14 @@ export class Head extends Component {
 
   getChunkPreloadLink (filename) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats } = __NEXT_DATA__
+    let { buildStats, assetPrefix } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
       <link
         key={filename}
         rel='preload'
-        href={`/_next/${hash}/${filename}`}
+        href={`${assetPrefix}/_next/${hash}/${filename}`}
         as='script'
       />
     )
@@ -65,12 +66,13 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { chunks } = this.context._documentProps
+    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    let { assetPrefix } = __NEXT_DATA__
     return chunks.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`/_webpack/chunks/${chunk}`}
+        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
@@ -78,11 +80,11 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <head>
-      <link rel='preload' href={`/_next/${buildId}/page${pathname}`} as='script' />
-      <link rel='preload' href={`/_next/${buildId}/page/_error`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
@@ -115,13 +117,13 @@ export class NextScript extends Component {
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats } = __NEXT_DATA__
+    let { buildStats, assetPrefix } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
       <script
         type='text/javascript'
-        src={`/_next/${hash}/${filename}`}
+        src={`${assetPrefix}/_next/${hash}/${filename}`}
         {...additionalProps}
       />
     )
@@ -145,7 +147,8 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { chunks } = this.context._documentProps
+    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    let { assetPrefix } = __NEXT_DATA__
     return (
       <div>
         {chunks.map((chunk) => (
@@ -153,7 +156,7 @@ export class NextScript extends Component {
             async
             key={chunk}
             type='text/javascript'
-            src={`/_webpack/chunks/${chunk}`}
+            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
           />
         ))}
       </div>
@@ -162,7 +165,7 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
-    const { pathname, buildId } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
 
     __NEXT_DATA__.chunks = chunks
 
@@ -183,8 +186,8 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async type='text/javascript' src={`/_next/${buildId}/page${pathname}`} />
-      <script async type='text/javascript' src={`/_next/${buildId}/page/_error`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </div>
