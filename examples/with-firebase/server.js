@@ -29,6 +29,11 @@ app.prepare()
     cookie: { maxAge: 604800000 } // week
   }))
 
+  server.use((req, res, next) => {
+    req.firebase = firebase
+    next()
+  })
+
   server.post('/api/login', (req, res) => {
     if (!req.body) return res.sendStatus(400)
 

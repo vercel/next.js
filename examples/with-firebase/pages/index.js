@@ -6,12 +6,13 @@ import firebase from 'firebase'
 const provider = new firebase.auth.GoogleAuthProvider();
 
 export default class Index extends Component {
-  static async getInitialProps ({req, query}) {
-    const user = req && req.session ? req.session.decodedToken : null;
-    return { user }
+  static async getInitialProps({req, query}) {
+    const user = req && req.session ? req.session.decodedToken : null
+    const snap = await req.firebase.database().ref('messages').once('value')
+    return { user, messages: snap.val() }
   }
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       user: this.props.user,
