@@ -703,19 +703,17 @@ Here's an example `.babelrc` file:
 
 ### CDN support with Asset Prefix
 
-Sometimes, it's a pretty good idea to serve Next.js static assets via a CDN. You can easily do that by exposing the following option via `next.config.js`.
+To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
 
 ```js
 const isProd = process.NODE_ENV === 'production'
 module.exports = {
   // You may only need to add assetPrefix in the production.
-  assetPrefix: isProd? 'https://cdn.mydomain.com' : ''
+  assetPrefix: isProd ? 'https://cdn.mydomain.com' : ''
 }
 ```
 
-Then inside your CDN configuration, set the origin URL as your app's domain name. That's all you've to.
-
-> With this setup, you can't add CDN support for static assets in the 'static' directory. This is only for core Next.js assets.
+Note: Next.js will automatically use that prefix the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
 ## Production deployment
 
