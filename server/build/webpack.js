@@ -13,6 +13,10 @@ import * as babelCore from 'babel-core'
 import findBabelConfig from './babel/find-config'
 import rootModuleRelativePath from './root-module-relative-path'
 
+// Mark whether we are inside Next.js
+// So, our babel preset could do some Next.js specific configurations
+process.env.INSIDE_NEXT = 1
+
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
   '_error.js',
