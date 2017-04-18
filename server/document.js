@@ -34,9 +34,45 @@ export class Head extends Component {
     _documentProps: PropTypes.any
   }
 
+  getChunkPreloadLink (filename) {
+    const { __NEXT_DATA__ } = this.context._documentProps
+    let { buildStats, assetPrefix } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : '-'
+
+    return (
+      <link
+        key={filename}
+        rel='preload'
+        href={`${assetPrefix}/_next/${hash}/${filename}`}
+        as='script'
+      />
+    )
+  }
+
+  getPreloadMainLinks () {
+    const { dev } = this.context._documentProps
+    if (dev) {
+      return [
+        this.getChunkPreloadLink('manifest.js'),
+        this.getChunkPreloadLink('commons.js'),
+        this.getChunkPreloadLink('main.js')
+      ]
+    }
+
+    // In the production mode, we have a single asset with all the JS content.
+    return [
+      this.getChunkPreloadLink('app.js')
+    ]
+  }
+
   render () {
-    const { head, styles } = this.context._documentProps
+    const { head, styles, __NEXT_DATA__ } = this.context._documentProps
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+
     return <head>
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
+      {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
       {this.props.children}
@@ -67,13 +103,13 @@ export class NextScript extends Component {
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats } = __NEXT_DATA__
+    let { buildStats, assetPrefix } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : '-'
 
     return (
       <script
         type='text/javascript'
-        src={`/_next/${hash}/${filename}`}
+        src={`${assetPrefix}/_next/${hash}/${filename}`}
         {...additionalProps}
       />
     )
@@ -98,11 +134,22 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
-        __html: `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}; module={};`
+        __html: `
+          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+          module={}
+          __NEXT_LOADED_PAGES__ = []
+
+          __NEXT_REGISTER_PAGE = function (route, fn) {
+            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+          }
+        `
       }} />}
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
