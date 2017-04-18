@@ -5,7 +5,6 @@ import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
-import readPage from './read-page'
 import getConfig from './config'
 
 export default class HotReloader {
@@ -140,7 +139,7 @@ export default class HotReloader {
     } : {}
 
     this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
-      publicPath: '/_webpack/',
+      publicPath: '/_next/webpack/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
@@ -148,7 +147,10 @@ export default class HotReloader {
       ...windowsSettings
     })
 
-    this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+    this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
+      path: '/_next/webpack-hmr',
+      log: false
+    })
     this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
       dir: this.dir,
       dev: true,
@@ -202,7 +204,6 @@ export default class HotReloader {
 
 function deleteCache (path) {
   delete require.cache[path]
-  delete readPage.cache[path]
 }
 
 function diff (a, b) {
