@@ -10,12 +10,17 @@ const DynamicComponentWithCustomLoading = dynamic(
     loading: () => (<p>...</p>)
   }
 )
+const DynamicComponentWithNoSSR = dynamic(
+  import('../components/hello3'),
+  { ssr: false }
+)
 
 export default () => (
   <div>
     <Header />
     <DynamicComponent />
     <DynamicComponentWithCustomLoading />
+    <DynamicComponentWithNoSSR />
     <p>HOME PAGE is here!</p>
     <Counter />
   </div>
