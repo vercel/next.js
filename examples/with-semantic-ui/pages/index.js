@@ -1,10 +1,10 @@
 import Head from 'next/head'
-import { Modal, Header, Button, Image, List } from 'semantic-ui-react'
+import { Modal, Header, Button, List } from 'semantic-ui-react'
 
 export default () => (
   <div>
     <Head>
-      <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.2/semantic.min.css" />
+      <link rel='stylesheet' href='//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.2/semantic.min.css' />
     </Head>
     <Modal trigger={<Button>Show Modal</Button>}>
       <Modal.Header>Select a Photo</Modal.Header>
@@ -16,7 +16,7 @@ export default () => (
         </Modal.Description>
       </Modal.Content>
     </Modal>
-      
+
     <List vertical relaxed>
       <List.Item>
         <List.Content>
