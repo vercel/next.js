@@ -1,8 +1,8 @@
 module.exports = {
   clientCredentials: {
-    // firebase client config goes here
+    // TODO firebase client config
   },
   serverCredentials: {
-    // serviceAccount json here
+    // TODO service account json here
   }
 }
