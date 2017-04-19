@@ -10,6 +10,7 @@
     "express-session": "^1.15.2",
     "firebase": "^3.7.5",
     "firebase-admin": "^4.2.0",
+    "isomorphic-fetch": "2.2.1",
     "next": "latest",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
