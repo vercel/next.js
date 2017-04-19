@@ -23,7 +23,7 @@ export default class Index extends Component {
   }
 
   componentDidMount() {
-    firebase.initializeApp(firebaseClientCredentials)
+    firebase.initializeApp(clientCredentials)
 
     firebase.database().ref('messages').on('value', snap => {
       this.setState({ messages: snap.val() })
