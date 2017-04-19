@@ -10,6 +10,12 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 
 cd with-firebase
 ```
 
+Set up firebase:
+- create a project
+- get your service account credentials and client credentials and set both in firebaseCredentials.js
+- set your firebase database url in server.js
+- on the firebase Authentication console, select Google as your provider
+
 Install it and run:
 
 ```bash
@@ -24,3 +30,4 @@ now
 ```
 
 ## The idea behind the example
+The goal is to authenticate users with firebase and store their auth token in a session. A logged in user will see their messages on page load and then be able to post new messages. 
