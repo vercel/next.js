@@ -18,6 +18,7 @@ export default class Index extends Component {
       messages: this.props.messages
     }
 
+    this.addDbListener = this.addDbListener.bind(this)
     this.handleChange = this.handleChange.bind(this)
     this.handleSubmit = this.handleSubmit.bind(this)
   }
@@ -25,9 +26,7 @@ export default class Index extends Component {
   componentDidMount () {
     firebase.initializeApp(clientCredentials)
 
-    firebase.database().ref('messages').on('value', snap => {
-      this.setState({ messages: snap.val() })
-    })
+    if (this.state.user) this.addDbListener()
 
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
@@ -42,15 +41,22 @@ export default class Index extends Component {
               credentials: 'same-origin',
               body: JSON.stringify({ token })
             })
-          }).then((res) => console.log(res))
+          }).then((res) => this.addDbListener())
       } else {
         this.setState({ user: null })
         // eslint-disable-next-line no-undef
         fetch('/api/logout', {
           method: 'POST',
           credentials: 'same-origin'
-        })
+        }).then(() => firebase.database().ref('messages').off())
       }
+    })
+  }
+
+  addDbListener () {
+    firebase.database().ref('messages').on('value', snap => {
+      const messages = snap.val()
+      if (messages) this.setState({ messages })
     })
   }
 
