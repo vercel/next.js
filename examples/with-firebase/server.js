@@ -1,7 +1,7 @@
 const express = require('express')
 const bodyParser = require('body-parser')
 const session = require('express-session')
-const FileStore = require('session-file-store')(session);
+const FileStore = require('session-file-store')(session)
 const next = require('next')
 const admin = require('firebase-admin')
 
@@ -10,8 +10,8 @@ const app = next({ dev })
 const handle = app.getRequestHandler()
 
 const firebase = admin.initializeApp({
-  credential: admin.credential.cert(require('./firebase')),
-  databaseURL: "https://log-me-in-b7816.firebaseio.com",
+  credential: admin.credential.cert(require('./firebaseCredentials').serverCredentials),
+  databaseURL: '' // database URL goes here
 }, 'server')
 
 app.prepare()
@@ -30,7 +30,7 @@ app.prepare()
   }))
 
   server.use((req, res, next) => {
-    req.firebase = firebase
+    req.firebaseServer = firebase
     next()
   })
 
@@ -50,7 +50,7 @@ app.prepare()
   server.post('/api/logout', (req, res) => {
     req.session.decodedToken = null
     res.json({ status: true })
-  });
+  })
 
   server.get('*', (req, res) => {
     return handle(req, res)
