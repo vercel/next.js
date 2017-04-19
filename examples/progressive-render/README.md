@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/progressive-render)
 # Example app implementing progressive server-side render
 
 ## How to use
