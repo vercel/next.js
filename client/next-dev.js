@@ -1,38 +1,49 @@
-import evalScript from '../lib/eval-script'
-
-const { __NEXT_DATA__: { errorComponent } } = window
-const ErrorComponent = evalScript(errorComponent).default
-
-require('react-hot-loader/patch')
+import 'react-hot-loader/patch'
+import ReactReconciler from 'react-dom/lib/ReactReconciler'
+import initOnDemandEntries from './on-demand-entries-client'
+import initWebpackHMR from './webpack-hot-middleware-client'
 
 const next = window.next = require('./')
 
-const emitter = next.default(onError)
+next.default()
+  .then((emitter) => {
+    initOnDemandEntries()
+    initWebpackHMR()
 
-function onError (err) {
-  // just show the debug screen but don't render ErrorComponent
-  // so that the current component doesn't lose props
-  next.render({ err, emitter })
+    let lastScroll
+
+    emitter.on('before-reactdom-render', ({ Component, ErrorComponent }) => {
+      // Remember scroll when ErrorComponent is being rendered to later restore it
+      if (!lastScroll && Component === ErrorComponent) {
+        const { pageXOffset, pageYOffset } = window
+        lastScroll = {
+          x: pageXOffset,
+          y: pageYOffset
+        }
+      }
+    })
+
+    emitter.on('after-reactdom-render', ({ Component, ErrorComponent }) => {
+      if (lastScroll && Component !== ErrorComponent) {
+        // Restore scroll after ErrorComponent was replaced with a page component by HMR
+        const { x, y } = lastScroll
+        window.scroll(x, y)
+        lastScroll = null
+      }
+    })
+  })
+  .catch((err) => {
+    console.error(`${err.message}\n${err.stack}`)
+  })
+
+// This is a patch to catch most of the errors throw inside React components.
+const originalMountComponent = ReactReconciler.mountComponent
+ReactReconciler.mountComponent = function (...args) {
+  try {
+    return originalMountComponent(...args)
+  } catch (err) {
+    next.renderError(err)
+    err.abort = true
+    throw err
+  }
 }
-
-let lastScroll
-
-emitter.on('before-reactdom-render', ({ Component }) => {
-  // Remember scroll when ErrorComponent is being rendered to later restore it
-  if (!lastScroll && Component === ErrorComponent) {
-    const { pageXOffset, pageYOffset } = window
-    lastScroll = {
-      x: pageXOffset,
-      y: pageYOffset
-    }
-  }
-})
-
-emitter.on('after-reactdom-render', ({ Component }) => {
-  if (lastScroll && Component !== ErrorComponent) {
-    // Restore scroll after ErrorComponent was replaced with a page component by HMR
-    const { x, y } = lastScroll
-    window.scroll(x, y)
-    lastScroll = null
-  }
-})

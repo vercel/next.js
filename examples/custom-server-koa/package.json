@@ -8,7 +8,7 @@
   "dependencies": {
     "koa": "^2.0.1",
     "koa-router": "^7.1.0",
-    "next": "^2.0.0-beta",
+    "next": "latest",
     "react": "^15.4.2",
     "react-dom": "^15.4.2"
   }

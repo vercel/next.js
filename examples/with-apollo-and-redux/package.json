@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "graphql": "^0.9.1",
-    "next": "^2.0.0-beta",
+    "next": "latest",
     "react": "^15.4.2",
     "react-apollo": "^1.0.0-rc.2",
     "redux": "^3.6.0"

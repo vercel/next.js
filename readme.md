@@ -11,6 +11,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [How to use](#how-to-use)
+  - [Getting Started](#getting-started)
   - [Setup](#setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
@@ -33,15 +34,19 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Custom configuration](#custom-configuration)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
+  - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [FAQ](#faq)
-- [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Authors](#authors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## How to use
+
+### Getting Started
+
+A step by step interactive guide of next features is available at [learnnextjs.com](https://learnnextjs.com/)
 
 ### Setup
 
@@ -298,7 +303,7 @@ The component `<Link>` can also receive an URL object and it will automatically 
 // pages/index.js
 import Link from 'next/link'
 export default () => (
-  <div>Click <Link href={{ pathname: 'about', query: { name: 'Zeit' }}}<a>here</a></Link> to read more</div>
+  <div>Click <Link href={{ pathname: 'about', query: { name: 'Zeit' }}}><a>here</a></Link> to read more</div>
 )
 ```
 
@@ -423,7 +428,7 @@ Router.onAppUpdated = (nextUrl) => {
 
 Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
 
-You can do this by invoking the eith `Router.push` or `Router.replace` with `shallow: true` option. Here's an example:
+You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
 ```jsx
 // Current URL is "/"
@@ -644,6 +649,17 @@ module.exports = {
 }
 ```
 
+#### Setting a custom build directory
+
+You can specify a name to use for a custom build directory. For example, the following config will create a `build` folder instead of a `.next` folder. If no configuration is specified then next will create a `.next` folder.
+
+```javascript
+// next.config.js
+module.exports = {
+  distDir: 'build'
+}
+```
+
 ### Customizing webpack config
 
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
@@ -689,6 +705,20 @@ Here's an example `.babelrc` file:
 }
 ```
 
+### CDN support with Asset Prefix
+
+To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
+
+```js
+const isProd = process.NODE_ENV === 'production'
+module.exports = {
+  // You may only need to add assetPrefix in the production.
+  assetPrefix: isProd ? 'https://cdn.mydomain.com' : ''
+}
+```
+
+Note: Next.js will automatically use that prefix the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
+
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -718,7 +748,7 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
-Note: we recommend putting `.next` in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next`)
+Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
 
 ## FAQ
 
@@ -828,10 +858,6 @@ Unlike PHP, we benefit from the ES6 module system and every file exports a **com
 As we were researching options for server-rendering React that didn’t involve a large number of steps, we came across [react-page](https://github.com/facebookarchive/react-page) (now deprecated), a similar approach to Next.js by the creator of React Jordan Walke.
 
 </details>
-
-## Roadmap
-
-Our Roadmap towards 2.0.0 [is public](https://github.com/zeit/next.js/wiki/Roadmap#nextjs-200).
 
 ## Contributing
 
