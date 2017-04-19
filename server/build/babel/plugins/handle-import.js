@@ -8,35 +8,34 @@ const TYPE_IMPORT = 'Import'
 
 const buildImport = (args) => (template(`
   (
-    typeof window === 'undefined' ? 
-      {
-        then(cb) {
-          eval('require.ensure = function (deps, callback) { callback(require) }')
-          require.ensure([], (require) => {
-            let m = require(SOURCE)
-            m = m.default || m
-            m.__webpackChunkName = '${args.name}.js'
-            cb(m);
-          }, 'chunks/${args.name}.js');
-        },
-        catch() {}
-      } :
-      {
-        then(cb) {
-          const weakId = require.resolveWeak(SOURCE)
-          try {
-            const weakModule = __webpack_require__(weakId)
-            return cb(weakModule.default || weakModule)
-          } catch (err) {}
+    typeof window === 'undefined' ?
+      new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
+        eval('require.ensure = function (deps, callback) { callback(require) }')
+        require.ensure([], (require) => {
+          let m = require(SOURCE)
+          m = m.default || m
+          m.__webpackChunkName = '${args.name}.js'
+          resolve(m);
+        }, 'chunks/${args.name}.js');
+      })
+      :
+      new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
+        const weakId = require.resolveWeak(SOURCE)
+        try {
+          const weakModule = __webpack_require__(weakId)
+          return resolve(weakModule.default || weakModule)
+        } catch (err) {}
 
-          require.ensure([], (require) => {
+        require.ensure([], (require) => {
+          try {
             let m = require(SOURCE)
             m = m.default || m
-            cb(m);
-          }, 'chunks/${args.name}.js');
-        },
-        catch () {}
-      }
+            resolve(m)
+          } catch(error) {
+            reject(error)
+          }
+        }, 'chunks/${args.name}.js');
+      })
   )
 `))
 
