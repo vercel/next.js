@@ -1,14 +1,12 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
 import firebase from 'firebase'
-
-// you have to select your provider on the firebase panel
-const provider = new firebase.auth.GoogleAuthProvider();
+import { clientCredentials } from '../firebaseCredentials'
 
 export default class Index extends Component {
   static async getInitialProps({req, query}) {
     const user = req && req.session ? req.session.decodedToken : null
-    const snap = await req.firebase.database().ref('messages').once('value')
+    const snap = await req.firebaseServer.database().ref('messages').once('value')
     return { user, messages: snap.val() }
   }
 
@@ -20,20 +18,12 @@ export default class Index extends Component {
       messages: this.props.messages,
     }
 
-    this.handleChange = this.handleChange.bind(this);
-    this.handleSubmit = this.handleSubmit.bind(this);
+    this.handleChange = this.handleChange.bind(this)
+    this.handleSubmit = this.handleSubmit.bind(this)
   }
 
   componentDidMount() {
-    firebase.initializeApp({
-      // firebase client config goes here
-      apiKey: "AIzaSyDB4PTmby-vRWeU3XUayR6oSpZ5q56cBp8",
-      authDomain: "test-56060.firebaseapp.com",
-      databaseURL: "https://test-56060.firebaseio.com",
-      projectId: "test-56060",
-      storageBucket: "test-56060.appspot.com",
-      messagingSenderId: "622813644360"
-    })
+    firebase.initializeApp(firebaseClientCredentials)
 
     firebase.database().ref('messages').on('value', snap => {
       this.setState({ messages: snap.val() })
@@ -46,11 +36,9 @@ export default class Index extends Component {
           .then((token) => {
             return fetch('/api/login', {
               method: 'POST',
-              headers: new Headers({
-                'Content-Type': 'application/json'
-              }),
+              headers: new Headers({ 'Content-Type': 'application/json' }),
               credentials: 'same-origin',
-              body: JSON.stringify({token})
+              body: JSON.stringify({ token })
             })
           }).then((res) => console.log(res))
       } else {
@@ -69,17 +57,16 @@ export default class Index extends Component {
 
   handleSubmit(event) {
     event.preventDefault()
-
     const date = new Date().getTime()
     firebase.database().ref(`messages/${date}`).set({
       id: date,
       text: this.state.value,
-    });
-    this.setState({ value: '' });
+    })
+    this.setState({ value: '' })
   }
 
   handleLogin() {
-    firebase.auth().signInWithPopup(provider)
+    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
   }
 
   handleLogout() {
