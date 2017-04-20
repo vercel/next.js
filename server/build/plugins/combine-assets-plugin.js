@@ -11,7 +11,10 @@ export default class CombineAssetsPlugin {
     compiler.plugin('after-compile', (compilation, callback) => {
       let newSource = ''
       this.input.forEach((name) => {
-        newSource += `${compilation.assets[name].source()}\n`
+        const asset = compilation.assets[name]
+        if (!asset) return
+
+        newSource += `${asset.source()}\n`
         delete compilation.assets[name]
       })
 

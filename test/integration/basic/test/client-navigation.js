@@ -298,5 +298,28 @@ export default (context, render) => {
         browser.close()
       })
     })
+
+    describe('with getInitialProp redirect', () => {
+      it('should redirect the page via client side', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+        const text = await browser
+          .elementByCss('#redirect-link').click()
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the about page.')
+        browser.close()
+      })
+
+      it('should redirect the page when loading', async () => {
+        const browser = await webdriver(context.appPort, '/nav/redirect')
+        const text = await browser
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the about page.')
+        browser.close()
+      })
+    })
   })
 }
