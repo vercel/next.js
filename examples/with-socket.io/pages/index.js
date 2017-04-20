@@ -4,30 +4,30 @@ import fetch from 'isomorphic-fetch'
 
 class HomePage extends Component {
   // fetch old messages data from the server
-  static async getInitialProps({ req }) {
+  static async getInitialProps ({ req }) {
     const response = await fetch('http://localhost:3000/messages')
     const messages = await response.json()
     return { messages }
   }
 
   static defaultProps = {
-    messages: [],
+    messages: []
   }
 
   // init state with the prefetched messages
   state = {
     field: '',
-    messages: this.props.messages,
+    messages: this.props.messages
   }
 
   // connect to WS server and listen event
-  componentDidMount() {
+  componentDidMount () {
     this.socket = io('http://localhost:3000/')
     this.socket.on('message', this.handleMessage)
   }
 
   // close socket connection
-  componentWillUnmount() {
+  componentWillUnmount () {
     this.socket.off('message', this.handleMessage)
     this.socket.close()
   }
@@ -38,7 +38,7 @@ class HomePage extends Component {
   }
 
   handleChange = event => {
-    this.setState({ field: event.target.value });
+    this.setState({ field: event.target.value })
   }
 
   // send messages to server and add them to the state
@@ -48,7 +48,7 @@ class HomePage extends Component {
     // create message object
     const message = {
       id: (new Date()).getTime(),
-      value: this.state.field,
+      value: this.state.field
     }
 
     // send object to WS server
@@ -73,8 +73,8 @@ class HomePage extends Component {
           <form onSubmit={this.handleSubmit}>
             <input
               onChange={this.handleChange}
-              type="text"
-              placeholder="Hello world!"
+              type='text'
+              placeholder='Hello world!'
               value={this.state.field}
             />
             <button>Send</button>
