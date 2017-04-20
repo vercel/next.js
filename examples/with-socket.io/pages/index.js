@@ -28,6 +28,7 @@ class HomePage extends Component {
 
   // close socket connection
   componentWillUnmount() {
+    this.socket.off('message', this.handleMessage)
     this.socket.close()
   }
 
