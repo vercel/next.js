@@ -49,7 +49,7 @@
     "babel-loader": "7.0.0",
     "babel-plugin-module-resolver": "2.6.2",
     "babel-plugin-react-require": "3.0.0",
-    "babel-plugin-transform-class-properties": "6.22.0",
+    "babel-plugin-transform-class-properties": "6.24.1",
     "babel-plugin-transform-es2015-modules-commonjs": "6.24.0",
     "babel-plugin-transform-object-rest-spread": "6.22.0",
     "babel-plugin-transform-react-jsx-source": "6.22.0",
