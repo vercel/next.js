@@ -1,22 +1,12 @@
-# TypeScript Next.js example  
-This is a really simple project that show the usage of Next.js with TypeScript.  
+# TypeScript Next.js example
 
-## How to use it?  
+This is a really simple project that show the usage of Next.js with TypeScript. 
+It has example for interaces and with Visual Studio Code (and other editors) it will you give you autocomplete on the properties of the properties on the props of the RegionParagraph Component (it knows this.props.data.name is a string)
+
+## How to use it?
+
 ```
 npm install  # to install dependencies
-npm run dev  # to compile TypeScript files and to run next.js  
-```  
-
-Output JS files are aside the related TypeScript ones.  
-
-## To fix  
-In tsconfig.json the options `jsx="react"` compiles JSX syntax into nested React.createElement calls.  
-This solution doesn't work well with some Next.js features like `next/head` or `next/link`.  
-The workaround is to create JS files that just return the mentioned module and require them from TSX files.  
-Like  
-
-```js
-import Link from 'next/link'
-
-export default Link
+npm run dev  # to compile TypeScript files and to run next.js 
+edit the files in the typescript library and the js files in pages and components will update 
 ```
