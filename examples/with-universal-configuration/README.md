@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration)
 
 # With universal configuration
 
@@ -29,4 +30,5 @@ This example show how to set custom environment variables for your application b
 
 ## Caveats
 
-Because a babel plugin is used the output is cached in `node_modules/.cache` by `babel-loader`. When modifying the configuration you will have to manually clear this cache to make changes visible.
+- Because a babel plugin is used the output is cached in `node_modules/.cache` by `babel-loader`. When modifying the configuration you will have to manually clear this cache to make changes visible. Alternately, you may skip caching for `babel-loader` as shown [here](https://github.com/zeit/next.js/issues/1103#issuecomment-279529809).
+- This example sets the environment configuration at build time, meaning the same build might not be used in e.g. both staging and production. For a solution which sets the environment at runtime, see [here](https://github.com/zeit/next.js/issues/1488#issuecomment-289108931). 
