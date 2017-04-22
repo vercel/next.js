@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "material-ui": "^0.17.4",
+    "next": "latest",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "react-tap-event-plugin": "^2.0.1"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}

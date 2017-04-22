@@ -2,10 +2,11 @@ import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
+import generateETag from 'etag'
+import fresh from 'fresh'
 import requireModule from './require'
 import getConfig from './config'
 import resolvePath from './resolve'
-import readPage from './read-page'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
@@ -14,7 +15,7 @@ import ErrorDebug from '../lib/error-debug'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
-  sendHTML(res, html, req.method)
+  sendHTML(req, res, html, req.method)
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
@@ -23,7 +24,7 @@ export function renderToHTML (req, res, pathname, query, opts) {
 
 export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(res, html, req.method)
+  sendHTML(req, res, html, req.method)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
@@ -36,6 +37,7 @@ async function doRender (req, res, pathname, query, {
   buildId,
   buildStats,
   hotReloader,
+  assetPrefix,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false
@@ -53,16 +55,7 @@ async function doRender (req, res, pathname, query, {
   Component = Component.default || Component
   Document = Document.default || Document
   const ctx = { err, req, res, pathname, query }
-
-  const [
-    props,
-    component,
-    errorComponent
-  ] = await Promise.all([
-    loadGetInitialProps(Component, ctx),
-    readPage(join(dir, dist, 'bundles', 'pages', page)),
-    readPage(join(dir, dist, 'bundles', 'pages', '_error'))
-  ])
+  const props = await loadGetInitialProps(Component, ctx)
 
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
@@ -98,13 +91,12 @@ async function doRender (req, res, pathname, query, {
 
   const doc = createElement(Document, {
     __NEXT_DATA__: {
-      component,
-      errorComponent,
       props,
       pathname,
       query,
       buildId,
       buildStats,
+      assetPrefix,
       err: (err && dev) ? errorToJSON(err) : null
     },
     dev,
@@ -115,26 +107,60 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderJSON (req, res, page, { dir = process.cwd(), hotReloader } = {}) {
-  const dist = getConfig(dir).distDir
-  await ensurePage(page, { dir, hotReloader })
-  const pagePath = await resolvePath(join(dir, dist, 'bundles', 'pages', page))
-  return serveStatic(req, res, pagePath)
+export async function renderScript (req, res, page, opts) {
+  try {
+    const path = join(opts.dir, '.next', 'bundles', 'pages', page)
+    const realPath = await resolvePath(path)
+    await serveStatic(req, res, realPath)
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      renderScriptError(req, res, page, err, {}, opts)
+      return
+    }
+
+    throw err
+  }
 }
 
-export async function renderErrorJSON (err, req, res, { dir = process.cwd(), dev = false } = {}) {
-  const dist = getConfig(dir).distDir
-  const component = await readPage(join(dir, dist, 'bundles', 'pages', '_error'))
+export async function renderScriptError (req, res, page, error, customFields, opts) {
+  if (error.code === 'ENOENT') {
+    res.setHeader('Content-Type', 'text/javascript')
+    res.end(`
+      window.__NEXT_REGISTER_PAGE('${page}', function() {
+        var error = new Error('Page does not exist: ${page}')
+        error.statusCode = 404
 
-  sendJSON(res, {
-    component,
-    err: err && dev ? errorToJSON(err) : null
-  }, req.method)
+        return { error: error }
+      })
+    `)
+    return
+  }
+
+  res.setHeader('Content-Type', 'text/javascript')
+  const errorJson = {
+    ...errorToJSON(error),
+    ...customFields
+  }
+
+  res.end(`
+    window.__NEXT_REGISTER_PAGE('${page}', function() {
+      var error = ${JSON.stringify(errorJson)}
+      return { error: error }
+    })
+  `)
 }
 
-export function sendHTML (res, html, method) {
+export function sendHTML (req, res, html, method) {
   if (res.finished) return
+  const etag = generateETag(html)
 
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return
+  }
+
+  res.setHeader('ETag', etag)
   res.setHeader('Content-Type', 'text/html')
   res.setHeader('Content-Length', Buffer.byteLength(html))
   res.end(method === 'HEAD' ? null : html)

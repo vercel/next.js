@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-next-routes)
 # Named routes example ([next-routes](https://github.com/fridays/next-routes))
 
 ## How to use

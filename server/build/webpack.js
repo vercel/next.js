@@ -6,7 +6,7 @@ import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import JsonPagesPlugin from './plugins/json-pages-plugin'
+import PagesPlugin from './plugins/pages-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -114,7 +114,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
-    new JsonPagesPlugin(),
+    new PagesPlugin(),
     new CaseSensitivePathPlugin()
   ]
 
@@ -146,7 +146,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
   const mainBabelOptions = {
     cacheDirectory: true,
-    sourceMaps: dev ? 'both' : false,
     presets: []
   }
 
@@ -246,7 +245,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     options: {
       babelrc: false,
       cacheDirectory: true,
-      sourceMaps: dev ? 'both' : false,
       presets: [require.resolve('./babel/preset')]
     }
   }, {
