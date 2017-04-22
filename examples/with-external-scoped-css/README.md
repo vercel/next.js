@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-external-scoped-css)
 ## Scoped Style with external CSS file
 The motivation for this example is using scoped css from external files and in the end generate a compiled static `.css` file to use in production..
 
