@@ -60,7 +60,7 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
 
-  const renderPage = (transformPage) => {
+  const renderPage = (transform) => {
     let app = createElement(App, {
       Component,
       props,
@@ -73,8 +73,8 @@ async function doRender (req, res, pathname, query, {
     let head
     let errorHtml = ''
     try {
-      if (transformPage) {
-        app = transformPage(app)
+      if (transform) {
+        app = transform(app)
       }
       html = render(app)
     } finally {
