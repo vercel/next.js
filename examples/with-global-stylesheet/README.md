@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-global-stylesheet)
 # Global Stylesheet example
 
 This is an example of how you can include a global stylesheet in a next.js webapp.
