@@ -11,7 +11,7 @@
     "inferno-compat": "^1.4.0",
     "inferno-server": "^1.4.0",
     "module-alias": "^2.0.0",
-    "next": "^2.0.0-beta"
+    "next": "latest"
   },
   "author": "",
   "license": "MIT"

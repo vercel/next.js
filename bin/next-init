@@ -63,7 +63,9 @@ const basePackage = `{
   "name": "my-app",
   "description": "",
   "dependencies": {
-    "next": "latest"
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
   },
   "scripts": {
     "dev": "next",
@@ -73,29 +75,28 @@ const basePackage = `{
 }`
 
 const basePage = `
-
 import Head from 'next/head'
 
 export default () => (
   <div>
     <Head>
       <meta name='viewport' content='width=device-width, initial-scale=1'/>
-      <style>{bodyStyles}</style>
     </Head>
 
     <img width='112' src='https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png' alt='next.js' />
+
+    <style jsx global>{\`
+      html, body {
+        height: 100%
+      }
+
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+      }
+    \`}</style>
   </div>
 )
-
-const bodyStyles = \`
-  html, body {
-    height: 100%
-  }
-
-  body {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-\`
 `

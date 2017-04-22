@@ -5,7 +5,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "next": "^2.0.0-beta",
+    "next": "latest",
     "next-routes": "^1.0.17",
     "react": "^15.4.2",
     "react-dom": "^15.4.2"
