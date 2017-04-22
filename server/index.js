@@ -6,10 +6,10 @@ import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
-  renderJSON,
-  renderErrorJSON,
   sendHTML,
-  serveStatic
+  serveStatic,
+  renderScript,
+  renderScriptError
 } from './render'
 import Router from './router'
 import HotReloader from './hot-reloader'
@@ -17,6 +17,11 @@ import { resolveFromList } from './resolve'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
+
+const internalPrefixes = [
+  /^\/_next\//,
+  /^\/static\//
+]
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
@@ -36,31 +41,34 @@ export default class Server {
       dir: this.dir,
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
-      buildId: this.buildId
+      buildId: this.buildId,
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
     }
 
     this.defineRoutes()
   }
 
-  getRequestHandler () {
-    return (req, res, parsedUrl) => {
-      // Parse url if parsedUrl not provided
-      if (!parsedUrl) {
-        parsedUrl = parseUrl(req.url, true)
-      }
-
-      // Parse the querystring ourselves if the user doesn't handle querystring parsing
-      if (typeof parsedUrl.query === 'string') {
-        parsedUrl.query = parseQs(parsedUrl.query)
-      }
-
-      return this.run(req, res, parsedUrl)
-      .catch((err) => {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        res.end(STATUS_CODES[500])
-      })
+  handleRequest (req, res, parsedUrl) {
+    // Parse url if parsedUrl not provided
+    if (!parsedUrl) {
+      parsedUrl = parseUrl(req.url, true)
     }
+
+    // Parse the querystring ourselves if the user doesn't handle querystring parsing
+    if (typeof parsedUrl.query === 'string') {
+      parsedUrl.query = parseQs(parsedUrl.query)
+    }
+
+    return this.run(req, res, parsedUrl)
+    .catch((err) => {
+      if (!this.quiet) console.error(err)
+      res.statusCode = 500
+      res.end(STATUS_CODES[500])
+    })
+  }
+
+  getRequestHandler () {
+    return this.handleRequest.bind(this)
   }
 
   async prepare () {
@@ -115,17 +123,44 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/pages/:path*': async (req, res, params) => {
+      '/_next/:buildId/page/_error': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ buildIdMismatch: true }))
-          return
+          const error = new Error('INVALID_BUILD_ID')
+          const customFields = { buildIdMismatched: true }
+
+          return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
         }
 
-        const paths = params.path || ['index']
-        const pathname = `/${paths.join('/')}`
+        const p = join(this.dir, '.next/bundles/pages/_error.js')
+        await this.serveStatic(req, res, p)
+      },
 
-        await this.renderJSON(req, res, pathname)
+      '/_next/:buildId/page/:path*': async (req, res, params) => {
+        const paths = params.path || ['']
+        const page = `/${paths.join('/')}`
+
+        if (!this.handleBuildId(params.buildId, res)) {
+          const error = new Error('INVALID_BUILD_ID')
+          const customFields = { buildIdMismatched: true }
+
+          return await renderScriptError(req, res, page, error, customFields, this.renderOpts)
+        }
+
+        if (this.dev) {
+          try {
+            await this.hotReloader.ensurePage(page)
+          } catch (error) {
+            return await renderScriptError(req, res, page, error, {}, this.renderOpts)
+          }
+
+          const compilationErr = this.getCompilationError(page)
+          if (compilationErr) {
+            const customFields = { statusCode: 500 }
+            return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
+          }
+        }
+
+        await renderScript(req, res, page, this.renderOpts)
       },
 
       '/_next/:path+': async (req, res, params) => {
@@ -181,12 +216,16 @@ export default class Server {
     }
   }
 
-  async render (req, res, pathname, query) {
+  async render (req, res, pathname, query, parsedUrl) {
+    if (this.isInternalUrl(req)) {
+      return this.handleRequest(req, res, parsedUrl)
+    }
+
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    return sendHTML(res, html, req.method)
+    return sendHTML(req, res, html, req.method)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -214,7 +253,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(res, html, req.method)
+    return sendHTML(req, res, html, req.method)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -245,40 +284,6 @@ export default class Server {
     return this.renderError(null, req, res, pathname, query)
   }
 
-  async renderJSON (req, res, page) {
-    if (this.dev) {
-      const compilationErr = this.getCompilationError(page)
-      if (compilationErr) {
-        return this.renderErrorJSON(compilationErr, req, res)
-      }
-    }
-
-    try {
-      return await renderJSON(req, res, page, this.renderOpts)
-    } catch (err) {
-      if (err.code === 'ENOENT') {
-        res.statusCode = 404
-        return this.renderErrorJSON(null, req, res)
-      } else {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        return this.renderErrorJSON(err, req, res)
-      }
-    }
-  }
-
-  async renderErrorJSON (err, req, res) {
-    if (this.dev) {
-      const compilationErr = this.getCompilationError('/_error')
-      if (compilationErr) {
-        res.statusCode = 500
-        return renderErrorJSON(compilationErr, req, res, this.renderOpts)
-      }
-    }
-
-    return renderErrorJSON(err, req, res, this.renderOpts)
-  }
-
   async serveStatic (req, res, path) {
     try {
       return await serveStatic(req, res, path)
@@ -289,6 +294,16 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  isInternalUrl (req) {
+    for (const prefix of internalPrefixes) {
+      if (prefix.test(req.url)) {
+        return true
+      }
+    }
+
+    return false
   }
 
   readBuildId () {
