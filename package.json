@@ -45,7 +45,7 @@
   "dependencies": {
     "ansi-html": "0.0.7",
     "babel-core": "6.24.0",
-    "babel-generator": "6.24.0",
+    "babel-generator": "6.24.1",
     "babel-loader": "7.0.0",
     "babel-plugin-module-resolver": "2.6.2",
     "babel-plugin-react-require": "3.0.0",
