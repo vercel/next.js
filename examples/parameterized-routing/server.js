@@ -12,14 +12,16 @@ const match = route('/blog/:id')
 app.prepare()
 .then(() => {
   createServer((req, res) => {
-    const { pathname } = parse(req.url)
+    const { pathname, query } = parse(req.url, true)
     const params = match(pathname)
     if (params === false) {
       handle(req, res)
       return
     }
-
-    app.render(req, res, '/blog', params)
+    // assigning `query` into the params means that we still
+    // get the query string passed to our application
+    // i.e. /blog/foo?show-comments=true
+    app.render(req, res, '/blog', Object.assign(params, query))
   })
   .listen(3000, (err) => {
     if (err) throw err

@@ -6,7 +6,7 @@ import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import JsonPagesPlugin from './plugins/json-pages-plugin'
+import PagesPlugin from './plugins/pages-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -36,7 +36,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
-  let minChunks
+  let totalPages
 
   const entry = async () => {
     const entries = {
@@ -68,8 +68,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       }
     }
 
-    // calculate minChunks of CommonsChunkPlugin for later use
-    minChunks = Math.max(2, pages.filter((p) => p !== documentPage).length)
+    totalPages = pages.filter((p) => p !== documentPage).length
 
     return entries
   }
@@ -93,19 +92,29 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // In the dev we use on-deman-entries.
-        // So, it makes no sense to use commonChunks with that.
-        if (dev) return false
+        // In the dev we use on-demand-entries.
+        // So, it makes no sense to use commonChunks based on the minChunks count.
+        // Instead, we move all the code in node_modules into this chunk.
+        // With that, we could gain better performance for page-rebuild process.
+        if (dev) {
+          return module.context && module.context.indexOf('node_modules') >= 0
+        }
 
-        // NOTE: it depends on the fact that the entry funtion is always called
-        // before applying CommonsChunkPlugin
-        return count >= minChunks
+        // Move modules used in at-least 1/2 of the total pages into commons.
+        return count >= totalPages * 0.5
       }
+    }),
+    // This chunk contains all the webpack related code. So, all the changes
+    // related to that happens to this chunk.
+    // It won't touch commons.js and that gives us much better re-build perf.
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'manifest',
+      filename: 'manifest.js'
     }),
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
-    new JsonPagesPlugin(),
+    new PagesPlugin(),
     new CaseSensitivePathPlugin()
   ]
 
@@ -121,7 +130,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   } else {
     plugins.push(
       new CombineAssetsPlugin({
-        input: ['commons.js', 'main.js'],
+        input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
       new webpack.optimize.UglifyJsPlugin({
@@ -137,7 +146,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
   const mainBabelOptions = {
     cacheDirectory: true,
-    sourceMaps: dev ? 'both' : false,
     presets: []
   }
 
@@ -237,7 +245,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     options: {
       babelrc: false,
       cacheDirectory: true,
-      sourceMaps: dev ? 'both' : false,
       presets: [require.resolve('./babel/preset')]
     }
   }, {
@@ -254,10 +261,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     context: dir,
     entry,
     output: {
-      path: join(buildDir || dir, '.next'),
+      path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: '/_webpack/',
+      publicPath: '/_next/webpack/',
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')

@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/using-preact)
 
 # Hello World example
 
@@ -29,5 +30,4 @@ This example uses [Preact](https://github.com/developit/preact) instead of React
 
 Here's how we did it:
 
-* Create `.babelrc` file with es2015 and react presets. This allow us to get rid of the hard coded React dependency for core Next.js modules.
 * Use `next.config.js` to customize our webpack config to support [preact-compat](https://github.com/developit/preact-compat)
