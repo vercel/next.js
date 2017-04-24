@@ -123,6 +123,9 @@ export async function renderScript (req, res, page, opts) {
 }
 
 export async function renderScriptError (req, res, page, error, customFields, opts) {
+  // Asks CDNs and others to not to cache the errored page
+  res.setHeader('Cache-Control', 'no-store, must-revalidate')
+
   if (error.code === 'ENOENT') {
     res.setHeader('Content-Type', 'text/javascript')
     res.end(`
