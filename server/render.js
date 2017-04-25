@@ -97,7 +97,7 @@ async function doRender (req, res, pathname, query, {
       buildId,
       buildStats,
       assetPrefix,
-      err: (err && dev) ? errorToJSON(err) : null
+      err: (err) ? serializeError(dev, err) : null
     },
     dev,
     staticMarkup,
@@ -189,6 +189,14 @@ function errorToJSON (err) {
   }
 
   return json
+}
+
+function serializeError (dev, err) {
+  if (dev) {
+    return errorToJSON(err)
+  }
+
+  return { message: '500 - Internal Server Error.' }
 }
 
 export function serveStatic (req, res, path) {
