@@ -11,10 +11,15 @@ const envPlugins = {
 
 const plugins = envPlugins[process.env.NODE_ENV] || []
 
-module.exports = {
+const defaultOpts = {
+  targets: {}
+}
+
+module.exports = (context, opts = defaultOpts) => ({
   presets: [
     [require.resolve('babel-preset-env'), {
-      modules: false
+      env: { modules: false },
+      targets: opts.targets
     }],
     require.resolve('babel-preset-react')
   ],
@@ -41,4 +46,4 @@ module.exports = {
       }
     ]
   ]
-}
+})
