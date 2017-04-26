@@ -1,0 +1,19 @@
+{
+  "env": {
+    "production": {
+      "presets": [
+        "next/babel"
+      ]
+    },
+    "development": {
+      "presets": [
+        ["next/babel", {
+          "targets": {
+            "browsers": "last 1 Chrome version",
+            "node": true
+          }
+        }]
+      ]
+    }
+  }
+}
