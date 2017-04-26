@@ -23,6 +23,6 @@ now
 
 ## The idea behind the example
 
-This example show how you can use `next/babel` preset configuring the target browsers and Node.js versions, allowing to only transform the minimum required ES features.
+This example shows how you can use `next/babel` preset configuring the browsers target versions, allowing to only transform the required minimum ES features.
 
-The example page file will transform the `const` only if you build the files with `next build` but not if your run your app with `next`, thats because we are targeting the last Chrome and Node.js versions for development and it's going to transpile everything (as usual) for production.
+The example page file will transform the `const` only if you build the files with` next build` but not if your run it with `next`, thats because we are targeting the last Chrome and Node.js versions for development but it's transforming everything (as usual) for production.
