@@ -81,7 +81,7 @@
     "pkg-up": "1.0.0",
     "prop-types": "15.5.7",
     "react-hot-loader": "3.0.0-beta.6",
-    "send": "0.15.1",
+    "send": "0.15.2",
     "source-map-support": "0.4.14",
     "strip-ansi": "3.0.1",
     "styled-jsx": "0.5.7",
