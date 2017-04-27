@@ -29,6 +29,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
   - [Custom server and routing](#custom-server-and-routing)
+  - [Dynamic Imports](#dynamic-imports)
   - [Custom `<Document>`](#custom-document)
   - [Custom error handling](#custom-error-handling)
   - [Custom configuration](#custom-configuration)
@@ -568,6 +569,96 @@ Supported options:
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
+
+### Dynamic Import
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-dynamic-import">With Dynamic Import</a></li>
+  </ul>
+</details></p>
+
+Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
+With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
+
+You can think dynamic imports as another way to split your code into manageable chunks.
+Since Next.js supports dynamic imports with SSR, you could do amazing things with it.
+
+Here are a few ways to use dynamic imports.
+
+#### 1. Basic Usage (Also does SSR)
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponent = dynamic(import('../components/hello'))
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponent />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 2. With Custom Loading Component
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponentWithCustomLoading = dynamic(
+  import('../components/hello2'),
+  {
+    loading: () => (<p>...</p>)
+  }
+)
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithCustomLoading />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 3. With No SSR
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponentWithNoSSR = dynamic(
+  import('../components/hello3'),
+  { ssr: false }
+)
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithNoSSR />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 4. With [async-reactor](https://github.com/xtuc/async-reactor)
+
+> SSR support is not available here
+
+```js
+import { asyncReactor } from 'async-reactor'
+const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
+  const Hello4 = await import('../components/hello4')
+  return (<Hello4 />)
+})
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithAsyncReactor />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
 
 ### Custom `<Document>`
 
