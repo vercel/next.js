@@ -710,7 +710,7 @@ Here's an example `.babelrc` file:
 To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
 
 ```js
-const isProd = process.NODE_ENV === 'production'
+const isProd = process.env.NODE_ENV === 'production'
 module.exports = {
   // You may only need to add assetPrefix in the production.
   assetPrefix: isProd ? 'https://cdn.mydomain.com' : ''
