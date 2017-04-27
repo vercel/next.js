@@ -131,7 +131,7 @@ export default class Server {
           return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
         }
 
-        const p = join(this.dir, '.next/bundles/pages/_error.js')
+        const p = join(this.dir, `${this.dist}/bundles/pages/_error.js`)
         await this.serveStatic(req, res, p)
       },
 
