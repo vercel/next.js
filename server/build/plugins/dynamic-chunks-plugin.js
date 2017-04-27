@@ -26,6 +26,12 @@ export default class PagesPlugin {
           source: () => newContent,
           size: () => newContent.length
         }
+
+        // This is to support, webpack dynamic import support with HMR
+        compilation.assets[`chunks/${chunk.id}`] = {
+          source: () => newContent,
+          size: () => newContent.length
+        }
       })
       callback()
     })
