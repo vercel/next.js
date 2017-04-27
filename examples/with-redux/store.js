@@ -12,24 +12,20 @@ export const actionTypes = {
   TICK: 'TICK'
 }
 
-//REDUCERS
+// REDUCERS
 export const reducer = (state = exampleInitialState, action) => {
-
   switch (action.type) {
-
-    case actionTypes.TICK: 
-      return Object.assign({}, state, { lastUpdate: action.ts, light: !!action.light });
-
-    case actionTypes.ADD: 
+    case actionTypes.TICK:
+      return Object.assign({}, state, { lastUpdate: action.ts, light: !!action.light })
+    case actionTypes.ADD:
       return Object.assign({}, state, {
         count: state.count + 1
-      });
-
-    default: return state;
+      })
+    default: return state
   }
 }
 
-//ACTIONS
+// ACTIONS
 export const serverRenderClock = (isServer) => dispatch => {
   return dispatch({ type: actionTypes.TICK, light: !isServer, ts: Date.now() })
 }
@@ -39,7 +35,7 @@ export const startClock = () => dispatch => {
 }
 
 export const addCount = () => dispatch => {
-  return dispatch({ type: actionTypes.ADD})
+  return dispatch({ type: actionTypes.ADD })
 }
 
 export const initStore = (initialState = exampleInitialState) => {
