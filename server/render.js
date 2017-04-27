@@ -99,7 +99,7 @@ async function doRender (req, res, pathname, query, {
       buildId,
       buildStats,
       assetPrefix,
-      err: (err && dev) ? errorToJSON(err) : null
+      err: (err) ? serializeError(dev, err) : null
     },
     dev,
     staticMarkup,
@@ -125,6 +125,9 @@ export async function renderScript (req, res, page, opts) {
 }
 
 export async function renderScriptError (req, res, page, error, customFields, opts) {
+  // Asks CDNs and others to not to cache the errored page
+  res.setHeader('Cache-Control', 'no-store, must-revalidate')
+
   if (error.code === 'ENOENT') {
     res.setHeader('Content-Type', 'text/javascript')
     res.end(`
@@ -188,6 +191,14 @@ function errorToJSON (err) {
   }
 
   return json
+}
+
+function serializeError (dev, err) {
+  if (dev) {
+    return errorToJSON(err)
+  }
+
+  return { message: '500 - Internal Server Error.' }
 }
 
 export function serveStatic (req, res, path) {

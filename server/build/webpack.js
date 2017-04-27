@@ -148,7 +148,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
   const mainBabelOptions = {
     cacheDirectory: true,
-    sourceMaps: dev ? 'both' : false,
     presets: []
   }
 
@@ -249,7 +248,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     options: {
       babelrc: false,
       cacheDirectory: true,
-      sourceMaps: dev ? 'both' : false,
       presets: [require.resolve('./babel/preset')]
     }
   }, {
