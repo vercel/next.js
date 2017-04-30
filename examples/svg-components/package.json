@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "beta"
+    "next": "latest"
   },
   "devDependencies": {
     "babel-plugin-inline-react-svg": "^0.2.0"
