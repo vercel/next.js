@@ -4,11 +4,6 @@ import { bindActionCreators } from 'redux'
 import { addCount } from '../store'
 
 class AddCount extends Component {
-  constructor (props, context) {
-    super(props, context)
-    this.add = this.add.bind(this)
-  }
-
   add = () => {
     this.props.addCount()
   }
@@ -16,7 +11,12 @@ class AddCount extends Component {
   render () {
     const { count } = this.props
     return (
-      <div style={{paddingBottom: 20 + 'px'}}>
+      <div>
+        <style jsx>{`
+          div {
+            padding: 0 0 20px 0;
+          }
+      `}</style>
         <h1>AddCount: <span>{count}</span></h1>
         <button onClick={this.add}>Add To Count</button>
       </div>
@@ -24,11 +24,7 @@ class AddCount extends Component {
   }
 }
 
-const mapStateToProps = (state, ownProps) => {
-  return {
-    count: state.count
-  }
-}
+const mapStateToProps = ({ count }) => ({ count })
 
 const mapDispatchToProps = (dispatch) => {
   return {
