@@ -15,6 +15,7 @@ import rendering from './rendering'
 import misc from './misc'
 import clientNavigation from './client-navigation'
 import hmr from './hmr'
+import cdm from './cdm'
 
 const context = {}
 context.app = nextServer({
@@ -42,6 +43,7 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/stateful'),
       renderViaHTTP(context.appPort, '/stateless'),
       renderViaHTTP(context.appPort, '/styled-jsx'),
+      renderViaHTTP(context.appPort, '/with-cdm'),
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
@@ -49,7 +51,9 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/self-reload'),
       renderViaHTTP(context.appPort, '/nav/hash-changes'),
       renderViaHTTP(context.appPort, '/nav/shallow-routing'),
-      renderViaHTTP(context.appPort, '/nav/redirect')
+      renderViaHTTP(context.appPort, '/nav/redirect'),
+
+      renderViaHTTP(context.appPort, '/nested-cdm/index')
     ])
   })
   afterAll(() => stopApp(context.server))
@@ -60,4 +64,5 @@ describe('Basic Features', () => {
   misc(context)
   clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  cdm(context)
 })
