@@ -15,7 +15,6 @@ import rendering from './rendering'
 import misc from './misc'
 import clientNavigation from './client-navigation'
 import hmr from './hmr'
-import cdm from './cdm'
 
 const context = {}
 context.app = nextServer({
@@ -64,5 +63,4 @@ describe('Basic Features', () => {
   misc(context)
   clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  cdm(context)
 })
