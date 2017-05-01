@@ -321,5 +321,31 @@ export default (context, render) => {
         browser.close()
       })
     })
+
+    describe('with different types of urls', () => {
+      it('on normal page', async () => {
+        const browser = await webdriver(context.appPort, '/with-cdm')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('on dir/index page ', async () => {
+        const browser = await webdriver(context.appPort, '/nested-cdm/index')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('on dir/ page ', async () => {
+        const browser = await webdriver(context.appPort, '/nested-cdm/')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+    })
   })
 }
