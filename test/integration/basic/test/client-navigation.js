@@ -340,7 +340,7 @@ export default (context, render) => {
       })
 
       it('on dir/ page ', async () => {
-        const browser = await webdriver(context.appPort, '/nested-cdm/index')
+        const browser = await webdriver(context.appPort, '/nested-cdm/')
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
