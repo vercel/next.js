@@ -53,6 +53,8 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/shallow-routing'),
       renderViaHTTP(context.appPort, '/nav/redirect'),
 
+      renderViaHTTP(context.appPort, '/nested-cdm'),
+      renderViaHTTP(context.appPort, '/nested-cdm/'),
       renderViaHTTP(context.appPort, '/nested-cdm/index')
     ])
   })
