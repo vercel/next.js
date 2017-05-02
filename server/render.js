@@ -54,7 +54,8 @@ async function doRender (req, res, pathname, query, {
   ])
   Component = Component.default || Component
   Document = Document.default || Document
-  const ctx = { err, req, res, pathname, query }
+  const asPath = req.url
+  const ctx = { err, req, res, pathname, query, asPath }
   const props = await loadGetInitialProps(Component, ctx)
 
   // the response might be finshed on the getinitialprops call
