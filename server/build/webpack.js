@@ -298,6 +298,14 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     performance: { hints: false }
   }
 
+  if (!dev) {
+    webpackConfig.resolve.alias = {
+      'react': require.resolve('react/dist/react.min.js'),
+      'react-dom': require.resolve('react-dom/dist/react-dom.min.js'),
+      'react-dom/server': require.resolve('react-dom/dist/react-dom-server.min.js')
+    }
+  }
+
   if (config.webpack) {
     console.log('> Using "webpack" config function defined in next.config.js.')
     webpackConfig = await config.webpack(webpackConfig, { dev })
