@@ -238,6 +238,7 @@ export default Page
 
 - `pathname` - path section of URL
 - `query` - query string section of URL parsed as an object
+- `asPath` - the actual url path
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
 - `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
@@ -283,6 +284,7 @@ Each top-level component receives a `url` property with the following API:
 
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
+- `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
 
