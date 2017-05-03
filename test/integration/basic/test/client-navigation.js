@@ -347,5 +347,44 @@ export default (context, render) => {
         browser.close()
       })
     })
+
+    describe('with asPath', () => {
+      describe('inside getInitialProps', () => {
+        it('should show the correct asPath with a Link with as prop', async () => {
+          const browser = await webdriver(context.appPort, '/nav/')
+          const asPath = await browser
+            .elementByCss('#as-path-link').click()
+            .waitForElementByCss('.as-path-content')
+            .elementByCss('.as-path-content').text()
+
+          expect(asPath).toBe('/as/path')
+          browser.close()
+        })
+
+        it('should show the correct asPath with a Link without the as prop', async () => {
+          const browser = await webdriver(context.appPort, '/nav/')
+          const asPath = await browser
+            .elementByCss('#as-path-link-no-as').click()
+            .waitForElementByCss('.as-path-content')
+            .elementByCss('.as-path-content').text()
+
+          expect(asPath).toBe('/nav/as-path')
+          browser.close()
+        })
+      })
+
+      describe('with next/router', () => {
+        it('should show the correct asPath', async () => {
+          const browser = await webdriver(context.appPort, '/nav/')
+          const asPath = await browser
+            .elementByCss('#as-path-using-router-link').click()
+            .waitForElementByCss('.as-path-content')
+            .elementByCss('.as-path-content').text()
+
+          expect(asPath).toBe('/nav/as-path-using-router')
+          browser.close()
+        })
+      })
+    })
   })
 }
