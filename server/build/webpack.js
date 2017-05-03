@@ -299,10 +299,11 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   }
 
   if (!dev) {
+    // We do this to use the minified version of React in production.
+    // This will significant file size redution when turned off uglifyjs.
     webpackConfig.resolve.alias = {
       'react': require.resolve('react/dist/react.min.js'),
-      'react-dom': require.resolve('react-dom/dist/react-dom.min.js'),
-      'react-dom/server': require.resolve('react-dom/dist/react-dom-server.min.js')
+      'react-dom': require.resolve('react-dom/dist/react-dom.min.js')
     }
   }
 
