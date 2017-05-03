@@ -30,6 +30,9 @@ module.exports = {
       {
         alias: {
           'babel-runtime': relativeResolve('babel-runtime/package'),
+          'react': relativeResolve('react/dist/react.min.js'),
+          'react-dom': relativeResolve('react-dom/dist/react-dom.min.js'),
+          'react-dom/server': relativeResolve('react-dom/dist/react-dom-server.min.js'),
           'next/link': relativeResolve('../../../lib/link'),
           'next/prefetch': relativeResolve('../../../lib/prefetch'),
           'next/css': relativeResolve('../../../lib/css'),
