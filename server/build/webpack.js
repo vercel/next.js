@@ -74,6 +74,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   }
 
   const plugins = [
+    new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
     new webpack.LoaderOptionsPlugin({
       options: {
         context: dir,
