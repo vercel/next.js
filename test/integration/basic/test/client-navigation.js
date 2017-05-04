@@ -323,7 +323,7 @@ export default (context, render) => {
     })
 
     describe('with different types of urls', () => {
-      it('on normal page', async () => {
+      it('should work with normal page', async () => {
         const browser = await webdriver(context.appPort, '/with-cdm')
         const text = await browser.elementByCss('p').text()
 
@@ -331,7 +331,7 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('on dir/index page ', async () => {
+      it('should work with dir/index page ', async () => {
         const browser = await webdriver(context.appPort, '/nested-cdm/index')
         const text = await browser.elementByCss('p').text()
 
@@ -339,8 +339,24 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('on dir/ page ', async () => {
+      it('should work with dir/ page ', async () => {
         const browser = await webdriver(context.appPort, '/nested-cdm/')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('should work with /index page', async () => {
+        const browser = await webdriver(context.appPort, '/index')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('should work with / page', async () => {
+        const browser = await webdriver(context.appPort, '/')
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
