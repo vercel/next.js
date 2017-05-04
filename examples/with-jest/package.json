@@ -12,7 +12,6 @@
     "start": "next start"
   },
   "devDependencies": {
-    "babel-jest": "^18.0.0",
     "enzyme": "^2.5.1",
     "jest-cli": "^18.0.0",
     "react-addons-test-utils": "^15.4.2",
