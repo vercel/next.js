@@ -115,7 +115,7 @@
     "lint-staged": "^3.4.0",
     "node-fetch": "1.6.3",
     "node-notifier": "5.1.2",
-    "nyc": "10.3.0",
+    "nyc": "10.3.2",
     "react": "15.5.3",
     "react-dom": "15.5.3",
     "standard": "9.0.2",
