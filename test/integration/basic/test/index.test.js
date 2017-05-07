@@ -51,6 +51,8 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/hash-changes'),
       renderViaHTTP(context.appPort, '/nav/shallow-routing'),
       renderViaHTTP(context.appPort, '/nav/redirect'),
+      renderViaHTTP(context.appPort, '/nav/as-path'),
+      renderViaHTTP(context.appPort, '/nav/as-path-using-router'),
 
       renderViaHTTP(context.appPort, '/nested-cdm/index')
     ])
