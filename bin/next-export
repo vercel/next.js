@@ -1,0 +1,51 @@
+#!/usr/bin/env node
+import { resolve, join } from 'path'
+import { existsSync } from 'fs'
+import parseArgs from 'minimist'
+import exportApp from '../server/export'
+import { printAndExit } from '../lib/utils'
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'production'
+
+const argv = parseArgs(process.argv.slice(2), {
+  alias: {
+    h: 'help'
+  },
+  boolean: ['h']
+})
+
+if (argv.help) {
+  console.log(`
+    Description
+      Exports the application for production deployment
+
+    Usage
+      $ next export <dir>
+
+    <dir> represents where the compiled dist folder should go.
+    If no directory is provided, the dist folder will be created in the current directory.
+    You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
+  `)
+  process.exit(0)
+}
+
+const dir = resolve(argv._[0] || '.')
+
+// Check if pages dir exists and warn if not
+if (!existsSync(dir)) {
+  printAndExit(`> No such directory exists as the project root: ${dir}`)
+}
+
+if (!existsSync(join(dir, 'pages'))) {
+  if (existsSync(join(dir, '..', 'pages'))) {
+    printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+  }
+
+  printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+}
+
+exportApp(dir)
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
