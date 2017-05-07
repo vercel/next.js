@@ -108,6 +108,7 @@ export class NextScript extends Component {
 
     return (
       <script
+        key={filename}
         type='text/javascript'
         src={`${assetPrefix}/_next/${hash}/${filename}`}
         {...additionalProps}
@@ -118,18 +119,16 @@ export class NextScript extends Component {
   getScripts () {
     const { dev } = this.context._documentProps
     if (dev) {
-      return (
-        <div>
-          { this.getChunkScript('manifest.js') }
-          { this.getChunkScript('commons.js') }
-          { this.getChunkScript('main.js') }
-        </div>
-      )
+      return [
+        this.getChunkScript('manifest.js'),
+        this.getChunkScript('commons.js'),
+        this.getChunkScript('main.js')
+      ]
     }
 
     // In the production mode, we have a single asset with all the JS content.
     // So, we can load the script with async
-    return this.getChunkScript('app.js', { async: true })
+    return [this.getChunkScript('app.js', { async: true })]
   }
 
   render () {
