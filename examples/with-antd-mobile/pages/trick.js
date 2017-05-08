@@ -1,7 +1,7 @@
-import React, {Component} from 'react'
+import React, { Component } from 'react'
 import {
   WhiteSpace,
-  List, Radio, Checkbox, Switch, Modal, Button
+  List, Switch, Modal, Button, Menu
 } from 'antd-mobile'
 import Layout from '../components/Layout'
 import MenuBar from '../components/MenuBar'
@@ -21,6 +21,41 @@ export default class Trick extends Component {
 
   constructor (props) {
     super(props)
+
+    this.menuData = [
+      {
+        label: 'Menu 1',
+        value: '1',
+        children: [
+          {
+            label: 'Submenu 1-1',
+            value: '11'
+          },
+          {
+            label: 'Submenu 1-2',
+            value: '12'
+          }
+        ]
+      },
+      {
+        label: 'Menu 2',
+        value: '2',
+        children: [
+          {
+            label: 'Submenu 2-1',
+            value: '21'
+          },
+          {
+            label: 'Submenu 2-2',
+            value: '22'
+          },
+          {
+            label: 'Submenu 2-3',
+            value: '23'
+          }
+        ]
+      }
+    ]
 
     this.state = {
       switchChecked: true,
@@ -46,23 +81,8 @@ export default class Trick extends Component {
           pathname={pathname}
         >
           <WhiteSpace />
-          <List renderHeader={() => 'Components below must set platform prop and cannot be cross'}>
+          <List renderHeader={() => 'Switch and Modal platform prop is required in SSR mode'}>
             <List.Item
-              arrow='horizontal'
-              multipleLine
-              platform={platform}
-              onClick={() => {}}
-            >
-              List.Item
-            </List.Item>
-            <Radio.RadioItem platform={platform}>
-              Radio.RadioItem
-            </Radio.RadioItem>
-            <Checkbox.CheckboxItem platform={platform}>
-              Checkbox.CheckboxItem
-            </Checkbox.CheckboxItem>
-            <List.Item
-              platform={platform}
               extra={
                 <Switch
                   platform={platform}
@@ -71,10 +91,10 @@ export default class Trick extends Component {
                 />
               }
             >
-             Switch
+              Switch {platform}
             </List.Item>
             <Button onClick={() => this.setState({ modalOpened: true })}>
-              Open modal
+              Open {platform} modal
             </Button>
           </List>
           <Modal
@@ -89,6 +109,12 @@ export default class Trick extends Component {
             I am a modal.<br />
             Must set platform prop
           </Modal>
+          <List renderHeader={() => 'Menu height prop is required in SSR mode'}>
+            <Menu
+              height={500}
+              data={this.menuData}
+            />
+          </List>
         </MenuBar>
       </Layout>
     )

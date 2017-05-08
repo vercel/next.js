@@ -40,11 +40,5 @@ const tabBarData = [
     icon: 'check-circle-o',
     selectedIcon: 'check-circle',
     link: '/trick'
-  },
-  {
-    title: 'Unsupported',
-    icon: 'cross-circle-o',
-    selectedIcon: 'cross-circle',
-    link: '/unsupported'
   }
 ]

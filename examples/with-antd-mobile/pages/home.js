@@ -43,8 +43,8 @@ export default class Home extends Component {
           <WingBlank>
             <Steps current={1}>
               <Steps.Step title='Finished' description='Most components has supported' />
-              <Steps.Step title='In Progress' description='List items and Modal' />
-              <Steps.Step title='Waiting' description='Menu and RefreshControl' />
+              <Steps.Step title='In Progress' description='Switch Modal and Menu' />
+              <Steps.Step title='Waiting' description='1.2.0' />
             </Steps>
           </WingBlank>
         </MenuBar>

@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "antd-mobile": "^1.1.0",
+    "antd-mobile": "^1.1.2",
     "babel-plugin-import": "^1.1.1",
     "next": "latest",
     "react": "^15.5.4",
