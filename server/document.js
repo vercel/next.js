@@ -70,9 +70,9 @@ export class Head extends Component {
     const { pathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <head>
+      {this.getPreloadMainLinks()}
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
-      {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
       {this.props.children}
@@ -147,9 +147,9 @@ export class NextScript extends Component {
           }
         `
       }} />}
+      {staticMarkup ? null : this.getScripts()}
       <script defer type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
       <script defer type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
-      {staticMarkup ? null : this.getScripts()}
     </div>
   }
 }
