@@ -71,7 +71,7 @@ export class Head extends Component {
 
     return <head>
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${realPathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
@@ -148,7 +148,7 @@ export class NextScript extends Component {
         `
       }} />}
       <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${realPathname}`} />
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
