@@ -90,10 +90,18 @@ async function doRender (req, res, pathname, query, {
 
   if (res.finished) return
 
+  // realPathname is pretty useful in the document.js
+  // In there, we include a proper valid resolved path.
+  // That helps us to server that JSON page directly from a static server.
+  // Basically, this is a requirment for next-export
+  const pageRealPath = await resolvePath(join(dir, 'pages', pathname))
+  const realPathname = pageRealPath.replace(join(dir, 'pages'), '')
+
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props,
       pathname,
+      realPathname,
       query,
       buildId,
       buildStats,
@@ -101,6 +109,7 @@ async function doRender (req, res, pathname, query, {
       err: (err) ? serializeError(dev, err) : null
     },
     dev,
+    dir,
     staticMarkup,
     ...docProps
   })

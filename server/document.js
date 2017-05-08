@@ -67,10 +67,10 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { realPathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <head>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${realPathname}`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
@@ -133,7 +133,7 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { realPathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -147,7 +147,7 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
+      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${realPathname}`} />
       <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
