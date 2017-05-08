@@ -147,8 +147,8 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
+      <script defer type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
+      <script defer type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
