@@ -6,6 +6,7 @@ import { createRouter } from '../lib/router'
 import App from '../lib/app'
 import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
+import querystring from 'querystring'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -80,7 +81,8 @@ async function doRender ({ Component, props, hash, err, emitter }) {
     const { pathname, query } = router
     props = await loadGetInitialProps(Component, { err, pathname, query })
   } else if (exported && !lastAppProps) {
-    const { pathname, query } = router
+    const { pathname } = router
+    const query = querystring.parse(window.location.search.slice(1))
     props = await loadGetInitialProps(Component, { err, pathname, query })
   }
 

@@ -80,6 +80,7 @@
     "mz": "2.6.0",
     "path-match": "1.2.4",
     "pkg-up": "1.0.0",
+    "querystring": "^0.2.0",
     "react-hot-loader": "3.0.0-beta.6",
     "send": "0.15.1",
     "source-map-support": "0.4.14",
