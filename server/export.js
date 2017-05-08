@@ -64,7 +64,7 @@ export default async function (dir) {
     const req = { url: path }
     const res = {}
 
-    const htmlFilename = page === '/' ? 'index.html' : `${page}${sep}index.html`
+    const htmlFilename = path === '/' ? 'index.html' : `${path}${sep}index.html`
     const baseDir = join(outDir, dirname(htmlFilename))
     const htmlFilepath = join(outDir, htmlFilename)
 
