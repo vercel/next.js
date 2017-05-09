@@ -6,7 +6,7 @@ dist
 node_modules
 
 # logs
-npm-debug.log
+*.log
 
 # coverage
 .nyc_output
