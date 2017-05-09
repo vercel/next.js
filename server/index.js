@@ -123,7 +123,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/_error': async (req, res, params) => {
+      '/_next/:buildId/page/_error*': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
