@@ -36,6 +36,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing babel config](#customizing-babel-config)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+- [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Authors](#authors)
@@ -753,6 +754,10 @@ Then run `now` and enjoy!
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+
+## Recipes
+
+- [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 
 ## FAQ
 
