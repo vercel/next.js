@@ -9,7 +9,7 @@ import { printAndExit } from '../lib/utils'
 
 export default async function (dir, options) {
   dir = resolve(dir)
-  const outDir = join(dir, '.out')
+  const outDir = options.outdir
   const nextDir = join(dir, '.next')
 
   if (!existsSync(nextDir)) {

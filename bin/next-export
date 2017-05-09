@@ -10,11 +10,13 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
-    v: 'verbose'
+    v: 'verbose',
+    o: 'outdir'
   },
   boolean: ['h'],
   default: {
-    v: false
+    v: false,
+    o: null
   }
 })
 
@@ -24,11 +26,16 @@ if (argv.help) {
       Exports the application for production deployment
 
     Usage
-      $ next export <dir>
+      $ next export [options] <dir>
 
     <dir> represents where the compiled dist folder should go.
     If no directory is provided, the dist folder will be created in the current directory.
     You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
+
+    Options
+      -h - list this help
+      -v - run export with the verbose mode
+      -o - set the output dir (defaults to '.out')
   `)
   process.exit(0)
 }
@@ -48,7 +55,12 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-exportApp(dir, { verbose: argv.verbose })
+const options = {
+  verbose: argv.verbose,
+  outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, '.out')
+}
+
+exportApp(dir, options)
   .catch((err) => {
     console.error(err)
     process.exit(1)
