@@ -7,7 +7,7 @@ import getConfig from './config'
 import { renderToHTML } from './render'
 import { printAndExit } from '../lib/utils'
 
-export default async function (dir) {
+export default async function (dir, options) {
   dir = resolve(dir)
   const outDir = join(dir, '.out')
   const nextDir = join(dir, '.next')
@@ -66,6 +66,10 @@ export default async function (dir) {
   }
 
   for (const path of exportPaths) {
+    if (options.verbose) {
+      console.log(`  exporing path: ${path}`)
+    }
+
     const { page, query } = exportPathMap[path]
     const req = { url: path }
     const res = {}

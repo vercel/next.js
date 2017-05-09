@@ -9,9 +9,13 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
-    h: 'help'
+    h: 'help',
+    v: 'verbose'
   },
-  boolean: ['h']
+  boolean: ['h'],
+  default: {
+    v: false
+  }
 })
 
 if (argv.help) {
@@ -44,7 +48,7 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-exportApp(dir)
+exportApp(dir, { verbose: argv.verbose })
   .catch((err) => {
     console.error(err)
     process.exit(1)
