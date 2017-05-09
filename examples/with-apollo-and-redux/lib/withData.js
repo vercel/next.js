@@ -5,7 +5,12 @@ import initApollo from './initApollo'
 import initRedux from './initRedux'
 
 export default ComposedComponent => {
-  class WithData extends React.Component {
+  return class WithData extends React.Component {
+    static displayName = `WithData(${ComposedComponent.displayName})`
+    static propTypes = {
+      serverState: PropTypes.object.isRequired
+    }
+
     static async getInitialProps (ctx) {
       let serverState = {}
 
@@ -67,11 +72,4 @@ export default ComposedComponent => {
       )
     }
   }
-
-  WithData.displayName = `WithData(${ComposedComponent.displayName})`
-  WithData.propTypes = {
-    serverState: PropTypes.object.isRequired
-  }
-
-  return WithData
 }
