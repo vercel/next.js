@@ -133,7 +133,7 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { realPathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, realPathname, buildId, assetPrefix } = __NEXT_DATA__
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -147,8 +147,8 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${realPathname}`} />
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${realPathname}`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }

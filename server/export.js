@@ -37,17 +37,6 @@ export default async function (dir) {
     join(outDir, '_next', buildId, 'page')
   )
 
-  // Start the rendering process
-  const renderOpts = {
-    dir,
-    buildStats,
-    buildId,
-    assetPrefix: config.assetPrefix.replace(/\/$/, ''),
-    dev: false,
-    staticMarkup: false,
-    hotReloader: null
-  }
-
   // Get the exportPathMap from the `next.config.js`
   if (typeof config.exportPathMap !== 'function') {
     printAndExit(
@@ -58,6 +47,23 @@ export default async function (dir) {
 
   const exportPathMap = await config.exportPathMap()
   const exportPaths = Object.keys(exportPathMap)
+
+  // Start the rendering process
+  const renderOpts = {
+    dir,
+    buildStats,
+    buildId,
+    nextExport: true,
+    assetPrefix: config.assetPrefix.replace(/\/$/, ''),
+    dev: false,
+    staticMarkup: false,
+    hotReloader: null
+  }
+
+  // We need this for server rendering the Link component.
+  global.__NEXT_DATA__ = {
+    nextExport: true
+  }
 
   for (const path of exportPaths) {
     const { page, query } = exportPathMap[path]
