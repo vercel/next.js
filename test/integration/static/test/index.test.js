@@ -1,4 +1,4 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
+/* global jasmine, describe, beforeAll, afterAll */
 
 import { join } from 'path'
 import {
@@ -7,9 +7,9 @@ import {
   startStaticServer,
   stopApp
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 import ssr from './ssr'
+import browser from './browser'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 const appDir = join(__dirname, '../')
@@ -27,15 +27,5 @@ describe('Static Export', () => {
   afterAll(() => stopApp(context.server))
 
   ssr(context)
-
-  describe('Render via browser', () => {
-    it('should render the home page', async () => {
-      const browser = await webdriver(context.port, '/')
-      const text = await browser
-          .elementByCss('#home-page p').text()
-
-      expect(text).toBe('This is the home page')
-      browser.close()
-    })
-  })
+  browser(context)
 })

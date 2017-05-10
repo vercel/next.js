@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 const DynamicPage = ({ text }) => (
-  <div id='about-page'>
+  <div id='dynamic-page'>
     <div>
       <Link href='/'>
         <a>Go Back</a>

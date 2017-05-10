@@ -9,8 +9,8 @@ function routeToAbout (e) {
 export default () => (
   <div id='home-page'>
     <div>
-      <Link href='/about' id='about-via-link'>
-        <a>About via Link</a>
+      <Link href='/about'>
+        <a id='about-via-link'>About via Link</a>
       </Link>
       <a
         href='#'
@@ -19,28 +19,25 @@ export default () => (
       >
         About via Router
       </a>
-      <Link href='/counter' id='counter'>
-        <a>Counter</a>
+      <Link href='/counter'>
+        <a id='counter'>Counter</a>
       </Link>
       <Link
         href='/dynamic?text=cool+dynamic+text'
-        id='get-initial-props'
       >
-        <a>getInitialProps</a>
+        <a id='get-initial-props'>getInitialProps</a>
       </Link>
       <Link
         href='/dynamic?text=next+export+is+nice'
         as='/dynamic/one'
-        id='dynamic-1'
       >
-        <a>Dynamic 1</a>
+        <a id='dynamic-1'>Dynamic 1</a>
       </Link>
       <Link
         href='/dynamic?text=zeit+is+awesome'
         as='/dynamic/two'
-        id='dynamic-2'
       >
-        <a>Dynamic 2</a>
+        <a id='dynamic-2'>Dynamic 2</a>
       </Link>
     </div>
     <p>This is the home page</p>
