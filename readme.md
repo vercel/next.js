@@ -129,6 +129,11 @@ export default () => (
         }
       }
     `}</style>
+    <style global jsx>{`
+      body {
+        background: black;
+      }
+    `}</style>
   </div>
 )
 ```
