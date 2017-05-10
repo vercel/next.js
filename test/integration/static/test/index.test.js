@@ -4,11 +4,12 @@ import { join } from 'path'
 import {
   nextBuild,
   nextExport,
-  renderViaHTTP,
   startStaticServer,
   stopApp
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+
+import ssr from './ssr'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 const appDir = join(__dirname, '../')
@@ -25,12 +26,7 @@ describe('Static Export', () => {
   })
   afterAll(() => stopApp(context.server))
 
-  describe('Render via SSR', () => {
-    it('should render the home page', async () => {
-      const html = await renderViaHTTP(context.port, '/')
-      expect(html).toMatch(/This is the home page/)
-    })
-  })
+  ssr(context)
 
   describe('Render via browser', () => {
     it('should render the home page', async () => {
