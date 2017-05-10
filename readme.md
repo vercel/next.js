@@ -6,12 +6,15 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
+**Visit https://learnnextjs.com to get started with Next.js.**
+
+---
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [How to use](#how-to-use)
-  - [Getting Started](#getting-started)
   - [Setup](#setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
@@ -36,6 +39,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing babel config](#customizing-babel-config)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+- [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Authors](#authors)
@@ -43,10 +47,6 @@ Next.js is a minimalistic framework for server-rendered React applications.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## How to use
-
-### Getting Started
-
-A step by step interactive guide of next features is available at [learnnextjs.com](https://learnnextjs.com/)
 
 ### Setup
 
@@ -759,6 +759,10 @@ Then run `now` and enjoy!
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+
+## Recipes
+
+- [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 
 ## FAQ
 
