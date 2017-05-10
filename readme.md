@@ -129,9 +129,16 @@ export default () => (
         }
       }
     `}</style>
+    <style global jsx>{`
+      body {
+        background: black;
+      }
+    `}</style>
   </div>
 )
 ```
+
+Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
 #### CSS-in-JS
 
