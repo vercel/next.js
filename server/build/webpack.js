@@ -295,7 +295,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     module: {
       rules
     },
-    devtool: dev ? 'inline-source-map' : false,
+    devtool: dev ? 'cheap-module-inline-source-map' : false,
     performance: { hints: false }
   }
 

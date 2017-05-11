@@ -9,7 +9,7 @@ const envPlugins = {
   ]
 }
 
-const plugins = envPlugins[process.env.NODE_ENV] || []
+const plugins = envPlugins[process.env.NODE_ENV] || envPlugins['development']
 
 module.exports = {
   presets: [

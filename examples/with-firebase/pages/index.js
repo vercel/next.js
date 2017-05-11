@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import firebase from 'firebase'
 import 'isomorphic-fetch'
-import { clientCredentials } from '../firebaseCredentials'
+import clientCredentials from '../credentials/client'
 
 export default class Index extends Component {
   static async getInitialProps ({req, query}) {
