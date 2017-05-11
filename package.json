@@ -104,7 +104,7 @@
     "cheerio": "0.22.0",
     "chromedriver": "2.29.0",
     "coveralls": "2.13.1",
-    "cross-env": "4.0.0",
+    "cross-env": "5.0.0",
     "fly": "2.0.6",
     "fly-babel": "2.1.1",
     "fly-clear": "1.0.1",
