@@ -13,6 +13,8 @@ export default async function (dir, options) {
   const outDir = options.outdir
   const nextDir = join(dir, '.next')
 
+  log(`  Exporting to: ${outDir}\n`)
+
   if (!existsSync(nextDir)) {
     console.error('Build your with "next build" before running "next start".')
     process.exit(1)
@@ -64,9 +66,7 @@ export default async function (dir, options) {
   }
 
   for (const path of exportPaths) {
-    if (options.verbose) {
-      console.log(`  exporing path: ${path}`)
-    }
+    log(`  exporing path: ${path}`)
 
     const { page, query } = exportPathMap[path]
     const req = { url: path }
@@ -80,6 +80,14 @@ export default async function (dir, options) {
 
     const html = await renderToHTML(req, res, page, query, renderOpts)
     writeFileSync(htmlFilepath, html, 'utf8')
+  }
+
+  // Add an empty line to the console for the better readability.
+  log('')
+
+  function log (message) {
+    if (options.silent) return
+    console.log(message)
   }
 }
 

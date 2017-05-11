@@ -10,12 +10,12 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
-    v: 'verbose',
+    s: 'silent',
     o: 'outdir'
   },
   boolean: ['h'],
   default: {
-    v: false,
+    s: false,
     o: null
   }
 })
@@ -34,8 +34,8 @@ if (argv.help) {
 
     Options
       -h - list this help
-      -v - run export with the verbose mode
       -o - set the output dir (defaults to '.out')
+      -s - do not print any messages to console
   `)
   process.exit(0)
 }
@@ -56,7 +56,7 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 const options = {
-  verbose: argv.verbose,
+  silent: argv.silent,
   outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, '.out')
 }
 
