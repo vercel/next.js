@@ -67,11 +67,13 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { realPathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
+
+    const pagePathname = nextExport ? `${pathname}/index.js` : pathname
 
     return <head>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${realPathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
@@ -133,7 +135,9 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, realPathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
+
+    const pagePathname = nextExport ? `${pathname}/index.js` : pathname
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -147,8 +151,9 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${realPathname}`} />
-      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
+
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }

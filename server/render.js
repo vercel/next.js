@@ -49,13 +49,6 @@ async function doRender (req, res, pathname, query, {
 
   const dist = getConfig(dir).distDir
 
-  // realPathname is pretty useful in the document.js
-  // In there, we include a proper valid resolved path.
-  // That helps us to server that JSON page directly from a static server.
-  // Basically, this is a requirment for next-export
-  const pageRealPath = await resolvePath(join(dir, dist, 'dist', 'pages', page))
-  const realPathname = pageRealPath.replace(join(dir, dist, 'dist', 'pages'), '')
-
   let [Component, Document] = await Promise.all([
     requireModule(join(dir, dist, 'dist', 'pages', page)),
     requireModule(join(dir, dist, 'dist', 'pages', '_document'))
@@ -102,7 +95,6 @@ async function doRender (req, res, pathname, query, {
     __NEXT_DATA__: {
       props,
       pathname,
-      realPathname,
       query,
       buildId,
       buildStats,

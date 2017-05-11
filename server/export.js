@@ -1,6 +1,7 @@
 import del from 'del'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
+import walk from 'walk'
 import { resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
@@ -32,10 +33,7 @@ export default async function (dir, options) {
     join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
   )
 
-  await cp(
-    join(nextDir, 'bundles', 'pages'),
-    join(outDir, '_next', buildId, 'page')
-  )
+  await copyPages(nextDir, outDir, buildId)
 
   // Get the exportPathMap from the `next.config.js`
   if (typeof config.exportPathMap !== 'function') {
@@ -83,4 +81,32 @@ export default async function (dir, options) {
     const html = await renderToHTML(req, res, page, query, renderOpts)
     writeFileSync(htmlFilepath, html, 'utf8')
   }
+}
+
+function copyPages (nextDir, outDir, buildId) {
+  // TODO: do some proper error handling
+  return new Promise((resolve, reject) => {
+    const nextBundlesDir = join(nextDir, 'bundles', 'pages')
+    const walker = walk.walk(nextBundlesDir, { followLinks: false })
+
+    walker.on('file', (root, stat, next) => {
+      const filename = stat.name
+      const fullFilePath = `${root}${sep}${filename}`
+      const relativeFilePath = fullFilePath.replace(nextBundlesDir, '')
+
+      let destFilePath = null
+      if (/index\.js$/.test(filename)) {
+        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
+      } else {
+        const newRelativeFilePath = relativeFilePath.replace(/\.js/, `${sep}index.js`)
+        destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
+      }
+
+      cp(fullFilePath, destFilePath)
+        .then(next)
+        .catch(reject)
+    })
+
+    walker.on('end', resolve)
+  })
 }

@@ -121,6 +121,7 @@
     "react-dom": "15.5.3",
     "recursive-copy": "^2.0.6",
     "standard": "9.0.2",
+    "walk": "^2.3.9",
     "wd": "1.2.0"
   },
   "peerDependencies": {
