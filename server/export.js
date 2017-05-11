@@ -94,6 +94,13 @@ function copyPages (nextDir, outDir, buildId) {
       const fullFilePath = `${root}${sep}${filename}`
       const relativeFilePath = fullFilePath.replace(nextBundlesDir, '')
 
+      // We should not expose this page to the client side since
+      // it has no use in the client side.
+      if (relativeFilePath === '/_document.js') {
+        next()
+        return
+      }
+
       let destFilePath = null
       if (/index\.js$/.test(filename)) {
         destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
