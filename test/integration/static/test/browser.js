@@ -92,5 +92,29 @@ export default function (context) {
 
       browser.close()
     })
+
+    describe('pages in the nested level: level1', () => {
+      it('should render the home page', async () => {
+        const browser = await webdriver(context.port, '/')
+        const text = await browser
+            .elementByCss('#level1-home-page').click()
+            .waitForElementByCss('#level1-home-page')
+            .elementByCss('#level1-home-page p').text()
+
+        expect(text).toBe('This is the Level1 home page')
+        browser.close()
+      })
+
+      it('should render the about page', async () => {
+        const browser = await webdriver(context.port, '/')
+        const text = await browser
+            .elementByCss('#level1-about-page').click()
+            .waitForElementByCss('#level1-about-page')
+            .elementByCss('#level1-about-page p').text()
+
+        expect(text).toBe('This is the Level1 about page')
+        browser.close()
+      })
+    })
   })
 }
