@@ -68,8 +68,7 @@ export class Head extends Component {
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
     const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
-
-    const pagePathname = nextExport ? `${pathname}/index.js` : pathname
+    const pagePathname = getPagePathname(pathname, nextExport)
 
     return <head>
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
@@ -136,8 +135,7 @@ export class NextScript extends Component {
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
     const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
-
-    const pagePathname = nextExport ? `${pathname}/index.js` : pathname
+    const pagePathname = getPagePathname(pathname, nextExport)
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -157,4 +155,10 @@ export class NextScript extends Component {
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
+}
+
+function getPagePathname (pathname, nextExport) {
+  if (!nextExport) return pathname
+  if (pathname === '/') return '/index.js'
+  return `${pathname}/index.js`
 }
