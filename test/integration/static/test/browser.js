@@ -68,5 +68,29 @@ export default function (context) {
       expect(text).toBe('next export is nice')
       browser.close()
     })
+
+    it('should support client side naviagtion', async () => {
+      const browser = await webdriver(context.port, '/')
+      const text = await browser
+          .elementByCss('#counter').click()
+          .waitForElementByCss('#counter-page')
+          .elementByCss('#counter-increase').click()
+          .elementByCss('#counter-increase').click()
+          .elementByCss('#counter-page p').text()
+
+      expect(text).toBe('Counter: 2')
+
+      // let's go back and come again to this page:
+      const textNow = await browser
+        .elementByCss('#go-back').click()
+        .waitForElementByCss('#home-page')
+        .elementByCss('#counter').click()
+        .waitForElementByCss('#counter-page')
+        .elementByCss('#counter-page p').text()
+
+      expect(textNow).toBe('Counter: 2')
+
+      browser.close()
+    })
   })
 }

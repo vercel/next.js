@@ -1,27 +1,23 @@
 import React from 'react'
 import Link from 'next/link'
 
-export default class Counter extends React.Component {
-  constructor (...args) {
-    super(...args)
-    this.state = { count: 0 }
-  }
+let counter = 0
 
+export default class Counter extends React.Component {
   increaseCounter () {
-    const { count } = this.state
-    this.setState({ count: count + 1 })
+    counter++
+    this.forceUpdate()
   }
 
   render () {
-    const { count } = this.state
     return (
       <div id='counter-page'>
         <div>
           <Link href='/'>
-            <a>Go Back</a>
+            <a id='go-back'>Go Back</a>
           </Link>
         </div>
-        <p>Counter: {count}</p>
+        <p>Counter: {counter}</p>
         <button
           id='counter-increase'
           onClick={() => this.increaseCounter()}
