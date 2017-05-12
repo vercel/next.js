@@ -79,7 +79,7 @@
     "mz": "2.6.0",
     "path-match": "1.2.4",
     "pkg-up": "2.0.0",
-    "prop-types": "15.5.9",
+    "prop-types": "15.5.10",
     "react-hot-loader": "3.0.0-beta.6",
     "send": "0.15.2",
     "source-map-support": "0.4.15",
