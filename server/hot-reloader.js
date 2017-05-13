@@ -138,14 +138,21 @@ export default class HotReloader {
       }
     } : {}
 
-    this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
+    let webpackDevMiddlewareConfig = {
       publicPath: '/_next/webpack/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
       watchOptions: { ignored },
       ...windowsSettings
-    })
+    }
+
+    if (this.config.webpackDevMiddleware) {
+      console.log('> Using "webpackDevMiddleware" config function defined in next.config.js.')
+      webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
+    }
+
+    this.webpackDevMiddleware = webpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
       path: '/_next/webpack-hmr',

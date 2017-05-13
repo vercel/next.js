@@ -682,9 +682,15 @@ In order to extend our usage of `webpack`, you can define a function that extend
 
 module.exports = {
   webpack: (config, { dev }) => {
-    // Perform customizations to config
-    
-    // Important: return the modified config
+    // Perform customizations to webpack config
+
+    // Important: return the modified config
+    return config
+  },
+  webpackDevMiddleware: (config) => {
+    // Perform customizations to webpack dev middleware config
+
+    // Important: return the modified config
     return config
   }
 }
