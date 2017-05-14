@@ -35,6 +35,15 @@ export default async function (dir, options) {
     join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
   )
 
+  // Copy static directory
+  if (existsSync(join(dir, 'static'))) {
+    log('  copying "static" directory')
+    await cp(
+      join(dir, 'static'),
+      join(outDir, 'static')
+    )
+  }
+
   await copyPages(nextDir, outDir, buildId)
 
   // Get the exportPathMap from the `next.config.js`
