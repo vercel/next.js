@@ -112,7 +112,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       filename: 'manifest.js'
     }),
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+      'process.browser': JSON.stringify(true)
     }),
     new PagesPlugin(),
     new CaseSensitivePathPlugin()
