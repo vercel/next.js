@@ -34,7 +34,7 @@ if (argv.help) {
 
     Options
       -h - list this help
-      -o - set the output dir (defaults to 'next-static-out')
+      -o - set the output dir (defaults to 'out')
       -s - do not print any messages to console
   `)
   process.exit(0)
@@ -57,7 +57,7 @@ if (!existsSync(join(dir, 'pages'))) {
 
 const options = {
   silent: argv.silent,
-  outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'next-static-out')
+  outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
 }
 
 exportApp(dir, options)
