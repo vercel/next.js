@@ -17,5 +17,10 @@ export default function (context) {
       const html = await renderViaHTTP(context.port, '/dynamic/one')
       expect(html).toMatch(/next export is nice/)
     })
+
+    it('should render pages with dynamic imports', async() => {
+      const html = await renderViaHTTP(context.port, '/dynamic-imports')
+      expect(html).toMatch(/Welcome to dynamic imports./)
+    })
   })
 }

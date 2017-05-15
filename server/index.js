@@ -99,6 +99,19 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
+      // This is to support, webpack dynamic imports in production.
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+        const p = join(this.dir, '.next', 'chunks', params.name)
+        await this.serveStatic(req, res, p)
+      },
+
+      // This is to support, webpack dynamic import support with HMR
+      '/_next/webpack/:id': async (req, res, params) => {
+        const p = join(this.dir, '.next', 'chunks', params.id)
+        await this.serveStatic(req, res, p)
+      },
+
       '/_next/:hash/manifest.js': async (req, res, params) => {
         this.handleBuildHash('manifest.js', params.hash, res)
         const p = join(this.dir, `${this.dist}/manifest.js`)

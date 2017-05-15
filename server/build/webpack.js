@@ -7,6 +7,7 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
+import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -116,6 +117,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
     new PagesPlugin(),
+    new DynamicChunksPlugin(),
     new CaseSensitivePathPlugin()
   ]
 
@@ -219,6 +221,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
                   'next/link': relativeResolve('../../lib/link'),
                   'next/prefetch': relativeResolve('../../lib/prefetch'),
                   'next/css': relativeResolve('../../lib/css'),
+                  'next/dynamic': relativeResolve('../../lib/dynamic'),
                   'next/head': relativeResolve('../../lib/head'),
                   'next/document': relativeResolve('../../server/document'),
                   'next/router': relativeResolve('../../lib/router'),
@@ -274,7 +277,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
         // append hash id for cache busting
         return `webpack:///${resourcePath}?${id}`
-      }
+      },
+      // This saves chunks with the name given via require.ensure()
+      chunkFilename: '[name]'
     },
     resolve: {
       modules: [
