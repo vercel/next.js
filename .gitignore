@@ -13,5 +13,5 @@ node_modules
 coverage
 
 # test output
-test/**/.out
+test/**/out
 .DS_Store

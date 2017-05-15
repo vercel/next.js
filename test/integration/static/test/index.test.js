@@ -17,11 +17,11 @@ const context = {}
 
 describe('Static Export', () => {
   beforeAll(async () => {
-    const outdir = join(appDir, '.out')
+    const outdir = join(appDir, 'out')
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
-    context.server = await startStaticServer(join(appDir, '.out'))
+    context.server = await startStaticServer(join(appDir, 'out'))
     context.port = context.server.address().port
   })
   afterAll(() => stopApp(context.server))
