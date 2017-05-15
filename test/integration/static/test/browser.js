@@ -1,5 +1,6 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
+import { waitFor } from 'next-test-utils'
 
 export default function (context) {
   describe('Render via browser', () => {
@@ -95,9 +96,15 @@ export default function (context) {
 
     it('should render dynamic import components in the client', async () => {
       const browser = await webdriver(context.port, '/')
-      const text = await browser
+      await browser
           .elementByCss('#dynamic-imports-page').click()
           .waitForElementByCss('#dynamic-imports-page')
+
+      // Wait until browser loads the dynamic import chunk
+      // TODO: We may need to find a better way to do this
+      await waitFor(5000)
+
+      const text = await browser
           .elementByCss('#dynamic-imports-page p').text()
 
       expect(text).toBe('Welcome to dynamic imports.')
