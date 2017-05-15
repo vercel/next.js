@@ -20,6 +20,8 @@ const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
   return (<Hello4 />)
 })
 
+const DynamicComponent5 = dynamic(import('../components/hello5'))
+
 export default () => (
   <div>
     <Header />
@@ -27,6 +29,14 @@ export default () => (
     <DynamicComponentWithCustomLoading />
     <DynamicComponentWithNoSSR />
     <DynamicComponentWithAsyncReactor />
+    {
+      /*
+        Since DynamicComponent5 does not render in the client,
+        it won't get downloaded.
+      */
+    }
+    { React.noSuchField === true ? <DynamicComponent5 /> : null }
+
     <p>HOME PAGE is here!</p>
     <Counter />
   </div>
