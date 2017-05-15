@@ -45,6 +45,9 @@ export default () => (
       <Link href='/level1/about'>
         <a id='level1-about-page'>Level1 about page</a>
       </Link>
+      <Link href='/dynamic-imports'>
+        <a id='dynamic-imports-page'>Dynamic imports page</a>
+      </Link>
     </div>
     <p>This is the home page</p>
     <style jsx>{`

@@ -44,6 +44,17 @@ export default async function (dir, options) {
     )
   }
 
+  // Copy dynamic import chunks
+  if (existsSync(join(nextDir, 'chunks'))) {
+    log('  copying dynamic import chunks')
+
+    await mkdirp(join(outDir, '_next', 'webpack'))
+    await cp(
+      join(nextDir, 'chunks'),
+      join(outDir, '_next', 'webpack', 'chunks')
+    )
+  }
+
   await copyPages(nextDir, outDir, buildId)
 
   // Get the exportPathMap from the `next.config.js`

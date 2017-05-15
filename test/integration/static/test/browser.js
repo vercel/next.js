@@ -93,6 +93,17 @@ export default function (context) {
       browser.close()
     })
 
+    it('should render dynamic import components in the client', async () => {
+      const browser = await webdriver(context.port, '/')
+      const text = await browser
+          .elementByCss('#dynamic-imports-page').click()
+          .waitForElementByCss('#dynamic-imports-page')
+          .elementByCss('#dynamic-imports-page p').text()
+
+      expect(text).toBe('Welcome to dynamic imports.')
+      browser.close()
+    })
+
     describe('pages in the nested level: level1', () => {
       it('should render the home page', async () => {
         const browser = await webdriver(context.port, '/')
