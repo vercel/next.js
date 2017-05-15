@@ -83,6 +83,7 @@
     "pkg-up": "2.0.0",
     "prop-types": "15.5.10",
     "react-hot-loader": "3.0.0-beta.6",
+    "recursive-copy": "^2.0.6",
     "send": "0.15.2",
     "source-map-support": "0.4.15",
     "strip-ansi": "3.0.1",
@@ -122,7 +123,6 @@
     "nyc": "10.3.2",
     "react": "15.5.3",
     "react-dom": "15.5.3",
-    "recursive-copy": "^2.0.6",
     "standard": "9.0.2",
     "walk": "^2.3.9",
     "wd": "1.2.0"
