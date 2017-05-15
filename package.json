@@ -95,7 +95,8 @@
     "webpack": "2.5.1",
     "webpack-dev-middleware": "1.10.2",
     "webpack-hot-middleware": "2.18.0",
-    "write-file-webpack-plugin": "4.0.2"
+    "write-file-webpack-plugin": "4.0.2",
+    "walk": "^2.3.9"
   },
   "devDependencies": {
     "babel-eslint": "7.2.3",
@@ -124,7 +125,6 @@
     "react": "15.5.3",
     "react-dom": "15.5.3",
     "standard": "9.0.2",
-    "walk": "^2.3.9",
     "wd": "1.2.0"
   },
   "peerDependencies": {
