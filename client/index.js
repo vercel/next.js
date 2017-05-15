@@ -30,6 +30,8 @@ const {
   location
 } = window
 
+const asPath = getURL()
+
 const pageLoader = new PageLoader(buildId, assetPrefix)
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
@@ -68,7 +70,7 @@ export default async () => {
     Component = ErrorComponent
   }
 
-  router = createRouter(pathname, query, getURL(), {
+  router = createRouter(pathname, query, asPath, {
     pageLoader,
     Component,
     ErrorComponent,
@@ -119,7 +121,7 @@ export async function renderError (error) {
   console.error(errorMessage)
 
   if (prod) {
-    const initProps = { err: error, pathname, query }
+    const initProps = { err: error, pathname, query, asPath }
     const props = await loadGetInitialProps(ErrorComponent, initProps)
     ReactDOM.render(createElement(ErrorComponent, props), errorContainer)
   } else {
@@ -132,8 +134,8 @@ async function doRender ({ Component, props, hash, err, emitter }) {
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
-    const { pathname, query } = router
-    props = await loadGetInitialProps(Component, { err, pathname, query })
+    const { pathname, query, asPath } = router
+    props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
   }
 
   if (emitter) {

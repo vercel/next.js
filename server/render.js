@@ -41,7 +41,8 @@ async function doRender (req, res, pathname, query, {
   assetPrefix,
   dir = process.cwd(),
   dev = false,
-  staticMarkup = false
+  staticMarkup = false,
+  nextExport = false
 } = {}) {
   page = page || pathname
 
@@ -55,7 +56,8 @@ async function doRender (req, res, pathname, query, {
   ])
   Component = Component.default || Component
   Document = Document.default || Document
-  const ctx = { err, req, res, pathname, query }
+  const asPath = req.url
+  const ctx = { err, req, res, pathname, query, asPath }
   const props = await loadGetInitialProps(Component, ctx)
 
   // the response might be finshed on the getinitialprops call
@@ -99,9 +101,11 @@ async function doRender (req, res, pathname, query, {
       buildId,
       buildStats,
       assetPrefix,
+      nextExport,
       err: (err) ? serializeError(dev, err) : null
     },
     dev,
+    dir,
     staticMarkup,
     ...docProps
   })
@@ -111,7 +115,8 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderScript (req, res, page, opts) {
   try {
-    const path = join(opts.dir, '.next', 'bundles', 'pages', page)
+    const dist = getConfig(opts.dir).distDir
+    const path = join(opts.dir, dist, 'bundles', 'pages', page)
     const realPath = await resolvePath(path)
     await serveStatic(req, res, realPath)
   } catch (err) {

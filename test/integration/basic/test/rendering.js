@@ -3,8 +3,8 @@
 import cheerio from 'cheerio'
 
 export default function ({ app }, suiteName, render) {
-  async function get$ (path) {
-    const html = await render(path)
+  async function get$ (path, query) {
+    const html = await render(path, query)
     return cheerio.load(html)
   }
 
@@ -67,6 +67,11 @@ export default function ({ app }, suiteName, render) {
     test('error', async () => {
       const $ = await get$('/error')
       expect($('pre').text()).toMatch(/This is an expected error/)
+    })
+
+    test('asPath', async () => {
+      const $ = await get$('/nav/as-path', { aa: 10 })
+      expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
     })
 
     test('error 404', async () => {

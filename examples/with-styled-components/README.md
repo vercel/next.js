@@ -30,6 +30,4 @@ This example features how you use a different styling solution than [styled-jsx]
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-## Notes:
-
-- On initial install, you may see a server-side error: `TypeError: Cannot read property 'cssRules' of undefined when using this line of code` until you actually render a `styled-component`. I have submitted a PR to fix this issue with them [here](https://github.com/styled-components/styled-components/pull/391). For the time being, make sure you render at least one `styled-component` when you use this.
+# WARNING This example uses styled-components v2 which is currently in BETA

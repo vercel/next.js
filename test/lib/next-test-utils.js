@@ -1,17 +1,21 @@
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import http from 'http'
+import express from 'express'
 
 import server from '../../dist/server/next'
 import build from '../../dist/server/build'
+import _export from '../../dist/server/export'
 import _pkg from '../../package.json'
 
 export const nextServer = server
 export const nextBuild = build
+export const nextExport = _export
 export const pkg = _pkg
 
 export function renderViaAPI (app, pathname, query = {}) {
-  return app.renderToHTML({}, {}, pathname, query)
+  const url = `${pathname}?${qs.stringify(query)}`
+  return app.renderToHTML({ url }, {}, pathname, query)
 }
 
 export function renderViaHTTP (appPort, pathname, query = {}) {
@@ -30,7 +34,9 @@ export async function startApp (app) {
 }
 
 export async function stopApp (app) {
-  await server.__app.close()
+  if (server.__app) {
+    await server.__app.close()
+  }
   await promiseCall(server, 'close')
 }
 
@@ -50,4 +56,13 @@ function promiseCall (obj, method, ...args) {
 
 export function waitFor (millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
+}
+
+export async function startStaticServer (dir) {
+  const app = express()
+  const server = http.createServer(app)
+  app.use(express.static(dir))
+
+  await promiseCall(server, 'listen')
+  return server
 }

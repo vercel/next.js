@@ -75,6 +75,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   }
 
   const plugins = [
+    new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
     new webpack.LoaderOptionsPlugin({
       options: {
         context: dir,
@@ -299,8 +300,17 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     module: {
       rules
     },
-    devtool: dev ? 'inline-source-map' : false,
+    devtool: dev ? 'cheap-module-inline-source-map' : false,
     performance: { hints: false }
+  }
+
+  if (!dev) {
+    // We do this to use the minified version of React in production.
+    // This will significant file size redution when turned off uglifyjs.
+    webpackConfig.resolve.alias = {
+      'react': require.resolve('react/dist/react.min.js'),
+      'react-dom': require.resolve('react-dom/dist/react-dom.min.js')
+    }
   }
 
   if (config.webpack) {
