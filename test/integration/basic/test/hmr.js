@@ -23,7 +23,7 @@ export default (context, render) => {
         const errorMessage = await browser
           .waitForElementByCss('pre')
           .elementByCss('pre').text()
-        expect(errorMessage.includes('SyntaxError: Unterminated JSX contents')).toBeTruthy()
+        expect(errorMessage.includes('Unterminated JSX contents')).toBeTruthy()
 
         // add the original content
         writeFileSync(aboutPagePath, originalContent, 'utf8')
