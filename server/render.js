@@ -40,7 +40,8 @@ async function doRender (req, res, pathname, query, {
   assetPrefix,
   dir = process.cwd(),
   dev = false,
-  staticMarkup = false
+  staticMarkup = false,
+  nextExport = false
 } = {}) {
   page = page || pathname
 
@@ -98,9 +99,11 @@ async function doRender (req, res, pathname, query, {
       buildId,
       buildStats,
       assetPrefix,
+      nextExport,
       err: (err) ? serializeError(dev, err) : null
     },
     dev,
+    dir,
     staticMarkup,
     ...docProps
   })

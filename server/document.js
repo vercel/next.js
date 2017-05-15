@@ -67,11 +67,12 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname, nextExport)
 
     return <head>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
@@ -133,7 +134,8 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname, nextExport)
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -147,9 +149,16 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
+
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
+}
+
+function getPagePathname (pathname, nextExport) {
+  if (!nextExport) return pathname
+  if (pathname === '/') return '/index.js'
+  return `${pathname}/index.js`
 }
