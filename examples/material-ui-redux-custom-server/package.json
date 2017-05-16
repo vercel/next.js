@@ -1,0 +1,48 @@
+{
+  "name": "next-material-fetching-data",
+  "version": "1.0.0",
+  "scripts": {
+    "gulp": "./node_modules/gulp/bin/gulp.js",
+    "postcss": "postcss --config postcss.config.js --replace static/css/app.css",
+    "css:dev": "node-sass --output-style expanded --precision 6 styles/bootstrap-grid.scss static/css/app.css & npm run postcss",
+    "css:prod": "npm run gulp && npm run postcss",
+    "dev": "next",
+    "build": "next build",
+    "start": "npm run css:dev && nodemon -w server.js",
+    "production": "npm run css:prod && npm run build && NODE_ENV=production node index.js"
+  },
+  "dependencies": {
+    "babel-plugin-root-import": "^5.1.0",
+    "babel-polyfill": "^6.23.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-es2017": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "babel-register": "^6.24.1",
+    "express": "^4.15.2",
+    "isomorphic-fetch": "^2.2.1",
+    "material-ui": "0.18.0",
+    "next": "latest",
+    "next-redux-wrapper": "^1.1.2",
+    "node-sass": "^4.5.2",
+    "postcss-loader": "^2.0.5",
+    "raw-loader": "^0.5.1",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "react-redux": "^5.0.4",
+    "react-tap-event-plugin": "2.0.1",
+    "redux": "^3.6.0",
+    "redux-devtools-extension": "^2.13.2",
+    "sass-loader": "^6.0.5"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "autoprefixer": "^7.1.0",
+    "gulp": "^3.9.1",
+    "gulp-csso": "^3.0.0",
+    "gulp-sass": "^3.1.0",
+    "postcss-cli": "^4.0.0",
+    "postcss-easy-import": "^2.0.0",
+    "postcss-flexbugs-fixes": "^3.0.0"
+  }
+}
