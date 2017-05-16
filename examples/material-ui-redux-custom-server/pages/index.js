@@ -1,14 +1,15 @@
+import React from 'react'
 import App from '@/components/App'
 
 import withRedux from 'next-redux-wrapper'
 
-import { fetchData } from '@/reducer/newsListing';
+import { fetchData } from '@/reducer/newsListing'
 
 import { initStore } from '@/store'
 
 // custom component
-import CSSTag from '@/components/CSSTag';
-import style from '@/styles/index.scss';
+import CSSTag from '@/components/CSSTag'
+import style from '@/styles/index.scss'
 
 // material ui
 import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
@@ -20,14 +21,14 @@ import Apps from 'material-ui/svg-icons/navigation/apps'
 import Stars from 'material-ui/svg-icons/action/stars'
 
 class Index extends React.Component {
-  static getInitialProps(context) {
-    const { store, isServer } = context;
+  static getInitialProps (context) {
+    const { store, isServer } = context
     return store.dispatch(fetchData({ sortBy: 'latest' })).then((newState) => {
-      return { isServer, newState };
-    });
+      return { isServer, newState }
+    })
   }
 
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {
       selectedIndex: 0,
@@ -62,8 +63,8 @@ class Index extends React.Component {
     )
   }
 
-  render() {
-    const { newsListing: { articles } } = this.props;
+  render () {
+    const { newsListing: { articles } } = this.props
     return (
       <App>
         <div className='indexPage'>
@@ -103,4 +104,4 @@ class Index extends React.Component {
 
 export default withRedux(initStore, (state) => ({
   newsListing: state.newsListing,
-}))(Index);
+}))(Index)

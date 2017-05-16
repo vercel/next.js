@@ -7,32 +7,32 @@ const FETCH_DATA_FAIL = 'newsListing/FETCH_DATA_FAIL'
 const initState = {
   fetching: false,
 	articles: [],
-};
+}
 
 export default function newsListing (state = initState, action) {
   switch (action.type) {
     case FETCH_DATA: {
       return {
         ...state,
-        fetching: true,
-      };
+        fetching: true
+      }
     }
     case FETCH_DATA_SUCCESS: {
-      const { articles } = action.result;
+      const { articles } = action.result
       return {
         ...state,
         isFetching: false,
-        articles,
-      };
+        articles
+      }
     }
     case FETCH_DATA_FAIL: {
       return {
         ...state,
-        fetching: true,
-      };
+        fetching: true
+      }
     }
     default:
-      return state;
+      return state
   }
 }
 
@@ -43,6 +43,6 @@ export function fetchData ({ sortBy }) {
   const url = `https://newsapi.org/v1/articles?source=${source}&sortBy=${sortBy}&apiKey=${API_KEY}`
   return {
     types: [FETCH_DATA, FETCH_DATA_SUCCESS, FETCH_DATA_FAIL],
-    promise: () => request(url),
+    promise: () => request(url)
   }
 }

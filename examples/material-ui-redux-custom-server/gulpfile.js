@@ -6,7 +6,7 @@ gulp.task('app', () => {
   return gulp.src('./styles/**/app.scss')
              .pipe(sass().on('error', sass.logError))
              .pipe(minifyCSS())
-             .pipe(gulp.dest('./static/css'));
+             .pipe(gulp.dest('./static/css'))
 })
 
 gulp.task('default', ['app'])

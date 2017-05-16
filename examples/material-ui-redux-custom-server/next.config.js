@@ -4,6 +4,7 @@ module.exports = {
       delete config.resolve.alias.react
       delete config.resolve.alias['react-dom']
     }
+
     config.devtool = 'source-map'
 
     config.module.rules.push(
@@ -11,18 +12,16 @@ module.exports = {
         test: /\.(css|scss)/,
         loader: 'emit-file-loader',
         options: {
-          name: 'dist/[path][name].[ext]',
-        },
-      }
-      ,
+          name: 'dist/[path][name].[ext]'
+        }
+      },
       {
         test: /\.s?(a|c)ss$/,
         use: ['babel-loader', 'raw-loader', 'postcss-loader',
-          { loader: 'sass-loader' },
-        ],
+          { loader: 'sass-loader' }
+        ]
       }
     )
-
     return config
-  },
+  }
 }

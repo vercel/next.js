@@ -1,11 +1,11 @@
 module.exports = () => ({
   use: [
     'postcss-flexbugs-fixes',
-    'autoprefixer',
+    'autoprefixer'
   ],
   plugins: {
     'postcss-easy-import': {
-      prefix: '_',
+      prefix: '_'
     },
     autoprefixer: {
       browsers: [
@@ -36,8 +36,8 @@ module.exports = () => ({
         'Android 2.3',
         'Android >= 4',
         'Opera >= 12',
-        'UCAndroid >= 9.9',
-      ],
-    },
-  },
-});
+        'UCAndroid >= 9.9'
+      ]
+    }
+  }
+})

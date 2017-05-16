@@ -45,6 +45,7 @@ function App (props) {
         </main>
 
         <footer className='footer'>
+          Footer
         </footer>
       </div>
     </MuiThemeProvider>
