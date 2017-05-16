@@ -37,7 +37,7 @@ For the documentation of the latest **stable** release, [visit here](https://git
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
   - [Custom server and routing](#custom-server-and-routing)
-  - [Dynamic Imports](#dynamic-imports)
+  - [Dynamic Import](#dynamic-import)
   - [Custom `<Document>`](#custom-document)
   - [Custom error handling](#custom-error-handling)
   - [Custom configuration](#custom-configuration)
