@@ -10,6 +10,11 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 ---
 
+This is the documentation for our latest **beta** of version 3.0 which comes with **static export** and **dynamic imports**.
+For the documentation of the latest **stable** release, [visit here](https://github.com/zeit/next.js/blob/master/readme.md).
+
+---
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 <!-- https://github.com/thlorenz/doctoc -->
@@ -55,7 +60,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
 Install it:
 
 ```bash
-npm install next react react-dom --save
+npm install next@beta react react-dom --save
 ```
 
 and add a script to your package.json like this:
@@ -687,9 +692,9 @@ import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
-    const {html, head} = renderPage()
+    const {html, head, errorHtml, chunks} = renderPage()
     const styles = flush()
-    return { html, head, styles }
+    return { html, head, errorHtml, chunks, styles }
   }
 
   render () {
