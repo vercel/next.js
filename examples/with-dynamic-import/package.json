@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next export"
+    "start": "next start"
   },
   "dependencies": {
     "async-reactor": "^1.1.1",
