@@ -6,7 +6,7 @@ const FETCH_DATA_FAIL = 'newsListing/FETCH_DATA_FAIL'
 
 const initState = {
   fetching: false,
-	articles: [],
+  articles: []
 }
 
 export default function newsListing (state = initState, action) {

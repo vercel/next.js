@@ -31,7 +31,7 @@ class Index extends React.Component {
   constructor (props) {
     super(props)
     this.state = {
-      selectedIndex: 0,
+      selectedIndex: 0
     }
   }
 
@@ -87,7 +87,7 @@ class Index extends React.Component {
 
                   <CardActions>
                     <a href={item.url} target='blank'>
-                      <FlatButton primary={true} label='Detail' />
+                      <FlatButton primary label='Detail' />
                     </a>
                   </CardActions>
                 </Card>
@@ -103,5 +103,5 @@ class Index extends React.Component {
 }
 
 export default withRedux(initStore, (state) => ({
-  newsListing: state.newsListing,
+  newsListing: state.newsListing
 }))(Index)

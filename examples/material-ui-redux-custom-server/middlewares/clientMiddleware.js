@@ -1,5 +1,6 @@
 // https://github.com/reactjs/redux/issues/99#issuecomment-112212639
 export default function clientMiddleware (client) {
+  // eslint-disable-next-line no-undef
   return ({ dispatch, getState }) => (
     next => action => {
       if (typeof action === 'function') {

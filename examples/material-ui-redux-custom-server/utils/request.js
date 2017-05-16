@@ -37,5 +37,6 @@ function checkStatus (response) {
  * @return {object}           The response data
  */
 export default function request (url, options) {
+  // eslint-disable-next-line no-undef
   return fetch(url, options).then(checkStatus).then(parseJSON)
 }
