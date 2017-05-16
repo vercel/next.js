@@ -9,7 +9,7 @@ const initState = {
 	articles: [],
 };
 
-export default function newsListing(state = initState, action) {
+export default function newsListing (state = initState, action) {
   switch (action.type) {
     case FETCH_DATA: {
       return {
@@ -39,7 +39,7 @@ export default function newsListing(state = initState, action) {
 const API_KEY = '2c19465b0ba44c10a0e873a0234bddc8'
 const source = 'techcrunch'
 
-export function fetchData({ sortBy }) {
+export function fetchData ({ sortBy }) {
   const url = `https://newsapi.org/v1/articles?source=${source}&sortBy=${sortBy}&apiKey=${API_KEY}`
   return {
     types: [FETCH_DATA, FETCH_DATA_SUCCESS, FETCH_DATA_FAIL],

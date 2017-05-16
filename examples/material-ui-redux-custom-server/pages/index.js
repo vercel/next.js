@@ -18,11 +18,10 @@ import Paper from 'material-ui/Paper'
 
 import Apps from 'material-ui/svg-icons/navigation/apps'
 import Stars from 'material-ui/svg-icons/action/stars'
-import Favorite from 'material-ui/svg-icons/action/favorite'
 
 class Index extends React.Component {
   static getInitialProps(context) {
-    const { store, isServer, url } = context;
+    const { store, isServer } = context;
     return store.dispatch(fetchData({ sortBy: 'latest' })).then((newState) => {
       return { isServer, newState };
     });
@@ -37,13 +36,13 @@ class Index extends React.Component {
 
   select = (index) => this.setState({ selectedIndex: index })
 
-  renderBottomNavigation() {
+  renderBottomNavigation () {
     const { dispatch } = this.props
     return (
       <Paper style={{ position: 'fixed', bottom: 0, zIndex: 1000, width: '100%' }} zDepth={1}>
         <BottomNavigation selectedIndex={this.state.selectedIndex}>
           <BottomNavigationItem
-            label="Latest"
+            label='Latest'
             icon={<Apps />}
             onTouchTap={() => {
               dispatch(fetchData({ sortBy: 'latest' }))
@@ -51,21 +50,13 @@ class Index extends React.Component {
             }}
           />
           <BottomNavigationItem
-            label="Top"
+            label='Top'
             icon={<Stars />}
             onTouchTap={() => {
               dispatch(fetchData({ sortBy: 'top' }))
               this.select(1)
             }}
           />
-          {/*<BottomNavigationItem
-            label="Popular"
-            icon={<Favorite />}
-            onTouchTap={() => {
-              dispatch(fetchData({ sortBy: 'popular' }))
-              this.select(2)
-            }}
-          />*/}
         </BottomNavigation>
       </Paper>
     )
@@ -75,18 +66,18 @@ class Index extends React.Component {
     const { newsListing: { articles } } = this.props;
     return (
       <App>
-        <div className="indexPage">
-          <div className="container">
-            <div className="row">
+        <div className='indexPage'>
+          <div className='container'>
+            <div className='row'>
               {articles.map(item => (
-                <Card key={item.url} className="cardItem">
+                <Card key={item.url} className='cardItem'>
                   <CardHeader
                     title={item.author}
                     subtitle={item.publishedDate}
                   />
 
                   <CardMedia overlay={<CardTitle title={item.title} subtitle={item.author} />}>
-                    {item.urlToImage && <img src={item.urlToImage} role="presentation" />}
+                    {item.urlToImage && <img src={item.urlToImage} role='presentation' />}
                   </CardMedia>
 
                   <CardTitle title={item.title} subtitle={item.publishedDate} />
@@ -94,8 +85,8 @@ class Index extends React.Component {
                   <CardText>{item.description}</CardText>
 
                   <CardActions>
-                    <a href={item.url} target="blank">
-                      <FlatButton primary={true} label="Detail" />
+                    <a href={item.url} target='blank'>
+                      <FlatButton primary={true} label='Detail' />
                     </a>
                   </CardActions>
                 </Card>
@@ -113,4 +104,3 @@ class Index extends React.Component {
 export default withRedux(initStore, (state) => ({
   newsListing: state.newsListing,
 }))(Index);
-

@@ -4,7 +4,7 @@ module.exports = {
       delete config.resolve.alias.react
       delete config.resolve.alias['react-dom']
     }
-    config.devtool = 'source-map';
+    config.devtool = 'source-map'
 
     config.module.rules.push(
       {
@@ -21,8 +21,8 @@ module.exports = {
           { loader: 'sass-loader' },
         ],
       }
-    );
+    )
 
-    return config;
+    return config
   },
-};
+}

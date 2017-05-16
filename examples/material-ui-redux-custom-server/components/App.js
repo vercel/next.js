@@ -23,29 +23,28 @@ try {
 
 // reference: http://www.material-ui.com/#/customization/themes
 const muiDetaulTheme = {
-  userAgent: false,
+  userAgent: false
 }
 
 const muiTheme = getMuiTheme(muiDetaulTheme)
 
-
-function App(props) {
+function App (props) {
   return (
     <MuiThemeProvider muiTheme={muiTheme}>
-      <div className="app">
+      <div className='app'>
         <header>
           <AppBar
-            title="News"
-            iconClassNameRight="muidocs-icon-navigation-expand-more"
+            title='News'
+            iconClassNameRight='muidocs-icon-navigation-expand-more'
             style={{ marginBottom: 15 }}
           />
         </header>
 
-        <main className="main-content">
+        <main className='main-content'>
           {props.children}
         </main>
 
-        <footer className="footer">
+        <footer className='footer'>
         </footer>
       </div>
     </MuiThemeProvider>
