@@ -86,7 +86,7 @@ export default async function (dir, options) {
   }
 
   for (const path of exportPaths) {
-    log(`  exporing path: ${path}`)
+    log(`  exporting path: ${path}`)
 
     const { page, query } = exportPathMap[path]
     const req = { url: path }
