@@ -8,10 +8,11 @@ In this example, I use:
 + babel config
 + postCSS config
 + webpack config: to add plugins allow develop CSS using SCSS
-+ using Redux
-+ using Material UI
-+ using custom Document
-+ custom Routes
++ Redux
++ Material UI
++ Custom Document
++ Custom Server
++ Next Routes
 + Data fetching
 + gulp
 

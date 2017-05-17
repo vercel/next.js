@@ -3,14 +3,24 @@ const next = require('next')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
-const handle = app.getRequestHandler()
+
+const routes = require('./routes')
+const handle = routes.getRequestHandler(app)
 
 app.prepare().then(() => {
   const server = express()
+  const router = express.Router()
 
-  server.get('*', (req, res) => {
+  router.get('/:sortBy?/', (req, res) => {
+    return app.render(req, res, '/index', req)
+  })
+
+  router.get('*', (req, res) => {
     return handle(req, res)
   })
+
+  // use next routes
+  server.use(handle)
 
   server.listen(3000, err => {
     if (err) {

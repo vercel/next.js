@@ -23,6 +23,7 @@
     "material-ui": "0.18.0",
     "next": "latest",
     "next-redux-wrapper": "^1.1.2",
+    "next-routes": "^1.0.24",
     "node-sass": "^4.5.2",
     "postcss-loader": "^2.0.5",
     "raw-loader": "^0.5.1",

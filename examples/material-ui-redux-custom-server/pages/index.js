@@ -1,4 +1,6 @@
 import React from 'react'
+import { Router } from '@/routes'
+
 import App from '@/components/App'
 
 import withRedux from 'next-redux-wrapper'
@@ -22,8 +24,13 @@ import Stars from 'material-ui/svg-icons/action/stars'
 
 class Index extends React.Component {
   static getInitialProps (context) {
-    const { store, isServer } = context
-    return store.dispatch(fetchData({ sortBy: 'latest' })).then((newState) => {
+    const { store, isServer, query } = context
+
+    if (!query.sortBy) {
+      query.sortBy = 'latest'
+    }
+
+    return store.dispatch(fetchData(query)).then((newState) => {
       return { isServer, newState }
     })
   }
@@ -46,7 +53,7 @@ class Index extends React.Component {
             label='Latest'
             icon={<Apps />}
             onTouchTap={() => {
-              dispatch(fetchData({ sortBy: 'latest' }))
+              Router.pushRoute('index', { sortBy: 'latest' })
               this.select(0)
             }}
           />
@@ -54,7 +61,7 @@ class Index extends React.Component {
             label='Top'
             icon={<Stars />}
             onTouchTap={() => {
-              dispatch(fetchData({ sortBy: 'top' }))
+              Router.pushRoute('index', { sortBy: 'top' })
               this.select(1)
             }}
           />
