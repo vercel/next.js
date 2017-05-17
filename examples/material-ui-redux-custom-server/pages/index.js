@@ -45,7 +45,6 @@ class Index extends React.Component {
   select = (index) => this.setState({ selectedIndex: index })
 
   renderBottomNavigation () {
-    const { dispatch } = this.props
     return (
       <Paper style={{ position: 'fixed', bottom: 0, zIndex: 1000, width: '100%' }} zDepth={1}>
         <BottomNavigation selectedIndex={this.state.selectedIndex}>
