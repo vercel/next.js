@@ -100,7 +100,7 @@
   },
   "devDependencies": {
     "babel-eslint": "7.2.3",
-    "babel-jest": "20.0.1",
+    "babel-jest": "20.0.2",
     "babel-plugin-istanbul": "4.1.3",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "babel-preset-es2015": "6.24.1",
