@@ -22,5 +22,10 @@ export default function (context) {
       const html = await renderViaHTTP(context.port, '/dynamic-imports')
       expect(html).toMatch(/Welcome to dynamic imports./)
     })
+
+    it('should give empty object for query if there is no query', async() => {
+      const html = await renderViaHTTP(context.port, '/get-initial-props-with-no-query')
+      expect(html).toMatch(/Query is: {}/)
+    })
   })
 }
