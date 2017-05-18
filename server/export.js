@@ -25,7 +25,7 @@ export default async function (dir, options) {
   const buildStats = require(join(nextDir, 'build-stats.json'))
 
   // Initialize the output directory
-  await del(outDir)
+  await del(join(outDir, '*'))
   await mkdirp(join(outDir, '_next', buildStats['app.js'].hash))
   await mkdirp(join(outDir, '_next', buildId))
 
