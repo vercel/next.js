@@ -90,6 +90,7 @@ async function doRender (req, res, pathname, query, {
 
   if (res.finished) return
 
+  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props,
