@@ -7,12 +7,12 @@ export default class extends Component {
     message: null
   }
 
-  componentDidMount() {
+  componentDidMount () {
     // start listening the channel message
     ipcRenderer.on('message', this.handleMessage)
   }
 
-  componentWillUnmount() {
+  componentWillUnmount () {
     // stop listening the channel message
     ipcRenderer.removeListener('message', this.handleMessage)
   }
@@ -27,11 +27,11 @@ export default class extends Component {
   }
 
   handleSubmit = event => {
-    event.preventDefault();
+    event.preventDefault()
     ipcRenderer.send('message', this.state.input)
   }
 
-  render() {
+  render () {
     return (
       <div>
         <h1>Hello Electron!</h1>
@@ -41,7 +41,7 @@ export default class extends Component {
         }
 
         <form onSubmit={this.handleSubmit}>
-          <input type="text" onChange={this.handleChange} />
+          <input type='text' onChange={this.handleChange} />
         </form>
 
         <style jsx>{`

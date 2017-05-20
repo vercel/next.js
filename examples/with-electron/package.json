@@ -1,13 +1,27 @@
 {
+  "main": "main/index.js",
   "scripts": {
-    "dev": "electron index.js",
-    "build": "next build",
-    "start": "NODE_ENV=production electron index.js"
+    "start": "electron main",
+    "build": "next build renderer && next export -o build renderer",
+    "pack": "npm run build && build --dir",
+    "dist": "npm run build && build"
+  },
+  "build": {
+    "files": [
+      "main",
+      "build",
+      "node_modules"
+    ]
   },
   "dependencies": {
-    "electron": "1.6.2",
-    "next": "^2.0.0-beta",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "app-root-path": "^2.0.1",
+    "electron-is-dev": "^0.1.2",
+    "next": "^3.0.0-beta3",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4"
+  },
+  "devDependencies": {
+    "electron": "^1.6.8",
+    "electron-builder": "^17.8.0"
   }
 }
