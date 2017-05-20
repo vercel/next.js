@@ -20,7 +20,10 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          <style id='fela-stylesheet'>{this.props.css}</style>
+          <style
+            dangerouslySetInnerHTML={{ __html: this.props.css }}
+            id='fela-stylesheet'
+          />
         </Head>
         <body>
           <Main />

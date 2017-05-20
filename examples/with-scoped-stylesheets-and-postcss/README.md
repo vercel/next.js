@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-scoped-stylesheets-and-postcss)
 # Scoped stylesheets with PostCSS example
 
 This is an example of using scoped stylesheets and PostCSS, heavily influenced by @davibe's [`with-global-stylesheet`](https://github.com/zeit/next.js/tree/master/examples/with-global-stylesheet).
