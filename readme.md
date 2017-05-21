@@ -917,7 +917,7 @@ Then you've a static version of your app in the “out" directory.
 
 > You can also customize the output directory. For that run `next export -h` for the help.
 
-Now you can deploy that directory to any static hosting service. 
+Now you can deploy that directory to any static hosting service. Note that there is an additional step for deploying to GitHub Pages, [documented here](https://github.com/zeit/next.js/wiki/Deploying-a-Next.js-app-into-GitHub-Pages).
 
 For an example, simply visit the “out” directory and run following command to deploy your app to [ZEIT now](https://zeit.co/now).
 
