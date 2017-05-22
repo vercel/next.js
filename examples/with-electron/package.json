@@ -1,4 +1,9 @@
 {
+  "name": "your-app-name",
+  "productName": "Your App Name",
+  "description": "Your app description",
+  "version": "1.0.0",
+  "author": "Your name <email@domain>",
   "main": "main/index.js",
   "scripts": {
     "start": "electron main",
