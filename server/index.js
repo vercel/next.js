@@ -100,24 +100,32 @@ export default class Server {
       },
 
       '/_next/:hash/manifest.js': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
         this.handleBuildHash('manifest.js', params.hash, res)
         const p = join(this.dir, `${this.dist}/manifest.js`)
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/main.js': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
         this.handleBuildHash('main.js', params.hash, res)
         const p = join(this.dir, `${this.dist}/main.js`)
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/commons.js': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
         this.handleBuildHash('commons.js', params.hash, res)
         const p = join(this.dir, `${this.dist}/commons.js`)
         await this.serveStatic(req, res, p)
       },
 
       '/_next/:hash/app.js': async (req, res, params) => {
+        if (this.dev) return this.send404(res)
+
         this.handleBuildHash('app.js', params.hash, res)
         const p = join(this.dir, `${this.dist}/app.js`)
         await this.serveStatic(req, res, p)
@@ -340,5 +348,10 @@ export default class Server {
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+  }
+
+  send404 (res) {
+    res.statusCode = 404
+    res.end('404 - Not Found')
   }
 }
