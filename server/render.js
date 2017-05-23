@@ -15,7 +15,7 @@ import ErrorDebug from '../lib/error-debug'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
-  sendHTML(req, res, html, req.method)
+  sendHTML(req, res, html, req.method, opts)
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
@@ -24,7 +24,7 @@ export function renderToHTML (req, res, pathname, query, opts) {
 
 export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(req, res, html, req.method)
+  sendHTML(req, res, html, req.method, opts)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
@@ -87,6 +87,11 @@ async function doRender (req, res, pathname, query, {
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  // While developing, we should not cache any assets.
+  // So, we use a different buildId for each page load.
+  // With that we can ensure, we have unique URL for assets per every page load.
+  // So, it'll prevent issues like this: https://git.io/vHLtb
+  const devBuildId = Date.now()
 
   if (res.finished) return
 
@@ -96,7 +101,7 @@ async function doRender (req, res, pathname, query, {
       props,
       pathname,
       query,
-      buildId,
+      buildId: dev ? devBuildId : buildId,
       buildStats,
       assetPrefix,
       err: (err) ? serializeError(dev, err) : null
@@ -156,7 +161,7 @@ export async function renderScriptError (req, res, page, error, customFields, op
   `)
 }
 
-export function sendHTML (req, res, html, method) {
+export function sendHTML (req, res, html, method, { dev }) {
   if (res.finished) return
   const etag = generateETag(html)
 
@@ -164,6 +169,12 @@ export function sendHTML (req, res, html, method) {
     res.statusCode = 304
     res.end()
     return
+  }
+
+  if (dev) {
+    // In dev, we should not cache pages for any reason.
+    // That's why we do this.
+    res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
   res.setHeader('ETag', etag)
