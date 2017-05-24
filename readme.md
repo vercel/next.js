@@ -576,6 +576,7 @@ Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
+- `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
