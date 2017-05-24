@@ -4,7 +4,6 @@ const isWindows = /^win/.test(process.platform)
 
 export async function compile(fly) {
   await fly.parallel(['bin', 'server', 'lib', 'client'])
-  await fly.start('unrestrict')
 }
 
 export async function bin(fly, opts) {
@@ -25,14 +24,6 @@ export async function server(fly, opts) {
 export async function client(fly, opts) {
   await fly.source(opts.src || 'client/**/*.js').babel().target('dist/client')
   notify('Compiled client files')
-}
-
-export async function unrestrict(fly) {
-  await fly.source('dist/lib/eval-script.js').babel({
-    babelrc: false,
-    plugins: ['babel-plugin-transform-remove-strict-mode']
-  }).target('dist/lib')
-  notify('Completed removing strict mode for eval script')
 }
 
 export async function copy(fly) {
