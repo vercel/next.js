@@ -11,14 +11,14 @@ const defaultConfig = {
   assetPrefix: ''
 }
 
-export default function getConfig (dir) {
+export default function getConfig (dir, customConfig) {
   if (!cache.has(dir)) {
-    cache.set(dir, loadConfig(dir))
+    cache.set(dir, loadConfig(dir, customConfig))
   }
   return cache.get(dir)
 }
 
-function loadConfig (dir) {
+function loadConfig (dir, customConfig) {
   const path = join(dir, 'next.config.js')
 
   let userConfig = {}
@@ -29,5 +29,5 @@ function loadConfig (dir) {
     userConfig = userConfigModule.default || userConfigModule
   }
 
-  return Object.assign({}, defaultConfig, userConfig)
+  return Object.assign({}, defaultConfig, customConfig, userConfig)
 }

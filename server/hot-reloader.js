@@ -8,7 +8,7 @@ import clean from './build/clean'
 import getConfig from './config'
 
 export default class HotReloader {
-  constructor (dir, { quiet } = {}) {
+  constructor (dir, { quiet, conf } = {}) {
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -22,7 +22,7 @@ export default class HotReloader {
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
 
-    this.config = getConfig(dir)
+    this.config = getConfig(dir, conf)
   }
 
   async run (req, res) {
