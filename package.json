@@ -117,7 +117,7 @@
     "fly-esnext": "2.0.1",
     "fly-watch": "1.1.1",
     "husky": "0.13.3",
-    "jest-cli": "20.0.2",
+    "jest-cli": "20.0.4",
     "lint-staged": "^3.4.0",
     "node-fetch": "1.7.0",
     "node-notifier": "5.1.2",
