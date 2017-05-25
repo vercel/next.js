@@ -9,9 +9,9 @@ import style from '@/styles/global.scss'
 
 export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
-    const { html, head } = renderPage()
+    const { html, head, errorHtml, chunks } = renderPage()
     const styles = flush()
-    return { html, head, styles }
+    return { html, head, errorHtml, chunks, styles }
   }
 
   render () {
@@ -19,6 +19,7 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <link rel='stylesheet' href='/static/css/app.css' />
+          <link rel='icon' href='https://cdn.zeit.co/favicon/favicon.ico' />
           <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
           <CSSTag style={style} />
         </Head>

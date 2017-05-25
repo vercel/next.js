@@ -15,6 +15,7 @@ In this example, I use:
 + Next Routes
 + Data fetching
 + gulp
++ dynamic import
 
 Basically, Next.JS allow you to use `style-jsx` package to develop CSS, but in the production mode, html is not minified. So that, gulp allow you to bundle final all scss into css.
 

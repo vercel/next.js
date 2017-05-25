@@ -1,11 +1,24 @@
 import 'babel-polyfill'
 
 import React from 'react'
-import AppBar from 'material-ui/AppBar'
+import dynamic from 'next/dynamic'
 
 // material ui
+import AppBar from 'material-ui/AppBar'
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
 import getMuiTheme from 'material-ui/styles/getMuiTheme'
+import FlatButton from 'material-ui/FlatButton'
+
+// dynamic components
+const Dialog = dynamic(
+  import('material-ui/Dialog'),
+  { ssr: false }
+)
+
+const LoginForm = dynamic(
+  import('../components/LoginForm'),
+  { ssr: false }
+)
 
 // other plugin
 import injectTapEventPlugin from 'react-tap-event-plugin'
@@ -28,28 +41,59 @@ const muiDetaulTheme = {
 
 const muiTheme = getMuiTheme(muiDetaulTheme)
 
-function App (props) {
-  return (
-    <MuiThemeProvider muiTheme={muiTheme}>
-      <div className='app'>
-        <header>
-          <AppBar
-            title='News'
-            iconClassNameRight='muidocs-icon-navigation-expand-more'
-            style={{ marginBottom: 15 }}
-          />
-        </header>
+class App extends React.Component {
+  constructor (props) {
+    super(props)
+    this.state = {
+      open: false
+    }
+  }
 
-        <main className='main-content'>
-          {props.children}
-        </main>
+  handleOpen = () => {
+    this.setState({ open: true })
+  };
 
-        <footer className='footer'>
-          Footer
-        </footer>
-      </div>
-    </MuiThemeProvider>
-  )
+  handleClose = () => {
+    this.setState({ open: false })
+  }
+
+  renderLoginForm () {
+    return (
+      <Dialog
+        title='Log In'
+        modal={false}
+        open={this.state.open}
+        onRequestClose={this.handleClose}
+      >
+        <LoginForm />
+      </Dialog>
+    )
+  }
+
+  render () {
+    return (
+      <MuiThemeProvider muiTheme={muiTheme}>
+        <div className='app'>
+          <header>
+            <AppBar
+              title='News'
+              style={{ marginBottom: 15 }}
+              iconElementRight={<FlatButton onTouchTap={this.handleOpen} label='Log In' />}
+            />
+          </header>
+
+          <main className='main-content'>
+            {this.props.children}
+          </main>
+
+          <footer className='footer'>
+            Footer
+          </footer>
+          {this.renderLoginForm()}
+        </div>
+      </MuiThemeProvider>
+    )
+  }
 }
 
 export default App

@@ -21,7 +21,7 @@ export default function newsListing (state = initState, action) {
       const { articles } = action.result
       return {
         ...state,
-        isFetching: false,
+        fetching: false,
         articles
       }
     }

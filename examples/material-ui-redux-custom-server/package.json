@@ -12,6 +12,7 @@
     "production": "npm run css:prod && npm run build && NODE_ENV=production node index.js"
   },
   "dependencies": {
+    "async-reactor": "^1.2.0",
     "babel-plugin-root-import": "^5.1.0",
     "babel-polyfill": "^6.23.0",
     "babel-preset-es2015": "^6.24.1",
@@ -21,7 +22,7 @@
     "express": "^4.15.2",
     "isomorphic-fetch": "^2.2.1",
     "material-ui": "0.18.0",
-    "next": "latest",
+    "next": "3.0.0-beta3",
     "next-redux-wrapper": "^1.1.2",
     "next-routes": "^1.0.24",
     "node-sass": "^4.5.2",
