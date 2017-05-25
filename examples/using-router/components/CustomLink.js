@@ -1,16 +1,17 @@
 import { withRouter } from 'next/router'
 
-function onClickHandler (href, router) {
-  return (e) => {
-    e.preventDefault()
-    router.push(href)
-  }
+const onClickHandler = (href, router) => (event) => {
+  event.preventDefault()
+  router.push(href)
 }
 
 const CustomLink = ({ children, href, router }) => (
   <a
     className={router.pathname === href ? 'active' : ''}
-    href='#'
+    // event.preventDefault() stops the link from working normally,
+    // but we still pass href in so that the user can see the URL
+    // on hover
+    href={href}
     onClick={onClickHandler(href, router)}
   >
     {children}
