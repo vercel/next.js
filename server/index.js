@@ -233,7 +233,7 @@ export default class Server {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    return sendHTML(req, res, html, req.method)
+    return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -261,7 +261,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(req, res, html, req.method)
+    return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -343,6 +343,7 @@ export default class Server {
 
   handleBuildHash (filename, hash, res) {
     if (this.dev) return
+
     if (hash !== this.buildStats[filename].hash) {
       throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
     }
