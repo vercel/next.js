@@ -30,7 +30,16 @@ export default () => {
         return
       }
 
-      const { err } = Router.components[route] || {}
+      const { err, Component } = Router.components[route] || {}
+
+      if (!Component) {
+        // This only happens when we create a new page without a default export.
+        // If you removed a default export from a exising viewing page, this has no effect.
+        console.log(`Hard reloading due to no default component in page: ${route}`)
+        window.location.reload()
+        return
+      }
+
       if (err) {
         // reload to recover from runtime errors
         Router.reload(route)
