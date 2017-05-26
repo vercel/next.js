@@ -19,6 +19,9 @@ export default function getConfig (dir, customConfig) {
 }
 
 function loadConfig (dir, customConfig) {
+  if (customConfig && typeof customConfig === 'object') {
+    return withDefaults(customConfig)
+  }
   const path = join(dir, 'next.config.js')
 
   let userConfig = {}
@@ -29,5 +32,9 @@ function loadConfig (dir, customConfig) {
     userConfig = userConfigModule.default || userConfigModule
   }
 
-  return Object.assign({}, defaultConfig, customConfig, userConfig)
+  return withDefaults(userConfig)
+}
+
+function withDefaults(config) {
+  return Object.assign({}, defaultConfig, config)
 }
