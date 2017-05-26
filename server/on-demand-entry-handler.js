@@ -12,13 +12,17 @@ const BUILT = Symbol('built')
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
+  reload,
   maxInactiveAge = 1000 * 25
 }) {
-  const entries = {}
-  const lastAccessPages = ['']
-  const doneCallbacks = new EventEmitter()
+  let entries = {}
+  let lastAccessPages = ['']
+  let doneCallbacks = new EventEmitter()
   const invalidator = new Invalidator(devMiddleware)
   let touchedAPage = false
+  let reloading = false
+  let stopped = false
+  let reloadCallbacks = new EventEmitter()
 
   compiler.plugin('make', function (compilation, done) {
     invalidator.startBuilding()
@@ -35,6 +39,17 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   })
 
   compiler.plugin('done', function (stats) {
+    const { compilation } = stats
+    console.error(compilation.errors)
+    const hardFailedPages = compilation.errors
+      .filter(e => e.module.dependencies.length === 0)
+      .map(e => e.module.chunks)
+      .reduce((a, b) => [...a, ...b], [])
+      .map(c => {
+        const pageName = /^bundles[/\\]pages[/\\](.*)\.js$/.exec(c.name)[1]
+        return normalizePage(`/${pageName}`)
+      })
+
     // Call all the doneCallbacks
     Object.keys(entries).forEach((page) => {
       const entryInfo = entries[page]
@@ -57,13 +72,49 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     })
 
     invalidator.doneBuilding()
+
+    if (hardFailedPages.length > 0) {
+      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
+      reloading = true
+      console.log('START RELOADIING', reloading)
+      reload()
+        .then(() => {
+          console.log('> Webpack reloaded.')
+          reloadCallbacks.emit('done')
+          stop()
+        })
+        .catch(err => {
+          console.error(`> Webpack reloading failed: ${err.message}`)
+          console.error(err.stack)
+          process.exit(1)
+        })
+    }
   })
 
-  setInterval(function () {
+  const disposeHandler = setInterval(function () {
     disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
   }, 5000)
 
+  function stop () {
+    stopped = true
+    doneCallbacks = null
+    reloadCallbacks = null
+    clearInterval(disposeHandler)
+  }
+
   return {
+    waitUntilReloaded () {
+      console.log('111', reloading)
+      if (!reloading) return Promise.resolve(true)
+      console.log('222', reloading)
+      return new Promise((resolve) => {
+        reloadCallbacks.once('done', function () {
+          console.log('333 - resolving')
+          resolve()
+        })
+      })
+    },
+
     async ensurePage (page) {
       page = normalizePage(page)
 
@@ -103,31 +154,45 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     },
 
     middleware () {
-      return function (req, res, next) {
-        if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
+      return (req, res, next) => {
+        console.log('XXX', req.url, stopped, reloading)
+        if (stopped) {
+          res.statusCode = 302
+          res.setHeader('Location', req.url)
+          res.end('302')
+        } else if (reloading) {
+          this.waitUntilReloaded()
+            .then(() => {
+              res.statusCode = 302
+              res.setHeader('Location', req.url)
+              res.end('302')
+            })
+        } else {
+          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
-        const { query } = parse(req.url, true)
-        const page = normalizePage(query.page)
-        const entryInfo = entries[page]
+          const { query } = parse(req.url, true)
+          const page = normalizePage(query.page)
+          const entryInfo = entries[page]
 
-        // If there's no entry.
-        // Then it seems like an weird issue.
-        if (!entryInfo) {
-          const message = `Client pings, but there's no entry for page: ${page}`
-          console.error(message)
-          sendJson(res, { invalid: true })
-          return
+          // If there's no entry.
+          // Then it seems like an weird issue.
+          if (!entryInfo) {
+            const message = `Client pings, but there's no entry for page: ${page}`
+            console.error(message)
+            sendJson(res, { invalid: true })
+            return
+          }
+
+          sendJson(res, { success: true })
+
+          // We don't need to maintain active state of anything other than BUILT entries
+          if (entryInfo.status !== BUILT) return
+
+          // If there's an entryInfo
+          lastAccessPages.pop()
+          lastAccessPages.unshift(page)
+          entryInfo.lastActiveTime = Date.now()
         }
-
-        sendJson(res, { success: true })
-
-        // We don't need to maintain active state of anything other than BUILT entries
-        if (entryInfo.status !== BUILT) return
-
-        // If there's an entryInfo
-        lastAccessPages.pop()
-        lastAccessPages.unshift(page)
-        entryInfo.lastActiveTime = Date.now()
       }
     }
   }

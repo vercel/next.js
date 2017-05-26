@@ -1,6 +1,6 @@
 import { join, relative, sep } from 'path'
-import webpackDevMiddleware from 'webpack-dev-middleware'
-import webpackHotMiddleware from 'webpack-hot-middleware'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
+import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
@@ -42,19 +42,61 @@ export default class HotReloader {
       clean(this.dir)
     ])
 
-    this.prepareMiddlewares(compiler)
+    const {
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries
+    } = await this.prepareMiddlewares(compiler)
+
+    this.webpackDevMiddleware = webpackDevMiddleware
+    this.webpackHotMiddleware = webpackHotMiddleware
+    this.onDemandEntries = onDemandEntries
+    this.middlewares = [
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries.middleware()
+    ]
+
     this.stats = await this.waitUntilValid()
   }
 
-  async stop () {
-    if (this.webpackDevMiddleware) {
+  async stop (webpackDevMiddleware) {
+    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
+    if (middleware) {
       return new Promise((resolve, reject) => {
-        this.webpackDevMiddleware.close((err) => {
+        middleware.close((err) => {
           if (err) return reject(err)
           resolve()
         })
       })
     }
+  }
+
+  async reload () {
+    const [compiler] = await Promise.all([
+      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      clean(this.dir)
+    ])
+
+    const {
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries
+    } = await this.prepareMiddlewares(compiler)
+
+    this.stats = await this.waitUntilValid(webpackDevMiddleware)
+    const oldWebpackDevMiddleware = this.webpackDevMiddleware
+
+    this.webpackDevMiddleware = webpackDevMiddleware
+    this.webpackHotMiddleware = webpackHotMiddleware
+    this.onDemandEntries = onDemandEntries
+    this.middlewares = [
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries.middleware()
+    ]
+
+    await this.stop(oldWebpackDevMiddleware)
   }
 
   async prepareMiddlewares (compiler) {
@@ -152,28 +194,30 @@ export default class HotReloader {
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
     }
 
-    this.webpackDevMiddleware = webpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
+    const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
-    this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
+    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
       path: '/_next/webpack-hmr',
       log: false
     })
-    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler, {
       dir: this.dir,
       dev: true,
+      reload: this.reload.bind(this),
       ...this.config.onDemandEntries
     })
 
-    this.middlewares = [
-      this.webpackDevMiddleware,
-      this.webpackHotMiddleware,
-      this.onDemandEntries.middleware()
-    ]
+    return {
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries
+    }
   }
 
-  waitUntilValid () {
+  waitUntilValid (webpackDevMiddleware) {
+    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     return new Promise((resolve) => {
-      this.webpackDevMiddleware.waitUntilValid(resolve)
+      middleware.waitUntilValid(resolve)
     })
   }
 
