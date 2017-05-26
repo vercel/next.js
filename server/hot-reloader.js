@@ -148,7 +148,7 @@ export default class HotReloader {
     }
 
     if (this.config.webpackDevMiddleware) {
-      console.log('> Using "webpackDevMiddleware" config function defined in next.config.js.')
+      console.log(`> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`)
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
     }
 

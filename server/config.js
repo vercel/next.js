@@ -8,7 +8,8 @@ const defaultConfig = {
   webpackDevMiddleware: null,
   poweredByHeader: true,
   distDir: '.next',
-  assetPrefix: ''
+  assetPrefix: '',
+  configOrigin: 'default'
 }
 
 export default function getConfig (dir, customConfig) {
@@ -20,6 +21,7 @@ export default function getConfig (dir, customConfig) {
 
 function loadConfig (dir, customConfig) {
   if (customConfig && typeof customConfig === 'object') {
+    customConfig.configOrigin = 'server'
     return withDefaults(customConfig)
   }
   const path = join(dir, 'next.config.js')
@@ -30,11 +32,12 @@ function loadConfig (dir, customConfig) {
   if (userHasConfig) {
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
+    userConfig.configOrigin = 'next.config.js'
   }
 
   return withDefaults(userConfig)
 }
 
-function withDefaults(config) {
+function withDefaults (config) {
   return Object.assign({}, defaultConfig, config)
 }
