@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "express": "^4.15.2",
+    "isomorphic-fetch": "^2.2.1",
+    "johnny-five": "^0.10.13",
+    "next": "latest",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "socket.io": "^1.7.3",
+    "socket.io-client": "^1.7.3"
+  },
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}
