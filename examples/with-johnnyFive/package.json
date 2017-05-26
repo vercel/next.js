@@ -1,4 +1,9 @@
 {
+  "name": "next",
+  "version": "3.0.0-beta6",
+  "description": "Minimalistic framework for server-rendered React applications",
+  "main": "./dist/server/next.js",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.15.2",
     "isomorphic-fetch": "^2.2.1",
@@ -7,7 +12,10 @@
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
     "socket.io": "^1.7.3",
-    "socket.io-client": "^1.7.3"
+    "socket.io-client": "^1.7.3",
+    "react-hot-loader": "3.0.0-beta.6",
+    "recursive-copy": "^2.0.6",
+    "send": "0.15.3",
   },
   "scripts": {
     "dev": "node server.js",
