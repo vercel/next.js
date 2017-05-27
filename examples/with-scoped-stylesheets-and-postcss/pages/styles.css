@@ -1,4 +1,4 @@
 .paragraph {
+  composes: font-color from './global.css';
   font-size: 20px;
-  color: red;
 }
