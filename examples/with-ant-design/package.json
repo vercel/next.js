@@ -7,11 +7,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "antd": "^2.9.3",
+    "antd": "^2.10.2",
     "babel-plugin-import": "^1.1.1",
     "next": "latest",
-    "react": "~15.4.2",
-    "react-dom": "~15.4.2"
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4"
   },
   "author": "",
   "license": "ISC"
