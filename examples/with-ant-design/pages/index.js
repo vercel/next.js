@@ -11,7 +11,7 @@ export default () => (
       <Head>
         <link rel='stylesheet' href='//cdnjs.cloudflare.com/ajax/libs/antd/2.9.3/antd.min.css' />
       </Head>
-      <Form horizontal>
+      <Form layout='horizontal'>
         <FormItem
           label='Input Number'
           labelCol={{ span: 8 }}
