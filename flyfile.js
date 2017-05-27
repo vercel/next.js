@@ -1,12 +1,9 @@
-const webpack = require('webpack')
 const notifier = require('node-notifier')
 const childProcess = require('child_process')
-const webpackConfig = require('./webpack.config')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile(fly) {
   await fly.parallel(['bin', 'server', 'lib', 'client'])
-  await fly.start('unrestrict')
 }
 
 export async function bin(fly, opts) {
@@ -29,40 +26,12 @@ export async function client(fly, opts) {
   notify('Compiled client files')
 }
 
-export async function unrestrict(fly) {
-  await fly.source('dist/lib/eval-script.js').babel({
-    babelrc: false,
-    plugins: ['babel-plugin-transform-remove-strict-mode']
-  }).target('dist/lib')
-  notify('Completed removing strict mode for eval script')
-}
-
 export async function copy(fly) {
   await fly.source('pages/**/*.js').target('dist/pages')
 }
 
 export async function build(fly) {
-  await fly.serial(['copy', 'compile', 'prefetcher'])
-}
-
-const compiler = webpack(webpackConfig)
-export async function prefetcher(fly) {
-  compiler.run((err, stats) => {
-    if (err) throw err
-    notify('Built release prefetcher')
-  })
-}
-
-export async function bench(fly) {
-  await fly.parallel(['compile', 'copy'])
-  // copy bench fixtures
-  await fly.source('bench/fixtures/**/*').target('dist/bench/fixtures')
-  // compile bench
-  await fly.source('bench/*.js').babel().target('dist/bench')
-  notify('Compiled bench files')
-  // yield fly.source('dist/bench/*.js').benchmark({
-    // benchmark.reporters.etalon('RegExp#test')
-  // })
+  await fly.serial(['copy', 'compile'])
 }
 
 export default async function (fly) {
@@ -70,8 +39,8 @@ export default async function (fly) {
   await fly.watch('bin/*', 'bin')
   await fly.watch('pages/**/*.js', 'copy')
   await fly.watch('server/**/*.js', 'server')
-  await fly.watch('client/**/*.js', ['client', 'prefetcher'])
-  await fly.watch('lib/**/*.js', ['lib', 'prefetcher'])
+  await fly.watch('client/**/*.js', ['client'])
+  await fly.watch('lib/**/*.js', ['lib'])
 }
 
 export async function release(fly) {

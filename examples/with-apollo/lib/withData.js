@@ -1,55 +1,66 @@
-import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import React from 'react'
-import 'isomorphic-fetch'
-import { initClient } from './initClient'
-import { initStore } from './initStore'
+import PropTypes from 'prop-types'
+import { ApolloProvider, getDataFromTree } from 'react-apollo'
+import initApollo from './initApollo'
 
-export default (Component) => (
-  class extends React.Component {
+export default ComposedComponent => {
+  return class WithData extends React.Component {
+    static displayName = `WithData(${ComposedComponent.displayName})`
+    static propTypes = {
+      serverState: PropTypes.object.isRequired
+    }
+
     static async getInitialProps (ctx) {
-      const headers = ctx.req ? ctx.req.headers : {}
-      const client = initClient(headers)
-      const store = initStore(client, client.initialState)
+      let serverState = {}
 
-      const props = {
-        url: { query: ctx.query, pathname: ctx.pathname },
-        ...await (Component.getInitialProps ? Component.getInitialProps(ctx) : {})
+      // Evaluate the composed component's getInitialProps()
+      let composedInitialProps = {}
+      if (ComposedComponent.getInitialProps) {
+        composedInitialProps = await ComposedComponent.getInitialProps(ctx)
       }
 
+      // Run all graphql queries in the component tree
+      // and extract the resulting data
       if (!process.browser) {
+        const apollo = initApollo()
+        // Provide the `url` prop data in case a graphql query uses it
+        const url = {query: ctx.query, pathname: ctx.pathname}
+
+        // Run all graphql queries
         const app = (
-          <ApolloProvider client={client} store={store}>
-            <Component {...props} />
+          <ApolloProvider client={apollo}>
+            <ComposedComponent url={url} {...composedInitialProps} />
           </ApolloProvider>
         )
         await getDataFromTree(app)
+
+        // Extract query data from the Apollo's store
+        const state = apollo.getInitialState()
+
+        serverState = {
+          apollo: { // Make sure to only include Apollo's data state
+            data: state.data
+          }
+        }
       }
 
-      const state = store.getState()
       return {
-        initialState: {
-          ...state,
-          [client.reduxRootKey]: {
-            data: client.getInitialState().data
-          }
-        },
-        headers,
-        ...props
+        serverState,
+        ...composedInitialProps
       }
     }
 
     constructor (props) {
       super(props)
-      this.client = initClient(this.props.headers)
-      this.store = initStore(this.client, this.props.initialState)
+      this.apollo = initApollo(this.props.serverState)
     }
 
     render () {
       return (
-        <ApolloProvider client={this.client} store={this.store}>
-          <Component {...this.props} />
+        <ApolloProvider client={this.apollo}>
+          <ComposedComponent {...this.props} />
         </ApolloProvider>
       )
     }
   }
-)
+}

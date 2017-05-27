@@ -5,7 +5,10 @@ const cache = new Map()
 
 const defaultConfig = {
   webpack: null,
+  webpackDevMiddleware: null,
   poweredByHeader: true,
+  distDir: '.next',
+  assetPrefix: '',
   useFileSystemPublicRoutes: true
 }
 

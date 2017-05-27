@@ -3,8 +3,8 @@
 import cheerio from 'cheerio'
 
 export default function ({ app }, suiteName, render) {
-  async function get$ (path) {
-    const html = await render(path)
+  async function get$ (path, query) {
+    const html = await render(path, query)
     return cheerio.load(html)
   }
 
@@ -26,14 +26,6 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('<meta charset="iso-8859-5" class="next-head"/>')).toBeTruthy()
       expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
       expect(html.includes('I can haz meta tags')).toBeTruthy()
-    })
-
-    test('css helper renders styles', async () => {
-      const $ = await get$('/css')
-      const redBox = $('#red-box')
-
-      expect(redBox.text()).toBe('This is red')
-      expect(redBox.attr('class')).toMatch(/^css-/)
     })
 
     test('renders styled jsx', async () => {
@@ -66,9 +58,20 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('Zeit')).toBeTruthy()
     })
 
+    test('default export is not a React Component', async () => {
+      const $ = await get$('/no-default-export')
+      const pre = $('pre')
+      expect(pre.text()).toMatch(/The default export is not a React Component/)
+    })
+
     test('error', async () => {
       const $ = await get$('/error')
       expect($('pre').text()).toMatch(/This is an expected error/)
+    })
+
+    test('asPath', async () => {
+      const $ = await get$('/nav/as-path', { aa: 10 })
+      expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
     })
 
     test('error 404', async () => {

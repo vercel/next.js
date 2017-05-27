@@ -1,5 +1,8 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-md)
 
 # Example app with react-md
+
+![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
 
 ## How to use
 
@@ -14,6 +17,7 @@ Install it and run:
 
 ```bash
 npm install
+ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
 npm run dev
 ```
 

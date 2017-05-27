@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.15.2",
+    "next": "latest",
+    "next-url-prettifier": "^1.0.2",
+    "prop-types": "^15.5.6",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  }
+}

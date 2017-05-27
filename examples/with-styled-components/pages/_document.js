@@ -1,22 +1,21 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import styleSheet from 'styled-components/lib/models/StyleSheet'
+import { ServerStyleSheet } from 'styled-components'
 
 export default class MyDocument extends Document {
-  static async getInitialProps ({ renderPage }) {
-    const page = renderPage()
-    const style = styleSheet.rules().map(rule => rule.cssText).join('\n')
-    return { ...page, style }
-  }
-
   render () {
+    const sheet = new ServerStyleSheet()
+    const main = sheet.collectStyles(<Main />)
+    const styleTags = sheet.getStyleElement()
     return (
       <html>
         <Head>
           <title>My page</title>
-          <style dangerouslySetInnerHTML={{ __html: this.props.style }} />
+          {styleTags}
         </Head>
         <body>
-          <Main />
+          <div className='root'>
+            {main}
+          </div>
           <NextScript />
         </body>
       </html>

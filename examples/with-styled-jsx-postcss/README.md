@@ -1,7 +1,11 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-styled-jsx-postcss)
 
 # Example app with styled-jsx-postcss
 
 This example features how you use PostCSS with styled-jsx via [styled-jsx-postcss](https://github.com/giuseppeg/styled-jsx-postcss)
+
+N.B. In order to integrate `styled-jsx-postcss` with Next.js you need to patch Next.js'
+babel preset. See [babel-preset.js](./babel-preset.js) and [.babelrc](./.babelrc).
 
 ## How to use
 

@@ -1,5 +1,8 @@
 {
-  "presets": ["latest", "react"],
+  "presets": [
+    "env",
+    "react"
+  ],
   "plugins": [
     "transform-object-rest-spread",
     "transform-class-properties",
@@ -7,7 +10,10 @@
   ],
   "env": {
     "test": {
-      "plugins": ["istanbul"]
+      "presets": [
+        "es2015",
+        "./babel"
+       ]
     }
   }
 }

@@ -1,10 +1,11 @@
 import { join, relative, sep } from 'path'
 import webpackDevMiddleware from 'webpack-dev-middleware'
 import webpackHotMiddleware from 'webpack-hot-middleware'
+import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
-import readPage from './read-page'
+import getConfig from './config'
 
 export default class HotReloader {
   constructor (dir, { quiet } = {}) {
@@ -20,6 +21,8 @@ export default class HotReloader {
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
+
+    this.config = getConfig(dir)
   }
 
   async run (req, res) {
@@ -135,20 +138,36 @@ export default class HotReloader {
       }
     } : {}
 
-    this.webpackDevMiddleware = webpackDevMiddleware(compiler, {
-      publicPath: '/_webpack/',
+    let webpackDevMiddlewareConfig = {
+      publicPath: '/_next/webpack/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
       watchOptions: { ignored },
       ...windowsSettings
-    })
+    }
 
-    this.webpackHotMiddleware = webpackHotMiddleware(compiler, { log: false })
+    if (this.config.webpackDevMiddleware) {
+      console.log('> Using "webpackDevMiddleware" config function defined in next.config.js.')
+      webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
+    }
+
+    this.webpackDevMiddleware = webpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
+
+    this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
+      path: '/_next/webpack-hmr',
+      log: false
+    })
+    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
+      dir: this.dir,
+      dev: true,
+      ...this.config.onDemandEntries
+    })
 
     this.middlewares = [
       this.webpackDevMiddleware,
-      this.webpackHotMiddleware
+      this.webpackHotMiddleware,
+      this.onDemandEntries.middleware()
     ]
   }
 
@@ -184,11 +203,14 @@ export default class HotReloader {
   send (action, ...args) {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
+
+  ensurePage (page) {
+    return this.onDemandEntries.ensurePage(page)
+  }
 }
 
 function deleteCache (path) {
   delete require.cache[path]
-  delete readPage.cache[path]
 }
 
 function diff (a, b) {
