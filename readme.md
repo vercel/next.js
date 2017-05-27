@@ -146,7 +146,7 @@ export default () => (
 )
 ```
 
-Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
+Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-jsx) for more examples.
 
 #### CSS-in-JS
 
