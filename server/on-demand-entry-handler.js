@@ -42,7 +42,13 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     const { compilation } = stats
     console.error(compilation.errors)
     const hardFailedPages = compilation.errors
-      .filter(e => e.module.dependencies.length === 0)
+      .filter(e => {
+        // Make sure to only pick errors which marked with missing modules
+        if (!/ENOENT/.test(e.message)) return false
+        // Pick only module where the page is missing, but not a
+        // a module inside it.
+        return e.module.dependencies.length === 0
+      })
       .map(e => e.module.chunks)
       .reduce((a, b) => [...a, ...b], [])
       .map(c => {
