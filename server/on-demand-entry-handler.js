@@ -73,7 +73,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
     invalidator.doneBuilding()
 
-    if (hardFailedPages.length > 0) {
+    if (hardFailedPages.length > 0 && !reloading) {
       console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
       reloading = true
       console.log('START RELOADIING', reloading)
@@ -92,14 +92,15 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   })
 
   const disposeHandler = setInterval(function () {
+    if (stopped) return
     disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
   }, 5000)
 
   function stop () {
+    clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
     reloadCallbacks = null
-    clearInterval(disposeHandler)
   }
 
   return {
