@@ -33,6 +33,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
   - [Custom server and routing](#custom-server-and-routing)
+  - [Dynamic Imports](#dynamic-imports)
   - [Custom `<Document>`](#custom-document)
   - [Custom error handling](#custom-error-handling)
   - [Custom configuration](#custom-configuration)
@@ -40,6 +41,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing babel config](#customizing-babel-config)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+- [Static HTML export](#static-html-export)
 - [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -579,6 +581,96 @@ Supported options:
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
+### Dynamic Import
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-dynamic-import">With Dynamic Import</a></li>
+  </ul>
+</details></p>
+
+Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
+With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
+
+You can think dynamic imports as another way to split your code into manageable chunks.
+Since Next.js supports dynamic imports with SSR, you could do amazing things with it.
+
+Here are a few ways to use dynamic imports.
+
+#### 1. Basic Usage (Also does SSR)
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponent = dynamic(import('../components/hello'))
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponent />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 2. With Custom Loading Component
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponentWithCustomLoading = dynamic(
+  import('../components/hello2'),
+  {
+    loading: () => (<p>...</p>)
+  }
+)
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithCustomLoading />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 3. With No SSR
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponentWithNoSSR = dynamic(
+  import('../components/hello3'),
+  { ssr: false }
+)
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithNoSSR />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 4. With [async-reactor](https://github.com/xtuc/async-reactor)
+
+> SSR support is not available here
+
+```js
+import { asyncReactor } from 'async-reactor'
+const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
+  const Hello4 = await import('../components/hello4')
+  return (<Hello4 />)
+})
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithAsyncReactor />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
 ### Custom `<Document>`
 
 <p><details>
@@ -767,6 +859,75 @@ Then run `now` and enjoy!
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
 Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+
+## Static HTML export
+
+This is a way to run your Next.js app as a standalone static app without any Node.js server. The export app supports almost every feature of Next.js including dyanmic urls, prefetching, preloading and dynamic imports.
+
+### Usage
+
+Simply develop your app as you normally do with Next.js. Then create a custom Next.js [config](https://github.com/zeit/next.js#custom-configuration) as shown below:
+
+```js
+// next.config.js
+module.exports = {
+  exportPathMap: function () {
+    return {
+      "/": { page: "/" },
+      "/about": { page: "/about" },
+      "/p/hello-nextjs": { page: "/post", query: { title: "hello-nextjs" } },
+      "/p/learn-nextjs": { page: "/post", query: { title: "learn-nextjs" } },
+      "/p/deploy-nextjs": { page: "/post", query: { title: "deploy-nextjs" } }
+    }
+  },
+}
+```
+
+In that, you specify what are the pages you need to export as static HTML.
+
+Then simply run these commands:
+
+```sh
+next build
+next export
+```
+
+For that you may need to add a NPM script to `package.json` like this:
+
+```json
+{
+    "scripts": {
+        "build": "next build && next export"
+    }
+}
+```
+
+And run it at once with:
+
+```sh
+npm run build
+```
+
+Then you've a static version of your app in the “out" directory.
+
+> You can also customize the output directory. For that run `next export -h` for the help.
+
+Now you can deploy that directory to any static hosting service. 
+
+For an example, simply visit the “out” directory and run following command to deploy your app to [ZEIT now](https://zeit.co/now).
+
+```sh
+now
+```
+
+### Limitation
+
+With next export, we build HTML version of your app when you run the command `next export`. In that time, we'll run the `getInitialProps` functions of your pages.
+
+So, you could only use `pathname`, `query` and `asPath` fields of the `context` object passed to `getInitialProps`. You can't use `req` or `res` fields.
+
+> Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
+
 
 ## Recipes
 

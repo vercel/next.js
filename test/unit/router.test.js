@@ -20,6 +20,7 @@ describe('Router', () => {
   const request = { clone: () => null }
   describe('.prefetch()', () => {
     it('should prefetch a given page', async () => {
+      global.__NEXT_DATA__ = {}
       const pageLoader = new PageLoader()
       const router = new Router('/', {}, '/', { pageLoader })
       const route = '/routex'
@@ -29,6 +30,7 @@ describe('Router', () => {
     })
 
     it('should only run two jobs at a time', async () => {
+      global.__NEXT_DATA__ = {}
       // delay loading pages for an hour
       const pageLoader = new PageLoader({ delay: 1000 * 3600 })
       const router = new Router('/', {}, '/', { pageLoader })
@@ -46,6 +48,7 @@ describe('Router', () => {
     })
 
     it('should run all the jobs', async () => {
+      global.__NEXT_DATA__ = {}
       const pageLoader = new PageLoader()
       const router = new Router('/', {}, '/', { pageLoader })
       const routes = ['route1', 'route2', 'route3', 'route4']

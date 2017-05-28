@@ -1,0 +1,19 @@
+{
+  "name": "with-dynamic-import",
+  "version": "1.0.0",
+  "description": "This example features:",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "async-reactor": "^1.1.1",
+    "next": "*",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  },
+  "author": "",
+  "license": "ISC"
+}

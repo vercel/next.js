@@ -99,6 +99,19 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
+      // This is to support, webpack dynamic imports in production.
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+        const p = join(this.dir, '.next', 'chunks', params.name)
+        await this.serveStatic(req, res, p)
+      },
+
+      // This is to support, webpack dynamic import support with HMR
+      '/_next/webpack/:id': async (req, res, params) => {
+        const p = join(this.dir, '.next', 'chunks', params.id)
+        await this.serveStatic(req, res, p)
+      },
+
       '/_next/:hash/manifest.js': async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
@@ -131,7 +144,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/_error': async (req, res, params) => {
+      '/_next/:buildId/page/_error*': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
