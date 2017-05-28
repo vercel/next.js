@@ -40,7 +40,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
   compiler.plugin('done', function (stats) {
     const { compilation } = stats
-    console.error(compilation.errors)
     const hardFailedPages = compilation.errors
       .filter(e => {
         // Make sure to only pick errors which marked with missing modules
@@ -82,7 +81,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     if (hardFailedPages.length > 0 && !reloading) {
       console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
       reloading = true
-      console.log('START RELOADIING', reloading)
       reload()
         .then(() => {
           console.log('> Webpack reloaded.')
@@ -111,12 +109,9 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
   return {
     waitUntilReloaded () {
-      console.log('111', reloading)
       if (!reloading) return Promise.resolve(true)
-      console.log('222', reloading)
       return new Promise((resolve) => {
         reloadCallbacks.once('done', function () {
-          console.log('333 - resolving')
           resolve()
         })
       })
@@ -162,7 +157,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
     middleware () {
       return (req, res, next) => {
-        console.log('XXX', req.url, stopped, reloading)
         if (stopped) {
           res.statusCode = 302
           res.setHeader('Location', req.url)
