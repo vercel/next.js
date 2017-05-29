@@ -12,7 +12,11 @@ if (pkg.peerDependencies) {
       // When 'npm link' is used it checks the clone location. Not the project.
       require.resolve(dependency)
     } catch (err) {
-      console.warn(`${dependency} not found. Please install ${dependency} using 'npm install ${dependency}'`)
+      if (dependency === 'react' || dependency === 'react-dom') {
+        console.warn('The module \'' + dependency + '\' was not found. Next.js requires that you include it in \'dependencies\' of your \'package.json\'.\n To add it, run \'npm install --save ' + dependency + '\'')
+      } else {
+        console.warn(`${dependency} not found. Please install ${dependency} using 'npm install ${dependency}'`)
+      }
     }
   })
 }
