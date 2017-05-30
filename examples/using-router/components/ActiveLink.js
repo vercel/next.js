@@ -5,7 +5,7 @@ const onClickHandler = (href, router) => (event) => {
   router.push(href)
 }
 
-const CustomLink = ({ children, href, router }) => (
+const ActiveLink = ({ children, href, router }) => (
   <a
     className={router.pathname === href ? 'active' : ''}
     // event.preventDefault() stops the link from working normally,
@@ -26,4 +26,4 @@ const CustomLink = ({ children, href, router }) => (
   </a>
 )
 
-export default withRouter(CustomLink)
+export default withRouter()(ActiveLink)

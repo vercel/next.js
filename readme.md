@@ -436,7 +436,7 @@ import { withRouter } from 'next/router'
 
 const SecretLink = ({router}) => (<a href={`${router.pathname}/secret`}>Secrets!</a>)
 
-export default withRouter(SecretLink)
+export default withRouter()(SecretLink)
 ```
 
 ##### Shallow Routing
