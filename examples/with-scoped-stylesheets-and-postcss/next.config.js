@@ -17,7 +17,7 @@ module.exports = {
             options: {
               procedure: function (content) {
                 const fileName = `${this._module.userRequest}.json`
-                const classNames = JSON.stringify(require(fileName))
+                const classNames = fs.readFileSync(fileName, "utf8")
 
                 trash(fileName)
 
