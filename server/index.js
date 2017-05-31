@@ -24,14 +24,14 @@ const internalPrefixes = [
 ]
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false } = {}) {
+  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.hotReloader = dev ? new HotReloader(this.dir, { quiet }) : null
+    this.hotReloader = dev ? new HotReloader(this.dir, { quiet, conf }) : null
     this.http = null
-    this.config = getConfig(this.dir)
+    this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
