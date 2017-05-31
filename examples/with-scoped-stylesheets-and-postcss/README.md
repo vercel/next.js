@@ -29,26 +29,6 @@ now
 
 Scoped CSS is neat and keeps your JS clean. PostCSS is amazing for extended features, such as nesting. CSS Modules keep your class names “local”.
 
-# Known bugs
+# Known issues
 
-There's a bug, possibly within `next.js`, making composition between files unuseable. Consider the following:
-
-*`styles.css`*
-```css
-.paragraph {
-  composes: font-sans from '../global.css';
-}
-```
-
-*`global.css`*
-```css
-.font-sans {
-  font-family: georgia; /* ;) */
-}
-```
-
-The following error is thrown:
-
-```
-Module build failed: Error: Cannot find module '-!./../node_modules/css-loader/index.js??ref--6-4!./../node_modules/postcss-loader/index.js!../global.css'
-```
+Composed CSS files are not watched by next.js, and thus, if you change one, nothing will happen. You'll need to edit a JS file or the CSS file you're composing for it to hot reload.
