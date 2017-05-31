@@ -19,7 +19,7 @@ export default ({ children, title = 'This is the default title' }) => (
     { children }
 
     <footer>
-      I`m here to stay
+      {'I`m here to stay'}
     </footer>
   </div>
 )

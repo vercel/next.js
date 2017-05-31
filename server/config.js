@@ -8,7 +8,8 @@ const defaultConfig = {
   webpackDevMiddleware: null,
   poweredByHeader: true,
   distDir: '.next',
-  assetPrefix: ''
+  assetPrefix: '',
+  useFileSystemPublicRoutes: true
 }
 
 export default function getConfig (dir) {
