@@ -9,6 +9,7 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -34,6 +35,15 @@ describe('Production Usage', () => {
     it('should render the page', async () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
+    })
+
+    it('should allow etag header support', async () => {
+      const url = `http://localhost:${appPort}/`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
     })
   })
 

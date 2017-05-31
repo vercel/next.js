@@ -179,9 +179,11 @@ export default class Server {
       '/static/:path+': async (req, res, params) => {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
-      },
+      }
+    }
 
-      '/:path*': async (req, res, params, parsedUrl) => {
+    if (this.config.useFileSystemPublicRoutes) {
+      routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query)
       }
@@ -233,7 +235,7 @@ export default class Server {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     const html = await this.renderToHTML(req, res, pathname, query)
-    return sendHTML(req, res, html, req.method)
+    return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -261,7 +263,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(req, res, html, req.method)
+    return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -343,6 +345,7 @@ export default class Server {
 
   handleBuildHash (filename, hash, res) {
     if (this.dev) return
+
     if (hash !== this.buildStats[filename].hash) {
       throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
     }
