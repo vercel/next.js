@@ -1,4 +1,4 @@
-import { resolve, join } from 'path'
+import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
@@ -295,6 +295,10 @@ export default class Server {
   }
 
   async serveStatic (req, res, path) {
+    if (!this.isServeableUrl(path)) {
+      return this.render404(req, res)
+    }
+
     try {
       return await serveStatic(req, res, path)
     } catch (err) {
@@ -304,6 +308,19 @@ export default class Server {
         throw err
       }
     }
+  }
+
+  isServeableUrl (path) {
+    const resolved = resolve(path)
+    if (
+      resolved.indexOf(join(this.dir, this.dist) + sep) !== 0 &&
+      resolved.indexOf(join(this.dir, 'static') + sep) !== 0
+    ) {
+      // Seems like the user is trying to traverse the filesystem.
+      return false
+    }
+
+    return true
   }
 
   isInternalUrl (req) {
