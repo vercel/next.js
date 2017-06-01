@@ -33,7 +33,7 @@ export default function ({ app }, suiteName, render) {
       const styleId = $('#blue-box').attr('data-jsx')
       const style = $(`#__jsx-style-${styleId}`)
 
-      expect(style.text()).toMatch(/color: blue/)
+      expect(style.text()).toMatch(/color:blue/)
     })
 
     test('renders properties populated asynchronously', async () => {
