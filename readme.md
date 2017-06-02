@@ -772,6 +772,11 @@ module.exports = {
 
 ### Customizing webpack config
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li></ul>
+</details></p>
+
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
 
 ```js
