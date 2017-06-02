@@ -80,6 +80,11 @@ export default async function (dir, options) {
     hotReloader: null
   }
 
+  // Static hosted sites sometimes have different url requirements
+  if (config.exportAssetPrefix) {
+    renderOpts.assetPrefix = config.exportAssetPrefix.replace(/\/$/, '')
+  }
+
   // We need this for server rendering the Link component.
   global.__NEXT_DATA__ = {
     nextExport: true
