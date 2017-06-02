@@ -146,7 +146,7 @@ export default () => (
 )
 ```
 
-Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
+Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-jsx) for more examples.
 
 #### CSS-in-JS
 
@@ -864,7 +864,11 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
+<<<<<<< HEAD
 Note: we recommend putting `.next`, or your custom dist folder (you can set a custom folder in ['Custom Config'](https://github.com/zeit/next.js#custom-configuration)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+=======
+Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
+>>>>>>> 0ec33c8ccdf8e55f6fedd64d7d358b030527813c
 
 ## Static HTML export
 
