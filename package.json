@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "3.0.0-beta8",
+  "version": "3.0.0-beta9",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -87,7 +87,7 @@
     "send": "^0.15.3",
     "source-map-support": "0.4.15",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "1.0.3",
+    "styled-jsx": "0.5.7",
     "touch": "1.0.0",
     "unfetch": "2.1.2",
     "url": "0.11.0",
