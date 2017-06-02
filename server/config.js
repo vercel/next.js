@@ -8,17 +8,23 @@ const defaultConfig = {
   webpackDevMiddleware: null,
   poweredByHeader: true,
   distDir: '.next',
-  assetPrefix: ''
+  assetPrefix: '',
+  configOrigin: 'default',
+  useFileSystemPublicRoutes: true
 }
 
-export default function getConfig (dir) {
+export default function getConfig (dir, customConfig) {
   if (!cache.has(dir)) {
-    cache.set(dir, loadConfig(dir))
+    cache.set(dir, loadConfig(dir, customConfig))
   }
   return cache.get(dir)
 }
 
-function loadConfig (dir) {
+function loadConfig (dir, customConfig) {
+  if (customConfig && typeof customConfig === 'object') {
+    customConfig.configOrigin = 'server'
+    return withDefaults(customConfig)
+  }
   const path = join(dir, 'next.config.js')
 
   let userConfig = {}
@@ -27,7 +33,12 @@ function loadConfig (dir) {
   if (userHasConfig) {
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
+    userConfig.configOrigin = 'next.config.js'
   }
 
-  return Object.assign({}, defaultConfig, userConfig)
+  return withDefaults(userConfig)
+}
+
+function withDefaults (config) {
+  return Object.assign({}, defaultConfig, config)
 }

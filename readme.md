@@ -583,6 +583,7 @@ Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
+- `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
@@ -863,7 +864,7 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
-Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+Note: we recommend putting `.next`, or your custom dist folder (you can set a custom folder in ['Custom Config'](https://github.com/zeit/next.js#custom-configuration)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
 
 ## Static HTML export
 

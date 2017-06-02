@@ -16,6 +16,8 @@
   },
   "devDependencies": {
     "babel-plugin-css-modules-transform": "^1.2.1",
-    "node-sass": "^4.5.0"
+    "node-sass": "^4.5.0",
+    "postcss": "^5.2.16",
+    "postcss-cssnext": "^2.10.0"
   }
 }

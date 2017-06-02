@@ -3,8 +3,8 @@
     "next/babel"
   ],
   "plugins": [
-    ["wrap-in-js", {
-      "extensions": ["css$"]
+    ["import", {
+      "libraryName": "antd"
     }]
   ]
 }
