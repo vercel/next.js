@@ -118,7 +118,7 @@
     "husky": "0.13.3",
     "jest-cli": "20.0.4",
     "lint-staged": "^3.4.0",
-    "node-fetch": "1.7.0",
+    "node-fetch": "1.7.1",
     "node-notifier": "5.1.2",
     "nyc": "11.0.1",
     "react": "15.5.3",
