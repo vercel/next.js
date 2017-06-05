@@ -156,7 +156,8 @@ export default class HotReloader {
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
       path: '/_next/webpack-hmr',
-      log: false
+      log: false,
+      heartbeat: 2500
     })
     this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
       dir: this.dir,
