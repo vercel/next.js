@@ -5,6 +5,7 @@ import syntax from 'babel-plugin-syntax-dynamic-import'
 import UUID from 'uuid'
 
 const TYPE_IMPORT = 'Import'
+const PATTERN_SYSTEM_IMPORT = 'System.import'
 
 const buildImport = (args) => (template(`
   (
@@ -44,7 +45,7 @@ export default () => ({
 
   visitor: {
     CallExpression (path) {
-      if (path.node.callee.type === TYPE_IMPORT) {
+      if (path.node.callee.type === TYPE_IMPORT || path.get('callee').matchesPattern(PATTERN_SYSTEM_IMPORT)) {
         const newImport = buildImport({
           name: UUID.v4()
         })({

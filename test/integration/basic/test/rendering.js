@@ -94,5 +94,10 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/dynamic/no-ssr-custom-loading')
       expect($('p').text()).toBe('LOADING')
     })
+
+    test('render dynmaic system import components via SSR', async () => {
+      const $ = await get$('/dynamic/ssr-system-import')
+      expect($('p').text()).toBe('Hello World 1')
+    })
   })
 }
