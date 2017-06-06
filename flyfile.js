@@ -1,6 +1,7 @@
 const notifier = require('node-notifier')
 const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
+process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
 export async function compile(fly) {
   await fly.parallel(['bin', 'server', 'lib', 'client'])
