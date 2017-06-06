@@ -42,20 +42,8 @@ export default class HotReloader {
       clean(this.dir)
     ])
 
-    const {
-      webpackDevMiddleware,
-      webpackHotMiddleware,
-      onDemandEntries
-    } = await this.prepareMiddlewares(compiler)
-
-    this.webpackDevMiddleware = webpackDevMiddleware
-    this.webpackHotMiddleware = webpackHotMiddleware
-    this.onDemandEntries = onDemandEntries
-    this.middlewares = [
-      webpackDevMiddleware,
-      webpackHotMiddleware,
-      onDemandEntries.middleware()
-    ]
+    const buildTools = await this.prepareBuildTools(compiler)
+    this.assignBuildTools(buildTools)
 
     this.stats = await this.waitUntilValid()
   }
@@ -78,15 +66,16 @@ export default class HotReloader {
       clean(this.dir)
     ])
 
-    const {
-      webpackDevMiddleware,
-      webpackHotMiddleware,
-      onDemandEntries
-    } = await this.prepareMiddlewares(compiler)
+    const buildTools = await this.prepareBuildTools(compiler)
+    this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
 
-    this.stats = await this.waitUntilValid(webpackDevMiddleware)
     const oldWebpackDevMiddleware = this.webpackDevMiddleware
 
+    this.assignBuildTools(buildTools)
+    await this.stop(oldWebpackDevMiddleware)
+  }
+
+  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
@@ -95,11 +84,9 @@ export default class HotReloader {
       webpackHotMiddleware,
       onDemandEntries.middleware()
     ]
-
-    await this.stop(oldWebpackDevMiddleware)
   }
 
-  async prepareMiddlewares (compiler) {
+  async prepareBuildTools (compiler) {
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
 
