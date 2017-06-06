@@ -174,7 +174,7 @@ export default class Server {
             return await renderScriptError(req, res, page, error, {}, this.renderOpts)
           }
 
-          const compilationErr = this.getCompilationError(page)
+          const compilationErr = await this.getCompilationError(page, req, res)
           if (compilationErr) {
             const customFields = { statusCode: 500 }
             return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
@@ -253,7 +253,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = this.getCompilationError(pathname)
+      const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
@@ -281,7 +281,7 @@ export default class Server {
 
   async renderErrorToHTML (err, req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = this.getCompilationError('/_error')
+      const compilationErr = await this.getCompilationError('/_error')
       if (compilationErr) {
         res.statusCode = 500
         return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
@@ -362,10 +362,10 @@ export default class Server {
     return true
   }
 
-  getCompilationError (page) {
+  async getCompilationError (page, req, res) {
     if (!this.hotReloader) return
 
-    const errors = this.hotReloader.getCompilationErrors()
+    const errors = await this.hotReloader.getCompilationErrors()
     if (!errors.size) return
 
     const id = join(this.dir, this.dist, 'bundles', 'pages', page)
