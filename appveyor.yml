@@ -6,7 +6,7 @@ environment:
 # Install scripts. (runs after repo cloning)
 install:
   # Install Google Chrome for e2e testing
-  - choco install googlechrome
+  - choco install --ignore-checksums googlechrome
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
   # install modules
