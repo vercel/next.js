@@ -7,8 +7,10 @@ import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
 
+const isBundledPage = /^bundles[/\\]pages.*\.js$/
+
 export default class HotReloader {
-  constructor (dir, { quiet } = {}) {
+  constructor (dir, { quiet, conf } = {}) {
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -22,7 +24,7 @@ export default class HotReloader {
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
 
-    this.config = getConfig(dir)
+    this.config = getConfig(dir, conf)
   }
 
   async run (req, res) {
@@ -78,7 +80,12 @@ export default class HotReloader {
 
     compiler.plugin('done', (stats) => {
       const { compilation } = stats
-      const chunkNames = new Set(compilation.chunks.map((c) => c.name))
+      const chunkNames = new Set(
+        compilation.chunks
+          .map((c) => c.name)
+          .filter(name => isBundledPage.test(name))
+      )
+
       const failedChunkNames = new Set(compilation.errors
       .map((e) => e.module.reasons)
       .reduce((a, b) => a.concat(b), [])
@@ -86,7 +93,11 @@ export default class HotReloader {
       .reduce((a, b) => a.concat(b), [])
       .map((c) => c.name))
 
-      const chunkHashes = new Map(compilation.chunks.map((c) => [c.name, c.hash]))
+      const chunkHashes = new Map(
+        compilation.chunks
+          .filter(c => isBundledPage.test(c.name))
+          .map((c) => [c.name, c.hash])
+      )
 
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
@@ -148,7 +159,7 @@ export default class HotReloader {
     }
 
     if (this.config.webpackDevMiddleware) {
-      console.log('> Using "webpackDevMiddleware" config function defined in next.config.js.')
+      console.log(`> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`)
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
     }
 
@@ -156,7 +167,8 @@ export default class HotReloader {
 
     this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
       path: '/_next/webpack-hmr',
-      log: false
+      log: false,
+      heartbeat: 2500
     })
     this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
       dir: this.dir,
