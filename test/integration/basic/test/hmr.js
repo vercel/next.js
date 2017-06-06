@@ -73,6 +73,8 @@ export default (context, render) => {
 
           await waitFor(1000)
         }
+
+        browser.close()
       })
     })
   })
