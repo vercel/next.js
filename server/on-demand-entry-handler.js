@@ -4,6 +4,7 @@ import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
+import { MATCH_ROUTE_NAME } from './utils'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -51,7 +52,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       .map(e => e.module.chunks)
       .reduce((a, b) => [...a, ...b], [])
       .map(c => {
-        const pageName = /^bundles[/\\]pages[/\\](.*)\.js$/.exec(c.name)[1]
+        const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
         return normalizePage(`/${pageName}`)
       })
 
@@ -158,10 +159,15 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     middleware () {
       return (req, res, next) => {
         if (stopped) {
+          // If this handler is stopped, we need to reload the user's browser.
+          // So the user could connect to the actually running handler.
           res.statusCode = 302
           res.setHeader('Location', req.url)
           res.end('302')
         } else if (reloading) {
+          // Webpack config is reloading. So, we need to wait until it's done and
+          // reload user's browser.
+          // So the user could connect to the new handler and webpack setup.
           this.waitUntilReloaded()
             .then(() => {
               res.statusCode = 302

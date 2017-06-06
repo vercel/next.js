@@ -6,8 +6,9 @@ import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
-
-const isBundledPage = /^bundles[/\\]pages.*\.js$/
+import {
+  IS_BUNDLED_PAGE
+} from './utils'
 
 export default class HotReloader {
   constructor (dir, { quiet, conf } = {}) {
@@ -112,7 +113,7 @@ export default class HotReloader {
       const chunkNames = new Set(
         compilation.chunks
           .map((c) => c.name)
-          .filter(name => isBundledPage.test(name))
+          .filter(name => IS_BUNDLED_PAGE.test(name))
       )
 
       const failedChunkNames = new Set(compilation.errors
@@ -124,7 +125,7 @@ export default class HotReloader {
 
       const chunkHashes = new Map(
         compilation.chunks
-          .filter(c => isBundledPage.test(c.name))
+          .filter(c => IS_BUNDLED_PAGE.test(c.name))
           .map((c) => [c.name, c.hash])
       )
 
