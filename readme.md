@@ -307,7 +307,7 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
   </ul>
 </details></p>
 
-The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string. _(^2.0.0-beta only)_
 
 ```jsx
 // pages/index.js
@@ -339,7 +339,7 @@ export default () => (
   </ul>
 </details></p>
 
-You can also do client-side page transitions using the `next/router`
+You can also do client-side page transitions using the `next/router` _(^2.0.0-beta only)_
 
 ```jsx
 import Router from 'next/router'
@@ -362,7 +362,7 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an url.
+You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an url. _(^2.0.0-beta only)_
 
 ```jsx
 import Router from 'next/router'
