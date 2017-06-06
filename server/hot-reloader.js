@@ -64,6 +64,8 @@ export default class HotReloader {
   }
 
   async reload () {
+    this.stats = null
+
     const [compiler] = await Promise.all([
       webpack(this.dir, { dev: true, quiet: this.quiet }),
       clean(this.dir)
@@ -221,7 +223,10 @@ export default class HotReloader {
     })
   }
 
-  getCompilationErrors () {
+  async getCompilationErrors () {
+    // When we are reloading, we need to wait until it's reloaded properly.
+    await this.onDemandEntries.waitUntilReloaded()
+
     if (!this.compilationErrors) {
       this.compilationErrors = new Map()
 

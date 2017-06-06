@@ -4,7 +4,7 @@ import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
-import { MATCH_ROUTE_NAME } from './utils'
+import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -44,9 +44,14 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     const hardFailedPages = compilation.errors
       .filter(e => {
         // Make sure to only pick errors which marked with missing modules
-        if (!/ENOENT/.test(e.message)) return false
-        // Pick only module where the page is missing, but not a
-        // a module inside it.
+        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+        if (!hasNoModuleFoundError) return false
+
+        // The page itself is missing. So this is a failed page.
+        if (IS_BUNDLED_PAGE.test(e.module.name)) return true
+
+        // No dependencies means this is a top level page.
+        // So this is a failed page.
         return e.module.dependencies.length === 0
       })
       .map(e => e.module.chunks)
@@ -119,6 +124,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     },
 
     async ensurePage (page) {
+      await this.waitUntilReloaded()
       page = normalizePage(page)
 
       const pagePath = join(dir, 'pages', page)
