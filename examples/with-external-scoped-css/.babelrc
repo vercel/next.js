@@ -4,6 +4,7 @@
     [
       "css-modules-transform", {
         "extensions": [".css", ".sass"],
+        "append": [ "postcss-cssnext" ],
         "extractCss": "./static/css/bundle.css",
         "preprocessCss": "./pre-processor.js"
       }
