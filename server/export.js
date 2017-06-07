@@ -29,13 +29,13 @@ export default async function (dir, options) {
   // Initialize the output directory
   const outDir = options.outdir
   await del(join(outDir, '*'))
-  await mkdirp(join(outDir, '_next', buildStats['app.js'].hash))
-  await mkdirp(join(outDir, '_next', buildId))
+  await mkdirp(join(outDir, config.assetDirectory, buildStats['app.js'].hash))
+  await mkdirp(join(outDir, config.assetDirectory, buildId))
 
   // Copy files
   await cp(
     join(nextDir, 'app.js'),
-    join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
+    join(outDir, config.assetDirectory, buildStats['app.js'].hash, 'app.js')
   )
 
   // Copy static directory
@@ -51,14 +51,14 @@ export default async function (dir, options) {
   if (existsSync(join(nextDir, 'chunks'))) {
     log('  copying dynamic import chunks')
 
-    await mkdirp(join(outDir, '_next', 'webpack'))
+    await mkdirp(join(outDir, config.assetDirectory, 'webpack'))
     await cp(
       join(nextDir, 'chunks'),
-      join(outDir, '_next', 'webpack', 'chunks')
+      join(outDir, config.assetDirectory, 'webpack', 'chunks')
     )
   }
 
-  await copyPages(nextDir, outDir, buildId)
+  await copyPages(nextDir, config.assetDirectory, outDir, buildId)
 
   // Get the exportPathMap from the `next.config.js`
   if (typeof config.exportPathMap !== 'function') {
@@ -115,7 +115,7 @@ export default async function (dir, options) {
   }
 }
 
-function copyPages (nextDir, outDir, buildId) {
+function copyPages (nextDir, assetDirectory, outDir, buildId) {
   // TODO: do some proper error handling
   return new Promise((resolve, reject) => {
     const nextBundlesDir = join(nextDir, 'bundles', 'pages')
@@ -135,10 +135,10 @@ function copyPages (nextDir, outDir, buildId) {
 
       let destFilePath = null
       if (/index\.js$/.test(filename)) {
-        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
+        destFilePath = join(outDir, assetDirectory, buildId, 'page', relativeFilePath)
       } else {
         const newRelativeFilePath = relativeFilePath.replace(/\.js/, `${sep}index.js`)
-        destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
+        destFilePath = join(outDir, assetDirectory, buildId, 'page', newRelativeFilePath)
       }
 
       cp(fullFilePath, destFilePath)

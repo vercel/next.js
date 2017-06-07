@@ -9,8 +9,14 @@ export default () => {
   })
 
   async function ping () {
+    const {
+      __NEXT_DATA__: {
+        assetDirectory
+      }
+    } = window
+
     try {
-      const url = `/_next/on-demand-entries-ping?page=${Router.pathname}`
+      const url = `/${assetDirectory}/on-demand-entries-ping?page=${Router.pathname}`
       const res = await fetch(url)
       const payload = await res.json()
       if (payload.invalid) {
