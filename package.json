@@ -92,7 +92,8 @@
     "webpack": "2.5.1",
     "webpack-dev-middleware": "1.10.2",
     "webpack-hot-middleware": "2.18.0",
-    "write-file-webpack-plugin": "4.0.2"
+    "write-file-webpack-plugin": "4.0.2",
+    "xss-filters": "1.2.7"
   },
   "devDependencies": {
     "babel-eslint": "7.2.3",
