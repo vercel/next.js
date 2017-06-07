@@ -13,6 +13,7 @@ import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
+import xssFilters from 'xss-filters'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, opts)
@@ -138,6 +139,8 @@ export async function renderScript (req, res, page, opts) {
 export async function renderScriptError (req, res, page, error, customFields, opts) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
+  // prevent XSS attacks by filtering the page before printing it.
+  page = xssFilters.uriInSingleQuotedAttr(page)
 
   if (error.code === 'ENOENT') {
     res.setHeader('Content-Type', 'text/javascript')
