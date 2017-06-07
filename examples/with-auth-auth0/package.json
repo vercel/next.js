@@ -1,0 +1,17 @@
+{
+  "name": "with-auth-auth0",
+  "dependencies": {
+    "auth0-lock": "10.7.2",
+    "js-cookie": "2.1.3",
+    "jwt-decode": "2.1.0",
+    "next": "^2.0.0-beta",
+    "uuid": "3.0.1"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "author": "",
+  "license": "ISC"
+}
