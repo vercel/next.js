@@ -10,9 +10,7 @@ import { printAndExit } from '../lib/utils'
 
 export default async function (dir, options) {
   dir = resolve(dir)
-
   const config = getConfig(dir)
-
   const nextDir = join(dir, config.distDir || '.next')
 
   log(`  using build directory: ${nextDir}`)
