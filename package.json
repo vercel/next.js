@@ -107,7 +107,7 @@
     "babel-preset-es2015": "6.24.1",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
-    "chromedriver": "2.29.0",
+    "chromedriver": "2.29.1",
     "coveralls": "2.13.1",
     "cross-env": "5.0.0",
     "express": "4.15.2",
