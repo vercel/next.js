@@ -11,12 +11,15 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
+import dynamicImportTests from '../../basic/test/dynamic'
 
 const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
+
+const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
@@ -28,7 +31,7 @@ describe('Production Usage', () => {
     })
 
     server = await startApp(app)
-    appPort = server.address().port
+    context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
@@ -77,4 +80,6 @@ describe('Production Usage', () => {
       browser.close()
     })
   })
+
+  dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })

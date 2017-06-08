@@ -1,4 +1,5 @@
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
@@ -40,6 +41,7 @@ async function doRender (req, res, pathname, query, {
   buildStats,
   hotReloader,
   assetPrefix,
+  availableChunks,
   dir = process.cwd(),
   dev = false,
   staticMarkup = false,
@@ -81,7 +83,7 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = flushChunks()
+    const chunks = loadChunks({ dev, dir, dist, availableChunks })
 
     if (err && dev) {
       errorHtml = render(createElement(ErrorDebug, { error: err }))
@@ -241,4 +243,19 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (page === '_error' || page === '_document') return
 
   await hotReloader.ensurePage(page)
+}
+
+function loadChunks ({ dev, dir, dist, availableChunks }) {
+  const flushedChunks = flushChunks()
+  const validChunks = []
+
+  for (var chunk of flushedChunks) {
+    const filename = join(dir, dist, 'chunks', chunk)
+    const exists = dev ? existsSync(filename) : availableChunks[chunk]
+    if (exists) {
+      validChunks.push(chunk)
+    }
+  }
+
+  return validChunks
 }

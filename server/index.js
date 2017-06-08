@@ -14,6 +14,7 @@ import {
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
+import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -42,7 +43,8 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
     this.defineRoutes()
