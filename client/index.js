@@ -109,9 +109,7 @@ export async function renderError (error) {
   console.error(errorMessage)
 
   if (prod) {
-    const initProps = { err: error, pathname, query, asPath }
-    const props = await loadGetInitialProps(ErrorComponent, initProps)
-    ReactDOM.render(createElement(ErrorComponent, props), errorContainer)
+    ReactDOM.render(createElement(ErrorComponent, { error }), errorContainer)
   } else {
     ReactDOM.render(createElement(ErrorDebugComponent, { error }), errorContainer)
   }
