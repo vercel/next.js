@@ -10,21 +10,23 @@ import { printAndExit } from '../lib/utils'
 
 export default async function (dir, options) {
   dir = resolve(dir)
-  const outDir = options.outdir
-  const nextDir = join(dir, '.next')
+  const config = getConfig(dir)
+  const nextDir = join(dir, config.distDir || '.next')
 
-  log(`  Exporting to: ${outDir}\n`)
+  log(`  using build directory: ${nextDir}`)
 
   if (!existsSync(nextDir)) {
-    console.error('Build your with "next build" before running "next start".')
+    console.error(
+      `Build directory ${nextDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
     process.exit(1)
   }
 
-  const config = getConfig(dir)
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
   const buildStats = require(join(nextDir, 'build-stats.json'))
 
   // Initialize the output directory
+  const outDir = options.outdir
   await del(join(outDir, '*'))
   await mkdirp(join(outDir, '_next', buildStats['app.js'].hash))
   await mkdirp(join(outDir, '_next', buildId))
