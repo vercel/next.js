@@ -14,6 +14,7 @@ import {
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
+import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -43,7 +44,7 @@ export default class Server {
       buildStats: this.buildStats,
       buildId: this.buildId,
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
-      availableChunks: dev ? {} : this.getAvailableChunks()
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
     this.defineRoutes()
@@ -387,21 +388,5 @@ export default class Server {
   send404 (res) {
     res.statusCode = 404
     res.end('404 - Not Found')
-  }
-
-  getAvailableChunks () {
-    const chunksDir = join(this.dir, this.dist, 'chunks')
-    if (!fs.existsSync(chunksDir)) return {}
-
-    const chunksMap = {}
-    const chunkFiles = fs.readdirSync(chunksDir)
-
-    chunkFiles.forEach(filename => {
-      if (/\.js$/.test(filename)) {
-        chunksMap[filename] = true
-      }
-    })
-
-    return chunksMap
   }
 }
