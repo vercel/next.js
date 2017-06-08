@@ -42,7 +42,8 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      availableChunks: dev ? {} : this.getAvailableChunks()
     }
 
     this.defineRoutes()
@@ -386,5 +387,21 @@ export default class Server {
   send404 (res) {
     res.statusCode = 404
     res.end('404 - Not Found')
+  }
+
+  getAvailableChunks () {
+    const chunksDir = join(this.dir, this.dist, 'chunks')
+    if (!fs.existsSync(chunksDir)) return {}
+
+    const chunksMap = {}
+    const chunkFiles = fs.readdirSync(chunksDir)
+
+    chunkFiles.forEach(filename => {
+      if (/\.js$/.test(filename)) {
+        chunksMap[filename] = true
+      }
+    })
+
+    return chunksMap
   }
 }
