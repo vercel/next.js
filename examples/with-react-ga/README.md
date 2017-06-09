@@ -1,6 +1,6 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-ga)
 
-# Hello World example
+# React-GA example
 
 ## How to use
 
