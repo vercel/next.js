@@ -62,7 +62,7 @@
     "babel-template": "6.24.1",
     "case-sensitive-paths-webpack-plugin": "2.0.0",
     "cross-spawn": "5.1.0",
-    "del": "2.2.2",
+    "del": "3.0.0",
     "etag": "1.8.0",
     "fresh": "0.5.0",
     "friendly-errors-webpack-plugin": "1.5.0",
