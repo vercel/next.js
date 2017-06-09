@@ -8,7 +8,7 @@ add support for cookie pass through in fetching while server side rendering in n
 
 安全，当所有的逻辑客户端都可以看到（即使你混淆了代码），服务端客户端一套代码让我们更容易维护逻辑，同时，作弊也变得更容易。你的关键接口必须和身份验证紧密合作，才能保证数据安全，Cookie是最基本最易于定制的身份凭据。
 
-Security, now all your logic are available by the browser (even if you use uglify), one logic for both server side and browser make your easier to maintain your logic while cheating become more easier. You must keep your data api must work with user identity closely, to make your data safe, cookie is the most basical method.
+Security, now all your logic are available by the browser (even if you use uglify), one logic for both server side and browser make your easier to maintain your logic while cheating become more easier. You must keep your data api work with user identity closely, to make your data safe, cookie is the most basical and efficient method.
 
 ## 以下情况不需要使用此项目 Why not?
 
