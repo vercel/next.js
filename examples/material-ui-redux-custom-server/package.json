@@ -22,7 +22,7 @@
     "express": "^4.15.2",
     "isomorphic-fetch": "^2.2.1",
     "material-ui": "0.18.0",
-    "next": "3.0.0-beta3",
+    "next": "^3.0.0-beta12",
     "next-redux-wrapper": "^1.1.2",
     "next-routes": "^1.0.24",
     "node-sass": "^4.5.2",
