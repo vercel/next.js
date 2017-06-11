@@ -28,11 +28,15 @@ function getPaths (id) {
 
   if (i.slice(-3) === '.js') return [i]
   if (i.slice(-5) === '.json') return [i]
+  if (i.slice(-3) === '.ts') return [i]
+  if (i.slice(-4) === '.tsx') return [i]
 
   if (i[i.length - 1] === sep) {
     return [
       i + 'index.js',
-      i + 'index.json'
+      i + 'index.json',
+      i + 'index.ts',
+      i + 'index.tsx'
     ]
   }
 
@@ -40,7 +44,11 @@ function getPaths (id) {
     i + '.js',
     join(i, 'index.js'),
     i + '.json',
-    join(i, 'index.json')
+    join(i, 'index.json'),
+    i + '.ts',
+    join(i, 'index.ts'),
+    i + '.tsx',
+    join(i, 'index.tsx')
   ]
 }
 
