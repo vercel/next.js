@@ -25,6 +25,14 @@ export default (context, render) => {
         const $ = await get$('/dynamic/no-ssr-custom-loading')
         expect($('p').text()).toBe('LOADING')
       })
+
+      it('should render dynamic imports bundle', async () => {
+        const $ = await get$('/dynamic/bundle')
+        const bodyText = $('body').text()
+        expect(/Dynamic Bundle/.test(bodyText)).toBe(true)
+        expect(/Hello World 1/.test(bodyText)).toBe(true)
+        expect(/Hello World 2/.test(bodyText)).toBe(true)
+      })
     })
 
     describe('with browser', () => {
@@ -50,6 +58,23 @@ export default (context, render) => {
           if (
             /Welcome, normal/.test(bodyText) &&
             /Welcome, dynamic/.test(bodyText)
+          ) break
+          await waitFor(1000)
+        }
+
+        browser.close()
+      })
+
+      it('should render dynamic imports bundle', async () => {
+        const browser = await webdriver(context.appPort, '/dynamic/bundle')
+
+        while (true) {
+          const bodyText = await browser
+            .elementByCss('body').text()
+          if (
+            /Dynamic Bundle/.test(bodyText) &&
+            /Hello World 1/.test(bodyText) &&
+            /Hello World 2/.test(bodyText)
           ) break
           await waitFor(1000)
         }
