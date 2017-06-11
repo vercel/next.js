@@ -14,7 +14,6 @@ const buildImport = (args) => (template(`
         require.ensure([], (require) => {
           let m = require(SOURCE)
           m = m.default || m
-          require('next/dynamic').registerChunk('${args.name}.js')
           m.__webpackChunkName = '${args.name}.js'
           resolve(m);
         }, 'chunks/${args.name}.js');

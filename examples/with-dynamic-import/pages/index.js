@@ -22,6 +22,19 @@ const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
 
 const DynamicComponent5 = dynamic(import('../components/hello5'))
 
+const DynamicBundle = dynamic({
+  modules: ({
+    Hello6: import('../components/hello6'),
+    Hello7: import('../components/hello7')
+  }),
+  render: (props, { Hello6, Hello7 }) => (
+    <div style={{padding: 10, border: '1px solid #888'}}>
+      <Hello6 />
+      <Hello7 />
+    </div>
+  )
+})
+
 export default () => (
   <div>
     <Header />
@@ -29,6 +42,7 @@ export default () => (
     <DynamicComponentWithCustomLoading />
     <DynamicComponentWithNoSSR />
     <DynamicComponentWithAsyncReactor />
+    <DynamicBundle />
     {
       /*
         Since DynamicComponent5 does not render in the client,
