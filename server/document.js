@@ -67,12 +67,12 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix } = __NEXT_DATA__
+    let { assetPrefix, assetDirectory } = __NEXT_DATA__
     return chunks.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+        href={`${assetPrefix}/${assetDirectory}/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
