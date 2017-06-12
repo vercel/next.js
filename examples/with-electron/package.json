@@ -21,7 +21,7 @@
   "dependencies": {
     "app-root-path": "^2.0.1",
     "electron-is-dev": "^0.1.2",
-    "next": "^3.0.0-beta3",
+    "next": "beta",
     "react": "^15.5.4",
     "react-dom": "^15.5.4"
   },

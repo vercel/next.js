@@ -1,3 +1,5 @@
+const isProd = process.env.NODE_ENV === 'production'
+
 module.exports = {
   webpack (config, { dev }) {
     // config the webpack target to be electron-renderer
@@ -14,5 +16,5 @@ module.exports = {
   },
   // set the prefix as `./` instead of `/`, this is because when you export your pages
   // Next.js will try to import the JS files as `/` instead of the full path
-  assetPrefix: './'
+  assetPrefix: isProd ? 'next:///' : '/'
 }

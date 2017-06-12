@@ -1,36 +1,21 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
-const { resolve } = require('app-root-path')
-const dev = require('electron-is-dev')
+const { app } = require('electron')
 
-const server = require('./server')
+const setMenu = require('./set-menu')
+const setIpc = require('./set-ipc')
+const createWindow = require('./create-window.js')
 
-let win
+global.win = null
 
-async function createWindow () {
-  // when starting the window run the server
-  // this only run in development, in production it resolve automatically
-  await server()
-
-  // after the server starts create the electron browser window
-  win = new BrowserWindow({
-    height: 768,
-    width: 1024
-  })
-
-  // open our server URL or index.html file in production from our build directory
-  win.loadURL(dev ? 'http://localhost:8000' : `file://${resolve('./build')}/index.html`)
-
-  // in development open devtools
-  if (dev) {
-    win.webContents.openDevTools()
+app.on('ready', async () => {
+  try {
+    setMenu()
+    setIpc()
+    await createWindow()
+  } catch (error) {
+    console.error(error)
+    app.exit(error)
   }
-
-  win.on('close', () => {
-    win = null
-  })
-}
-
-app.on('ready', createWindow)
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -38,13 +23,13 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('activate', () => {
-  if (win === null) {
-    createWindow()
+app.on('activate', async () => {
+  if (global.win === null) {
+    try {
+      await createWindow()
+    } catch (error) {
+      console.error(error)
+      app.exit(error)
+    }
   }
-})
-
-// listen the channel `message` and resend the received message to the renderer process
-ipcMain.on('message', (event, message) => {
-  event.sender.send('message', message)
 })
