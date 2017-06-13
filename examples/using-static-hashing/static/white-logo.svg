@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="230px" height="46px" viewBox="193 151 230 46" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <linearGradient x1="100.929941%" y1="181.283245%" x2="41.7687834%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#FFFFFF" offset="0%"></stop>
+            <stop stop-color="#000000" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="white-bg-text-logo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" transform="translate(193.000000, 151.000000)">
+        <g id="Zeit-—-Black-on-white-text-logo" fill-rule="nonzero">
+            <g id="Page-1">
+                <g id="Complete-logo-(white-on-black)">
+                    <polygon id="Triangle-3" fill="url(#linearGradient-1)" points="25.49162 0 50.98324 45.226415 0 45.226415"></polygon>
+                    <path d="M85.75,34 L106.2,34 L106.2,30.45 L90.85,30.45 L105.95,8.9 L105.95,5.8 L86,5.8 L86,9.35 L100.85,9.35 L85.75,30.9 L85.75,34 Z M127.6,34 L145.95,34 L145.95,30.45 L131.75,30.45 L131.75,21.4 L144.1,21.4 L144.1,17.85 L131.75,17.85 L131.75,9.35 L145.95,9.35 L145.95,5.8 L127.6,5.8 L127.6,34 Z M168.05,34 L185.95,34 L185.95,30.45 L179.1,30.45 L179.1,9.35 L185.95,9.35 L185.95,5.8 L168.05,5.8 L168.05,9.35 L174.95,9.35 L174.95,30.45 L168.05,30.45 L168.05,34 Z M215.4,34 L219.55,34 L219.55,9.35 L229.15,9.35 L229.15,5.8 L205.9,5.8 L205.9,9.35 L215.4,9.35 L215.4,34 Z" id="ZEIT" fill="#333333"></path>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

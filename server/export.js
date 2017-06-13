@@ -25,6 +25,7 @@ export default async function (dir, options) {
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
   const buildStats = require(join(nextDir, 'build-stats.json'))
+  const staticStats = require(join(nextDir, 'static-stats.json'))
 
   // Initialize the output directory
   const outDir = options.outdir
@@ -44,6 +45,15 @@ export default async function (dir, options) {
     await cp(
       join(dir, 'static'),
       join(outDir, 'static')
+    )
+  }
+
+  // Copy hashed static files
+  await mkdirp(join(outDir, '_next', 'static'))
+  for (const filename of Object.keys(staticStats)) {
+    await cp(
+      join(dir, 'static', filename),
+      join(outDir, '_next', 'static', staticStats[filename])
     )
   }
 
