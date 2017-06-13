@@ -1,17 +1,19 @@
+import {
+  IS_BUNDLED_PAGE,
+  MATCH_ROUTE_NAME
+} from '../../utils'
+
 export default class PagesPlugin {
   apply (compiler) {
-    const isBundledPage = /^bundles[/\\]pages.*\.js$/
-    const matchRouteName = /^bundles[/\\]pages[/\\](.*)\.js$/
-
     compiler.plugin('after-compile', (compilation, callback) => {
       const pages = Object
         .keys(compilation.namedChunks)
         .map(key => compilation.namedChunks[key])
-        .filter(chunk => isBundledPage.test(chunk.name))
+        .filter(chunk => IS_BUNDLED_PAGE.test(chunk.name))
 
       pages.forEach((chunk) => {
         const page = compilation.assets[chunk.name]
-        const pageName = matchRouteName.exec(chunk.name)[1]
+        const pageName = MATCH_ROUTE_NAME.exec(chunk.name)[1]
         let routeName = `/${pageName.replace(/[/\\]?index$/, '')}`
 
         // We need to convert \ into / when we are in windows
