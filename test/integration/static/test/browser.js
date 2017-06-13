@@ -111,6 +111,30 @@ export default function (context) {
       browser.close()
     })
 
+    it('should render pages with url hash correctly', async () => {
+      const browser = await webdriver(context.port, '/')
+
+      // Check for the query string content
+      const text = await browser
+          .elementByCss('#with-hash').click()
+          .waitForElementByCss('#dynamic-page')
+          .elementByCss('#dynamic-page p').text()
+
+      expect(text).toBe('zeit is awesome')
+
+      // Check for the hash
+      while (true) {
+        const hashText = await browser
+          .elementByCss('#hash').text()
+
+        if (/cool/.test(hashText)) {
+          break
+        }
+      }
+
+      browser.close()
+    })
+
     describe('pages in the nested level: level1', () => {
       it('should render the home page', async () => {
         const browser = await webdriver(context.port, '/')
