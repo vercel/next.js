@@ -1,5 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import { renderToSheetList } from 'fela-dom'
+import { renderToSheetList } from 'fela-dom'
 import getRenderer from '../fela'
 
 export default class MyDocument extends Document {
