@@ -1,8 +1,8 @@
 import { Provider } from 'react-fela'
-import { getRenderer, getMountNode } from './fela'
+import getRenderer from './fela'
 
 export default ({ children }) => (
-  <Provider renderer={getRenderer()} mountNode={getMountNode()}>
+  <Provider renderer={getRenderer()}>
     {children}
   </Provider>
 )
