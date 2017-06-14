@@ -25,6 +25,11 @@ export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
 }
 
+export function renderToParts (req, res, pathname, query, opts) {
+  opts.returnParts = true
+  return doRender(req, res, pathname, query, opts)
+}
+
 export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
   sendHTML(req, res, html, req.method, opts)
@@ -45,7 +50,9 @@ async function doRender (req, res, pathname, query, {
   dir = process.cwd(),
   dev = false,
   staticMarkup = false,
-  nextExport = false
+  nextExport = false,
+  returnParts = false,
+  renderMethod = renderToString
 } = {}) {
   page = page || pathname
 
@@ -73,7 +80,7 @@ async function doRender (req, res, pathname, query, {
       router: new Router(pathname, query)
     })
 
-    const render = staticMarkup ? renderToStaticMarkup : renderToString
+    const render = staticMarkup ? renderToStaticMarkup : renderMethod
 
     let html
     let head
@@ -101,8 +108,7 @@ async function doRender (req, res, pathname, query, {
 
   if (res.finished) return
 
-  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
-  const doc = createElement(Document, {
+  const docFinalProps = {
     __NEXT_DATA__: {
       props,
       pathname,
@@ -117,7 +123,16 @@ async function doRender (req, res, pathname, query, {
     dir,
     staticMarkup,
     ...docProps
-  })
+  }
+
+  if (returnParts) {
+    const parts = renderPage()
+    parts.docProps = docFinalProps
+    return parts
+  }
+
+  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
+  const doc = createElement(Document, docFinalProps)
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }

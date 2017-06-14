@@ -6,6 +6,7 @@ import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
+  renderToParts,
   sendHTML,
   serveStatic,
   renderScript,
@@ -272,6 +273,16 @@ export default class Server {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
+      }
+    }
+  }
+
+  async renderToParts (req, res, pathname, query, opts) {
+    try {
+      return await renderToParts(req, res, pathname, query, Object.assign({}, this.renderOpts, opts))
+    } catch (err) {
+      return {
+        err
       }
     }
   }

@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.14.0",
+    "lodash": "^4.17.4",
+    "md5": "^2.2.1",
+    "next": "latest",
+    "rapscallion": "^2.1.7",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  }
+}

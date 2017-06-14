@@ -35,7 +35,7 @@ export class Head extends Component {
   }
 
   getChunkPreloadLink (filename) {
-    const { __NEXT_DATA__ } = this.context._documentProps
+    const { __NEXT_DATA__ } = this.context._documentProps || this.props._documentProps
     let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : buildId
 
@@ -50,7 +50,7 @@ export class Head extends Component {
   }
 
   getPreloadMainLinks () {
-    const { dev } = this.context._documentProps
+    const { dev } = this.context._documentProps || this.props._documentProps
     if (dev) {
       return [
         this.getChunkPreloadLink('manifest.js'),
@@ -66,7 +66,7 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    const { chunks, __NEXT_DATA__ } = this.context._documentProps || this.props._documentProps
     let { assetPrefix } = __NEXT_DATA__
     return chunks.map((chunk) => (
       <link
@@ -79,7 +79,7 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, __NEXT_DATA__ } = this.context._documentProps
+    const { head, styles, __NEXT_DATA__ } = this.context._documentProps || this.props._documentProps
     const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
@@ -117,7 +117,7 @@ export class NextScript extends Component {
   }
 
   getChunkScript (filename, additionalProps = {}) {
-    const { __NEXT_DATA__ } = this.context._documentProps
+    const { __NEXT_DATA__ } = this.context._documentProps || this.props._documentProps
     let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : buildId
 
@@ -132,7 +132,7 @@ export class NextScript extends Component {
   }
 
   getScripts () {
-    const { dev } = this.context._documentProps
+    const { dev } = this.context._documentProps || this.props._documentProps
     if (dev) {
       return [
         this.getChunkScript('manifest.js'),
@@ -147,7 +147,7 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    const { chunks, __NEXT_DATA__ } = this.context._documentProps || this.props._documentProps
     let { assetPrefix } = __NEXT_DATA__
     return (
       <div>
@@ -164,7 +164,7 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
+    const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps || this.props._documentProps
     const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
