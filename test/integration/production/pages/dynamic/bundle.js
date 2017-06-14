@@ -1,10 +1,12 @@
 import React from 'react'
 import dynamic from 'next/dynamic'
 import Router from 'next/router'
+import PropTypes from 'prop-types'
 
 const HelloBundle = dynamic({
   modules: (props) => {
     const components = {
+      HelloContext: import('../../components/hello-context'),
       Hello1: import('../../components/hello1')
     }
 
@@ -14,9 +16,10 @@ const HelloBundle = dynamic({
 
     return components
   },
-  render: (props, { Hello1, Hello2 }) => (
+  render: (props, { HelloContext, Hello1, Hello2 }) => (
     <div>
       <h1>{props.title}</h1>
+      <HelloContext />
       <Hello1 />
       {Hello2? <Hello2 /> : null}
     </div>
@@ -26,6 +29,16 @@ const HelloBundle = dynamic({
 export default class Bundle extends React.Component {
   static getInitialProps ({ query }) {
     return { showMore: Boolean(query.showMore) }
+  }
+
+  static childContextTypes = {
+    data: PropTypes.object 
+  }
+
+  getChildContext () {
+    return {
+      data: { title: 'ZEIT Rocks' }
+    }
   }
 
   toggleShowMore () {

@@ -73,42 +73,59 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should render dynamic imports bundle', async () => {
-        const browser = await webdriver(context.appPort, '/dynamic/bundle')
+      describe('with bundle', () => {
+        it('should render components', async () => {
+          const browser = await webdriver(context.appPort, '/dynamic/bundle')
 
-        while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
-          if (
-            /Dynamic Bundle/.test(bodyText) &&
-            /Hello World 1/.test(bodyText) &&
-            !(/Hello World 2/.test(bodyText))
-          ) break
-          await waitFor(1000)
-        }
+          while (true) {
+            const bodyText = await browser
+              .elementByCss('body').text()
+            if (
+              /Dynamic Bundle/.test(bodyText) &&
+              /Hello World 1/.test(bodyText) &&
+              !(/Hello World 2/.test(bodyText))
+            ) break
+            await waitFor(1000)
+          }
 
-        browser.close()
-      })
+          browser.close()
+        })
 
-      it('should render dynamic imports bundle and reactive to prop changes', async () => {
-        const browser = await webdriver(context.appPort, '/dynamic/bundle')
+        it('should render support React context', async () => {
+          const browser = await webdriver(context.appPort, '/dynamic/bundle')
 
-        await browser
-          .waitForElementByCss('#toggle-show-more')
-          .elementByCss('#toggle-show-more').click()
+          while (true) {
+            const bodyText = await browser
+              .elementByCss('body').text()
+            if (
+              /ZEIT Rocks/.test(bodyText)
+            ) break
+            await waitFor(1000)
+          }
 
-        while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
-          if (
-            /Dynamic Bundle/.test(bodyText) &&
-            /Hello World 1/.test(bodyText) &&
-            /Hello World 2/.test(bodyText)
-          ) break
-          await waitFor(1000)
-        }
+          browser.close()
+        })
 
-        browser.close()
+        it('should load new components and render for prop changes', async () => {
+          const browser = await webdriver(context.appPort, '/dynamic/bundle')
+
+          await browser
+            .waitForElementByCss('#toggle-show-more')
+            .elementByCss('#toggle-show-more').click()
+
+          while (true) {
+            const bodyText = await browser
+              .elementByCss('body').text()
+            if (
+              /Dynamic Bundle/.test(bodyText) &&
+              /Hello World 1/.test(bodyText) &&
+              /Hello World 2/.test(bodyText)
+            ) break
+            await waitFor(1000)
+          }
+
+          browser.close()
+        })
       })
     })
   })
