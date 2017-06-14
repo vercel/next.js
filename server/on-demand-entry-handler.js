@@ -4,6 +4,7 @@ import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
+import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -12,13 +13,17 @@ const BUILT = Symbol('built')
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
+  reload,
   maxInactiveAge = 1000 * 25
 }) {
-  const entries = {}
-  const lastAccessPages = ['']
-  const doneCallbacks = new EventEmitter()
+  let entries = {}
+  let lastAccessPages = ['']
+  let doneCallbacks = new EventEmitter()
   const invalidator = new Invalidator(devMiddleware)
   let touchedAPage = false
+  let reloading = false
+  let stopped = false
+  let reloadCallbacks = new EventEmitter()
 
   compiler.plugin('make', function (compilation, done) {
     invalidator.startBuilding()
@@ -35,6 +40,27 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   })
 
   compiler.plugin('done', function (stats) {
+    const { compilation } = stats
+    const hardFailedPages = compilation.errors
+      .filter(e => {
+        // Make sure to only pick errors which marked with missing modules
+        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+        if (!hasNoModuleFoundError) return false
+
+        // The page itself is missing. So this is a failed page.
+        if (IS_BUNDLED_PAGE.test(e.module.name)) return true
+
+        // No dependencies means this is a top level page.
+        // So this is a failed page.
+        return e.module.dependencies.length === 0
+      })
+      .map(e => e.module.chunks)
+      .reduce((a, b) => [...a, ...b], [])
+      .map(c => {
+        const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
+        return normalizePage(`/${pageName}`)
+      })
+
     // Call all the doneCallbacks
     Object.keys(entries).forEach((page) => {
       const entryInfo = entries[page]
@@ -57,14 +83,48 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     })
 
     invalidator.doneBuilding()
+
+    if (hardFailedPages.length > 0 && !reloading) {
+      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
+      reloading = true
+      reload()
+        .then(() => {
+          console.log('> Webpack reloaded.')
+          reloadCallbacks.emit('done')
+          stop()
+        })
+        .catch(err => {
+          console.error(`> Webpack reloading failed: ${err.message}`)
+          console.error(err.stack)
+          process.exit(1)
+        })
+    }
   })
 
-  setInterval(function () {
+  const disposeHandler = setInterval(function () {
+    if (stopped) return
     disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
   }, 5000)
 
+  function stop () {
+    clearInterval(disposeHandler)
+    stopped = true
+    doneCallbacks = null
+    reloadCallbacks = null
+  }
+
   return {
+    waitUntilReloaded () {
+      if (!reloading) return Promise.resolve(true)
+      return new Promise((resolve) => {
+        reloadCallbacks.once('done', function () {
+          resolve()
+        })
+      })
+    },
+
     async ensurePage (page) {
+      await this.waitUntilReloaded()
       page = normalizePage(page)
 
       const pagePath = join(dir, 'pages', page)
@@ -103,31 +163,49 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     },
 
     middleware () {
-      return function (req, res, next) {
-        if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
+      return (req, res, next) => {
+        if (stopped) {
+          // If this handler is stopped, we need to reload the user's browser.
+          // So the user could connect to the actually running handler.
+          res.statusCode = 302
+          res.setHeader('Location', req.url)
+          res.end('302')
+        } else if (reloading) {
+          // Webpack config is reloading. So, we need to wait until it's done and
+          // reload user's browser.
+          // So the user could connect to the new handler and webpack setup.
+          this.waitUntilReloaded()
+            .then(() => {
+              res.statusCode = 302
+              res.setHeader('Location', req.url)
+              res.end('302')
+            })
+        } else {
+          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
-        const { query } = parse(req.url, true)
-        const page = normalizePage(query.page)
-        const entryInfo = entries[page]
+          const { query } = parse(req.url, true)
+          const page = normalizePage(query.page)
+          const entryInfo = entries[page]
 
-        // If there's no entry.
-        // Then it seems like an weird issue.
-        if (!entryInfo) {
-          const message = `Client pings, but there's no entry for page: ${page}`
-          console.error(message)
-          sendJson(res, { invalid: true })
-          return
+          // If there's no entry.
+          // Then it seems like an weird issue.
+          if (!entryInfo) {
+            const message = `Client pings, but there's no entry for page: ${page}`
+            console.error(message)
+            sendJson(res, { invalid: true })
+            return
+          }
+
+          sendJson(res, { success: true })
+
+          // We don't need to maintain active state of anything other than BUILT entries
+          if (entryInfo.status !== BUILT) return
+
+          // If there's an entryInfo
+          lastAccessPages.pop()
+          lastAccessPages.unshift(page)
+          entryInfo.lastActiveTime = Date.now()
         }
-
-        sendJson(res, { success: true })
-
-        // We don't need to maintain active state of anything other than BUILT entries
-        if (entryInfo.status !== BUILT) return
-
-        // If there's an entryInfo
-        lastAccessPages.pop()
-        lastAccessPages.unshift(page)
-        entryInfo.lastActiveTime = Date.now()
       }
     }
   }
