@@ -36,8 +36,8 @@ export class Head extends Component {
 
   getChunkPreloadLink (filename) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix } = __NEXT_DATA__
-    const hash = buildStats ? buildStats[filename].hash : '-'
+    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : buildId
 
     return (
       <link
@@ -83,7 +83,7 @@ export class Head extends Component {
     const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
-    return <head>
+    return <head {...this.props}>
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
       {this.getPreloadDynamicChunks()}
@@ -118,8 +118,8 @@ export class NextScript extends Component {
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix } = __NEXT_DATA__
-    const hash = buildStats ? buildStats[filename].hash : '-'
+    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
+    const hash = buildStats ? buildStats[filename].hash : buildId
 
     return (
       <script

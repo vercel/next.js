@@ -33,7 +33,7 @@ export default function ({ app }, suiteName, render) {
       const styleId = $('#blue-box').attr('data-jsx')
       const style = $(`#__jsx-style-${styleId}`)
 
-      expect(style.text()).toMatch(/color: blue/)
+      expect(style.text()).toMatch(/color:blue/)
     })
 
     test('renders properties populated asynchronously', async () => {
@@ -78,21 +78,6 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/non-existent')
       expect($('h1').text()).toBe('404')
       expect($('h2').text()).toBe('This page could not be found.')
-    })
-
-    test('render dynmaic import components via SSR', async () => {
-      const $ = await get$('/dynamic/ssr')
-      expect($('p').text()).toBe('Hello World 1')
-    })
-
-    test('stop render dynmaic import components in SSR', async () => {
-      const $ = await get$('/dynamic/no-ssr')
-      expect($('p').text()).toBe('loading...')
-    })
-
-    test('stop render dynmaic import components in SSR with custom loading', async () => {
-      const $ = await get$('/dynamic/no-ssr-custom-loading')
-      expect($('p').text()).toBe('LOADING')
     })
   })
 }
