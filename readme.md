@@ -528,6 +528,19 @@ export default ({ url }) => (
 
 ### Custom server and routing
 
+While next comes bundled with a built in server, which is started with with `next start`, it is also possible, to run next within another server container e.g. Koa, Express etc, in order to customise middleware and routes and/or aggregate it alongside non-HTML based endpoints such as a GraphQL server. When doing so it is advisable to place next in its own sub-directory and set its working directory through the next config parameter, see nextConfig below. When runnning next inside a container we are not going to be using the next start script anymore (as this starts the bundled next server). We will instead be starting next progrmmatically by initializing it and calling the prepare().then(... function, which should create a .next directory within the next subdirectory. We will need to build next though. Finally as babel seaches up the directory tree, i.e. from the next sub-directory up to the surrounding container directory for a .babelrc file to use, it is important to place a minimal .babelrc file in the next sub-directory to stop next inadvertantly using the containers .bablerc file which could crash the next build pipeline. In this regard you can either, set the presets to be aligned with those needed for next internal builds:
+
+"presets": [
+    "next/babel",
+    "stage-0"
+]
+
+or have a simple dummy / seach stopper .babelrc file, containing:
+
+"bablerc": false
+
+The followin examples of embedding next in various servers can be found in the repo.
+
 <p><details>
   <summary><b>Examples</b></summary>
   <ul>
@@ -540,9 +553,7 @@ export default ({ url }) => (
   </ul>
 </details></p>
 
-Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
-
-This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
+What follows is a simple, example that makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
 const { createServer } = require('http')
@@ -550,7 +561,8 @@ const { parse } = require('url')
 const next = require('next')
 
 const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
+const nextConfig = { dev: dev, dir: './<next subdir>'}
+const app = next(nextConfig)
 const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
