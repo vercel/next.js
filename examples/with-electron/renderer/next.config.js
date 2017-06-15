@@ -14,7 +14,7 @@ module.exports = {
       '/': { page: '/' }
     }
   },
-  // set the prefix as `./` instead of `/`, this is because when you export your pages
-  // Next.js will try to import the JS files as `/` instead of the full path
+  // set the prefix as `next:///` instead of `/`, this is because when you export your pages
+  // Next.js will try to import the JS files as `/` instead of the internal Electron path we defined
   assetPrefix: isProd ? 'next:///' : '/'
 }
