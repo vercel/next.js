@@ -122,7 +122,7 @@
     "node-fetch": "1.7.1",
     "node-notifier": "5.1.2",
     "nyc": "11.0.1",
-    "react": "15.5.4",
+    "react": "15.6.1",
     "react-dom": "15.5.4",
     "standard": "9.0.2",
     "wd": "1.2.0"
