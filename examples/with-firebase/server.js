@@ -10,7 +10,7 @@ const app = next({ dev })
 const handle = app.getRequestHandler()
 
 const firebase = admin.initializeApp({
-  credential: admin.credential.cert(require('./firebaseCredentials').serverCredentials),
+  credential: admin.credential.cert(require('./credentials/server')),
   databaseURL: '' // TODO database URL goes here
 }, 'server')
 
