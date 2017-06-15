@@ -25,5 +25,5 @@ now
 
 ## The idea behind the example
 
-This example features how you use [material-ui](https://github.com/callemall/material-ui) (Material components that implement Google's Material Design) with Next.js.
+[material-ui](https://github.com/callemall/material-ui) is being rewritten from scratch on the [next branch](https://material-ui-1dab0.firebaseapp.com/). This example shows how you use it with Next.js.
 
