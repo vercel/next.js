@@ -657,23 +657,33 @@ export default () => (
 )
 ```
 
-#### 4. With [async-reactor](https://github.com/xtuc/async-reactor)
-
-> SSR support is not available here
+#### 4. With Multiple Modules At Once
 
 ```js
-import { asyncReactor } from 'async-reactor'
-const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
-  const Hello4 = await import('../components/hello4')
-  return (<Hello4 />)
+import dynamic from 'next/dynamic'
+
+const HelloBundle = dynamic({
+  modules: (props) => {
+    const components {
+      Hello1: import('../components/hello1'),
+      Hello2: import('../components/hello2')
+    }
+
+    // Add remove components based on props
+
+    return components
+  },
+  render: (props, { Hello1, Hello2 }) => (
+    <div>
+      <h1>{props.title}</h1>
+      <Hello1 />
+      <Hello2 />
+    </div>
+  )
 })
 
 export default () => (
-  <div>
-    <Header />
-    <DynamicComponentWithAsyncReactor />
-    <p>HOME PAGE is here!</p>
-  </div>
+  <HelloBundle title="Dynamic Bundle"/>
 )
 ```
 
