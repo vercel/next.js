@@ -8,7 +8,7 @@
     "bundle:view": "webpack-bundle-analyzer .next/stats.json"
   },
   "dependencies": {
-    "next": "beta",
+    "next": "latest",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
     "webpack-bundle-analyzer": "^2.3.0"
