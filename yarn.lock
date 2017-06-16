@@ -4330,11 +4330,11 @@ public-encrypt@^4.0.0:
     parse-asn1 "^5.0.0"
     randombytes "^2.0.1"
 
-punycode@1.3.2:
+punycode@1.3.2, punycode@^1.2.4:
   version "1.3.2"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-1.3.2.tgz#9653a036fb7c1ee42342f2325cceefea3926c48d"
 
-punycode@^1.2.4, punycode@^1.4.1:
+punycode@^1.4.1:
   version "1.4.1"
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-1.4.1.tgz#c0d5a63b2718800ad8e1eb0fa5269c84dd41845e"
 
