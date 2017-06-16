@@ -65,7 +65,7 @@ if (process.platform === 'darwin') {
     {
       label: 'Speech',
       submenu: [{ role: 'startspeaking' }, { role: 'stopspeaking' }]
-    },
+    }
   )
 
   // Window menu
