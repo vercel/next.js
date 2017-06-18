@@ -39,8 +39,8 @@ export default async function (fly) {
   await fly.watch('bin/*', 'bin')
   await fly.watch('pages/**/*.js', 'copy')
   await fly.watch('server/**/*.js', 'server')
-  await fly.watch('client/**/*.js', ['client'])
-  await fly.watch('lib/**/*.js', ['lib'])
+  await fly.watch('client/**/*.js', 'client')
+  await fly.watch('lib/**/*.js', 'lib')
 }
 
 export async function release (fly) {
