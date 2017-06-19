@@ -27,7 +27,7 @@ const muiTheme = {
   }
 }
 
-class Main extends Component {
+class Index extends Component {
   static getInitialProps ({ req }) {
     // Ensures material-ui renders the correct css prefixes server-side
     let userAgent
@@ -86,7 +86,7 @@ class Main extends Component {
           <h2>example project</h2>
           <RaisedButton
             label='Super Secret Password'
-            secondary={Boolean(true)}
+            secondary
             onTouchTap={this.handleTouchTap}
           />
         </div>
@@ -95,4 +95,4 @@ class Main extends Component {
   }
 }
 
-export default Main
+export default Index
