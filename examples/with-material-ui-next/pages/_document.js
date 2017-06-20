@@ -9,11 +9,7 @@ export default class MyDocument extends Document {
     const styleContext = getDefaultContext()
     return {
       ...page,
-      styles: (
-        <style id='jss-server-side' type='text/css'>
-          {styleContext.styleManager.sheetsToString()}
-        </style>
-      )
+      styles: <style id='jss-server-side' dangerouslySetInnerHTML={{ __html: styleContext.styleManager.sheetsToString() }} />
     }
   }
 

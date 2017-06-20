@@ -10,7 +10,7 @@ if (typeof window !== 'undefined') {
 }
 
 export default () => {
-  css.global('html, body', { padding: '3rem 1rem', margin: 0, background: 'papayawhip', 'min-height': '100%', 'font-family': 'Helvetica, Arial, sans-serif', 'font-size': '24px' })
+  css.global('html, body', { padding: '3rem 1rem', margin: 0, background: 'papayawhip', minHeight: '100%', fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '24px' })
 
   const basicStyles = {
     backgroundColor: 'white',
