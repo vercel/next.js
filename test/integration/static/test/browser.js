@@ -135,6 +135,18 @@ export default function (context) {
       browser.close()
     })
 
+    it('should navigate even if used a button inside <Link />', async () => {
+      const browser = await webdriver(context.port, '/button-link')
+
+      const text = await browser
+          .elementByCss('button').click()
+          .waitForElementByCss('#home-page')
+          .elementByCss('#home-page p').text()
+
+      expect(text).toBe('This is the home page')
+      browser.close()
+    })
+
     describe('pages in the nested level: level1', () => {
       it('should render the home page', async () => {
         const browser = await webdriver(context.port, '/')
