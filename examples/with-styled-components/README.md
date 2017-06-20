@@ -30,4 +30,4 @@ This example features how you use a different styling solution than [styled-jsx]
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-# WARNING This example uses styled-components v2 which is currently in BETA
+# This example uses styled-components v2 which is support universal styles.
