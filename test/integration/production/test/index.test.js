@@ -6,9 +6,11 @@ import {
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
+  waitFor
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -35,6 +37,15 @@ describe('Production Usage', () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
+
+    it('should allow etag header support', async () => {
+      const url = `http://localhost:${appPort}/`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
   })
 
   describe('With navigation', () => {
@@ -46,6 +57,23 @@ describe('Production Usage', () => {
           .elementByCss('div').text()
 
       expect(text).toBe('About Page')
+      browser.close()
+    })
+  })
+
+  describe('With XSS Attacks', () => {
+    it('should prevent URI based attaks', async () => {
+      const browser = await webdriver(appPort, '/\',document.body.innerHTML="HACKED",\'')
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
       browser.close()
     })
   })

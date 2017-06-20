@@ -6,7 +6,7 @@
   },
   "dependencies": {
     "express": "^4.15.2",
-    "next": "^2.0.0",
+    "next": "latest",
     "next-url-prettifier": "^1.0.2",
     "prop-types": "^15.5.6",
     "react": "^15.4.2",

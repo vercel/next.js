@@ -1,6 +1,13 @@
 import React from 'react'
 import { StyleSheet, css } from 'aphrodite'
 
+if (typeof window !== 'undefined') {
+  /* StyleSheet.rehydrate takes an array of rendered classnames,
+  and ensures that the client side render doesn't generate
+  duplicate style definitions in the <style data-aphrodite> tag */
+  StyleSheet.rehydrate(window.__NEXT_DATA__.ids)
+}
+
 export default () => (
   <div className={css(styles.root)}>
     <h1 className={css(styles.title)}>My page</h1>

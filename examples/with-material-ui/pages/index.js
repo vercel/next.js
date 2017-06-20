@@ -7,14 +7,11 @@ import getMuiTheme from 'material-ui/styles/getMuiTheme'
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
 import injectTapEventPlugin from 'react-tap-event-plugin'
 
-// Needed for onTouchTap
-// http://stackoverflow.com/a/34015469/988941
-try {
-  if (typeof window !== 'undefined') {
-    injectTapEventPlugin()
-  }
-} catch (e) {
-  // do nothing
+// Make sure react-tap-event-plugin only gets injected once
+// Needed for material-ui
+if (!process.tapEventInjected) {
+  injectTapEventPlugin()
+  process.tapEventInjected = true
 }
 
 const styles = {
@@ -24,17 +21,23 @@ const styles = {
   }
 }
 
-const _muiTheme = getMuiTheme({
+const muiTheme = {
   palette: {
     accent1Color: deepOrange500
   }
-})
+}
 
 class Main extends Component {
   static getInitialProps ({ req }) {
-    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
-    const isServer = !!req
-    return {isServer, userAgent}
+    // Ensures material-ui renders the correct css prefixes server-side
+    let userAgent
+    if (process.browser) {
+      userAgent = navigator.userAgent
+    } else {
+      userAgent = req.headers['user-agent']
+    }
+
+    return { userAgent }
   }
 
   constructor (props, context) {
@@ -58,6 +61,8 @@ class Main extends Component {
   }
 
   render () {
+    const { userAgent } = this.props
+
     const standardActions = (
       <FlatButton
         label='Ok'
@@ -66,12 +71,8 @@ class Main extends Component {
       />
     )
 
-    const { userAgent } = this.props
-    /* https://github.com/callemall/material-ui/issues/3336 */
-    const muiTheme = getMuiTheme(getMuiTheme({userAgent: userAgent}), _muiTheme)
-
     return (
-      <MuiThemeProvider muiTheme={muiTheme}>
+      <MuiThemeProvider muiTheme={getMuiTheme({userAgent, ...muiTheme})}>
         <div style={styles.container}>
           <Dialog
             open={this.state.open}

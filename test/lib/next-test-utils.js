@@ -11,7 +11,8 @@ export const nextBuild = build
 export const pkg = _pkg
 
 export function renderViaAPI (app, pathname, query = {}) {
-  return app.renderToHTML({}, {}, pathname, query)
+  const url = `${pathname}?${qs.stringify(query)}`
+  return app.renderToHTML({ url }, {}, pathname, query)
 }
 
 export function renderViaHTTP (appPort, pathname, query = {}) {

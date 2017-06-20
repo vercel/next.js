@@ -1,17 +1,43 @@
 import { createStore, applyMiddleware } from 'redux'
 import thunkMiddleware from 'redux-thunk'
 
-export const reducer = (state = { lastUpdate: 0, light: false }, action) => {
+const exampleInitialState = {
+  lastUpdate: 0,
+  light: false,
+  count: 0
+}
+
+export const actionTypes = {
+  ADD: 'ADD',
+  TICK: 'TICK'
+}
+
+// REDUCERS
+export const reducer = (state = exampleInitialState, action) => {
   switch (action.type) {
-    case 'TICK': return { lastUpdate: action.ts, light: !!action.light }
+    case actionTypes.TICK:
+      return Object.assign({}, state, { lastUpdate: action.ts, light: !!action.light })
+    case actionTypes.ADD:
+      return Object.assign({}, state, {
+        count: state.count + 1
+      })
     default: return state
   }
+}
+
+// ACTIONS
+export const serverRenderClock = (isServer) => dispatch => {
+  return dispatch({ type: actionTypes.TICK, light: !isServer, ts: Date.now() })
 }
 
 export const startClock = () => dispatch => {
   return setInterval(() => dispatch({ type: 'TICK', light: true, ts: Date.now() }), 800)
 }
 
-export const initStore = (initialState) => {
+export const addCount = () => dispatch => {
+  return dispatch({ type: actionTypes.ADD })
+}
+
+export const initStore = (initialState = exampleInitialState) => {
   return createStore(reducer, initialState, applyMiddleware(thunkMiddleware))
 }
