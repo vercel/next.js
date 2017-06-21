@@ -1,0 +1,16 @@
+{
+  "name": "with-higher-order-component",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
