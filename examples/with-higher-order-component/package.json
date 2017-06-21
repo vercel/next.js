@@ -1,0 +1,17 @@
+{
+  "name": "with-higher-order-component",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.15.3",
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
