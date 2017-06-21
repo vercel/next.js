@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/v3-beta?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/v3-beta)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
-[![Slack Channel](https://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
+[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 
 Next.js is a minimalistic framework for server-rendered React applications.
 

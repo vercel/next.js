@@ -102,7 +102,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           return module.context && module.context.indexOf('node_modules') >= 0
         }
 
-        // Move modules used in at-least 1/2 of the total pages into commons.
+        // If there are one or two pages, only move modules to common if they are
+        // used in all of the pages. Otherwise, move modules used in at-least
+        // 1/2 of the total pages into commons.
+        if (totalPages <= 2) {
+          return count === totalPages
+        }
         return count >= totalPages * 0.5
       }
     }),
