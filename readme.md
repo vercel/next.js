@@ -664,7 +664,7 @@ import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
   modules: (props) => {
-    const components {
+    const components = {
       Hello1: import('../components/hello1'),
       Hello2: import('../components/hello2')
     }
