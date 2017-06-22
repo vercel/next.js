@@ -33,12 +33,7 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
-    try {
-      this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
-    } catch (e) {
-      console.error('No build-stats.json found. Did you forget to run `next build`?')
-      process.exit(1)
-    }
+    this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
