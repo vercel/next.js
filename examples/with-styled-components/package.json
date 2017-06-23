@@ -13,6 +13,5 @@
     "react-dom": "^15.4.2",
     "styled-components": "^2.0.0-17"
   },
-  "author": "",
   "license": "ISC"
 }

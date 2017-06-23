@@ -12,6 +12,5 @@
     "react-dom": "^15.4.2",
     "semantic-ui-react": "^0.68.0"
   },
-  "author": "",
   "license": "ISC"
 }
