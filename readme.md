@@ -465,6 +465,37 @@ Router.onAppUpdated = (nextUrl) => {
 }
 ```
 
+##### `withRoute` Higher-Order Component
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/using-router">Basic routing</a></li>
+  </ul>
+</details></p>
+
+If you want to access the current `route` object, you can use the `withRoute` Higher-Order Component:
+
+```jsx
+import { withRoute } from 'next/router'
+
+const ActiveLink = ({ route, ...props }) => {
+  const active = route.pathname === props.href
+  return (
+    <a {...props} className={active  ? 'active' : ''}>Secrets!</a>
+  )
+}
+
+export default withRoute(ActiveLink)
+```
+
+The above route object comes with the following API:
+
+- `pathname` - path section of URL
+- `query` - query string section of URL parsed as an object
+- `asPath` - the actual url path
+
+
 ##### Shallow Routing
 
 <p><details>
