@@ -1,4 +1,6 @@
 {
+  "name": "with-typescript",
+  "version": "1.0.0",
   "scripts": {
     "dev": "concurrently \"tsc --watch\" next"
   },
