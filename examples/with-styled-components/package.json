@@ -7,11 +7,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "babel-plugin-styled-components": "^1.1.4",
+    "babel-plugin-styled-components": "^1.1.5",
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2",
-    "styled-components": "^2.0.0-17"
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "styled-components": "^2.1.0"
   },
   "license": "ISC"
 }
