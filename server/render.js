@@ -17,7 +17,7 @@ import { flushChunks } from '../lib/dynamic'
 import xssFilters from 'xss-filters'
 
 export async function render (req, res, pathname, query, opts) {
-  const html = await renderToHTML(req, res, pathname, opts)
+  const html = await renderToHTML(req, res, pathname, query, opts)
   sendHTML(req, res, html, req.method, opts)
 }
 
