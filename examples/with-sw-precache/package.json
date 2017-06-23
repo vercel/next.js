@@ -1,4 +1,6 @@
 {
+  "name": "with-sw-precache",
+  "version": "1.0.0",
   "scripts": {
     "build": "next build",
     "start": "NODE_ENV=production node server.js"
