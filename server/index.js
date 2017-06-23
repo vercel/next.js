@@ -61,12 +61,13 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    res.statusCode = 200
     return this.run(req, res, parsedUrl)
-    .catch((err) => {
-      if (!this.quiet) console.error(err)
-      res.statusCode = 500
-      res.end(STATUS_CODES[500])
-    })
+      .catch((err) => {
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        res.end(STATUS_CODES[500])
+      })
   }
 
   getRequestHandler () {
