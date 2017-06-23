@@ -1,8 +1,6 @@
 {
-  "name": "shared-modules",
+  "name": "using-router",
   "version": "1.0.0",
-  "description": "This example features:",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -13,6 +11,5 @@
     "react": "^15.4.2",
     "react-dom": "^15.4.2"
   },
-  "author": "",
   "license": "ISC"
 }

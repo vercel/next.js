@@ -1,5 +1,5 @@
 {
-  "name": "shared-modules",
+  "name": "with-higher-order-component",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
