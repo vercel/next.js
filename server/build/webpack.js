@@ -5,6 +5,7 @@ import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
+import UglifyJsPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
@@ -123,7 +124,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }),
     new PagesPlugin(),
     new DynamicChunksPlugin(),
-    new CaseSensitivePathPlugin()
+    new CaseSensitivePathPlugin(),
+    new webpack.optimize.ModuleConcatenationPlugin()
   ]
 
   if (dev) {
@@ -141,7 +143,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
-      new webpack.optimize.UglifyJsPlugin({
+      new UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
       })
