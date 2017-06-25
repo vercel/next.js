@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "material-ui": "^0.17.4",
+    "material-ui": "^0.18.0",
     "next": "latest",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",

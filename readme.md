@@ -1,17 +1,21 @@
 <img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
+[![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Slack Channel](https://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 
 Next.js is a minimalistic framework for server-rendered React applications.
+
+**Visit https://learnnextjs.com to get started with Next.js.**
+
+---
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 <!-- https://github.com/thlorenz/doctoc -->
 
 - [How to use](#how-to-use)
-  - [Getting Started](#getting-started)
   - [Setup](#setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
@@ -36,6 +40,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing babel config](#customizing-babel-config)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+- [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
 - [Authors](#authors)
@@ -43,10 +48,6 @@ Next.js is a minimalistic framework for server-rendered React applications.
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## How to use
-
-### Getting Started
-
-A step by step interactive guide of next features is available at [learnnextjs.com](https://learnnextjs.com/)
 
 ### Setup
 
@@ -129,9 +130,16 @@ export default () => (
         }
       }
     `}</style>
+    <style global jsx>{`
+      body {
+        background: black;
+      }
+    `}</style>
   </div>
 )
 ```
+
+Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
 
 #### CSS-in-JS
 
@@ -139,7 +147,7 @@ export default () => (
   <summary>
     <b>Examples</b>
     </summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
+  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-glamorous">Glamorous</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
 </details></p>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
@@ -238,6 +246,7 @@ export default Page
 
 - `pathname` - path section of URL
 - `query` - query string section of URL parsed as an object
+- `asPath` - the actual url path
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
 - `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
@@ -283,6 +292,7 @@ Each top-level component receives a `url` property with the following API:
 
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
+- `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
 
@@ -454,7 +464,7 @@ componentWillReceiveProps(nextProps) {
 > ```js
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
 > ```
-> Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even we asked to do shallow routing.
+> Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
 ### Prefetching Pages
 
@@ -566,6 +576,7 @@ Supported options:
 - `dev` (`bool`) whether to launch Next.js in dev mode - default `false`
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
+- `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
@@ -611,6 +622,8 @@ export default class MyDocument extends Document {
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
+
+__Note: React-components outside of `<Main />` will not be initialised by the browser. If you need shared components in all your pages (like a menu or a toolbar), do _not_ add application logic  here, but take a look at [this example](https://github.com/zeit/next.js/tree/master/examples/layout-component).__
 
 ### Custom error handling
 
@@ -662,6 +675,11 @@ module.exports = {
 
 ### Customizing webpack config
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li></ul>
+</details></p>
+
 In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
 
 ```js
@@ -671,9 +689,15 @@ In order to extend our usage of `webpack`, you can define a function that extend
 
 module.exports = {
   webpack: (config, { dev }) => {
-    // Perform customizations to config
-    
-    // Important: return the modified config
+    // Perform customizations to webpack config
+
+    // Important: return the modified config
+    return config
+  },
+  webpackDevMiddleware: (config) => {
+    // Perform customizations to webpack dev middleware config
+
+    // Important: return the modified config
     return config
   }
 }
@@ -710,7 +734,7 @@ Here's an example `.babelrc` file:
 To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
 
 ```js
-const isProd = process.NODE_ENV === 'production'
+const isProd = process.env.NODE_ENV === 'production'
 module.exports = {
   // You may only need to add assetPrefix in the production.
   assetPrefix: isProd ? 'https://cdn.mydomain.com' : ''
@@ -748,7 +772,11 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
-Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+Note: we recommend putting `.next`, or your custom dist folder (you can set a custom folder in ['Custom Config'](https://github.com/zeit/next.js#custom-configuration)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+
+## Recipes
+
+- [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 
 ## FAQ
 
