@@ -1,6 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
+import Head from 'next/head'
 import initApollo from './initApollo'
 
 export default ComposedComponent => {
@@ -33,6 +34,9 @@ export default ComposedComponent => {
           </ApolloProvider>
         )
         await getDataFromTree(app)
+        // getDataFromTree does not call componentWillUnmount
+        // head side effect therefore need to be cleared manually
+        Head.rewind()
 
         // Extract query data from the Apollo's store
         const state = apollo.getInitialState()
