@@ -33,7 +33,7 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
-    if (!fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
+    if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
     }
