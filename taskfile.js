@@ -7,7 +7,7 @@ export async function compile (task) {
 }
 
 export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').babel().target('dist/bin', {mode: parseInt('0755', 8)})
+  await task.source(opts.src || 'bin/*').babel().target('dist/bin', {mode: '0755'})
   notify('Compiled binaries')
 }
 
@@ -54,8 +54,7 @@ export async function release (task) {
 
 export async function pretest (task) {
   const processName = isWindows ? 'chromedriver.cmd' : 'chromedriver'
-  // eslint-disable-next-line
-  const chromedriver = childProcess.spawn(processName, { stdio: 'inherit' })
+  childProcess.spawn(processName, { stdio: 'inherit' })
   // We need to do this, otherwise this task's process will keep waiting.
   setTimeout(() => process.exit(0), 2000)
 }
