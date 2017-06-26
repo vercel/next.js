@@ -1,12 +1,9 @@
 {
-  "name": "next.js-example-with-refnux",
+  "name": "with-refnux",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "next": "next"
   },
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "next": "latest",

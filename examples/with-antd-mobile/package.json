@@ -1,4 +1,6 @@
 {
+  "name": "with-antd-mobile",
+  "version": "1.0.0",
   "dependencies": {
     "antd-mobile": "^1.1.2",
     "babel-plugin-import": "^1.1.1",
