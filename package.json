@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "3.0.1-beta.1",
+  "version": "3.0.1-beta.2",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -87,7 +87,7 @@
     "send": "^0.15.3",
     "source-map-support": "0.4.15",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "1.0.5",
+    "styled-jsx": "1.0.6",
     "touch": "1.0.0",
     "uglifyjs-webpack-plugin": "0.4.6",
     "unfetch": "2.1.2",
@@ -117,6 +117,7 @@
     "cross-env": "5.0.1",
     "express": "4.15.2",
     "husky": "0.14.1",
+    "taskr": "1.0.5"
     "jest-cli": "20.0.4",
     "lint-staged": "^3.4.0",
     "node-fetch": "1.7.1",
