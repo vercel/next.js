@@ -319,6 +319,8 @@ export default () => (
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
+##### Replace instead of push url
+
 The default behaviour for the `<Link>` component is to `push` a new url into the stack. You can use the `replace` prop to prevent adding a new entry.
 
 ```jsx
@@ -326,6 +328,18 @@ The default behaviour for the `<Link>` component is to `push` a new url into the
 import Link from 'next/link'
 export default () => (
   <div>Click <Link href='/about' replace><a>here</a></Link> to read more</div>
+)
+```
+
+##### Using a component that support `onClick`
+
+`<Link>` supports any component that supports the `onClick` event. In case you don't provide an `<a>` tag, it will only add the `onClick` event handler and won't pass the `href` property.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href='/about'><img src="/static/image.png"></Link></div>
 )
 ```
 
