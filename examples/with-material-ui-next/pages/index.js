@@ -17,13 +17,9 @@ const styles = {
 }
 
 class Index extends Component {
-  constructor (props) {
-    super(props)
-
-    this.state = {
-      open: false
-    }
-  }
+  state = {
+    open: false
+  };
 
   handleRequestClose = () => {
     this.setState({
@@ -47,12 +43,12 @@ class Index extends Component {
               <DialogContentText>1-2-3-4-5</DialogContentText>
             </DialogContent>
             <DialogActions>
-              <Button primary onClick={this.handleRequestClose}>OK</Button>
+              <Button color='primary' onClick={this.handleRequestClose}>OK</Button>
             </DialogActions>
           </Dialog>
           <Typography type='display1' gutterBottom>Material-UI</Typography>
           <Typography type='subheading' gutterBottom>example project</Typography>
-          <Button raised accent onClick={this.handleClick}>
+          <Button raised color='accent' onClick={this.handleClick}>
             Super Secret Password
           </Button>
         </div>
