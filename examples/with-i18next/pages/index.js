@@ -24,7 +24,7 @@ export default class Homepage extends Component {
     return (
       <I18nextProvider i18n={this.i18n}>
         <Title />
-      </ I18nextProvider>
+      </I18nextProvider>
     )
   }
 }

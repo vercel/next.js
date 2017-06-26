@@ -14,6 +14,7 @@ import {
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
+import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -46,7 +47,8 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
     this.defineRoutes()
@@ -63,12 +65,13 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    res.statusCode = 200
     return this.run(req, res, parsedUrl)
-    .catch((err) => {
-      if (!this.quiet) console.error(err)
-      res.statusCode = 500
-      res.end(STATUS_CODES[500])
-    })
+      .catch((err) => {
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        res.end(STATUS_CODES[500])
+      })
   }
 
   getRequestHandler () {
@@ -100,6 +103,19 @@ export default class Server {
     const routes = {
       '/_next-prefetcher.js': async (req, res, params) => {
         const p = join(__dirname, '../client/next-prefetcher-bundle.js')
+        await this.serveStatic(req, res, p)
+      },
+
+      // This is to support, webpack dynamic imports in production.
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+        const p = join(this.dir, '.next', 'chunks', params.name)
+        await this.serveStatic(req, res, p)
+      },
+
+      // This is to support, webpack dynamic import support with HMR
+      '/_next/webpack/:id': async (req, res, params) => {
+        const p = join(this.dir, '.next', 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },
 
@@ -135,7 +151,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/_error': async (req, res, params) => {
+      '/_next/:buildId/page/_error*': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }

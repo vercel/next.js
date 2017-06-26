@@ -1,4 +1,6 @@
 {
+  "name": "with-material-ui",
+  "version": "1.0.0",
   "dependencies": {
     "material-ui": "^0.18.0",
     "next": "latest",

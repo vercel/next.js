@@ -1,4 +1,5 @@
 import { join } from 'path'
+import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
@@ -12,10 +13,11 @@ import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
+import { flushChunks } from '../lib/dynamic'
 import xssFilters from 'xss-filters'
 
 export async function render (req, res, pathname, query, opts) {
-  const html = await renderToHTML(req, res, pathname, opts)
+  const html = await renderToHTML(req, res, pathname, query, opts)
   sendHTML(req, res, html, req.method, opts)
 }
 
@@ -39,9 +41,11 @@ async function doRender (req, res, pathname, query, {
   buildStats,
   hotReloader,
   assetPrefix,
+  availableChunks,
   dir = process.cwd(),
   dev = false,
-  staticMarkup = false
+  staticMarkup = false,
+  nextExport = false
 } = {}) {
   page = page || pathname
 
@@ -79,12 +83,13 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
+    const chunks = loadChunks({ dev, dir, dist, availableChunks })
 
     if (err && dev) {
       errorHtml = render(createElement(ErrorDebug, { error: err }))
     }
 
-    return { html, head, errorHtml }
+    return { html, head, errorHtml, chunks }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -105,9 +110,11 @@ async function doRender (req, res, pathname, query, {
       buildId: dev ? devBuildId : buildId,
       buildStats,
       assetPrefix,
+      nextExport,
       err: (err) ? serializeError(dev, err) : null
     },
     dev,
+    dir,
     staticMarkup,
     ...docProps
   })
@@ -236,4 +243,19 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (page === '_error' || page === '_document') return
 
   await hotReloader.ensurePage(page)
+}
+
+function loadChunks ({ dev, dir, dist, availableChunks }) {
+  const flushedChunks = flushChunks()
+  const validChunks = []
+
+  for (var chunk of flushedChunks) {
+    const filename = join(dir, dist, 'chunks', chunk)
+    const exists = dev ? existsSync(filename) : availableChunks[chunk]
+    if (exists) {
+      validChunks.push(chunk)
+    }
+  }
+
+  return validChunks
 }

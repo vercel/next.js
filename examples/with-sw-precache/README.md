@@ -1,0 +1,32 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-sw-precache)
+
+# sw-precache example
+
+## How to use
+
+Download the example [or clone the repo](https://github.com/zeit/next.js):
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-sw-precache
+cd with-sw-precache
+```
+
+Install it and run:
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+
+```bash
+now
+```
+
+## The idea behind the example
+
+You'll often want your Service Worker to be registered at the root level to give it access to your whole application.
+
+This example shows how this can be achieved alongside [sw-precache](https://github.com/GoogleChrome/sw-precache) (via [the webpack plugin](https://github.com/goldhand/sw-precache-webpack-plugin)).
