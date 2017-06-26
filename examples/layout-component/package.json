@@ -1,5 +1,5 @@
 {
-  "name": "hello-world",
+  "name": "layout-component",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -7,10 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "*",
+    "next": "latest",
     "react": "^15.4.2",
     "react-dom": "^15.4.2"
   },
-  "author": "",
   "license": "ISC"
 }

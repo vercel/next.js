@@ -1,5 +1,5 @@
 {
-  "name": "with-env",
+  "name": "with-universal-configuration",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -14,6 +14,5 @@
   "devDependencies": {
     "babel-plugin-transform-define": "^1.2.0"
   },
-  "author": "",
   "license": "ISC"
 }

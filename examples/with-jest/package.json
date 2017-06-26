@@ -1,5 +1,6 @@
 {
   "name": "with-jest",
+  "version": "1.0.0",
   "dependencies": {
     "next": "latest",
     "react": "^15.5.4",
