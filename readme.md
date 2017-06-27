@@ -441,6 +441,18 @@ Router.onAppUpdated = (nextUrl) => {
 }
 ```
 
+##### `withRouter` Higher-Order Component
+
+If you want to pass the `router` object into a component as a prop, you can use the `withRouter` HOC:
+
+```jsx
+import { withRouter } from 'next/router'
+
+const SecretLink = ({router}) => (<a href={`${router.pathname}/secret`}>Secrets!</a>)
+
+export default withRouter()(SecretLink)
+```
+
 ##### Shallow Routing
 
 <p><details>
