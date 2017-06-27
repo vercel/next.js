@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "dependencies": {
     "react-uwp": "latest",
-    "next": "latest",
+    "next": "^1.0.9",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
     "babel-core": "^6.25.0"
