@@ -8,14 +8,8 @@ import {
   Button,
   ColorPicker,
   DatePicker,
-  ProgressRing,
+  ProgressRing
 } from 'react-uwp'
-
-const styles = {
-  root: {
-    minHeight: "100vh"
-  }
-}
 
 class Index extends Component {
   static getInitialProps ({ req }) {
@@ -28,18 +22,18 @@ class Index extends Component {
 
     return { userAgent }
   }
-  static contextTypes = { theme: PropTypes.object };
+  static contextTypes = { theme: PropTypes.object }
 
   render () {
     return (
       <ThemeWrapper
         style={{
-          padding: "20px 0",
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "space-around"
+          padding: '20px 0',
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-around'
         }}
         theme={getTheme({ userAgent: this.props.userAgent })}
       >
@@ -48,8 +42,8 @@ class Index extends Component {
         <ColorPicker />
         <ProgressRing size={50} />
       </ThemeWrapper>
-    );
+    )
   }
 }
 
-export default Index;
+export default Index

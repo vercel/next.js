@@ -16,10 +16,8 @@ export default class MyDocument extends Document {
         <Head>
           <title>My page</title>
           <meta charSet='utf-8' />
-          {/* Use minimum-scale=1 to enable GPU rasterization */}
           <meta name='viewport' content='user-scalable=0, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height' />
-          {/* PWA primary color */}
-          <meta name='theme-color' content="yellowgreen" />
+          <meta name='theme-color' content='yellowgreen' />
           <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto:300,400,500' />
         </Head>
         <body>
