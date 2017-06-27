@@ -3,8 +3,6 @@
 import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
-import { existsSync } from 'fs'
-import getConfig from '../server/config'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
@@ -47,15 +45,8 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
-const dist = getConfig(dir).distDir
 
 const srv = new Server({ dir })
-
-if (!existsSync(resolve(dir, dist, 'BUILD_ID'))) {
-  console.error(`> Could not find a valid build in the '${dist}' directory! Try building your app with 'next build' before starting the server.`)
-  process.exit(1)
-}
-
 srv.start(argv.port, argv.hostname)
 .then(() => {
   if (!process.env.NOW) {
