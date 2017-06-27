@@ -5,8 +5,9 @@ import initApollo from './initApollo'
 import initRedux from './initRedux'
 
 // Gets the display name of a JSX component for dev tools
-const getComponentDisplayName = ({ displayName, name }) =>
-  displayName ? displayName : name && name !== '' ? name : 'Unknown'
+function getComponentDisplayName (Component) {
+  return Component.displayName || Component.name || 'Unknown'
+}
 
 export default ComposedComponent => {
   return class WithData extends React.Component {
