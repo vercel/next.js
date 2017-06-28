@@ -5,13 +5,15 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "bundle:view": "webpack-bundle-analyzer .next/stats.json"
+    "analyze": "cross-env ANALYZE=1 next build"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2",
-    "webpack-bundle-analyzer": "^2.3.0"
+    "cross-env": "^5.0.1",
+    "faker": "^4.1.0",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "webpack-bundle-analyzer": "^2.8.2"
   },
   "author": "",
   "license": "ISC"

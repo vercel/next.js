@@ -1,17 +1,16 @@
-const {BundleAnalyzerPlugin} = require('webpack-bundle-analyzer')
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+const { ANALYZE } = process.env
+
 module.exports = {
-  webpack: (config, { dev }) => {
-    // Perform customizations to config
-    config.plugins.push(
-      new BundleAnalyzerPlugin({
-        analyzerMode: 'disabled',
-        // For all options see https://github.com/th0r/webpack-bundle-analyzer#as-plugin
-        generateStatsFile: true,
-        // Will be available at `.next/stats.json`
-        statsFilename: 'stats.json'
-      })
-    )
-    // Important: return the modified config
+  webpack: function (config) {
+    if (ANALYZE) {
+      config.plugins.push(new BundleAnalyzerPlugin({
+        analyzerMode: 'server',
+        analyzerPort: 8888,
+        openAnalyzer: true
+      }))
+    }
+
     return config
   }
 }
