@@ -120,7 +120,7 @@
     "husky": "0.14.1",
     "taskr": "1.0.5",
     "jest-cli": "20.0.4",
-    "lint-staged": "^3.4.0",
+    "lint-staged": "^4.0.0",
     "node-fetch": "1.7.1",
     "node-notifier": "5.1.2",
     "nyc": "11.0.3",
