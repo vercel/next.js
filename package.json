@@ -12,6 +12,7 @@
     "css.js",
     "head.js",
     "document.js",
+    "dynamic.js",
     "prefetch.js",
     "router.js",
     "error.js"
