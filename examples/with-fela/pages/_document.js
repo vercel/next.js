@@ -1,14 +1,12 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 import { renderToSheetList } from 'fela-dom'
-import getRenderer from '../fela'
+import felaRenderer from '../fela-renderer'
 
 export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
     const page = renderPage()
-    const renderer = getRenderer()
-
-    const sheetList = renderToSheetList(renderer)
-    renderer.clear()
+    const sheetList = renderToSheetList(felaRenderer)
+    felaRenderer.clear()
 
     return {
       ...page,
@@ -17,9 +15,14 @@ export default class MyDocument extends Document {
   }
 
   render () {
-    const styleNodes = this.props.sheetList.map(({ type, media, css }) => (
-      <style data-fela-type={type} media={media} dangerouslySetInnerHTML={{ __html: css }} />
-    ))
+    const styleNodes = this.props.sheetList.map(({ type, media, css }) =>
+      <style
+        dangerouslySetInnerHTML={{ __html: css }}
+        data-fela-type={type}
+        key={`${type}-${media}`}
+        media={media}
+      />,
+    )
 
     return (
       <html>
