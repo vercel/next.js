@@ -48,7 +48,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       ]
     }
 
-    const pages = await glob('pages/**/*.js', { cwd: dir })
+    const pages = await glob('pages/**/*.js*', { cwd: dir })
     const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
@@ -178,14 +178,14 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   }
 
   const rules = (dev ? [{
-    test: /\.js(\?[^?]*)?$/,
+    test: /\.jsx?(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
       join(dir, 'pages'),
       nextPagesDir
     ]
   }, {
-    test: /\.js(\?[^?]*)?$/,
+    test: /\.jsx?(\?[^?]*)?$/,
     loader: 'react-hot-loader/webpack',
     exclude: /node_modules/
   }] : [])
@@ -193,7 +193,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     test: /\.json$/,
     loader: 'json-loader'
   }, {
-    test: /\.(js|json)(\?[^?]*)?$/,
+    test: /\.(jsx?|json)(\?[^?]*)?$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
@@ -205,8 +205,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.
       transform ({ content, sourceMap, interpolatedName }) {
-        // Only handle .js files
-        if (!(/\.js$/.test(interpolatedName))) {
+        // Only handle .js/.jsx files
+        if (!(/\.jsx?$/.test(interpolatedName))) {
           return { content, sourceMap }
         }
 
@@ -259,7 +259,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       presets: [require.resolve('./babel/preset')]
     }
   }, {
-    test: /\.js(\?[^?]*)?$/,
+    test: /\.jsx?(\?[^?]*)?$/,
     loader: 'babel-loader',
     include: [dir],
     exclude (str) {
@@ -289,6 +289,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       chunkFilename: '[name]'
     },
     resolve: {
+      extensions: ['.js', '.json', '.jsx'],
       modules: [
         nextNodeModulesDir,
         'node_modules',
