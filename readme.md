@@ -534,7 +534,7 @@ export default ({ url }) => (
     </a>
     {
       // but we can prefetch it!
-      Router.prefetch('/dynamic')
+      () => Router.prefetch('/dynamic')
     }
   </div>
 )
