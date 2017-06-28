@@ -1,5 +1,5 @@
 import React from 'react'
-import { hydrate, sheet, keyframes, fragment, injectGlobal } from 'emotion'
+import { hydrate, keyframes, fragment, injectGlobal } from 'emotion'
 import styled from 'emotion/styled'
 
 // Adds server generated styles to emotion cache.
@@ -45,7 +45,7 @@ export default () => {
       transform: scale(0.99);
     }
   `
-  
+
   const Basic = styled.div`@apply ${basicStyles};`
   const Combined = styled.div`
     @apply ${basicStyles};
