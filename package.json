@@ -46,7 +46,7 @@
     "ansi-html": "0.0.7",
     "babel-core": "6.24.0",
     "babel-generator": "6.24.1",
-    "babel-loader": "7.1.0",
+    "babel-loader": "7.1.1",
     "babel-plugin-module-resolver": "2.6.2",
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-syntax-dynamic-import": "6.18.0",
