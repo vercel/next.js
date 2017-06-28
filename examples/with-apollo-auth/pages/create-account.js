@@ -1,42 +1,41 @@
-import { graphql, withApollo, compose } from 'react-apollo';
-import cookie from 'cookie';
-import Link from 'next/link';
-import gql from 'graphql-tag';
+import React from 'react'
+import { graphql, withApollo, compose } from 'react-apollo'
+import cookie from 'cookie'
+import Link from 'next/link'
+import gql from 'graphql-tag'
 
-import withData from '../lib/with-data';
-import redirect from '../lib/redirect';
-import checkLoggedIn from '../lib/check-logged-in';
+import withData from '../lib/with-data'
+import redirect from '../lib/redirect'
+import checkLoggedIn from '../lib/check-logged-in'
 
 class CreateAccount extends React.Component {
-
-  static async getInitialProps(context, apolloClient) {
-    const { loggedInUser } = await checkLoggedIn(context, apolloClient);
+  static async getInitialProps (context, apolloClient) {
+    const { loggedInUser } = await checkLoggedIn(context, apolloClient)
 
     if (loggedInUser.user) {
       // Already signed in? No need to continue.
       // Throw them back to the main page
-      redirect(context, '/');
+      redirect(context, '/')
     }
 
-    return {};
+    return {}
   }
 
-  render() {
+  render () {
     return (
       <div>
         {/* this.props.create is the mutation function provided by apollo below */}
         <form onSubmit={this.props.create}>
-          <input type="text" placeholder="Your Name" name="name" /><br />
-          <input type="email" placeholder="Email" name="email" /><br />
-          <input type="password" placeholder="Password" name="password" /><br />
+          <input type='text' placeholder='Your Name' name='name' /><br />
+          <input type='email' placeholder='Email' name='email' /><br />
+          <input type='password' placeholder='Password' name='password' /><br />
           <button>Create account</button>
         </form>
         <hr />
-        Already have an account? <Link prefetch href="/signin"><a>Sign in</a></Link>
+        Already have an account? <Link prefetch href='/signin'><a>Sign in</a></Link>
       </div>
-    );
+    )
   }
-
 };
 
 export default compose(
@@ -69,36 +68,37 @@ export default compose(
       }) => ({
         // `create` is the name of the prop passed to the component
         create: (event) => {
-          const data = new FormData(event.target);
+          /* global FormData */
+          const data = new FormData(event.target)
 
-          event.preventDefault();
-          event.stopPropagation();
+          event.preventDefault()
+          event.stopPropagation()
 
           createWithEmail({
             variables: {
               email: data.get('email'),
               password: data.get('password'),
-              name: data.get('name'),
+              name: data.get('name')
             }
-          }).then(({ data: { signinUser: { token }}}) => {
+          }).then(({ data: { signinUser: { token } } }) => {
             // Store the token in cookie
             document.cookie = cookie.serialize('token', token, {
-              maxAge: 30 * 24 * 60 * 60, // 30 days
+              maxAge: 30 * 24 * 60 * 60 // 30 days
             })
 
             // Force a reload of all the current queries now that the user is
             // logged in
             client.resetStore().then(() => {
               // Now redirect to the homepage
-              redirect({}, '/');
-            });
+              redirect({}, '/')
+            })
           }).catch((error) => {
             // Something went wrong, such as incorrect password, or no network
             // available, etc.
-            console.error(error);
-          });
+            console.error(error)
+          })
         }
       })
     }
   )
-)(CreateAccount);
+)(CreateAccount)

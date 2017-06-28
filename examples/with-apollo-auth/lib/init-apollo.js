@@ -9,26 +9,25 @@ if (!process.browser) {
 }
 
 function create (initialState, { getToken }) {
-
   const networkInterface = createNetworkInterface({
-    uri: 'https://api.graph.cool/simple/v1/cj3h80ffbllm20162alevpcby',
-  });
+    uri: 'https://api.graph.cool/simple/v1/cj3h80ffbllm20162alevpcby'
+  })
 
   networkInterface.use([{
-    applyMiddleware(req, next) {
+    applyMiddleware (req, next) {
       if (!req.options.headers) {
-        req.options.headers = {};  // Create the header object if needed.
+        req.options.headers = {}  // Create the header object if needed.
       }
-      const token = getToken();
-      req.options.headers.authorization = token ? `Bearer ${token}` : null;
-      next();
+      const token = getToken()
+      req.options.headers.authorization = token ? `Bearer ${token}` : null
+      next()
     }
-  }]);
+  }])
 
   return new ApolloClient({
     initialState,
     ssrMode: !process.browser, // Disables forceFetch on the server (so queries are only run once)
-    networkInterface,
+    networkInterface
   })
 }
 

@@ -1,11 +1,11 @@
 import React from 'react'
-import cookie from 'cookie';
+import cookie from 'cookie'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 
 import initApollo from './init-apollo'
 
-function parseCookies(ctx = {}, options = {}) {
+function parseCookies (ctx = {}, options = {}) {
   return cookie.parse(
     ctx.req && ctx.req.headers.cookie
       ? ctx.req.headers.cookie
@@ -42,7 +42,7 @@ export default ComposedComponent => {
         if (context.res && context.res.finished) {
           // When redirecting, the response is finished.
           // No point in continuing to render
-          return;
+          return
         }
 
         // Provide the `url` prop data in case a graphql query uses it

@@ -1,6 +1,6 @@
-const clearRequire = require('clear-require');
-const glob = require('glob');
-const test = require('ava');
+const clearRequire = require('clear-require')
+const glob = require('glob')
+const test = require('ava')
 
 /**
  * Motivations:
@@ -18,24 +18,24 @@ const test = require('ava');
  *   Apollo that we can clear, etc
  */
 
-const apolloFilePath = require.resolve('../lib/init-apollo');
+const apolloFilePath = require.resolve('../lib/init-apollo')
 
 test.beforeEach(() => {
   // Clean up the cache
-  clearRequire.all();
-});
+  clearRequire.all()
+})
 
 glob.sync('./pages/**/*.js').forEach((file) => {
   test(`.${file} imports shared apollo module`, (t) => {
-    t.falsy(require.cache[apolloFilePath]);
+    t.falsy(require.cache[apolloFilePath])
 
     try {
-      require(`.${file}`);
-    } catch(error) {
+      require(`.${file}`)
+    } catch (error) {
       // Don't really care if it fails to execute, etc, just want to be
       // certain the expected require call was made
     }
 
-    t.truthy(require.cache[apolloFilePath]);
-  });
-});
+    t.truthy(require.cache[apolloFilePath])
+  })
+})

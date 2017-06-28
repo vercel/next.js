@@ -1,41 +1,40 @@
-import { graphql, withApollo, compose } from 'react-apollo';
-import cookie from 'cookie';
-import Link from 'next/link';
-import gql from 'graphql-tag';
+import React from 'react'
+import { graphql, withApollo, compose } from 'react-apollo'
+import cookie from 'cookie'
+import Link from 'next/link'
+import gql from 'graphql-tag'
 
-import withData from '../lib/with-data';
-import redirect from '../lib/redirect';
-import checkLoggedIn from '../lib/check-logged-in';
+import withData from '../lib/with-data'
+import redirect from '../lib/redirect'
+import checkLoggedIn from '../lib/check-logged-in'
 
 class Signin extends React.Component {
-
-  static async getInitialProps(context, apolloClient) {
-    const { loggedInUser } = await checkLoggedIn(context, apolloClient);
+  static async getInitialProps (context, apolloClient) {
+    const { loggedInUser } = await checkLoggedIn(context, apolloClient)
 
     if (loggedInUser.user) {
       // Already signed in? No need to continue.
       // Throw them back to the main page
-      redirect(context, '/');
+      redirect(context, '/')
     }
 
-    return {};
+    return {}
   }
 
-  render() {
+  render () {
     return (
       <div>
         {/* this.props.signin is the mutation function provided by apollo below */}
         <form onSubmit={this.props.signin}>
-          <input type="email" placeholder="Email" name="email" /><br />
-          <input type="password" placeholder="Password" name="password" /><br />
+          <input type='email' placeholder='Email' name='email' /><br />
+          <input type='password' placeholder='Password' name='password' /><br />
           <button>Sign in</button>
         </form>
         <hr />
-        New? <Link prefetch href="/create-account"><a>Create account</a></Link>
+        New? <Link prefetch href='/create-account'><a>Create account</a></Link>
       </div>
-    );
+    )
   }
-
 };
 
 export default compose(
@@ -63,35 +62,36 @@ export default compose(
       }) => ({
         // `signin` is the name of the prop passed to the component
         signin: (event) => {
-          const data = new FormData(event.target);
+          /* global FormData */
+          const data = new FormData(event.target)
 
-          event.preventDefault();
-          event.stopPropagation();
+          event.preventDefault()
+          event.stopPropagation()
 
           signinWithEmail({
             variables: {
               email: data.get('email'),
-              password: data.get('password'),
+              password: data.get('password')
             }
-          }).then(({ data: { signinUser: { token }}}) => {
+          }).then(({ data: { signinUser: { token } } }) => {
             // Store the token in cookie
             document.cookie = cookie.serialize('token', token, {
-              maxAge: 30 * 24 * 60 * 60, // 30 days
+              maxAge: 30 * 24 * 60 * 60 // 30 days
             })
 
             // Force a reload of all the current queries now that the user is
             // logged in
             client.resetStore().then(() => {
               // Now redirect to the homepage
-              redirect({}, '/');
-            });
+              redirect({}, '/')
+            })
           }).catch((error) => {
             // Something went wrong, such as incorrect password, or no network
             // available, etc.
-            console.error(error);
-          });
+            console.error(error)
+          })
         }
       })
     }
   )
-)(Signin);
+)(Signin)
