@@ -62,8 +62,8 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
 
-  const renderPage = () => {
-    const app = createElement(App, {
+  const renderPage = (transform) => {
+    let app = createElement(App, {
       Component,
       props,
       router: new Router(pathname, query)
@@ -75,6 +75,9 @@ async function doRender (req, res, pathname, query, {
     let head
     let errorHtml = ''
     try {
+      if (transform) {
+        app = transform(app)
+      }
       html = render(app)
     } finally {
       head = Head.rewind() || defaultHead()
