@@ -10,10 +10,16 @@ function setupRequireHacker () {
   })
 
   requireHacker.hook('js', filename => {
+    if (filename.endsWith('/node_modules/hammerjs/hammer.js')) {
+      return `
+        module.exports = {}
+      `
+    }
+
     if (
       filename.endsWith('.web.js') ||
       !filename.includes('/node_modules/') ||
-      ['antd-mobile', 'rc-swipeout', 'rmc-picker'].every(p => !filename.includes(p))
+      ['antd-mobile', 'rmc-picker'].every(p => !filename.includes(p))
     ) return
 
     const webjs = filename.replace(/\.js$/, '.web.js')
@@ -22,10 +28,9 @@ function setupRequireHacker () {
     return fs.readFileSync(webjs, { encoding: 'utf8' })
   })
 
-  requireHacker.hook('css', () => '')
-
   requireHacker.hook('svg', filename => {
-    return requireHacker.to_javascript_module_source(fs.readFileSync(filename, { encoding: 'utf8' }))
+    const id = path.basename(filename).replace(/\.svg$/, '')
+    return requireHacker.to_javascript_module_source(`#${id}`)
   })
 }
 
@@ -42,9 +47,21 @@ module.exports = {
     config.module.rules.push(
       {
         test: /\.(svg)$/i,
+        loader: 'emit-file-loader',
+        options: {
+          name: 'dist/[path][name].[ext]'
+        },
+        include: [
+          moduleDir('antd-mobile'),
+          __dirname
+        ]
+      },
+      {
+        test: /\.(svg)$/i,
         loader: 'svg-sprite-loader',
         include: [
-          moduleDir('antd-mobile')
+          moduleDir('antd-mobile'),
+          __dirname
         ]
       }
     )

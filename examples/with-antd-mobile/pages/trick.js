@@ -1,8 +1,5 @@
 import React, { Component } from 'react'
-import {
-  WhiteSpace,
-  List, Switch, Modal, Button, Menu
-} from 'antd-mobile'
+import { WhiteSpace, List, Switch, Menu } from 'antd-mobile'
 import Layout from '../components/Layout'
 import MenuBar from '../components/MenuBar'
 
@@ -19,9 +16,7 @@ export default class Trick extends Component {
     }
   }
 
-  constructor (props) {
-    super(props)
-
+  componentWillMount () {
     this.menuData = [
       {
         label: 'Menu 1',
@@ -58,8 +53,7 @@ export default class Trick extends Component {
     ]
 
     this.state = {
-      switchChecked: true,
-      modalOpened: false
+      switchChecked: true
     }
   }
 
@@ -71,8 +65,7 @@ export default class Trick extends Component {
     } = this.props
 
     const {
-      switchChecked,
-      modalOpened
+      switchChecked
     } = this.state
 
     return (
@@ -81,7 +74,7 @@ export default class Trick extends Component {
           pathname={pathname}
         >
           <WhiteSpace />
-          <List renderHeader={() => 'Switch and Modal platform prop is required in SSR mode'}>
+          <List renderHeader={() => 'Switch platform prop is required in SSR mode'}>
             <List.Item
               extra={
                 <Switch
@@ -93,22 +86,7 @@ export default class Trick extends Component {
             >
               Switch {platform}
             </List.Item>
-            <Button onClick={() => this.setState({ modalOpened: true })}>
-              Open {platform} modal
-            </Button>
           </List>
-          <Modal
-            title='Modal'
-            platform={platform}
-            visible={modalOpened}
-            transparent
-            closable
-            footer={[{ text: 'OK', onPress: () => this.setState({ modalOpened: false }) }]}
-            onClose={() => this.setState({ modalOpened: false })}
-          >
-            I am a modal.<br />
-            Must set platform prop
-          </Modal>
           <List renderHeader={() => 'Menu height prop is required in SSR mode'}>
             <Menu
               height={500}
