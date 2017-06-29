@@ -5,6 +5,8 @@
   "main": "./dist/server/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
+  "bugs": "https://github.com/zeit/next.js/issues",
+  "homepage": "https://github.com/zeit/next.js",
   "files": [
     "dist",
     "babel.js",
