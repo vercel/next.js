@@ -235,6 +235,11 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
+<br/>
+> If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules).
+> Otherwise, it'll slow down your app.
+<br/>
+
 You can also define the `getInitialProps` lifecycle method for stateless components:
 
 ```jsx
