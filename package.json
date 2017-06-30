@@ -90,7 +90,7 @@
     "source-map-support": "0.4.15",
     "strip-ansi": "4.0.0",
     "styled-jsx": "1.0.6",
-    "touch": "2.0.2",
+    "touch": "3.0.0",
     "uglifyjs-webpack-plugin": "0.4.6",
     "unfetch": "3.0.0",
     "url": "0.11.0",
