@@ -2,7 +2,6 @@ import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
-import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
@@ -172,22 +171,13 @@ export default class HotReloader {
       /(^|[/\\])\../, // .dotfiles
       /node_modules/
     ]
-    const windowsSettings = isWindowsBash() ? {
-      lazy: false,
-      watchOptions: {
-        ignored,
-        aggregateTimeout: 300,
-        poll: true
-      }
-    } : {}
 
     let webpackDevMiddlewareConfig = {
       publicPath: '/_next/webpack/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
-      watchOptions: { ignored },
-      ...windowsSettings
+      watchOptions: { ignored }
     }
 
     if (this.config.webpackDevMiddleware) {
