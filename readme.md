@@ -755,7 +755,7 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 
 ### Custom error handling
 
-404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
+404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
 ```jsx
 import React from 'react'
