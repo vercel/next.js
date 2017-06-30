@@ -200,7 +200,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
-      name: 'dist/[path][name].[ext]',
+      name: (resourcePath) => {
+        const ext = (/\.jsx$/.test(resourcePath)) ? '.js' : '.[ext]'
+        return 'dist/[path][name]' + ext
+      },
       // By default, our babel config does not transpile ES2015 module syntax because
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.

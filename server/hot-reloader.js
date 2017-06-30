@@ -268,5 +268,5 @@ function diff (a, b) {
 
 function toRoute (file) {
   const f = sep === '\\' ? file.replace(/\\/g, '/') : file
-  return ('/' + f).replace(/(\/index)?\.js$/, '') || '/'
+  return ('/' + f).replace(/(\/index)?\.jsx?$/, '') || '/'
 }

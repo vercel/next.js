@@ -1,6 +1,6 @@
 export default class PagesPlugin {
   apply (compiler) {
-    const isImportChunk = /^chunks[/\\].*\.js$/
+    const isImportChunk = /^chunks[/\\].*\.jsx?$/
     const matchChunkName = /^chunks[/\\](.*)$/
 
     compiler.plugin('after-compile', (compilation, callback) => {
