@@ -119,7 +119,7 @@
     "cross-env": "5.0.1",
     "express": "4.15.2",
     "husky": "0.14.1",
-    "taskr": "1.0.5",
+    "taskr": "1.0.6",
     "jest-cli": "20.0.4",
     "lint-staged": "^4.0.0",
     "node-fetch": "1.7.1",
@@ -128,7 +128,7 @@
     "react": "15.5.4",
     "react-dom": "15.5.4",
     "standard": "9.0.2",
-    "taskr": "1.0.5",
+    "taskr": "1.0.6",
     "wd": "1.2.0"
   },
   "peerDependencies": {
