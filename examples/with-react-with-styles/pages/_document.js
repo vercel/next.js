@@ -1,5 +1,5 @@
-import Document, { Head, Main, NextScript } from 'next/document';
-import { StyleSheetServer } from 'aphrodite';
+import Document, { Head, Main, NextScript } from 'next/document'
+import { StyleSheetServer } from 'aphrodite'
 
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
@@ -26,13 +26,13 @@ export default class MyDocument extends Document {
      <style> tag */
     return (
       <html>
-      <Head>
-        <style data-aphrodite dangerouslySetInnerHTML={{ __html: this.props.css.content }} />
-      </Head>
-      <body>
-      <Main />
-      <NextScript />
-      </body>
+        <Head>
+          <style data-aphrodite dangerouslySetInnerHTML={{ __html: this.props.css.content }} />
+        </Head>
+        <body>
+          <Main />
+          <NextScript />
+        </body>
       </html>
     )
   }
