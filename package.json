@@ -104,7 +104,7 @@
   },
   "devDependencies": {
     "@taskr/babel": "1.0.6",
-    "@taskr/clear": "1.0.0",
+    "@taskr/clear": "1.0.6",
     "@taskr/esnext": "1.0.0",
     "@taskr/watch": "1.0.6",
     "babel-eslint": "7.2.3",
