@@ -73,7 +73,6 @@
     "glob-promise": "3.1.0",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
-    "is-windows-bash": "1.0.3",
     "json-loader": "0.5.4",
     "loader-utils": "1.1.0",
     "md5-file": "3.1.1",
