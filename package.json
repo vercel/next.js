@@ -106,7 +106,7 @@
     "@taskr/babel": "1.0.0",
     "@taskr/clear": "1.0.0",
     "@taskr/esnext": "1.0.0",
-    "@taskr/watch": "1.0.0",
+    "@taskr/watch": "1.0.6",
     "babel-eslint": "7.2.3",
     "babel-jest": "20.0.2",
     "babel-plugin-istanbul": "4.1.3",
