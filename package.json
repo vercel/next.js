@@ -118,7 +118,7 @@
     "coveralls": "2.13.1",
     "cross-env": "5.0.1",
     "express": "4.15.2",
-    "husky": "0.14.1",
+    "husky": "0.14.2",
     "taskr": "1.0.6",
     "jest-cli": "20.0.4",
     "lint-staged": "^4.0.0",
