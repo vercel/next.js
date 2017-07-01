@@ -1,0 +1,19 @@
+{
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.15.3",
+    "isomorphic-fetch": "^2.2.1",
+    "next": "beta",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "serve": "^5.2.2"
+  },
+  "scripts": {
+    "dev": "node .",
+    "build": "next build",
+    "preexport": "npm run build",
+    "export": "next export",
+    "prestart": "npm run export",
+    "start": "serve out"
+  },
+}

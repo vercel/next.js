@@ -904,6 +904,11 @@ Note: we recommend putting `.next`, or your custom dist folder (Please have a lo
 
 ## Static HTML export
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-static-export">Static export</a></li></ul>
+</details></p>
+
 This is a way to run your Next.js app as a standalone static app without any Node.js server. The export app supports almost every feature of Next.js including dynamic urls, prefetching, preloading and dynamic imports.
 
 ### Usage
