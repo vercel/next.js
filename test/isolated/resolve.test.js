@@ -16,6 +16,11 @@ describe('Resolve', () => {
     expect(p).toBe(join(dataPath, 'two.json'))
   })
 
+  it('should resolve a .jsx path', async () => {
+    const p = await resolve(join(dataPath, 'three.jsx'))
+    expect(p).toBe(join(dataPath, 'three.jsx'))
+  })
+
   it('should resolve a module without an extension', async () => {
     const p = await resolve(join(dataPath, 'one'))
     expect(p).toBe(join(dataPath, 'one.js'))
@@ -36,9 +41,14 @@ describe('Resolve', () => {
     expect(p).toBe(join(dataPath, 'bb', 'index.json'))
   })
 
-  it('should resolve give priority to index.js over index.json', async () => {
+  it('should resolve give priority to index.js over index.json and index.jsx', async () => {
     const p = await resolve(join(dataPath, 'cc'))
     expect(p).toBe(join(dataPath, 'cc', 'index.js'))
+  })
+
+  it('should resolve a .jsx module in a directory', async () => {
+    const p = await resolve(join(dataPath, 'dd'))
+    expect(p).toBe(join(dataPath, 'dd', 'index.jsx'))
   })
 
   it('should throw an error for non existing paths', async () => {

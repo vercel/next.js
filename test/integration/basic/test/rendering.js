@@ -36,6 +36,11 @@ export default function ({ app }, suiteName, render) {
       expect(style.text()).toMatch(/color:blue/)
     })
 
+    test('renders jsx extension', async () => {
+      const html = await render('/jsx-extension')
+      expect(html.includes('JSX Extension')).toBeTruthy()
+    })
+
     test('renders properties populated asynchronously', async () => {
       const html = await render('/async-props')
       expect(html.includes('Diego Milito')).toBeTruthy()
