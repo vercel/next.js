@@ -6,12 +6,13 @@ import { resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
 import { renderToHTML } from './render'
+import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 
 export default async function (dir, options) {
   dir = resolve(dir)
   const config = getConfig(dir)
-  const nextDir = join(dir, config.distDir || '.next')
+  const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)
 
@@ -79,7 +80,8 @@ export default async function (dir, options) {
     assetPrefix: config.assetPrefix.replace(/\/$/, ''),
     dev: false,
     staticMarkup: false,
-    hotReloader: null
+    hotReloader: null,
+    availableChunks: getAvailableChunks(dir, config.distDir)
   }
 
   // We need this for server rendering the Link component.

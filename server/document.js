@@ -83,7 +83,7 @@ export class Head extends Component {
     const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
-    return <head>
+    return <head {...this.props}>
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
       {this.getPreloadDynamicChunks()}

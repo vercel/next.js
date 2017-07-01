@@ -15,7 +15,8 @@ export default class CombineAssetsPlugin {
         if (!asset) return
 
         newSource += `${asset.source()}\n`
-        delete compilation.assets[name]
+
+        // We keep existing assets since that helps when analyzing the bundle
       })
 
       compilation.assets[this.output] = {

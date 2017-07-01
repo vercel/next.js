@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/v3-beta?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/v3-beta)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
-[![Slack Channel](https://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
+[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
@@ -235,6 +235,13 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
+<br/>
+
+> If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules).
+> Otherwise, it'll slow down your app.
+
+<br/>
+
 You can also define the `getInitialProps` lifecycle method for stateless components:
 
 ```jsx
@@ -326,6 +333,8 @@ export default () => (
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
+##### Replace instead of push url
+
 The default behaviour for the `<Link>` component is to `push` a new url into the stack. You can use the `replace` prop to prevent adding a new entry.
 
 ```jsx
@@ -333,6 +342,18 @@ The default behaviour for the `<Link>` component is to `push` a new url into the
 import Link from 'next/link'
 export default () => (
   <div>Click <Link href='/about' replace><a>here</a></Link> to read more</div>
+)
+```
+
+##### Using a component that support `onClick`
+
+`<Link>` supports any component that supports the `onClick` event. In case you don't provide an `<a>` tag, it will only add the `onClick` event handler and won't pass the `href` property.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href='/about'><img src="/static/image.png"></Link></div>
 )
 ```
 
@@ -657,23 +678,33 @@ export default () => (
 )
 ```
 
-#### 4. With [async-reactor](https://github.com/xtuc/async-reactor)
-
-> SSR support is not available here
+#### 4. With Multiple Modules At Once
 
 ```js
-import { asyncReactor } from 'async-reactor'
-const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
-  const Hello4 = await import('../components/hello4')
-  return (<Hello4 />)
+import dynamic from 'next/dynamic'
+
+const HelloBundle = dynamic({
+  modules: (props) => {
+    const components = {
+      Hello1: import('../components/hello1'),
+      Hello2: import('../components/hello2')
+    }
+
+    // Add remove components based on props
+
+    return components
+  },
+  render: (props, { Hello1, Hello2 }) => (
+    <div>
+      <h1>{props.title}</h1>
+      <Hello1 />
+      <Hello2 />
+    </div>
+  )
 })
 
 export default () => (
-  <div>
-    <Header />
-    <DynamicComponentWithAsyncReactor />
-    <p>HOME PAGE is here!</p>
-  </div>
+  <HelloBundle title="Dynamic Bundle"/>
 )
 ```
 
@@ -724,7 +755,7 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 
 ### Custom error handling
 
-404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
+404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
 ```jsx
 import React from 'react'
@@ -873,6 +904,11 @@ Note: we recommend putting `.next`, or your custom dist folder (Please have a lo
 
 ## Static HTML export
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-static-export">Static export</a></li></ul>
+</details></p>
+
 This is a way to run your Next.js app as a standalone static app without any Node.js server. The export app supports almost every feature of Next.js including dynamic urls, prefetching, preloading and dynamic imports.
 
 ### Usage
@@ -943,6 +979,7 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 ## Recipes
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
+- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 
 ## FAQ
 
@@ -1059,8 +1096,9 @@ Please see our [contributing.md](./contributing.md)
 
 ## Authors
 
+- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – ▲ZEIT
+- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))

@@ -14,6 +14,7 @@ import {
 import Router from './router'
 import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
+import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -33,6 +34,10 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
+    if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
+      console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
+      process.exit(1)
+    }
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
@@ -42,7 +47,8 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
     this.defineRoutes()
@@ -59,12 +65,13 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    res.statusCode = 200
     return this.run(req, res, parsedUrl)
-    .catch((err) => {
-      if (!this.quiet) console.error(err)
-      res.statusCode = 500
-      res.end(STATUS_CODES[500])
-    })
+      .catch((err) => {
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        res.end(STATUS_CODES[500])
+      })
   }
 
   getRequestHandler () {

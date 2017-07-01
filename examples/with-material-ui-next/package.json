@@ -1,4 +1,6 @@
 {
+  "name": "with-material-ui-next",
+  "version": "1.0.0",
   "dependencies": {
     "material-ui": "next",
     "next": "latest",
