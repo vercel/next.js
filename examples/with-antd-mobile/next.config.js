@@ -3,34 +3,20 @@ const fs = require('fs')
 const requireHacker = require('require-hacker')
 
 function setupRequireHacker () {
-  requireHacker.resolver((filename, module) => {
-    if (filename.endsWith('/style/css')) {
-      return requireHacker.resolve(`${filename}.web.js`, module)
-    }
-  })
+  const webjs = '.web.js'
+  const webModules = ['antd-mobile', 'rmc-picker'].map(m => path.join('node_modules', m))
 
   requireHacker.hook('js', filename => {
-    if (filename.endsWith('/node_modules/hammerjs/hammer.js')) {
-      return `
-        module.exports = {}
-      `
-    }
+    if (filename.endsWith(webjs) || webModules.every(p => !filename.includes(p))) return
 
-    if (
-      filename.endsWith('.web.js') ||
-      !filename.includes('/node_modules/') ||
-      ['antd-mobile', 'rmc-picker'].every(p => !filename.includes(p))
-    ) return
+    const webFilename = filename.replace(/\.js$/, webjs)
+    if (!fs.existsSync(webFilename)) return
 
-    const webjs = filename.replace(/\.js$/, '.web.js')
-    if (!fs.existsSync(webjs)) return
-
-    return fs.readFileSync(webjs, { encoding: 'utf8' })
+    return fs.readFileSync(webFilename, { encoding: 'utf8' })
   })
 
   requireHacker.hook('svg', filename => {
-    const id = path.basename(filename).replace(/\.svg$/, '')
-    return requireHacker.to_javascript_module_source(`#${id}`)
+    return requireHacker.to_javascript_module_source(`#${path.parse(filename).name}`)
   })
 }
 
