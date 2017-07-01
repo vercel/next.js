@@ -138,7 +138,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
-    plugins.push(new webpack.IgnorePlugin(/redbox-react/, /react-hot-loader/))
+    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
