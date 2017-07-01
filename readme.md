@@ -974,6 +974,7 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 ## Recipes
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
+- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 
 ## FAQ
 
@@ -1090,8 +1091,9 @@ Please see our [contributing.md](./contributing.md)
 
 ## Authors
 
+- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – ▲ZEIT
+- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))
