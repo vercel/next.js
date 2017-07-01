@@ -107,7 +107,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         // used in all of the pages. Otherwise, move modules used in at-least
         // 1/2 of the total pages into commons.
         if (totalPages <= 2) {
-          return count === totalPages
+          return count >= totalPages
         }
         return count >= totalPages * 0.5
       }
@@ -138,6 +138,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
+    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
@@ -309,15 +310,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     },
     devtool: dev ? 'cheap-module-inline-source-map' : false,
     performance: { hints: false }
-  }
-
-  if (!dev) {
-    // We do this to use the minified version of React in production.
-    // This will significant file size redution when turned off uglifyjs.
-    webpackConfig.resolve.alias = {
-      'react': require.resolve('react/dist/react.min.js'),
-      'react-dom': require.resolve('react-dom/dist/react-dom.min.js')
-    }
   }
 
   if (config.webpack) {
