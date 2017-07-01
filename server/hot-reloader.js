@@ -1,14 +1,16 @@
 import { join, relative, sep } from 'path'
-import webpackDevMiddleware from 'webpack-dev-middleware'
-import webpackHotMiddleware from 'webpack-hot-middleware'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
+import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
-import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
+import {
+  IS_BUNDLED_PAGE
+} from './utils'
 
 export default class HotReloader {
-  constructor (dir, { quiet } = {}) {
+  constructor (dir, { quiet, conf } = {}) {
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -22,7 +24,7 @@ export default class HotReloader {
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
 
-    this.config = getConfig(dir)
+    this.config = getConfig(dir, conf)
   }
 
   async run (req, res) {
@@ -42,14 +44,17 @@ export default class HotReloader {
       clean(this.dir)
     ])
 
-    this.prepareMiddlewares(compiler)
+    const buildTools = await this.prepareBuildTools(compiler)
+    this.assignBuildTools(buildTools)
+
     this.stats = await this.waitUntilValid()
   }
 
-  async stop () {
-    if (this.webpackDevMiddleware) {
+  async stop (webpackDevMiddleware) {
+    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
+    if (middleware) {
       return new Promise((resolve, reject) => {
-        this.webpackDevMiddleware.close((err) => {
+        middleware.close((err) => {
           if (err) return reject(err)
           resolve()
         })
@@ -57,7 +62,35 @@ export default class HotReloader {
     }
   }
 
-  async prepareMiddlewares (compiler) {
+  async reload () {
+    this.stats = null
+
+    const [compiler] = await Promise.all([
+      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      clean(this.dir)
+    ])
+
+    const buildTools = await this.prepareBuildTools(compiler)
+    this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
+
+    const oldWebpackDevMiddleware = this.webpackDevMiddleware
+
+    this.assignBuildTools(buildTools)
+    await this.stop(oldWebpackDevMiddleware)
+  }
+
+  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
+    this.webpackDevMiddleware = webpackDevMiddleware
+    this.webpackHotMiddleware = webpackHotMiddleware
+    this.onDemandEntries = onDemandEntries
+    this.middlewares = [
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries.middleware()
+    ]
+  }
+
+  async prepareBuildTools (compiler) {
     compiler.plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
 
@@ -78,7 +111,12 @@ export default class HotReloader {
 
     compiler.plugin('done', (stats) => {
       const { compilation } = stats
-      const chunkNames = new Set(compilation.chunks.map((c) => c.name))
+      const chunkNames = new Set(
+        compilation.chunks
+          .map((c) => c.name)
+          .filter(name => IS_BUNDLED_PAGE.test(name))
+      )
+
       const failedChunkNames = new Set(compilation.errors
       .map((e) => e.module.reasons)
       .reduce((a, b) => a.concat(b), [])
@@ -86,7 +124,11 @@ export default class HotReloader {
       .reduce((a, b) => a.concat(b), [])
       .map((c) => c.name))
 
-      const chunkHashes = new Map(compilation.chunks.map((c) => [c.name, c.hash]))
+      const chunkHashes = new Map(
+        compilation.chunks
+          .filter(c => IS_BUNDLED_PAGE.test(c.name))
+          .map((c) => [c.name, c.hash])
+      )
 
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
@@ -129,55 +171,52 @@ export default class HotReloader {
       /(^|[/\\])\../, // .dotfiles
       /node_modules/
     ]
-    const windowsSettings = isWindowsBash() ? {
-      lazy: false,
-      watchOptions: {
-        ignored,
-        aggregateTimeout: 300,
-        poll: true
-      }
-    } : {}
 
     let webpackDevMiddlewareConfig = {
       publicPath: '/_next/webpack/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
-      watchOptions: { ignored },
-      ...windowsSettings
+      watchOptions: { ignored }
     }
 
     if (this.config.webpackDevMiddleware) {
-      console.log('> Using "webpackDevMiddleware" config function defined in next.config.js.')
+      console.log(`> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`)
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
     }
 
-    this.webpackDevMiddleware = webpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
+    const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
-    this.webpackHotMiddleware = webpackHotMiddleware(compiler, {
+    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
       path: '/_next/webpack-hmr',
-      log: false
+      log: false,
+      heartbeat: 2500
     })
-    this.onDemandEntries = onDemandEntryHandler(this.webpackDevMiddleware, compiler, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler, {
       dir: this.dir,
       dev: true,
+      reload: this.reload.bind(this),
       ...this.config.onDemandEntries
     })
 
-    this.middlewares = [
-      this.webpackDevMiddleware,
-      this.webpackHotMiddleware,
-      this.onDemandEntries.middleware()
-    ]
+    return {
+      webpackDevMiddleware,
+      webpackHotMiddleware,
+      onDemandEntries
+    }
   }
 
-  waitUntilValid () {
+  waitUntilValid (webpackDevMiddleware) {
+    const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     return new Promise((resolve) => {
-      this.webpackDevMiddleware.waitUntilValid(resolve)
+      middleware.waitUntilValid(resolve)
     })
   }
 
-  getCompilationErrors () {
+  async getCompilationErrors () {
+    // When we are reloading, we need to wait until it's reloaded properly.
+    await this.onDemandEntries.waitUntilReloaded()
+
     if (!this.compilationErrors) {
       this.compilationErrors = new Map()
 

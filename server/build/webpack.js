@@ -5,6 +5,7 @@ import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
+import UglifyJsPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
@@ -27,9 +28,9 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
+export default async function createCompiler (dir, { dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
     join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
@@ -102,7 +103,12 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           return module.context && module.context.indexOf('node_modules') >= 0
         }
 
-        // Move modules used in at-least 1/2 of the total pages into commons.
+        // If there are one or two pages, only move modules to common if they are
+        // used in all of the pages. Otherwise, move modules used in at-least
+        // 1/2 of the total pages into commons.
+        if (totalPages <= 2) {
+          return count >= totalPages
+        }
         return count >= totalPages * 0.5
       }
     }),
@@ -118,7 +124,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }),
     new PagesPlugin(),
     new DynamicChunksPlugin(),
-    new CaseSensitivePathPlugin()
+    new CaseSensitivePathPlugin(),
+    new webpack.optimize.ModuleConcatenationPlugin()
   ]
 
   if (dev) {
@@ -131,12 +138,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
+    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
-      new webpack.optimize.UglifyJsPlugin({
+      new UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
       })
@@ -304,17 +312,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     performance: { hints: false }
   }
 
-  if (!dev) {
-    // We do this to use the minified version of React in production.
-    // This will significant file size redution when turned off uglifyjs.
-    webpackConfig.resolve.alias = {
-      'react': require.resolve('react/dist/react.min.js'),
-      'react-dom': require.resolve('react-dom/dist/react-dom.min.js')
-    }
-  }
-
   if (config.webpack) {
-    console.log('> Using "webpack" config function defined in next.config.js.')
+    console.log(`> Using "webpack" config function defined in ${config.configOrigin}.`)
     webpackConfig = await config.webpack(webpackConfig, { dev })
   }
   return webpack(webpackConfig)

@@ -45,8 +45,10 @@ export default () => ({
   visitor: {
     CallExpression (path) {
       if (path.node.callee.type === TYPE_IMPORT) {
+        const moduleName = path.node.arguments[0].value
+        const name = `${moduleName.replace(/[^\w]/g, '-')}-${UUID.v4()}`
         const newImport = buildImport({
-          name: UUID.v4()
+          name
         })({
           SOURCE: path.node.arguments
         })
