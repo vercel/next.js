@@ -135,7 +135,7 @@ function copyPages (nextDir, outDir, buildId) {
 
       let destFilePath = null
       if (/index\.jsx?$/.test(filename)) {
-        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
+        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath.replace('index.jsx', 'index.js'))
       } else {
         const newRelativeFilePath = relativeFilePath.replace(/\.jsx?/, `${sep}index.js`)
         destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
