@@ -1,8 +1,9 @@
 import * as React from 'react'
+import Link from 'next/link'
 import MyComponent from '../components/MyComponent'
-
-export default () => 
+export default () =>
   <div>
-    <h1>Hello world</h1>
+    <p>Hello there</p>
     <MyComponent />
+    <div>Click <Link prefetch href={{ pathname: 'pagewithasync' }}><a>Reactpage</a></Link> </div>
   </div>
