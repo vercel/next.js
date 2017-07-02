@@ -62,7 +62,7 @@
     "babel-preset-env": "1.5.2",
     "babel-preset-react": "6.24.1",
     "babel-runtime": "6.23.0",
-    "babel-template": "6.24.1",
+    "babel-template": "6.25.0",
     "case-sensitive-paths-webpack-plugin": "2.1.1",
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
