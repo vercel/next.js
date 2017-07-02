@@ -1,7 +1,6 @@
 {
-  "name": "next.js-css-global-style-test",
+  "name": "with-global-stylesheet",
   "version": "1.0.0",
-  "description": "",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

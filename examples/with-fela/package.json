@@ -7,10 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "fela": "^4.1.2",
+    "fela": "^5.0.1",
+    "fela-dom": "5.0.2",
+    "fela-preset-web": "^5.0.2",
     "next": "latest",
     "react": "^15.4.2",
     "react-dom": "^15.4.2",
-    "react-fela": "^4.1.2"
+    "react-fela": "^5.0.2"
   }
 }

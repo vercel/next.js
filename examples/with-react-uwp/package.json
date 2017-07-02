@@ -1,0 +1,16 @@
+{
+  "name": "with-react-uwp",
+  "version": "1.0.0",
+  "dependencies": {
+    "babel-core": "^6.25.0",
+    "next": "latest",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "react-uwp": "^1.0.9"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}

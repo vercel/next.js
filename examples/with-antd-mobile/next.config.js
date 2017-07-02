@@ -3,29 +3,20 @@ const fs = require('fs')
 const requireHacker = require('require-hacker')
 
 function setupRequireHacker () {
-  requireHacker.resolver((filename, module) => {
-    if (filename.endsWith('/style/css')) {
-      return requireHacker.resolve(`${filename}.web.js`, module)
-    }
-  })
+  const webjs = '.web.js'
+  const webModules = ['antd-mobile', 'rmc-picker'].map(m => path.join('node_modules', m))
 
   requireHacker.hook('js', filename => {
-    if (
-      filename.endsWith('.web.js') ||
-      !filename.includes('/node_modules/') ||
-      ['antd-mobile', 'rc-swipeout', 'rmc-picker'].every(p => !filename.includes(p))
-    ) return
+    if (filename.endsWith(webjs) || webModules.every(p => !filename.includes(p))) return
 
-    const webjs = filename.replace(/\.js$/, '.web.js')
-    if (!fs.existsSync(webjs)) return
+    const webFilename = filename.replace(/\.js$/, webjs)
+    if (!fs.existsSync(webFilename)) return
 
-    return fs.readFileSync(webjs, { encoding: 'utf8' })
+    return fs.readFileSync(webFilename, { encoding: 'utf8' })
   })
 
-  requireHacker.hook('css', () => '')
-
   requireHacker.hook('svg', filename => {
-    return requireHacker.to_javascript_module_source(fs.readFileSync(filename, { encoding: 'utf8' }))
+    return requireHacker.to_javascript_module_source(`#${path.parse(filename).name}`)
   })
 }
 
@@ -42,9 +33,21 @@ module.exports = {
     config.module.rules.push(
       {
         test: /\.(svg)$/i,
+        loader: 'emit-file-loader',
+        options: {
+          name: 'dist/[path][name].[ext]'
+        },
+        include: [
+          moduleDir('antd-mobile'),
+          __dirname
+        ]
+      },
+      {
+        test: /\.(svg)$/i,
         loader: 'svg-sprite-loader',
         include: [
-          moduleDir('antd-mobile')
+          moduleDir('antd-mobile'),
+          __dirname
         ]
       }
     )

@@ -1,0 +1,22 @@
+# projectId: cj3h80ffbllm20162alevpcby
+# version: 3
+
+type File implements Node {
+  contentType: String!
+  createdAt: DateTime!
+  id: ID! @isUnique
+  name: String!
+  secret: String! @isUnique
+  size: Int!
+  updatedAt: DateTime!
+  url: String! @isUnique
+}
+
+type User implements Node {
+  createdAt: DateTime!
+  email: String @isUnique
+  id: ID! @isUnique
+  name: String!
+  password: String
+  updatedAt: DateTime!
+}
