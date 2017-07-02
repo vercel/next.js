@@ -109,13 +109,13 @@ export default class Server {
       // This is to support, webpack dynamic imports in production.
       '/_next/webpack/chunks/:name': async (req, res, params) => {
         res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-        const p = join(this.dir, '.next', 'chunks', params.name)
+        const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic import support with HMR
       '/_next/webpack/:id': async (req, res, params) => {
-        const p = join(this.dir, '.next', 'chunks', params.id)
+        const p = join(this.dir, this.dist, 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },
 
@@ -123,7 +123,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/manifest.js`)
+        const p = join(this.dir, this.dist, 'manifest.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -131,7 +131,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/main.js`)
+        const p = join(this.dir, this.dist, 'main.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -139,7 +139,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/commons.js`)
+        const p = join(this.dir, this.dist, 'commons.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -147,7 +147,7 @@ export default class Server {
         if (this.dev) return this.send404(res)
 
         this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/app.js`)
+        const p = join(this.dir, this.dist, 'app.js')
         await this.serveStatic(req, res, p)
       },
 
