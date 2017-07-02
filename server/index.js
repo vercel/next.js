@@ -56,7 +56,7 @@ export default class Server {
 
   handleRequest (req, res, parsedUrl) {
     // Parse url if parsedUrl not provided
-    if (!parsedUrl) {
+    if (!parsedUrl || typeof parsedUrl !== 'object') {
       parsedUrl = parseUrl(req.url, true)
     }
 
