@@ -26,6 +26,6 @@ now
 
 ## The idea behind the example
 
-Layout component is essential for all sorts of things, mainly for Components that require persistant existance on the page. Components such as Alert, Transitions, and other things...
+Layout component is essential for all sorts of things, mainly for Components that require persistent existance on the page. Components such as Alert, Transitions, and other things...
 
 This example shows you how to setup a layout, which is as easy as creating a _layout.js file and filling it in with whatever you need.
