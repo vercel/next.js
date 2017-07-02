@@ -14,7 +14,12 @@ export default () => {
       const res = await fetch(url)
       const payload = await res.json()
       if (payload.invalid) {
-        location.reload()
+        // Payload can be invalid even if the page is not exists.
+        // So, we need to make sure it's exists before reloading.
+        const pageRes = await fetch(location.href)
+        if (pageRes.status === 200) {
+          location.reload()
+        }
       }
     } catch (err) {
       console.error(`Error with on-demand-entries-ping: ${err.message}`)
