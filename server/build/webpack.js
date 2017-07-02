@@ -7,6 +7,7 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UglifyJsPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
+import AutoDllPlugin from 'autodll-webpack-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
@@ -83,6 +84,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         customInterpolateName (url, name, opts) {
           return interpolateNames.get(this.resourcePath) || url
         }
+      }
+    }),
+    new AutoDllPlugin({
+      inject: true,
+      context: console.dir(),
+      filename: '[name].js',
+      path: './',
+      entry: {
+        vendor: [
+          'react',
+          'react-dom'
+        ]
       }
     }),
     new WriteFilePlugin({

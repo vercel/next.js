@@ -55,6 +55,7 @@ export class Head extends Component {
       return [
         this.getChunkPreloadLink('manifest.js'),
         this.getChunkPreloadLink('commons.js'),
+        this.getChunkPreloadLink('vendor.js'),
         this.getChunkPreloadLink('main.js')
       ]
     }
@@ -137,6 +138,7 @@ export class NextScript extends Component {
       return [
         this.getChunkScript('manifest.js'),
         this.getChunkScript('commons.js'),
+        this.getChunkScript('vendor.js'),
         this.getChunkScript('main.js')
       ]
     }

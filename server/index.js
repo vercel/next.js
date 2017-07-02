@@ -143,6 +143,14 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
+      '/_next/:hash/vendor.js': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
+        this.handleBuildHash('vendor.js', params.hash, res)
+        const p = join(this.dir, `${this.dist}/vendor.js`)
+        await this.serveStatic(req, res, p)
+      },
+
       '/_next/:hash/app.js': async (req, res, params) => {
         if (this.dev) return this.send404(res)
 
