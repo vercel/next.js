@@ -18,7 +18,8 @@ import rootModuleRelativePath from './root-module-relative-path'
 const documentPage = join('pages', '_document.js')
 const defaultPages = [
   '_error.js',
-  '_document.js'
+  '_document.js',
+  '_layout.js'
 ]
 const nextPagesDir = join(__dirname, '..', '..', 'pages')
 const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
@@ -49,7 +50,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js' || p === 'pages/_layout.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
@@ -234,6 +235,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
                   'next/document': relativeResolve('../../server/document'),
                   'next/router': relativeResolve('../../lib/router'),
                   'next/error': relativeResolve('../../lib/error'),
+                  'next/layout': relativeResolve('../../lib/layout'),
                   'styled-jsx/style': relativeResolve('styled-jsx/style')
                 }
               }

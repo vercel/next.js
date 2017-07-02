@@ -38,7 +38,8 @@ module.exports = {
           'next/head': relativeResolve('../../../lib/head'),
           'next/document': relativeResolve('../../../server/document'),
           'next/router': relativeResolve('../../../lib/router'),
-          'next/error': relativeResolve('../../../lib/error')
+          'next/error': relativeResolve('../../../lib/error'),
+          'next/layout': relativeResolve('../../../lib/layout')
         }
       }
     ]

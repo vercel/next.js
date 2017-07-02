@@ -53,12 +53,16 @@ async function doRender (req, res, pathname, query, {
 
   const dist = getConfig(dir).distDir
 
-  let [Component, Document] = await Promise.all([
+  let [Component, Document, Layout] = await Promise.all([
     requireModule(join(dir, dist, 'dist', 'pages', page)),
-    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
+    requireModule(join(dir, dist, 'dist', 'pages', '_document')),
+    requireModule(join(dir, dist, 'dist', 'pages', '_layout'))
   ])
+
   Component = Component.default || Component
   Document = Document.default || Document
+  Layout = Layout.default || Layout
+
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const props = await loadGetInitialProps(Component, ctx)
@@ -69,6 +73,7 @@ async function doRender (req, res, pathname, query, {
   const renderPage = () => {
     const app = createElement(App, {
       Component,
+      Layout,
       props,
       router: new Router(pathname, query)
     })
@@ -240,7 +245,7 @@ export function serveStatic (req, res, path) {
 
 async function ensurePage (page, { dir, hotReloader }) {
   if (!hotReloader) return
-  if (page === '_error' || page === '_document') return
+  if (page === '_error' || page === '_document' || page === '_layout') return
 
   await hotReloader.ensurePage(page)
 }

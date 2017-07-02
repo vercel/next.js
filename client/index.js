@@ -53,6 +53,7 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
+export let Layout
 let Component
 
 export default async () => {
@@ -64,6 +65,12 @@ export default async () => {
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {
+    Layout = await pageLoader.loadPage('/_layout')
+  } catch (err) {
+    Layout = require('../lib/layout').default
+  }
+
+  try {
     Component = await pageLoader.loadPage(pathname)
   } catch (err) {
     console.error(`${err.message}\n${err.stack}`)
@@ -73,18 +80,19 @@ export default async () => {
   router = createRouter(pathname, query, asPath, {
     pageLoader,
     Component,
+    Layout,
     ErrorComponent,
     err
   })
 
   const emitter = mitt()
 
-  router.subscribe(({ Component, props, hash, err }) => {
-    render({ Component, props, err, hash, emitter })
+  router.subscribe(({ Component, Layout, props, hash, err }) => {
+    render({ Component, Layout, props, err, hash, emitter })
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
+  render({ Component, Layout, props, hash, err, emitter })
 
   return emitter
 }
@@ -129,7 +137,7 @@ export async function renderError (error) {
   }
 }
 
-async function doRender ({ Component, props, hash, err, emitter }) {
+async function doRender ({ Component, Layout, props, hash, err, emitter }) {
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
@@ -145,7 +153,7 @@ async function doRender ({ Component, props, hash, err, emitter }) {
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, props, hash, err, router, headManager }
+  const appProps = { Component, Layout, props, hash, err, router, headManager }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
