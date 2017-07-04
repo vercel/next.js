@@ -10,7 +10,7 @@ https://next-with-apollo-auth.now.sh
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-apollo-auth
+curl https://codeload.github.com/zeit/next.js/tar.gz/v3-beta | tar -xz --strip=2 next.js-3-beta/examples/with-apollo-auth
 cd with-apollo-auth
 ```
 
