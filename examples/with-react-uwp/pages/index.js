@@ -42,7 +42,7 @@ class Index extends Component {
         <DatePicker />
         <ColorPicker />
         <ProgressRing size={50} />
-        <p style={{ textAlign: "center" }}>{userAgent.slice(12)}...</p>
+        <p style={{ textAlign: 'center' }}>{userAgent.slice(12)}...</p>
       </ThemeWrapper>
     )
   }
