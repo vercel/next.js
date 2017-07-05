@@ -118,7 +118,7 @@
     "coveralls": "2.13.1",
     "cross-env": "5.0.1",
     "express": "4.15.2",
-    "husky": "0.14.2",
+    "husky": "0.14.3",
     "jest-cli": "20.0.4",
     "lint-staged": "^4.0.0",
     "node-fetch": "1.7.1",
