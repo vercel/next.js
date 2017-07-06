@@ -77,7 +77,6 @@
     "loader-utils": "1.1.0",
     "md5-file": "3.1.1",
     "minimist": "1.2.0",
-    "mitt": "1.1.2",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
     "mz": "2.6.0",
