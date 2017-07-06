@@ -4,9 +4,14 @@ import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import Head from 'next/head'
 import initApollo from './initApollo'
 
+// Gets the display name of a JSX component for dev tools
+function getComponentDisplayName (Component) {
+  return Component.displayName || Component.name || 'Unknown'
+}
+
 export default ComposedComponent => {
   return class WithData extends React.Component {
-    static displayName = `WithData(${ComposedComponent.displayName})`
+    static displayName = `WithData(${getComponentDisplayName(ComposedComponent)})`
     static propTypes = {
       serverState: PropTypes.object.isRequired
     }
@@ -20,29 +25,34 @@ export default ComposedComponent => {
         composedInitialProps = await ComposedComponent.getInitialProps(ctx)
       }
 
-      // Run all graphql queries in the component tree
+      // Run all GraphQL queries in the component tree
       // and extract the resulting data
       if (!process.browser) {
         const apollo = initApollo()
-        // Provide the `url` prop data in case a graphql query uses it
+        // Provide the `url` prop data in case a GraphQL query uses it
         const url = {query: ctx.query, pathname: ctx.pathname}
-
-        // Run all graphql queries
-        const app = (
-          <ApolloProvider client={apollo}>
-            <ComposedComponent url={url} {...composedInitialProps} />
-          </ApolloProvider>
-        )
-        await getDataFromTree(app)
+        try {
+          // Run all GraphQL queries
+          await getDataFromTree(
+            <ApolloProvider client={apollo}>
+              <ComposedComponent url={url} {...composedInitialProps} />
+            </ApolloProvider>
+          )
+        } catch (error) {
+          // Prevent Apollo Client GraphQL errors from crashing SSR.
+          // Handle them in components via the data.error prop:
+          // http://dev.apollodata.com/react/api-queries.html#graphql-query-data-error
+        }
         // getDataFromTree does not call componentWillUnmount
         // head side effect therefore need to be cleared manually
         Head.rewind()
 
-        // Extract query data from the Apollo's store
+        // Extract query data from the Apollo store
         const state = apollo.getInitialState()
 
         serverState = {
-          apollo: { // Make sure to only include Apollo's data state
+          apollo: {
+            // Only include the Apollo data state
             data: state.data
           }
         }
