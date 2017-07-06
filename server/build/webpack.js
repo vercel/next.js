@@ -276,7 +276,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: '/_next/webpack/',
+      publicPath: `/${config.assetDirectory}/webpack/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')

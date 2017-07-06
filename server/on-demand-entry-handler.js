@@ -14,6 +14,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
   reload,
+  assetDirectory,
   maxInactiveAge = 1000 * 25
 }) {
   let entries = {}
@@ -181,7 +182,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
               res.end('302')
             })
         } else {
-          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
+          const onDemandPingRegex = new RegExp(`^/${assetDirectory}/on-demand-entries-ping`)
+          if (!onDemandPingRegex.test(req.url)) return next()
 
           const { query } = parse(req.url, true)
           const page = normalizePage(query.page)

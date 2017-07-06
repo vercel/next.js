@@ -1,4 +1,4 @@
-import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?overlay=false&reload=true&path=/_next/webpack-hmr'
+import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?overlay=false&reload=true&path=webpack-hmr&dynamicPublicPath=true'
 import Router from '../lib/router'
 
 export default () => {

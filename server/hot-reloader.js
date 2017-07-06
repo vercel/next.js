@@ -173,7 +173,7 @@ export default class HotReloader {
     ]
 
     let webpackDevMiddlewareConfig = {
-      publicPath: '/_next/webpack/',
+      publicPath: `/${this.config.assetDirectory}/webpack/`,
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
@@ -188,12 +188,13 @@ export default class HotReloader {
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
     const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
-      path: '/_next/webpack-hmr',
+      path: `/${this.config.assetDirectory}/webpack/webpack-hmr`,
       log: false,
       heartbeat: 2500
     })
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler, {
       dir: this.dir,
+      assetDirectory: this.config.assetDirectory,
       dev: true,
       reload: this.reload.bind(this),
       ...this.config.onDemandEntries

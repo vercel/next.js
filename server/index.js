@@ -19,11 +19,6 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 
-const internalPrefixes = [
-  /^\/_next\//,
-  /^\/static\//
-]
-
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
@@ -48,6 +43,7 @@ export default class Server {
       buildStats: this.buildStats,
       buildId: this.buildId,
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      assetDirectory: this.config.assetDirectory,
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
@@ -107,19 +103,19 @@ export default class Server {
       },
 
       // This is to support, webpack dynamic imports in production.
-      '/_next/webpack/chunks/:name': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/webpack/chunks/:name`]: async (req, res, params) => {
         res.setHeader('Cache-Control', 'max-age=365000000, immutable')
         const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/webpack/:id`]: async (req, res, params) => {
         const p = join(this.dir, this.dist, 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/manifest.js': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:hash/manifest.js`]: async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('manifest.js', params.hash, res)
@@ -127,7 +123,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/main.js': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:hash/main.js`]: async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('main.js', params.hash, res)
@@ -135,7 +131,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/commons.js': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:hash/commons.js`]: async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('commons.js', params.hash, res)
@@ -143,7 +139,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/app.js': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:hash/app.js`]: async (req, res, params) => {
         if (this.dev) return this.send404(res)
 
         this.handleBuildHash('app.js', params.hash, res)
@@ -151,7 +147,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/_error*': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:buildId/page/_error*`]: async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
@@ -163,7 +159,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/:path*': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:buildId/page/:path*`]: async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
 
@@ -191,7 +187,7 @@ export default class Server {
         await renderScript(req, res, page, this.renderOpts)
       },
 
-      '/_next/:path+': async (req, res, params) => {
+      [`/${this.config.assetDirectory}/:path+`]: async (req, res, params) => {
         const p = join(__dirname, '..', 'client', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
@@ -344,6 +340,11 @@ export default class Server {
   }
 
   isInternalUrl (req) {
+    const internalPrefixes = [
+      new RegExp(`^/${this.config.assetDirectory}/`),
+      /^\/static\//
+    ]
+
     for (const prefix of internalPrefixes) {
       if (prefix.test(req.url)) {
         return true
