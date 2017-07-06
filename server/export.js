@@ -78,6 +78,7 @@ export default async function (dir, options) {
     buildId,
     nextExport: true,
     assetPrefix: config.assetPrefix.replace(/\/$/, ''),
+    assetDirectory: config.assetDirectory,
     dev: false,
     staticMarkup: false,
     hotReloader: null,
