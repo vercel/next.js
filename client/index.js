@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
+import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import ErrorDebugComponent from '../lib/error-debug'
@@ -77,7 +77,7 @@ export default async () => {
     err
   })
 
-  const emitter = mitt()
+  const emitter = new EventEmitter()
 
   router.subscribe(({ Component, props, hash, err }) => {
     render({ Component, props, err, hash, emitter })
