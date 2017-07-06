@@ -24,6 +24,11 @@ const internalPrefixes = [
   /^\/static\//
 ]
 
+const blockedPages = {
+  '/_document': true,
+  '/_error': true
+}
+
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
@@ -249,6 +254,10 @@ export default class Server {
   async render (req, res, pathname, query, parsedUrl) {
     if (this.isInternalUrl(req)) {
       return this.handleRequest(req, res, parsedUrl)
+    }
+
+    if (blockedPages[pathname]) {
+      return await this.render404(req, res, parsedUrl)
     }
 
     if (this.config.poweredByHeader) {
