@@ -1,6 +1,6 @@
 import React from 'react'
 import { hydrate, keyframes, fragment, injectGlobal } from 'emotion'
-import styled from 'emotion/styled'
+import styled from 'emotion/react'
 
 // Adds server generated styles to emotion cache.
 // '__NEXT_DATA__.ids' is set in '_document.js'
@@ -69,15 +69,11 @@ export default () => {
 
   return (
     <div>
-      <Basic>
-        Cool Styles
-      </Basic>
+      <Basic>Cool Styles</Basic>
       <Combined>
         With <code>:hover</code>.
       </Combined>
-      <Animated animation={bounce}>
-        Let's bounce.
-      </Animated>
+      <Animated animation={bounce}>Let's bounce.</Animated>
     </div>
   )
 }

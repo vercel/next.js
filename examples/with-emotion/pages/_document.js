@@ -1,10 +1,10 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import { renderStaticOptimized } from 'emotion/server'
+import { extractCritical } from 'emotion/server'
 
 export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
     const page = renderPage()
-    const styles = renderStaticOptimized(() => page.html)
+    const styles = extractCritical(page.html)
     return { ...page, ...styles }
   }
 
