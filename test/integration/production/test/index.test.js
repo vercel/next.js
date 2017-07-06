@@ -49,6 +49,14 @@ describe('Production Usage', () => {
       const res2 = await fetch(url, { headers })
       expect(res2.status).toBe(304)
     })
+
+    it('should block special pages', async () => {
+      const urls = ['/_document', '/_error']
+      for (const url of urls) {
+        const html = await renderViaHTTP(appPort, url)
+        expect(html).toMatch(/404/)
+      }
+    })
   })
 
   describe('With navigation', () => {
