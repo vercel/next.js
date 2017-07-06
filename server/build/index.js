@@ -7,9 +7,9 @@ import webpack from './webpack'
 import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
-export default async function build (dir) {
+export default async function build (dir, conf = null) {
   const buildDir = join(tmpdir(), uuid.v4())
-  const compiler = await webpack(dir, { buildDir })
+  const compiler = await webpack(dir, { buildDir, conf })
 
   try {
     await runCompiler(compiler)

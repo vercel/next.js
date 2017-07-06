@@ -29,6 +29,10 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
+    if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
+      console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
+      process.exit(1)
+    }
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
@@ -48,7 +52,7 @@ export default class Server {
 
   handleRequest (req, res, parsedUrl) {
     // Parse url if parsedUrl not provided
-    if (!parsedUrl) {
+    if (!parsedUrl || typeof parsedUrl !== 'object') {
       parsedUrl = parseUrl(req.url, true)
     }
 
@@ -57,12 +61,13 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    res.statusCode = 200
     return this.run(req, res, parsedUrl)
-    .catch((err) => {
-      if (!this.quiet) console.error(err)
-      res.statusCode = 500
-      res.end(STATUS_CODES[500])
-    })
+      .catch((err) => {
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        res.end(STATUS_CODES[500])
+      })
   }
 
   getRequestHandler () {
@@ -100,13 +105,13 @@ export default class Server {
       // This is to support, webpack dynamic imports in production.
       [`/${this.config.assetDirectory}/webpack/chunks/:name`]: async (req, res, params) => {
         res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-        const p = join(this.dir, '.next', 'chunks', params.name)
+        const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic import support with HMR
       [`/${this.config.assetDirectory}/webpack/:id`]: async (req, res, params) => {
-        const p = join(this.dir, '.next', 'chunks', params.id)
+        const p = join(this.dir, this.dist, 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },
 
@@ -114,7 +119,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/manifest.js`)
+        const p = join(this.dir, this.dist, 'manifest.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -122,7 +127,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/main.js`)
+        const p = join(this.dir, this.dist, 'main.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -130,7 +135,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/commons.js`)
+        const p = join(this.dir, this.dist, 'commons.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -138,7 +143,7 @@ export default class Server {
         if (this.dev) return this.send404(res)
 
         this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/app.js`)
+        const p = join(this.dir, this.dist, 'app.js')
         await this.serveStatic(req, res, p)
       },
 

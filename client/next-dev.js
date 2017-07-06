@@ -42,8 +42,10 @@ ReactReconciler.mountComponent = function (...args) {
   try {
     return originalMountComponent(...args)
   } catch (err) {
-    next.renderError(err)
-    err.abort = true
+    if (!err.abort) {
+      next.renderError(err)
+      err.abort = true
+    }
     throw err
   }
 }

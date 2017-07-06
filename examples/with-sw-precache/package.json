@@ -1,0 +1,14 @@
+{
+  "name": "with-sw-precache",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2",
+    "sw-precache-webpack-plugin": "^0.11.3"
+  }
+}

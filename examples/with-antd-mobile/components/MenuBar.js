@@ -36,9 +36,15 @@ const tabBarData = [
     link: '/home'
   },
   {
-    title: 'Trick',
+    title: 'Icon',
     icon: 'check-circle-o',
     selectedIcon: 'check-circle',
+    link: '/icon'
+  },
+  {
+    title: 'Trick',
+    icon: 'cross-circle-o',
+    selectedIcon: 'cross-circle',
     link: '/trick'
   }
 ]
