@@ -1,6 +1,10 @@
 @import 'normalize.css';
 
-$primary-color: black;
+$primary-color: red;
+
+.foo {
+  color: green;
+}
 
 p {
   font-size: xx-large;

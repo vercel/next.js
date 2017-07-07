@@ -6,6 +6,7 @@ import stylesheet from 'styles/index.scss'
 
 export default () =>
   <div>
-    <style dangerouslySetInnerHTML={{ __html: stylesheet }} />
+    <style jsx global>{stylesheet}</style>
     <p>ciao</p>
+    <p className="foo">hello</p>
   </div>
