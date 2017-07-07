@@ -1,5 +1,5 @@
 import React from 'react'
-import { hydrate, keyframes, fragment, injectGlobal } from 'emotion'
+import { hydrate, keyframes, css, injectGlobal } from 'emotion'
 import styled from 'emotion/react'
 
 // Adds server generated styles to emotion cache.
@@ -20,7 +20,7 @@ export default () => {
     }
   `
 
-  const basicStyles = fragment`
+  const basicStyles = css`
     background-color: white;
     color: cornflowerblue;
     border: 1px solid lightgreen;
@@ -31,11 +31,13 @@ export default () => {
     margin: 3rem 0;
     padding: 1rem 0.5rem;
   `
-  const hoverStyles = fragment`
-    color: white;
-    background-color: lightgray;
-    border-color: aqua;
-    box-shadow: -15px -15px 0 0 aqua, -30px -30px 0 0 cornflowerblue;
+  const hoverStyles = css`
+    &:hover {
+      color: white;
+      background-color: lightgray;
+      border-color: aqua;
+      box-shadow: -15px -15px 0 0 aqua, -30px -30px 0 0 cornflowerblue;
+    }
   `
   const bounce = keyframes`
     from {
@@ -48,19 +50,13 @@ export default () => {
 
   const Basic = styled.div`@apply ${basicStyles};`
   const Combined = styled.div`
-    @apply ${basicStyles};
-    &:hover {
-      @apply ${hoverStyles};
-    }
+    composes: ${basicStyles} ${hoverStyles};
     & code {
       background-color: linen;
     }
   `
   const Animated = styled.div`
-    @apply ${basicStyles};
-    &:hover {
-      @apply ${hoverStyles};
-    }
+    composes: ${basicStyles} ${hoverStyles};
     & code {
       background-color: linen;
     }
