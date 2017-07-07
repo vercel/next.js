@@ -9,6 +9,11 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 
 cd with-firebase-hosting
 ```
 
+It is recommended to use a package manager that uses a lockfile and caching for faster dev/test cycles:
+- [Yarn](https://github.com/yarnpkg/yarn)
+- [npm5.1.x](https://github.com/npm/npm)
+- [pnpm](https://github.com/pnpm/pnpm)
+
 Set up firebase:
 - create a project through the firebase web console
 - grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
