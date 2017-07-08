@@ -3,11 +3,11 @@ import PropTypes from 'prop-types'
 import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
-  static async getInitialProps ({ req }) {
-    return req
-      ? { userAgent: req.headers['user-agent'] }
-      : { userAgent: navigator.userAgent }
+  static getInitialProps ({ renderPage }) {
+    const {html, head, errorHtml, chunks} = renderPage()
+    return { html, head, errorHtml, chunks }
   }
+
   static contextTypes = { theme: PropTypes.object };
 
   render () {

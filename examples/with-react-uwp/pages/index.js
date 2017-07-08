@@ -12,7 +12,7 @@ import {
 } from 'react-uwp'
 
 class Index extends Component {
-  static getInitialProps ({ req }) {
+  static async getInitialProps ({ req }) {
     let userAgent
     if (process.browser) {
       userAgent = navigator.userAgent
@@ -25,6 +25,7 @@ class Index extends Component {
   static contextTypes = { theme: PropTypes.object }
 
   render () {
+    const { userAgent } = this.props
     return (
       <ThemeWrapper
         style={{
@@ -35,12 +36,13 @@ class Index extends Component {
           alignItems: 'center',
           justifyContent: 'space-around'
         }}
-        theme={getTheme({ userAgent: this.props.userAgent })}
+        theme={getTheme({ userAgent })}
       >
         <Button>Test Button</Button>
         <DatePicker />
         <ColorPicker />
         <ProgressRing size={50} />
+        <p style={{ textAlign: 'center' }}>{userAgent.slice(12)}...</p>
       </ThemeWrapper>
     )
   }
