@@ -1,39 +1,37 @@
-export default class PagesPlugin {
+import { ConcatSource } from 'webpack-sources'
+
+export default class DynamicChunksPlugin {
   apply (compiler) {
     const isImportChunk = /^chunks[/\\].*\.js$/
     const matchChunkName = /^chunks[/\\](.*)$/
 
-    compiler.plugin('after-compile', (compilation, callback) => {
-      const chunks = Object
-        .keys(compilation.namedChunks)
-        .map(key => compilation.namedChunks[key])
-        .filter(chunk => isImportChunk.test(chunk.name))
+    compiler.plugin('compilation', (compilation) => {
+      compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
+        chunks = chunks.filter(chunk => isImportChunk.test(chunk.name))
 
-      chunks.forEach((chunk) => {
-        const asset = compilation.assets[chunk.name]
-        if (!asset) return
+        chunks.forEach((chunk) => {
+          const asset = compilation.assets[chunk.name]
+          if (!asset) return
 
-        const chunkName = matchChunkName.exec(chunk.name)[1]
+          const chunkName = matchChunkName.exec(chunk.name)[1]
+          const concat = new ConcatSource()
 
-        const content = asset.source()
-        const newContent = `
-          window.__NEXT_REGISTER_CHUNK('${chunkName}', function() {
-            ${content}
-          })
-        `
-        // Replace the exisiting chunk with the new content
-        compilation.assets[chunk.name] = {
-          source: () => newContent,
-          size: () => newContent.length
-        }
+          concat.add(`__NEXT_REGISTER_CHUNK('${chunkName}', function() {
+          `)
+          concat.add(asset)
+          concat.add(`
+            })
+          `)
 
-        // This is to support, webpack dynamic import support with HMR
-        compilation.assets[`chunks/${chunk.id}`] = {
-          source: () => newContent,
-          size: () => newContent.length
-        }
+          // Replace the exisiting chunk with the new content
+          compilation.assets[chunk.name] = concat
+
+          // This is to support, webpack dynamic import support with HMR
+          compilation.assets[`chunks/${chunk.name}`] = concat
+        })
+
+        callback()
       })
-      callback()
     })
   }
 }
