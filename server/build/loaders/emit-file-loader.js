@@ -12,7 +12,7 @@ module.exports = function (content, sourceMap) {
 
   const emit = (code, map) => {
     this.emitFile(interpolatedName, code, map)
-    this.callback(null, content, sourceMap)
+    this.callback(null, code, map)
   }
 
   if (query.transform) {
