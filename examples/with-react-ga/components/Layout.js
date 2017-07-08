@@ -1,5 +1,10 @@
 import React from 'react'
+import Router from 'next/router'
 import { initGA, logPageView } from '../utils/analytics'
+
+Router.onRouteChangeComplete = (url) => {
+  logPageView()
+}
 
 export default class Layout extends React.Component {
   componentDidMount () {
