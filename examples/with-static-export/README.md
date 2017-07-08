@@ -9,7 +9,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 
 cd with-static-export
 ```
 
-> This example requires [Node.js 8](https://nodejs.org/en/download/current/) or a later version.
+> This example requires [Node.js 8](https://nodejs.org/en/download/current/) or a later version.<br>
 > (That's for the use of "async await" in the `next.config.js`.)
 
 Install it and run:
