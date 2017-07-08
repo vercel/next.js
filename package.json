@@ -97,7 +97,7 @@
     "walk": "^2.3.9",
     "webpack": "3.1.0",
     "webpack-dev-middleware": "1.11.0",
-    "webpack-hot-middleware": "2.18.0",
+    "webpack-hot-middleware": "2.18.2",
     "write-file-webpack-plugin": "4.1.0",
     "xss-filters": "1.2.7"
   },
