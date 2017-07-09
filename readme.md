@@ -353,7 +353,22 @@ export default () => (
 // pages/index.js
 import Link from 'next/link'
 export default () => (
-  <div>Click <Link href='/about'><img src="/static/image.png"></Link></div>
+  <div>Click <Link href='/about'><img src="/static/image.png" /></Link></div>
+)
+```
+
+##### Forcing the Link to expose `href` to its child 
+
+If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hiperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
+
+```jsx
+import Link from 'next/link'
+import Unexpected_A from 'third-library'
+ 
+export default ({ href, name }) => (
+  <Link href={ href } passHref>
+    <Unexpected_A>{ name }</Unexpected_A>
+  </Link>
 )
 ```
 
@@ -776,6 +791,37 @@ export default class Error extends React.Component {
   }
 }
 ```
+
+### Reusing the build in error page
+
+If you want to render the build in error page you can by using `next/error`:
+
+```jsx
+import React from 'react'
+import Error from 'next/error'
+import fetch from 'isomorphic-fetch'
+
+export default class Page extends React.Component {
+  static async getInitialProps () {
+    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const json = await res.json()
+    return { statusCode, stars: json.stargazers_count }
+  }
+
+  render () {
+    if(this.props.statusCode) {
+        return <Error statusCode={this.props.statusCode} />
+    }
+
+    return (
+      <div>Next stars: {this.props.stars}</div>
+    )
+  }
+}
+```
+
+> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
 
 ### Custom configuration
 
