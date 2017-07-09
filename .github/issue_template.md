@@ -30,6 +30,10 @@
 
 ## Your Environment
 <!--- Include as many relevant details about the environment you experienced the bug in -->
-* Next.js version:
-* Environment name and version (e.g. Chrome 39, Node.js 5.4):
-* Operating System (Linux, maxOS, Windows): 
+| Tech    | Version |
+|---------|---------|
+| next    |         |
+| node    |         |
+| OS      |         |
+| browser |         |
+| etc     |         |
