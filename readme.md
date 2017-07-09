@@ -777,6 +777,37 @@ export default class Error extends React.Component {
 }
 ```
 
+### Reusing the build in error page
+
+If you want to render the build in error page you can by using `next/error`:
+
+```jsx
+import React from 'react'
+import Error from 'next/error'
+import fetch from 'isomorphic-fetch'
+
+export default class Page extends React.Component {
+  static async getInitialProps () {
+    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const json = await res.json()
+    return { statusCode, stars: json.stargazers_count }
+  }
+
+  render () {
+    if(this.props.statusCode) {
+        return <Error statusCode={this.props.statusCode} />
+    }
+
+    return (
+      <div>Next stars: {this.props.stars}</div>
+    )
+  }
+}
+```
+
+> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
+
 ### Custom configuration
 
 For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `pages/` and `package.json`).
