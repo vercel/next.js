@@ -14,7 +14,7 @@ export default class PagesPlugin {
       pages.forEach((chunk) => {
         const page = compilation.assets[chunk.name]
         const pageName = MATCH_ROUTE_NAME.exec(chunk.name)[1]
-        let routeName = `/${pageName.replace(/[/\\]?index$/, '')}`
+        let routeName = pageName
 
         // We need to convert \ into / when we are in windows
         // to get the proper route name
@@ -25,6 +25,8 @@ export default class PagesPlugin {
         if (/^win/.test(process.platform)) {
           routeName = routeName.replace(/\\/g, '/')
         }
+
+        routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
         const content = page.source()
         const newContent = `
