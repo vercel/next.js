@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { connect } from 'react-redux'
 import { addCount } from 'actions'
 import { selectLight, selectLastUpdate, selectCount } from 'selectors'

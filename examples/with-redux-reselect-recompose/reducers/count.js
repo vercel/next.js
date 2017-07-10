@@ -1,6 +1,6 @@
 import { ADD, TICK } from 'constants/actionTypes'
 
-const initialState = {
+export const initialState = {
   lastUpdate: 0,
   light: false,
   count: 0
@@ -9,7 +9,7 @@ const initialState = {
 export default (state = initialState, action) => {
   const { type, ts, light } = action
 
-  switch(type) {
+  switch (type) {
     case TICK: {
       return Object.assign({}, state, {
         lastUpdate: ts,

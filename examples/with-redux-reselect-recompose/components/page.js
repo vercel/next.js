@@ -1,9 +1,9 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import Link from 'next/link'
+import { compose, setDisplayName, pure, setPropTypes } from 'recompose'
 import Clock from './clock'
 import AddCount from './addCount'
-import { compose, setDisplayName, pure, setPropTypes } from 'recompose'
 
 const Page = ({ title, linkTo, light, lastUpdate, count, addCount }) =>
   <div>

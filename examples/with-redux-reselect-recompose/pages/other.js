@@ -1,10 +1,8 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import withRedux from 'next-redux-wrapper'
-import { compose, setDisplayName, pure, lifecycle, withProps } from 'recompose'
-import { initStore } from '../store'
 import { startClock, addCount, serverRenderClock } from 'actions'
 import Page from 'containers/page'
+import withRedux from 'next-redux-wrapper'
+import { compose, setDisplayName, pure, lifecycle, withProps } from 'recompose'
+import initStore from '../store'
 
 const Counter = compose(
   setDisplayName('OtherPage'),

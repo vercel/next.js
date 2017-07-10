@@ -3,11 +3,11 @@ import { createStore, applyMiddleware, compose } from 'redux'
 import { createLogger } from 'redux-logger'
 import reducer, { initialState } from 'reducers'
 
-export const initStore = (initialState = initialState) => {
+export default (state = initialState) => {
   const middlewares = [thunkMiddleware, createLogger()]
   return createStore(
     reducer,
-    initialState,
+    state,
     compose(applyMiddleware(...middlewares))
   )
 }
