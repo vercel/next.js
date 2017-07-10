@@ -18,8 +18,7 @@
     "redux": "^3.6.0",
     "redux-logger": "^3.0.6",
     "redux-thunk": "^2.2.0",
-    "reselect": "^3.0.1",
-    "selectors": "^0.0.1"
+    "reselect": "^3.0.1"
   },
   "author": "Phuc Nguyen Hoang",
   "license": "MIT"
