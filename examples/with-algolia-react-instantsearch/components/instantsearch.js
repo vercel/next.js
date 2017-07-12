@@ -1,5 +1,5 @@
-import { createInstantSearch } from 'react-instantsearch/server';
+import { createInstantSearch } from 'react-instantsearch/server'
 
-const { InstantSearch, findResultsState } = createInstantSearch();
+const { InstantSearch, findResultsState } = createInstantSearch()
 
-export { InstantSearch, findResultsState };
+export { InstantSearch, findResultsState }
