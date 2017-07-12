@@ -792,9 +792,9 @@ export default class Error extends React.Component {
 }
 ```
 
-### Reusing the build in error page
+### Reusing the built-in error page
 
-If you want to render the build in error page you can by using `next/error`:
+If you want to render the built-in error page you can by using `next/error`:
 
 ```jsx
 import React from 'react'
