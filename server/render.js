@@ -30,6 +30,10 @@ export async function renderError (err, req, res, pathname, query, opts) {
   sendHTML(req, res, html, req.method, opts)
 }
 
+export function renderBackpressureToHTML (req, res, pathname, query, opts = {}) {
+  return doRender(req, res, pathname, query, { ...opts, overloadCheck: () => true })
+}
+
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
 }
@@ -45,7 +49,8 @@ async function doRender (req, res, pathname, query, {
   dir = process.cwd(),
   dev = false,
   staticMarkup = false,
-  nextExport = false
+  nextExport = false,
+  overloadCheck = () => false
 } = {}) {
   page = page || pathname
 
@@ -67,6 +72,17 @@ async function doRender (req, res, pathname, query, {
   if (res.finished) return
 
   const renderPage = (enhancer = Page => Page) => {
+    const chunks = loadChunks({ dev, dir, dist, availableChunks })
+
+    if (overloadCheck()) {
+      return {
+        html: '',
+        head: defaultHead(),
+        errorHtml: '',
+        chunks
+      }
+    }
+
     const app = createElement(App, {
       Component: enhancer(Component),
       props,
@@ -90,7 +106,6 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = loadChunks({ dev, dir, dist, availableChunks })
 
     return { html, head, errorHtml, chunks }
   }
