@@ -1,0 +1,21 @@
+{
+  "name": "with-workbox",
+  "version": "1.0.12",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build && node generate-sw.js",
+    "start": "NODE_ENV=production node server.js",
+    "deploy": "npm version patch && now --name=next-workbox --public"
+  },
+  "dependencies": {
+    "express": "^4.15.3",
+    "globby": "^6.1.0",
+    "isomorphic-unfetch": "^2.0.0",
+    "load-json-file": "^2.0.0",
+    "next": "beta",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "workbox-build": "^1.0.1",
+    "workbox-webpack-plugin": "^1.0.1"
+  }
+}
