@@ -1,0 +1,25 @@
+{
+  "name": "with-redux-saga",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "es6-promise": "4.1.1",
+    "isomorphic-fetch": "2.2.1",
+    "next": "latest",
+    "next-redux-saga": "1.0.1",
+    "next-redux-wrapper": "1.2.0",
+    "react": "15.6.1",
+    "react-dom": "15.6.1",
+    "react-redux": "5.0.5",
+    "redux": "3.7.2",
+    "redux-saga": "0.15.4"
+  },
+  "devDependencies": {
+    "redux-devtools-extension": "2.13.2"
+  }
+}
