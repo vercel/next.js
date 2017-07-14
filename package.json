@@ -128,7 +128,7 @@
     "react-dom": "15.5.4",
     "standard": "9.0.2",
     "taskr": "1.0.6",
-    "wd": "1.3.0"
+    "wd": "1.4.0"
   },
   "peerDependencies": {
     "react": "^15.5.4",
