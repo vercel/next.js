@@ -1026,6 +1026,7 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
+- [Using .env variables](https://medium.com/the-tech-bench/next-js-environment-variables-d2f6ea1a1dca)
 
 ## FAQ
 
