@@ -443,7 +443,7 @@ Router.onRouteChangeStart = (url) => {
 }
 ```
 
-If you are no longer want to listen to that event, you can simply unset the event listener like this:
+If you no longer want to listen to that event, you can simply unset the event listener like this:
 
 ```js
 Router.onRouteChangeStart = null
