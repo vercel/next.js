@@ -1,3 +1,4 @@
+import Concat from 'concat-with-sourcemaps'
 import {
   IS_BUNDLED_PAGE,
   MATCH_ROUTE_NAME
@@ -12,7 +13,6 @@ export default class PagesPlugin {
         .filter(chunk => IS_BUNDLED_PAGE.test(chunk.name))
 
       pages.forEach((chunk) => {
-        const page = compilation.assets[chunk.name]
         const pageName = MATCH_ROUTE_NAME.exec(chunk.name)[1]
         let routeName = pageName
 
@@ -28,17 +28,35 @@ export default class PagesPlugin {
 
         routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
-        const content = page.source()
-        const newContent = `
+        // Replace the exisiting chunk with the new content
+        const asset = compilation.assets[chunk.name]
+        const sourceMap = compilation.assets[`${chunk.name}.map`]
+        if (!asset) return
+
+        const concat = new Concat(true, chunk.name, '\n')
+
+        concat.add(null, `
           window.__NEXT_REGISTER_PAGE('${routeName}', function() {
-            var comp = ${content}
+            var comp = 
+        `)
+        concat.add(chunk.name, asset.source(), sourceMap && sourceMap.source())
+        concat.add(null, `
             return { page: comp.default }
           })
-        `
+        `)
+        concat.add(null, `//# sourceMappingURL=${chunk.name}.map\n`)
+
         // Replace the exisiting chunk with the new content
         compilation.assets[chunk.name] = {
-          source: () => newContent,
-          size: () => newContent.length
+          size: () => concat.content.length,
+          source: () => concat.content
+        }
+
+        if (sourceMap) {
+          compilation.assets[`${chunk.name}.map`] = {
+            size: () => concat.sourceMap.length,
+            source: () => concat.sourceMap
+          }
         }
       })
       callback()
