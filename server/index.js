@@ -12,7 +12,6 @@ import {
   renderScriptError
 } from './render'
 import Router from './router'
-import HotReloader from './hot-reloader'
 import { resolveFromList } from './resolve'
 import { getAvailableChunks } from './utils'
 import getConfig from './config'
@@ -35,7 +34,7 @@ export default class Server {
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.hotReloader = dev ? new HotReloader(this.dir, { quiet, conf }) : null
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, conf }) : null
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
@@ -57,6 +56,11 @@ export default class Server {
     }
 
     this.defineRoutes()
+  }
+
+  getHotReloader (dir, options) {
+    const HotReloader = require('./hot-reloader').default
+    return new HotReloader(dir, options)
   }
 
   handleRequest (req, res, parsedUrl) {
