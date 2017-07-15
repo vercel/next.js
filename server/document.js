@@ -18,6 +18,13 @@ export default class Document extends Component {
     return { _documentProps: this.props }
   }
 
+  // eslint-disable-next-line camelcase
+  unstable_handleError (err) {
+    if (typeof window !== 'undefined' && window.next && window.next.renderError) {
+      window.next.renderError(err)
+    }
+  }
+
   render () {
     return <html>
       <Head />
