@@ -2,16 +2,17 @@
   "name": "with-typescript",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"tsc --watch\" next"
+    "predev": "tsc",
+    "dev": "concurrently \"tsc --watch\" \"next dist\""
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "next": "beta",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1"
   },
   "devDependencies": {
-    "@types/react": "^15.0.1",
-    "concurrently": "^3.1.0",
-    "typescript": "^2.1.5"
+    "@types/react": "^15.0.38",
+    "concurrently": "^3.5.0",
+    "typescript": "^2.4.1"
   }
 }
