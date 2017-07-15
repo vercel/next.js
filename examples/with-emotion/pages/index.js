@@ -48,7 +48,7 @@ export default () => {
     }
   `
 
-  const Basic = styled.div`@apply ${basicStyles};`
+  const Basic = styled.div`composes: ${basicStyles};`
   const Combined = styled.div`
     composes: ${basicStyles} ${hoverStyles};
     & code {
