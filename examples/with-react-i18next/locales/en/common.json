@@ -1,0 +1,5 @@
+{
+  "integrates_react-i18next": "this sample integrates react-i18next for simple internationalization.",
+  "pureComponent": "You can either pass t function to child components.",
+  "extendedComponent": "Or wrap your component using the translate hoc provided by react-i18next."
+}
