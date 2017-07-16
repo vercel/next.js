@@ -1,4 +1,4 @@
-import { resolve, join } from 'path'
+import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
@@ -101,6 +101,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         // With that, we could gain better performance for page-rebuild process.
         if (dev) {
           return module.context && module.context.indexOf('node_modules') >= 0
+        }
+
+        // We need to move react-dom explicitly into common chunks.
+        // Otherwise, if some other page or module uses it, it might
+        // included in that bundle too.
+        if (module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          return true
         }
 
         // If there are one or two pages, only move modules to common if they are
