@@ -131,8 +131,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     }),
     new PagesPlugin(),
     new DynamicChunksPlugin(),
-    new CaseSensitivePathPlugin(),
-    new webpack.optimize.ModuleConcatenationPlugin()
+    new CaseSensitivePathPlugin()
   ]
 
   if (dev) {
@@ -156,6 +155,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         sourceMap: false
       })
     )
+    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
   const nodePathList = (process.env.NODE_PATH || '')
