@@ -32,15 +32,26 @@ describe('On Demand Entries', () => {
   })
 
   it('should dispose inactive pages', async () => {
+<<<<<<< HEAD
     await renderViaHTTP(context.appPort, '/_next/-/page/about')
+=======
+    const indexPagePath = resolve(__dirname, '../.next/bundles/pages/index.js')
+    expect(existsSync(indexPagePath)).toBeTruthy()
+    // Render two pages after the index, since the server keeps at least two pages
+    await renderViaHTTP(context.appPort, '/about')
+>>>>>>> Keep some buffered pages, that won't be disposed. Fix #1939
     const aboutPagePath = resolve(__dirname, '../.next/bundles/pages/about.js')
-    expect(existsSync(aboutPagePath)).toBeTruthy()
+    await renderViaHTTP(context.appPort, '/third')
+    const thirdPagePath = resolve(__dirname, '../.next/bundles/pages/third.js')
 
     // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
     // for disposing /about
     while (true) {
       await waitFor(1000 * 1)
-      if (!existsSync(aboutPagePath)) return
+      // Assert that the two lastly demanded page are not disposed
+      expect(existsSync(aboutPagePath)).toBeTruthy()
+      expect(existsSync(thirdPagePath)).toBeTruthy()
+      if (!existsSync(indexPagePath)) return
     }
   })
 })

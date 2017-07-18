@@ -10,11 +10,14 @@ const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
+// Keep the last `pagesBufferLength` (default to two) pages in buffer. These won't be disposed.
+const pagesBuffer = []
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
   reload,
-  maxInactiveAge = 1000 * 25
+  maxInactiveAge = 1000 * 25,
+  pagesBufferLength = 2
 }) {
   let entries = {}
   let lastAccessPages = ['']
@@ -31,6 +34,11 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     const allEntries = Object.keys(entries).map((page) => {
       const { name, entry } = entries[page]
       entries[page].status = BUILDING
+      if (!pagesBuffer.includes(page)) {
+        pagesBuffer.unshift(page)
+        // If a third page was added, pop the firstly added
+        if (pagesBuffer.length > pagesBufferLength) pagesBuffer.pop()
+      }
       return addEntry(compilation, this.context, name, entry)
     })
 
@@ -236,7 +244,8 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
     // In that case, we should not dispose the current viewing page
     if (lastAccessPages[0] === page) return
 
-    if (Date.now() - lastActiveTime > maxInactiveAge) {
+    if (Date.now() - lastActiveTime > maxInactiveAge && !pagesBuffer.includes(page)
+  ) {
       disposingPages.push(page)
     }
   })
