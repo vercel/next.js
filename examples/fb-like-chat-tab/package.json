@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "chandrajob365@gmail.com",
   "dependencies": {
     "next": "^2.4.7",
     "react": "^15.6.1",
