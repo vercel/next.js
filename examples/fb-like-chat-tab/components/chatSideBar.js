@@ -1,7 +1,6 @@
 import {Component} from 'react'
 
 class ChatSideBar extends Component {
-
   constructor (props) {
     super(props)
     this.addUser = this.addUser.bind(this)

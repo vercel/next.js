@@ -19,10 +19,11 @@ class ChatComponent extends Component {
   // Updates global Store variable and state of Chatcomponent
   updateState (obj) {
     if (this.componentAlreadyRendered(obj.userName) === 0) {
-      if (Store.userData)
+      if (Store.userData) {
         Store.userData = Object.assign(Store.userData, {[obj.key]: obj.userName})
-      else
+      } else {
         Store.userData = Object.assign({}, {[obj.key]: obj.userName})
+      }
       this.setState({
         user: Object.assign(this.state.user, Store.userData)
       })
