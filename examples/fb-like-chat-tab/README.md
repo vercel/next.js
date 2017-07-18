@@ -1,6 +1,6 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/fb-like-chat-tab)
 
- # A basic example showcasing facebook like chat tabs which are persistent across variuos links, using Next.js
+ # A basic example showcasing facebook like chat tabs which are persistent across various links, using Next.js
 
  ## How to use
 
