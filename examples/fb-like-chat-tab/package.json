@@ -7,11 +7,11 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "chandra.manish645@gmail.com",
+  "author": "chandrajob365@gmail.com",
   "dependencies": {
     "next": "^2.4.7",
     "react": "^15.6.1",
     "react-dom": "^15.6.1"
   },
-  "license": "ISC"  
+  "license": "ISC"
 }
