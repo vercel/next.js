@@ -20,10 +20,11 @@
 
  ## Component Structure
 
-  ```1 > Layout --
-      1.1 > Header - Nav bar for Home, About , Contact link
-      1.2 > ChatComponent
-          1.2.1 > ChatSideBar - Displays Name of user (Static)
-          1.2.2 > ChatPannel - Rendered when any name from sideBar is clicked.(Dynamic)```
+  * Layout - Common accross all pages
+    * Header - Nav bar for Home, About , Contact link
+    * ChatComponent
+      * ChatSideBar - Displays Name of user (Static)
+      * ChatPannel - Rendered when any name from sideBar is clicked.(Dynamic)
 
- **Example:** [https://fb-like-chat-tab-rwsrwenegf.now.sh](https://fb-like-chat-tab-rwsrwenegf.now.sh)
+
+**Example:** [https://fb-like-chat-tab-rwsrwenegf.now.sh](https://fb-like-chat-tab-rwsrwenegf.now.sh)
