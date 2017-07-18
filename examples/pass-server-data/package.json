@@ -1,0 +1,16 @@
+{
+  "name": "pass-server-data",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "^4.14.0",
+    "isomorphic-fetch": "^2.2.1",
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  }
+}
