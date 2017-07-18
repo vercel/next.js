@@ -12,7 +12,6 @@ import {
   renderScriptError
 } from './render'
 import Router from './router'
-import { resolveFromList } from './resolve'
 import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
@@ -190,7 +189,7 @@ export default class Server {
             return await renderScriptError(req, res, page, error, {}, this.renderOpts)
           }
 
-          const compilationErr = await this.getCompilationError(page, req, res)
+          const compilationErr = await this.getCompilationError()
           if (compilationErr) {
             const customFields = { statusCode: 500 }
             return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
@@ -273,7 +272,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError(pathname)
+      const compilationErr = await this.getCompilationError()
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
@@ -301,7 +300,7 @@ export default class Server {
 
   async renderErrorToHTML (err, req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError('/_error')
+      const compilationErr = await this.getCompilationError()
       if (compilationErr) {
         res.statusCode = 500
         return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
@@ -382,15 +381,14 @@ export default class Server {
     return true
   }
 
-  async getCompilationError (page, req, res) {
+  async getCompilationError () {
     if (!this.hotReloader) return
 
     const errors = await this.hotReloader.getCompilationErrors()
     if (!errors.size) return
 
-    const id = join(this.dir, this.dist, 'bundles', 'pages', page)
-    const p = resolveFromList(id, errors.keys())
-    if (p) return errors.get(p)[0]
+    // Return the very first error we found.
+    return Array.from(errors.values())[0][0]
   }
 
   handleBuildHash (filename, hash, res) {
