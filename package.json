@@ -124,15 +124,15 @@
     "node-fetch": "1.7.1",
     "node-notifier": "5.1.2",
     "nyc": "11.0.3",
-    "react": "15.5.4",
-    "react-dom": "15.5.4",
+    "react": "^16.0.0-alpha.13",
+    "react-dom": "^16.0.0-alpha.13",
     "standard": "9.0.2",
     "taskr": "1.0.6",
     "wd": "1.4.0"
   },
   "peerDependencies": {
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "react": "^16.0.0-alpha.13",
+    "react-dom": "^16.0.0-alpha.13"
   },
   "jest": {
     "testEnvironment": "node",
