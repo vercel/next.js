@@ -29,10 +29,41 @@ export default (context, render) => {
         // add the original content
         writeFileSync(aboutPagePath, originalContent, 'utf8')
 
-        const newContent = await browser
-          .waitForElementByCss('.hmr-about-page')
-          .elementByCss('p').text()
-        expect(newContent).toBe('This is the about page.')
+        while (true) {
+          const newContent = await browser.elementByCss('body').text()
+          console.log('XXXX', newContent
+            )
+          if (/This is the about page/.test(newContent)) break
+          await waitFor(1000)
+        }
+
+        browser.close()
+      })
+
+      it('should show the error on all pages', async () => {
+        const aboutPagePath = join(__dirname, '../', 'pages', 'hmr', 'about.js')
+
+        const originalContent = readFileSync(aboutPagePath, 'utf8')
+        const erroredContent = originalContent.replace('</div>', 'div')
+
+        // change the content
+        writeFileSync(aboutPagePath, erroredContent, 'utf8')
+
+        const browser = await webdriver(context.appPort, '/hmr/contact')
+
+        const errorMessage = await browser
+          .waitForElementByCss('pre')
+          .elementByCss('pre').text()
+        expect(errorMessage.includes('Unterminated JSX contents')).toBeTruthy()
+
+        // add the original content
+        writeFileSync(aboutPagePath, originalContent, 'utf8')
+
+        while (true) {
+          const newContent = await browser.elementByCss('body').text()
+          if (/This is the contact page/.test(newContent)) break
+          await waitFor(1000)
+        }
 
         browser.close()
       })
