@@ -27,11 +27,7 @@ class ChatComponent extends Component {
   }
   // Updates Global store with new clicked user data
   updateGlobalStore (obj) {
-    if (Store.userData) {
-      Store.userData = Object.assign(Store.userData, {[obj.key]: obj.userName})
-    } else {
-      Store.userData = Object.assign({}, {[obj.key]: obj.userName})
-    }
+    Store.userData = Object.assign(Store.userData || {}, {[obj.key]: obj.userName})
   }
   // Checks if chat tab for this user is already open
   componentAlreadyRendered (userName) {
