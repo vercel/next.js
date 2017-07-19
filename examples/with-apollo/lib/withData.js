@@ -1,6 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
+import Head from 'next/head'
 import initApollo from './initApollo'
 
 // Gets the display name of a JSX component for dev tools
@@ -30,7 +31,6 @@ export default ComposedComponent => {
         const apollo = initApollo()
         // Provide the `url` prop data in case a GraphQL query uses it
         const url = {query: ctx.query, pathname: ctx.pathname}
-
         try {
           // Run all GraphQL queries
           await getDataFromTree(
@@ -43,6 +43,9 @@ export default ComposedComponent => {
           // Handle them in components via the data.error prop:
           // http://dev.apollodata.com/react/api-queries.html#graphql-query-data-error
         }
+        // getDataFromTree does not call componentWillUnmount
+        // head side effect therefore need to be cleared manually
+        Head.rewind()
 
         // Extract query data from the Apollo store
         const state = apollo.getInitialState()

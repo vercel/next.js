@@ -6,10 +6,12 @@ dist
 node_modules
 
 # logs
-npm-debug.log
+*.log
 
 # coverage
 .nyc_output
 coverage
 
+# test output
+test/**/out
 .DS_Store

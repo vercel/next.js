@@ -1,12 +1,14 @@
-import { resolve, join } from 'path'
+import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
+import UglifyJsPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
+import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -26,9 +28,9 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
+export default async function createCompiler (dir, { dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
     join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
@@ -74,6 +76,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   }
 
   const plugins = [
+    new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
     new webpack.LoaderOptionsPlugin({
       options: {
         context: dir,
@@ -100,7 +103,19 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           return module.context && module.context.indexOf('node_modules') >= 0
         }
 
-        // Move modules used in at-least 1/2 of the total pages into commons.
+        // We need to move react-dom explicitly into common chunks.
+        // Otherwise, if some other page or module uses it, it might
+        // included in that bundle too.
+        if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          return true
+        }
+
+        // If there are one or two pages, only move modules to common if they are
+        // used in all of the pages. Otherwise, move modules used in at-least
+        // 1/2 of the total pages into commons.
+        if (totalPages <= 2) {
+          return count >= totalPages
+        }
         return count >= totalPages * 0.5
       }
     }),
@@ -115,6 +130,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
     new PagesPlugin(),
+    new DynamicChunksPlugin(),
     new CaseSensitivePathPlugin()
   ]
 
@@ -128,16 +144,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
+    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
-      new webpack.optimize.UglifyJsPlugin({
+      new UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
       })
     )
+    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
   const nodePathList = (process.env.NODE_PATH || '')
@@ -218,6 +236,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
                   'next/link': relativeResolve('../../lib/link'),
                   'next/prefetch': relativeResolve('../../lib/prefetch'),
                   'next/css': relativeResolve('../../lib/css'),
+                  'next/dynamic': relativeResolve('../../lib/dynamic'),
                   'next/head': relativeResolve('../../lib/head'),
                   'next/document': relativeResolve('../../server/document'),
                   'next/router': relativeResolve('../../lib/router'),
@@ -273,7 +292,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
         // append hash id for cache busting
         return `webpack:///${resourcePath}?${id}`
-      }
+      },
+      // This saves chunks with the name given via require.ensure()
+      chunkFilename: '[name]'
     },
     resolve: {
       modules: [
@@ -296,15 +317,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     },
     devtool: dev ? 'cheap-module-inline-source-map' : false,
     performance: { hints: false }
-  }
-
-  if (!dev) {
-    // We do this to use the minified version of React in production.
-    // This will significant file size redution when turned off uglifyjs.
-    webpackConfig.resolve.alias = {
-      'react': require.resolve('react/dist/react.min.js'),
-      'react-dom': require.resolve('react-dom/dist/react-dom.min.js')
-    }
   }
 
   if (config.webpack) {

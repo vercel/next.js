@@ -1,0 +1,46 @@
+{
+  "parser": "babel-eslint",
+  "plugins": [
+    "react"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 6,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "env": {
+    "browser": true,
+    "amd": true,
+    "es6": true,
+    "node": true,
+    "mocha": true
+  },
+  "extends": [
+    "airbnb",
+    "eslint:recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings"
+  ],
+  "rules": {
+    "quotes": [ 1, "single" ],
+    "no-undef": 1,
+    "no-extra-semi": 1,
+    "no-console": 1,
+    "no-unused-vars": 1,
+    "no-trailing-spaces": [1, { "skipBlankLines": true }],
+    "no-unreachable": 1,
+    "react/jsx-uses-react": 1,
+    "react/jsx-uses-vars": 1,
+    "react/jsx-filename-extension": 0,
+    "react/prop-types": 0, // Disabled by this issue https://github.com/acdlite/recompose/issues/150
+    "import/no-unresolved": [0, {"commonjs": true, "amd": true}],
+    "import/named": 1,
+    "import/namespace": 1,
+    "import/default": 1,
+    "import/export": 1,
+    "import/no-extraneous-dependencies": 0,
+    "import/extensions": 0
+  }
+}

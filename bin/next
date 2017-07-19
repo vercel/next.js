@@ -12,7 +12,7 @@ if (pkg.peerDependencies) {
       // When 'npm link' is used it checks the clone location. Not the project.
       require.resolve(dependency)
     } catch (err) {
-      console.warn(`${dependency} not found. Please install ${dependency} using 'npm install ${dependency}'`)
+      console.warn(`The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install --save ${dependency}'`)
     }
   })
 }
@@ -22,6 +22,7 @@ const commands = new Set([
   'init',
   'build',
   'start',
+  'export',
   defaultCommand
 ])
 
