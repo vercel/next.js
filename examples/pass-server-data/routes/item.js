@@ -5,16 +5,12 @@ function getItemRenderer (nextApp) {
   return (req, res) => {
     console.log('Express is handling request')
     const itemData = api.getItem()
-    return nextApp.render(req, res, '/item', { itemData })
+
+    res.format({
+      html: () => nextApp.render(req, res, '/item', { itemData }),
+      json: () => res.json(itemData)
+    })
   }
 }
 
-// So that we can do a fetch from the page if rendering client-side.
-function getItem (req, res, next) {
-  const itemData = api.getItem()
-  console.log('API request for item data')
-  res.setHeader('content-type', 'application/json')
-  res.send(itemData)
-}
-
-module.exports = { getItemRenderer, getItem }
+module.exports = { getItemRenderer }

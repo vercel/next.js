@@ -18,9 +18,6 @@ app.prepare().then(() => {
   // We have more complex logic here so we've isolated this code into a route file.
   server.get('/item', itemRoute.getItemRenderer(app))
 
-  // Serve back-end API to support isomorphic rendering.
-  server.get('/_data/item', itemRoute.getItem)
-
   // Fall-back on other next.js assets.
   server.get('*', (req, res) => {
     return handle(req, res)

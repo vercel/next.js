@@ -39,6 +39,8 @@ data cached from an API call) in `operations/get-item.js`. It has two routes: a 
 data from the get-item operation, passed as a query parameter in `routes/item.js`.
 
 We use this data in `pages/item.js` if rendered server-side, or make a fetch request if rendered client-side.
+The server knows whether or not to use next.js to render the route based on the Accept header, which will be 
+`application/json` when we fetch client-side.
 
 Take a look at the following files:
 
