@@ -98,7 +98,7 @@ describe('Production Usage', () => {
           this.finished = true
         }
       }
-      const html = await context.app.renderToHTML({}, res, '/finish-response', {})
+      const html = await app.renderToHTML({}, res, '/finish-response', {})
       expect(html).toBeFalsy()
     })
   })
