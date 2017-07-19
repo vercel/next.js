@@ -15,7 +15,7 @@ export default class extends Component {
       return { item: query.itemData }
     } else {
       // On the client, we should fetch the data remotely
-      const res = await fetch('/item', {headers: {'Accept': 'application/json'}})
+      const res = await fetch('/_data/item', {headers: {'Accept': 'application/json'}})
       const json = await res.json()
       return { item: json }
     }

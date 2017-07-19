@@ -1,6 +1,6 @@
 const express = require('express')
 const next = require('next')
-const itemRoute = require('./routes/item')
+const api = require('./operations/get-item')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
@@ -15,8 +15,17 @@ app.prepare().then(() => {
     return app.render(req, res, '/', req.query)
   })
 
-  // We have more complex logic here so we've isolated this code into a route file.
-  server.get('/item', itemRoute.getItemRenderer(app))
+  // Serve the item webpage with next.js as the renderer
+  server.get('/item', (req, res) => {
+    const itemData = api.getItem()
+    app.render(req, res, '/item', { itemData })
+  })
+
+  // When rendering client-side, we will request the same data from this route
+  server.get('/_data/item', (req, res) => {
+    const itemData = api.getItem()
+    res.json(itemData)
+  })
 
   // Fall-back on other next.js assets.
   server.get('*', (req, res) => {
