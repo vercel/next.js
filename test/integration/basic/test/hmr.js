@@ -21,20 +21,23 @@ export default (context, render) => {
         // change the content
         writeFileSync(aboutPagePath, erroredContent, 'utf8')
 
-        const errorMessage = await browser
-          .waitForElementByCss('pre')
-          .elementByCss('pre').text()
-        expect(errorMessage.includes('Unterminated JSX contents')).toBeTruthy()
+        while (true) {
+          try {
+            const newContent = await browser.elementByCss('body').text()
+            if (/Unterminated JSX contents/.test(newContent)) break
+            await waitFor(1000)
+          } catch (ex) {}
+        }
 
         // add the original content
         writeFileSync(aboutPagePath, originalContent, 'utf8')
 
         while (true) {
-          const newContent = await browser.elementByCss('body').text()
-          console.log('XXXX', newContent
-            )
-          if (/This is the about page/.test(newContent)) break
-          await waitFor(1000)
+          try {
+            const newContent = await browser.elementByCss('body').text()
+            if (/This is the about page/.test(newContent)) break
+            await waitFor(1000)
+          } catch (ex) {}
         }
 
         browser.close()
@@ -51,18 +54,23 @@ export default (context, render) => {
 
         const browser = await webdriver(context.appPort, '/hmr/contact')
 
-        const errorMessage = await browser
-          .waitForElementByCss('pre')
-          .elementByCss('pre').text()
-        expect(errorMessage.includes('Unterminated JSX contents')).toBeTruthy()
+        while (true) {
+          try {
+            const newContent = await browser.elementByCss('body').text()
+            if (/Unterminated JSX contents/.test(newContent)) break
+            await waitFor(1000)
+          } catch (ex) {}
+        }
 
         // add the original content
         writeFileSync(aboutPagePath, originalContent, 'utf8')
 
         while (true) {
-          const newContent = await browser.elementByCss('body').text()
-          if (/This is the contact page/.test(newContent)) break
-          await waitFor(1000)
+          try {
+            const newContent = await browser.elementByCss('body').text()
+            if (/This is the contact page/.test(newContent)) break
+            await waitFor(1000)
+          } catch (ex) {}
         }
 
         browser.close()
