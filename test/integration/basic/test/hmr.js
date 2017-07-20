@@ -4,6 +4,16 @@ import { readFileSync, writeFileSync, renameSync } from 'fs'
 import { join } from 'path'
 import { waitFor } from 'next-test-utils'
 
+async function check (contentFn, regex) {
+  while (true) {
+    try {
+      const newContent = await contentFn()
+      if (regex.test(newContent)) break
+      await waitFor(1000)
+    } catch (ex) {}
+  }
+}
+
 export default (context, render) => {
   describe('Hot Module Reloading', () => {
     describe('syntax error', () => {
@@ -21,24 +31,18 @@ export default (context, render) => {
         // change the content
         writeFileSync(aboutPagePath, erroredContent, 'utf8')
 
-        while (true) {
-          try {
-            const newContent = await browser.elementByCss('body').text()
-            if (/Unterminated JSX contents/.test(newContent)) break
-            await waitFor(1000)
-          } catch (ex) {}
-        }
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Unterminated JSX contents/
+        )
 
         // add the original content
         writeFileSync(aboutPagePath, originalContent, 'utf8')
 
-        while (true) {
-          try {
-            const newContent = await browser.elementByCss('body').text()
-            if (/This is the about page/.test(newContent)) break
-            await waitFor(1000)
-          } catch (ex) {}
-        }
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the about page/
+        )
 
         browser.close()
       })
@@ -54,24 +58,18 @@ export default (context, render) => {
 
         const browser = await webdriver(context.appPort, '/hmr/contact')
 
-        while (true) {
-          try {
-            const newContent = await browser.elementByCss('body').text()
-            if (/Unterminated JSX contents/.test(newContent)) break
-            await waitFor(1000)
-          } catch (ex) {}
-        }
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Unterminated JSX contents/
+        )
 
         // add the original content
         writeFileSync(aboutPagePath, originalContent, 'utf8')
 
-        while (true) {
-          try {
-            const newContent = await browser.elementByCss('body').text()
-            if (/This is the contact page/.test(newContent)) break
-            await waitFor(1000)
-          } catch (ex) {}
-        }
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the contact page/
+        )
 
         browser.close()
       })
@@ -91,27 +89,19 @@ export default (context, render) => {
         renameSync(contactPagePath, newContactPagePath)
 
         // wait until the 404 page comes
-        while (true) {
-          try {
-            const pageContent = await browser.elementByCss('body').text()
-            if (/This page could not be found/.test(pageContent)) break
-          } catch (ex) {}
-
-          await waitFor(1000)
-        }
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This page could not be found/
+        )
 
         // Rename the file back to the original filename
         renameSync(newContactPagePath, contactPagePath)
 
         // wait until the page comes back
-        while (true) {
-          try {
-            const pageContent = await browser.elementByCss('body').text()
-            if (/This is the contact page/.test(pageContent)) break
-          } catch (ex) {}
-
-          await waitFor(1000)
-        }
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the contact page/
+        )
 
         browser.close()
       })
