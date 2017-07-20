@@ -49,7 +49,8 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nested-cdm/index'),
 
       renderViaHTTP(context.appPort, '/hmr/about'),
-      renderViaHTTP(context.appPort, '/hmr/contact')
+      renderViaHTTP(context.appPort, '/hmr/contact'),
+      renderViaHTTP(context.appPort, '/hmr/counter')
     ])
   })
   afterAll(() => killApp(context.server))
