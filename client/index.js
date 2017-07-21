@@ -55,6 +55,8 @@ export let router
 export let ErrorComponent
 let Component
 
+let isFirstRender = true
+
 export default async () => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
@@ -137,6 +139,22 @@ async function doRender ({ Component, props, hash, err, emitter }) {
     const { pathname, query, asPath } = router
     props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
   }
+
+  // Check if the Component wants to run its getIntialProps function in the client.
+  if (isFirstRender && Component.runInitialPropsAgain) {
+    const runAgain = await Component.runInitialPropsAgain(
+      { err, pathname, query, asPath, serverProps: props }
+    )
+    if (runAgain === true) {
+      const clientProps = await loadGetInitialProps(
+        Component,
+        { err, pathname, query, asPath, serverProps: props } // Pass ctx + serverProps
+      )
+      Object.assign(props, clientProps) // Merge it with the server generated props.
+    }
+  }
+  // Next getInitialProps are called by Router, so we only need to do this once.
+  isFirstRender = false
 
   if (emitter) {
     emitter.emit('before-reactdom-render', { Component, ErrorComponent })

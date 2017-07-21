@@ -53,6 +53,24 @@ export default function ({ app }, suiteName, render) {
       expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
+    test('runInitialPropsAgain resolves to true', async () => {
+      const html = await (render('/run-initial-props-again?runInitialPropsAgain=true'))
+      expect(html.includes('fromServer')).toBeTruthy()
+      expect(html.includes('fromFirstRender')).toBeTruthy()
+    })
+
+    test('runInitialPropsAgain resolves to false', async () => {
+      const html = await (render('/run-initial-props-again'))
+      expect(html.includes('fromServer')).toBeTruthy()
+      expect(html.includes('fromFirstRender')).toBeFalsy()
+    })
+
+    test('runInitialPropsAgain resolves to undefined', async () => {
+      const html = await (render('/without-run-initial-props-again'))
+      expect(html.includes('fromServer')).toBeTruthy()
+      expect(html.includes('fromFirstRender')).toBeFalsy()
+    })
+
     test('allows to import .json files', async () => {
       const html = await render('/json')
       expect(html.includes('Zeit')).toBeTruthy()
