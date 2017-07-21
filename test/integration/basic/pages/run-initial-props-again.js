@@ -6,9 +6,9 @@ const Component = ({ fromServer, fromFirstRender }) =>
     {fromFirstRender ? 'fromFirstRender' : ''}
   </div>
 
-Component.getInitialProps = async ({ req, isFirstRender }) => {
+Component.getInitialProps = async ({ req, serverProps }) => {
   if (req) return { fromServer: true }
-  else if (isFirstRender) return { fromFirstRender: true }
+  else if (serverProps) return { fromFirstRender: true }
 }
 
 // Turn it on and off using a query for testing.

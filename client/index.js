@@ -146,7 +146,7 @@ async function doRender ({ Component, props, hash, err, emitter }) {
     if (runAgain) {
       const clientProps = await loadGetInitialProps(
         Component,
-        { err, pathname, query, asPath, isFirstRender } // Pass ctx + isFirstRender
+        { err, pathname, query, asPath, serverProps: props } // Pass ctx + serverProps
       )
       Object.assign(props, clientProps) // Merge it with the server generated props.
     }
