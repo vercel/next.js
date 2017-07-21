@@ -142,8 +142,10 @@ async function doRender ({ Component, props, hash, err, emitter }) {
 
   // Check if the Component wants to run its getIntialProps function in the client.
   if (isFirstRender && Component.runInitialPropsAgain) {
-    const runAgain = await Component.runInitialPropsAgain({ err, pathname, query, asPath })
-    if (runAgain) {
+    const runAgain = await Component.runInitialPropsAgain(
+      { err, pathname, query, asPath, serverProps: props }
+    )
+    if (runAgain === true) {
       const clientProps = await loadGetInitialProps(
         Component,
         { err, pathname, query, asPath, serverProps: props } // Pass ctx + serverProps
