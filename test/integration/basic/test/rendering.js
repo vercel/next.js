@@ -53,19 +53,19 @@ export default function ({ app }, suiteName, render) {
       expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
-    test.only('runInitialPropsAgain resolves to true', async () => {
+    test('runInitialPropsAgain resolves to true', async () => {
       const html = await (render('/run-initial-props-again?runInitialPropsAgain=true'))
       expect(html.includes('fromServer')).toBeTruthy()
       expect(html.includes('fromFirstRender')).toBeTruthy()
     })
 
-    test.only('runInitialPropsAgain resolves to false', async () => {
+    test('runInitialPropsAgain resolves to false', async () => {
       const html = await (render('/run-initial-props-again'))
       expect(html.includes('fromServer')).toBeTruthy()
       expect(html.includes('fromFirstRender')).toBeFalsy()
     })
 
-    test.only('runInitialPropsAgain resolves to undefined', async () => {
+    test('runInitialPropsAgain resolves to undefined', async () => {
       const html = await (render('/without-run-initial-props-again'))
       expect(html.includes('fromServer')).toBeTruthy()
       expect(html.includes('fromFirstRender')).toBeFalsy()
