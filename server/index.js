@@ -18,8 +18,8 @@ import getConfig from './config'
 import pkg from '../../package'
 
 const internalPrefixes = [
-  /^\/_next\//,
-  /^\/static\//
+  /^\/_next\/./,
+  /^\/static\/./
 ]
 
 const blockedPages = {
