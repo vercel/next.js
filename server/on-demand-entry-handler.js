@@ -10,8 +10,6 @@ const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
-// Keep the last `pagesBufferLength` (default to two) pages in buffer. These won't be disposed.
-const pagesBuffer = []
 export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
@@ -34,11 +32,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     const allEntries = Object.keys(entries).map((page) => {
       const { name, entry } = entries[page]
       entries[page].status = BUILDING
-      if (!pagesBuffer.includes(page)) {
-        pagesBuffer.unshift(page)
-        // If a third page was added, pop the firstly added
-        if (pagesBuffer.length > pagesBufferLength) pagesBuffer.pop()
-      }
       return addEntry(compilation, this.context, name, entry)
     })
 
@@ -210,8 +203,12 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
           if (entryInfo.status !== BUILT) return
 
           // If there's an entryInfo
-          lastAccessPages.pop()
-          lastAccessPages.unshift(page)
+          if (!lastAccessPages.includes(page)) {
+            lastAccessPages.unshift(page)
+
+            // Maintain the buffer max length
+            if (lastAccessPages.length > pagesBufferLength) lastAccessPages.pop()
+          }
           entryInfo.lastActiveTime = Date.now()
         }
       }
@@ -242,10 +239,9 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastAccessPages[0] === page) return
+    if (lastAccessPages.includes(page)) return
 
-    if (Date.now() - lastActiveTime > maxInactiveAge && !pagesBuffer.includes(page)
-  ) {
+    if (Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
     }
   })
