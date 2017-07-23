@@ -5,10 +5,12 @@ import uuid from 'uuid'
 import del from 'del'
 import webpack from './webpack'
 import replaceCurrentBuild from './replace'
+import mkdirp from 'mkdirp-then'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
   const buildDir = join(tmpdir(), uuid.v4())
+  await writeStaticStats(dir, buildDir)
   const compiler = await webpack(dir, { buildDir, conf })
 
   try {
@@ -43,6 +45,18 @@ function runCompiler (compiler) {
       resolve(jsonStats)
     })
   })
+}
+
+async function writeStaticStats (dir, buildDir) {
+  await mkdirp(join(buildDir, '.next'))
+  const staticStatsPath = join(buildDir, '.next', 'static-stats.json')
+
+  // this is a hacky but not sure how to tell babel plugin about location of static folder
+  process.env.__NEXT_STATIC_STATS_PATH__ = staticStatsPath
+  process.env.__NEXT_STATIC_DIR__ = join(dir, 'static')
+
+  // write empty json
+  await fs.writeFile(staticStatsPath, JSON.stringify({}, null, 2))
 }
 
 async function writeBuildStats (dir) {

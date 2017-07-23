@@ -42,6 +42,10 @@ export default class Server {
       process.exit(1)
     }
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
+    const staticStats = !dev ? require(join(this.dir, this.dist, 'static-stats.json')) : {}
+    this.staticStats = Object.entries(staticStats)
+      .reduce((obj, [key, value]) => ({ ...obj, [value]: key }), {})
+
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
@@ -197,6 +201,18 @@ export default class Server {
         }
 
         await renderScript(req, res, page, this.renderOpts)
+      },
+
+      '/_next/static/:name': async (req, res, params) => {
+        if (this.dev) return this.send404(res)
+        const filename = this.staticStats[params.name]
+        if (!filename) {
+          throw new Error(`Invalid Static Path: ${req.url}`)
+        }
+
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+        const p = join(this.dir, 'static', filename)
+        await this.serveStatic(req, res, p)
       },
 
       '/_next/:path+': async (req, res, params) => {
