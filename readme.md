@@ -235,6 +235,13 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
+<br/>
+
+> If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules).
+> Otherwise, it'll slow down your app.
+
+<br/>
+
 You can also define the `getInitialProps` lifecycle method for stateless components:
 
 ```jsx
@@ -326,6 +333,8 @@ export default () => (
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
 
+##### Replace instead of push url
+
 The default behaviour for the `<Link>` component is to `push` a new url into the stack. You can use the `replace` prop to prevent adding a new entry.
 
 ```jsx
@@ -333,6 +342,33 @@ The default behaviour for the `<Link>` component is to `push` a new url into the
 import Link from 'next/link'
 export default () => (
   <div>Click <Link href='/about' replace><a>here</a></Link> to read more</div>
+)
+```
+
+##### Using a component that support `onClick`
+
+`<Link>` supports any component that supports the `onClick` event. In case you don't provide an `<a>` tag, it will only add the `onClick` event handler and won't pass the `href` property.
+
+```jsx
+// pages/index.js
+import Link from 'next/link'
+export default () => (
+  <div>Click <Link href='/about'><img src="/static/image.png" /></Link></div>
+)
+```
+
+##### Forcing the Link to expose `href` to its child 
+
+If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hyperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
+
+```jsx
+import Link from 'next/link'
+import Unexpected_A from 'third-library'
+ 
+export default ({ href, name }) => (
+  <Link href={ href } passHref>
+    <Unexpected_A>{ name }</Unexpected_A>
+  </Link>
 )
 ```
 
@@ -407,7 +443,7 @@ Router.onRouteChangeStart = (url) => {
 }
 ```
 
-If you are no longer want to listen to that event, you can simply unset the event listener like this:
+If you no longer want to listen to that event, you can simply unset the event listener like this:
 
 ```js
 Router.onRouteChangeStart = null
@@ -664,7 +700,7 @@ import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
   modules: (props) => {
-    const components {
+    const components = {
       Hello1: import('../components/hello1'),
       Hello2: import('../components/hello2')
     }
@@ -734,7 +770,7 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 
 ### Custom error handling
 
-404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
+404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
 ```jsx
 import React from 'react'
@@ -755,6 +791,37 @@ export default class Error extends React.Component {
   }
 }
 ```
+
+### Reusing the built-in error page
+
+If you want to render the built-in error page you can by using `next/error`:
+
+```jsx
+import React from 'react'
+import Error from 'next/error'
+import fetch from 'isomorphic-fetch'
+
+export default class Page extends React.Component {
+  static async getInitialProps () {
+    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const json = await res.json()
+    return { statusCode, stars: json.stargazers_count }
+  }
+
+  render () {
+    if(this.props.statusCode) {
+        return <Error statusCode={this.props.statusCode} />
+    }
+
+    return (
+      <div>Next stars: {this.props.stars}</div>
+    )
+  }
+}
+```
+
+> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
 
 ### Custom configuration
 
@@ -883,6 +950,11 @@ Note: we recommend putting `.next`, or your custom dist folder (Please have a lo
 
 ## Static HTML export
 
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-static-export">Static export</a></li></ul>
+</details></p>
+
 This is a way to run your Next.js app as a standalone static app without any Node.js server. The export app supports almost every feature of Next.js including dynamic urls, prefetching, preloading and dynamic imports.
 
 ### Usage
@@ -953,6 +1025,7 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 ## Recipes
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
+- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 
 ## FAQ
 
@@ -1069,8 +1142,9 @@ Please see our [contributing.md](./contributing.md)
 
 ## Authors
 
+- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – ▲ZEIT
+- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))

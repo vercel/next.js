@@ -13,7 +13,6 @@ const buildImport = (args) => (template(`
         eval('require.ensure = function (deps, callback) { callback(require) }')
         require.ensure([], (require) => {
           let m = require(SOURCE)
-          m = m.default || m
           m.__webpackChunkName = '${args.name}.js'
           resolve(m);
         }, 'chunks/${args.name}.js');
@@ -23,13 +22,12 @@ const buildImport = (args) => (template(`
         const weakId = require.resolveWeak(SOURCE)
         try {
           const weakModule = __webpack_require__(weakId)
-          return resolve(weakModule.default || weakModule)
+          return resolve(weakModule)
         } catch (err) {}
 
         require.ensure([], (require) => {
           try {
             let m = require(SOURCE)
-            m = m.default || m
             resolve(m)
           } catch(error) {
             reject(error)
@@ -45,8 +43,10 @@ export default () => ({
   visitor: {
     CallExpression (path) {
       if (path.node.callee.type === TYPE_IMPORT) {
+        const moduleName = path.node.arguments[0].value
+        const name = `${moduleName.replace(/[^\w]/g, '-')}-${UUID.v4()}`
         const newImport = buildImport({
-          name: UUID.v4()
+          name
         })({
           SOURCE: path.node.arguments
         })
