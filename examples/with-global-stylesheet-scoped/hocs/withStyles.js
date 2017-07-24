@@ -19,11 +19,18 @@ export default (...styles) => Component => {
   class Enhanced extends React.Component {
     constructor(props) {
       super(props)
+      this.localClassNames = styles.map(this._createStyled)
+      classNames = classNames.concat(this.localClassNames)
     }
 
-    _createStyled = async (css) => {
-      let namespaceId = Math.random().toString(36).replace(/[^a-z]+/g, '').substr(0, 5)
-      let result = await postcss().use(selectorNamespace({ namespace: `.${namespaceId}` })).process(css)
+    _createStyled = css => {
+      let namespaceId = Math.random()
+        .toString(36)
+        .replace(/[^a-z]+/g, '')
+        .substr(0, 5)
+      let result = postcss()
+        .use(selectorNamespace({ namespace: `.${namespaceId}` }))
+        .process(css)
       injectGlobal`
         ${result.css}
       `
@@ -31,12 +38,7 @@ export default (...styles) => Component => {
       return namespaceId
     }
 
-    componentWillMount = async () => {
-      if (!this.localClassNames) {
-        this.localClassNames = await Promise.all(styles.map(this._createStyled))
-        classNames = classNames.concat(this.localClassNames)
-      }
-
+    componentWillMount = () => {
       if (process.browser)
         this.localClassNames.forEach(className =>
           document.body.classList.add(className)

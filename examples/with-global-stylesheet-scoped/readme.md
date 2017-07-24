@@ -36,5 +36,4 @@ This example shows the idea of importing and using any kinds of global styleshee
 If someone can provide pull request to solve the issues below that would be really appreciated!
 
 1. Possible duplication of stylesheets as multiple components can import the same stylesheets
-2. Async nature of postcss makes it hard to do SSR properly
-3. Not supporting hot reloading atm
+2. Not supporting hot reloading atm
