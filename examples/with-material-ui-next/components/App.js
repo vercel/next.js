@@ -1,21 +1,19 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import { JssProvider } from 'react-jss'
 import { withStyles, createStyleSheet, MuiThemeProvider } from 'material-ui/styles'
-import { getDefaultContext } from '../styles/createDefaultContext'
+import { getContext } from '../styles/context'
 
+// Apply some reset
 const styleSheet = createStyleSheet('App', theme => ({
   '@global': {
     html: {
       background: theme.palette.background.default,
-      fontFamily: theme.typography.fontFamily,
       WebkitFontSmoothing: 'antialiased', // Antialiasing.
       MozOsxFontSmoothing: 'grayscale' // Antialiasing.
     },
     body: {
       margin: 0
-    },
-    a: {
-      color: 'inherit'
     }
   }
 }))
@@ -34,13 +32,16 @@ class App extends Component {
   }
 
   render () {
-    const { styleManager, theme } = getDefaultContext()
+    const context = getContext()
+
     return (
-      <MuiThemeProvider styleManager={styleManager} theme={theme}>
-        <AppWrapper>
-          {this.props.children}
-        </AppWrapper>
-      </MuiThemeProvider>
+      <JssProvider registry={context.sheetsRegistry} jss={context.jss}>
+        <MuiThemeProvider theme={context.theme} sheetsManager={context.sheetsManager}>
+          <AppWrapper>
+            {this.props.children}
+          </AppWrapper>
+        </MuiThemeProvider>
+      </JssProvider>
     )
   }
 }

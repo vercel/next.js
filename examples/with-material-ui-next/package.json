@@ -5,7 +5,8 @@
     "material-ui": "next",
     "next": "latest",
     "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "react-dom": "^15.5.4",
+    "react-jss": "^7.0.2"
   },
   "scripts": {
     "dev": "next",
