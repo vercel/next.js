@@ -1,0 +1,16 @@
+{
+  "presets": [
+    "next/babel",
+    "es2015",
+    "stage-0"
+  ],
+  "plugins": [
+    [
+      "wrap-in-js",
+      {
+        "extensions": ["css$", "scss$"]
+      }
+    ],
+    "transform-decorators-legacy"
+  ]
+}

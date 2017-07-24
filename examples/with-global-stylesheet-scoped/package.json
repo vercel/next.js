@@ -1,0 +1,38 @@
+{
+  "name": "with-global-stylesheet-scoped",
+  "version": "0.0.1",
+  "license": "MIT",
+  "dependencies": {
+    "antd": "^2.12.2",
+    "autoprefixer": "^7.1.1",
+    "babel-plugin-transform-decorators-legacy": "^1.3.4",
+    "babel-plugin-wrap-in-js": "^1.1.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "glamor": "^2.20.34",
+    "glob": "^7.1.2",
+    "hoist-non-react-statics": "^2.1.0",
+    "isomorphic-fetch": "^2.2.1",
+    "next": "^2.4.4",
+    "node-sass": "^4.5.3",
+    "postcss": "^6.0.8",
+    "postcss-easy-import": "^2.1.0",
+    "postcss-flexbugs-fixes": "^3.0.0",
+    "postcss-js": "^1.0.0",
+    "postcss-loader": "^2.0.6",
+    "postcss-selector-namespace": "^1.4.1",
+    "raw-loader": "^0.5.1",
+    "react": "15.6.1",
+    "react-dom": "^15.6.1",
+    "sass-loader": "^6.0.6",
+    "styled-components": "^2.1.1"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "main": "index.js",
+  "author": "Penn Su <pennsu@gmail.com>",
+  "description": "With Global Stylesheet Scoped Example"
+}
