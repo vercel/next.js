@@ -199,12 +199,12 @@ export default class Server {
         await renderScript(req, res, page, this.renderOpts)
       },
 
-      '/_next/:path+': async (req, res, params) => {
+      '/_next/:path?': async (req, res, params) => {
         const p = join(__dirname, '..', 'client', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
-      '/static/:path+': async (req, res, params) => {
+      '/static/:path?': async (req, res, params) => {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       }
