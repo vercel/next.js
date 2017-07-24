@@ -339,7 +339,7 @@ export default () => (
 // pages/index.js
 import Link from 'next/link'
 export default () => (
-  <div>Click <Link href='/about'><img src="/static/image.png"></Link></div>
+  <div>Click <Link href='/about'><img src="/static/image.png" /></Link></div>
 )
 ```
 
