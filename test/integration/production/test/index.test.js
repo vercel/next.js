@@ -101,6 +101,13 @@ describe('Production Usage', () => {
       const html = await app.renderToHTML({}, res, '/finish-response', {})
       expect(html).toBeFalsy()
     })
+
+    it('should allow to access /static/ and /_next/', async () => {
+      // This is a test case which prevent the following issue happening again.
+      // See: https://github.com/zeit/next.js/issues/2617
+      await renderViaHTTP(appPort, '/_next/')
+      await renderViaHTTP(appPort, '/static/')
+    })
   })
 
   describe('X-Powered-By header', () => {
