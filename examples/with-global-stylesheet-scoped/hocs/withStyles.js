@@ -19,41 +19,45 @@ export default (...styles) => Component => {
   class Enhanced extends React.Component {
     constructor(props) {
       super(props)
-      this.localClassNames = styles.map(this._createStyled)
-      classNames = classNames.concat(this.localClassNames)
+      this._init()
     }
 
-    _createStyled = css => {
-      let namespaceId = Math.random()
+    _init = () => {
+      this.namespaceId = Math.random()
         .toString(36)
         .replace(/[^a-z]+/g, '')
         .substr(0, 5)
+
+      styles.map((css) => this._createStyled(this.namespaceId, css))
+      classNames = classNames.concat([this.namespaceId])
+    }
+
+    _createStyled = (namespaceId, css) => {
       let result = postcss()
         .use(selectorNamespace({ namespace: `.${namespaceId}` }))
         .process(css)
       injectGlobal`
         ${result.css}
       `
+    }
 
-      return namespaceId
+    componentWillUpdate = () => {
+      // Hot reload will not call the reloaded one so this is useless
     }
 
     componentWillMount = () => {
+      // Some component will be generated dynamically, so we kinda need this
       if (process.browser)
-        this.localClassNames.forEach(className =>
-          document.body.classList.add(className)
-        )
+        document.body.classList.add(this.namespaceId)
     }
 
     componentWillUnmount = () => {
       if (process.browser)
-        this.localClassNames.forEach(className =>
-          document.body.classList.remove(className)
-        )
+        document.body.classList.remove(this.namespaceId)
     }
 
     render() {
-      return <Component ref="component" {...this.props} />
+      return <Component {...this.props} />
     }
   }
 

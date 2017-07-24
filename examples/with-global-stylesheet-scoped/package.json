@@ -5,6 +5,7 @@
   "dependencies": {
     "antd": "^2.12.2",
     "autoprefixer": "^7.1.1",
+    "babel-plugin-styled-components": "^1.1.7",
     "babel-plugin-transform-decorators-legacy": "^1.3.4",
     "babel-plugin-wrap-in-js": "^1.1.1",
     "babel-preset-es2015": "^6.24.1",

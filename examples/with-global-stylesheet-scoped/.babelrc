@@ -11,6 +11,7 @@
         "extensions": ["css$", "scss$"]
       }
     ],
+    ["styled-components", { "ssr": true, "displayName": true, "preprocess": false } ],
     "transform-decorators-legacy"
   ]
 }
