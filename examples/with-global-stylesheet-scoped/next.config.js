@@ -7,8 +7,8 @@ module.exports = {
         test: /\.(css|scss)/,
         loader: 'emit-file-loader',
         options: {
-          name: 'dist/[path][name].[ext]',
-        },
+          name: 'dist/[path][name].[ext]'
+        }
       },
       {
         test: /\.css$/,
@@ -18,10 +18,10 @@ module.exports = {
           {
             loader: 'postcss-loader',
             options: {
-              sourceMap: 'inline',
-            },
-          },
-        ],
+              sourceMap: 'inline'
+            }
+          }
+        ]
       },
       {
         test: /\.s(a|c)ss$/,
@@ -31,8 +31,8 @@ module.exports = {
           {
             loader: 'postcss-loader',
             options: {
-              sourceMap: 'inline',
-            },
+              sourceMap: 'inline'
+            }
           },
           {
             loader: 'sass-loader',
@@ -41,13 +41,13 @@ module.exports = {
               includePaths: ['styles', 'node_modules']
                 .map(d => require('path').join(__dirname, d))
                 .map(g => require('glob').sync(g))
-                .reduce((a, c) => a.concat(c), []),
-            },
-          },
-        ],
+                .reduce((a, c) => a.concat(c), [])
+            }
+          }
+        ]
       }
     )
 
     return config
-  },
+  }
 }

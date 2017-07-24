@@ -4,7 +4,7 @@ import Fork from '../components/Fork'
 import ForkWithoutMaterial from '../components/ForkWithoutMaterial'
 
 export default class Index extends React.Component {
-  static async getInitialProps({ store }) {
+  static async getInitialProps ({ store }) {
     const res = await fetch(
       'https://api.github.com/repos/zeit/next.js'
     )
@@ -12,7 +12,7 @@ export default class Index extends React.Component {
     return { stars: json.stargazers_count }
   }
 
-  render() {
+  render () {
     const { stars } = this.props
     return (
       <div>
