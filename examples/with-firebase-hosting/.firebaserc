@@ -1,5 +1,5 @@
 {
   "projects": {
-    "default": "firebase-functions-next"
+    "default": "<project-name-here>"
   }
 }

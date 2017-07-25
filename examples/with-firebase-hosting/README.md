@@ -48,7 +48,8 @@ The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Ho
 
 This is based off of the work at https://github.com/geovanisouza92/serverless-firebase & https://github.com/jthegedus/firebase-functions-next-example as described [here](https://medium.com/jthegedus/)
 
-## Important
+## Important & Caveats
 *   The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 *   `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
 *   Testing on Firebase locally requires a complete build of the Next.js app. `npm run serve` handles everything required.
+*   Any npm modules dependencies used in the Next.js app (`app/` folder) must also be installed as dependencies for the Cloud Functions project (`functions` folder).
