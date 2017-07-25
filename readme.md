@@ -411,7 +411,7 @@ You can use an URL object the same way you use it in a `<Link>` component to `pu
 import Router from 'next/router'
 
 const handler = () => Router.push({
-  pathname: 'about',
+  pathname: '/about',
   query: { name: 'Zeit' }
 })
 
