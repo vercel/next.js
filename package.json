@@ -38,7 +38,8 @@
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/examples/**/lib/**"
     ]
   },
   "lint-staged": {

@@ -1,0 +1,26 @@
+{
+  "name": "with-reasonml",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next -w",
+    "build": "next build",
+    "start": "next start -w"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "babel-plugin-bucklescript": "^0.2.3-1",
+    "bs-platform": "^1.8.1",
+    "next": "^2.4.7",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "reason-react": "^0.2.3"
+  },
+  "babel": {
+    "presets": [
+      "next/babel"
+    ],
+    "plugins": [
+      "babel-plugin-bucklescript"
+    ]
+  }
+}
