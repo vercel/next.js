@@ -1,4 +1,6 @@
 {
+  "name": "app",
+  "version": "1.0.0",
   "dependencies": {
     "next": "beta",
     "react": "^15.6.1",

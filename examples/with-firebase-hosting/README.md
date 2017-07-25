@@ -1,4 +1,4 @@
-# With Firebase example
+# With Firebase Hosting example
 
 ## How to use
 
@@ -15,10 +15,9 @@ It is recommended to use a package manager that uses a lockfile and caching for 
 - [pnpm](https://github.com/pnpm/pnpm)
 
 Set up firebase:
-- create a project through the firebase web console
+- create a project through the [firebase web console](https://console.firebase.google.com/)
 - grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
 - update the `.firebaserc` default project ID to the newly created project
-
 
 Install project:
 
@@ -50,6 +49,6 @@ The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Ho
 This is based off of the work at https://github.com/geovanisouza92/serverless-firebase & https://github.com/jthegedus/firebase-functions-next-example as described [here](https://medium.com/jthegedus/)
 
 ## Important
-*   The empty `placeholder.html` file is so Firebase Hosting still hosts at the project URL.
+*   The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 *   `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-*   Testing on Firebase locally requires a complete build of the Next.js app.
+*   Testing on Firebase locally requires a complete build of the Next.js app. `npm run serve` handles everything required.
