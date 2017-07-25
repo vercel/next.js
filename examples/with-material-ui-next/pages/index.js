@@ -7,7 +7,7 @@ import Dialog, {
   DialogActions
 } from 'material-ui/Dialog'
 import Typography from 'material-ui/Typography'
-import App from '../components/App'
+import withRoot from '../components/withRoot'
 
 const styles = {
   container: {
@@ -35,26 +35,24 @@ class Index extends Component {
 
   render () {
     return (
-      <App>
-        <div style={styles.container}>
-          <Dialog open={this.state.open} onRequestClose={this.handleRequestClose}>
-            <DialogTitle>Super Secret Password</DialogTitle>
-            <DialogContent>
-              <DialogContentText>1-2-3-4-5</DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button color='primary' onClick={this.handleRequestClose}>OK</Button>
-            </DialogActions>
-          </Dialog>
-          <Typography type='display1' gutterBottom>Material-UI</Typography>
-          <Typography type='subheading' gutterBottom>example project</Typography>
-          <Button raised color='accent' onClick={this.handleClick}>
-            Super Secret Password
-          </Button>
-        </div>
-      </App>
+      <div style={styles.container}>
+        <Dialog open={this.state.open} onRequestClose={this.handleRequestClose}>
+          <DialogTitle>Super Secret Password</DialogTitle>
+          <DialogContent>
+            <DialogContentText>1-2-3-4-5</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button color='primary' onClick={this.handleRequestClose}>OK</Button>
+          </DialogActions>
+        </Dialog>
+        <Typography type='display1' gutterBottom>Material-UI</Typography>
+        <Typography type='subheading' gutterBottom>example project</Typography>
+        <Button raised color='accent' onClick={this.handleClick}>
+          Super Secret Password
+        </Button>
+      </div>
     )
   }
 }
 
-export default Index
+export default withRoot(Index)
