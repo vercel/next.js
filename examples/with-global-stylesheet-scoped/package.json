@@ -16,6 +16,7 @@
     "isomorphic-fetch": "^2.2.1",
     "next": "^2.4.4",
     "node-sass": "^4.5.3",
+    "object-hash": "^1.1.8",
     "postcss": "^6.0.8",
     "postcss-easy-import": "^2.1.0",
     "postcss-flexbugs-fixes": "^3.0.0",
