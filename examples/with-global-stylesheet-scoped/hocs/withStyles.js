@@ -29,7 +29,7 @@ export default (...styles) => Component => {
     _createStyled = css => {
       // Hash content of css for namespace so they can be shared among components
       // Note: adding a prefix because css classname has to start with normal character rather than a number
-      let namespace = 'with-styles-' + hash(css)
+      let namespace = 'with-styles-' + hash(JSON.stringify(css))
 
       if (!(namespace in cachedNamespaces)) {
         let result = postcss()
