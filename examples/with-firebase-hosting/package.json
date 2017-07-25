@@ -1,5 +1,5 @@
 {
-  "name": "with-firebase",
+  "name": "with-firebase-hosting",
   "version": "1.0.0",
   "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
   "scripts": {
