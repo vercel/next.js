@@ -77,4 +77,15 @@ describe('Production Usage', () => {
       browser.close()
     })
   })
+
+  describe('Misc', () => {
+    it('should allow to access /static/ and /_next/', async () => {
+      // This is a test case which prevent the following issue happening again.
+      // See: https://github.com/zeit/next.js/issues/2617
+      await renderViaHTTP(appPort, '/_next/')
+      await renderViaHTTP(appPort, '/static/')
+      const data = await renderViaHTTP(appPort, '/static/data/item.txt')
+      expect(data).toBe('item')
+    })
+  })
 })
