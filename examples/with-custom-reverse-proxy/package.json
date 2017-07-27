@@ -3,13 +3,7 @@
   "engines": {
     "node": "7.x.x"
   },
-  "license": "MIT",
-  "browserslist": [
-    ">1%",
-    "last 4 versions",
-    "Firefox ESR",
-    "not ie < 9"
-  ],
+  "license": "ISC",
   "dependencies": {
     "express": "^4.15.3",
     "next": "^3.0.1-beta.13",
