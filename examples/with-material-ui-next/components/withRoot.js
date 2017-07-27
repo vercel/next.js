@@ -46,7 +46,7 @@ function withRoot (BaseComponent) {
         <JssProvider registry={context.sheetsRegistry} jss={context.jss}>
           <MuiThemeProvider theme={context.theme} sheetsManager={context.sheetsManager}>
             <AppWrapper>
-              <BaseComponent />
+              <BaseComponent {...this.props} />
             </AppWrapper>
           </MuiThemeProvider>
         </JssProvider>
