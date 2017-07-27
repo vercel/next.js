@@ -1,2 +1,2 @@
-require('babel-register');
-module.exports = require('./server.es6.js');
+require('babel-register')
+module.exports = require('./server.es6.js')
