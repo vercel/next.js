@@ -5,7 +5,7 @@ This example applies this gist https://gist.github.com/jamsesso/67fd937b74989dc5
 * Reverse proxy in development mode by add `http-proxy-middleware` to custom server
 * NOT a recommended approach to production scale (hence explicit dev flag) as we should scope proxy as outside UI applications and have separate web server taking care of that.
 
-Sorry for the extra packages. I belong to the minority camp of writing in ES6 on Windows developers. Essentially you only need `http-proxy-middleware` on top of bare-bone Nextjs setup to run this example.
+Sorry for the extra packages. I belong to the minority camp of writing ES6 code on Windows developers. Essentially you only need `http-proxy-middleware` on top of bare-bone Nextjs setup to run this example.
 
 ## How to run it
 
