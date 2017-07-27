@@ -21,9 +21,7 @@ Set up firebase:
 
 Install project:
 
-```bash
-npm install
-```
+Each of the other commands pre-installs all dependencies
 
 Run Next.js development:
 
@@ -52,4 +50,4 @@ This is based off of the work at https://github.com/geovanisouza92/serverless-fi
 *   The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 *   `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
 *   Testing on Firebase locally requires a complete build of the Next.js app. `npm run serve` handles everything required.
-*   Any npm modules dependencies used in the Next.js app (`app/` folder) must also be installed as dependencies for the Cloud Functions project (`functions` folder).
+*   **Any npm modules dependencies used in the Next.js app (`app/` folder) must also be installed as dependencies for the Cloud Functions project (`functions` folder).**

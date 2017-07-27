@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
   "scripts": {
-    "install": "npm run build-all",
     "next": "npm run build-firebase && cd \"app\" && npm i && npm run dev",
     "preserve": "npm run build-all",
     "serve": "firebase serve",
