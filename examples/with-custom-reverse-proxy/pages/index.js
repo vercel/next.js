@@ -1,31 +1,31 @@
-import React from "react";
+import React from 'react'
 
 export default class extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { response: "" };
+  constructor (props) {
+    super(props)
+    this.state = { response: '' }
   }
 
-  static async getInitialProps({ pathname, query }) {
+  static async getInitialProps ({ pathname, query }) {
     return {
       pathname,
       query,
-      queryString: Object.keys(query).join("")
-    };
+      queryString: Object.keys(query).join('')
+    }
   }
 
-  async componentDidMount() {
+  async componentDidMount () {
     const response = JSON.stringify(
       await window
         .fetch(`/api/${this.props.queryString}`)
         .then(response => response.json().then(data => data)),
       null,
       2
-    );
-    this.setState({ response });
+    )
+    this.setState({ response })
   }
 
-  render() {
+  render () {
     return (
       <content>
         <p>
@@ -37,9 +37,9 @@ export default class extends React.Component {
           <a href="/">Reset</a>
         </p>
         <pre>
-          {this.state.response ? this.state.response : "Loading..."}
+          {this.state.response ? this.state.response : 'Loading...'}
         </pre>
       </content>
-    );
+    )
   }
 }
