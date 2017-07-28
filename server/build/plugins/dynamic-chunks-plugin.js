@@ -30,19 +30,6 @@ export default class DynamicChunksPlugin {
   apply (compiler) {
     compiler.plugin('compilation', (compilation) => {
       compilation.chunkTemplate.apply(new DynamicChunkTemplatePlugin())
-
-      compilation.plugin('additional-chunk-assets', (chunks) => {
-        chunks = chunks.filter(chunk =>
-          isImportChunk.test(chunk.name) && compilation.assets[chunk.name]
-        )
-
-        chunks.forEach((chunk) => {
-          // This is to support, webpack dynamic import support with HMR
-          const copyFilename = `chunks/${chunk.name}`
-          compilation.additionalChunkAssets.push(copyFilename)
-          compilation.assets[copyFilename] = compilation.assets[chunk.name]
-        })
-      })
     })
   }
 }

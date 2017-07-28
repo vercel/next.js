@@ -8,7 +8,6 @@ import {
   renderErrorToHTML,
   sendHTML,
   serveStatic,
-  renderScript,
   renderScriptError
 } from './render'
 import Router from './router'
@@ -135,82 +134,19 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      // This is to support, webpack dynamic imports in production.
-      '/_next/:buildId/webpack/chunks/:name': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          return this.send404(res)
-        }
-
-        const p = join(this.dir, this.dist, 'chunks', params.name)
-        await this.serveStatic(req, res, p)
-      },
-
-      // This is to support, webpack dynamic import support with HMR
-      '/_next/:buildId/webpack/:id': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          return this.send404(res)
-        }
-
-        const p = join(this.dir, this.dist, 'chunks', params.id)
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/manifest.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'manifest.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/main.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'main.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/commons.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'commons.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/app.js': async (req, res, params) => {
-        if (this.dev) return this.send404(res)
-
-        this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'app.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/page/_error*': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          const customFields = { buildIdMismatched: true }
-
-          return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
-        }
-
-        const p = join(this.dir, `${this.dist}/bundles/pages/_error.js`)
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/page/:path*': async (req, res, params) => {
+      '/_next/:hash/pages/:path*': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
+        const filename = `pages/${page.replace(/\.js$/, '')}.js`
 
-        if (!this.handleBuildId(params.buildId, res)) {
+        if (!this.handleBuildHash(filename, params.hash, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
 
           return await renderScriptError(req, res, page, error, customFields, this.renderOpts)
         }
 
-        if (this.dev) {
+        if (this.dev && page !== '/_error.js') {
           try {
             await this.hotReloader.ensurePage(page)
           } catch (error) {
@@ -224,15 +160,33 @@ export default class Server {
           }
         }
 
-        await renderScript(req, res, page, this.renderOpts)
+        try {
+          const realPath = join(this.dir, this.dist, 'bundles', filename)
+          await serveStatic(req, res, realPath)
+        } catch (err) {
+          if (err.code === 'ENOENT') {
+            renderScriptError(req, res, page, err, {}, this.renderOpts)
+            return
+          }
+
+          throw err
+        }
       },
 
       // It's very important keep this route's param optional.
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      '/_next/:path*': async (req, res, params) => {
-        const p = join(__dirname, '..', 'client', ...(params.path || []))
+      '/_next/:hash/:name*': async (req, res, params) => {
+        const name = params.name.join('/')
+        if (!this.handleBuildHash(name, params.hash, res)) {
+          const error = new Error('INVALID_BUILD_ID')
+          const customFields = { buildIdMismatched: true }
+
+          return await renderScriptError(req, res, name, error, customFields, this.renderOpts)
+        }
+
+        const p = join(this.dir, this.dist, 'bundles', name)
         await this.serveStatic(req, res, p)
       },
 
@@ -407,20 +361,6 @@ export default class Server {
     return buildId.trim()
   }
 
-  handleBuildId (buildId, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    if (buildId !== this.renderOpts.buildId) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-    return true
-  }
-
   async getCompilationError () {
     if (!this.hotReloader) return
 
@@ -437,8 +377,9 @@ export default class Server {
       return true
     }
 
-    if (hash !== this.buildStats[filename].hash) {
-      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+    if (hash !== this.renderOpts.buildId &&
+        hash !== (this.buildStats[filename] || {}).hash) {
+      return false
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')

@@ -22,12 +22,12 @@ const defaultPages = [
 const nextPagesDir = join(__dirname, '..', '..', 'pages')
 const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 const interpolateNames = new Map(defaultPages.map((p) => {
-  return [join(nextPagesDir, p), `dist/pages/${p}`]
+  return [join(nextPagesDir, p), `../dist/pages/${p}`]
 }))
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
+export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
@@ -52,18 +52,13 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
-    if (dev) {
-      for (const p of devPages) {
-        entries[join('bundles', p)] = [`./${p}?entry`]
-      }
-    } else {
-      for (const p of pages) {
-        entries[join('bundles', p)] = [`./${p}?entry`]
-      }
+    const entryPages = dev ? devPages : pages
+    for (const p of entryPages) {
+      entries[p.replace(/^(pages\/.*)\/index.js$/, '$1.js')] = [`./${p}?entry`]
     }
 
     for (const p of defaultPages) {
-      const entryName = join('bundles', 'pages', p)
+      const entryName = join('pages', p)
       if (!entries[entryName]) {
         entries[entryName] = [join(nextPagesDir, p) + '?entry']
       }
@@ -206,7 +201,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
-      name: 'dist/[path][name].[ext]',
+      name: '../dist/[path][name].[ext]',
       // By default, our babel config does not transpile ES2015 module syntax because
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.
@@ -294,10 +289,10 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     context: dir,
     entry,
     output: {
-      path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
+      path: buildDir ? join(buildDir, '.next', 'bundles') : join(dir, config.distDir, 'bundles'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: `/_next/${buildId}/webpack/`,
+      publicPath: `/_next/${buildId}/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')

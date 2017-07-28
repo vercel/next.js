@@ -5,9 +5,8 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requireModule from './require'
+import resolve from './resolve'
 import getConfig from './config'
-import resolvePath from './resolve'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
@@ -47,16 +46,26 @@ async function doRender (req, res, pathname, query, {
   staticMarkup = false,
   nextExport = false
 } = {}) {
+  pathname = pathname.replace(/\/index/, '') || '/index'
   page = page || pathname
 
   await ensurePage(page, { dir, hotReloader })
 
   const dist = getConfig(dir).distDir
+  const nodeDistDir = join(dir, dist, 'dist')
 
-  let [Component, Document] = await Promise.all([
-    requireModule(join(dir, dist, 'dist', 'pages', page)),
-    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
+  const pageDir = join(nodeDistDir, 'pages')
+
+  const [pagePath, documentPath] = await Promise.all([
+    resolve(join(pageDir, page)),
+    resolve(join(pageDir, '_document'))
   ])
+
+  let [Component, Document] = [
+    require(pagePath),
+    require(documentPath)
+  ]
+
   Component = Component.default || Component
   Document = Document.default || Document
   const asPath = req.url
@@ -120,23 +129,9 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderScript (req, res, page, opts) {
-  try {
-    const dist = getConfig(opts.dir).distDir
-    const path = join(opts.dir, dist, 'bundles', 'pages', page)
-    const realPath = await resolvePath(path)
-    await serveStatic(req, res, realPath)
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      renderScriptError(req, res, page, err, {}, opts)
-      return
-    }
-
-    throw err
-  }
-}
-
 export async function renderScriptError (req, res, page, error, customFields, { dev }) {
+  page = page.replace(/(\/index)?\.js/, '') || '/'
+
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
   // prevent XSS attacks by filtering the page before printing it.
