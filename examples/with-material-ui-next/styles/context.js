@@ -17,6 +17,8 @@ const theme = createMuiTheme({
 const jss = create(preset())
 jss.options.createGenerateClassName = createGenerateClassName
 
+let context
+
 function createContext () {
   return {
     jss,
@@ -30,20 +32,20 @@ function createContext () {
 
 export function setContext () {
   // Singleton hack as there is no way to pass variables from _document.js to pages yet.
-  global.__INIT_MATERIAL_UI__ = createContext()
+  context = createContext()
 }
 
 export function getContext () {
   // Make sure to create a new store for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (!process.browser) {
-    return global.__INIT_MATERIAL_UI__
+    return context
   }
 
   // Reuse context on the client-side
-  if (!global.__INIT_MATERIAL_UI__) {
-    global.__INIT_MATERIAL_UI__ = createContext()
+  if (!context) {
+    context = createContext()
   }
 
-  return global.__INIT_MATERIAL_UI__
+  return context
 }
