@@ -9,12 +9,14 @@ import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
   const buildDir = join(tmpdir(), uuid.v4())
-  const compiler = await webpack(dir, { buildDir, conf })
+  const buildId = uuid.v4()
+
+  const compiler = await webpack(dir, { buildDir, buildId, conf })
 
   try {
     await runCompiler(compiler)
     await writeBuildStats(buildDir)
-    await writeBuildId(buildDir)
+    await writeBuildId(buildDir, buildId)
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)
     throw err
@@ -52,15 +54,14 @@ async function writeBuildStats (dir) {
   // So, we need to generate the hash ourself.
   const assetHashMap = {
     'app.js': {
-      hash: await md5File(join(dir, '.next', 'app.js'))
+      hash: await md5File(join(dir, '.next', 'bundles', 'app.js'))
     }
   }
   const buildStatsPath = join(dir, '.next', 'build-stats.json')
   await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
 }
 
-async function writeBuildId (dir) {
+async function writeBuildId (dir, buildId) {
   const buildIdPath = join(dir, '.next', 'BUILD_ID')
-  const buildId = uuid.v4()
   await fs.writeFile(buildIdPath, buildId, 'utf8')
 }

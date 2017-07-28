@@ -2,7 +2,7 @@
 // We've added support for SSR with this version
 import template from 'babel-template'
 import syntax from 'babel-plugin-syntax-dynamic-import'
-import UUID from 'uuid'
+import { dirname, relative, resolve } from 'path'
 
 const TYPE_IMPORT = 'Import'
 
@@ -43,10 +43,15 @@ export default () => ({
   visitor: {
     CallExpression (path) {
       if (path.node.callee.type === TYPE_IMPORT) {
+        const { opts } = path.hub.file
+
         const moduleName = path.node.arguments[0].value
-        const name = `${moduleName.replace(/[^\w]/g, '-')}-${UUID.v4()}`
+        const currentDir = dirname(opts.filename)
+        const modulePath = resolve(currentDir, moduleName)
+        const chunkName = relative(opts.sourceRoot, modulePath).replace(/[^\w]/g, '-')
+
         const newImport = buildImport({
-          name
+          name: chunkName
         })({
           SOURCE: path.node.arguments
         })

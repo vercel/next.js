@@ -114,68 +114,12 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      // This is to support, webpack dynamic imports in production.
-      '/_next/webpack/chunks/:name': async (req, res, params) => {
-        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-        const p = join(this.dir, this.dist, 'chunks', params.name)
-        await this.serveStatic(req, res, p)
-      },
-
-      // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req, res, params) => {
-        const p = join(this.dir, this.dist, 'chunks', params.id)
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/manifest.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'manifest.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/main.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'main.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/commons.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'commons.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/app.js': async (req, res, params) => {
-        if (this.dev) return this.send404(res)
-
-        this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'app.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/page/_error*': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          const customFields = { buildIdMismatched: true }
-
-          return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
-        }
-
-        const p = join(this.dir, `${this.dist}/bundles/pages/_error.js`)
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/page/:path*': async (req, res, params) => {
+      '/_next/:hash/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
+        const filename = `pages/${page.replace(/\.js$/, '')}.js`
 
-        if (!this.handleBuildId(params.buildId, res)) {
+        if (!this.handleBuildHash(filename, params.hash, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
 
@@ -197,6 +141,20 @@ export default class Server {
         }
 
         await renderScript(req, res, page, this.renderOpts)
+      },
+
+      '/_next/:hash/:name': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
+        if (!this.handleBuildHash(params.name, params.hash, res)) {
+          const error = new Error('INVALID_BUILD_ID')
+          const customFields = { buildIdMismatched: true }
+
+          return await renderScriptError(req, res, params.name, error, customFields, this.renderOpts)
+        }
+
+        const p = join(this.dir, this.dist, 'bundles', params.name)
+        await this.serveStatic(req, res, p)
       },
 
       // It's very important keep this route's param optional.
@@ -379,16 +337,6 @@ export default class Server {
     return buildId.trim()
   }
 
-  handleBuildId (buildId, res) {
-    if (this.dev) return true
-    if (buildId !== this.renderOpts.buildId) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-    return true
-  }
-
   async getCompilationError () {
     if (!this.hotReloader) return
 
@@ -400,13 +348,15 @@ export default class Server {
   }
 
   handleBuildHash (filename, hash, res) {
-    if (this.dev) return
+    if (this.dev) return true
 
-    if (hash !== this.buildStats[filename].hash) {
-      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+    if (hash !== this.renderOpts.buildId &&
+        hash !== (this.buildStats[filename] || {}).hash) {
+      return false
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    return true
   }
 
   send404 (res) {

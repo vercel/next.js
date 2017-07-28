@@ -40,7 +40,7 @@ export default class HotReloader {
 
   async start () {
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      webpack(this.dir, { dev: true, buildId: 'hmr', quiet: this.quiet }),
       clean(this.dir)
     ])
 
@@ -66,7 +66,7 @@ export default class HotReloader {
     this.stats = null
 
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      webpack(this.dir, { dev: true, buildId: 'hmr', quiet: this.quiet }),
       clean(this.dir)
     ])
 
@@ -173,7 +173,7 @@ export default class HotReloader {
     ]
 
     let webpackDevMiddlewareConfig = {
-      publicPath: '/_next/webpack/',
+      publicPath: '/_next/hmr/',
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
