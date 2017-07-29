@@ -1,8 +1,6 @@
 # build output
 dist
 .next
-bs
-.merlin
 
 # dependencies
 node_modules
