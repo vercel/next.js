@@ -9,6 +9,7 @@ const defaultConfig = {
   poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
+  pagesExtensions: ['js', 'json'],
   configOrigin: 'default',
   useFileSystemPublicRoutes: true
 }

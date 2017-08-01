@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@types/react": "^15.0.27",
-    "ts-loader": "^2.1.0",
-    "typescript": "^2.3.4"
+    "ts-loader": "^2.3.2",
+    "typescript": "^2.4.2"
   }
 }

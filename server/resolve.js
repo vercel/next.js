@@ -1,6 +1,10 @@
 import { join, sep, parse } from 'path'
 import fs from 'mz/fs'
 import glob from 'glob-promise'
+import getConfig from './config'
+
+const dir = process.cwd()
+const config = getConfig(dir)
 
 export default async function resolve (id) {
   const paths = getPaths(id)
@@ -26,29 +30,25 @@ export function resolveFromList (id, files) {
 function getPaths (id) {
   const i = sep === '/' ? id : id.replace(/\//g, sep)
 
-  if (i.slice(-3) === '.js') return [i]
-  if (i.slice(-5) === '.json') return [i]
-  if (i.slice(-3) === '.ts') return [i]
-  if (i.slice(-4) === '.tsx') return [i]
+  for (const ext of config.pagesExtensions.map(ext => `.${ext}`)) {
+    if (i.slice(ext.length) === ext) return [i]
+  }
 
   if (i[i.length - 1] === sep) {
     return [
-      i + 'index.js',
-      i + 'index.json',
-      i + 'index.ts',
-      i + 'index.tsx'
+      ...config.pagesExtensions.map(ext => i + `index.${ext}`)
     ]
   }
 
+  function * getPagesPaths (extensions) {
+    for (const ext of config.pagesExtensions) {
+      yield i + `.${ext}`
+      yield join(i, `index.${ext}}`)
+    }
+  }
+
   return [
-    i + '.js',
-    join(i, 'index.js'),
-    i + '.json',
-    join(i, 'index.json'),
-    i + '.ts',
-    join(i, 'index.ts'),
-    i + '.tsx',
-    join(i, 'index.tsx')
+    ...getPagesPaths(config.pagesExtensions)
   ]
 }
 

@@ -22,19 +22,20 @@ const typescriptLoader = {
   ],
   exclude: /node_modules/,
   include: [
+    __dirname,
     nextPagesDir
   ]
 }
 
 module.exports = {
+  // Add typescript extensions
+  pagesExtensions: [
+    'js',
+    'json',
+    'ts',
+    'tsx'
+  ],
   webpack: (config) => {
-    // Add typescript extensions
-    config.resolve.extensions = [
-      '.js',
-      '.json',
-      '.tsx',
-      '.ts']
-
     // Resolve to next babel-loader options
     let {
       options

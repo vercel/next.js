@@ -47,7 +47,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       ]
     }
 
-    const pages = await glob('pages/**/*.{js,ts,tsx}', { cwd: dir })
+    const pages = await glob(`pages/**/*.{${config.pagesExtensions.join(',')}}`, { cwd: dir })
     const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
@@ -183,15 +183,17 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
+  const pagesRegex = new RegExp(`\\.(${config.pagesExtensions.join('|')})(\\?[^?]*)?$`)
+
   const rules = (dev ? [{
-    test: /\.(js|tsx?)(\?[^?]*)?$/,
+    test: pagesRegex,
     loader: 'hot-self-accept-loader',
     include: [
       join(dir, 'pages'),
       nextPagesDir
     ]
   }, {
-    test: /\.(js|tsx?)(\?[^?]*)?$/,
+    test: pagesRegex,
     loader: 'react-hot-loader/webpack',
     exclude: /node_modules/
   }] : [])
@@ -311,6 +313,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       chunkFilename: '[name]'
     },
     resolve: {
+      extensions: config.pagesExtensions.map(ext => `.${ext}`),
       modules: [
         nextNodeModulesDir,
         'node_modules',
