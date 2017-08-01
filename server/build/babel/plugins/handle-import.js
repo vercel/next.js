@@ -60,7 +60,7 @@ export default () => ({
         const moduleName = path.node.arguments[0].value
         const currentDir = dirname(opts.filename)
         const modulePath = resolve(currentDir, moduleName)
-        const chunkName = relative(opts.sourceRoot, modulePath).replace(/[^\w]/g, '-')
+        const chunkName = relative(opts.sourceRoot || process.cwd(), modulePath).replace(/[^\w]/g, '-')
 
         const newImport = buildImport({
           name: chunkName
