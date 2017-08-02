@@ -41,7 +41,13 @@ function withRoot (BaseComponent) {
 
     render () {
       const context = getContext()
-
+      if (process.browser) {
+          <MuiThemeProvider theme={context.theme}>
+            <AppWrapper>
+              <BaseComponent {...this.props} />
+            </AppWrapper>
+          </MuiThemeProvider>
+      }
       return (
         <JssProvider registry={context.sheetsRegistry} jss={context.jss}>
           <MuiThemeProvider theme={context.theme} sheetsManager={context.sheetsManager}>
