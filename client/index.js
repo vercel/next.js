@@ -29,6 +29,10 @@ const {
   location
 } = window
 
+if (assetPrefix) {
+  __webpack_public_path__ = `${assetPrefix}/_next/${buildId}/`    // eslint-disable-line
+}
+
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, assetPrefix)
