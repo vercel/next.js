@@ -31,7 +31,7 @@ function getPaths (id) {
   const i = sep === '/' ? id : id.replace(/\//g, sep)
 
   for (const ext of config.pagesExtensions.map(ext => `.${ext}`)) {
-    if (i.slice(ext.length) === ext) return [i]
+    if (i.slice(-ext.length) === ext) return [i]
   }
 
   if (i[i.length - 1] === sep) {
@@ -43,7 +43,7 @@ function getPaths (id) {
   function * getPagesPaths (extensions) {
     for (const ext of config.pagesExtensions) {
       yield i + `.${ext}`
-      yield join(i, `index.${ext}}`)
+      yield join(i, `index.${ext}`)
     }
   }
 
