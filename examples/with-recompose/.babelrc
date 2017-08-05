@@ -1,0 +1,6 @@
+{
+  "presets": ["next/babel"],
+  "plugins": [
+    ["lodash", { "id": ["lodash", "recompose"] }]
+  ]
+}
