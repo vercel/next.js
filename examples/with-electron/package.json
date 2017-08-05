@@ -1,32 +1,31 @@
 {
-  "name": "your-app-name",
-  "productName": "Your App Name",
-  "description": "Your app description",
+  "name": "electron-next-skeleton",
+  "productName": "ElectronNext",
   "version": "1.0.0",
-  "author": "Your name <email@domain>",
   "main": "main/index.js",
   "scripts": {
-    "start": "electron main",
-    "build": "next build renderer && next export -o build renderer",
-    "pack": "npm run build && build --dir",
-    "dist": "npm run build && build"
+    "start": "electron .",
+    "build": "next build renderer && next export renderer",
+    "dist": "npm run build && build --dir"
   },
   "build": {
-    "files": [
-      "main",
-      "build",
-      "node_modules"
+    "asar": false,
+    "extraResources": [
+      {
+        "from": "renderer/out",
+        "to": "app/renderer"
+      }
     ]
   },
-  "dependencies": {
-    "app-root-path": "^2.0.1",
-    "electron-is-dev": "^0.1.2",
-    "next": "beta",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
-  },
   "devDependencies": {
-    "electron": "^1.6.8",
-    "electron-builder": "^17.8.0"
+    "electron": "^1.6.11",
+    "electron-builder": "^19.19.1",
+    "next": "beta",
+    "react": "15.6.1",
+    "react-dom": "15.6.1"
+  },
+  "dependencies": {
+    "electron-is-dev": "0.3.0",
+    "electron-next": "3.0.8"
   }
 }

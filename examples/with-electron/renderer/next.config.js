@@ -1,20 +1,14 @@
-const isProd = process.env.NODE_ENV === 'production'
-
 module.exports = {
   webpack (config, { dev }) {
-    // config the webpack target to be electron-renderer
-    // this allow us to import electron renderer modules in your next.js pages
     config.target = 'electron-renderer'
-
     return config
   },
   exportPathMap () {
-    // export our pages as HTML for production usage
+    // Let Next.js know where to find the entry page
+    // when it's exporting the static bundle for the use
+    // in the production version of your app
     return {
-      '/': { page: '/' }
+      '/start': { page: '/start' }
     }
-  },
-  // set the prefix as `next:///` instead of `/`, this is because when you export your pages
-  // Next.js will try to import the JS files as `/` instead of the internal Electron path we defined
-  assetPrefix: isProd ? 'next:///' : '/'
+  }
 }

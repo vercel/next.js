@@ -29,6 +29,7 @@ export default class extends Component {
   handleSubmit = event => {
     event.preventDefault()
     ipcRenderer.send('message', this.state.input)
+    this.setState({ message: null })
   }
 
   render () {

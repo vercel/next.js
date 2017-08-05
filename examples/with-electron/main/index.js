@@ -1,35 +1,36 @@
-const { app } = require('electron')
+// Native
+const { join } = require('path')
+const { format } = require('url')
 
-const setMenu = require('./set-menu')
-const setIpc = require('./set-ipc')
-const createWindow = require('./create-window.js')
+// Packages
+const { BrowserWindow, app, ipcMain } = require('electron')
+const isDev = require('electron-is-dev')
+const prepareNext = require('electron-next')
 
-global.win = null
-
+// Prepare the renderer once the app is ready
 app.on('ready', async () => {
-  try {
-    setMenu()
-    setIpc()
-    await createWindow()
-  } catch (error) {
-    console.error(error)
-    app.exit(error)
-  }
+  await prepareNext('./renderer')
+
+  const mainWindow = new BrowserWindow({
+    width: 800,
+    height: 600
+  })
+
+  const url = isDev
+    ? 'http://localhost:8000/start'
+    : format({
+      pathname: join(__dirname, '../renderer/start/index.html'),
+      protocol: 'file:',
+      slashes: true
+    })
+
+  mainWindow.loadURL(url)
 })
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
+// Quit the app once all windows are closed
+app.on('window-all-closed', app.quit)
 
-app.on('activate', async () => {
-  if (global.win === null) {
-    try {
-      await createWindow()
-    } catch (error) {
-      console.error(error)
-      app.exit(error)
-    }
-  }
+// listen the channel `message` and resend the received message to the renderer process
+ipcMain.on('message', (event, message) => {
+  event.sender.send('message', message)
 })
