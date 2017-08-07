@@ -26,7 +26,7 @@ export default class MyDocument extends Document {
           <meta
             name='viewport'
             content={
-              'user-scalable=0, initial-scale=1, maximum-scale=1, ' +
+              'user-scalable=0, initial-scale=1, ' +
                 'minimum-scale=1, width=device-width, height=device-height'
             }
           />
