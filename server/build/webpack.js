@@ -94,19 +94,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
-        // Instead, we move all the code in node_modules into this chunk.
-        // With that, we could gain better performance for page-rebuild process.
-        if (dev) {
-          return module.context && module.context.indexOf('node_modules') >= 0
-        }
-
         // We need to move react-dom explicitly into common chunks.
         // Otherwise, if some other page or module uses it, it might
         // included in that bundle too.
         if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
           return true
+        }
+
+        // In the dev we use on-demand-entries.
+        // So, it makes no sense to use commonChunks based on the minChunks count.
+        // Instead, we move all the code in node_modules into each of the pages.
+        if (dev) {
+          return false
         }
 
         // If there are one or two pages, only move modules to common if they are
