@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "2.4.9",
+  "version": "3.0.1",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
