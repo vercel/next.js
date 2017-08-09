@@ -1131,7 +1131,7 @@ Yes! Here's an [example](./examples/with-redux)
 </details>
 
 <details>
-<summary>Can I use Next with my favorite javascript library or toolkit?</summary>
+<summary>Can I use Next with my favorite Javascript library or toolkit?</summary>
 
 Since our first release we've had **many** example contributions, you can check them out in the [examples](./examples) directory
 </details>
