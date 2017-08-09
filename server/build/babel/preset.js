@@ -20,6 +20,7 @@ module.exports = {
   ],
   plugins: [
     require.resolve('babel-plugin-react-require'),
+    require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
     require.resolve('babel-plugin-transform-class-properties'),
     require.resolve('babel-plugin-transform-runtime'),
@@ -33,6 +34,7 @@ module.exports = {
           'next/link': relativeResolve('../../../lib/link'),
           'next/prefetch': relativeResolve('../../../lib/prefetch'),
           'next/css': relativeResolve('../../../lib/css'),
+          'next/dynamic': relativeResolve('../../../lib/dynamic'),
           'next/head': relativeResolve('../../../lib/head'),
           'next/document': relativeResolve('../../../server/document'),
           'next/router': relativeResolve('../../../lib/router'),

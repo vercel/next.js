@@ -15,6 +15,5 @@
     "react-dom": "^15.6.1",
     "webpack-bundle-analyzer": "^2.8.2"
   },
-  "author": "",
   "license": "ISC"
 }

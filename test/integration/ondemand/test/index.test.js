@@ -2,28 +2,24 @@
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
 import {
-  nextServer,
   renderViaHTTP,
-  startApp,
-  stopApp,
+  findPort,
+  launchApp,
+  killApp,
   waitFor
 } from 'next-test-utils'
 
 const context = {}
-context.app = nextServer({
-  dir: join(__dirname, '../'),
-  dev: true,
-  quiet: true
-})
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 
 describe('On Demand Entries', () => {
+  it('should pass', () => {})
   beforeAll(async () => {
-    context.server = await startApp(context.app)
-    context.appPort = context.server.address().port
+    context.appPort = await findPort()
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
-  afterAll(() => stopApp(context.server))
+  afterAll(() => killApp(context.server))
 
   it('should compile pages for SSR', async () => {
     const pageContent = await renderViaHTTP(context.appPort, '/')
@@ -36,7 +32,7 @@ describe('On Demand Entries', () => {
   })
 
   it('should dispose inactive pages', async () => {
-    await renderViaHTTP(context.appPort, '/_next/-/pages/about')
+    await renderViaHTTP(context.appPort, '/_next/-/page/about')
     const aboutPagePath = resolve(__dirname, '../.next/bundles/pages/about.js')
     expect(existsSync(aboutPagePath)).toBeTruthy()
 

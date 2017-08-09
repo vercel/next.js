@@ -1,7 +1,6 @@
 {
-  "name": "next.js-with-scoped-stylesheets-and-postcss",
+  "name": "with-scoped-stylesheets-and-postcss",
   "version": "1.0.0",
-  "description": "",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

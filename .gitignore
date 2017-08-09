@@ -4,12 +4,15 @@ dist
 
 # dependencies
 node_modules
+package-lock.json
 
 # logs
-npm-debug.log
+*.log
 
 # coverage
 .nyc_output
 coverage
 
+# test output
+test/**/out
 .DS_Store

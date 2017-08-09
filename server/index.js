@@ -12,8 +12,7 @@ import {
   renderScriptError
 } from './render'
 import Router from './router'
-import HotReloader from './hot-reloader'
-import { resolveFromList } from './resolve'
+import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -23,16 +22,25 @@ const internalPrefixes = [
   /^\/static\//
 ]
 
+const blockedPages = {
+  '/_document': true,
+  '/_error': true
+}
+
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.hotReloader = dev ? new HotReloader(this.dir, { quiet, conf }) : null
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, conf }) : null
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
+    if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
+      console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
+      process.exit(1)
+    }
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
@@ -42,15 +50,21 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
     this.defineRoutes()
   }
 
+  getHotReloader (dir, options) {
+    const HotReloader = require('./hot-reloader').default
+    return new HotReloader(dir, options)
+  }
+
   handleRequest (req, res, parsedUrl) {
     // Parse url if parsedUrl not provided
-    if (!parsedUrl) {
+    if (!parsedUrl || typeof parsedUrl !== 'object') {
       parsedUrl = parseUrl(req.url, true)
     }
 
@@ -59,12 +73,13 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    res.statusCode = 200
     return this.run(req, res, parsedUrl)
-    .catch((err) => {
-      if (!this.quiet) console.error(err)
-      res.statusCode = 500
-      res.end(STATUS_CODES[500])
-    })
+      .catch((err) => {
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        res.end(STATUS_CODES[500])
+      })
   }
 
   getRequestHandler () {
@@ -99,11 +114,24 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
+      // This is to support, webpack dynamic imports in production.
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
+        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+        const p = join(this.dir, this.dist, 'chunks', params.name)
+        await this.serveStatic(req, res, p)
+      },
+
+      // This is to support, webpack dynamic import support with HMR
+      '/_next/webpack/:id': async (req, res, params) => {
+        const p = join(this.dir, this.dist, 'chunks', params.id)
+        await this.serveStatic(req, res, p)
+      },
+
       '/_next/:hash/manifest.js': async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('manifest.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/manifest.js`)
+        const p = join(this.dir, this.dist, 'manifest.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -111,7 +139,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/main.js`)
+        const p = join(this.dir, this.dist, 'main.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -119,7 +147,7 @@ export default class Server {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/commons.js`)
+        const p = join(this.dir, this.dist, 'commons.js')
         await this.serveStatic(req, res, p)
       },
 
@@ -127,11 +155,11 @@ export default class Server {
         if (this.dev) return this.send404(res)
 
         this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, `${this.dist}/app.js`)
+        const p = join(this.dir, this.dist, 'app.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/_error': async (req, res, params) => {
+      '/_next/:buildId/page/_error*': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
@@ -161,7 +189,7 @@ export default class Server {
             return await renderScriptError(req, res, page, error, {}, this.renderOpts)
           }
 
-          const compilationErr = await this.getCompilationError(page, req, res)
+          const compilationErr = await this.getCompilationError()
           if (compilationErr) {
             const customFields = { statusCode: 500 }
             return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
@@ -239,6 +267,10 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
+    if (blockedPages[pathname]) {
+      return await this.render404(req, res, parsedUrl)
+    }
+
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
@@ -248,7 +280,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError(pathname)
+      const compilationErr = await this.getCompilationError()
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
@@ -276,7 +308,7 @@ export default class Server {
 
   async renderErrorToHTML (err, req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError('/_error')
+      const compilationErr = await this.getCompilationError()
       if (compilationErr) {
         res.statusCode = 500
         return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
@@ -357,15 +389,14 @@ export default class Server {
     return true
   }
 
-  async getCompilationError (page, req, res) {
+  async getCompilationError () {
     if (!this.hotReloader) return
 
     const errors = await this.hotReloader.getCompilationErrors()
     if (!errors.size) return
 
-    const id = join(this.dir, this.dist, 'bundles', 'pages', page)
-    const p = resolveFromList(id, errors.keys())
-    if (p) return errors.get(p)[0]
+    // Return the very first error we found.
+    return Array.from(errors.values())[0][0]
   }
 
   handleBuildHash (filename, hash, res) {

@@ -5,9 +5,9 @@ import flush from 'styled-jsx/server'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml } = renderPage()
+    const { html, head, errorHtml, chunks } = renderPage()
     const styles = flush()
-    return { html, head, errorHtml, styles }
+    return { html, head, errorHtml, chunks, styles }
   }
 
   static childContextTypes = {
@@ -65,13 +65,28 @@ export class Head extends Component {
     ]
   }
 
+  getPreloadDynamicChunks () {
+    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    let { assetPrefix } = __NEXT_DATA__
+    return chunks.map((chunk) => (
+      <link
+        key={chunk}
+        rel='preload'
+        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+        as='script'
+      />
+    ))
+  }
+
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname, nextExport)
 
-    return <head>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error`} as='script' />
+    return <head {...this.props}>
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
+      {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
@@ -131,9 +146,29 @@ export class NextScript extends Component {
     return [this.getChunkScript('app.js', { async: true })]
   }
 
+  getDynamicChunks () {
+    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    let { assetPrefix } = __NEXT_DATA__
+    return (
+      <div>
+        {chunks.map((chunk) => (
+          <script
+            async
+            key={chunk}
+            type='text/javascript'
+            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+          />
+        ))}
+      </div>
+    )
+  }
+
   render () {
-    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
+    const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname, nextExport)
+
+    __NEXT_DATA__.chunks = chunks
 
     return <div>
       {staticMarkup ? null : <script dangerouslySetInnerHTML={{
@@ -141,15 +176,27 @@ export class NextScript extends Component {
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
           module={}
           __NEXT_LOADED_PAGES__ = []
+          __NEXT_LOADED_CHUNKS__ = []
 
           __NEXT_REGISTER_PAGE = function (route, fn) {
             __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
           }
+
+          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
+          }
         `
       }} />}
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pathname}`} />
-      <script async type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error`} />
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
+      {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
+}
+
+function getPagePathname (pathname, nextExport) {
+  if (!nextExport) return pathname
+  if (pathname === '/') return '/index.js'
+  return `${pathname}/index.js`
 }

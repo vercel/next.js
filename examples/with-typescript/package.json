@@ -1,9 +1,13 @@
 {
+  "name": "with-typescript",
+  "version": "1.0.0",
   "scripts": {
     "dev": "concurrently \"tsc --watch\" next"
   },
   "dependencies": {
-    "next": "latest"
+    "next": "latest",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4"
   },
   "devDependencies": {
     "@types/react": "^15.0.1",

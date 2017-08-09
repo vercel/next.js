@@ -1,13 +1,18 @@
 <img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/v3-beta?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/v3-beta)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
-[![Slack Channel](https://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
+[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
 **Visit https://learnnextjs.com to get started with Next.js.**
+
+---
+
+This is the documentation for our latest **beta** of version 3.0 which comes with **static export** and **dynamic imports**.
+For the documentation of the latest **stable** release, [visit here](https://github.com/zeit/next.js/blob/master/readme.md).
 
 ---
 
@@ -33,6 +38,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
   - [Custom server and routing](#custom-server-and-routing)
+  - [Dynamic Import](#dynamic-import)
   - [Custom `<Document>`](#custom-document)
   - [Custom error handling](#custom-error-handling)
   - [Custom configuration](#custom-configuration)
@@ -40,6 +46,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing babel config](#customizing-babel-config)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+- [Static HTML export](#static-html-export)
 - [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -54,7 +61,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
 Install it:
 
 ```bash
-npm install next react react-dom --save
+npm install next@beta react react-dom --save
 ```
 
 and add a script to your package.json like this:
@@ -139,7 +146,7 @@ export default () => (
 )
 ```
 
-Please see the [styled-jsx documentation](https://github.com/zeit/styled-jsx) for more examples.
+Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-jsx) for more examples.
 
 #### CSS-in-JS
 
@@ -228,6 +235,13 @@ For the initial page load, `getInitialProps` will execute on the server only. `g
 
 _Note: `getInitialProps` can **not** be used in children components. Only in `pages`._
 
+<br/>
+
+> If you are using some server only modules inside `getInitialProps`, make sure to [import them properly](https://arunoda.me/blog/ssr-and-server-only-modules).
+> Otherwise, it'll slow down your app.
+
+<br/>
+
 You can also define the `getInitialProps` lifecycle method for stateless components:
 
 ```jsx
@@ -313,7 +327,7 @@ The component `<Link>` can also receive an URL object and it will automatically 
 // pages/index.js
 import Link from 'next/link'
 export default () => (
-  <div>Click <Link href={{ pathname: 'about', query: { name: 'Zeit' }}}><a>here</a></Link> to read more</div>
+  <div>Click <Link href={{ pathname: '/about', query: { name: 'Zeit' }}}><a>here</a></Link> to read more</div>
 )
 ```
 
@@ -340,6 +354,21 @@ export default () => (
 import Link from 'next/link'
 export default () => (
   <div>Click <Link href='/about'><img src="/static/image.png" /></Link></div>
+)
+```
+
+##### Forcing the Link to expose `href` to its child 
+
+If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hyperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
+
+```jsx
+import Link from 'next/link'
+import Unexpected_A from 'third-library'
+ 
+export default ({ href, name }) => (
+  <Link href={ href } passHref>
+    <Unexpected_A>{ name }</Unexpected_A>
+  </Link>
 )
 ```
 
@@ -382,7 +411,7 @@ You can use an URL object the same way you use it in a `<Link>` component to `pu
 import Router from 'next/router'
 
 const handler = () => Router.push({
-  pathname: 'about',
+  pathname: '/about',
   query: { name: 'Zeit' }
 })
 
@@ -414,7 +443,7 @@ Router.onRouteChangeStart = (url) => {
 }
 ```
 
-If you are no longer want to listen to that event, you can simply unset the event listener like this:
+If you no longer want to listen to that event, you can simply unset the event listener like this:
 
 ```js
 Router.onRouteChangeStart = null
@@ -594,6 +623,106 @@ Supported options:
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
+### Dynamic Import
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/with-dynamic-import">With Dynamic Import</a></li>
+  </ul>
+</details></p>
+
+Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
+With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
+
+You can think dynamic imports as another way to split your code into manageable chunks.
+Since Next.js supports dynamic imports with SSR, you could do amazing things with it.
+
+Here are a few ways to use dynamic imports.
+
+#### 1. Basic Usage (Also does SSR)
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponent = dynamic(import('../components/hello'))
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponent />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 2. With Custom Loading Component
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponentWithCustomLoading = dynamic(
+  import('../components/hello2'),
+  {
+    loading: () => (<p>...</p>)
+  }
+)
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithCustomLoading />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 3. With No SSR
+
+```js
+import dynamic from 'next/dynamic'
+const DynamicComponentWithNoSSR = dynamic(
+  import('../components/hello3'),
+  { ssr: false }
+)
+
+export default () => (
+  <div>
+    <Header />
+    <DynamicComponentWithNoSSR />
+    <p>HOME PAGE is here!</p>
+  </div>
+)
+```
+
+#### 4. With Multiple Modules At Once
+
+```js
+import dynamic from 'next/dynamic'
+
+const HelloBundle = dynamic({
+  modules: (props) => {
+    const components = {
+      Hello1: import('../components/hello1'),
+      Hello2: import('../components/hello2')
+    }
+
+    // Add remove components based on props
+
+    return components
+  },
+  render: (props, { Hello1, Hello2 }) => (
+    <div>
+      <h1>{props.title}</h1>
+      <Hello1 />
+      <Hello2 />
+    </div>
+  )
+})
+
+export default () => (
+  <HelloBundle title="Dynamic Bundle"/>
+)
+```
+
 ### Custom `<Document>`
 
 <p><details>
@@ -611,9 +740,9 @@ import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
-    const {html, head} = renderPage()
+    const {html, head, errorHtml, chunks} = renderPage()
     const styles = flush()
-    return { html, head, styles }
+    return { html, head, errorHtml, chunks, styles }
   }
 
   render () {
@@ -641,7 +770,7 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 
 ### Custom error handling
 
-404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js`:
+404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
 ```jsx
 import React from 'react'
@@ -662,6 +791,37 @@ export default class Error extends React.Component {
   }
 }
 ```
+
+### Reusing the built-in error page
+
+If you want to render the built-in error page you can by using `next/error`:
+
+```jsx
+import React from 'react'
+import Error from 'next/error'
+import fetch from 'isomorphic-fetch'
+
+export default class Page extends React.Component {
+  static async getInitialProps () {
+    const res = await fetch('https://api.github.com/repos/zeit/next.js')
+    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const json = await res.json()
+    return { statusCode, stars: json.stargazers_count }
+  }
+
+  render () {
+    if(this.props.statusCode) {
+        return <Error statusCode={this.props.statusCode} />
+    }
+
+    return (
+      <div>Next stars: {this.props.stars}</div>
+    )
+  }
+}
+```
+
+> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
 
 ### Custom configuration
 
@@ -786,11 +946,86 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
-Note: we recommend putting `.next`, or your custom dist folder (you can set a custom folder in ['Custom Config'](https://github.com/zeit/next.js#custom-configuration)), in `.npmignore` or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder)
+Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
+
+## Static HTML export
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-static-export">Static export</a></li></ul>
+</details></p>
+
+This is a way to run your Next.js app as a standalone static app without any Node.js server. The export app supports almost every feature of Next.js including dynamic urls, prefetching, preloading and dynamic imports.
+
+### Usage
+
+Simply develop your app as you normally do with Next.js. Then create a custom Next.js [config](https://github.com/zeit/next.js#custom-configuration) as shown below:
+
+```js
+// next.config.js
+module.exports = {
+  exportPathMap: function () {
+    return {
+      "/": { page: "/" },
+      "/about": { page: "/about" },
+      "/p/hello-nextjs": { page: "/post", query: { title: "hello-nextjs" } },
+      "/p/learn-nextjs": { page: "/post", query: { title: "learn-nextjs" } },
+      "/p/deploy-nextjs": { page: "/post", query: { title: "deploy-nextjs" } }
+    }
+  },
+}
+```
+
+In that, you specify what are the pages you need to export as static HTML.
+
+Then simply run these commands:
+
+```sh
+next build
+next export
+```
+
+For that you may need to add a NPM script to `package.json` like this:
+
+```json
+{
+    "scripts": {
+        "build": "next build && next export"
+    }
+}
+```
+
+And run it at once with:
+
+```sh
+npm run build
+```
+
+Then you've a static version of your app in the “out" directory.
+
+> You can also customize the output directory. For that run `next export -h` for the help.
+
+Now you can deploy that directory to any static hosting service. Note that there is an additional step for deploying to GitHub Pages, [documented here](https://github.com/zeit/next.js/wiki/Deploying-a-Next.js-app-into-GitHub-Pages).
+
+For an example, simply visit the “out” directory and run following command to deploy your app to [ZEIT now](https://zeit.co/now).
+
+```sh
+now
+```
+
+### Limitation
+
+With next export, we build HTML version of your app when you run the command `next export`. In that time, we'll run the `getInitialProps` functions of your pages.
+
+So, you could only use `pathname`, `query` and `asPath` fields of the `context` object passed to `getInitialProps`. You can't use `req` or `res` fields.
+
+> Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
+
 
 ## Recipes
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
+- [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 
 ## FAQ
 
@@ -907,8 +1142,9 @@ Please see our [contributing.md](./contributing.md)
 
 ## Authors
 
+- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – ▲ZEIT
+- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))

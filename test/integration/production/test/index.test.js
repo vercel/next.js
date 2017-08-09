@@ -2,6 +2,7 @@
 
 import { join } from 'path'
 import {
+  pkg,
   nextServer,
   nextBuild,
   startApp,
@@ -11,12 +12,15 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
+import dynamicImportTests from '../../basic/test/dynamic'
 
 const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
+
+const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
@@ -28,7 +32,7 @@ describe('Production Usage', () => {
     })
 
     server = await startApp(app)
-    appPort = server.address().port
+    context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
@@ -45,6 +49,14 @@ describe('Production Usage', () => {
       const headers = { 'If-None-Match': etag }
       const res2 = await fetch(url, { headers })
       expect(res2.status).toBe(304)
+    })
+
+    it('should block special pages', async () => {
+      const urls = ['/_document', '/_error']
+      for (const url of urls) {
+        const html = await renderViaHTTP(appPort, url)
+        expect(html).toMatch(/404/)
+      }
     })
   })
 
@@ -79,6 +91,17 @@ describe('Production Usage', () => {
   })
 
   describe('Misc', () => {
+    it('should handle already finished responses', async () => {
+      const res = {
+        finished: false,
+        end () {
+          this.finished = true
+        }
+      }
+      const html = await app.renderToHTML({}, res, '/finish-response', {})
+      expect(html).toBeFalsy()
+    })
+
     it('should allow to access /static/ and /_next/', async () => {
       // This is a test case which prevent the following issue happening again.
       // See: https://github.com/zeit/next.js/issues/2617
@@ -88,4 +111,39 @@ describe('Production Usage', () => {
       expect(data).toBe('item')
     })
   })
+
+  describe('X-Powered-By header', () => {
+    it('should set it by default', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const headers = {}
+      const res = {
+        setHeader (key, value) {
+          headers[key] = value
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
+    })
+
+    it('should not set it when poweredByHeader==false', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const originalConfigValue = app.config.poweredByHeader
+      app.config.poweredByHeader = false
+      const res = {
+        setHeader (key, value) {
+          if (key === 'X-Powered-By') {
+            throw new Error('Should not set the X-Powered-By header')
+          }
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      app.config.poweredByHeader = originalConfigValue
+    })
+  })
+
+  dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })
