@@ -1130,6 +1130,12 @@ Yes! Here's an [example](./examples/with-redux)
 </details>
 
 <details>
+<summary>Can I use Next with my favorite javascript library or toolkit?</summary>
+
+Since our first release we've had **many** example contributions, you can check them out in the [examples](./examples) directory
+</details>
+
+<details>
 <summary>What is this inspired by?</summary>
 
 Many of the goals we set out to accomplish were the ones listed in [The 7 principles of Rich Web Applications](http://rauchg.com/2014/7-principles-of-rich-web-applications/) by Guillermo Rauch.
