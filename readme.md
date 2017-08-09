@@ -1061,8 +1061,20 @@ If you want to create re-usable React components that you can embed in your Next
 <details>
   <summary>How do I use CSS-in-JS solutions?</summary>
 
-Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use a CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
+Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
 </details>
+
+<details>
+  <summary>How do I use CSS preprocessors like SASS / SCSS / LESS?</summary>
+
+Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS preprocessor solution in your Next app by following one of these examples:
+
+- [with-external-scoped-css](./examples/with-external-scoped-css)
+- [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
+- [with-global-stylesheet](./examples/with-global-stylesheet)
+
+</details>
+
 
 <details>
   <summary>What syntactic features are transpiled? How do I change them?</summary>
@@ -1116,6 +1128,12 @@ Yes! Here's an example with [Apollo](./examples/with-apollo).
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
+</details>
+
+<details>
+<summary>Can I use Next with my favorite Javascript library or toolkit?</summary>
+
+Since our first release we've had **many** example contributions, you can check them out in the [examples](./examples) directory
 </details>
 
 <details>
