@@ -1070,6 +1070,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS preprocessor solution in your Next app by following one of these examples:
 
 - [with-external-scoped-css](./examples/with-external-scoped-css)
+- [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
 - [with-global-stylesheet](./examples/with-global-stylesheet)
 
 </details>
