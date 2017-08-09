@@ -6,7 +6,7 @@ import fetch from 'isomorphic-fetch'
 export default class extends Component {
   static async getInitialProps ({ query }) {
     // fetch single post detail
-    const response = await fetch(`http://jsonplaceholder.typicode.com/posts/${query.id}`)
+    const response = await fetch(`https://jsonplaceholder.typicode.com/posts/${query.id}`)
     const post = await response.json()
     return { ...post }
   }
