@@ -30,4 +30,6 @@ This example features how you use a different styling solution than [styled-jsx]
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-# WARNING This example uses styled-components v2 which is currently in BETA
+## How it works with next.js
+
+The `_document.js` (exact filname is important!) allows us to define a costum intermediate step before the `index.js` output is rendered ([read here: next.js costum document](https://github.com/zeit/next.js#custom-document). In this example we use styled-components ability to extract all style tags (`collectStyles()` -> `getStyleElement()`) to generate a stylesheet that is injected into the head of the document, providing the necessary server side rendering styles up front.
