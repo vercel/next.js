@@ -5,7 +5,6 @@ import i18n from 'i18next'
  * @function startI18n
  * @param {object} files - Translation files.
  * @param {string} lang - Active language.
- * @return {object} i18next instance.
  */
 const startI18n = (files, lang) => i18n.init({
   lng: lang, // active language http://i18next.com/translate/
