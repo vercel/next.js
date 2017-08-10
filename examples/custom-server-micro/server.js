@@ -3,6 +3,7 @@ const match = require('micro-route/match')
 const { parse } = require('url')
 const next = require('next')
 
+const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
@@ -21,8 +22,8 @@ const server = micro(async (req, res) => {
 })
 
 app.prepare().then(() => {
-  server.listen(3000, err => {
+  server.listen(port, err => {
     if (err) throw err
-    console.log('> Ready on http://localhost:3000')
+    console.log(`> Ready on http://localhost:${port}`)
   })
 })
