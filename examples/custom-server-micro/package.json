@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "micro": "^8.0.1",
+    "micro-route": "^2.4.0",
+    "next": "^3.0.3",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1"
+  },
+  "devDependencies": {
+    "micro-dev": "^1.1.2"
+  }
+}
