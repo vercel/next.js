@@ -3,6 +3,7 @@ const Hapi = require('hapi')
 const Good = require('good')
 const { pathWrapper, defaultHandlerWrapper } = require('./next-wrapper')
 
+const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const server = new Hapi.Server()
@@ -23,7 +24,7 @@ const pluginOptions = [
 
 app.prepare()
 .then(() => {
-  server.connection({ port: 3000 })
+  server.connection({ port })
   server.register(pluginOptions)
   .then(() => {
     server.route({
@@ -48,7 +49,7 @@ app.prepare()
       console.log('Error starting server')
       console.log(error)
     }).then(() => {
-      console.log('> Ready on http://localhost:3000')
+      console.log(`> Ready on http://localhost:${port}`)
     })
   })
 })
