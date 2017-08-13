@@ -1,0 +1,7 @@
+{
+  "name": "with-reasonml",
+  "sources": ["components", "pages"],
+  "bs-dependencies": ["reason-react"],
+  "reason": { "react-jsx": 2 },
+  "package-specs": ["commonjs"]
+}
