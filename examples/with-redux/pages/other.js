@@ -14,7 +14,7 @@ class Counter extends React.Component {
   componentDidMount () {
     this.timer = this.props.startClock()
   }
-  
+
   componentWillUnmount () {
     clearInterval(this.timer)
   }
