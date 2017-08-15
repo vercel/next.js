@@ -8,20 +8,21 @@
     "build": "next build",
     "start": "next start",
     "relay": "relay-compiler --src ./ --exclude **/.next/** **/node_modules/** **/test/**  **/__generated__/** --schema ./schema/schema.graphql",
-    "schema": "node scripts/getSchema.js"
+    "schema": "graphql get-schema dev"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "dotenv": "^4.0.0",
     "dotenv-webpack": "^1.5.4",
-    "isomorphic-unfetch": "^2.0.0",
+    "isomorphic-fetch": "^2.2.1",
     "next": "^3.0.3",
     "react": "^15.6.1",
     "react-dom": "^15.6.1",
     "react-relay": "^1.2.0-rc.1"
   },
   "devDependencies": {
+    "graphql-cli": "^1.0.0-beta.4",
     "babel-plugin-relay": "^1.1.0",
     "graphcool": "^1.2.1",
     "relay-compiler": "^1.2.0-rc.1"

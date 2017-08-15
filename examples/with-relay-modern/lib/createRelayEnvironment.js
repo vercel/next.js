@@ -1,15 +1,15 @@
 import { Environment, Network, RecordSource, Store } from 'relay-runtime'
-import fetch from 'isomorphic-unfetch'
+import fetch from 'isomorphic-fetch'
 
 let relayEnvironment = null
 
 // Define a function that fetches the results of an operation (query/mutation/etc)
 // and returns its results as a Promise:
 function fetchQuery (
-    operation,
-    variables,
-    cacheConfig,
-    uploadables,
+  operation,
+  variables,
+  cacheConfig,
+  uploadables,
 ) {
   return fetch(process.env.RELAY_ENDPOINT, {
     method: 'POST',
@@ -25,12 +25,12 @@ function fetchQuery (
 }
 
 export default function initEnvironment ({ records = {} } = {}) {
-    // Create a network layer from the fetch function
+  // Create a network layer from the fetch function
   const network = Network.create(fetchQuery)
   const store = new Store(new RecordSource(records))
 
-    // Make sure to create a new Relay environment for every server-side request so that data
-    // isn't shared between connections (which would be bad)
+  // Make sure to create a new Relay environment for every server-side request so that data
+  // isn't shared between connections (which would be bad)
   if (!process.browser) {
     return new Environment({
       network,
@@ -38,7 +38,7 @@ export default function initEnvironment ({ records = {} } = {}) {
     })
   }
 
-    // reuse Relay environment on client-side
+  // reuse Relay environment on client-side
   if (!relayEnvironment) {
     relayEnvironment = new Environment({
       network,
