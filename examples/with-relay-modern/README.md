@@ -16,15 +16,10 @@ Install it:
 npm install
 ```
 
-Setup Graphcool project
+Download schema introspection data from configured Relay endpoint 
 
 ```bash
-npm run graphcool-init
-```
-
-After successful initialization, copy Graphcool Relay Endpoint URL from console and store it into `.env` file
-```bash
-RELAY_ENDPOINT=your relay endpoint here
+npm run schema
 ```
 
 Run Relay ahead-of-time compilation (should be re-run after any edits to components that query data with Relay)
