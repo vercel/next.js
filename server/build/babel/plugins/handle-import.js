@@ -2,7 +2,8 @@
 // We've added support for SSR with this version
 import template from 'babel-template'
 import syntax from 'babel-plugin-syntax-dynamic-import'
-import UUID from 'uuid'
+import { dirname, resolve, sep } from 'path'
+import Crypto from 'crypto'
 
 const TYPE_IMPORT = 'Import'
 
@@ -37,14 +38,33 @@ const buildImport = (args) => (template(`
   )
 `))
 
+export function getModulePath (sourceFilename, moduleName) {
+  // resolve only if it's a local module
+  const modulePath = (moduleName[0] === '.')
+    ? resolve(dirname(sourceFilename), moduleName) : moduleName
+
+  const cleanedModulePath = modulePath
+    .replace(/(index){0,1}\.js$/, '') // remove .js, index.js
+    .replace(/[/\\]$/, '') // remove end slash
+
+  return cleanedModulePath
+}
+
 export default () => ({
   inherits: syntax,
 
   visitor: {
-    CallExpression (path) {
+    CallExpression (path, state) {
       if (path.node.callee.type === TYPE_IMPORT) {
         const moduleName = path.node.arguments[0].value
-        const name = `${moduleName.replace(/[^\w]/g, '-')}-${UUID.v4()}`
+        const sourceFilename = state.file.opts.filename
+
+        const modulePath = getModulePath(sourceFilename, moduleName)
+        const modulePathHash = Crypto.createHash('md5').update(modulePath).digest('hex')
+
+        const relativeModulePath = modulePath.replace(`${process.cwd()}${sep}`, '')
+        const name = `${relativeModulePath.replace(/[^\w]/g, '-')}-${modulePathHash}`
+
         const newImport = buildImport({
           name
         })({
