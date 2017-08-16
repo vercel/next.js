@@ -2,7 +2,7 @@
 // We've added support for SSR with this version
 import template from 'babel-template'
 import syntax from 'babel-plugin-syntax-dynamic-import'
-import { dirname, resolve } from 'path'
+import { dirname, resolve, sep } from 'path'
 import Crypto from 'crypto'
 
 const TYPE_IMPORT = 'Import'
@@ -62,8 +62,8 @@ export default () => ({
         const modulePath = getModulePath(sourceFilename, moduleName)
         const modulePathHash = Crypto.createHash('md5').update(modulePath).digest('hex')
 
-        const relativeModulePath = modulePath.replace(process.cwd(), '')
-        const name = `${relativeModulePath.replace(/[^\w]/g, '-')}-${modulePathHash}`
+        const relativeModulePath = modulePath.replace(`${process.cwd()}${sep}`, '')
+        const name = `${relativeModulePath.replace(/[^\w]/g, '_')}_${modulePathHash}`
 
         const newImport = buildImport({
           name
