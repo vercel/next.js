@@ -45,7 +45,7 @@ export function getModulePath (sourceFilename, moduleName) {
 
   const cleanedModulePath = modulePath
     .replace(/(index){0,1}\.js$/, '') // remove .js, index.js
-    .replace(/\/$/, '') // remove end slash
+    .replace(/[/\\]$/, '') // remove end slash
 
   return cleanedModulePath
 }

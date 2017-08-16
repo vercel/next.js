@@ -1,6 +1,11 @@
 /* global describe, it, expect */
 import { getModulePath } from '../../dist/server/build/babel/plugins/handle-import'
-import { sep } from 'path'
+
+function cleanPath (mPath) {
+  return mPath
+    .replace(/\\/g, '/')
+    .replace(/^.*:/, '')
+}
 
 describe('handle-import-babel-plugin', () => {
   describe('getModulePath', () => {
@@ -16,22 +21,22 @@ describe('handle-import-babel-plugin', () => {
 
     it('should resolve local modules', () => {
       const mPath = getModulePath('/abc/pages/about.js', '../components/hello.js')
-      expect(mPath).toBe('/abc/components/hello'.replace(/\/g/, sep))
+      expect(cleanPath(mPath)).toBe('/abc/components/hello')
     })
 
     it('should remove index.js', () => {
       const mPath = getModulePath('/abc/pages/about.js', '../components/c1/index.js')
-      expect(mPath).toBe('/abc/components/c1'.replace(/\/g/, sep))
+      expect(cleanPath(mPath)).toBe('/abc/components/c1')
     })
 
     it('should remove .js', () => {
       const mPath = getModulePath('/abc/pages/about.js', '../components/bb.js')
-      expect(mPath).toBe('/abc/components/bb'.replace(/\/g/, sep))
+      expect(cleanPath(mPath)).toBe('/abc/components/bb')
     })
 
     it('should remove end slash', () => {
       const mPath = getModulePath('/abc/pages/about.js', '../components/bb/')
-      expect(mPath).toBe('/abc/components/bb'.replace(/\/g/, sep))
+      expect(cleanPath(mPath)).toBe('/abc/components/bb')
     })
   })
 })
