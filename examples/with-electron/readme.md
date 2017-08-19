@@ -1,6 +1,8 @@
 # Electron application example
 
-## How to use
+**You can find a detailed documentation about how to build Electron apps with Next.js [here](https://leo.im/2017/electron-next)!**
+
+## Usage
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
