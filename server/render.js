@@ -66,9 +66,9 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
 
-  const renderPage = () => {
+  const renderPage = (enhancer = Page => Page) => {
     const app = createElement(App, {
-      Component,
+      Component: enhancer(Component),
       props,
       router: new Router(pathname, query)
     })
