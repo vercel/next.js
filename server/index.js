@@ -54,7 +54,7 @@ export default class Server {
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    this.defineRoutes()
+    this.routesDefined = this.defineRoutes()
   }
 
   getHotReloader (dir, options) {
@@ -90,6 +90,7 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
+    await this.routesDefined
   }
 
   async close () {
@@ -107,7 +108,7 @@ export default class Server {
     }
   }
 
-  defineRoutes () {
+  async defineRoutes () {
     const routes = {
       '/_next-prefetcher.js': async (req, res, params) => {
         const p = join(__dirname, '../client/next-prefetcher-bundle.js')
@@ -216,6 +217,25 @@ export default class Server {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       }
+    }
+
+    if (this.dev) {
+      await (async () => {
+        // Attempt to get the exportPathMap from the `next.config.js`
+        if (typeof this.config.exportPathMap !== 'function') {
+          return
+        }
+
+        const exportPathMap = await this.config.exportPathMap()
+        const exportPaths = Object.keys(exportPathMap)
+        exportPaths.forEach(exportPath => {
+          routes[exportPath] = async (req, res, params, parsedUrl) => {
+            const { page, query = {} } = exportPathMap[exportPath]
+            const { query: urlQuery } = parsedUrl
+            await this.render(req, res, page, { ...urlQuery, ...query })
+          }
+        })
+      })()
     }
 
     if (this.config.useFileSystemPublicRoutes) {
