@@ -54,7 +54,7 @@ export default class Server {
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    this.routesDefined = this.defineRoutes()
+    this.defineRoutes()
   }
 
   getHotReloader (dir, options) {
@@ -90,7 +90,10 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
-    await this.routesDefined
+    // Attempt to get the exportPathMap from the `next.config.js`
+    if (this.dev && typeof this.config.exportPathMap === 'function') {
+      this.exportPathMap = await this.config.exportPathMap()
+    }
   }
 
   async close () {
@@ -108,7 +111,7 @@ export default class Server {
     }
   }
 
-  async defineRoutes () {
+  defineRoutes () {
     const routes = {
       '/_next-prefetcher.js': async (req, res, params) => {
         const p = join(__dirname, '../client/next-prefetcher-bundle.js')
@@ -174,7 +177,14 @@ export default class Server {
 
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
+        let page = `/${paths.join('/')}`
+
+        // TODO: This should reroute the path to a static page + query, but
+        // thus far, it won't load the new route or replace the component.
+        // The script does appear to load successfully though.... curious.
+        if (this.getStaticPage(page)) {
+          page = this.getStaticPage(page).page
+        }
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
@@ -217,25 +227,6 @@ export default class Server {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       }
-    }
-
-    if (this.dev) {
-      await (async () => {
-        // Attempt to get the exportPathMap from the `next.config.js`
-        if (typeof this.config.exportPathMap !== 'function') {
-          return
-        }
-
-        const exportPathMap = await this.config.exportPathMap()
-        const exportPaths = Object.keys(exportPathMap)
-        exportPaths.forEach(exportPath => {
-          routes[exportPath] = async (req, res, params, parsedUrl) => {
-            const { page, query = {} } = exportPathMap[exportPath]
-            const { query: urlQuery } = parsedUrl
-            await this.render(req, res, page, { ...urlQuery, ...query })
-          }
-        })
-      })()
     }
 
     if (this.config.useFileSystemPublicRoutes) {
@@ -294,8 +285,21 @@ export default class Server {
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
+
+    if (this.getStaticPage(pathname)) {
+      const staticPage = this.getStaticPage(pathname)
+      pathname = staticPage.page
+      query = staticPage.query || query
+    }
+
     const html = await this.renderToHTML(req, res, pathname, query)
     return sendHTML(req, res, html, req.method, this.renderOpts)
+  }
+
+  getStaticPage (pathname) {
+    if (this.exportPathMap[pathname]) {
+      return this.exportPathMap[pathname]
+    }
   }
 
   async renderToHTML (req, res, pathname, query) {
