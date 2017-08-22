@@ -1,21 +1,28 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import { ServerStyleSheet } from 'styled-components'
 
 export default class MyDocument extends Document {
+  static getInitialProps ({ renderPage, req }) {
+    const isServer = !!req
+    if (isServer) {
+      // eslint-disable-next-line no-eval
+      const ServerStyleSheet = eval("require('styled-components').ServerStyleSheet")
+      const sheet = new ServerStyleSheet()
+      const page = renderPage(sheet.collectStyles.bind(sheet))
+      const styleTags = sheet.getStyleTags()
+      return { ...page, styleTags }
+    }
+    return {}
+  }
+
   render () {
-    const sheet = new ServerStyleSheet()
-    const main = sheet.collectStyles(<Main />)
-    const styleTags = sheet.getStyleElement()
     return (
       <html>
         <Head>
-          <title>My page</title>
-          {styleTags}
+          <title>Next with styled-components</title>
+          {this.props.styleTags}
         </Head>
         <body>
-          <div className='root'>
-            {main}
-          </div>
+          <Main />
           <NextScript />
         </body>
       </html>
