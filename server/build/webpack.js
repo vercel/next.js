@@ -1,5 +1,4 @@
 import { resolve, join, sep } from 'path'
-import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -295,14 +294,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       libraryTarget: 'commonjs2',
       publicPath: `/_next/${buildId}/`,
       strictModuleExceptionHandling: true,
-      devtoolModuleFilenameTemplate ({ resourcePath }) {
-        const hash = createHash('sha1')
-        hash.update(Date.now() + '')
-        const id = hash.digest('hex').slice(0, 7)
-
-        // append hash id for cache busting
-        return `webpack:///${resourcePath}?${id}`
-      },
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]'
     },
