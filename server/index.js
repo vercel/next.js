@@ -90,6 +90,10 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
+    // Attempt to get the exportPathMap from the `next.config.js`
+    if (this.dev && typeof this.config.exportPathMap === 'function') {
+      this.exportPathMap = await this.config.exportPathMap()
+    }
   }
 
   async close () {
@@ -173,7 +177,15 @@ export default class Server {
 
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
+        let page = `/${paths.join('/')}`
+        let originalPage = page
+
+        // TODO: This should reroute the path to a static page + query, but
+        // thus far, it won't load the new route or replace the component.
+        // The script does appear to load successfully though.... curious.
+        if (this.getStaticPage(page)) {
+          page = this.getStaticPage(page).page
+        }
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
@@ -196,7 +208,7 @@ export default class Server {
           }
         }
 
-        await renderScript(req, res, page, this.renderOpts)
+        await renderScript(req, res, page, this.renderOpts, originalPage)
       },
 
       // It's very important keep this route's param optional.
@@ -274,8 +286,21 @@ export default class Server {
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
+
+    if (this.getStaticPage(pathname)) {
+      const staticPage = this.getStaticPage(pathname)
+      pathname = staticPage.page
+      query = staticPage.query || query
+    }
+
     const html = await this.renderToHTML(req, res, pathname, query)
     return sendHTML(req, res, html, req.method, this.renderOpts)
+  }
+
+  getStaticPage (pathname) {
+    if (this.exportPathMap[pathname]) {
+      return this.exportPathMap[pathname]
+    }
   }
 
   async renderToHTML (req, res, pathname, query) {
