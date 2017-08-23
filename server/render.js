@@ -15,6 +15,7 @@ import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
 import xssFilters from 'xss-filters'
+// import through2 from 'through2'
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, query, opts)
@@ -122,12 +123,12 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderScript (req, res, page, opts) {
+export async function renderScript (req, res, page, opts, originalPath) {
   try {
     const dist = getConfig(opts.dir).distDir
     const path = join(opts.dir, dist, 'bundles', 'pages', page)
     const realPath = await resolvePath(path)
-    await serveStatic(req, res, realPath)
+    await serveStatic(req, res, realPath, originalPath)
   } catch (err) {
     if (err.code === 'ENOENT') {
       renderScriptError(req, res, page, err, {}, opts)
@@ -223,16 +224,29 @@ function serializeError (dev, err) {
   return { message: '500 - Internal Server Error.' }
 }
 
-export function serveStatic (req, res, path) {
+export function serveStatic (req, res, path, pageName) {
   return new Promise((resolve, reject) => {
-    send(req, path)
+    const stream = send(req, path)
     .on('directory', () => {
       // We don't allow directories to be read.
       const err = new Error('No directory access')
       err.code = 'ENOENT'
       reject(err)
     })
-    .on('error', reject)
+
+    // If we are dealing with a bundled page, make sure the
+    // script we are serving registers the page name that
+    // it was requested with.
+
+    // if (pageName) {
+    //   stream.pipe(through2(function (chunk, enc, cb) {
+    //     const newContent = chunk.toString().replace(/NEXT_REGISTER_PAGE\('(.+)'/, `NEXT_REGISTER_PAGE('${pageName}'`)
+    //     console.log(newContent)
+    //     this.push(newContent)
+    //   }))
+    // }
+
+    stream.on('error', reject)
     .pipe(res)
     .on('finish', resolve)
   })

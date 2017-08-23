@@ -178,6 +178,7 @@ export default class Server {
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
         let page = `/${paths.join('/')}`
+        let originalPage = page
 
         // TODO: This should reroute the path to a static page + query, but
         // thus far, it won't load the new route or replace the component.
@@ -207,7 +208,7 @@ export default class Server {
           }
         }
 
-        await renderScript(req, res, page, this.renderOpts)
+        await renderScript(req, res, page, this.renderOpts, originalPage)
       },
 
       // It's very important keep this route's param optional.
