@@ -1,5 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import { extractCritical } from 'emotion/server'
+import { extractCritical } from 'emotion-server'
 import { flush } from 'emotion'
 
 const dev = process.env.NODE_ENV !== 'production'
