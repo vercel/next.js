@@ -2,7 +2,7 @@
 
 # Ant Design example
 
-## Install
+## Installation dependency
 ```
 npm install babel-plugin-import --save-dev
 
