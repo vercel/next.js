@@ -5,7 +5,6 @@
 ## Installation dependency
 ```
 npm install babel-plugin-import --save-dev
-
 ```
 ## How to use
 
