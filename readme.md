@@ -1016,7 +1016,7 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 
 > Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
 
-### Centralized Routing
+### Centralizing Routing
 
 When developing a Next.js app that will be statically exported for production, you'll likely find yourself hitting an issue with Next.js' current architecture, which separates the routes that are accessible when statically exported and the routes that are accessible when running your development server. Unless you're happy to build and export the entire project each time you make a change you'd like to see, you're likely to be frustrated by this separation.
 
