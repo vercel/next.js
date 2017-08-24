@@ -2,6 +2,11 @@
 
 # Ant Design example
 
+## Install
+```
+npm install babel-plugin-import --save-dev
+
+```
 ## How to use
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
