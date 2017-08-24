@@ -1022,7 +1022,7 @@ When developing a Next.js app that will be statically exported for production, y
 
 One solution to this issue is to make a routes module and consume it by both the development server and by the static export. Here's an example:
 
-routes.js:
+`routes.js`:
 
 ```js
 module.exports = () => {
@@ -1035,7 +1035,7 @@ module.exports = () => {
 }
 ```
 
-server.js:
+`server.js`:
 
 ```js
 const express = require('express');
@@ -1048,7 +1048,7 @@ const PORT = process.env.PORT || 3000;
 const app = next({dir: '.', dev: DEV});
 const handle = app.getRequestHandler();
 
-const getRoutes = require('lib/routes');
+const getRoutes = require('./routes');
 
 const routes = getRoutes();
 app.prepare().then(() => {
@@ -1070,10 +1070,10 @@ app.prepare().then(() => {
 });
 ```
 
-and finally, next.config.js:
+and finally, `next.config.js`:
 
 ```js
-const getRoutes = require('lib/routes');
+const getRoutes = require('./routes');
 
 module.exports = {
   exportPathMap: getRoutes
