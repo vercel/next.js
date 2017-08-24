@@ -138,14 +138,14 @@ export async function renderScript (req, res, page, opts) {
   }
 }
 
-export async function renderScriptError (req, res, page, error, customFields, opts) {
+export async function renderScriptError (req, res, page, error, customFields, { dev }) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
   // prevent XSS attacks by filtering the page before printing it.
   page = xssFilters.uriInSingleQuotedAttr(page)
+  res.setHeader('Content-Type', 'text/javascript')
 
   if (error.code === 'ENOENT') {
-    res.setHeader('Content-Type', 'text/javascript')
     res.end(`
       window.__NEXT_REGISTER_PAGE('${page}', function() {
         var error = new Error('Page does not exist: ${page}')
@@ -157,9 +157,8 @@ export async function renderScriptError (req, res, page, error, customFields, op
     return
   }
 
-  res.setHeader('Content-Type', 'text/javascript')
   const errorJson = {
-    ...errorToJSON(error),
+    ...serializeError(dev, error),
     ...customFields
   }
 
