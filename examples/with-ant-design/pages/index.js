@@ -1,4 +1,4 @@
-import Layout from "../layout";
+import Layout from "../index.js";
 import Head from 'next/head'
 import { Form, Select, InputNumber, DatePicker, Switch, Slider, Button, LocaleProvider } from 'antd'
 import enUS from 'antd/lib/locale-provider/en_US'
