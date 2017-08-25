@@ -29,7 +29,7 @@ const blockedPages = {
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
-    // When in dev mode, remap the inline source maps that we genenrate within the webpack portion
+    // When in dev mode, remap the inline source maps that we generate within the webpack portion
     // of the build.
     if (dev) {
       require('source-map-support').install({
