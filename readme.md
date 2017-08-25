@@ -1016,70 +1016,6 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 
 > Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
 
-### Centralizing Routing
-
-When developing a Next.js app that will be statically exported for production, you'll likely find yourself hitting an issue with Next.js' current architecture, which separates the routes that are accessible when statically exported and the routes that are accessible when running your development server. Unless you're happy to build and export the entire project each time you make a change you'd like to see, you're likely to be frustrated by this separation.
-
-One solution to this issue is to make a routes module and consume it by both the development server and by the static export. Here's an example:
-
-`routes.js`:
-
-```js
-module.exports = () => {
-  return {
-    '/': { page: '/' },
-    '/404': { page: '/404' },
-    '/about': { page: '/about' },
-    ...
-  }
-}
-```
-
-`server.js`:
-
-```js
-const express = require('express');
-const next = require('next');
-const { parse } = require('url');
-
-const DEV = process.env.ENVIRONMENT !== 'production';
-const PORT = process.env.PORT || 3000;
-
-const app = next({dir: '.', dev: DEV});
-const handle = app.getRequestHandler();
-
-const getRoutes = require('./routes');
-
-const routes = getRoutes();
-app.prepare().then(() => {
-  const server = express();
-  server.get('*', (req, res) => {
-    const parsedUrl = parse(req.url, true);
-    const { pathname, query } = parsedUrl;
-    const route = routes[pathname];
-    if (route) {
-      return app.render(req, res, route.page, route.query);
-    }
-    return handle(req, res);
-  });
-
-  server.listen(PORT, (err) => {
-    if (err) throw err;
-    console.log(`> Ready for liftoff: http://localhost:${PORT}`);
-  });
-});
-```
-
-and finally, `next.config.js`:
-
-```js
-const getRoutes = require('./routes');
-
-module.exports = {
-  exportPathMap: getRoutes
-};
-```
-
 ## Recipes
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
@@ -1191,6 +1127,12 @@ Yes! Here's an example with [Apollo](./examples/with-apollo).
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
+</details>
+
+<details>
+<summary>Why aren't routes I have for my static export accessible in the development server?</summary>
+
+This is a known issue with the architecture of Next.js. Until a solution is built into the framework, take a look at [this example solution](https://github.com/zeit/next.js/wiki/Centralizing-Routing) to centralize your routing.
 </details>
 
 <details>
