@@ -1,4 +1,4 @@
-import Router, { withRoute } from 'next/router'
+import Router, { withRouter } from 'next/router'
 
 // typically you want to use `next/link` for this usecase
 // but this example shows how you can also access the router
@@ -9,11 +9,11 @@ const onClickHandler = (href) => (event) => {
   Router.push(href)
 }
 
-const ActiveLink = ({ children, route, href }) => {
-  const active = route.pathname === href
+const ActiveLink = ({ children, router, href }) => {
+  const active = router.pathname === href
   const className = active ? 'active' : ''
   return (
-    <a href='#' onClick={onClickHandler(href)} className={className}>
+    <a href={href} onClick={onClickHandler(href)} className={className}>
       {children}
       <style jsx>{`
         a {
@@ -28,4 +28,4 @@ const ActiveLink = ({ children, route, href }) => {
   )
 }
 
-export default withRoute(ActiveLink)
+export default withRouter(ActiveLink)
