@@ -38,12 +38,13 @@ export class Head extends Component {
     const { __NEXT_DATA__ } = this.context._documentProps
     let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : buildId
+    const linkPrefix = assetPrefix ? `${assetPrefix}` : '.'
 
     return (
       <link
         key={filename}
         rel='preload'
-        href={`${assetPrefix}/_next/${hash}/${filename}`}
+        href={`${linkPrefix}/_next/${hash}/${filename}`}
         as='script'
       />
     )
@@ -68,11 +69,13 @@ export class Head extends Component {
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
+    const linkPrefix = assetPrefix ? `${assetPrefix}` : '.'
+
     return chunks.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+        href={`${linkPrefix}/_next/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
@@ -82,10 +85,11 @@ export class Head extends Component {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
     const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
+    const linkPrefix = assetPrefix ? `${assetPrefix}` : '.'
 
     return <head {...this.props}>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
+      <link rel='preload' href={`${linkPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
+      <link rel='preload' href={`${linkPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
@@ -125,12 +129,13 @@ export class NextScript extends Component {
     const { __NEXT_DATA__ } = this.context._documentProps
     let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : buildId
+    const linkPrefix = assetPrefix ? `${assetPrefix}` : '.'
 
     return (
       <script
         key={filename}
         type='text/javascript'
-        src={`${assetPrefix}/_next/${hash}/${filename}`}
+        src={`${linkPrefix}/_next/${hash}/${filename}`}
         {...additionalProps}
       />
     )
@@ -154,6 +159,8 @@ export class NextScript extends Component {
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
+    const linkPrefix = assetPrefix ? `${assetPrefix}` : '.'
+
     return (
       <div>
         {chunks.map((chunk) => (
@@ -161,7 +168,7 @@ export class NextScript extends Component {
             async
             key={chunk}
             type='text/javascript'
-            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+            src={`${linkPrefix}/_next/webpack/chunks/${chunk}`}
           />
         ))}
       </div>
@@ -172,6 +179,7 @@ export class NextScript extends Component {
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
     const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
+    const linkPrefix = assetPrefix ? `${assetPrefix}` : '.'
 
     __NEXT_DATA__.chunks = chunks
 
@@ -192,8 +200,8 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
-      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${linkPrefix}/_next/${buildId}/page${pagePathname}`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${linkPrefix}/_next/${buildId}/page/_error/index.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </div>
