@@ -10,20 +10,18 @@ const onClickHandler = (href) => (event) => {
 }
 
 const ActiveLink = ({ children, router, href }) => {
-  const active = router.pathname === href
-  const className = active ? 'active' : ''
-  return (
-    <a href={href} onClick={onClickHandler(href)} className={className}>
-      {children}
-      <style jsx>{`
-        a {
-          margin-right: 10px;
-        }
+  const style = {
+    marginRight: 10,
+    color: '#000'
+  }
 
-        .active {
-          color: red;
-        }
-      `}</style>
+  if (router.pathname === href) {
+    style.color = 'red'
+  }
+
+  return (
+    <a href={href} onClick={onClickHandler(href)} style={style}>
+      {children}
     </a>
   )
 }
