@@ -72,6 +72,7 @@
     "friendly-errors-webpack-plugin": "1.5.0",
     "glob": "7.1.1",
     "glob-promise": "3.1.0",
+    "hoist-non-react-statics": "^2.2.2",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
     "json-loader": "0.5.4",
