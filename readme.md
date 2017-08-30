@@ -29,6 +29,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [Imperatively](#imperatively)
       - [Router Events](#router-events)
       - [Shallow Routing](#shallow-routing)
+    - [Using a Higher Order Component](#using-a-higher-order-component)
   - [Prefetching Pages](#prefetching-pages)
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
@@ -255,7 +256,7 @@ export default Page
 
 - `pathname` - path section of URL
 - `query` - query string section of URL parsed as an object
-- `asPath` - the actual url path
+- `asPath` - `String` of the actual path (including the query) shows in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
 - `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
@@ -392,6 +393,7 @@ Above `Router` object comes with the following API:
 - `route` - `String` of the current route
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
+- `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
 
@@ -465,37 +467,6 @@ Router.onAppUpdated = (nextUrl) => {
 }
 ```
 
-##### `withRoute` Higher-Order Component
-
-<p><details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="./examples/using-router">Basic routing</a></li>
-  </ul>
-</details></p>
-
-If you want to access the current `route` object, you can use the `withRoute` Higher-Order Component:
-
-```jsx
-import { withRoute } from 'next/router'
-
-const ActiveLink = ({ route, ...props }) => {
-  const active = route.pathname === props.href
-  return (
-    <a {...props} className={active  ? 'active' : ''}>Secrets!</a>
-  )
-}
-
-export default withRoute(ActiveLink)
-```
-
-The above route object comes with the following API:
-
-- `pathname` - path section of URL
-- `query` - query string section of URL parsed as an object
-- `asPath` - the actual url path
-
-
 ##### Shallow Routing
 
 <p><details>
@@ -534,6 +505,43 @@ componentWillReceiveProps(nextProps) {
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
 > ```
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
+
+#### Using a Higher Order Component
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="./examples/using-with-router">Using the `withRouter` utility</a></li>
+  </ul>
+</details></p>
+
+If you want to access the `router` object inside any component in your app, you can use the `withRouter` Higher-Order Component. Here's how to use it:
+
+```jsx
+import { withRouter } from 'next/router'
+
+const ActiveLink = ({ children, router, href }) => {
+  const style = {
+    marginRight: 10,
+    color: router.pathname === href? 'red' : 'black'
+  }
+
+  const handleClick = (e) => {
+    e.preventDefault()
+    router.push(href)
+  }
+
+  return (
+    <a href={href} onClick={handleClick} style={style}>
+      {children}
+    </a>
+  )
+}
+
+export default withRouter(ActiveLink)
+```
+
+The above `router` object comes with an API similar to [`next/router`](#imperatively).
 
 ### Prefetching Pages
 
