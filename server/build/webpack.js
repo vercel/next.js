@@ -247,8 +247,23 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           inputSourceMap: sourceMap
         })
 
+        // Strip ?entry to map back to filesystem and work with iTerm, etc.
+        let { map } = transpiled
+        let output = transpiled.code
+
+        if (map) {
+          map.sources = map.sources.map((source) => source.replace(/\?entry/, ''))
+          delete map.sourcesContent
+
+          // Output explicit inline source map that source-map-support can pickup via requireHook mode.
+          // Since these are not formal chunks, the devtool infrastructure in webpack does not output
+          // a source map for these files.
+          const sourceMapUrl = new Buffer(JSON.stringify(map), 'utf-8').toString('base64')
+          output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
+        }
+
         return {
-          content: transpiled.code,
+          content: output,
           sourceMap: transpiled.map
         }
       }
