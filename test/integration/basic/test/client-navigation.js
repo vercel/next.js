@@ -388,6 +388,23 @@ export default (context, render) => {
       })
     })
 
+    describe('with the HOC based router', () => {
+      it('should navigate as expected', async () => {
+        const browser = await webdriver(context.appPort, '/nav/with-hoc')
+
+        const spanText = await browser.elementByCss('span').text()
+        expect(spanText).toBe('Current path: /nav/with-hoc')
+
+        const text = await browser
+          .elementByCss('.nav-with-hoc a').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the home.')
+        browser.close()
+      })
+    })
+
     describe('with asPath', () => {
       describe('inside getInitialProps', () => {
         it('should show the correct asPath with a Link with as prop', async () => {
