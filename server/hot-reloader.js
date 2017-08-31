@@ -5,6 +5,7 @@ import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
+import UUID from 'uuid'
 import {
   IS_BUNDLED_PAGE
 } from './utils'
@@ -23,6 +24,11 @@ export default class HotReloader {
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
+    // Here buildId could be any value.
+    // Our router accepts any value in the dev mode.
+    // But for the webpack-compiler and for the webpack-dev-server
+    // it should be the same value.
+    this.buildId = UUID.v4()
 
     this.config = getConfig(dir, conf)
   }
@@ -40,7 +46,7 @@ export default class HotReloader {
 
   async start () {
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
       clean(this.dir)
     ])
 
@@ -66,7 +72,7 @@ export default class HotReloader {
     this.stats = null
 
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
+      webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
       clean(this.dir)
     ])
 
@@ -173,7 +179,7 @@ export default class HotReloader {
     ]
 
     let webpackDevMiddlewareConfig = {
-      publicPath: '/_next/webpack/',
+      publicPath: `/_next/${this.buildId}/webpack/`,
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',

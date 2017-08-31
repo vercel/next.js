@@ -27,7 +27,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { dev = false, quiet = false, buildDir, conf = null } = {}) {
+export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
@@ -296,7 +296,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: '/_next/webpack/',
+      publicPath: `/_next/${buildId}/webpack/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')

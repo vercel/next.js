@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
+    "export": "next export",
     "start": "next start"
   },
   "dependencies": {
-    "async-reactor": "^1.1.1",
-    "next": "^3.0.1-beta.5",
+    "next": "^3.0.6",
     "react": "^15.4.2",
     "react-dom": "^15.4.2"
   },
