@@ -53,9 +53,7 @@ app.prepare()
     res.json({ status: true })
   })
 
-  server.get('*', (req, res) => {
-    return handle(req, res)
-  })
+  server.get('*', handle)
 
   server.listen(port, (err) => {
     if (err) throw err
