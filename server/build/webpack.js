@@ -252,13 +252,14 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         let output = transpiled.code
 
         if (map) {
-          map.sources = map.sources.map((source) => source.replace(/\?entry/, ''))
-          delete map.sourcesContent
+          let nodeMap = Object.assign({}, map)
+          nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
+          delete nodeMap.sourcesContent
 
           // Output explicit inline source map that source-map-support can pickup via requireHook mode.
           // Since these are not formal chunks, the devtool infrastructure in webpack does not output
           // a source map for these files.
-          const sourceMapUrl = new Buffer(JSON.stringify(map), 'utf-8').toString('base64')
+          const sourceMapUrl = new Buffer(JSON.stringify(nodeMap), 'utf-8').toString('base64')
           output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
         }
 
