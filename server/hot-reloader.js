@@ -179,7 +179,7 @@ export default class HotReloader {
     ]
 
     let webpackDevMiddlewareConfig = {
-      publicPath: `/_next/${this.buildId}/webpack/`,
+      publicPath: `${this.config.assetPrefix}/_next/${this.buildId}/webpack/`,
       noInfo: true,
       quiet: true,
       clientLogLevel: 'warning',
@@ -194,7 +194,7 @@ export default class HotReloader {
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
     const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
-      path: '/_next/webpack-hmr',
+      path: `/_next/webpack-hmr`,
       log: false,
       heartbeat: 2500
     })
