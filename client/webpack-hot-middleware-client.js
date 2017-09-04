@@ -1,4 +1,4 @@
-import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?overlay=false&reload=true&path=/_next/webpack-hmr'
+import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?autoConnect=false'
 import Router from '../lib/router'
 
 export default () => {
@@ -51,6 +51,12 @@ export default () => {
       }
     }
   }
+ 
+  webpackHotMiddlewareClient.setOptions({
+    overlay: false,
+    reload: true,
+    path: window.__NEXT_DATA__.assetPrefix + '/_next/webpack-hmr'
+  })
 
   webpackHotMiddlewareClient.subscribe((obj) => {
     const fn = handlers[obj.action]
