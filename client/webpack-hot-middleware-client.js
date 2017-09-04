@@ -51,7 +51,7 @@ export default () => {
       }
     }
   }
- 
+
   webpackHotMiddlewareClient.setOptions({
     overlay: false,
     reload: true,
