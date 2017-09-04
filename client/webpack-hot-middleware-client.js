@@ -52,10 +52,16 @@ export default () => {
     }
   }
 
+  const {
+    __NEXT_DATA__: {
+      assetPrefix
+    }
+  } = window
+
   webpackHotMiddlewareClient.setOptions({
     overlay: false,
     reload: true,
-    path: window.__NEXT_DATA__.assetPrefix + '/_next/webpack-hmr'
+    path: `${assetPrefix}/_next/webpack-hmr`
   })
 
   webpackHotMiddlewareClient.subscribe((obj) => {

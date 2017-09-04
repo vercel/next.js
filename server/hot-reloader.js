@@ -194,7 +194,7 @@ export default class HotReloader {
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
     const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
-      path: `/_next/webpack-hmr`,
+      path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
     })
