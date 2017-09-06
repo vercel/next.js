@@ -51,5 +51,10 @@ module.exports = {
     // Add typescript rules
     config.module.rules = config.module.rules.concat(typescriptLoader)
     return config
+  },
+  exportPathMap: function () {
+    return {
+      '/': { page: '/' }
+    }
   }
 }
