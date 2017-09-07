@@ -1,6 +1,9 @@
 import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
+import ip from 'ip'
+import boxen from 'boxen'
+import chalk from 'chalk'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import isWindowsBash from 'is-windows-bash'
 import webpack from './build/webpack'
@@ -24,8 +27,18 @@ export default class HotReloader {
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
-
     this.config = getConfig(dir, conf)
+    this.port = 3000
+    this.localURL = `http://localhost:${this.port}`
+    this.localNetwork = `http://${ip.address()}:${this.port}`
+    this.message = `${chalk.yellow('Next is running !!!')}`
+    this.message += `${chalk.yellow('• Local:           ')} ${chalk.white.bold(this.localURL)}\n`
+    this.message += `${chalk.yellow('• On Your Network: ')} ${chalk.white.bold(this.localNetwork)}\n`
+    this.box = boxen(this.message, {
+      padding: 1,
+      borderColor: 'green',
+      margin: 0
+    })
   }
 
   async run (req, res) {
@@ -49,6 +62,7 @@ export default class HotReloader {
     this.assignBuildTools(buildTools)
 
     this.stats = await this.waitUntilValid()
+    console.log(this.box)
   }
 
   async stop (webpackDevMiddleware) {
@@ -78,6 +92,7 @@ export default class HotReloader {
 
     this.assignBuildTools(buildTools)
     await this.stop(oldWebpackDevMiddleware)
+    console.log(this.box)
   }
 
   assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
