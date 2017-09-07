@@ -6,6 +6,9 @@ import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
 import pkgUp from 'pkg-up'
+import ip from 'ip'
+import boxen from 'boxen'
+import chalk from 'chalk'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
@@ -60,7 +63,20 @@ const srv = new Server({ dir, dev: true })
 srv.start(argv.port, argv.hostname)
 .then(async () => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    const localURL = `http://localhost:${argv.port}`
+    const networkURL = `http://${ip.address()}:${argv.port}`
+
+    let message = chalk.green('Next is running!\n\n')
+    message += `• ${chalk.bold('Local:           ')} ${localURL}\n`
+    message += `• ${chalk.bold('On Your Network: ')} ${networkURL}\n\n`
+
+    const box = boxen(message, {
+      padding: 1,
+      borderColor: 'green',
+      margin: 0
+    })
+
+    console.log(box)
   }
 })
 .catch((err) => {
