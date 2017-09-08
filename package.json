@@ -127,8 +127,8 @@
     "node-notifier": "5.1.2",
     "nyc": "11.0.3",
     "portfinder": "^1.0.13",
-    "react": "15.5.4",
-    "react-dom": "15.5.4",
+    "react": "next",
+    "react-dom": "next",
     "standard": "9.0.2",
     "taskr": "1.0.6",
     "wd": "1.4.0"
