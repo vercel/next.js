@@ -1,17 +1,26 @@
-import { provideState } from 'freactal'
+import { provideState, update } from 'freactal'
 import { fetchUserRepos } from './githubApi'
 
-export default initialState => provideState({
-  initialState: () => initialState,
+export default serverState => provideState({
+  initialState: () => ({
+    ...serverState,
+    ajaxStatus: false
+  }),
+
   effects: {
-    fetchGithubReposList: (effects, username, page) => fetchUserRepos(username, page)
-      .then((repos) => (state) => ({
-        ...state,
-        githubReposList: {
-          username,
-          page,
-          repos: state.githubReposList.repos.concat(repos)
-        }
-      }))
+    setAjaxLoader: update((state, ajaxStatus) => ({ ajaxStatus })),
+
+    fetchGithubReposList: (effects, username, page) =>
+      effects.setAjaxLoader(true)
+        .then(() => fetchUserRepos(username, page))
+        .then((repos) => effects.setAjaxLoader(false).then(() => repos))
+        .then((repos) => (state) => ({
+          ...state,
+          githubReposList: {
+            username,
+            page,
+            repos: state.githubReposList.repos.concat(repos)
+          }
+        }))
   }
 })

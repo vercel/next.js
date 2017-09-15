@@ -2,7 +2,7 @@ import React from 'react'
 import { injectState } from 'freactal'
 import app from '../components/app'
 
-const Index = injectState(({ state: { githubReposList }, effects }) => {
+const Index = injectState(({ state: { ajaxStatus, githubReposList }, effects }) => {
   const fetchMore = () =>
     effects.fetchGithubReposList(githubReposList.username, githubReposList.page + 1)
 
@@ -31,7 +31,10 @@ const Index = injectState(({ state: { githubReposList }, effects }) => {
           <tr>
             <td>&nbsp;</td>
             <td colSpan='3'>
-              <button onClick={fetchMore}>fetch more</button>
+              <button
+                onClick={fetchMore}
+                disabled={ajaxStatus}
+              >{ajaxStatus ? 'loading' : 'fetch more'}</button>
             </td>
           </tr>
         </tbody>
