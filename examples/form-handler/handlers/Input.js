@@ -6,7 +6,10 @@ import { bindActionCreators } from 'redux'
 import { inputChange } from '../actions'
 
 class Input extends Component {
-  inputChange = (e) => this.props.inputChange(this.props.title, this.props.name, e.target.value)
+  inputChange = (e) => {
+    const { inputChange, title, name } = this.props
+    inputChange(title, name, e.target.value)
+  }
 
   render () {
     return (
