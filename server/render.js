@@ -89,6 +89,11 @@ async function doRender (req, res, pathname, query, {
       errorHtml = render(createElement(ErrorDebug, { error: err }))
     }
 
+    // production show error to 'html'
+    if (err && !dev) {
+      html = ''
+    }
+
     return { html, head, errorHtml, chunks }
   }
 
