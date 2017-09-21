@@ -1,0 +1,18 @@
+{
+  "name": "NextJsCerebralExample",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@cerebral/react": "^2.0.1",
+    "cerebral": "^3.0.1",
+    "next": "^3.2.2",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1"
+  }
+}
