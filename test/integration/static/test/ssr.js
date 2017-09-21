@@ -20,7 +20,12 @@ export default function (context) {
 
     it('should render pages with dynamic imports', async() => {
       const html = await renderViaHTTP(context.port, '/dynamic-imports')
-      expect(html).toMatch(/Welcome to dynamic imports./)
+      expect(html).toMatch(/Welcome to dynamic imports/)
+    })
+
+    it('should render paths with extensions', async() => {
+      const html = await renderViaHTTP(context.port, '/file-name.md')
+      expect(html).toMatch(/this file has an extension/)
     })
 
     it('should give empty object for query if there is no query', async() => {
