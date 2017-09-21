@@ -1,11 +1,21 @@
 /* global describe, it, expect */
 import { renderViaHTTP } from 'next-test-utils'
+import cheerio from 'cheerio'
 
 export default function (context) {
   describe('Render via SSR', () => {
     it('should render the home page', async () => {
       const html = await renderViaHTTP(context.port, '/')
       expect(html).toMatch(/This is the home page/)
+    })
+
+    it('should render links correctly', async () => {
+      const html = await renderViaHTTP(context.port, '/')
+      const $ = cheerio.load(html)
+      const dynamicLink = $('#dynamic-1').prop('href')
+      const filePathLink = $('#path-with-extension').prop('href')
+      expect(dynamicLink).toEqual('/dynamic/one/')
+      expect(filePathLink).toEqual('/file-name.md')
     })
 
     it('should render a page with getInitialProps', async() => {
