@@ -11,11 +11,11 @@ const envPlugins = {
 
 const plugins = envPlugins[process.env.NODE_ENV] || envPlugins['development']
 
-module.exports = {
+module.exports = (context, opts = {}) => ({
   presets: [
-    [require.resolve('babel-preset-env'), {
+    [require.resolve('babel-preset-env'), Object.assign({}, opts['preset-env'], {
       modules: false
-    }],
+    })],
     require.resolve('babel-preset-react')
   ],
   plugins: [
@@ -23,7 +23,8 @@ module.exports = {
     require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
     require.resolve('babel-plugin-transform-class-properties'),
-    require.resolve('babel-plugin-transform-runtime'),
+    [require.resolve('babel-plugin-transform-runtime'),
+      opts['transform-runtime'] || {}],
     require.resolve('styled-jsx/babel'),
     ...plugins,
     [
@@ -43,4 +44,4 @@ module.exports = {
       }
     ]
   ]
-}
+})
