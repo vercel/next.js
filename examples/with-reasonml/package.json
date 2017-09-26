@@ -14,13 +14,5 @@
     "react": "^15.6.1",
     "react-dom": "^15.6.1",
     "reason-react": "^0.2.3"
-  },
-  "babel": {
-    "presets": [
-      "next/babel"
-    ],
-    "plugins": [
-      "babel-plugin-bucklescript"
-    ]
   }
 }
