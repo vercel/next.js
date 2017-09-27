@@ -934,7 +934,7 @@ In order to extend our usage of `webpack`, you can define a function that extend
 // (But you could use ES2015 features supported by your Node.js version)
 
 module.exports = {
-  webpack: (config, { dev }) => {
+  webpack: (config, { buildId, dev }) => {
     // Perform customizations to webpack config
 
     // Important: return the modified config
