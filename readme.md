@@ -56,8 +56,20 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 Install it:
 
+#### Beta
+
+The beta has support for the latest version of React (v16) and is actively being developed upon.
+
 ```bash
-npm install next react react-dom --save
+npm install next@beta react react-dom
+```
+
+#### Stable
+
+This is the stable version of Next.js
+
+```bash
+npm install next react@15 react-dom@15 --save
 ```
 
 and add a script to your package.json like this:
