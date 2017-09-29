@@ -156,6 +156,8 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
+  const externalSourceDirList = config.externalSourceDirs.map(externalDir => resolve(dir, externalDir))
+
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
@@ -201,7 +203,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   }, {
     test: /\.(js|json)(\?[^?]*)?$/,
     loader: 'emit-file-loader',
-    include: [dir, nextPagesDir],
+    include: [dir, nextPagesDir, ...externalSourceDirList],
     exclude (str) {
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
@@ -283,7 +285,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   }, {
     test: /\.js(\?[^?]*)?$/,
     loader: 'babel-loader',
-    include: [dir],
+    include: [dir, ...externalSourceDirList],
     exclude (str) {
       return /node_modules/.test(str)
     },

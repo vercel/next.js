@@ -7,6 +7,7 @@ const defaultConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   poweredByHeader: true,
+  externalSourceDirs: [],
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
