@@ -5,7 +5,8 @@
       "transform-assets",
       {
         "extensions": ["txt", "svg", "png"],
-        "name": "/static/[name].[ext]?[sha512:hash:base64:7]"
+        "regExp": ".*/static/(.+)",
+        "name": "/static/[1]?[sha512:hash:base64:7]"
       }
     ]
   ]
