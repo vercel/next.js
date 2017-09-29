@@ -56,8 +56,20 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 Install it:
 
+#### Beta
+
+The beta has support for the latest version of React (v16) and is actively being developed upon.
+
 ```bash
-npm install next react react-dom --save
+npm install next@beta react react-dom
+```
+
+#### Stable
+
+This is the stable version of Next.js
+
+```bash
+npm install next react@15 react-dom@15 --save
 ```
 
 and add a script to your package.json like this:
@@ -934,7 +946,7 @@ In order to extend our usage of `webpack`, you can define a function that extend
 // (But you could use ES2015 features supported by your Node.js version)
 
 module.exports = {
-  webpack: (config, { dev }) => {
+  webpack: (config, { buildId, dev }) => {
     // Perform customizations to webpack config
 
     // Important: return the modified config
