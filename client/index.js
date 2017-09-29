@@ -123,9 +123,9 @@ export async function renderError (error) {
   if (prod) {
     const initProps = { err: error, pathname, query, asPath }
     const props = await loadGetInitialProps(ErrorComponent, initProps)
-    ReactDOM.hydrate(createElement(ErrorComponent, props), errorContainer)
+    renderReactElement(createElement(ErrorComponent, props), errorContainer)
   } else {
-    ReactDOM.hydrate(createElement(ErrorDebugComponent, { error }), errorContainer)
+    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
   }
 }
 
@@ -151,9 +151,19 @@ async function doRender ({ Component, props, hash, err, emitter }) {
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  ReactDOM.hydrate(createElement(App, appProps), appContainer)
+  renderReactElement(createElement(App, appProps), appContainer)
 
   if (emitter) {
     emitter.emit('after-reactdom-render', { Component, ErrorComponent })
+  }
+}
+
+let isInitialRender = true
+function renderReactElement (reactEl, domEl) {
+  if (isInitialRender) {
+    ReactDOM.hydrate(reactEl, domEl)
+    isInitialRender = false
+  } else {
+    ReactDOM.render(reactEl, domEl)
   }
 }
