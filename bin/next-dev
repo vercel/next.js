@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
 import pkgUp from 'pkg-up'
+import { writeSync as copySync } from 'clipboardy'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 
@@ -60,7 +61,9 @@ const srv = new Server({ dir, dev: true })
 srv.start(argv.port, argv.hostname)
 .then(async () => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    const url = `http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`
+    copySync(url)
+    console.log(`> Ready on ${url} (copied to clipboard)`)
   }
 })
 .catch((err) => {

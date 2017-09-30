@@ -3,6 +3,7 @@
 import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
+import { writeSync as copySync } from 'clipboardy'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
@@ -50,7 +51,9 @@ const srv = new Server({ dir })
 srv.start(argv.port, argv.hostname)
 .then(() => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    const url = `http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`
+    copySync(url)
+    console.log(`> Ready on ${url} (copied on clipboard)`)
   }
 })
 .catch((err) => {
