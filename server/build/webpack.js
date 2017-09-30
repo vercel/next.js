@@ -1,4 +1,5 @@
 import { resolve, join, sep } from 'path'
+import { realpathSync } from 'fs'
 import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
@@ -28,7 +29,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 const relativeResolve = rootModuleRelativePath(require)
 
 export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
-  dir = resolve(dir)
+  dir = realPathSync(resolve(dir))
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
