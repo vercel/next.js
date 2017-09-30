@@ -9,9 +9,9 @@ import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 
-export default async function (dir, options) {
+export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = configuration || getConfig(dir)
   const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)
@@ -63,8 +63,8 @@ export default async function (dir, options) {
   // Get the exportPathMap from the `next.config.js`
   if (typeof config.exportPathMap !== 'function') {
     printAndExit(
-      '> Could not found "exportPathMap" function inside "next.config.js"\n' +
-      '> "next export" uses that function build html pages.'
+      '> Could not find "exportPathMap" function inside "next.config.js"\n' +
+      '> "next export" uses that function to build html pages.'
     )
   }
 

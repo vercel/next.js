@@ -14,7 +14,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
   reload,
-  maxInactiveAge = 1000 * 25
+  maxInactiveAge = 1000 * 25,
+  pagesBufferLength = 2
 }) {
   let entries = {}
   let lastAccessPages = ['']
@@ -202,8 +203,12 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
           if (entryInfo.status !== BUILT) return
 
           // If there's an entryInfo
-          lastAccessPages.pop()
-          lastAccessPages.unshift(page)
+          if (!lastAccessPages.includes(page)) {
+            lastAccessPages.unshift(page)
+
+            // Maintain the buffer max length
+            if (lastAccessPages.length > pagesBufferLength) lastAccessPages.pop()
+          }
           entryInfo.lastActiveTime = Date.now()
         }
       }
@@ -234,7 +239,7 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
     // We should not build the last accessed page even we didn't get any pings
     // Sometimes, it's possible our XHR ping to wait before completing other requests.
     // In that case, we should not dispose the current viewing page
-    if (lastAccessPages[0] === page) return
+    if (lastAccessPages.includes(page)) return
 
     if (Date.now() - lastActiveTime > maxInactiveAge) {
       disposingPages.push(page)
