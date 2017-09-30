@@ -27,5 +27,3 @@ now
 This example shows how to import images, videos, etc. from `/static` and get the URL with a hash query allowing to use better cache without problems.
 
 This example supports `.svg`, `.png` and `.txt` extensions, but it can be configured to support any possible extension changing the `extensions` array in the `.babelrc` file.
-
-We also can modify the filename we're going to get, that filename has `/static` prepended so every file we require using this is going to have the format `/static/[name].[ext]?[hash]`, because of this all the files need to be placed directly inside the `static` directory.

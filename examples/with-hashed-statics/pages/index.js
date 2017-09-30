@@ -1,7 +1,7 @@
 // We need to use `require` instead of `import`
 // They also must be assigned to a variable/constant
-const logoSVG = require('../static/logo.svg')
-const logoPNG = require('../static/logo.png')
+const logoSVG = require('../static/images/logo.svg')
+const logoPNG = require('../static/images/logo.png')
 const txt = require('../static/file.txt')
 
 export default () => (
