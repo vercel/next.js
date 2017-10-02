@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "concurrently \"bsb --clean-world -make-world -w\" \"next -w\"",
     "build": "bsb -clean-world -make-world && next build",
-    "start": "bsb -clean-world -nake-world && next start -w"
+    "start": "bsb -clean-world -make-world && next start -w"
   },
   "license": "ISC",
   "dependencies": {
