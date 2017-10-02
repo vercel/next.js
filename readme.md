@@ -931,6 +931,17 @@ module.exports = {
 }
 ```
 
+#### Adding additional source directories
+
+You can specify additional directories from which your pages can import JS code. This is useful for repositories that contain a Next.js site and other projects that share code. Relative paths are resolved relative to the Next.js project directory.
+
+```js
+// next.config.js
+module.exports = {
+  externalSourceDirs: ['../shared']
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
