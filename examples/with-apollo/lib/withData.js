@@ -2,10 +2,10 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import Head from 'next/head'
-import initApollo from './initApollo'
+import { initApollo, getCache } from './initApollo'
 
 // Gets the display name of a JSX component for dev tools
-function getComponentDisplayName (Component) {
+const getComponentDisplayName = Component => {
   return Component.displayName || Component.name || 'Unknown'
 }
 
@@ -16,7 +16,7 @@ export default ComposedComponent => {
       serverState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps (ctx) {
+    static async getInitialProps(ctx) {
       let serverState = {}
 
       // Evaluate the composed component's getInitialProps()
@@ -29,8 +29,10 @@ export default ComposedComponent => {
       // and extract the resulting data
       if (!process.browser) {
         const apollo = initApollo()
+        const apolloCache = getCache()
+
         // Provide the `url` prop data in case a GraphQL query uses it
-        const url = {query: ctx.query, pathname: ctx.pathname}
+        const url = { query: ctx.query, pathname: ctx.pathname }
         try {
           // Run all GraphQL queries
           await getDataFromTree(
@@ -48,7 +50,7 @@ export default ComposedComponent => {
         Head.rewind()
 
         // Extract query data from the Apollo store
-        const state = apollo.getInitialState()
+        const state = apolloCache.extract()
 
         serverState = {
           apollo: {
@@ -64,12 +66,12 @@ export default ComposedComponent => {
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       this.apollo = initApollo(this.props.serverState)
     }
 
-    render () {
+    render() {
       return (
         <ApolloProvider client={this.apollo}>
           <ComposedComponent {...this.props} />
