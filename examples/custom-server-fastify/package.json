@@ -1,0 +1,15 @@
+{
+  "name": "custom-server-fastify",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "fastify": "^0.29.2",
+    "next": "latest",
+    "react": "^15.4.2",
+    "react-dom": "^15.4.2"
+  }
+}
