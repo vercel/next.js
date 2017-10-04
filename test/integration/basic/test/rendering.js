@@ -30,10 +30,10 @@ export default function ({ app }, suiteName, render) {
 
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
-      const styleId = $('#blue-box').attr('data-jsx')
-      const style = $(`#__jsx-style-${styleId}`)
+      const styleId = $('#blue-box').attr('class')
+      const style = $('style')
 
-      expect(style.text()).toMatch(/color:blue/)
+      expect(style.text().includes(`p.${styleId}{color:blue}`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {
