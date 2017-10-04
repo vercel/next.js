@@ -2,7 +2,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import Head from 'next/head'
-import { initApollo, getCache } from './initApollo'
+import initApollo from './initApollo'
 
 // Gets the display name of a JSX component for dev tools
 const getComponentDisplayName = Component => {
@@ -29,7 +29,6 @@ export default ComposedComponent => {
       // and extract the resulting data
       if (!process.browser) {
         const apollo = initApollo()
-        const apolloCache = getCache()
 
         // Provide the `url` prop data in case a GraphQL query uses it
         const url = { query: ctx.query, pathname: ctx.pathname }
@@ -50,7 +49,7 @@ export default ComposedComponent => {
         Head.rewind()
 
         // Extract query data from the Apollo store
-        const state = apolloCache.extract()
+        const state = apollo.queryManager.dataStore.getCache().extract()
 
         serverState = {
           apollo: {
