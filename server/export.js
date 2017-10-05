@@ -9,9 +9,9 @@ import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 
-export default async function (dir, options) {
+export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = configuration || getConfig(dir)
   const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)
