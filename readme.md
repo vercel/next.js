@@ -931,6 +931,21 @@ module.exports = {
 }
 ```
 
+#### Configuring the onDemandEntries
+
+Next exposes some options that give you some control over how the server will dispose or keep in memories pages built:
+
+```js
+module.exports = {
+  onDemandEntries: {
+    // period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 25 * 1000,
+    // number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 2,
+  }
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
