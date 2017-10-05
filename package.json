@@ -91,7 +91,7 @@
     "send": "0.15.6",
     "source-map-support": "0.4.18",
     "strip-ansi": "4.0.0",
-    "styled-jsx": "^2.0.0-beta.1",
+    "styled-jsx": "2.0.1-beta.2",
     "touch": "3.1.0",
     "unfetch": "3.0.0",
     "url": "0.11.0",
