@@ -9,7 +9,8 @@ module.exports = {
       '/dynamic-imports': { page: '/dynamic-imports' },
       '/dynamic': { page: '/dynamic', query: { text: 'cool dynamic text' } },
       '/dynamic/one': { page: '/dynamic', query: { text: 'next export is nice' } },
-      '/dynamic/two': { page: '/dynamic', query: { text: 'zeit is awesome' } }
+      '/dynamic/two': { page: '/dynamic', query: { text: 'zeit is awesome' } },
+      '/file-name.md': { page: '/dynamic', query: { text: 'this file has an extension' } }
     }
   }
 }

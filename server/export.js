@@ -2,7 +2,7 @@ import del from 'del'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
 import walk from 'walk'
-import { resolve, join, dirname, sep } from 'path'
+import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
 import { renderToHTML } from './render'
@@ -96,7 +96,14 @@ export default async function (dir, options, configuration) {
     const req = { url: path }
     const res = {}
 
-    const htmlFilename = path === '/' ? 'index.html' : `${path}${sep}index.html`
+    let htmlFilename = `${path}${sep}index.html`
+    if (extname(path) !== '') {
+      // If the path has an extension, use that as the filename instead
+      htmlFilename = path
+    } else if (path === '/') {
+      // If the path is the root, just use index.html
+      htmlFilename = 'index.html'
+    }
     const baseDir = join(outDir, dirname(htmlFilename))
     const htmlFilepath = join(outDir, htmlFilename)
 

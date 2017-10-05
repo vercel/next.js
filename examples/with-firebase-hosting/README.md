@@ -15,13 +15,16 @@ It is recommended to use a package manager that uses a lockfile and caching for 
 - [pnpm](https://github.com/pnpm/pnpm)
 
 Set up firebase:
+- install Firebase Tools: `npm i -g firebase-tools`
 - create a project through the [firebase web console](https://console.firebase.google.com/)
 - grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
 - update the `.firebaserc` default project ID to the newly created project
 
 Install project:
 
-Each of the other commands pre-installs all dependencies
+```bash
+npm install
+```
 
 Run Next.js development:
 
@@ -35,7 +38,7 @@ Run Firebase locally for testing:
 npm run serve
 ```
 
-Deploy it to the cloud with Firebase
+Deploy it to the cloud with Firebase:
 
 ```bash
 npm run deploy
@@ -46,7 +49,7 @@ The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Ho
 
 This is based off of the work at https://github.com/geovanisouza92/serverless-firebase & https://github.com/jthegedus/firebase-functions-next-example as described [here](https://medium.com/@jthegedus/next-js-on-cloud-functions-for-firebase-with-firebase-hosting-7911465298f2).
 
-## Important & Caveats
+## Important / Caveats
 *   The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 *   `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
 *   Testing on Firebase locally requires a complete build of the Next.js app. `npm run serve` handles everything required.
