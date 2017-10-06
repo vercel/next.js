@@ -1064,6 +1064,7 @@ module.exports = {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
+      '/readme.md': { page: '/readme' },
       '/p/hello-nextjs': { page: '/post', query: { title: 'hello-nextjs' } },
       '/p/learn-nextjs': { page: '/post', query: { title: 'learn-nextjs' } },
       '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } }
@@ -1071,6 +1072,8 @@ module.exports = {
   }
 }
 ```
+
+> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
 
 In that, you specify what are the pages you need to export as static HTML.
 
