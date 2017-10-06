@@ -1,0 +1,17 @@
+{
+  "name": "with-jsobfuscator",
+  "version": "0.0.1",
+  "dependencies": {
+    "javascript-obfuscator": "^0.11.2",
+    "next": "^3.2.2",
+    "react": "^15.6.2",
+    "react-dom": "^15.6.2",
+    "webpack-obfuscator": "^0.11.2"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "export": "next export"
+  }
+}
