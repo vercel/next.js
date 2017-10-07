@@ -1,5 +1,5 @@
 const JavaScriptObfuscatorPlugin = require('webpack-obfuscator')
-const { obfuscate } = require('javascript-obfuscator');
+const { obfuscate } = require('javascript-obfuscator')
 const { IS_BUNDLED_PAGE } = require('next/dist/server/utils')
 
 class NextJSBundleObfuscatorPlugin {
@@ -48,7 +48,7 @@ const obfuscatorOptions = {
 module.exports = {
   webpack: (config, { buildId, dev }) => {
     if (!dev) {
-      config.plugins.push(new JavaScriptObfuscatorPlugin (obfuscatorOptions, ['bundles/**/**.js']))
+      config.plugins.push(new JavaScriptObfuscatorPlugin(obfuscatorOptions, ['bundles/**/**.js']))
       config.plugins.push(new NextJSBundleObfuscatorPlugin(obfuscatorOptions))
     }
 
