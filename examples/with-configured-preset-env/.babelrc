@@ -1,0 +1,26 @@
+{
+  "env": {
+    "production": {
+      "presets": [
+        "next/babel"
+      ]
+    },
+    "development": {
+      "presets": [
+        ["next/babel", {
+          "preset-env": {
+	    "targets": {
+	      "browsers": "last 1 Chrome version",
+	      "node": true
+	    }
+          },
+	  "transform-runtime": {
+	    "regenerator": false,
+	    "useBuiltIns": true,
+	    "polyfill": false
+	  }
+        }]
+      ]
+    }
+  }
+}
