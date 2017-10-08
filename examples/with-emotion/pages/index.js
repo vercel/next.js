@@ -1,6 +1,6 @@
 import React from 'react'
-import { hydrate, keyframes, css, injectGlobal } from 'emotion'
-import styled from 'react-emotion'
+import { hydrate } from 'emotion'
+import styled, { keyframes, css, injectGlobal } from 'react-emotion'
 
 // Adds server generated styles to emotion cache.
 // '__NEXT_DATA__.ids' is set in '_document.js'
@@ -48,15 +48,20 @@ export default () => {
     }
   `
 
-  const Basic = styled.div`composes: ${basicStyles};`
+  const Basic = styled.div`
+    ${basicStyles};
+  `
+
   const Combined = styled.div`
-    composes: ${basicStyles} ${hoverStyles};
+    ${basicStyles};
+    ${hoverStyles};
     & code {
       background-color: linen;
     }
   `
   const Animated = styled.div`
-    composes: ${basicStyles} ${hoverStyles};
+    ${basicStyles};
+    ${hoverStyles};
     & code {
       background-color: linen;
     }
