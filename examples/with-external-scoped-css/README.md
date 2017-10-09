@@ -12,8 +12,7 @@ yarn start
 #### Supported Langs
 The plugin supports the `less`, `scss` and `css` file extensions. It is possible to add support for another pre-processor by creating a function to compile the code. In the example we use `sass` as our css pre-processor
 
-To edit the types you need to go to `.babelrc`
-
+You need to edit the `.babelrc` and sometimes the `pre-processor.js` to work with another languages, if you want to use SCSS the solution and explanation (fit with other css-pre-processors) are in this issue <3 [#3053](https://github.com/zeit/next.js/issues/3053)
 
 #### Attention Points
 - Next.js doesn't have support for watching `*.css files. So you will have to edit a Javascript file to re-compile the css. In the future this will be fixed by [#823](https://github.com/zeit/next.js/pull/823).

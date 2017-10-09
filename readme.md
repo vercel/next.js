@@ -56,21 +56,12 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 Install it:
 
-#### Beta
-
-The beta has support for the latest version of React (v16) and is actively being developed upon.
-
 ```bash
-npm install next@beta react react-dom
+npm install --save next react react-dom
 ```
 
-#### Stable
-
-This is the stable version of Next.js
-
-```bash
-npm install next react@15 react-dom@15 --save
-```
+> Next.js 4 only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
+> We had to drop React 15 support due to the way how React 16 works and how we use it.
 
 and add a script to your package.json like this:
 
@@ -1064,6 +1055,7 @@ module.exports = {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
+      '/readme.md': { page: '/readme' },
       '/p/hello-nextjs': { page: '/post', query: { title: 'hello-nextjs' } },
       '/p/learn-nextjs': { page: '/post', query: { title: 'learn-nextjs' } },
       '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } }
@@ -1071,6 +1063,8 @@ module.exports = {
   }
 }
 ```
+
+> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
 
 In that, you specify what are the pages you need to export as static HTML.
 
