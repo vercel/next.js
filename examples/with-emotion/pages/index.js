@@ -1,6 +1,5 @@
 import React from 'react'
-import { hydrate } from 'emotion'
-import styled, { keyframes, css, injectGlobal } from 'react-emotion'
+import styled, { hydrate, keyframes, css, injectGlobal } from 'react-emotion'
 
 // Adds server generated styles to emotion cache.
 // '__NEXT_DATA__.ids' is set in '_document.js'
