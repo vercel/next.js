@@ -1,13 +1,10 @@
 {
-  "presets": ["next/babel"],
+  "presets": [
+    "next/babel"
+  ],
   "plugins": [
-    [
-      "css-modules-transform", {
-        "extensions": [".css", ".sass"],
-        "append": [ "postcss-cssnext" ],
-        "extractCss": "./static/css/bundle.css",
-        "preprocessCss": "./pre-processor.js"
-      }
-    ]
+    ["css-modules-transform", {
+      "extractCss": "./static/css/bundle.css"
+    }]
   ]
 }

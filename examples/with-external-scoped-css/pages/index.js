@@ -1,5 +1,6 @@
 import React from 'react'
-import ss from './index.sass'
+
+import ss from './index.css'
 
 export const IndexPage = () => (
   <div className={ss.example}>
