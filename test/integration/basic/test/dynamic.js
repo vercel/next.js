@@ -16,6 +16,16 @@ export default (context, render) => {
         expect($('p').text()).toBe('Hello World 1')
       })
 
+      it('should render dynamic import components crash if error was thrown in module', async () => {
+        const $ = await get$('/dynamic/ssr-crashing')
+        expect($('#__next-error').text()).toBe(/intentionally crashed/)
+      })
+
+      it('should render dynamic import components crash if error was thrown in component render', async () => {
+        const $ = await get$('/dynamic/ssr-crashing-in-component')
+        expect($('#__next-error').text()).toMatch(/intentionally crashed/)
+      })
+
       it('should stop render dynmaic import components', async () => {
         const $ = await get$('/dynamic/no-ssr')
         expect($('p').text()).toBe('loading...')
@@ -51,6 +61,32 @@ export default (context, render) => {
           const bodyText = await browser
             .elementByCss('body').text()
           if (/Hello World 1/.test(bodyText)) break
+          await waitFor(1000)
+        }
+
+        browser.close()
+      })
+
+      it('should render the thrown error on client side if error was thrown in module', async () => {
+        const browser = await webdriver(context.appPort, '/dynamic/no-ssr-crashing')
+
+        while (true) {
+          const bodyText = await browser
+            .elementByCss('body').text()
+          if (/intentionally crashed/.test(bodyText)) break
+          await waitFor(1000)
+        }
+
+        browser.close()
+      })
+
+      it('should render the thrown error on client side if error was thrown in component render', async () => {
+        const browser = await webdriver(context.appPort, '/dynamic/no-ssr-crashing-in-component')
+
+        while (true) {
+          const bodyText = await browser
+            .elementByCss('body').text()
+          if (/intentionally crashed/.test(bodyText)) break
           await waitFor(1000)
         }
 
