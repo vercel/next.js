@@ -11,7 +11,9 @@
     "inferno-compat": "^1.4.0",
     "inferno-server": "^1.4.0",
     "module-alias": "^2.0.0",
-    "next": "latest"
+    "next": "latest",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1"
   },
   "license": "MIT"
 }

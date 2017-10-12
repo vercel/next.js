@@ -11,7 +11,7 @@ export default function ({ app }, suiteName, render) {
   describe(suiteName, () => {
     test('renders a stateless component', async () => {
       const html = await render('/stateless')
-      expect(html.includes('<meta charset="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
       expect(html.includes('My component!')).toBeTruthy()
     })
 
@@ -23,17 +23,17 @@ export default function ({ app }, suiteName, render) {
 
     test('header helper renders header information', async () => {
       const html = await (render('/head'))
-      expect(html.includes('<meta charset="iso-8859-5" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
       expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
       expect(html.includes('I can haz meta tags')).toBeTruthy()
     })
 
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
-      const styleId = $('#blue-box').attr('data-jsx')
-      const style = $(`#__jsx-style-${styleId}`)
+      const styleId = $('#blue-box').attr('class')
+      const style = $('style')
 
-      expect(style.text()).toMatch(/color:blue/)
+      expect(style.text().includes(`p.${styleId}{color:blue}`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {

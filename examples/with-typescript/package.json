@@ -8,11 +8,11 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
   },
   "devDependencies": {
-    "@types/react": "^15.0.27",
+    "@types/react": "^16.0.9",
     "ts-loader": "^2.3.2",
     "typescript": "^2.4.2"
   }
