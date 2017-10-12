@@ -6,11 +6,11 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
   },
   "devDependencies": {
-    "@types/react": "^15.0.1",
+    "@types/react": "^16.0.9",
     "concurrently": "^3.1.0",
     "typescript": "^2.1.5"
   }
