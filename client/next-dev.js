@@ -1,10 +1,11 @@
 import 'react-hot-loader/patch'
+import initNext, * as next from './'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
-const next = window.next = require('./')
+window.next = next
 
-next.default()
+initNext()
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()
