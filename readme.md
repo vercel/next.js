@@ -653,6 +653,9 @@ Typically you start your next server with `next start`. It's possible, however, 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
+// This file doesn't not go through babel or webpack transformation.
+// Make sure the syntax and sources this file requires are compatible with the current node version you are running
+// See https://github.com/zeit/next.js/issues/1245 for discussions on Universal Webpack or universal Babel
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
