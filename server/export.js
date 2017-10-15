@@ -2,16 +2,16 @@ import del from 'del'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
 import walk from 'walk'
-import { resolve, join, dirname, sep } from 'path'
+import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 
-export default async function (dir, options) {
+export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = configuration || getConfig(dir)
   const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)
@@ -51,10 +51,10 @@ export default async function (dir, options) {
   if (existsSync(join(nextDir, 'chunks'))) {
     log('  copying dynamic import chunks')
 
-    await mkdirp(join(outDir, '_next', 'webpack'))
+    await mkdirp(join(outDir, '_next', buildId, 'webpack'))
     await cp(
       join(nextDir, 'chunks'),
-      join(outDir, '_next', 'webpack', 'chunks')
+      join(outDir, '_next', buildId, 'webpack', 'chunks')
     )
   }
 
@@ -63,8 +63,8 @@ export default async function (dir, options) {
   // Get the exportPathMap from the `next.config.js`
   if (typeof config.exportPathMap !== 'function') {
     printAndExit(
-      '> Could not found "exportPathMap" function inside "next.config.js"\n' +
-      '> "next export" uses that function build html pages.'
+      '> Could not find "exportPathMap" function inside "next.config.js"\n' +
+      '> "next export" uses that function to build html pages.'
     )
   }
 
@@ -96,7 +96,14 @@ export default async function (dir, options) {
     const req = { url: path }
     const res = {}
 
-    const htmlFilename = path === '/' ? 'index.html' : `${path}${sep}index.html`
+    let htmlFilename = `${path}${sep}index.html`
+    if (extname(path) !== '') {
+      // If the path has an extension, use that as the filename instead
+      htmlFilename = path
+    } else if (path === '/') {
+      // If the path is the root, just use index.html
+      htmlFilename = 'index.html'
+    }
     const baseDir = join(outDir, dirname(htmlFilename))
     const htmlFilepath = join(outDir, htmlFilename)
 

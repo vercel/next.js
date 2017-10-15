@@ -22,7 +22,7 @@ class HomePage extends Component {
 
   // connect to WS server and listen event
   componentDidMount () {
-    this.socket = io('http://localhost:3000/')
+    this.socket = io()
     this.socket.on('message', this.handleMessage)
   }
 

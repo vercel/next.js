@@ -1,0 +1,25 @@
+{
+  "name": "react-i18next-nextjs-example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "4.15.3",
+    "i18next": "8.4.2",
+    "i18next-browser-languagedetector": "2.0.0",
+    "i18next-express-middleware": "1.0.5",
+    "i18next-node-fs-backend": "1.0.0",
+    "i18next-xhr-backend": "1.4.2",
+    "next": "2.4.4",
+    "react": "15.6.1",
+    "react-dom": "15.6.1",
+    "react-i18next": "4.6.3"
+  }
+}

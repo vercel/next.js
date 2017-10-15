@@ -2,34 +2,25 @@
 
 import { join } from 'path'
 import {
-  nextServer,
-  renderViaAPI,
   renderViaHTTP,
-  startApp,
-  stopApp
+  findPort,
+  launchApp,
+  killApp
 } from 'next-test-utils'
 
 // test suits
-import xPoweredBy from './xpowered-by'
 import rendering from './rendering'
-import misc from './misc'
 import clientNavigation from './client-navigation'
 import hmr from './hmr'
 import dynamic from './dynamic'
 
 const context = {}
-context.app = nextServer({
-  dir: join(__dirname, '../'),
-  dev: true,
-  quiet: true
-})
-
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 describe('Basic Features', () => {
   beforeAll(async () => {
-    context.server = await startApp(context.app)
-    context.appPort = context.server.address().port
+    context.appPort = await findPort()
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, true)
 
     // pre-build all pages at the start
     await Promise.all([
@@ -55,15 +46,16 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/as-path'),
       renderViaHTTP(context.appPort, '/nav/as-path-using-router'),
 
-      renderViaHTTP(context.appPort, '/nested-cdm/index')
+      renderViaHTTP(context.appPort, '/nested-cdm/index'),
+
+      renderViaHTTP(context.appPort, '/hmr/about'),
+      renderViaHTTP(context.appPort, '/hmr/contact'),
+      renderViaHTTP(context.appPort, '/hmr/counter')
     ])
   })
-  afterAll(() => stopApp(context.server))
+  afterAll(() => killApp(context.server))
 
-  rendering(context, 'Rendering via API', (p, q) => renderViaAPI(context.app, p, q))
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q))
-  xPoweredBy(context)
-  misc(context)
   clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))

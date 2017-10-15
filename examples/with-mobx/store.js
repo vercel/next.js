@@ -21,7 +21,7 @@ class Store {
 }
 
 export function initStore (isServer, lastUpdate = Date.now()) {
-  if (isServer && typeof window === 'undefined') {
+  if (isServer) {
     return new Store(isServer, lastUpdate)
   } else {
     if (store === null) {

@@ -2,6 +2,7 @@
 
 import { join } from 'path'
 import {
+  pkg,
   nextServer,
   nextBuild,
   startApp,
@@ -49,6 +50,14 @@ describe('Production Usage', () => {
       const res2 = await fetch(url, { headers })
       expect(res2.status).toBe(304)
     })
+
+    it('should block special pages', async () => {
+      const urls = ['/_document', '/_error']
+      for (const url of urls) {
+        const html = await renderViaHTTP(appPort, url)
+        expect(html).toMatch(/404/)
+      }
+    })
   })
 
   describe('With navigation', () => {
@@ -78,6 +87,61 @@ describe('Production Usage', () => {
       }
 
       browser.close()
+    })
+  })
+
+  describe('Misc', () => {
+    it('should handle already finished responses', async () => {
+      const res = {
+        finished: false,
+        end () {
+          this.finished = true
+        }
+      }
+      const html = await app.renderToHTML({}, res, '/finish-response', {})
+      expect(html).toBeFalsy()
+    })
+
+    it('should allow to access /static/ and /_next/', async () => {
+      // This is a test case which prevent the following issue happening again.
+      // See: https://github.com/zeit/next.js/issues/2617
+      await renderViaHTTP(appPort, '/_next/')
+      await renderViaHTTP(appPort, '/static/')
+      const data = await renderViaHTTP(appPort, '/static/data/item.txt')
+      expect(data).toBe('item')
+    })
+  })
+
+  describe('X-Powered-By header', () => {
+    it('should set it by default', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const headers = {}
+      const res = {
+        setHeader (key, value) {
+          headers[key] = value
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
+    })
+
+    it('should not set it when poweredByHeader==false', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const originalConfigValue = app.config.poweredByHeader
+      app.config.poweredByHeader = false
+      const res = {
+        setHeader (key, value) {
+          if (key === 'X-Powered-By') {
+            throw new Error('Should not set the X-Powered-By header')
+          }
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      app.config.poweredByHeader = originalConfigValue
     })
   })
 

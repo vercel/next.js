@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
+import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import ErrorDebugComponent from '../lib/error-debug'
@@ -77,7 +77,7 @@ export default async () => {
     err
   })
 
-  const emitter = mitt()
+  const emitter = new EventEmitter()
 
   router.subscribe(({ Component, props, hash, err }) => {
     render({ Component, props, err, hash, emitter })
@@ -123,9 +123,9 @@ export async function renderError (error) {
   if (prod) {
     const initProps = { err: error, pathname, query, asPath }
     const props = await loadGetInitialProps(ErrorComponent, initProps)
-    ReactDOM.render(createElement(ErrorComponent, props), errorContainer)
+    renderReactElement(createElement(ErrorComponent, props), errorContainer)
   } else {
-    ReactDOM.render(createElement(ErrorDebugComponent, { error }), errorContainer)
+    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
   }
 }
 
@@ -151,9 +151,19 @@ async function doRender ({ Component, props, hash, err, emitter }) {
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  ReactDOM.render(createElement(App, appProps), appContainer)
+  renderReactElement(createElement(App, appProps), appContainer)
 
   if (emitter) {
     emitter.emit('after-reactdom-render', { Component, ErrorComponent })
+  }
+}
+
+let isInitialRender = true
+function renderReactElement (reactEl, domEl) {
+  if (isInitialRender) {
+    ReactDOM.hydrate(reactEl, domEl)
+    isInitialRender = false
+  } else {
+    ReactDOM.render(reactEl, domEl)
   }
 }

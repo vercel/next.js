@@ -1,4 +1,4 @@
-import { resolve, join } from 'path'
+import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
@@ -27,9 +27,9 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
+export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
     join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
@@ -94,15 +94,26 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
-        // Instead, we move all the code in node_modules into this chunk.
-        // With that, we could gain better performance for page-rebuild process.
-        if (dev) {
-          return module.context && module.context.indexOf('node_modules') >= 0
+        // We need to move react-dom explicitly into common chunks.
+        // Otherwise, if some other page or module uses it, it might
+        // included in that bundle too.
+        if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          return true
         }
 
-        // Move modules used in at-least 1/2 of the total pages into commons.
+        // In the dev we use on-demand-entries.
+        // So, it makes no sense to use commonChunks based on the minChunks count.
+        // Instead, we move all the code in node_modules into each of the pages.
+        if (dev) {
+          return false
+        }
+
+        // If there are one or two pages, only move modules to common if they are
+        // used in all of the pages. Otherwise, move modules used in at-least
+        // 1/2 of the total pages into commons.
+        if (totalPages <= 2) {
+          return count >= totalPages
+        }
         return count >= totalPages * 0.5
       }
     }),
@@ -131,6 +142,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
+    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
@@ -141,6 +153,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         sourceMap: false
       })
     )
+    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
   const nodePathList = (process.env.NODE_PATH || '')
@@ -155,7 +168,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   const externalBabelConfig = findBabelConfig(dir)
   if (externalBabelConfig) {
     console.log(`> Using external babel configuration`)
-    console.log(`> location: "${externalBabelConfig.loc}"`)
+    console.log(`> Location: "${externalBabelConfig.loc}"`)
     // It's possible to turn off babelrc support via babelrc itself.
     // In that case, we should add our default preset.
     // That's why we need to do this.
@@ -234,8 +247,24 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           inputSourceMap: sourceMap
         })
 
+        // Strip ?entry to map back to filesystem and work with iTerm, etc.
+        let { map } = transpiled
+        let output = transpiled.code
+
+        if (map) {
+          let nodeMap = Object.assign({}, map)
+          nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
+          delete nodeMap.sourcesContent
+
+          // Output explicit inline source map that source-map-support can pickup via requireHook mode.
+          // Since these are not formal chunks, the devtool infrastructure in webpack does not output
+          // a source map for these files.
+          const sourceMapUrl = new Buffer(JSON.stringify(nodeMap), 'utf-8').toString('base64')
+          output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
+        }
+
         return {
-          content: transpiled.code,
+          content: output,
           sourceMap: transpiled.map
         }
       }
@@ -268,7 +297,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: '/_next/webpack/',
+      publicPath: `/_next/${buildId}/webpack/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
@@ -304,18 +333,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     performance: { hints: false }
   }
 
-  if (!dev) {
-    // We do this to use the minified version of React in production.
-    // This will significant file size redution when turned off uglifyjs.
-    webpackConfig.resolve.alias = {
-      'react': require.resolve('react/dist/react.min.js'),
-      'react-dom': require.resolve('react-dom/dist/react-dom.min.js')
-    }
-  }
-
   if (config.webpack) {
     console.log(`> Using "webpack" config function defined in ${config.configOrigin}.`)
-    webpackConfig = await config.webpack(webpackConfig, { dev })
+    webpackConfig = await config.webpack(webpackConfig, { buildId, dev })
   }
   return webpack(webpackConfig)
 }

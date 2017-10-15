@@ -6,7 +6,7 @@ export default class extends Document {
     const documentProps = await super.getInitialProps(...args)
     // see https://github.com/nfl/react-helmet#server-usage for more information
     // 'head' was occupied by 'renderPage().head', we cannot use it
-    return { ...documentProps, helmet: Helmet.rewind() }
+    return { ...documentProps, helmet: Helmet.renderStatic() }
   }
 
   // should render on <html>
@@ -14,10 +14,15 @@ export default class extends Document {
     return this.props.helmet.htmlAttributes.toComponent()
   }
 
+  // should render on <body>
+  get helmetBodyAttrComponents () {
+    return this.props.helmet.bodyAttributes.toComponent()
+  }
+
   // should render on <head>
   get helmetHeadComponents () {
     return Object.keys(this.props.helmet)
-        .filter(el => el !== 'htmlAttributes') // remove htmlAttributes which is not for <head> but for <html>
+        .filter(el => el !== 'htmlAttributes' && el !== 'bodyAttributes')
         .map(el => this.props.helmet[el].toComponent())
   }
 
@@ -26,7 +31,8 @@ export default class extends Document {
       htmlAttributes={{lang: 'en'}}
       title='Hello next.js!'
       meta={[
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { property: 'og:title', content: 'Hello next.js!' }
       ]}
     />)
   }
@@ -37,7 +43,7 @@ export default class extends Document {
         { this.helmetJsx }
         { this.helmetHeadComponents }
       </Head>
-      <body>
+      <body {...this.helmetBodyAttrComponents}>
         <Main />
         <NextScript />
       </body>

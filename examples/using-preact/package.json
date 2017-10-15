@@ -10,8 +10,13 @@
     "module-alias": "^2.0.0",
     "next": "latest",
     "preact": "^7.2.0",
-    "preact-compat": "^3.14.0"
+    "preact-compat": "^3.14.0",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1"
   },
-  "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "react": "~15.6.1",
+    "react-dom": "~15.6.1"
+  }
 }

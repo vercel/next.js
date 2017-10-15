@@ -27,7 +27,7 @@ module.exports = function (content, sourceMap) {
           next.router.update(r, Component)
         }
       }
-    })(module.exports.default || module.exports, ${JSON.stringify(route)})
+    })(typeof __webpack_exports__ !== 'undefined' ? __webpack_exports__.default : (module.exports.default || module.exports), ${JSON.stringify(route)})
   `, sourceMap)
 }
 

@@ -67,12 +67,12 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix } = __NEXT_DATA__
+    let { assetPrefix, buildId } = __NEXT_DATA__
     return chunks.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+        href={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
@@ -96,14 +96,19 @@ export class Head extends Component {
 }
 
 export class Main extends Component {
+  static propTypes = {
+    className: PropTypes.string
+  }
+
   static contextTypes = {
     _documentProps: PropTypes.any
   }
 
   render () {
     const { html, errorHtml } = this.context._documentProps
+    const { className } = this.props
     return (
-      <div>
+      <div className={className}>
         <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
         <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </div>
@@ -148,7 +153,7 @@ export class NextScript extends Component {
 
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix } = __NEXT_DATA__
+    let { assetPrefix, buildId } = __NEXT_DATA__
     return (
       <div>
         {chunks.map((chunk) => (
@@ -156,7 +161,7 @@ export class NextScript extends Component {
             async
             key={chunk}
             type='text/javascript'
-            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
+            src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
           />
         ))}
       </div>

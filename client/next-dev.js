@@ -1,11 +1,11 @@
 import 'react-hot-loader/patch'
-import ReactReconciler from 'react-dom/lib/ReactReconciler'
+import initNext, * as next from './'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
-const next = window.next = require('./')
+window.next = next
 
-next.default()
+initNext()
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()
@@ -35,15 +35,3 @@ next.default()
   .catch((err) => {
     console.error(`${err.message}\n${err.stack}`)
   })
-
-// This is a patch to catch most of the errors throw inside React components.
-const originalMountComponent = ReactReconciler.mountComponent
-ReactReconciler.mountComponent = function (...args) {
-  try {
-    return originalMountComponent(...args)
-  } catch (err) {
-    next.renderError(err)
-    err.abort = true
-    throw err
-  }
-}

@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "babel-plugin-styled-components": "^1.1.7",
+    "next": "^3.0.1-beta.8",
+    "react": "^15.6.1",
+    "react-dom": "^15.6.1",
+    "rebass": "1.0.0-1",
+    "styled-components": "^2.1.1"
+  }
+}

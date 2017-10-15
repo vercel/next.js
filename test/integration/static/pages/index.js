@@ -39,6 +39,17 @@ export default () => (
       >
         <a id='dynamic-2'>Dynamic 2</a>
       </Link>
+      <Link
+        href='/dynamic?text=zeit+is+awesome#cool'
+      >
+        <a id='with-hash'>With Hash</a>
+      </Link>
+      <Link
+        href='/dynamic?text=this+file+has+an+extension'
+        as='/file-name.md'
+      >
+        <a id='path-with-extension'>Path with extension</a>
+      </Link>
       <Link href='/level1'>
         <a id='level1-home-page'>Level1 home page</a>
       </Link>
