@@ -3,8 +3,8 @@ import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
-function Fragment({ children }) {
-  return children;
+function Fragment ({ children }) {
+  return children
 }
 
 export default class Document extends Component {
