@@ -5,19 +5,19 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "start": "next",
-    "build": "next build",
-    "run": "next start"
+    "dev": "next",
+    "prod": "next start",
+    "build": "next build"
   },
-  "dependencies":{
-    "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+  "dependencies": {
+    "next": "4.0.3",
+    "react": "16.0.0",
+    "react-dom": "16.0.0"
   },
   "devDependencies": {
     "babel-plugin-css-modules-transform": "^1.2.1",
     "node-sass": "^4.5.0",
-    "postcss": "^5.2.16",
-    "postcss-cssnext": "^2.10.0"
+    "postcss": "6.0.13",
+    "postcss-cssnext": "3.0.2"
   }
 }
