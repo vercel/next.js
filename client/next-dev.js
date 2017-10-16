@@ -1,10 +1,12 @@
 import 'react-hot-loader/patch'
+import initNext, * as next from './'
+import ErrorDebugComponent from '../lib/error-debug'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
-const next = window.next = require('./')
+window.next = next
 
-next.default()
+initNext({ ErrorDebugComponent })
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()
