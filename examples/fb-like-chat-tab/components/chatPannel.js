@@ -15,7 +15,7 @@ class ChatPannel extends Component {
             height: 40vh;
             background-color: rgb(237, 239, 244);
             width: 20vw;
-            border: '1px solid rgba(29, 49, 91, .3);
+            border: 1px solid rgba(29, 49, 91, .3);
           }
         `}</style>
       </div>
