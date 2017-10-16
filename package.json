@@ -86,7 +86,7 @@
     "pkg-up": "2.0.0",
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
-    "react-hot-loader": "^3.0.0",
+    "react-hot-loader": "3.1.1",
     "recursive-copy": "2.0.6",
     "send": "0.16.1",
     "source-map-support": "0.4.18",
