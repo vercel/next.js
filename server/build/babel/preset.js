@@ -1,3 +1,4 @@
+const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
 const relativeResolve = require('../root-module-relative-path').default(require)
 
 const envPlugins = {
@@ -29,7 +30,7 @@ module.exports = {
       require.resolve('babel-plugin-module-resolver'),
       {
         alias: {
-          'babel-runtime': relativeResolve('babel-runtime/package'),
+          'babel-runtime': babelRuntimePath,
           'next/link': relativeResolve('../../../lib/link'),
           'next/prefetch': relativeResolve('../../../lib/prefetch'),
           'next/css': relativeResolve('../../../lib/css'),
