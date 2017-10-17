@@ -1,4 +1,5 @@
 import React from 'react'
+import PropTypes from 'prop-types'
 import {Link} from 'next-url-prettifier'
 import {Router} from '../routes'
 
@@ -7,7 +8,7 @@ export default class GreetingPage extends React.Component {
     return {lang, name}
   }
 
-  renderSwitchLangageLink () {
+  renderSwitchLanguageLink () {
     const {lang, name} = this.props
     const switchLang = lang === 'fr' ? 'en' : 'fr'
     return (
@@ -22,13 +23,13 @@ export default class GreetingPage extends React.Component {
     return (
       <div>
         <h1>{lang === 'fr' ? 'Bonjour' : 'Hello'} {name}</h1>
-        <div>{this.renderSwitchLangageLink()}</div>
+        <div>{this.renderSwitchLanguageLink()}</div>
       </div>
     )
   }
 }
 
 GreetingPage.propTypes = {
-  lang: React.PropTypes.string,
-  name: React.PropTypes.string
+  lang: PropTypes.string,
+  name: PropTypes.string
 }

@@ -1,5 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import cxs from 'cxs'
+import cxs from 'cxs/lite'
 
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
@@ -13,7 +13,7 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          <style dangerouslySetInnerHTML={{ __html: this.props.style }} />
+          <style id='cxs-style' dangerouslySetInnerHTML={{ __html: this.props.style }} />
         </Head>
         <body>
           <Main />

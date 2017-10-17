@@ -1,0 +1,16 @@
+{
+  "name": "with-material-ui",
+  "version": "1.0.0",
+  "dependencies": {
+    "material-ui": "^0.18.0",
+    "next": "latest",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "react-tap-event-plugin": "^2.0.1"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}

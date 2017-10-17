@@ -3,15 +3,15 @@
 import cheerio from 'cheerio'
 
 export default function ({ app }, suiteName, render) {
-  async function get$ (path) {
-    const html = await render(path)
+  async function get$ (path, query) {
+    const html = await render(path, query)
     return cheerio.load(html)
   }
 
   describe(suiteName, () => {
     test('renders a stateless component', async () => {
       const html = await render('/stateless')
-      expect(html.includes('<meta charset="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
       expect(html.includes('My component!')).toBeTruthy()
     })
 
@@ -23,17 +23,17 @@ export default function ({ app }, suiteName, render) {
 
     test('header helper renders header information', async () => {
       const html = await (render('/head'))
-      expect(html.includes('<meta charset="iso-8859-5" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
       expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
       expect(html.includes('I can haz meta tags')).toBeTruthy()
     })
 
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
-      const styleId = $('#blue-box').attr('data-jsx')
-      const style = $(`#__jsx-style-${styleId}`)
+      const styleId = $('#blue-box').attr('class')
+      const style = $('style')
 
-      expect(style.text()).toMatch(/color: blue/)
+      expect(style.text().includes(`p.${styleId}{color:blue}`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {
@@ -67,6 +67,11 @@ export default function ({ app }, suiteName, render) {
     test('error', async () => {
       const $ = await get$('/error')
       expect($('pre').text()).toMatch(/This is an expected error/)
+    })
+
+    test('asPath', async () => {
+      const $ = await get$('/nav/as-path', { aa: 10 })
+      expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
     })
 
     test('error 404', async () => {

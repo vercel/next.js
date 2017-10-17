@@ -1,4 +1,6 @@
 {
+  "name": "with-pretty-url-routing",
+  "version": "1.0.0",
   "scripts": {
     "dev": "node server.js",
     "build": "next build",
@@ -6,9 +8,10 @@
   },
   "dependencies": {
     "express": "^4.15.2",
-    "next": "^2.0.0",
+    "next": "latest",
     "next-url-prettifier": "^1.0.2",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "prop-types": "^15.5.6",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
   }
 }

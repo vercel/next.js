@@ -1,0 +1,12 @@
+{
+  "presets": ["next/babel"],
+  "plugins": [
+    [
+      "transform-assets-import-to-string",
+      {
+        "baseDir": "static",
+        "baseUri": "/"
+      }
+    ]
+  ]
+}

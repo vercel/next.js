@@ -1,0 +1,19 @@
+{
+  "name": "page-transitions",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "NODE_ENV=development node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "compression": "^1.7.0",
+    "express": "^4.15.3",
+    "next": "latest",
+    "next-routes": "^1.0.40",
+    "raf": "^3.3.2",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC"
+}

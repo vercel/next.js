@@ -1,5 +1,12 @@
+const fs = require('fs')
+const trash = require('trash')
+
 module.exports = {
   webpack: (config) => {
+    config.plugins = config.plugins.filter(
+      (plugin) => (plugin.constructor.name !== 'UglifyJsPlugin')
+    )
+
     config.module.rules.push(
       {
         test: /\.css$/,
@@ -10,27 +17,21 @@ module.exports = {
               name: 'dist/[path][name].[ext]'
             }
           },
-          'raw-loader',
-          'val-loader',
           {
             loader: 'skeleton-loader',
             options: {
-              procedure: (content) => (
-                `${content} \n` + ['module.exports = {',
-                  'stylesheet: module.exports.toString(),',
-                  'classNames: exports.locals',
+              procedure: function (content) {
+                const fileName = `${this._module.userRequest}.json`
+                const classNames = fs.readFileSync(fileName, 'utf8')
+
+                trash(fileName)
+
+                return ['module.exports = {',
+                  `classNames: ${classNames},`,
+                  `stylesheet: \`${content}\``,
                   '}'
                 ].join('')
-              )
-            }
-          },
-          {
-            loader: 'css-loader',
-            options: {
-              modules: true,
-              minimize: true,
-              importLoaders: 1,
-              localIdentName: '[local]-[hash:base64:5]'
+              }
             }
           },
           'postcss-loader'

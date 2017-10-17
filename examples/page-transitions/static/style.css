@@ -1,0 +1,99 @@
+body, html {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background: #000;
+}
+
+/* ------------------------------------------- */
+
+header {
+	z-index: 100;
+	position: fixed;
+	right: 0;
+	top: 20px;
+	left: 0;
+	text-align: center;
+	padding: 15px;
+}
+
+	header a {
+		color: blue;
+	}
+
+	header a:not(:last-child) {
+		margin-right: 15px;
+	}
+
+	header a.active {
+		color: #000;
+		text-decoration: none;
+	}
+
+/* ------------------------------------------- */
+
+@keyframes animateIn {
+	from {
+		transform: translate3d(100vw, 0, 0);;
+	}
+
+	to {
+		transform: translate3d(0, 0, 0);
+	}
+}
+
+@keyframes animateOut {
+	to {
+		transform: translate3d(-100vw, 0, 0);
+	}
+}
+
+@keyframes fadeIn {
+	to {
+		opacity: 1;
+	}
+}
+
+/* ------------------------------------------- */
+
+#container {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100vh;
+	box-shadow: inset 0 0 0 20px;
+	background: #FFF;
+}
+
+	#container.page-about {
+		background: tan;
+	}
+
+	#container.page-contact {
+		background: violet;
+	}
+
+	#container h1 {
+		font-size: 10vw;
+		text-transform: uppercase;
+		letter-spacing: -1px;
+	}
+
+#container[class*="animate-"] {
+	position: fixed;
+	animation: animateIn .75s ease-in-out forwards;
+	transform-origin: center;
+	will-change: transform;
+}
+
+	#container.animate-out {
+		animation-name: animateOut;
+	}
+
+.loading #container:not(.clone) h1 {
+	opacity: 0;
+	animation: fadeIn 1s .15s ease-in-out forwards;
+}

@@ -1,12 +1,11 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import mitt from 'mitt'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
+import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
-import evalScript from '../lib/eval-script'
 import { loadGetInitialProps, getURL } from '../lib/utils'
-import ErrorDebugComponent from '../lib/error-debug'
+import PageLoader from '../lib/page-loader'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -19,32 +18,67 @@ if (!window.Promise) {
 
 const {
   __NEXT_DATA__: {
-    component,
-    errorComponent,
     props,
     err,
     pathname,
-    query
+    query,
+    buildId,
+    chunks,
+    assetPrefix
   },
   location
 } = window
 
-const Component = evalScript(component).default
-const ErrorComponent = evalScript(errorComponent).default
-let lastAppProps
+const asPath = getURL()
 
-export const router = createRouter(pathname, query, getURL(), {
-  Component,
-  ErrorComponent,
-  err
+const pageLoader = new PageLoader(buildId, assetPrefix)
+window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
+  pageLoader.registerPage(route, fn)
 })
+delete window.__NEXT_LOADED_PAGES__
+
+window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
+  pageLoader.registerChunk(chunkName, fn)
+})
+delete window.__NEXT_LOADED_CHUNKS__
+
+window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
+window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
-export default () => {
-  const emitter = mitt()
+let lastAppProps
+export let router
+export let ErrorComponent
+let ErrorDebugComponent
+let Component
+
+export default async ({ ErrorDebugComponent: passedDebugComponent } = {}) => {
+  // Wait for all the dynamic chunks to get loaded
+  for (const chunkName of chunks) {
+    await pageLoader.waitForChunk(chunkName)
+  }
+
+  ErrorDebugComponent = passedDebugComponent
+  ErrorComponent = await pageLoader.loadPage('/_error')
+
+  try {
+    Component = await pageLoader.loadPage(pathname)
+  } catch (err) {
+    console.error(`${err.message}\n${err.stack}`)
+    Component = ErrorComponent
+  }
+
+  router = createRouter(pathname, query, asPath, {
+    pageLoader,
+    Component,
+    ErrorComponent,
+    err
+  })
+
+  const emitter = new EventEmitter()
 
   router.subscribe(({ Component, props, hash, err }) => {
     render({ Component, props, err, hash, emitter })
@@ -57,7 +91,10 @@ export default () => {
 }
 
 export async function render (props) {
-  if (props.err) {
+  // There are some errors we should ignore.
+  // Next.js rendering logic knows how to handle them.
+  // These are specially 404 errors
+  if (props.err && !props.err.ignore) {
     await renderError(props.err)
     return
   }
@@ -85,11 +122,11 @@ export async function renderError (error) {
   console.error(errorMessage)
 
   if (prod) {
-    const initProps = { err: error, pathname, query }
+    const initProps = { err: error, pathname, query, asPath }
     const props = await loadGetInitialProps(ErrorComponent, initProps)
-    ReactDOM.render(createElement(ErrorComponent, props), errorContainer)
+    renderReactElement(createElement(ErrorComponent, props), errorContainer)
   } else {
-    ReactDOM.render(createElement(ErrorDebugComponent, { error }), errorContainer)
+    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
   }
 }
 
@@ -98,12 +135,12 @@ async function doRender ({ Component, props, hash, err, emitter }) {
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
-    const { pathname, query } = router
-    props = await loadGetInitialProps(Component, { err, pathname, query })
+    const { pathname, query, asPath } = router
+    props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
   }
 
   if (emitter) {
-    emitter.emit('before-reactdom-render', { Component })
+    emitter.emit('before-reactdom-render', { Component, ErrorComponent })
   }
 
   Component = Component || lastAppProps.Component
@@ -115,9 +152,19 @@ async function doRender ({ Component, props, hash, err, emitter }) {
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  ReactDOM.render(createElement(App, appProps), appContainer)
+  renderReactElement(createElement(App, appProps), appContainer)
 
   if (emitter) {
-    emitter.emit('after-reactdom-render', { Component })
+    emitter.emit('after-reactdom-render', { Component, ErrorComponent })
+  }
+}
+
+let isInitialRender = true
+function renderReactElement (reactEl, domEl) {
+  if (isInitialRender) {
+    ReactDOM.hydrate(reactEl, domEl)
+    isInitialRender = false
+  } else {
+    ReactDOM.render(reactEl, domEl)
   }
 }

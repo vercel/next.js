@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-jest)
 # Example app with jest tests
 
 ## How to use
@@ -21,3 +22,5 @@ npm test
 This example features:
 
 * An app with jest tests
+
+> A very important part of this example is the `.babelrc` file which configures the `test` environment to use `babel-preset-env` and configures it to transpile modules to `commonjs`). [Learn more](https://github.com/zeit/next.js/issues/2895).

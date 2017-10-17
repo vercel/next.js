@@ -12,12 +12,12 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'development'
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
+    H: 'hostname',
     p: 'port'
   },
   boolean: ['h'],
-  default: {
-    p: 3000
-  }
+  string: ['H'],
+  default: { p: 3000 }
 })
 
 if (argv.help) {
@@ -29,11 +29,13 @@ if (argv.help) {
     Usage
       $ next dev <dir> -p <port number>
 
-    <dir> represents where the compiled .next folder should go.
-    If no directory is provided, .next will be created in the current directory
+    <dir> represents where the compiled folder should go.
+    If no directory is provided, the folder will be created in the current directory.
+    You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
 
     Options
       --port, -p      A port number on which to start the application
+      --hostname, -H  Hostname on which to start the application
       --help, -h      Displays this message
   `)
   process.exit(0)
@@ -55,10 +57,10 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 const srv = new Server({ dir, dev: true })
-srv.start(argv.port)
+srv.start(argv.port, argv.hostname)
 .then(async () => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://localhost:${argv.port}`)
+    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
   }
 })
 .catch((err) => {

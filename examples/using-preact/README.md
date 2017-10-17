@@ -1,3 +1,4 @@
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/using-preact)
 
 # Hello World example
 
@@ -25,7 +26,7 @@ now
 
 ## The idea behind the example
 
-This example uses [Preact](https://github.com/developit/preact) instead of React. It's a React like UI framework which fast and small. Here we've customized Next.js to use Preact instead of React.
+This example uses [Preact](https://github.com/developit/preact) instead of React. It's a React like UI framework which is fast and small. Here we've customized Next.js to use Preact instead of React.
 
 Here's how we did it:
 

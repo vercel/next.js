@@ -1,4 +1,4 @@
-import { resolve, join } from 'path'
+import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
 import webpack from 'webpack'
 import glob from 'glob-promise'
@@ -6,7 +6,8 @@ import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import JsonPagesPlugin from './plugins/json-pages-plugin'
+import PagesPlugin from './plugins/pages-plugin'
+import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -26,9 +27,9 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { dev = false, quiet = false, buildDir } = {}) {
+export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
-  const config = getConfig(dir)
+  const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
     join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
@@ -36,7 +37,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
-  let minChunks
+  let totalPages
 
   const entry = async () => {
     const entries = {
@@ -68,13 +69,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       }
     }
 
-    // calculate minChunks of CommonsChunkPlugin for later use
-    minChunks = Math.max(2, pages.filter((p) => p !== documentPage).length)
+    totalPages = pages.filter((p) => p !== documentPage).length
 
     return entries
   }
 
   const plugins = [
+    new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
     new webpack.LoaderOptionsPlugin({
       options: {
         context: dir,
@@ -93,17 +94,27 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
-        // Instead, we move all the code in node_modules into this chunk.
-        // With that, we could gain better performance for page-rebuild process.
-        if (dev) {
-          return module.context && module.context.indexOf('node_modules') >= 0
+        // We need to move react-dom explicitly into common chunks.
+        // Otherwise, if some other page or module uses it, it might
+        // included in that bundle too.
+        if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          return true
         }
 
-        // NOTE: it depends on the fact that the entry funtion is always called
-        // before applying CommonsChunkPlugin
-        return count >= minChunks
+        // In the dev we use on-demand-entries.
+        // So, it makes no sense to use commonChunks based on the minChunks count.
+        // Instead, we move all the code in node_modules into each of the pages.
+        if (dev) {
+          return false
+        }
+
+        // If there are one or two pages, only move modules to common if they are
+        // used in all of the pages. Otherwise, move modules used in at-least
+        // 1/2 of the total pages into commons.
+        if (totalPages <= 2) {
+          return count >= totalPages
+        }
+        return count >= totalPages * 0.5
       }
     }),
     // This chunk contains all the webpack related code. So, all the changes
@@ -116,7 +127,8 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     new webpack.DefinePlugin({
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
-    new JsonPagesPlugin(),
+    new PagesPlugin(),
+    new DynamicChunksPlugin(),
     new CaseSensitivePathPlugin()
   ]
 
@@ -130,6 +142,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
+    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
@@ -140,6 +153,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         sourceMap: false
       })
     )
+    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
   const nodePathList = (process.env.NODE_PATH || '')
@@ -148,14 +162,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
   const mainBabelOptions = {
     cacheDirectory: true,
-    sourceMaps: dev ? 'both' : false,
     presets: []
   }
 
   const externalBabelConfig = findBabelConfig(dir)
   if (externalBabelConfig) {
     console.log(`> Using external babel configuration`)
-    console.log(`> location: "${externalBabelConfig.loc}"`)
+    console.log(`> Location: "${externalBabelConfig.loc}"`)
     // It's possible to turn off babelrc support via babelrc itself.
     // In that case, we should add our default preset.
     // That's why we need to do this.
@@ -223,6 +236,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
                   'next/link': relativeResolve('../../lib/link'),
                   'next/prefetch': relativeResolve('../../lib/prefetch'),
                   'next/css': relativeResolve('../../lib/css'),
+                  'next/dynamic': relativeResolve('../../lib/dynamic'),
                   'next/head': relativeResolve('../../lib/head'),
                   'next/document': relativeResolve('../../server/document'),
                   'next/router': relativeResolve('../../lib/router'),
@@ -235,8 +249,24 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           inputSourceMap: sourceMap
         })
 
+        // Strip ?entry to map back to filesystem and work with iTerm, etc.
+        let { map } = transpiled
+        let output = transpiled.code
+
+        if (map) {
+          let nodeMap = Object.assign({}, map)
+          nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
+          delete nodeMap.sourcesContent
+
+          // Output explicit inline source map that source-map-support can pickup via requireHook mode.
+          // Since these are not formal chunks, the devtool infrastructure in webpack does not output
+          // a source map for these files.
+          const sourceMapUrl = new Buffer(JSON.stringify(nodeMap), 'utf-8').toString('base64')
+          output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
+        }
+
         return {
-          content: transpiled.code,
+          content: output,
           sourceMap: transpiled.map
         }
       }
@@ -250,7 +280,6 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     options: {
       babelrc: false,
       cacheDirectory: true,
-      sourceMaps: dev ? 'both' : false,
       presets: [require.resolve('./babel/preset')]
     }
   }, {
@@ -267,10 +296,10 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     context: dir,
     entry,
     output: {
-      path: join(buildDir || dir, '.next'),
+      path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: '/_webpack/',
+      publicPath: `/_next/${buildId}/webpack/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
@@ -279,7 +308,9 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
         // append hash id for cache busting
         return `webpack:///${resourcePath}?${id}`
-      }
+      },
+      // This saves chunks with the name given via require.ensure()
+      chunkFilename: '[name]'
     },
     resolve: {
       modules: [
@@ -300,13 +331,13 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     module: {
       rules
     },
-    devtool: dev ? 'inline-source-map' : false,
+    devtool: dev ? 'cheap-module-inline-source-map' : false,
     performance: { hints: false }
   }
 
   if (config.webpack) {
-    console.log('> Using "webpack" config function defined in next.config.js.')
-    webpackConfig = await config.webpack(webpackConfig, { dev })
+    console.log(`> Using "webpack" config function defined in ${config.configOrigin}.`)
+    webpackConfig = await config.webpack(webpackConfig, { buildId, dev })
   }
   return webpack(webpackConfig)
 }

@@ -11,11 +11,13 @@
   },
   "dependencies":{
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
   },
   "devDependencies": {
     "babel-plugin-css-modules-transform": "^1.2.1",
-    "node-sass": "^4.5.0"
+    "node-sass": "^4.5.0",
+    "postcss": "^5.2.16",
+    "postcss-cssnext": "^2.10.0"
   }
 }

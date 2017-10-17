@@ -45,6 +45,30 @@ export default (context, render) => {
       })
     })
 
+    describe('with unexpected <a/> nested tag', () => {
+      it('should not redirect if passHref prop is not defined in Link', async () => {
+        const browser = await webdriver(context.appPort, '/nav/pass-href-prop')
+        const text = await browser
+          .elementByCss('#without-href').click()
+          .waitForElementByCss('.nav-pass-href-prop')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the passHref prop page.')
+        browser.close()
+      })
+
+      it('should redirect if passHref prop is defined in Link', async () => {
+        const browser = await webdriver(context.appPort, '/nav/pass-href-prop')
+        const text = await browser
+          .elementByCss('#with-href').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the home.')
+        browser.close()
+      })
+    })
+
     describe('with empty getInitialProps()', () => {
       it('should render an error', async () => {
         const browser = await webdriver(context.appPort, '/nav')
@@ -159,6 +183,21 @@ export default (context, render) => {
             .elementByCss('p').text()
 
           expect(counter).toBe('COUNT: 1')
+
+          browser.close()
+        })
+      })
+
+      describe('when hash set to empty', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-a').click()
+            .elementByCss('#via-empty-hash').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 0')
 
           browser.close()
         })
@@ -319,6 +358,104 @@ export default (context, render) => {
 
         expect(text).toBe('This is the about page.')
         browser.close()
+      })
+    })
+
+    describe('with different types of urls', () => {
+      it('should work with normal page', async () => {
+        const browser = await webdriver(context.appPort, '/with-cdm')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('should work with dir/index page ', async () => {
+        const browser = await webdriver(context.appPort, '/nested-cdm/index')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('should work with dir/ page ', async () => {
+        const browser = await webdriver(context.appPort, '/nested-cdm/')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('should work with /index page', async () => {
+        const browser = await webdriver(context.appPort, '/index')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+
+      it('should work with / page', async () => {
+        const browser = await webdriver(context.appPort, '/')
+        const text = await browser.elementByCss('p').text()
+
+        expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+    })
+
+    describe('with the HOC based router', () => {
+      it('should navigate as expected', async () => {
+        const browser = await webdriver(context.appPort, '/nav/with-hoc')
+
+        const spanText = await browser.elementByCss('span').text()
+        expect(spanText).toBe('Current path: /nav/with-hoc')
+
+        const text = await browser
+          .elementByCss('.nav-with-hoc a').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the home.')
+        browser.close()
+      })
+    })
+
+    describe('with asPath', () => {
+      describe('inside getInitialProps', () => {
+        it('should show the correct asPath with a Link with as prop', async () => {
+          const browser = await webdriver(context.appPort, '/nav/')
+          const asPath = await browser
+            .elementByCss('#as-path-link').click()
+            .waitForElementByCss('.as-path-content')
+            .elementByCss('.as-path-content').text()
+
+          expect(asPath).toBe('/as/path')
+          browser.close()
+        })
+
+        it('should show the correct asPath with a Link without the as prop', async () => {
+          const browser = await webdriver(context.appPort, '/nav/')
+          const asPath = await browser
+            .elementByCss('#as-path-link-no-as').click()
+            .waitForElementByCss('.as-path-content')
+            .elementByCss('.as-path-content').text()
+
+          expect(asPath).toBe('/nav/as-path')
+          browser.close()
+        })
+      })
+
+      describe('with next/router', () => {
+        it('should show the correct asPath', async () => {
+          const browser = await webdriver(context.appPort, '/nav/')
+          const asPath = await browser
+            .elementByCss('#as-path-using-router-link').click()
+            .waitForElementByCss('.as-path-content')
+            .elementByCss('.as-path-content').text()
+
+          expect(asPath).toBe('/nav/as-path-using-router')
+          browser.close()
+        })
       })
     })
   })
