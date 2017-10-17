@@ -1,5 +1,6 @@
 <img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
+[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next) 
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
@@ -7,7 +8,7 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
-**Visit https://learnnextjs.com to get started with Next.js.**
+**Visit [learnnextjs.com](https://learnnextjs.com) to get started with Next.js.**
 
 ---
 
@@ -56,21 +57,12 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 Install it:
 
-#### Beta
-
-The beta has support for the latest version of React (v16) and is actively being developed upon.
-
 ```bash
-npm install next@beta react react-dom
+npm install --save next react react-dom
 ```
 
-#### Stable
-
-This is the stable version of Next.js
-
-```bash
-npm install next react@15 react-dom@15 --save
-```
+> Next.js 4 only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
+> We had to drop React 15 support due to the way how React 16 works and how we use it.
 
 and add a script to your package.json like this:
 
@@ -662,6 +654,9 @@ Typically you start your next server with `next start`. It's possible, however, 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
+// This file doesn't not go through babel or webpack transformation.
+// Make sure the syntax and sources this file requires are compatible with the current node version you are running
+// See https://github.com/zeit/next.js/issues/1245 for discussions on Universal Webpack or universal Babel
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')
@@ -931,6 +926,21 @@ module.exports = {
 }
 ```
 
+#### Configuring the onDemandEntries
+
+Next exposes some options that give you some control over how the server will dispose or keep in memories pages built:
+
+```js
+module.exports = {
+  onDemandEntries: {
+    // period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 25 * 1000,
+    // number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 2,
+  }
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
@@ -1049,6 +1059,7 @@ module.exports = {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
+      '/readme.md': { page: '/readme' },
       '/p/hello-nextjs': { page: '/post', query: { title: 'hello-nextjs' } },
       '/p/learn-nextjs': { page: '/post', query: { title: 'learn-nextjs' } },
       '/p/deploy-nextjs': { page: '/post', query: { title: 'deploy-nextjs' } }
@@ -1056,6 +1067,8 @@ module.exports = {
   }
 }
 ```
+
+> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
 
 In that, you specify what are the pages you need to export as static HTML.
 

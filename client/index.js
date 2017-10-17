@@ -5,7 +5,6 @@ import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
-import ErrorDebugComponent from '../lib/error-debug'
 import PageLoader from '../lib/page-loader'
 
 // Polyfill Promise globally
@@ -53,14 +52,16 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
+let ErrorDebugComponent
 let Component
 
-export default async () => {
+export default async ({ ErrorDebugComponent: passedDebugComponent } = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
   }
 
+  ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {

@@ -16,6 +16,19 @@ import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
+import reactPkg from 'react/package'
+
+// TODO: Remove this in Next.js 5
+if (!(/^16\./.test(reactPkg.version))) {
+  const message = `
+Error: Next.js 4 requires React 16.
+Install React 16 with:
+  npm remove react react-dom
+  npm install --save react@16 react-dom@16
+`
+  console.error(message)
+  process.exit(1)
+}
 
 const internalPrefixes = [
   /^\/_next\//,
