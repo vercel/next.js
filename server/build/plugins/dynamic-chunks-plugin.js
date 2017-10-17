@@ -1,4 +1,6 @@
-export default class PagesPlugin {
+import Concat from 'concat-with-sourcemaps'
+
+export default class DynamicChunksPlugin {
   apply (compiler) {
     const isImportChunk = /^chunks[/\\].*\.js$/
     const matchChunkName = /^chunks[/\\](.*)$/
@@ -11,26 +13,39 @@ export default class PagesPlugin {
 
       chunks.forEach((chunk) => {
         const asset = compilation.assets[chunk.name]
+        const sourceMap = compilation.assets[`${chunk.name}.map`]
         if (!asset) return
 
         const chunkName = matchChunkName.exec(chunk.name)[1]
+        const concat = new Concat(true, chunk.name, '\n')
 
-        const content = asset.source()
-        const newContent = `
+        concat.add(null, `
           window.__NEXT_REGISTER_CHUNK('${chunkName}', function() {
-            ${content}
+        `)
+        concat.add(chunk.name, asset.source(), sourceMap && sourceMap.source())
+        concat.add(null, `
           })
-        `
+        `)
+        concat.add(null, `//# sourceMappingURL=${chunk.name}.map\n`)
+
         // Replace the exisiting chunk with the new content
         compilation.assets[chunk.name] = {
-          source: () => newContent,
-          size: () => newContent.length
+          size: () => concat.content.length,
+          source: () => concat.content
+        }
+        compilation.assets[`${chunk.name}.map`] = {
+          size: () => concat.sourceMap.length,
+          source: () => concat.sourceMap
         }
 
         // This is to support, webpack dynamic import support with HMR
-        compilation.assets[`chunks/${chunk.id}`] = {
-          source: () => newContent,
-          size: () => newContent.length
+        compilation.assets[`chunks/${chunk.name}`] = {
+          size: () => concat.content.length,
+          source: () => concat.content
+        }
+        compilation.assets[`chunks/${chunk.name}.map`] = {
+          size: () => concat.sourceMap.length,
+          source: () => concat.sourceMap
         }
       })
       callback()
