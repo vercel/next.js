@@ -7,8 +7,8 @@
   "license": "ISC",
   "dependencies": {
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
     "refnux": "^1.3.0"
   }
 }
