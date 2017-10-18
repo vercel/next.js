@@ -28,7 +28,7 @@ now
 
 This example features how to use [emotion](https://github.com/tkh44/emotion) as the styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
 
-We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of pseedo-selector and CSS animations.
+We are creating three `div` elements with custom styles being shared across the elements. The styles includes the use of a pseudo-selector and CSS animations.
 
 
-This is based off the with-glamorous example.
+This is based off the [with-glamorous](../with-glamorous) example.
