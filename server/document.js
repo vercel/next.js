@@ -117,6 +117,10 @@ export class Main extends Component {
 }
 
 export class NextScript extends Component {
+  static propTypes = {
+    nonce: PropTypes.string
+  }
+
   static contextTypes = {
     _documentProps: PropTypes.any
   }
@@ -176,7 +180,7 @@ export class NextScript extends Component {
     __NEXT_DATA__.chunks = chunks
 
     return <div>
-      {staticMarkup ? null : <script dangerouslySetInnerHTML={{
+      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
           module={}
