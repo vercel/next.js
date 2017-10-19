@@ -9,11 +9,11 @@
   "dependencies": {
     "graphql": "^0.9.3",
     "isomorphic-fetch": "^2.2.1",
-    "next": "latest",
+    "next": "^4",
     "prop-types": "^15.5.8",
-    "react": "^15.5.4",
+    "react": "^16",
     "react-apollo": "^1.1.3",
-    "react-dom": "^15.5.4",
+    "react-dom": "^16",
     "redux": "^3.6.0"
   },
   "author": "",
