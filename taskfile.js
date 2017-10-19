@@ -3,7 +3,7 @@ const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'lib', 'client'])
+  await task.parallel(['bin', 'server', 'webpack', 'lib', 'client'])
 }
 
 export async function bin (task, opts) {
@@ -19,6 +19,26 @@ export async function lib (task, opts) {
 export async function server (task, opts) {
   await task.source(opts.src || 'server/**/*.js').babel().target('dist/server')
   notify('Compiled server files')
+}
+
+export async function webpack (task, opts) {
+  // We need to compile code that is used within webpack utilizing native classes
+  // to avoid issues with trying to extend webpack base classes with babel-classes
+  // that our lib, server, and client environments compile to (and should for
+  // compatibility with downstream consumers).
+  //
+  // https://github.com/babel/babel/issues/4269
+  await task.source(opts.src || 'webpack/**/*.js').babel({
+    presets: [
+      ['env', {
+        targets: {
+          node: '5'
+        }
+      }]
+    ],
+    babelrc: false
+  }).target('dist/webpack')
+  notify('Compiled webpack files')
 }
 
 export async function client (task, opts) {
@@ -39,6 +59,7 @@ export default async function (task) {
   await task.watch('bin/*', 'bin')
   await task.watch('pages/**/*.js', 'copy')
   await task.watch('server/**/*.js', 'server')
+  await task.watch('webpack/**/*.js', 'webpack')
   await task.watch('client/**/*.js', 'client')
   await task.watch('lib/**/*.js', 'lib')
 }
