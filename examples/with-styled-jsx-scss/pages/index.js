@@ -7,7 +7,7 @@ export default () => (
       $color: red;
 
       .hello {
-        background-color:  ${backgroundColor};
+        background-color: ${backgroundColor};
         padding: 100px;
         text-align: center;
         transition: 100ms ease-in background;
