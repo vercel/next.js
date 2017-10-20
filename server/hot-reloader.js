@@ -124,11 +124,20 @@ export default class HotReloader {
       )
 
       const failedChunkNames = new Set(compilation.errors
+      .filter((e) => e.module)
       .map((e) => e.module.reasons)
       .reduce((a, b) => a.concat(b), [])
       .map((r) => r.module.chunks)
       .reduce((a, b) => a.concat(b), [])
       .map((c) => c.name))
+
+      // Handle chunk specific errors such as ChunkRenderError
+      // These are generally errors within next itself, but
+      // we don't want to mask when debugging.
+      compilation.errors
+      .map((e) => e.chunk)
+      .filter(Boolean)
+      .forEach((c) => failedChunkNames.add(c.name))
 
       const chunkHashes = new Map(
         compilation.chunks
@@ -230,12 +239,18 @@ export default class HotReloader {
         const { compiler, errors } = this.stats.compilation
 
         for (const err of errors) {
-          for (const r of err.module.reasons) {
-            for (const c of r.module.chunks) {
-              // get the path of the bundle file
-              const path = join(compiler.outputPath, c.name)
-              const errors = this.compilationErrors.get(path) || []
-              this.compilationErrors.set(path, errors.concat([err]))
+          if (err.chunk) {
+            const path = join(compiler.outputPath, err.chunk.name)
+            const errors = this.compilationErrors.get(path) || []
+            this.compilationErrors.set(path, errors.concat([err]))
+          } else {
+            for (const r of err.module.reasons) {
+              for (const c of r.module.chunks) {
+                // get the path of the bundle file
+                const path = join(compiler.outputPath, c.name)
+                const errors = this.compilationErrors.get(path) || []
+                this.compilationErrors.set(path, errors.concat([err]))
+              }
             }
           }
         }
