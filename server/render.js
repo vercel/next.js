@@ -93,6 +93,11 @@ async function doRender (req, res, pathname, query, {
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  // While developing, we should not cache any assets.
+  // So, we use a different buildId for each page load.
+  // With that we can ensure, we have unique URL for assets per every page load.
+  // So, it'll prevent issues like this: https://git.io/vHLtb
+  const devBuildId = Date.now()
 
   if (res.finished) return
 
@@ -102,7 +107,7 @@ async function doRender (req, res, pathname, query, {
       props,
       pathname,
       query,
-      buildId,
+      buildId: dev ? devBuildId : buildId,
       buildStats,
       assetPrefix,
       nextExport,
