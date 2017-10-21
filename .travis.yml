@@ -1,25 +1,25 @@
 {
-dist: trusty		  "sudo": "required",
-addons:		  "dist": "trusty",
-  apt:		  "addons": {
-    sources:		    "apt": {
-      - google-chrome		      "sources": [
-    packages:		        "google-chrome"
-      - google-chrome-stable		      ],
-language: node_js		      "packages": [
-node_js:		        "google-chrome-stable"
-  - "6"		      ]
-cache:		    }
-  directories:		  },
-    - node_modules		  "language": "node_js",
-before_install:		  "node_js": [
-  - rm yarn.lock		    "6",
-  - export DISPLAY=:99.0		  ],
-  - sh -e /etc/init.d/xvfb start		  "cache": {
-  - sleep 3		    "directories": [
-after_script: npm run coveralls		      "node-modules"
-    ]
+  "sudo": "required",
+  "dist": "trusty",
+  "addons": {
+    "apt": {
+      "sources": [
+        "google-chrome"
+      ],
+      "packages": [
+        "google-chrome-stable"
+      ]
+    }
   },
+  "language": "node_js",
+  "node_js": [
+    "6",
+  ],
+  "cache": {
+    "directories": [
+      "node-modules"
+    ]
+  }
   "before_install": [
     "rm yarn.lock",
     "export DISPLAY=:99.0",
