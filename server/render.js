@@ -70,7 +70,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component: enhancer(Component),
       props,
-      router: new Router(pathname, query)
+      router: new Router(pathname, query, asPath)
     })
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
