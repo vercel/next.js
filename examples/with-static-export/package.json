@@ -1,8 +1,8 @@
 {
   "main": "server.js",
   "dependencies": {
+    "cross-fetch": "^0.0.8",
     "express": "^4.15.3",
-    "isomorphic-fetch": "^2.2.1",
     "next": "beta",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",

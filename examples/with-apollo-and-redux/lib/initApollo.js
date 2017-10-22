@@ -1,5 +1,5 @@
 import { ApolloClient, createNetworkInterface } from 'react-apollo'
-import fetch from 'isomorphic-fetch'
+import { fetch } from 'cross-fetch'
 
 let apolloClient = null
 

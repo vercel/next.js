@@ -2,8 +2,8 @@
   "name": "with-socket.io",
   "version": "1.0.0",
   "dependencies": {
+    "cross-fetch": "^0.0.8",
     "express": "^4.15.2",
-    "isomorphic-fetch": "^2.2.1",
     "next": "latest",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",

@@ -1,5 +1,5 @@
 /* global fetch */
-import 'isomorphic-fetch'
+import 'cross-fetch/polyfill'
 
 /**
  * Fetch translation file(s).

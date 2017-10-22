@@ -7,8 +7,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "cross-fetch": "^0.0.8",
     "freactal": "^1.1.1",
-    "isomorphic-fetch": "^2.2.1",
     "next": "latest",
     "react": "^15.6.1",
     "react-dom": "^15.6.1"

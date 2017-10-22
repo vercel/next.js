@@ -8,8 +8,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "cross-fetch": "0.0.8",
     "es6-promise": "4.1.1",
-    "isomorphic-fetch": "2.2.1",
     "next": "latest",
     "next-redux-saga": "1.0.1",
     "next-redux-wrapper": "1.2.0",

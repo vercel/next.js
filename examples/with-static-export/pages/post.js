@@ -1,7 +1,7 @@
 import { Component } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
-import fetch from 'isomorphic-fetch'
+import { fetch } from 'cross-fetch'
 
 export default class extends Component {
   static async getInitialProps ({ query }) {

@@ -8,11 +8,11 @@
   },
   "dependencies": {
     "body-parser": "^1.17.1",
+    "cross-fetch": "0.0.8",
     "express": "^4.14.0",
     "express-session": "^1.15.2",
     "firebase": "^3.7.5",
     "firebase-admin": "^4.2.0",
-    "isomorphic-fetch": "2.2.1",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",

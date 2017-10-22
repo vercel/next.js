@@ -1,5 +1,5 @@
 /* global fetch */
-import 'isomorphic-fetch'
+import 'cross-fetch/polyfill'
 
 const API_BASE_URL = 'https://api.github.com'
 
