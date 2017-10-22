@@ -33,7 +33,7 @@ export default function ({ app }, suiteName, render) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:blue}`)).toBeTruthy()
+      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {
