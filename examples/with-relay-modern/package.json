@@ -13,9 +13,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cross-fetch": "^0.0.8",
     "dotenv": "^4.0.0",
     "dotenv-webpack": "^1.5.4",
-    "isomorphic-fetch": "^2.2.1",
     "next": "^3.0.3",
     "react": "^15.6.1",
     "react-dom": "^15.6.1",

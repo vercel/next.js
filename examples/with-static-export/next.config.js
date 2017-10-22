@@ -1,4 +1,4 @@
-const fetch = require('isomorphic-fetch')
+const fetch = require('cross-fetch').fetch
 
 module.exports = {
   async exportPathMap () {
