@@ -1,20 +1,56 @@
-sudo: required
-dist: trusty
-addons:
-  apt:
-    sources:
-      - google-chrome
-    packages:
-      - google-chrome-stable
-language: node_js
-node_js:
-  - "6"
-cache:
-  directories:
-    - node_modules
-before_install:
-  - rm yarn.lock
-  - export DISPLAY=:99.0
-  - sh -e /etc/init.d/xvfb start
-  - sleep 3
-after_script: npm run coveralls
+{
+  sudo: "required",
+  dist: "trusty",
+  addons: {
+    apt: {
+      sources: ["google-chrome"],
+      packages: ["google-chrome-stable"]
+    }
+  },
+  language: "node_js",
+  node_js: ["6"],
+  cache: {
+    directories: ["node-modules"]
+  },
+  before_install: [
+    "rm yarn.lock",
+    "export DISPLAY=:99.0",
+    "sh -e /etc/init.d/xvfb start",
+    "sleep 3"
+  ],
+  install: [
+    "git clone https://github.com/$TRAVIS_REPO_SLUG.git $TRAVIS_REPO_SLUG",
+    "cd $TRAVIS_REPO_SLUG",
+    "yarn"
+  ],
+  after_script: ["npm run coveralls"],
+  deploy: [
+    {
+      provider: "npm",
+      email: "leo@zeit.co",
+      api_key: {
+        secure:
+          "HGFqez0XKG3vWJUmDjC1veVJmdASUYviaAbJCqQi4JbgNs49AelhYk3w4vl7K6wOnS2OUPD7tICKNDpxBhunKmVlEkLQtqSnQZjmi4x2tGufGTka0c9O7qNSFsiQXAzta/97MnhmGnJocFsppNNsS21H2aswNQJo+P2QXvmHvFbwzda6k3NwtOc43K+0rW1NM164UwRjtD38LWF+jvhYyysTrWTFXbYUp2o1Q8kI31pn4pMhhOP3qOnuS1jpOzjk6uZ4g5u4cMeK2eSZ/j8B1PNUBXjBfu75IU0yzvlr3ypN7hYcutDTBn4ISDfFM874FdrFhcGiMy7gMO/iwC5LTUqkBGYJT6sYdWEkKU7HQygKeFkinrkmypFdJf9ufw2EDjVCUDYnC5JbnOwu4d3vFHcg3GU6Oa7g1nrScPnZ+jkoM4ugia/3vhFO7serq4qXEj7Mv5p78mW41gxHUTgf8uqwhiOnqo9Or7UsR7vU/hB3uU0DY/nq5BI3Wt4XANrlTDeMDExjDACIQ1GU089va88NbWyU1XDD2zs+o1Y6OigAkn/yZ8V/z52eYcA5znTxcb4s8P36pKCSEkxyRtpHNf138hDx9qC2Hze1alBDfUC4iRhiZCQN4CXhSxVdb6HjZHNwCyWCO16LZLbnBvCbIMR+0WjnL0KzqsUTOboZHkQ="
+      },
+      skip_cleanup: true,
+      on: {
+        condition: '"$(git rev-parse --abbrev-ref HEAD)" == "master"',
+        tags: true
+      }
+    },
+    {
+      provider: "npm",
+      email: "leo@zeit.co",
+      tag: "canary",
+      api_key: {
+        secure:
+          "HGFqez0XKG3vWJUmDjC1veVJmdASUYviaAbJCqQi4JbgNs49AelhYk3w4vl7K6wOnS2OUPD7tICKNDpxBhunKmVlEkLQtqSnQZjmi4x2tGufGTka0c9O7qNSFsiQXAzta/97MnhmGnJocFsppNNsS21H2aswNQJo+P2QXvmHvFbwzda6k3NwtOc43K+0rW1NM164UwRjtD38LWF+jvhYyysTrWTFXbYUp2o1Q8kI31pn4pMhhOP3qOnuS1jpOzjk6uZ4g5u4cMeK2eSZ/j8B1PNUBXjBfu75IU0yzvlr3ypN7hYcutDTBn4ISDfFM874FdrFhcGiMy7gMO/iwC5LTUqkBGYJT6sYdWEkKU7HQygKeFkinrkmypFdJf9ufw2EDjVCUDYnC5JbnOwu4d3vFHcg3GU6Oa7g1nrScPnZ+jkoM4ugia/3vhFO7serq4qXEj7Mv5p78mW41gxHUTgf8uqwhiOnqo9Or7UsR7vU/hB3uU0DY/nq5BI3Wt4XANrlTDeMDExjDACIQ1GU089va88NbWyU1XDD2zs+o1Y6OigAkn/yZ8V/z52eYcA5znTxcb4s8P36pKCSEkxyRtpHNf138hDx9qC2Hze1alBDfUC4iRhiZCQN4CXhSxVdb6HjZHNwCyWCO16LZLbnBvCbIMR+0WjnL0KzqsUTOboZHkQ="
+      },
+      skip_cleanup: true,
+      on: {
+        condition: '"$(git rev-parse --abbrev-ref HEAD)" == "canary"',
+        tags: true
+      }
+    }
+  ]
+}
