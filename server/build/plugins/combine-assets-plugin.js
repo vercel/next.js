@@ -11,7 +11,7 @@ export default class CombineAssetsPlugin {
 
   apply (compiler) {
     compiler.plugin('compilation', (compilation) => {
-      compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
+      compilation.plugin('additional-chunk-assets', (chunks) => {
         const concat = new ConcatSource()
 
         this.input.forEach((name) => {
@@ -23,9 +23,8 @@ export default class CombineAssetsPlugin {
           // We keep existing assets since that helps when analyzing the bundle
         })
 
+        compilation.additionalChunkAssets.push(this.output)
         compilation.assets[this.output] = concat
-
-        callback()
       })
     })
   }
