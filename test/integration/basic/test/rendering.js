@@ -28,6 +28,17 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('I can haz meta tags')).toBeTruthy()
     })
 
+    test('header helper dedupes tags', async () => {
+      const html = await (render('/head'))
+      console.log(html)
+      expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeFalsy()
+      expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<link rel="stylesheet" href="/dup-style.css" class="next-head"/><link rel="stylesheet" href="/dup-style.css" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')).toBeFalsy()
+    })
+
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
       const styleId = $('#blue-box').attr('class')

@@ -199,6 +199,22 @@ export default () =>
 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
+
+#### de-duping tags
+In the scenario where duplicated tags are populated in Head, if you don't want the tag to be rendered multiple times, add a `key` to it, the value of the key should be unique among other elements in all `<Head>` elements in your project
+
+```jsx
+import Head from 'next/head'
+
+export default () =>
+  <div>
+    <Head>
+      <link rel="stylesheet" href="/static/styles.css" key="my-style" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
+```
+
 ### Fetching data and component lifecycle
 
 <p><details>
