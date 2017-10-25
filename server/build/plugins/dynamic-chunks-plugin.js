@@ -1,13 +1,15 @@
 import { ConcatSource } from 'webpack-sources'
 
+const isImportChunk = /^chunks[/\\].*\.js$/
+const matchChunkName = /^chunks[/\\](.*)$/
+
 export default class DynamicChunksPlugin {
   apply (compiler) {
-    const isImportChunk = /^chunks[/\\].*\.js$/
-    const matchChunkName = /^chunks[/\\](.*)$/
-
     compiler.plugin('compilation', (compilation) => {
-      compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
-        chunks = chunks.filter(chunk => isImportChunk.test(chunk.name))
+      compilation.plugin('additional-chunk-assets', (chunks) => {
+        chunks = chunks.filter(chunk =>
+          isImportChunk.test(chunk.name) && compilation.assets[chunk.name]
+        )
 
         chunks.forEach((chunk) => {
           const asset = compilation.assets[chunk.name]
@@ -27,10 +29,10 @@ export default class DynamicChunksPlugin {
           compilation.assets[chunk.name] = concat
 
           // This is to support, webpack dynamic import support with HMR
-          compilation.assets[`chunks/${chunk.name}`] = concat
+          const copyFilename = `chunks/${chunk.name}`
+          compilation.additionalChunkAssets.push(copyFilename)
+          compilation.assets[copyFilename] = compilation.assets[chunk.name]
         })
-
-        callback()
       })
     })
   }
