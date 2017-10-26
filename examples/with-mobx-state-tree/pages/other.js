@@ -6,13 +6,14 @@ import Page from '../components/Page'
 
 export default class Counter extends React.Component {
   static getInitialProps({ req }) {
-    const store = initStore(!!req, Date.now())
-    return { initialState: getSnapshot(store), isServer: !!req }
+    const isServer = !!req
+    const store = initStore(isServer)
+    return { initialState: getSnapshot(store), isServer }
   }
 
   constructor(props) {
     super(props)
-    this.store = initStore(props.isServer, Date.now(), props.initialState)
+    this.store = initStore(props.isServer, props.initialState)
   }
 
   render() {
