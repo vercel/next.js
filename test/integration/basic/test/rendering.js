@@ -30,7 +30,6 @@ export default function ({ app }, suiteName, render) {
 
     test('header helper dedupes tags', async () => {
       const html = await (render('/head'))
-      console.log(html)
       expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
       expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeFalsy()
       expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
