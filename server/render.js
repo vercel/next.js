@@ -70,7 +70,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component: enhancer(Component),
       props,
-      router: new Router(pathname, query)
+      router: new Router(pathname, query, asPath)
     })
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
@@ -78,16 +78,19 @@ async function doRender (req, res, pathname, query, {
     let html
     let head
     let errorHtml = ''
+
     try {
-      html = render(app)
+      if (err && dev) {
+        errorHtml = render(createElement(ErrorDebug, { error: err }))
+      } else if (err) {
+        errorHtml = render(app)
+      } else {
+        html = render(app)
+      }
     } finally {
       head = Head.rewind() || defaultHead()
     }
     const chunks = loadChunks({ dev, dir, dist, availableChunks })
-
-    if (err && dev) {
-      errorHtml = render(createElement(ErrorDebug, { error: err }))
-    }
 
     return { html, head, errorHtml, chunks }
   }

@@ -1,3 +1,5 @@
+const backgroundColor = '#eee'
+
 export default () => (
   <div className='hello'>
     <p>Hello World</p>
@@ -5,7 +7,7 @@ export default () => (
       $color: red;
 
       .hello {
-        background: #eee;
+        background-color: ${backgroundColor};
         padding: 100px;
         text-align: center;
         transition: 100ms ease-in background;

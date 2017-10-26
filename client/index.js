@@ -54,20 +54,22 @@ export let router
 export let ErrorComponent
 let ErrorDebugComponent
 let Component
+let stripAnsi = (s) => s
 
-export default async ({ ErrorDebugComponent: passedDebugComponent } = {}) => {
+export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
   }
 
+  stripAnsi = passedStripAnsi || stripAnsi
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {
     Component = await pageLoader.loadPage(pathname)
   } catch (err) {
-    console.error(`${err.message}\n${err.stack}`)
+    console.error(stripAnsi(`${err.message}\n${err.stack}`))
     Component = ErrorComponent
   }
 
@@ -119,7 +121,7 @@ export async function renderError (error) {
   ReactDOM.unmountComponentAtNode(appContainer)
 
   const errorMessage = `${error.message}\n${error.stack}`
-  console.error(errorMessage)
+  console.error(stripAnsi(errorMessage))
 
   if (prod) {
     const initProps = { err: error, pathname, query, asPath }

@@ -586,7 +586,7 @@ Next.js has an API which allows you to prefetch pages.
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
-> With prefetching Next.js only download JS code. When the page is getting rendered, you may need to wait for the data.
+> With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
 
 #### With `<Link>`
 
