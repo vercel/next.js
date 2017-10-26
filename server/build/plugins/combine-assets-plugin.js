@@ -25,6 +25,12 @@ export default class CombineAssetsPlugin {
 
         compilation.additionalChunkAssets.push(this.output)
         compilation.assets[this.output] = concat
+
+        // Register the combined file as an output of the associated chunks
+        chunks.filter((chunk) => {
+          return chunk.files.reduce((prev, file) => prev || this.input.includes(file), false)
+        })
+        .forEach((chunk) => chunk.files.push(this.output))
       })
     })
   }
