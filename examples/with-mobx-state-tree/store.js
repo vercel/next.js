@@ -30,12 +30,12 @@ const Store = types
   })
 
 
-export function initStore(isServer, lastUpdate = Date.now(), snapshot = null) {
+export function initStore(isServer, snapshot = null) {
   if (isServer) {
-    store = Store.create({ lastUpdate })
+    store = Store.create({ lastUpdate: Date.now() })
   }
   if (store === null) {
-    store = Store.create({ lastUpdate })
+    store = Store.create({ lastUpdate: Date.now() })
   }
   if (snapshot) {
     applySnapshot(store, snapshot)

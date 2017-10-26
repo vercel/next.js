@@ -13,7 +13,7 @@ export default class Counter extends React.Component {
 
   constructor(props) {
     super(props)
-    this.store = initStore(props.isServer, Date.now(), props.initialState)
+    this.store = initStore(props.isServer, props.initialState)
   }
 
   render() {
