@@ -47,7 +47,7 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should show the error on all pages', async () => {
+      it.skip('should show the error on all pages', async () => {
         const aboutPagePath = join(__dirname, '../', 'pages', 'hmr', 'about.js')
 
         const originalContent = readFileSync(aboutPagePath, 'utf8')

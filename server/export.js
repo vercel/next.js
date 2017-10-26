@@ -34,7 +34,7 @@ export default async function (dir, options, configuration) {
 
   // Copy files
   await cp(
-    join(nextDir, 'app.js'),
+    join(nextDir, 'bundles', 'app.js'),
     join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
   )
 
@@ -48,13 +48,12 @@ export default async function (dir, options, configuration) {
   }
 
   // Copy dynamic import chunks
-  if (existsSync(join(nextDir, 'chunks'))) {
+  if (existsSync(join(nextDir, 'bundles', 'chunks'))) {
     log('  copying dynamic import chunks')
 
-    await mkdirp(join(outDir, '_next', buildId, 'webpack'))
     await cp(
-      join(nextDir, 'chunks'),
-      join(outDir, '_next', buildId, 'webpack', 'chunks')
+      join(nextDir, 'bundles', 'chunks'),
+      join(outDir, '_next', buildId, 'chunks')
     )
   }
 
@@ -141,11 +140,11 @@ function copyPages (nextDir, outDir, buildId) {
       }
 
       let destFilePath = null
-      if (/index\.js$/.test(filename)) {
-        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
+      if (relativeFilePath === '/index.js') {
+        destFilePath = join(outDir, '_next', buildId, 'pages', relativeFilePath)
       } else {
-        const newRelativeFilePath = relativeFilePath.replace(/\.js/, `${sep}index.js`)
-        destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
+        const newRelativeFilePath = relativeFilePath.replace(/(index)?\.js$/, `.js`)
+        destFilePath = join(outDir, '_next', buildId, 'pages', newRelativeFilePath)
       }
 
       cp(fullFilePath, destFilePath)

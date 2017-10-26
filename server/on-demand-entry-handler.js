@@ -4,7 +4,7 @@ import { join } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
-import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
+import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE, normalizePageEntryName } from './utils'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -130,7 +130,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
       const pagePath = join(dir, 'pages', page)
       const pathname = await resolvePath(pagePath)
-      const name = join('bundles', pathname.substring(dir.length))
+      const name = normalizePageEntryName(pathname, dir)
 
       const entry = [`${pathname}?entry`]
 
@@ -258,7 +258,7 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
 function normalizePage (page) {
-  return page.replace(/\/index$/, '/')
+  return page.replace(/\.js$/, '').replace(/\/index$/, '/')
 }
 
 function sendJson (res, payload) {
