@@ -197,23 +197,27 @@ export default () =>
   </div>
 ```
 
-_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
-
-
-#### de-duping tags
-In the scenario where duplicated tags are populated in Head, if you don't want the tag to be rendered multiple times, add a `key` to it, the value of the key should be unique among other elements in all `<Head>` elements in your project
+To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
 
 ```jsx
 import Head from 'next/head'
-
-export default () =>
+export default () => (
   <div>
     <Head>
-      <link rel="stylesheet" href="/static/styles.css" key="my-style" />
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+    </Head>
+    <Head>
+      <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
     </Head>
     <p>Hello world!</p>
   </div>
+)
 ```
+
+In this case only the second `<meta name="viewport" />` is rendered.
+ 
+_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
 
