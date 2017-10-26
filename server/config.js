@@ -10,7 +10,8 @@ const defaultConfig = {
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
-  useFileSystemPublicRoutes: true
+  useFileSystemPublicRoutes: true,
+  encoding: 'utf-8'
 }
 
 export default function getConfig (dir, customConfig) {

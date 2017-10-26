@@ -915,6 +915,17 @@ module.exports = {
 }
 ```
 
+#### Setting charset in Content-Type response header
+
+You can specify the encoding in HTTP response of your pages
+
+```js
+// next.config.js
+module.exports = {
+  encoding: 'iso-8859-1' // if not set, it defaults to utf-8
+}
+```
+
 #### Setting a custom build directory
 
 You can specify a name to use for a custom build directory. For example, the following config will create a `build` folder instead of a `.next` folder. If no configuration is specified then next will create a `.next` folder.

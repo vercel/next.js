@@ -27,6 +27,11 @@ export function renderViaHTTP (appPort, pathname, query) {
   return fetch(url).then((res) => res.text())
 }
 
+export async function response (appPort, pathname, query) {
+  const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  return await fetch(url)
+}
+
 export function findPort () {
   portfinder.basePort = 20000 + Math.ceil(Math.random() * 10000)
   return portfinder.getPortPromise()
