@@ -49,7 +49,7 @@ export default ComposedComponent => {
         Head.rewind()
 
         // Extract query data from the Apollo store
-        const state = apollo.queryManager.dataStore.getCache().extract()
+        const state = apollo.cache.extract()
 
         serverState = {
           apollo: {

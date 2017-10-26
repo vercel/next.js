@@ -4,7 +4,6 @@ import Cache from 'apollo-cache-inmemory'
 import fetch from 'isomorphic-fetch'
 
 let apolloClient = null
-let apolloCache = null
 
 // Polyfill fetch() on the server (used by apollo-client)
 if (!process.browser) {
