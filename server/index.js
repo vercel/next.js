@@ -318,7 +318,7 @@ export default class Server {
     try {
       return await renderToHTML(req, res, pathname, query, this.renderOpts)
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (err && err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
@@ -370,7 +370,7 @@ export default class Server {
     try {
       return await serveStatic(req, res, path)
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (err && err.code === 'ENOENT') {
         this.render404(req, res)
       } else {
         throw err
