@@ -48,7 +48,11 @@ export default ComposedComponent => {
         Head.rewind()
 
         // Extract query data from the Apollo store
-        serverState = apollo.cache.extract()
+        serverState = {
+          apollo: {
+            data: apollo.cache.extract()
+          }
+        }
       }
 
       return {
@@ -59,7 +63,7 @@ export default ComposedComponent => {
 
     constructor (props) {
       super(props)
-      this.apollo = initApollo(this.props.serverState)
+      this.apollo = initApollo(this.props.serverState.apollo.data)
     }
 
     render () {
