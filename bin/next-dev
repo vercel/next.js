@@ -7,8 +7,6 @@ import Server from '../server'
 import { printAndExit } from '../lib/utils'
 import pkgUp from 'pkg-up'
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'development'
-
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
