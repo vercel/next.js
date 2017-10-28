@@ -1035,6 +1035,8 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
+Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
+
 Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
 
 ## Static HTML export
