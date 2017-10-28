@@ -849,10 +849,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 import React from 'react'
 
 export default class Error extends React.Component {
-  static getInitialProps({ res, jsonPageRes }) {
-    const statusCode = res
-      ? res.statusCode
-      : jsonPageRes ? jsonPageRes.status : null
+  static getInitialProps({ res, err }) {
+    const statusCode = res ? res.statusCode : err ? err.statusCode : null;
     return { statusCode }
   }
 
