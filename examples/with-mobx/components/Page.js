@@ -22,8 +22,7 @@ export default class extends Component {
         return (
             <div>
               <h1>{this.props.title}</h1>
-              <Clock lastUpdate={this.props.store.lastUpdate}
-                     light={this.props.store.light}/>
+              <Clock/>
               <br/><br/>
               <nav>
                 <Link href={this.props.linkTo}><a>Navigate</a></Link>
