@@ -1,25 +1,24 @@
-import React from 'react'
-import { Provider } from 'mobx-react'
-import { initStore } from '../store'
-import Page from '../components/Page'
+// modules
+import { Component } from 'react';
 
-export default class Counter extends React.Component {
-  static getInitialProps ({ req }) {
-    const isServer = !!req
-    const store = initStore(isServer)
-    return { lastUpdate: store.lastUpdate, isServer }
-  }
+// components
+import Page from '../components/Page';
 
-  constructor (props) {
-    super(props)
-    this.store = initStore(props.isServer, props.lastUpdate)
-  }
+// store
+import { initStore, withMobX } from '../store';
 
-  render () {
-    return (
-      <Provider store={this.store}>
-        <Page title='Index Page' linkTo='/other' />
-      </Provider>
-    )
-  }
-}
+
+export default withMobX('store', initStore)(
+    // MobX store is available within wrapped component at `this.props.store`
+    class Index extends Component {
+        render () {
+            return (
+                <div>
+                  <Page title='Index Page' linkTo='/other'/>
+                  <p>Raw clock: &nbsp;
+                    {this.props.store.lastUpdate}</p>
+                </div>
+            );
+        }
+    }
+);
