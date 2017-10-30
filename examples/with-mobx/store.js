@@ -59,12 +59,10 @@ export function withMobX(...args) {
                       _stores[name] = initStoreFns[index](isServer, name);
                       return _stores;
                   }, {}),
-                  _props = {};
-            Object.keys(props).map((key) => {
-                if (storeNames.indexOf(key) === -1) {
-                    _props[key] = props[key];
-                }
-            });
+                  _props = Object.keys(props).reduce((_props, key) => {
+                      _props[key] = props[key];
+                      return _props;
+                  }, {});
             return React.createElement(
                 Provider,
                 _stores,
@@ -75,12 +73,24 @@ export function withMobX(...args) {
             );
         }
 
-        _Page.getInitialProps = async function ({ req }) {
-            const isServer = !!req,
-                  props = { isServer };
+        _Page.getInitialProps = async function (ctx) {
+            const isServer = !!ctx.req;
+            ctx.isServer = isServer;
             storeNames.forEach((name, index) => {
-                props[name] = initStoreFns[index](isServer, name);
+                if (!ctx.hasOwnProperty(name)) {
+                    ctx[name] = initStoreFns[index](isServer, name);
+                }
             });
+            let _props = null;
+            if (typeof Page.getInitialProps === 'function') {
+                _props = await Page.getInitialProps(ctx);
+            }
+            const props = { isServer };
+            if (_props) {
+                Object.keys(_props).forEach((key) => {
+                    props[key] = _props[key];
+                });
+            }
             return props;
         };
 
