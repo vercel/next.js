@@ -33,6 +33,8 @@ export function initStore(isServer, name) {
     } else {
         if (stores === null) {
             stores = {};
+        }
+        if (!stores.hasOwnProperty(name)) {
             stores[name] = new Store();
         }
         return stores[name];
