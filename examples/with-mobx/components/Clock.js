@@ -3,8 +3,10 @@ import { inject, observer } from 'mobx-react';
 
 
 export default inject('store')(observer(({ store }) => (
+
     // MobX store is available as `store` property of props argument to wrapped
     // function component
+
     <div className={store.light ? 'light' : ''}>
       {format(new Date(store.lastUpdate))}
       <style jsx>{`

@@ -9,7 +9,9 @@ import Clock from './Clock';
 
 @inject('store') @observer
 export default class extends Component {
+
     // MobX store is available within decorated component at `this.props.store`
+
     componentDidMount () {
         this.props.store.start();
     }

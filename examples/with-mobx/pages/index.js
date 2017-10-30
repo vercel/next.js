@@ -11,9 +11,12 @@ import { initStore, withMobX } from '../store';
 
 
 export default withMobX('store', initStore, 'anotherStore', initStore)(
-    // MobX store is available within wrapped component at `this.props.store`
     class Index extends Component {
         static async getInitialProps (ctx) {
+
+            // MobX stores are available within wrapped getInitialProps at
+            // `ctx.store` and `ctx.anotherStore`
+
             return new Promise((resolve) =>{
                 setTimeout(() => resolve(
                     { myInitProp: 'TRUE',
@@ -23,6 +26,9 @@ export default withMobX('store', initStore, 'anotherStore', initStore)(
                 ));
             });
         }
+
+        // MobX stores are available within wrapped component at
+        // `this.props.store` and `this.props.anotherStore`
 
         componentDidMount () {
             this.props.anotherStore.start();
