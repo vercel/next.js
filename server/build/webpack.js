@@ -149,6 +149,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         output: 'app.js'
       }),
       new webpack.optimize.UglifyJsPlugin({
+        exclude: ['manifest.js', 'commons.js', 'main.js'],
         compress: { warnings: false },
         sourceMap: false
       })
