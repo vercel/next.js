@@ -9,8 +9,8 @@
   "dependencies": {
     "babel-plugin-styled-components": "^1.1.5",
     "next": "latest",
-    "react": "^15.6.1",
-    "react-dom": "^15.6.1",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
     "styled-components": "^2.1.0"
   },
   "license": "ISC"
