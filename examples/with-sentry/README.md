@@ -29,3 +29,5 @@ now
 ## About example
 
 This example show you how to add Sentry to catch errors in next.js
+
+You will need a Sentry DSN for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.

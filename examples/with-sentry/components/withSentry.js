@@ -1,10 +1,15 @@
 import React from 'react'
 import Raven from 'raven-js'
 
+const SENTRY_DSN = ''
+
 function withSentry (Child) {
   return class WrappedComponent extends React.Component {
     static getInitialProps (context) {
-      return Child.getInitialProps(context)
+      if (Child.getInitialProps) {
+        return Child.getInitialProps(context)
+      }
+      return {}
     }
     constructor (props) {
       super(props)
@@ -12,8 +17,7 @@ function withSentry (Child) {
         error: null
       }
       Raven.config(
-        // change this for your Sentry DSN
-        'https://cb0826e4617043e1bdafcb519df0992b@sentry.io/237733'
+        SENTRY_DSN
       ).install()
     }
 
@@ -23,7 +27,7 @@ function withSentry (Child) {
     }
 
     render () {
-      return <Child {...this.props} />
+      return <Child {...this.props} error={this.state.error} />
     }
   }
 }
