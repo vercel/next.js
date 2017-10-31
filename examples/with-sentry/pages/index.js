@@ -7,7 +7,7 @@ class Index extends React.Component {
     return { isServer }
   }
 
-  onClickHandler() {
+  onClickHandler () {
     throw new Error('woops')
   }
 

@@ -1,12 +1,12 @@
 import React from 'react'
 import Raven from 'raven-js'
 
-function withSentry(Child) {
+function withSentry (Child) {
   return class WrappedComponent extends React.Component {
-    static getInitialProps(context) {
+    static getInitialProps (context) {
       return Child.getInitialProps(context)
     }
-    constructor(props) {
+    constructor (props) {
       super(props)
       this.state = {
         error: null
@@ -17,13 +17,13 @@ function withSentry(Child) {
       ).install()
     }
 
-    componentDidCatch(error, errorInfo) {
+    componentDidCatch (error, errorInfo) {
       this.setState({ error })
       Raven.captureException(error, { extra: errorInfo })
     }
 
-    render() {
-      return <Child {...this.props} />;
+    render () {
+      return <Child {...this.props} />
     }
   }
 }
