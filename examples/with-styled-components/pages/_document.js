@@ -5,7 +5,7 @@ export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
     const sheet = new ServerStyleSheet()
     const page = renderPage(App => props => sheet.collectStyles(<App {...props} />))
-    const styleTags = sheet.getStyleElement()
+    const styleTags = sheet.getStyleTags()
     return { ...page, styleTags }
   }
 
@@ -14,7 +14,7 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          {this.props.styleTags}
+          <style dangerouslySetInnerHTML={{ __html: this.props.styleTags }} />
         </Head>
         <body>
           <Main />
