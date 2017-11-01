@@ -1,6 +1,8 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-apollo-auth)
 # Apollo With Authentication Example
 
+Note: This example uses an older version of Apollo Client (version 1.0)
+
 ## Demo
 
 https://next-with-apollo-auth.now.sh
