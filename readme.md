@@ -197,6 +197,26 @@ export default () =>
   </div>
 ```
 
+To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
+
+```jsx
+import Head from 'next/head'
+export default () => (
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+    </Head>
+    <Head>
+      <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
+)
+```
+
+In this case only the second `<meta name="viewport" />` is rendered.
+ 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
