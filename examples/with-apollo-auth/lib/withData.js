@@ -3,7 +3,7 @@ import cookie from 'cookie'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 
-import initApollo from './init-apollo'
+import initApollo from './initApollo'
 
 function parseCookies (ctx = {}, options = {}) {
   return cookie.parse(
