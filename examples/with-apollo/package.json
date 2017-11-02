@@ -11,7 +11,7 @@
     "graphql": "^0.11.7",
     "graphql-anywhere": "^3.1.0",
     "graphql-tag": "^2.5.0",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "prop-types": "^15.5.8",
     "react": "^16.0.0",

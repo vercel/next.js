@@ -893,7 +893,7 @@ If you want to render the built-in error page you can by using `next/error`:
 ```jsx
 import React from 'react'
 import Error from 'next/error'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 export default class Page extends React.Component {
   static async getInitialProps() {

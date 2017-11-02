@@ -12,7 +12,7 @@
   "dependencies": {
     "cookie": "^0.3.1",
     "graphql": "^0.9.3",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "prop-types": "^15.5.10",
     "react": "^15.5.4",

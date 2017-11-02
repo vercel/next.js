@@ -2,7 +2,7 @@
   "main": "server.js",
   "dependencies": {
     "express": "^4.15.3",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "beta",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
