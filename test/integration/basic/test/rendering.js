@@ -1,4 +1,4 @@
-/* global describe, test, expect */
+/* global describe, test, it, expect */
 
 import cheerio from 'cheerio'
 
@@ -30,10 +30,10 @@ export default function ({ app }, suiteName, render) {
 
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
-      const styleId = $('#blue-box').attr('data-jsx')
-      const style = $(`#__jsx-style-${styleId}`)
+      const styleId = $('#blue-box').attr('class')
+      const style = $('style')
 
-      expect(style.text()).toMatch(/color:blue/)
+      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {
@@ -78,6 +78,20 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/non-existent')
       expect($('h1').text()).toBe('404')
       expect($('h2').text()).toBe('This page could not be found.')
+    })
+
+    describe('with the HOC based router', () => {
+      it('should navigate as expected', async () => {
+        const $ = await get$('/nav/with-hoc')
+
+        expect($('#pathname').text()).toBe('Current path: /nav/with-hoc')
+      })
+
+      it('should include asPath', async () => {
+        const $ = await get$('/nav/with-hoc')
+
+        expect($('#asPath').text()).toBe('Current asPath: /nav/with-hoc')
+      })
     })
   })
 }

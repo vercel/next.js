@@ -14,6 +14,7 @@ Install it and run:
 
 ```bash
 npm install
+npm run build
 npm run dev
 ```
 
@@ -22,6 +23,14 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
+### Recommendation:
+
+Run BuckleScript build system `bsb -w` and `next -w` separately. For the sake
+of simple convention, `npm run dev` run both `bsb` and `next` concurrently.
+However, this doesn't offer the full [colorful and very, very, veeeery nice
+error
+output](https://reasonml.github.io/community/blog/#way-way-waaaay-nicer-error-messages)
+experience that ReasonML can offer, don't miss it!
 
 ## The idea behind the example
 
@@ -29,4 +38,6 @@ This example features:
 
 * An app that mixes together JavaScript and ReasonML components and functions
 * An app with two pages which has a common Counter component
-* That Counter component maintain the counter inside its module. This is used primarily to illustrate that modules get initialized once and their state variables persist in runtime
+* That Counter component maintain the counter inside its module. This is used
+  primarily to illustrate that modules get initialized once and their state
+  variables persist in runtime

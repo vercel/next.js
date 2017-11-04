@@ -55,6 +55,9 @@ if (commands.has(cmd)) {
   args = process.argv.slice(2)
 }
 
+const defaultEnv = cmd === 'dev' ? 'development' : 'production'
+process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
+
 const bin = join(__dirname, 'next-' + cmd)
 
 const startProcess = () => {
