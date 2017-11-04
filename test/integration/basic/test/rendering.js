@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 
-export default function ({ app }, suiteName, render) {
+export default function ({ app }, suiteName, render, response) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -88,6 +88,11 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/non-existent')
       expect($('h1').text()).toBe('404')
       expect($('h2').text()).toBe('This page could not be found.')
+    })
+
+    test('sets content-type with encoding', async () => {
+      const resp = await response('/index')
+      expect(resp.headers.get('content-type')).toEqual('text/html; charset=iso-8859-1')
     })
 
     describe('with the HOC based router', () => {

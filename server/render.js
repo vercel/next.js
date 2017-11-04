@@ -168,7 +168,7 @@ export async function renderScriptError (req, res, page, error, customFields, { 
   `)
 }
 
-export function sendHTML (req, res, html, method, { dev }) {
+export function sendHTML (req, res, html, method, { dev, encoding }) {
   if (res.finished) return
   const etag = generateETag(html)
 
@@ -185,7 +185,7 @@ export function sendHTML (req, res, html, method, { dev }) {
   }
 
   res.setHeader('ETag', etag)
-  res.setHeader('Content-Type', 'text/html')
+  res.setHeader('Content-Type', `text/html; charset=${encoding}`)
   res.setHeader('Content-Length', Buffer.byteLength(html))
   res.end(method === 'HEAD' ? null : html)
 }

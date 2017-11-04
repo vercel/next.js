@@ -72,7 +72,8 @@ export default class Server {
       buildStats: this.buildStats,
       buildId: this.buildId,
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
-      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist),
+      encoding: this.config.encoding
     }
 
     this.defineRoutes()
