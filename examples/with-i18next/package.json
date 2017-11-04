@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "i18next": "^7.1.3",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",

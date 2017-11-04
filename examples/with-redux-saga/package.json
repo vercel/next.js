@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "es6-promise": "4.1.1",
-    "isomorphic-fetch": "2.2.1",
+    "isomorphic-unfetch": "2.0.0",
     "next": "latest",
     "next-redux-saga": "1.0.1",
     "next-redux-wrapper": "1.2.0",
