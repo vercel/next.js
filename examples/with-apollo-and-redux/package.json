@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "graphql": "^0.9.3",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "prop-types": "^15.5.8",
     "react": "^16.0.0",
