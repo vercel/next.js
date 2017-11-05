@@ -1,11 +1,12 @@
 {
+  "name": "with-static-export",
   "main": "server.js",
   "dependencies": {
     "express": "^4.15.3",
     "isomorphic-unfetch": "^2.0.0",
-    "next": "beta",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4",
+    "next": "latest",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
     "serve": "^5.2.2"
   },
   "scripts": {

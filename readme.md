@@ -1190,6 +1190,8 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 - [with-external-scoped-css](./examples/with-external-scoped-css)
 - [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
 - [with-global-stylesheet](./examples/with-global-stylesheet)
+- [with-styled-jsx-scss](./examples/with-styled-jsx-scss)
+- [with-styled-jsx-plugins](./examples/with-styled-jsx-plugins)
 
 </details>
 

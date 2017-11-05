@@ -15,9 +15,9 @@
     "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "prop-types": "^15.5.10",
-    "react": "^15.5.4",
+    "react": "^16.0.0",
     "react-apollo": "^1.1.3",
-    "react-dom": "^15.5.4"
+    "react-dom": "^16.0.0"
   },
   "devDependencies": {
     "ava": "^0.19.1",
