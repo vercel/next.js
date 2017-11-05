@@ -11,7 +11,7 @@ app.prepare()
   const server = fastify()
 
   server.get('/a', (req, res) => {
-    return app.render(req.req, res.res, '/b', req.query)
+    return app.render(req.req, res.res, '/a', req.query)
   })
 
   server.get('/b', (req, res) => {
