@@ -1,6 +1,6 @@
 import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
-import { realPathSync } from 'fs'
+import { realpathSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -29,7 +29,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 const relativeResolve = rootModuleRelativePath(require)
 
 export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
-  dir = realPathSync(resolve(dir))
+  dir = realpathSync(resolve(dir))
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
