@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 
-export default function ({ app }, suiteName, render) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -61,6 +61,16 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
       expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+    })
+
+    test('default Content-Type', async () => {
+      const res = await fetch('/stateless')
+      expect(res.headers.get('Content-Type')).toMatch('text/html')
+    })
+
+    test('setting Content-Type in getInitialProps', async () => {
+      const res = await fetch('/custom-encoding')
+      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
     })
 
     test('allows to import .json files', async () => {

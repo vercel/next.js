@@ -6071,9 +6071,9 @@ strip-json-comments@~2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/strip-json-comments/-/strip-json-comments-2.0.1.tgz#3c531942e908c2697c0ec344858c286c7ca0a60a"
 
-styled-jsx@2.1.1:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-2.1.1.tgz#e7481c7554df50d605cdc84a4e53c58fec3449b5"
+styled-jsx@2.1.2:
+  version "2.1.2"
+  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-2.1.2.tgz#c84823402678022355b090d98d959ba126b97911"
   dependencies:
     babel-plugin-syntax-jsx "6.18.0"
     babel-types "6.23.0"
