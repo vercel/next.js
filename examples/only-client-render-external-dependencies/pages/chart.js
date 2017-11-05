@@ -3,7 +3,7 @@ let LineChart
 let Line
 class Chart extends React.Component {
   constructor () {
-    super();
+    super()
     this.state = {
       chart: false,
       data: [
@@ -13,15 +13,15 @@ class Chart extends React.Component {
         {name: 'Page D', uv: 2780, pv: 3908, amt: 2000},
         {name: 'Page E', uv: 1890, pv: 4800, amt: 2181},
         {name: 'Page F', uv: 2390, pv: 3800, amt: 2500},
-        {name: 'Page G', uv: 3490, pv: 4300, amt: 2100},
+        {name: 'Page G', uv: 3490, pv: 4300, amt: 2100}
       ]
     }
   }
 
-  componentDidMount() {
-    LineChart = require('recharts').LineChart;
-    Line = require('recharts').Line;
-    
+  componentDidMount () {
+    LineChart = require('recharts').LineChart
+    Line = require('recharts').Line
+
     this.setState({
       chart: true
     })
@@ -31,9 +31,9 @@ class Chart extends React.Component {
     return (
       <div>
         <h1>Another chart</h1>
-        {this.state.chart == true &&
+        {this.state.chart &&
           <LineChart width={400} height={400} data={this.state.data}>
-            <Line type="monotone" dataKey="uv" stroke="#8884d8" />
+            <Line type='monotone' dataKey='uv' stroke='#8884d8' />
           </LineChart>
         }
       </div>
