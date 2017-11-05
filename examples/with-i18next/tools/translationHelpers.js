@@ -1,5 +1,5 @@
 /* global fetch */
-import 'isomorphic-fetch'
+import 'isomorphic-unfetch'
 
 /**
  * Fetch translation file(s).
