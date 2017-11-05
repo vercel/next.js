@@ -26,16 +26,12 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic idea of babel replacement from multiple environment. We have 1 env variable: `TEST` which will be replaced in development env and in production env with different babel plugin. In local development, babel reads .env file and replace process.env.* in your nextjs files. In production env (such as heroku), babel reads the ENV and replace process.env.* in your nextjs files. Thus no more needed to commit your secrets anymore.
+This example shows how to use .env files to specify environment variables. It handles both variables already in the environment and variables defined in a `.env` file.
+
+This example showcases using a `.env.production` file for environment configuration, but it can use the same file – and/or simple environment variables.
+
+Instead of overriding `process.env.*`, it provides a fake `@env` module which you can load the environment variables from.
+
+This is of course [all configurable](https://github.com/tusbar/babel-plugin-dotenv-import).
 
 Of course, please put .env* in your .gitignore when using this example locally.
-
-## Troubleshooting
-
-### Environment variables not showing on the page
-
-If for some reason the variable is not displayed on the page, try clearing the `babel-loader` cache:
-
-```
-rm -rf ./node_modules/.cache/babel-loader
-```

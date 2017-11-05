@@ -1,3 +1,5 @@
+import { TEST } from '@env'
+
 export default () => (
-  <div>{ process.env.TEST }</div>
+  <div>{ TEST }</div>
 )
