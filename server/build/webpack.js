@@ -49,7 +49,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       ]
     }
 
-    const pages = await glob('pages/**/*.js', { cwd: dir })
+    const pages = await glob(config.pagesGlobPattern, { cwd: dir })
     const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
