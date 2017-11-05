@@ -1,10 +1,13 @@
 import 'react-hot-loader/patch'
+import stripAnsi from 'strip-ansi'
+import initNext, * as next from './'
+import ErrorDebugComponent from '../lib/error-debug'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
-const next = window.next = require('./')
+window.next = next
 
-next.default()
+initNext({ ErrorDebugComponent, stripAnsi })
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()
@@ -32,5 +35,5 @@ next.default()
     })
   })
   .catch((err) => {
-    console.error(`${err.message}\n${err.stack}`)
+    console.error(stripAnsi(`${err.message}\n${err.stack}`))
   })

@@ -1,3 +1,3 @@
-import { jsComponent as Index } from './index.re'
+import { jsComponent as Index } from './Index.re'
 
 export default () => <Index />

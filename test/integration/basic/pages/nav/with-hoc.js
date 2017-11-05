@@ -8,7 +8,8 @@ const Link = withRouter(({router, children, href}) => {
 
   return (
     <div>
-      <span>Current path: {router.pathname}</span>
+      <span id='pathname'>Current path: {router.pathname}</span>
+      <span id='asPath'>Current asPath: {router.asPath}</span>
       <a href='#' onClick={handleClick}>{children}</a>
     </div>
   )

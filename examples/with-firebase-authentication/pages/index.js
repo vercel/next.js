@@ -6,8 +6,10 @@ import clientCredentials from '../credentials/client'
 export default class Index extends Component {
   static async getInitialProps ({req, query}) {
     const user = req && req.session ? req.session.decodedToken : null
-    const snap = await req.firebaseServer.database().ref('messages').once('value')
-    return { user, messages: snap.val() }
+    // don't fetch anything from firebase if the user is not found
+    const snap = user && await req.firebaseServer.database().ref('messages').once('value')
+    const messages = snap && snap.val()
+    return { user, messages }
   }
 
   constructor (props) {
