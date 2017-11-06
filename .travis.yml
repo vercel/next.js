@@ -18,39 +18,18 @@
     "sh -e /etc/init.d/xvfb start",
     "sleep 3"
   ],
-  install: [
-    "git clone https://github.com/$TRAVIS_REPO_SLUG.git $TRAVIS_REPO_SLUG",
-    "cd $TRAVIS_REPO_SLUG",
-    "yarn"
-  ],
   after_script: ["npm run coveralls"],
-  deploy: [
-    {
-      provider: "npm",
-      email: "leo@zeit.co",
-      api_key: {
-        secure:
-          "br9gLncKeLSoL7iOq0PXFeD1Gp3jRI8QMCSNIrGdZg/MuLeuwYPv36kmMgf7aGIfpjFLtU2/eVrOHSB+T5g1nKgOsqmWsfZE1tQYWph0//ookd/sj+IyxIx8nVLbUV/C4ctYOhX/efotRgNn56w5Av5hWc1IQLmW9mSN8ijrQnM+GzRI8QitiofeY2EP3N1eO8vC8E2oGkOsAdcypiX6lFG908zyWt7X2SD+iOsK2eAHjxoAEUdrxE5a8gTDhcTH6qnmtBs9rCeEKbO3JZjEy5dvccxlX3Nd+2GC1rckayk6o5L/zveTilsUx6Auqqbwn1dT5ffQuYsV4RPofs8IMrhnizc8y+OfUcCCpBJ4ia4w7N8FEP56TnRNTFoFBGJL5Y6NfeT0HHAlClxUWMG9pRGWGN+sskODDQ9FEntGZoqwV396ogs+3YhkxbY0AIr84QOctflsFcPtOgr/CoBeOsjbB+o9+Rlsqwlf3u3B7qhtU9eV6KcMfK4x9qW+2cwTllK+gD8S9wILx5BChkfx99g/7u/Rg1PCym64tTsDOBtqTVC2YCqeYYvjmpw4Vl3ofLrFsoNQnbmb6Q5+JSpOcJ/bEj7P/FuZdlU0fNV28tFhElu5caKhSCJz/avUlXG7NeveW1Ee8gjhURC4V/l4ryacyjA2vcDY/4RRkWtHNr4="
-      },
-      skip_cleanup: true,
-      on: {
-        condition: '"$(git rev-parse --abbrev-ref HEAD)" == "master"',
-        tags: true
-      }
+  deploy: {
+    provider: "npm",
+    email: "leo@zeit.co",
+    tag: "canary",
+    api_key: {
+      secure:
+        "br9gLncKeLSoL7iOq0PXFeD1Gp3jRI8QMCSNIrGdZg/MuLeuwYPv36kmMgf7aGIfpjFLtU2/eVrOHSB+T5g1nKgOsqmWsfZE1tQYWph0//ookd/sj+IyxIx8nVLbUV/C4ctYOhX/efotRgNn56w5Av5hWc1IQLmW9mSN8ijrQnM+GzRI8QitiofeY2EP3N1eO8vC8E2oGkOsAdcypiX6lFG908zyWt7X2SD+iOsK2eAHjxoAEUdrxE5a8gTDhcTH6qnmtBs9rCeEKbO3JZjEy5dvccxlX3Nd+2GC1rckayk6o5L/zveTilsUx6Auqqbwn1dT5ffQuYsV4RPofs8IMrhnizc8y+OfUcCCpBJ4ia4w7N8FEP56TnRNTFoFBGJL5Y6NfeT0HHAlClxUWMG9pRGWGN+sskODDQ9FEntGZoqwV396ogs+3YhkxbY0AIr84QOctflsFcPtOgr/CoBeOsjbB+o9+Rlsqwlf3u3B7qhtU9eV6KcMfK4x9qW+2cwTllK+gD8S9wILx5BChkfx99g/7u/Rg1PCym64tTsDOBtqTVC2YCqeYYvjmpw4Vl3ofLrFsoNQnbmb6Q5+JSpOcJ/bEj7P/FuZdlU0fNV28tFhElu5caKhSCJz/avUlXG7NeveW1Ee8gjhURC4V/l4ryacyjA2vcDY/4RRkWtHNr4="
     },
-    {
-      provider: "npm",
-      email: "leo@zeit.co",
-      tag: "canary",
-      api_key: {
-        secure:
-          "br9gLncKeLSoL7iOq0PXFeD1Gp3jRI8QMCSNIrGdZg/MuLeuwYPv36kmMgf7aGIfpjFLtU2/eVrOHSB+T5g1nKgOsqmWsfZE1tQYWph0//ookd/sj+IyxIx8nVLbUV/C4ctYOhX/efotRgNn56w5Av5hWc1IQLmW9mSN8ijrQnM+GzRI8QitiofeY2EP3N1eO8vC8E2oGkOsAdcypiX6lFG908zyWt7X2SD+iOsK2eAHjxoAEUdrxE5a8gTDhcTH6qnmtBs9rCeEKbO3JZjEy5dvccxlX3Nd+2GC1rckayk6o5L/zveTilsUx6Auqqbwn1dT5ffQuYsV4RPofs8IMrhnizc8y+OfUcCCpBJ4ia4w7N8FEP56TnRNTFoFBGJL5Y6NfeT0HHAlClxUWMG9pRGWGN+sskODDQ9FEntGZoqwV396ogs+3YhkxbY0AIr84QOctflsFcPtOgr/CoBeOsjbB+o9+Rlsqwlf3u3B7qhtU9eV6KcMfK4x9qW+2cwTllK+gD8S9wILx5BChkfx99g/7u/Rg1PCym64tTsDOBtqTVC2YCqeYYvjmpw4Vl3ofLrFsoNQnbmb6Q5+JSpOcJ/bEj7P/FuZdlU0fNV28tFhElu5caKhSCJz/avUlXG7NeveW1Ee8gjhURC4V/l4ryacyjA2vcDY/4RRkWtHNr4="
-      },
-      skip_cleanup: true,
-      on: {
-        condition: '"$(git rev-parse --abbrev-ref HEAD)" == "canary"',
-        tags: true
-      }
+    skip_cleanup: true,
+    on: {
+      tags: true
     }
-  ]
+  }
 }
