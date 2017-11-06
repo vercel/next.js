@@ -12,7 +12,7 @@
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
-    "react-i18next": "^2.2.1"
+    "react-i18next": "^6.1.0"
   },
   "license": "ISC"
 }
