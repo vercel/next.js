@@ -4,5 +4,9 @@
         "target": "es2015",
         "jsx": "react",
         "allowJs": true
-    }
+    },
+    "exclude":[
+        "node_modules",
+        "out/**"
+    ]
 }
