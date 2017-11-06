@@ -417,7 +417,7 @@ export default class Server {
       return false
     }
 
-    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    res.setHeader('Cache-Control', 'max-age=31536000, immutable')
     return true
   }
 
@@ -441,7 +441,7 @@ export default class Server {
       throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
     }
 
-    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+    res.setHeader('Cache-Control', 'max-age=31536000, immutable')
     return true
   }
 
