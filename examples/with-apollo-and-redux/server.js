@@ -38,38 +38,3 @@ app.prepare().then(() => {
     })
 })
 
-
-// /**
-//  * Parameterized Routing without next-route
-//  *
-//  * Benefits: More control, but more verbose and less featured
-//  */
-//
-// const {parse} = require('url')
-// const handle = app.getRequestHandler()
-//
-// const pathMatch = require('path-match')()
-// var routes = [
-//   {match: pathMatch('/blog/:id'), page: '/blog/entry'},
-// ]
-//
-// app.prepare()
-//   .then(() => {
-//     createServer((req, res) => {
-//       const {pathname, query} = parse(req.url, true)
-//       // If route matches, render and return
-//       for (var route of routes) {
-//         var params = route.match(pathname)
-//         if (params !== false) {
-//           app.render(req, res, route.page, Object.assign(params, query))
-//           return
-//         }
-//       }
-//       // Else, render as usual
-//       return handle(req, res)
-//     })
-//       .listen(port, (err) => {
-//         if (err) throw err
-//         console.log(`> Ready on http://localhost:${port}`)
-//       })
-//   })
