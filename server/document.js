@@ -118,7 +118,8 @@ export class Main extends Component {
 
 export class NextScript extends Component {
   static propTypes = {
-    nonce: PropTypes.string
+    nonce: PropTypes.string,
+    postpone: PropTypes.bool
   }
 
   static contextTypes = {
@@ -158,49 +159,73 @@ export class NextScript extends Component {
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix, buildId } = __NEXT_DATA__
-    return (
-      <div>
-        {chunks.map((chunk) => (
-          <script
-            async
-            key={chunk}
-            type='text/javascript'
-            src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
-          />
-        ))}
-      </div>
-    )
+    return chunks.map((chunk) => (
+      <script
+        async
+        key={chunk}
+        type='text/javascript'
+        src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+      />
+    ))
   }
 
   render () {
+    const { nonce, postpone } = this.props
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
     const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
     __NEXT_DATA__.chunks = chunks
 
-    return <div>
-      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-          module={}
-          __NEXT_LOADED_PAGES__ = []
-          __NEXT_LOADED_CHUNKS__ = []
-
-          __NEXT_REGISTER_PAGE = function (route, fn) {
-            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }
-
-          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
-            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
-          }
-        `
-      }} />}
-      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
+    const scripts = [
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />,
       <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
-      {staticMarkup ? null : this.getDynamicChunks()}
-      {staticMarkup ? null : this.getScripts()}
-    </div>
+    ]
+
+    if (staticMarkup) {
+      return <div>{scripts}</div>
+    }
+
+    scripts.push(
+      ...this.getDynamicChunks(),
+      ...this.getScripts()
+    )
+
+    return <script nonce={nonce} dangerouslySetInnerHTML={{
+      __html: `
+        __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+        module={}
+        __NEXT_LOADED_PAGES__ = []
+        __NEXT_LOADED_CHUNKS__ = []
+
+        __NEXT_REGISTER_PAGE = function (route, fn) {
+          __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+        }
+
+        __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+          __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
+        }
+
+        __NEXT_START = function () {
+          delete window.__NEXT_START
+          var scripts = document.getElementsByTagName('script')
+          var el = scripts[scripts.length - 1]
+          ;${htmlescape(scripts.map(script => [
+            script.props.src,
+            script.props.id,
+            script.props.async
+          ]))}.map(function (x) {
+            var s = document.createElement('script')
+            s.src = x[0]
+            if (x[1]) s.id = x[1]
+            s.async = x[2]
+            el.parentNode.insertBefore(s, el)
+          })
+        }
+
+        ${postpone ? '' : '__NEXT_START()'}
+      `
+    }} />
   }
 }
 
