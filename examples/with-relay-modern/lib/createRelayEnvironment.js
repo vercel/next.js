@@ -1,5 +1,5 @@
 import { Environment, Network, RecordSource, Store } from 'relay-runtime'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 let relayEnvironment = null
 

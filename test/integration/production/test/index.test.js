@@ -117,6 +117,9 @@ describe('Production Usage', () => {
       const req = { url: '/stateless', headers: {} }
       const headers = {}
       const res = {
+        getHeader (key) {
+          return headers[key]
+        },
         setHeader (key, value) {
           headers[key] = value
         },
@@ -132,6 +135,9 @@ describe('Production Usage', () => {
       const originalConfigValue = app.config.poweredByHeader
       app.config.poweredByHeader = false
       const res = {
+        getHeader () {
+          return false
+        },
         setHeader (key, value) {
           if (key === 'X-Powered-By') {
             throw new Error('Should not set the X-Powered-By header')

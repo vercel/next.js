@@ -1,7 +1,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import 'isomorphic-fetch'
+import 'isomorphic-unfetch'
 
 export default class MyPage extends React.Component {
   static async getInitialProps () {
