@@ -474,15 +474,15 @@ This uses of the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
+- `onRouteChangeStart(url)` - Fires when a route starts to change
+- `onRouteChangeComplete(url)` - Fires when a route changed completely
+- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
+- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onAppUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `onRouteChangeStart`:
 
 ```js
 Router.onRouteChangeStart = url => {
