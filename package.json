@@ -132,6 +132,7 @@
     "react-dom": "16.0.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
+    "uglifyjs-webpack-plugin": "^1.0.0-beta.3",
     "wd": "1.4.1"
   },
   "peerDependencies": {
