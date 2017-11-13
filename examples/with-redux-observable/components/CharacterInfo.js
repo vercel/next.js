@@ -1,13 +1,11 @@
-import React from 'react';
-import { connect } from 'react-redux';
+import React from 'react'
+import { connect } from 'react-redux'
 
-const CharacterInfo = ({ character, error, fetchCharacter, isFetchedOnServer = false }) => (
-  <div className="CharacterInfo">
+const CharacterInfo = ({character, error, fetchCharacter, isFetchedOnServer = false}) => (
+  <div className='CharacterInfo'>
     {
-      error ?
-        <p>We encountered and error.</p>
-        :
-        <article>
+      error ? <p>We encountered and error.</p>
+        : <article>
           <h3>Character: {character.name}</h3>
           <p>birth year: {character.birth_year}</p>
           <p>gender: {character.gender}</p>
@@ -16,7 +14,10 @@ const CharacterInfo = ({ character, error, fetchCharacter, isFetchedOnServer = f
         </article>
 
     }
-    <p>( was character fetched on server? - <b>{isFetchedOnServer.toString()} )</b></p>
+    <p>
+      ( was character fetched on server? -
+      <b>{isFetchedOnServer.toString()})</b>
+    </p>
     <style jsx>{`
       article {
         background-color: #528CE0;
@@ -31,12 +32,12 @@ const CharacterInfo = ({ character, error, fetchCharacter, isFetchedOnServer = f
       }
     `}</style>
   </div>
-);
+)
 
 export default connect(
   state => ({
     character: state.character,
     error: state.error,
-    isFetchedOnServer: state.isFetchedOnServer,
+    isFetchedOnServer: state.isFetchedOnServer
   }),
-)(CharacterInfo);
+)(CharacterInfo)
