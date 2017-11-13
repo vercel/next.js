@@ -6,6 +6,7 @@ import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
+import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
@@ -150,9 +151,8 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
-      new webpack.optimize.UglifyJsPlugin({
-        exclude: ['manifest.js', 'commons.js', 'main.js'],
-        compress: { warnings: false },
+      new UglifyJSPlugin({
+        parallel: true,
         sourceMap: false
       })
     )
