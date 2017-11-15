@@ -54,7 +54,13 @@ export default ComposedComponent => {
             <ComposedComponent url={url} {...composedInitialProps} />
           </ApolloProvider>
         )
-        await getDataFromTree(app)
+        await getDataFromTree(app, {
+          router: {
+            query: context.query,
+            pathname: context.pathname,
+            asPath: context.asPath
+          }
+        })
 
         // Extract query data from the Apollo's store
         const state = apollo.getInitialState()
