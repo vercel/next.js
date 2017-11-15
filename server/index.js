@@ -37,7 +37,8 @@ const internalPrefixes = [
 
 const blockedPages = {
   '/_document': true,
-  '/_error': true
+  '/_error': true,
+  '/_layout': true
 }
 
 export default class Server {
