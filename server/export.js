@@ -110,7 +110,8 @@ export default async function (dir, options, configuration) {
 
   // We need this for server rendering the Link component.
   global.__NEXT_DATA__ = {
-    nextExport: true
+    nextExport: true,
+    nextExportTrailingSlashes: nextConfig.exportTrailingSlashes
   }
 
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
