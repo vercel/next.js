@@ -50,11 +50,18 @@ export default ComposedComponent => {
         const url = { query: context.query, pathname: context.pathname }
         try {
           // Run all GraphQL queries
-          await getDataFromTree(
+          const app = (
             <ApolloProvider client={apollo}>
               <ComposedComponent url={url} {...composedInitialProps} />
             </ApolloProvider>
           )
+          await getDataFromTree(app, {
+            router: {
+              query: context.query,
+              pathname: context.pathname,
+              asPath: context.asPath
+            }
+          })
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
           // Handle them in components via the data.error prop:
