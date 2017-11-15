@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import parseArgs from 'minimist'
