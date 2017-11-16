@@ -72,11 +72,7 @@ export default ComposedComponent => {
         Head.rewind()
 
         // Extract query data from the Apollo's store
-        serverState = {
-          apollo: {
-            data: apollo.cache.extract()
-          }
-        }
+        serverState = apollo.cache.extract()
       }
 
       return {
@@ -91,7 +87,7 @@ export default ComposedComponent => {
       // render within `getInitialProps()` above (since the entire prop tree
       // will be initialized there), meaning the below will only ever be
       // executed on the client.
-      this.apollo = initApollo(this.props.serverState.data, {
+      this.apollo = initApollo(this.props.serverState, {
         getToken: () => parseCookies().token
       })
     }
