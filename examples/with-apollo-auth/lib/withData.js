@@ -3,7 +3,7 @@ import cookie from 'cookie'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 
-import initApollo from './init-apollo'
+import initApollo from './initApollo'
 
 function parseCookies (ctx = {}, options = {}) {
   return cookie.parse(
@@ -54,7 +54,13 @@ export default ComposedComponent => {
             <ComposedComponent url={url} {...composedInitialProps} />
           </ApolloProvider>
         )
-        await getDataFromTree(app)
+        await getDataFromTree(app, {
+          router: {
+            query: context.query,
+            pathname: context.pathname,
+            asPath: context.asPath
+          }
+        })
 
         // Extract query data from the Apollo's store
         const state = apollo.getInitialState()
