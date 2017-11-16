@@ -33,7 +33,7 @@ export default class Index extends Component {
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         this.setState({ user: user })
-        return user.getToken()
+        return user.getIdToken()
           .then((token) => {
             // eslint-disable-next-line no-undef
             return fetch('/api/login', {
