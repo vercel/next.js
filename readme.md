@@ -162,7 +162,7 @@ It's possible to use any existing CSS-in-JS solution. The simplest one is inline
 export default () => <p style={{ color: 'red' }}>hi there</p>
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
 
 ### Static file serving (e.g.: images)
 
