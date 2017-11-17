@@ -9,14 +9,14 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "16.1.0",
-    "react-dom": "16.1.0"
+    "react": "^16.1.0",
+    "react-dom": "^16.1.0"
   },
   "devDependencies": {
-    "@types/node": "8.0.51",
-    "@types/react": "16.0.22",
+    "@types/next": "^2.4.5",
+    "@types/react": "^16.0.22",
     "concurrently": "^3.5.0",
-    "tslint": "5.8.0",
-    "typescript": "2.6.1"
+    "tslint": "^5.8.0",
+    "typescript": "^2.6.1"
   }
 }
