@@ -1,0 +1,17 @@
+{
+  "name": "next-coffeescript2",
+  "version": "0.0.1",
+  "dependencies": {
+    "coffeescript": "^2.0.0",
+    "concurrently": "^3.5.0",
+    "next": "^3.2.2",
+    "react": "^15.6.2",
+    "react-dom": "^15.6.2"
+  },
+  "scripts": {
+    "dev": "concurrently 'coffee -bcw --no-header .' 'next' -r",
+    "build": "coffee -bc --no-header . && next build",
+    "start": "coffee -bc --no-header . && next start",
+    "export": "coffee -bc --no-header . && next export"
+  }
+}
