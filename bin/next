@@ -28,6 +28,7 @@ const commands = new Set([
 
 let cmd = process.argv[2]
 let args = []
+let nodeArgs = []
 
 if (new Set(['--version', '-v']).has(cmd)) {
   console.log(`next.js v${pkg.version}`)
@@ -35,8 +36,7 @@ if (new Set(['--version', '-v']).has(cmd)) {
 }
 
 if (new Set(process.argv).has('--inspect')) {
-  args.push('--inspect')
-  process.argv = process.argv.filter(argument => argument !== '--inspect')
+  nodeArgs.push('--inspect')
 }
 
 if (new Set(['--help', '-h']).has(cmd)) {
@@ -54,21 +54,19 @@ if (new Set(['--help', '-h']).has(cmd)) {
 }
 
 if (commands.has(cmd)) {
-  args = args.concat(process.argv.slice(3))
+  args = process.argv.slice(3)
 } else {
   cmd = defaultCommand
-  args = args.concat(process.argv.slice(2))
+  args = process.argv.slice(2)
 }
 
 const defaultEnv = cmd === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-const node = process.argv[0]
 const bin = join(__dirname, 'next-' + cmd)
-args.push(bin)
 
 const startProcess = () => {
-  const proc = spawn(node, args, { stdio: 'inherit', customFds: [0, 1, 2] })
+  const proc = spawn('node', [...nodeArgs, ...[bin], ...args], { stdio: 'inherit', customFds: [0, 1, 2] })
   proc.on('close', (code, signal) => {
     if (code !== null) {
       process.exit(code)
