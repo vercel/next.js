@@ -84,11 +84,11 @@ export class Head extends Component {
     const pagePathname = getPagePathname(pathname, nextExport)
 
     return <head {...this.props}>
+      {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
-      {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
       {this.props.children}
     </head>

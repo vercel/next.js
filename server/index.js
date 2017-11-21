@@ -408,11 +408,7 @@ export default class Server {
   }
 
   handleBuildId (buildId, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
+    if (this.dev) return true
     if (buildId !== this.renderOpts.buildId) {
       return false
     }
@@ -432,17 +428,13 @@ export default class Server {
   }
 
   handleBuildHash (filename, hash, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
+    if (this.dev) return
 
     if (hash !== this.buildStats[filename].hash) {
       throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
     }
 
     res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-    return true
   }
 
   send404 (res) {

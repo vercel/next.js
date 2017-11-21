@@ -62,7 +62,7 @@ npm install --save next react react-dom
 ```
 
 > Next.js 4 only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
-> We had to drop React 15 support due to the way how React 16 works and how we use it.
+> We had to drop React 15 support due to the way React 16 works and how we use it.
 
 and add a script to your package.json like this:
 
@@ -586,7 +586,7 @@ Next.js has an API which allows you to prefetch pages.
 
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
-> With prefetching Next.js only download JS code. When the page is getting rendered, you may need to wait for the data.
+> With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
 
 #### With `<Link>`
 
@@ -849,10 +849,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 import React from 'react'
 
 export default class Error extends React.Component {
-  static getInitialProps({ res, jsonPageRes }) {
-    const statusCode = res
-      ? res.statusCode
-      : jsonPageRes ? jsonPageRes.status : null
+  static getInitialProps({ res, err }) {
+    const statusCode = res ? res.statusCode : err ? err.statusCode : null;
     return { statusCode }
   }
 
@@ -1037,6 +1035,8 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
+Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
+
 Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
 
 ## Static HTML export
@@ -1170,6 +1170,8 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 - [with-external-scoped-css](./examples/with-external-scoped-css)
 - [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
 - [with-global-stylesheet](./examples/with-global-stylesheet)
+- [with-styled-jsx-scss](./examples/with-styled-jsx-scss)
+- [with-styled-jsx-plugins](./examples/with-styled-jsx-plugins)
 
 </details>
 
