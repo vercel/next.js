@@ -2,46 +2,56 @@
 
 # Using multiple zones
 
-## How to use
-
-Download the example [or clone the repo](https://github.com/zeit/next.js):
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-zones
-cd with-zones
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-```
-
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
-```bash
-now
-```
-
-## The idea behind the example
-
-With Next.js you can use multiple apps as a single client side app using it's multi-zones feature.
+With Next.js you can use multiple apps as a single app using it's multi-zones feature.
 This is a example showing how to use it.
 
-Simply develop your apps (zones) and map urls using a proxy. Here's a simple URL mapping:
+In this example, we've two apps: 'home' and 'blog'. 
+We also have a set of rules defined in `rules.json` for the proxy.
 
-* / -> localhost:3000/
-* /about -> 127.0.0.1:3000/about
-
-You've just show the simplest possible url mapping without using two apps. (Just to demonstrate the feature.)
-
-Then when you are changing routes (using Link or Router), you can do it like this:
+Now let's start two of our app using:
 
 ```
-<Link href="localhost:3000/" as "/" />
-<Link href="127.0.0.1:3000/about" as "/about" />
+npm run home
+npm run blog
 ```
 
-> Right now, when changing zones Next.js will do a hard reload.
-> But in the future, you could navigate between zones without a hard reload.
+Then start the proxy:
+
+```
+npm run proxy
+```
+
+Now you can visit http://localhost:9000 and access and develop both apps a single app.
+
+### Proxy Rules
+
+This is the place we define rules for our proxy. Here are the rules for this app:
+
+```json
+[
+  {
+    "pathname": "/blog(/**)",
+    "zone": { "name": "blog", "url": "http://localhost:5000" }
+  },
+  {
+    "pathname": "/**",
+    "zone": { "name": "home", "url": "http://localhost:4000" }
+  }
+]
+```
+
+This is the place where how define different zones and how they should proxy. The name of the proxy is important and it'll be used in the client side.
+
+If we are need to navigate into a different zone, we need to create a link like below:
+
+```js
+<Link href='zone://blog/blog' as='/blog'><a>Blog</a></Link>
+```
+
+Here's how we can decode the above URL:
+
+```
+zone://blog/blog
+(zone protocol)//(zone name)/(pathname)
+```
+
