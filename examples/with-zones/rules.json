@@ -1,0 +1,10 @@
+[
+  {
+    "pathname": "/blog(/**)",
+    "zone": { "name": "blog", "url": "http://localhost:5000" }
+  },
+  {
+    "pathname": "/**",
+    "zone": { "name": "home", "url": "http://localhost:4000" }
+  }
+]

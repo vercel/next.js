@@ -23,6 +23,7 @@ const commands = new Set([
   'build',
   'start',
   'export',
+  'proxy',
   defaultCommand
 ])
 

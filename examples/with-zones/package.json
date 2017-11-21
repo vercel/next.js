@@ -2,9 +2,9 @@
   "name": "with-zones",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
+    "home": "next home -p 4000",
+    "blog": "next blog -p 5000",
+    "proxy": "next proxy -r rules.json"
   },
   "dependencies": {
     "next": "latest",
