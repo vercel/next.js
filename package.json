@@ -77,6 +77,7 @@
     "hoist-non-react-statics": "2.3.1",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
+    "js-cookie": "2.2.0",
     "json-loader": "0.5.7",
     "loader-utils": "1.1.0",
     "md5-file": "3.2.3",
