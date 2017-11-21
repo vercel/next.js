@@ -12,7 +12,7 @@ import {
   renderScriptError
 } from './render'
 import Router from './router'
-import { getAvailableChunks } from './utils'
+import { getAvailableChunks, isInternalUrl } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -29,11 +29,6 @@ Install React 16 with:
   console.error(message)
   process.exit(1)
 }
-
-const internalPrefixes = [
-  /^\/_next\//,
-  /^\/static\//
-]
 
 const blockedPages = {
   '/_document': true,
@@ -291,7 +286,7 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
-    if (this.isInternalUrl(req)) {
+    if (isInternalUrl(req.url)) {
       return this.handleRequest(req, res, parsedUrl)
     }
 
@@ -389,16 +384,6 @@ export default class Server {
     }
 
     return true
-  }
-
-  isInternalUrl (req) {
-    for (const prefix of internalPrefixes) {
-      if (prefix.test(req.url)) {
-        return true
-      }
-    }
-
-    return false
   }
 
   readBuildId () {
