@@ -95,10 +95,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
 }
 
 export async function render (props) {
-  // There are some errors we should ignore.
-  // Next.js rendering logic knows how to handle them.
-  // These are specially 404 errors
-  if (props.err && !props.err.ignore) {
+  if (props.err) {
     await renderError(props.err)
     return
   }
