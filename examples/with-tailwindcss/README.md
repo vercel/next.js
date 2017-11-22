@@ -32,7 +32,8 @@ now
 In the `package.json` you'll see some extra commands.
 
 * `yarn dev:css`
-  * used by `yarn dev` generate css bundle and watch css files for changes (includes css imported into `index.css`
+  * used by `yarn dev` generate css bundle and watch css files for changes
+  * includes css imported into `index.css`
   * will **not** autoreload browser when css changes
 * `yarn build:css`
   * used by `yarn build` to generate css bundle
