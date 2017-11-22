@@ -186,6 +186,18 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
+  function shouldTranspileModule (path) {
+    return (config.transpileModules || []).some(pattern => {
+      if (!(pattern instanceof RegExp)) {
+        const message = `Incorrect pattern in config.transpileModules: "${pattern}".` +
+          'It accepts an array of regular expression'
+        throw new Error(message)
+      }
+
+      return pattern.test(path)
+    })
+  }
+
   const rules = (dev ? [{
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
@@ -206,6 +218,10 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
+      if (shouldTranspileModule(str)) {
+        return false
+      }
+
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
@@ -290,6 +306,9 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'babel-loader',
     include: [dir],
     exclude (str) {
+      if (shouldTranspileModule(str)) {
+        return false
+      }
       return /node_modules/.test(str)
     },
     options: mainBabelOptions
