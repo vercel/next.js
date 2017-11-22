@@ -3,7 +3,7 @@
 # Using multiple zones
 
 With Next.js you can use multiple apps as a single app using it's multi-zones feature.
-This is a example showing how to use it.
+This is an example showing how to use it.
 
 In this example, we've two apps: 'home' and 'blog'. 
 We also have a set of rules defined in `rules.json` for the proxy.
@@ -42,16 +42,7 @@ This is the place we define rules for our proxy. Here are the rules for this app
 
 This is the place where how define different zones and how they should proxy. The name of the proxy is important and it'll be used in the client side.
 
-If we are need to navigate into a different zone, we need to create a link like below:
+## Special Notes
 
-```js
-<Link href='zone://blog/blog' as='/blog'><a>Blog</a></Link>
-```
-
-Here's how we can decode the above URL:
-
-```
-zone://blog/blog
-(zone protocol)//(zone name)/(pathname)
-```
-
+* A page with a same name should not be exists in multiple zones. If so, there'll be undefined behaviour in client side navigation.
+    * According to the above example, a page named `blog` should not be exists in the `home` zone.
