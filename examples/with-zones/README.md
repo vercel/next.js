@@ -44,5 +44,5 @@ This is the place where how define different zones and how they should proxy. Th
 
 ## Special Notes
 
-* A page with a same name should not be exists in multiple zones. If so, there'll be undefined behaviour in client side navigation.
-    * According to the above example, a page named `blog` should not be exists in the `home` zone.
+* All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviour in client side navigation.
+    * According to the above example, a page named `blog` should not be exist in the `home` zone.
