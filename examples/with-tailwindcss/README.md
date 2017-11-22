@@ -4,8 +4,16 @@
 
 This is an example of how you can include a global stylesheet in a next.js webapp.
 
-
 ## How to use
+
+If you like [create-next-app](https://github.com/segmentio/create-next-app) and/or [yarn](https://yarnpkg.com/en/docs/cli/create) simply run:
+
+```bash
+yarn create next-app --example with-tailwindcss my-app
+cd my-app
+```
+
+*Otherwise:*
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
@@ -13,6 +21,8 @@ Download the example [or clone the repo](https://github.com/zeit/next.js):
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-tailwindcss
 cd with-tailwindcss
 ```
+
+**Running**
 
 To get this example running you just need to
 
