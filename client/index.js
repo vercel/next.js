@@ -6,7 +6,6 @@ import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
-import Cookies from 'js-cookie'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -80,8 +79,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
     pageLoader,
     Component,
     ErrorComponent,
-    err,
-    zone: findZone()
+    err
   })
 
   router.subscribe(({ Component, props, hash, err }) => {
@@ -164,13 +162,4 @@ function renderReactElement (reactEl, domEl) {
   } else {
     ReactDOM.render(reactEl, domEl)
   }
-}
-
-function findZone () {
-  const zoneJson = Cookies.get('nextjszone')
-  if (!zoneJson) {
-    return null
-  }
-
-  return JSON.parse(zoneJson)
 }

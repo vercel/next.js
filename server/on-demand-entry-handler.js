@@ -197,6 +197,15 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
             return
           }
 
+          // Usually CORS support is not needed for this dev only feature.
+          // With when the app runs with `next proxy` for multi-zones support,
+          // the current page is trying to access this URL via assetPrefix.
+          // That's when the CORS support is needed.
+          const { preflight } = addCorsSupport(req, res)
+          if (preflight) {
+            return
+          }
+
           sendJson(res, { success: true })
 
           // We don't need to maintain active state of anything other than BUILT entries
@@ -214,6 +223,21 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       }
     }
   }
+}
+
+function addCorsSupport (req, res) {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
+  res.setHeader('Access-Control-Request-Method', req.headers.origin)
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
+  res.setHeader('Access-Control-Allow-Headers', req.headers.origin)
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200)
+    res.end()
+    return { preflight: true }
+  }
+
+  return { preflight: false }
 }
 
 function addEntry (compilation, context, name, entry) {

@@ -297,6 +297,7 @@ export default class Server {
     if (this.config.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
+
     const html = await this.renderToHTML(req, res, pathname, query)
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
