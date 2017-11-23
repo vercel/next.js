@@ -180,7 +180,7 @@ export class NextScript extends Component {
     __NEXT_DATA__.chunks = chunks
 
     return <Fragment>
-      {staticMarkup ? null : <script dangerouslySetInnerHTML={{
+      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
           module={}
