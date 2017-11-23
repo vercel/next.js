@@ -10,6 +10,10 @@ export default ({ pathname }) => (
       <a className={pathname === '/about' && 'is-active'}>About</a>
     </Link>
 
+    <Link prefetch href='/blog'>
+      <a className={pathname === '/blog' && 'is-active'}>Blog</a>
+    </Link>
+
     <style jsx>{`
       header {
         margin-bottom: 25px;
