@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "4.1.3",
+  "version": "4.2.0-canary.1",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -10,6 +10,7 @@
   "files": [
     "dist",
     "babel.js",
+    "client.js",
     "link.js",
     "css.js",
     "head.js",
@@ -91,7 +92,7 @@
     "send": "0.16.1",
     "source-map-support": "0.4.18",
     "strip-ansi": "4.0.0",
-    "styled-jsx": "2.1.1",
+    "styled-jsx": "2.1.2",
     "touch": "3.1.0",
     "unfetch": "3.0.0",
     "url": "0.11.0",
@@ -131,6 +132,7 @@
     "react-dom": "16.0.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
+    "uglifyjs-webpack-plugin": "^1.0.0-beta.3",
     "wd": "1.4.1"
   },
   "peerDependencies": {

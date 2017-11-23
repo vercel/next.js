@@ -10,7 +10,8 @@ const defaultConfig = {
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
-  useFileSystemPublicRoutes: true
+  useFileSystemPublicRoutes: true,
+  pagesGlobPattern: 'pages/**/*.js'
 }
 
 export default function getConfig (dir, customConfig) {

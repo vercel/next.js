@@ -1,5 +1,8 @@
-import { ApolloClient, createNetworkInterface } from 'react-apollo'
-import fetch from 'isomorphic-fetch'
+import { ApolloClient } from 'apollo-client'
+import { createHttpLink } from 'apollo-link-http'
+import { InMemoryCache } from 'apollo-cache-inmemory'
+import { setContext } from 'apollo-link-context'
+import fetch from 'isomorphic-unfetch'
 
 let apolloClient = null
 
@@ -9,25 +12,26 @@ if (!process.browser) {
 }
 
 function create (initialState, { getToken }) {
-  const networkInterface = createNetworkInterface({
-    uri: 'https://api.graph.cool/simple/v1/cj3h80ffbllm20162alevpcby'
+  const httpLink = createHttpLink({
+    uri: 'https://api.graph.cool/simple/v1/cj5geu3slxl7t0127y8sity9r',
+    credentials: 'same-origin'
   })
 
-  networkInterface.use([{
-    applyMiddleware (req, next) {
-      if (!req.options.headers) {
-        req.options.headers = {}  // Create the header object if needed.
+  const authLink = setContext((_, { headers }) => {
+    const token = getToken()
+    return {
+      headers: {
+        ...headers,
+        authorization: token ? `Bearer ${token}` : null
       }
-      const token = getToken()
-      req.options.headers.authorization = token ? `Bearer ${token}` : null
-      next()
     }
-  }])
+  })
 
   return new ApolloClient({
-    initialState,
+    connectToDevTools: process.browser,
     ssrMode: !process.browser, // Disables forceFetch on the server (so queries are only run once)
-    networkInterface
+    link: authLink.concat(httpLink),
+    cache: new InMemoryCache().restore(initialState || {})
   })
 }
 

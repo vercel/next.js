@@ -62,7 +62,7 @@ npm install --save next react react-dom
 ```
 
 > Next.js 4 only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
-> We had to drop React 15 support due to the way how React 16 works and how we use it.
+> We had to drop React 15 support due to the way React 16 works and how we use it.
 
 and add a script to your package.json like this:
 
@@ -162,7 +162,7 @@ It's possible to use any existing CSS-in-JS solution. The simplest one is inline
 export default () => <p style={{ color: 'red' }}>hi there</p>
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
 
 ### Static file serving (e.g.: images)
 
@@ -197,6 +197,26 @@ export default () =>
   </div>
 ```
 
+To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
+
+```jsx
+import Head from 'next/head'
+export default () => (
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+    </Head>
+    <Head>
+      <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
+)
+```
+
+In this case only the second `<meta name="viewport" />` is rendered.
+ 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
@@ -454,15 +474,15 @@ This uses of the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
+- `onRouteChangeStart(url)` - Fires when a route starts to change
+- `onRouteChangeComplete(url)` - Fires when a route changed completely
+- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
+- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onAppUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `onRouteChangeStart`:
 
 ```js
 Router.onRouteChangeStart = url => {
@@ -849,10 +869,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 import React from 'react'
 
 export default class Error extends React.Component {
-  static getInitialProps({ res, jsonPageRes }) {
-    const statusCode = res
-      ? res.statusCode
-      : jsonPageRes ? jsonPageRes.status : null
+  static getInitialProps({ res, err }) {
+    const statusCode = res ? res.statusCode : err ? err.statusCode : null;
     return { statusCode }
   }
 
@@ -875,7 +893,7 @@ If you want to render the built-in error page you can by using `next/error`:
 ```jsx
 import React from 'react'
 import Error from 'next/error'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 export default class Page extends React.Component {
   static async getInitialProps() {
@@ -1037,6 +1055,8 @@ Then run `now` and enjoy!
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
+Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
+
 Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
 
 ## Static HTML export
@@ -1170,6 +1190,8 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 - [with-external-scoped-css](./examples/with-external-scoped-css)
 - [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
 - [with-global-stylesheet](./examples/with-global-stylesheet)
+- [with-styled-jsx-scss](./examples/with-styled-jsx-scss)
+- [with-styled-jsx-plugins](./examples/with-styled-jsx-plugins)
 
 </details>
 

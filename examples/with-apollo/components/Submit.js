@@ -1,4 +1,6 @@
-import { gql, graphql } from 'react-apollo'
+import { graphql } from 'react-apollo'
+import gql from 'graphql-tag'
+import {allPosts, allPostsQueryVars} from './PostList'
 
 function Submit ({ createPost }) {
   function handleSubmit (e) {
@@ -64,14 +66,9 @@ export default graphql(createPost, {
   props: ({ mutate }) => ({
     createPost: (title, url) => mutate({
       variables: { title, url },
-      updateQueries: {
-        allPosts: (previousResult, { mutationResult }) => {
-          const newPost = mutationResult.data.createPost
-          return Object.assign({}, previousResult, {
-            // Append the new post
-            allPosts: [newPost, ...previousResult.allPosts]
-          })
-        }
+      update: (proxy, { data: { createPost } }) => {
+        const data = proxy.readQuery({ query: allPosts, variables: allPostsQueryVars })
+        proxy.writeQuery({ query: allPosts, data: {allPosts: [createPost, ...data.allPosts]}, variables: allPostsQueryVars })
       }
     })
   })
