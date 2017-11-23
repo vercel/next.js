@@ -9,9 +9,10 @@
   "dependencies": {
     "next": "latest",
     "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "babel-plugin-inline-dotenv": "^1.1.1",
-    "babel-plugin-transform-inline-environment-variables": "^0.1.1"
+    "react-dom": "^16.0.0"
+  },
+  "devDependencies": {
+    "babel-plugin-dotenv-import": "^1.2.1"
   },
   "license": "ISC"
 }
