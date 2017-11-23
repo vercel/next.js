@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
     "styletron-client": "^2.2.0",
     "styletron-react": "^2.2.1",
     "styletron-server": "^2.2.0"

@@ -12,8 +12,8 @@
     "next": "latest",
     "next-routes": "^1.0.40",
     "raf": "^3.3.2",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
   },
   "license": "ISC"
 }

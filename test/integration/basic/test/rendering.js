@@ -1,8 +1,8 @@
-/* global describe, test, expect */
+/* global describe, test, it, expect */
 
 import cheerio from 'cheerio'
 
-export default function ({ app }, suiteName, render) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -28,12 +28,22 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('I can haz meta tags')).toBeTruthy()
     })
 
+    test('header helper dedupes tags', async () => {
+      const html = await (render('/head'))
+      expect(html).toContain('<meta charSet="iso-8859-5" class="next-head"/>')
+      expect(html).not.toContain('<meta charSet="utf-8" class="next-head"/>')
+      expect(html).toContain('<meta content="my meta" class="next-head"/>')
+      expect(html).toContain('<link rel="stylesheet" href="/dup-style.css" class="next-head"/><link rel="stylesheet" href="/dup-style.css" class="next-head"/>')
+      expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
+      expect(html).not.toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
+    })
+
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:blue}`)).toBeTruthy()
+      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
     test('renders properties populated asynchronously', async () => {
@@ -51,6 +61,16 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
       expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+    })
+
+    test('default Content-Type', async () => {
+      const res = await fetch('/stateless')
+      expect(res.headers.get('Content-Type')).toMatch('text/html')
+    })
+
+    test('setting Content-Type in getInitialProps', async () => {
+      const res = await fetch('/custom-encoding')
+      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
     })
 
     test('allows to import .json files', async () => {
@@ -78,6 +98,20 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/non-existent')
       expect($('h1').text()).toBe('404')
       expect($('h2').text()).toBe('This page could not be found.')
+    })
+
+    describe('with the HOC based router', () => {
+      it('should navigate as expected', async () => {
+        const $ = await get$('/nav/with-hoc')
+
+        expect($('#pathname').text()).toBe('Current path: /nav/with-hoc')
+      })
+
+      it('should include asPath', async () => {
+        const $ = await get$('/nav/with-hoc')
+
+        expect($('#asPath').text()).toBe('Current asPath: /nav/with-hoc')
+      })
     })
   })
 }

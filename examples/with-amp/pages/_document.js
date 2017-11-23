@@ -1,16 +1,4 @@
 import Document, { Head } from 'next/document'
-import { DOMProperty } from 'react-dom/lib/ReactInjection'
-import { properties as DOMProperties } from 'react-dom/lib/DOMProperty'
-
-// By default React limit the set of valid DOM elements and attributes
-// (https://github.com/facebook/react/issues/140) this config whitelist
-// Amp elements/attributes
-if (typeof DOMProperties.amp === 'undefined') {
-  DOMProperty.injectDOMPropertyConfig({
-    Properties: { amp: DOMProperty.MUST_USE_ATTRIBUTE },
-    isCustomAttribute: attributeName => attributeName.startsWith('amp-')
-  })
-}
 
 export default class MyDocument extends Document {
   render () {

@@ -23,7 +23,7 @@ export default (Page) => {
       // Get the `locale` and `messages` from the request object on the server.
       // In the browser, use the same values that the server serialized.
       const {req} = context
-      const {locale, messages} = req || window.__NEXT_DATA__.props
+      const {locale, messages} = req || window.__NEXT_DATA__.props.initialProps
 
       // Always update the current time on page load/transition because the
       // <IntlProvider> will be a new instance even with pushState routing.

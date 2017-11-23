@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import firebase from 'firebase'
-import 'isomorphic-fetch'
+import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
 export default class Index extends Component {
@@ -33,7 +33,7 @@ export default class Index extends Component {
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         this.setState({ user: user })
-        return user.getToken()
+        return user.getIdToken()
           .then((token) => {
             // eslint-disable-next-line no-undef
             return fetch('/api/login', {
