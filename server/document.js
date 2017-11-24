@@ -2,6 +2,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
+import _getAssetPath from '../lib/get-asset-path'
 
 function Fragment ({ children }) {
   return children
@@ -15,11 +16,17 @@ export default class Document extends Component {
   }
 
   static childContextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    getAssetPath: PropTypes.func
+  }
+
+  // allow it to be overwritten by custom _document
+  _getAssetPath (hash, asset, assetPrefix, assetMap) {
+    return _getAssetPath(hash, asset, assetPrefix, assetMap)
   }
 
   getChildContext () {
-    return { _documentProps: this.props }
+    return { _documentProps: this.props, getAssetPath: this._getAssetPath.bind(this) }
   }
 
   render () {
@@ -35,19 +42,21 @@ export default class Document extends Component {
 
 export class Head extends Component {
   static contextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    getAssetPath: PropTypes.func
   }
 
   getChunkPreloadLink (filename) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
+    const getAssetPath = this.context.getAssetPath
+    let { buildStats, assetPrefix, assetMap, buildId } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : buildId
 
     return (
       <link
         key={filename}
         rel='preload'
-        href={`${assetPrefix}/_next/${hash}/${filename}`}
+        href={getAssetPath(hash, `/${filename}`, assetPrefix, assetMap)}
         as='script'
       />
     )
@@ -71,12 +80,13 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
+    const getAssetPath = this.context.getAssetPath
+    let { assetPrefix, assetMap, buildId } = __NEXT_DATA__
     return chunks.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+        href={getAssetPath(buildId, `/webpack/chunks/${chunk}`, assetPrefix, assetMap)}
         as='script'
       />
     ))
@@ -84,12 +94,13 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
+    const getAssetPath = this.context.getAssetPath
+    const { pathname, buildId, assetPrefix, assetMap, nextExport } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
     return <head {...this.props}>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
+      <link rel='preload' href={getAssetPath(buildId, `/page${pagePathname}`, assetPrefix, assetMap)} as='script' />
+      <link rel='preload' href={getAssetPath(buildId, `/page/_error/index.js`, assetPrefix, assetMap)} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
@@ -122,19 +133,21 @@ export class NextScript extends Component {
   }
 
   static contextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    getAssetPath: PropTypes.func
   }
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
+    const getAssetPath = this.context.getAssetPath
+    let { buildStats, assetPrefix, assetMap, buildId } = __NEXT_DATA__
     const hash = buildStats ? buildStats[filename].hash : buildId
 
     return (
       <script
         key={filename}
         type='text/javascript'
-        src={`${assetPrefix}/_next/${hash}/${filename}`}
+        src={getAssetPath(hash, `/${filename}`, assetPrefix, assetMap)}
         {...additionalProps}
       />
     )
@@ -157,7 +170,8 @@ export class NextScript extends Component {
 
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
+    const getAssetPath = this.context.getAssetPath
+    let { assetPrefix, assetMap, buildId } = __NEXT_DATA__
     return (
       <Fragment>
         {chunks.map((chunk) => (
@@ -165,7 +179,7 @@ export class NextScript extends Component {
             async
             key={chunk}
             type='text/javascript'
-            src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+            src={getAssetPath(buildId, `/webpack/chunks/${chunk}`, assetPrefix, assetMap)}
           />
         ))}
       </Fragment>
@@ -174,7 +188,8 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
-    const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
+    const getAssetPath = this.context.getAssetPath
+    const { pathname, nextExport, buildId, assetPrefix, assetMap } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname, nextExport)
 
     __NEXT_DATA__.chunks = chunks
@@ -196,8 +211,8 @@ export class NextScript extends Component {
           }
         `
       }} />}
-      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
-      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={getAssetPath(buildId, `/page${pagePathname}`, assetPrefix, assetMap)} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={getAssetPath(buildId, `/page/_error/index.js`, assetPrefix, assetMap)} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>

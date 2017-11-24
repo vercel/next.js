@@ -1,0 +1,23 @@
+# Example app using custom `getAssetPath` function
+
+## How to use
+
+Download the example [or clone the repo](https://github.com/zeit/next.js):
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/custom-asset-path
+cd custom-asset-path
+```
+
+Install it and run as production:
+
+```bash
+npm install
+npm run build
+npm run start
+```
+
+## The idea behind the example
+
+To illustrate usage of custom `getAssetPath` funciton, which allows next.js apps to work with S3 (or alike) based CDNs,
+and various asset deploy strategies.

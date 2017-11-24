@@ -1,6 +1,6 @@
 <img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
-[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next) 
+[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
@@ -216,7 +216,7 @@ export default () => (
 ```
 
 In this case only the second `<meta name="viewport" />` is rendered.
- 
+
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
@@ -1025,6 +1025,23 @@ module.exports = {
 ```
 
 Note: Next.js will automatically use that prefix the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
+
+#### S3-like CDN support with Asset Map
+
+To use and S3-like CDN, you can utilize `assetMap` option and map page name to the file paths that next.js exports to the filesystem.
+
+```js
+const isProd = process.env.NODE_ENV === 'production'
+module.exports = {
+  // You may only need to add assetPrefix in the production.
+  assetPrefix: isProd ? 'https://s3.mydomain.com' : '',
+  assetMap: isProd ? {
+    '/page/about': '/page/about/index.js',
+    '/page/': '/page/index.js'
+  } : null
+}
+```
+
 
 ## Production deployment
 

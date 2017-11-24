@@ -72,6 +72,7 @@ export default class Server {
       buildStats: this.buildStats,
       buildId: this.buildId,
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      assetMap: this.config.assetMap,
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 

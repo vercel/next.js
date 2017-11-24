@@ -78,6 +78,7 @@ export default async function (dir, options, configuration) {
     buildId,
     nextExport: true,
     assetPrefix: config.assetPrefix.replace(/\/$/, ''),
+    assetMap: config.assetMap,
     dev: false,
     staticMarkup: false,
     hotReloader: null,

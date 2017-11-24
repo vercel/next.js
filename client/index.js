@@ -24,14 +24,15 @@ const {
     query,
     buildId,
     chunks,
-    assetPrefix
+    assetPrefix,
+    assetMap
   },
   location
 } = window
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, assetPrefix)
+const pageLoader = new PageLoader(buildId, assetPrefix, assetMap)
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })

@@ -1,0 +1,18 @@
+{
+  "name": "custom-asset-map",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "postbuild": "next export -o .public",
+    "start": "npm run cdn & NODE_ENV=production next start; kill $!",
+    "cdn": "st --dir .public --port 3080 --no-index --no-dot"
+  },
+  "dependencies": {
+    "next": "file:../..",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
+    "st": "^1.2.2"
+  },
+  "license": "ISC"
+}
