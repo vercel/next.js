@@ -17,6 +17,7 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import reactPkg from 'react/package'
+import * as asset from '../lib/asset'
 
 // TODO: Remove this in Next.js 5
 if (!(/^16\./.test(reactPkg.version))) {
@@ -69,6 +70,9 @@ export default class Server {
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
+
+    // With this, static assets will work across zones
+    asset.setAssetPrefix(this.config.assetPrefix)
 
     this.defineRoutes()
   }

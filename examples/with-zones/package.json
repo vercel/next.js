@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "scripts": {
     "home": "next home -p 4000",
+    "home-build": "next build home",
+    "home-start": "next start home -p 4000",
     "blog": "next blog -p 5000",
+    "blog-build": "next build blog",
+    "blog-start": "next start blog -p 5000",
     "proxy": "next proxy -r rules.json"
   },
   "dependencies": {
