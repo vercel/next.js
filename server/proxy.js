@@ -2,28 +2,26 @@ import micro from 'micro'
 import UrlPattern from 'url-pattern'
 import fetch from 'node-fetch'
 import { resolve } from 'url'
-import { isInternalUrl } from './utils'
 
 export default (rules) => {
-  const patterns = rules.map(({ pathname, zone }) => ({
-    pathname: new UrlPattern(pathname),
-    zone
-  }))
+  const patterns = rules.map(({ pathname, dest, method }) => {
+    const methods = method ? method.reduce((final, c) => {
+      final[c.toLowerCase()] = true
+      return final
+    }, {}) : null
+
+    return {
+      pathname: new UrlPattern(pathname || '/**'),
+      dest,
+      methods
+    }
+  })
 
   return micro(async (req, res) => {
-    // Proxy internal urls (like /_next/**)
-    if (isInternalUrl(req.url)) {
-      console.error(`Trying to access an internal URL via the proxy: ${req.url}
-Did you configure "assetPrefix" on all the zones?`)
-      res.writeHead(404)
-      res.end('404 - Not Found')
-      return
-    }
-
     // Find a matching zone for the request and proxy it
-    for (const { pathname, zone } of patterns) {
-      if (pathname.match(req.url)) {
-        await proxyRequest(req, res, zone)
+    for (const { pathname, dest, methods } of patterns) {
+      if (pathname.match(req.url) && (!methods || methods[req.method.toLowerCase()])) {
+        await proxyRequest(req, res, dest)
         return
       }
     }
@@ -33,8 +31,8 @@ Did you configure "assetPrefix" on all the zones?`)
   })
 }
 
-async function proxyRequest (req, res, zone) {
-  const newUrl = resolve(zone.url, req.url)
+async function proxyRequest (req, res, dest) {
+  const newUrl = resolve(dest, req.url)
   const proxyRes = await fetch(newUrl, {
     method: 'GET'
   })

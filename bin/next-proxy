@@ -38,7 +38,7 @@ if (argv.help) {
 }
 
 const rulesFilePath = resolve(process.cwd(), argv['rules-file'])
-const rules = require(rulesFilePath)
+const { rules } = require(rulesFilePath)
 const proxy = buildProxy(rules)
 proxy.listen(argv.port, argv.hostname, (err) => {
   if (err) {
