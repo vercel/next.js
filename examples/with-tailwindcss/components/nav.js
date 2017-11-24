@@ -1,4 +1,3 @@
-import Head from './head'
 import Link from 'next/link'
 
 const links = [
@@ -12,7 +11,7 @@ const Nav = () => (
   <nav>
     <ul>
       <li>
-        <Link prefetch href="/">
+        <Link prefetch href='/'>
           <a>Home</a>
         </Link>
       </li>
@@ -21,7 +20,7 @@ const Nav = () => (
           ({ key, href, label }) => (
             <li key={key}>
               <Link href={href}>
-                <a className="btn-blue">{label}</a>
+                <a className='btn-blue'>{label}</a>
               </Link>
             </li>
           )
