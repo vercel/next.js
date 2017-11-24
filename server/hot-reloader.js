@@ -7,7 +7,8 @@ import clean from './build/clean'
 import getConfig from './config'
 import UUID from 'uuid'
 import {
-  IS_BUNDLED_PAGE
+  IS_BUNDLED_PAGE,
+  addCorsSupport
 } from './utils'
 
 export default class HotReloader {
@@ -34,6 +35,15 @@ export default class HotReloader {
   }
 
   async run (req, res) {
+    // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
+    // With when the app runs for multi-zones support behind a proxy,
+    // the current page is trying to access this URL via assetPrefix.
+    // That's when the CORS support is needed.
+    const { preflight } = addCorsSupport(req, res)
+    if (preflight) {
+      return
+    }
+
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
         fn(req, res, (err) => {

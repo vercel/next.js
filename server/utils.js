@@ -34,3 +34,22 @@ export function isInternalUrl (url) {
 
   return false
 }
+
+export function addCorsSupport (req, res) {
+  if (!req.headers.origin) {
+    return { preflight: false }
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
+  res.setHeader('Access-Control-Request-Method', req.headers.origin)
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
+  res.setHeader('Access-Control-Allow-Headers', req.headers.origin)
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200)
+    res.end()
+    return { preflight: true }
+  }
+
+  return { preflight: false }
+}
