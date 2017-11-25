@@ -1,17 +1,17 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
-  static getInitialProps({ renderPage }) {
+  static getInitialProps ({ renderPage }) {
     const { html, head, errorHtml, chunks } = renderPage()
 
     return { html, head, errorHtml, chunks }
   }
 
-  render() {
+  render () {
     return (
       <html>
         <Head>
-          <link rel="stylesheet" href="/static/css/bundle.css" />
+          <link rel='stylesheet' href='/static/css/bundle.css' />
         </Head>
         <body>
           {this.props.customValue}
@@ -23,4 +23,4 @@ class MyDocument extends Document {
   }
 }
 
-export default MyDocument;
+export default MyDocument

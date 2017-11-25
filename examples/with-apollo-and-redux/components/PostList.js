@@ -16,7 +16,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
             <li key={post.id}>
               <div>
                 <span>{index + 1}. </span>
-                <Link href={{ pathname: '/blog/'+post.id}}><a>{post.title}</a></Link>
+                <Link href={{ pathname: '/blog/' + post.id }}><a>{post.title}</a></Link>
                 <PostUpvoter id={post.id} votes={post.votes} />
               </div>
             </li>
