@@ -13,15 +13,15 @@ declare module "next" {
 }
 
 declare module "next/head" {
-  declare module.exports: Class<React$Component<void, any, any>>;
+  declare module.exports: Class<React$Component<any, any>>;
 }
 
 declare module "next/link" {
-  declare module.exports: Class<React$Component<void, {href: string, prefetch?: bool}, any>>;
+  declare module.exports: Class<React$Component<{href: string, prefetch?: bool}, any>>;
 }
 
 declare module "next/error" {
-  declare module.exports: Class<React$Component<void, {statusCode: number}, any>>;
+  declare module.exports: Class<React$Component<{statusCode: number}, any>>;
 }
 
 declare module "next/router" {
@@ -38,10 +38,10 @@ declare module "next/router" {
 }
 
 declare module "next/document" {
-  declare export var Head: Class<React$Component<void, any, any>>;
-  declare export var Main: Class<React$Component<void, any, any>>;
-  declare export var NextScript: Class<React$Component<void, any, any>>;
-  declare export default Class<React$Component<void, any, any>> & {
+  declare export var Head: Class<React$Component<any, any>>;
+  declare export var Main: Class<React$Component<any, any>>;
+  declare export var NextScript: Class<React$Component<any, any>>;
+  declare export default Class<React$Component<any, any>> & {
     getInitialProps: (ctx: {pathname: string, query: any, req?: any, res?: any, jsonPageRes?: any, err?: any}) => Promise<any>;
     renderPage(cb: Function): void;
   };

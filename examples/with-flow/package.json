@@ -17,6 +17,6 @@
   "devDependencies": {
     "babel-eslint": "^7.1.1",
     "babel-plugin-transform-flow-strip-types": "^6.21.0",
-    "flow-bin": "^0.37.4"
+    "flow-bin": "^0.59.0"
   }
 }
