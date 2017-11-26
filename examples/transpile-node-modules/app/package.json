@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "name": "app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [],
+  "author": "Giuseppe Gurgone",
+  "license": "MIT",
+  "dependencies": {
+    "component-a": "file:../component-a",
+    "component-b": "file:../component-b",
+    "next": "file:../../../",
+    "react": "^16.1.1",
+    "react-dom": "^16.1.1"
+  }
+}

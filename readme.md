@@ -1026,6 +1026,28 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
+### Transpile NPM modules
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-es6-npm-module-pages">Transpile NPM modules</a></li></ul>
+</details></p>
+
+By default Next.js won't transpile your app dependencies (`node_modules`) such as third parties libraries or components. However it still makes it possible to selectively transform some of them (or all if you will) via the `transpileModules` option in `next.config.js`.
+
+```js
+module.exports = {
+  transpileModules: [
+    /node_modules\/react-button/
+  ]
+}
+```
+
+`transpileModules` must be an array of regular expressions. When building, Next.js will transpile all of the modules that match at least one of the regular expressions, using the `.babelrc` configuration and falling back to `next/babel` if you don't have one.
+
+> Note: Currently, Next.js only supports modules installed into `node_modules`. Transpiling modules linked with `npm link <my-comp-name>` might not work as expected or at all.
+
+
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:

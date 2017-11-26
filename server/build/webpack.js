@@ -309,6 +309,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       if (shouldTranspileModule(str)) {
         return false
       }
+
       return /node_modules/.test(str)
     },
     options: mainBabelOptions
