@@ -1,35 +1,33 @@
 // modules
-import { inject, observer } from 'mobx-react';
-import Link                 from 'next/link';
-import { Component }        from 'react';
+import { inject, observer } from 'mobx-react'
+import Link from 'next/link'
+import { Component } from 'react'
 
 // components
-import Clock from './Clock';
-
+import Clock from './Clock'
 
 @inject('store') @observer
 export default class extends Component {
-
     // MobX store is available within decorated component at `this.props.store`
 
-    componentDidMount () {
-        this.props.store.start();
-    }
+  componentDidMount () {
+    this.props.store.start()
+  }
 
-    componentWillUnmount () {
-        this.props.store.stop();
-    }
+  componentWillUnmount () {
+    this.props.store.stop()
+  }
 
-    render () {
-        return (
-            <div>
-              <h1>{this.props.title}</h1>
-              <Clock/>
-              <br/><br/>
-              <nav>
-                <Link href={this.props.linkTo}><a>Navigate</a></Link>
-              </nav>
-            </div>
-        );
-    }
+  render () {
+    return (
+      <div>
+        <h1>{this.props.title}</h1>
+        <Clock />
+        <br /><br />
+        <nav>
+          <Link href={this.props.linkTo}><a>Navigate</a></Link>
+        </nav>
+      </div>
+    )
+  }
 }
