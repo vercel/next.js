@@ -1,0 +1,6 @@
+{
+  "rules": [
+    {"pathname": "/blog", "method":["GET", "POST", "OPTIONS"], "dest": "https://with-zones-blog.now.sh"},
+    {"pathname": "/**", "dest": "https://with-zones-home.now.sh"}
+  ]
+}

@@ -8,7 +8,7 @@
     "blog": "next blog -p 5000",
     "blog-build": "next build blog",
     "blog-start": "next start blog -p 5000",
-    "proxy": "micro-proxy -r rules.json"
+    "proxy": "micro-proxy -r rules-dev.json"
   },
   "dependencies": {
     "micro-proxy": "^1.0.0",

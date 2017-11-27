@@ -42,3 +42,30 @@ These rules are based on ZEIT now [path alias](https://zeit.co/docs/features/pat
 
 * All pages should be unique across zones. A page with the same name should not exist in multiple zones. Otherwise, there'll be unexpected behaviour in client side navigation.
     * According to the above example, a page named `blog` should not be exist in the `home` zone.
+
+## Production Deployment
+
+Here's how are going to deploy this application into production.
+
+* Open the `now.json` file in both `blog` and `home` directories and change the aliases as you wish.
+* Then update `rules-prod.json` accordingly.
+* Now deploy both apps:
+
+~~~sh
+cd home
+now && now alias
+cd ../blog
+now && now alias
+cd ..
+~~~
+
+* Finally, set the path alias rules with
+
+~~~sh
+now alias with-zones.now.sh -r rules-prod.json
+~~~
+
+> You can use a domain name of your choice in the above command instead of `with-zones.now.sh`.
+
+That's it.
+Now you can access the final app via: <https://with-zones.now.sh>
