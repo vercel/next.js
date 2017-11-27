@@ -8,10 +8,11 @@
     "blog": "next blog -p 5000",
     "blog-build": "next build blog",
     "blog-start": "next start blog -p 5000",
-    "proxy": "next proxy -r rules.json"
+    "proxy": "micro-proxy -r rules.json"
   },
   "dependencies": {
-    "next": "latest",
+    "micro-proxy": "^1.0.0",
+    "next": "^4.1.4 ",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
   },
