@@ -5,7 +5,7 @@
 With Next.js you can use multiple apps as a single app using it's multi-zones feature.
 This is an example showing how to use it.
 
-In this example, we've two apps: 'home' and 'blog'. 
+In this example, we've two apps: 'home' and 'blog'.
 We also have a set of rules defined in `rules.json` for the proxy.
 
 Now let's start two of our app using:
@@ -25,22 +25,18 @@ Now you can visit http://localhost:9000 and access and develop both apps a singl
 
 ### Proxy Rules
 
-This is the place we define rules for our proxy. Here are the rules for this app:
+This is the place we define rules for our proxy. Here are the rules(in `rules.json`) available for this app:
 
 ```json
-[
-  {
-    "pathname": "/blog(/**)",
-    "zone": { "name": "blog", "url": "http://localhost:5000" }
-  },
-  {
-    "pathname": "/**",
-    "zone": { "name": "home", "url": "http://localhost:4000" }
-  }
-]
+{
+  "rules": [
+    {"pathname": "/blog", "method":["GET", "POST", "OPTIONS"], "dest": "http://localhost:5000"},
+    {"pathname": "/**", "dest": "http://localhost:4000"}
+  ]
+}
 ```
 
-This is the place where how define different zones and how they should proxy. The name of the proxy is important and it'll be used in the client side.
+These rules are based on ZEIT now [path alias](https://zeit.co/docs/features/path-aliases) rules and use [`micro-proxy`](https://github.com/zeit/micro-proxy) as the proxy.
 
 ## Special Notes
 
