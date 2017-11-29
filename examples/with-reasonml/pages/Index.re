@@ -1,15 +1,13 @@
-let component = ReasonReact.statelessComponent "Index";
-let make _children => {
+let component = ReasonReact.statelessComponent("Index");
+
+let make = (_children) => {
   ...component,
-  render: fun _self => {
+  render: (_self) =>
     <div>
       <Header />
-      <p>(ReasonReact.stringToElement "HOME PAGE is here!")</p>
+      <p> (ReasonReact.stringToElement("HOME PAGE is here!")) </p>
       <Counter />
     </div>
-  }
 };
-let jsComponent =
-  ReasonReact.wrapReasonForJs
-    ::component
-    (fun _jsProps => make [||])
+
+let jsComponent = ReasonReact.wrapReasonForJs(~component, (_jsProps) => make([||]));

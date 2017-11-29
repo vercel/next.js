@@ -153,7 +153,12 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       }),
       new UglifyJSPlugin({
         parallel: true,
-        sourceMap: false
+        sourceMap: false,
+        uglifyOptions: {
+          compress: {
+            comparisons: false
+          }
+        }
       })
     )
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
