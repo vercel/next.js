@@ -150,7 +150,10 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
-      }),
+      })
+    )
+    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
+    plugins.unshift(
       new UglifyJSPlugin({
         parallel: true,
         sourceMap: false,
@@ -161,7 +164,6 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         }
       })
     )
-    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
   const nodePathList = (process.env.NODE_PATH || '')
