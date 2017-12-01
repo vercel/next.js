@@ -164,12 +164,14 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
+  const outputPath = buildDir ? join(buildDir, '.next') : join(dir, config.distDir)
+
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
   const mainBabelOptions = {
-    cacheDirectory: true,
+    cacheDirectory: join(outputPath, 'cache'),
     presets: []
   }
 
@@ -287,7 +289,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     },
     options: {
       babelrc: false,
-      cacheDirectory: true,
+      cacheDirectory: mainBabelOptions.cacheDirectory,
       presets: [require.resolve('./babel/preset')]
     }
   }, {
@@ -304,7 +306,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     context: dir,
     entry,
     output: {
-      path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
+      path: outputPath,
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: `/_next/${buildId}/webpack/`,
