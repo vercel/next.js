@@ -10,7 +10,7 @@
   language: "node_js",
   node_js: ["6"],
   cache: {
-    directories: ["node-modules"]
+    directories: ["node_modules"]
   },
   before_install: [
     "rm yarn.lock",
