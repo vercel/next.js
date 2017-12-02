@@ -9,10 +9,11 @@ import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
   const buildId = uuid.v4()
-  const buildDir = join(tmpdir(), uuid.v4())
+  const tempDir = tmpdir()
+  const buildDir = join(tempDir, uuid.v4())
 
   try {
-    await fs.access(buildDir, fs.constants.W_OK)
+    await fs.access(tempDir, fs.constants.W_OK)
   } catch (err) {
     console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
     throw err
