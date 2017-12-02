@@ -26,6 +26,7 @@ const context = {
 
 describe('Production Usage', () => {
   beforeAll(async () => {
+    context.appPort = 7777
     await nextBuild(appDir)
     app = nextServer({
       dir: join(__dirname, '../'),
