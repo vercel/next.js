@@ -32,8 +32,8 @@ describe('Production Usage', () => {
     })
 
     server = await startApp(app)
-    console.log('XXXXX', server.address())
-    context.appPort = appPort = server.address().port
+    throw new Error(JSON.stringify(server.address()))
+    // context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
