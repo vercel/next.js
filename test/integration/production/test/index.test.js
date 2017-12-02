@@ -20,7 +20,9 @@ let server
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
 
-const context = {}
+const context = {
+  appPort: 8929
+}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
