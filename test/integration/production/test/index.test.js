@@ -32,6 +32,7 @@ describe('Production Usage', () => {
     })
 
     server = await startApp(app)
+    console.log('XXXXX', server.address())
     context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
