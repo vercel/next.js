@@ -79,7 +79,7 @@ export async function startApp (app) {
   const server = http.createServer(handler)
   server.__app = app
 
-  await promiseCall(server, 'listen')
+  await promiseCall(server, 'listen', 0)
   return server
 }
 
