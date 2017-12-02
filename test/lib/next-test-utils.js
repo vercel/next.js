@@ -79,7 +79,7 @@ export async function startApp (app) {
   const server = http.createServer(handler)
   server.__app = app
 
-  await promiseCall(server, 'listen', 0)
+  await promiseCall(server, 'listen', 8090)
   return server
 }
 
@@ -91,6 +91,7 @@ export async function stopApp (app) {
 }
 
 function promiseCall (obj, method, ...args) {
+  console.log('YYYY', args)
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
