@@ -32,15 +32,15 @@ describe('Production Usage', () => {
     })
 
     server = await startApp(app)
-    throw new Error(JSON.stringify(server.address()))
-    // context.appPort = appPort = server.address().port
+    context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
   describe('With basic usage', () => {
-    it('should render the page', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      expect(html).toMatch(/Hello World/)
+    it('should render the page 11', async () => {
+      throw new Error(`ERRRO-${context.appPort}`)
+      // const html = await renderViaHTTP(appPort, '/')
+      // expect(html).toMatch(/Hello World/)
     })
 
     it('should allow etag header support', async () => {
