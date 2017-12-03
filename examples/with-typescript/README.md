@@ -4,7 +4,18 @@
 
 This is a really simple project that show the usage of Next.js with TypeScript.  
 
-## How to use it?  
+## How to use
+
+### Using `create-next-app`
+
+Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+
+```
+npm i -g create-next-app
+create-next-app --example with-typescript with-typescript-app
+```
+
+### Download manually it?  
 
 ```
 npm install
