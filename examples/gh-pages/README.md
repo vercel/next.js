@@ -24,8 +24,9 @@ Edit ```env-config.js``` and replace ```'Next-gh-page-exemple'``` by your projec
 
 Edit ```next.config.js``` and replace ```'Next-gh-page-exemple'``` by your project name.
 
-Create repository.
-Link it to your github account.
+1. Create repository.
+2. Link it to your github account.
+3. Publish your master branch.
 
 ```bash
 npm run deploy
@@ -38,6 +39,16 @@ Reaplce 'github-user-name' and 'github-projet-name'
 ```bash
 
 https://github-user-name.github.io/github-projet-name/
+
+```
+
+Exemple:
+
+```bash
+
+https://github.com/thierryc/Next-gh-page-exemple
+
+https://thierryc.github.io/Next-gh-page-exemple/
 
 ```
 
