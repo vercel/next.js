@@ -403,6 +403,8 @@ export default () =>
 
 If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hyperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
 
+**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
+
 ```jsx
 import Link from 'next/link'
 import Unexpected_A from 'third-library'
@@ -729,6 +731,21 @@ Supported options:
 - `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
+
+#### Disabling file-system routing
+By default, `Next` will serve eacy file in `/pages` under a pathname matching the filename (eg, `/pages/some-file.js` is served at `site.com/some-file`.
+
+If your project uses custom routing, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX. 
+
+To disable this behavior & prevent routing based on files in `/pages`, simply set the following option in your `next.config.js`: 
+
+```js
+// next.config.js
+module.exports = {
+  useFileSystemPublicRoutes: false
+}
+```
+
 
 ### Dynamic Import
 
