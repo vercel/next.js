@@ -91,7 +91,6 @@ export async function stopApp (app) {
 }
 
 function promiseCall (obj, method, ...args) {
-  console.log('YYYY', args)
   return new Promise((resolve, reject) => {
     const newArgs = [
       ...args,
