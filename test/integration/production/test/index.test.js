@@ -37,7 +37,7 @@ describe('Production Usage', () => {
   afterAll(() => stopApp(server))
 
   describe('With basic usage', () => {
-    it('should render the page 11', async () => {
+    it('should render the page', async () => {
       const html = await renderViaHTTP(appPort, '/')
       expect(html).toMatch(/Hello World/)
     })
