@@ -20,14 +20,10 @@ let server
 let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-const context = {
-  appPort: 8929
-}
+const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
-    context.appPort = 7777
-
     await nextBuild(appDir)
     app = nextServer({
       dir: join(__dirname, '../'),
