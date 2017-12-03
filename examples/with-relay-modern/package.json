@@ -16,15 +16,15 @@
     "dotenv": "^4.0.0",
     "dotenv-webpack": "^1.5.4",
     "isomorphic-unfetch": "^2.0.0",
-    "next": "^3.0.3",
-    "react": "^15.6.1",
-    "react-dom": "^15.6.1",
-    "react-relay": "^1.2.0-rc.1"
+    "next": "^4.1.4",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
+    "react-relay": "^1.4.1"
   },
   "devDependencies": {
     "graphql-cli": "^1.0.0-beta.4",
-    "babel-plugin-relay": "^1.1.0",
+    "babel-plugin-relay": "^1.4.1",
     "graphcool": "^1.2.1",
-    "relay-compiler": "^1.2.0-rc.1"
+    "relay-compiler": "^1.4.1"
   }
 }
