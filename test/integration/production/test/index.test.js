@@ -42,9 +42,9 @@ describe('Production Usage', () => {
 
   describe('With basic usage', () => {
     it('should render the page 11', async () => {
-      throw new Error(`ERRRO-${context.appPort}`)
-      // const html = await renderViaHTTP(appPort, '/')
-      // expect(html).toMatch(/Hello World/)
+      // throw new Error(`ERRRO-${context.appPort}`)
+      const html = await renderViaHTTP(appPort, '/')
+      expect(html).toMatch(/Hello World/)
     })
 
     it('should allow etag header support', async () => {
