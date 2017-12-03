@@ -669,7 +669,19 @@ export default ({ url }) =>
   </ul>
 </details></p>
 
-Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
+Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc.
+
+When using a custom server with a server file, for example called `server.js`, make sure you update the scripts key in `package.json` to:
+
+```json
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}
+```
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
