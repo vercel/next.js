@@ -46,9 +46,9 @@ Example:
 
 ```bash
 
-https://github.com/thierryc/Next-gh-page-exemple/
+https://github.com/thierryc/Next-gh-page-example/
 
-https://thierryc.github.io/Next-gh-page-exemple/
+https://thierryc.github.io/Next-gh-page-example/
 
 ```
 
