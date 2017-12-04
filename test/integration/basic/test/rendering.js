@@ -40,7 +40,8 @@ export default function ({ app }, suiteName, render, fetch) {
 
     it('should render the page with custom extension', async () => {
       const html = await render('/custom-extension')
-      expect(html).toMatch(/Hello.*<div.*>World<\/div>/)
+      expect(html).toContain('<div>Hello</div>')
+      expect(html).toContain('<div>World</div>')
     })
 
     test('renders styled jsx', async () => {

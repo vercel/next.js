@@ -217,7 +217,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       name: 'dist/[path][name].[ext]',
       // We need to strip off .jsx on the server. Otherwise require without .jsx doesn't work.
       interpolateName: (name) => name.replace('.jsx', '.js'),
-      validateFile (file) {
+      validateFileName (file) {
         const cases = [{from: '.js', to: '.jsx'}, {from: '.jsx', to: '.js'}]
 
         for (const item of cases) {
@@ -252,7 +252,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
-            require.resolve(join(__dirname, './babel/plugins/transform-jsx-import.js')),
+            require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import')),
             [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),

@@ -7,9 +7,10 @@ module.exports = function (content, sourceMap) {
 
   const query = loaderUtils.getOptions(this)
 
-  if (query.validateFile) {
+  // Allows you to do checks on the file name. For example it's used to check if there's both a .js and .jsx file.
+  if (query.validateFileName) {
     try {
-      query.validateFile(resourcePath)
+      query.validateFileName(resourcePath)
     } catch (err) {
       callback(err)
       return
