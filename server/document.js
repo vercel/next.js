@@ -86,7 +86,7 @@ export class Head extends Component {
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {styles || null}
@@ -197,7 +197,7 @@ export class NextScript extends Component {
         `
       }} />}
       <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
-      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </div>
