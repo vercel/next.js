@@ -733,7 +733,7 @@ Supported options:
 Then, change your `start` script to `NODE_ENV=production node server.js`.
 
 #### Disabling file-system routing
-By default, `Next` will serve eacy file in `/pages` under a pathname matching the filename (eg, `/pages/some-file.js` is served at `site.com/some-file`.
+By default, `Next` will serve each file in `/pages` under a pathname matching the filename (eg, `/pages/some-file.js` is served at `site.com/some-file`.
 
 If your project uses custom routing, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX. 
 
