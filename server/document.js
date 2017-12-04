@@ -80,13 +80,13 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
-    const pagePathname = getPagePathname(pathname, nextExport)
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {styles || null}
@@ -174,8 +174,8 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
-    const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
-    const pagePathname = getPagePathname(pathname, nextExport)
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname)
 
     __NEXT_DATA__.chunks = chunks
 
@@ -197,15 +197,17 @@ export class NextScript extends Component {
         `
       }} />}
       <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />
-      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error/index.js`} />
+      <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </div>
   }
 }
 
-function getPagePathname (pathname, nextExport) {
-  if (!nextExport) return pathname
-  if (pathname === '/') return '/index.js'
-  return `${pathname}/index.js`
+function getPagePathname (pathname) {
+  if (pathname === '/') {
+    return '/index.js'
+  }
+
+  return `${pathname}.js`
 }
