@@ -67,7 +67,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
   return <div>Loading</div>
 }
 
-const allPosts = gql`
+export const allPosts = gql`
   query allPosts($first: Int!, $skip: Int!) {
     allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
       id
@@ -81,15 +81,16 @@ const allPosts = gql`
     }
   }
 `
+export const allPostsQueryVars = {
+  skip: 0,
+  first: POSTS_PER_PAGE
+}
 
 // The `graphql` wrapper executes a GraphQL query and makes the results
 // available on the `data` prop of the wrapped component (PostList)
 export default graphql(allPosts, {
   options: {
-    variables: {
-      skip: 0,
-      first: POSTS_PER_PAGE
-    }
+    variables: allPostsQueryVars
   },
   props: ({ data }) => ({
     data,

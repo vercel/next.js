@@ -1,10 +1,12 @@
 import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
+import { realpathSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
+import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
@@ -28,7 +30,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 const relativeResolve = rootModuleRelativePath(require)
 
 export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
-  dir = resolve(dir)
+  dir = realpathSync(resolve(dir))
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
@@ -48,7 +50,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       ]
     }
 
-    const pages = await glob('pages/**/*.js', { cwd: dir })
+    const pages = await glob(config.pagesGlobPattern, { cwd: dir })
     const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
@@ -149,9 +151,14 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
-      new webpack.optimize.UglifyJsPlugin({
-        compress: { warnings: false },
-        sourceMap: false
+      new UglifyJSPlugin({
+        parallel: true,
+        sourceMap: false,
+        uglifyOptions: {
+          compress: {
+            comparisons: false
+          }
+        }
       })
     )
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
@@ -217,6 +224,8 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           return { content, sourceMap }
         }
 
+        const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
+
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
@@ -231,7 +240,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
               require.resolve('babel-plugin-module-resolver'),
               {
                 alias: {
-                  'babel-runtime': relativeResolve('babel-runtime/package'),
+                  'babel-runtime': babelRuntimePath,
                   'next/link': relativeResolve('../../lib/link'),
                   'next/prefetch': relativeResolve('../../lib/prefetch'),
                   'next/css': relativeResolve('../../lib/css'),
