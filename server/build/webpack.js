@@ -1,6 +1,6 @@
 import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
-import { realpathSync } from 'fs'
+import { realpathSync, existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -215,6 +215,24 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     },
     options: {
       name: 'dist/[path][name].[ext]',
+      // We need to strip off .jsx on the server. Otherwise require without .jsx doesn't work.
+      interpolateName: (name) => name.replace('.jsx', '.js'),
+      validateFile (file) {
+        const cases = [{from: '.js', to: '.jsx'}, {from: '.jsx', to: '.js'}]
+
+        for (const item of cases) {
+          const {from, to} = item
+          if (file.slice(-(from.length)) !== from) {
+            continue
+          }
+
+          const filePath = file.slice(0, -(from.length)) + to
+
+          if (existsSync(filePath)) {
+            throw new Error(`Both ${from} and ${to} file found. Please make sure you only have one of both.`)
+          }
+        }
+      },
       // By default, our babel config does not transpile ES2015 module syntax because
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.
