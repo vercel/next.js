@@ -80,8 +80,8 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix, nextExport } = __NEXT_DATA__
-    const pagePathname = getPagePathname(pathname, nextExport)
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
@@ -174,8 +174,8 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
-    const { pathname, nextExport, buildId, assetPrefix } = __NEXT_DATA__
-    const pagePathname = getPagePathname(pathname, nextExport)
+    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const pagePathname = getPagePathname(pathname)
 
     __NEXT_DATA__.chunks = chunks
 
@@ -204,13 +204,9 @@ export class NextScript extends Component {
   }
 }
 
-function getPagePathname (pathname, nextExport) {
+function getPagePathname (pathname) {
   if (pathname === '/') {
     return '/index.js'
-  }
-
-  if (nextExport) {
-    return `${pathname}/index.js`
   }
 
   return `${pathname}.js`

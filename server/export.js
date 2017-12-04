@@ -141,11 +141,13 @@ function copyPages (nextDir, outDir, buildId) {
       }
 
       let destFilePath = null
-      if (/index\.js$/.test(filename)) {
+      if (relativeFilePath === `${sep}index.js`) {
         destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
-      } else {
-        const newRelativeFilePath = relativeFilePath.replace(/\.js/, `${sep}index.js`)
+      } else if (/index\.js$/.test(filename)) {
+        const newRelativeFilePath = relativeFilePath.replace(`${sep}index.js`, '.js')
         destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
+      } else {
+        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
       }
 
       cp(fullFilePath, destFilePath)
