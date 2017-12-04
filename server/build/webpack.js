@@ -243,7 +243,6 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         }
 
         const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
-
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
@@ -253,6 +252,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
+            require.resolve(join(__dirname, './babel/plugins/transform-jsx-import.js')),
             [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),
