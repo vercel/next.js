@@ -20,7 +20,9 @@ const buildImport = (args) => (template(`
       })
       :
       new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
-        // !require.ensure && eval('require.ensure = function (deps, callback) { callback(require) }')
+        if(!require.ensure) {
+          eval('require.ensure = function (deps, callback) { callback(require) }')
+        }
         const weakId = require.resolveWeak ? require.resolveWeak(SOURCE) : /*require.resolveWeak*/(SOURCE)
         // const weakId = require.resolveWeak(SOURCE)
         try {
