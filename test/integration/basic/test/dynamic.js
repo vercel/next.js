@@ -51,7 +51,7 @@ export default (context, render) => {
           const bodyText = await browser
             .elementByCss('body').text()
           if (/Hello World 1/.test(bodyText)) break
-          await waitFor(2000)
+          await waitFor(1000)
         }
 
         browser.close()
@@ -67,7 +67,7 @@ export default (context, render) => {
             /Welcome, normal/.test(bodyText) &&
             /Welcome, dynamic/.test(bodyText)
           ) break
-          await waitFor(2000)
+          await waitFor(1000)
         }
 
         browser.close()
@@ -121,7 +121,7 @@ export default (context, render) => {
               /Hello World 1/.test(bodyText) &&
               /Hello World 2/.test(bodyText)
             ) break
-            await waitFor(2000)
+            await waitFor(1000)
           }
 
           browser.close()
