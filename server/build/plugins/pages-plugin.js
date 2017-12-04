@@ -28,6 +28,18 @@ export default class PagesPlugin {
 
         routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
+        // If there's file named pageDir/index.js
+        // We are going to rewrite it as pageDir.js
+        // With this, we can statically decide the filepath of the page
+        // based on the page name.
+        const rule = /^bundles[/\\]pages[/\\](.*)[/\\]index\.js$/
+        const matched = chunk.name.match(rule)
+        if (matched) {
+          const dirName = matched[1]
+          delete compilation.assets[chunk.name]
+          chunk.name = chunk.name.replace(`${dirName}/index.js`, `${dirName}.js`)
+        }
+
         const content = page.source()
         const newContent = `
           window.__NEXT_REGISTER_PAGE('${routeName}', function() {

@@ -205,7 +205,13 @@ export class NextScript extends Component {
 }
 
 function getPagePathname (pathname, nextExport) {
-  if (!nextExport) return pathname
-  if (pathname === '/') return '/index.js'
-  return `${pathname}/index.js`
+  if (pathname === '/') {
+    return '/index.js'
+  }
+
+  if (nextExport) {
+    return `${pathname}/index.js`
+  }
+
+  return `${pathname}.js`
 }

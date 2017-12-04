@@ -5,15 +5,15 @@ import Clock from './Clock'
 
 @inject('store') @observer
 class Page extends React.Component {
-  componentDidMount() {
+  componentDidMount () {
     this.props.store.start()
   }
 
-  componentWillUnmount() {
+  componentWillUnmount () {
     this.props.store.stop()
   }
 
-  render() {
+  render () {
     return (
       <div>
         <h1>{this.props.title}</h1>
