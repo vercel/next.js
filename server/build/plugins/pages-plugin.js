@@ -32,12 +32,10 @@ export default class PagesPlugin {
         // We are going to rewrite it as pageDir.js
         // With this, we can statically decide the filepath of the page
         // based on the page name.
-        const rule = /^bundles[/\\]pages[/\\](.*)[/\\]index\.js$/
-        const matched = chunk.name.match(rule)
-        if (matched) {
-          const dirName = matched[1]
+        const rule = /^bundles[/\\]pages[/\\].*[/\\]index\.js$/
+        if (rule.test(chunk.name)) {
           delete compilation.assets[chunk.name]
-          chunk.name = chunk.name.replace(`${dirName}/index.js`, `${dirName}.js`)
+          chunk.name = chunk.name.replace(/[/\\]index\.js$/, `.js`)
         }
 
         const content = page.source()
