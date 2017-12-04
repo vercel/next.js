@@ -8,7 +8,7 @@ module.exports = function (content, sourceMap) {
   const context = query.context || this.options.context
   const regExp = query.regExp
   const opts = { context, content, regExp }
-  const interpolatedName = loaderUtils.interpolateName(this, name, opts)
+  const interpolatedName = loaderUtils.interpolateName(this, name, opts).replace('.jsx', '.js')
 
   const emit = (code, map) => {
     this.emitFile(interpolatedName, code, map)

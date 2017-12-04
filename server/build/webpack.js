@@ -57,11 +57,11 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     // managing pages.
     if (dev) {
       for (const p of devPages) {
-        entries[join('bundles', p)] = [`./${p}?entry`]
+        entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
       }
     } else {
       for (const p of pages) {
-        entries[join('bundles', p)] = [`./${p}?entry`]
+        entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
       }
     }
 
