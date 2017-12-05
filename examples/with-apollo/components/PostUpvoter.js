@@ -20,7 +20,7 @@ function PostUpvoter ({ upvote, votes, id }) {
           border-color: transparent transparent #000000 transparent;
           border-style: solid;
           border-width: 0 4px 6px 4px;
-          content: "";
+          content: '';
           height: 0;
           margin-right: 5px;
           width: 0;
@@ -42,16 +42,17 @@ const upvotePost = gql`
 
 export default graphql(upvotePost, {
   props: ({ ownProps, mutate }) => ({
-    upvote: (id, votes) => mutate({
-      variables: { id, votes },
-      optimisticResponse: {
-        __typename: 'Mutation',
-        updatePost: {
-          __typename: 'Post',
-          id: ownProps.id,
-          votes: ownProps.votes + 1
+    upvote: (id, votes) =>
+      mutate({
+        variables: { id, votes },
+        optimisticResponse: {
+          __typename: 'Mutation',
+          updatePost: {
+            __typename: 'Post',
+            id: ownProps.id,
+            votes: ownProps.votes + 1
+          }
         }
-      }
-    })
+      })
   })
 })(PostUpvoter)
