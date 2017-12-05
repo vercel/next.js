@@ -24,7 +24,6 @@ const buildImport = (args) => (template(`
           require.ensure = function (deps, callback) { callback(require) }
         }
         const weakId = require.resolveWeak ? require.resolveWeak(SOURCE) : /*require.resolveWeak*/(SOURCE)
-        // const weakId = require.resolveWeak(SOURCE)
         try {
           const weakModule = __webpack_require__(weakId)
           return resolve(weakModule)
