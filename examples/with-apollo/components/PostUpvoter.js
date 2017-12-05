@@ -2,7 +2,7 @@ import React from 'react'
 import { graphql } from 'react-apollo'
 import gql from 'graphql-tag'
 
-function PostUpvoter({ upvote, votes, id }) {
+function PostUpvoter ({ upvote, votes, id }) {
   return (
     <button onClick={() => upvote(id, votes + 1)}>
       {votes}
@@ -50,9 +50,9 @@ export default graphql(upvotePost, {
           updatePost: {
             __typename: 'Post',
             id: ownProps.id,
-            votes: ownProps.votes + 1,
-          },
-        },
-      }),
-  }),
+            votes: ownProps.votes + 1
+          }
+        }
+      })
+  })
 })(PostUpvoter)

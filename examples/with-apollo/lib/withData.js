@@ -12,18 +12,18 @@ function getComponentDisplayName(Component) {
 export default ComposedComponent => {
   return class WithData extends React.Component {
     static displayName = `WithData(${getComponentDisplayName(
-      ComposedComponent,
+      ComposedComponent
     )})`
     static propTypes = {
-      serverState: PropTypes.object.isRequired,
+      serverState: PropTypes.object.isRequired
     }
 
     static async getInitialProps(ctx) {
       // Initial serverState with apollo (empty)
       let serverState = {
         apollo: {
-          data: {},
-        },
+          data: {}
+        }
       }
 
       // Evaluate the composed component's getInitialProps()
@@ -43,7 +43,7 @@ export default ComposedComponent => {
           await getDataFromTree(
             <ApolloProvider client={apollo}>
               <ComposedComponent url={url} {...composedInitialProps} />
-            </ApolloProvider>,
+            </ApolloProvider>
           )
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
@@ -57,14 +57,14 @@ export default ComposedComponent => {
         // Extract query data from the Apollo store
         serverState = {
           apollo: {
-            data: apollo.cache.extract(),
-          },
+            data: apollo.cache.extract()
+          }
         }
       }
 
       return {
         serverState,
-        ...composedInitialProps,
+        ...composedInitialProps
       }
     }
 

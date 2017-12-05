@@ -5,11 +5,11 @@ import PostUpvoter from './PostUpvoter'
 
 const POSTS_PER_PAGE = 10
 
-function PostList({
+function PostList ({
   data: { loading, error, allPosts, _allPostsMeta },
-  loadMorePosts,
+  loadMorePosts
 }) {
-  if (error) return <ErrorMessage message="Error loading posts." />
+  if (error) return <ErrorMessage message='Error loading posts.' />
   if (allPosts && allPosts.length) {
     const areMorePosts = allPosts.length < _allPostsMeta.count
     return (
@@ -93,21 +93,21 @@ export const allPosts = gql`
 `
 export const allPostsQueryVars = {
   skip: 0,
-  first: POSTS_PER_PAGE,
+  first: POSTS_PER_PAGE
 }
 
 // The `graphql` wrapper executes a GraphQL query and makes the results
 // available on the `data` prop of the wrapped component (PostList)
 export default graphql(allPosts, {
   options: {
-    variables: allPostsQueryVars,
+    variables: allPostsQueryVars
   },
   props: ({ data }) => ({
     data,
     loadMorePosts: () => {
       return data.fetchMore({
         variables: {
-          skip: data.allPosts.length,
+          skip: data.allPosts.length
         },
         updateQuery: (previousResult, { fetchMoreResult }) => {
           if (!fetchMoreResult) {
@@ -115,10 +115,10 @@ export default graphql(allPosts, {
           }
           return Object.assign({}, previousResult, {
             // Append the new posts results to the old one
-            allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts],
+            allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
           })
-        },
+        }
       })
-    },
-  }),
+    }
+  })
 })(PostList)
