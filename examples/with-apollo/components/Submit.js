@@ -62,7 +62,10 @@ export default graphql(createPost, {
           })
           proxy.writeQuery({
             query: allPosts,
-            data: { allPosts: [createPost, ...data.allPosts] },
+            data: {
+              ...data,
+              allPosts: [createPost, ...data.allPosts],
+            },
             variables: allPostsQueryVars,
           })
         },
