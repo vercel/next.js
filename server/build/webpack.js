@@ -252,7 +252,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
-            require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import.js')),
+            require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import')),
             [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),
