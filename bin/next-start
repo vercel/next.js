@@ -3,6 +3,7 @@
 import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
+import { copyToClipboard } from './utils'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -46,9 +47,11 @@ const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })
 srv.start(argv.port, argv.hostname)
-.then(() => {
+.then(async () => {
   if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    const url = `http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`
+    const copied = await copyToClipboard(url)
+    console.log(`> Ready on ${url} ${copied ? '(copied to clipboard)' : ''}`)
   }
 })
 .catch((err) => {
