@@ -1,8 +1,8 @@
 import { join } from 'path'
 import { readdirSync, existsSync } from 'fs'
 
-export const IS_BUNDLED_PAGE = /^bundles[/\\]pages.*\.js$/
-export const MATCH_ROUTE_NAME = /^bundles[/\\]pages[/\\](.*)\.js$/
+export const IS_BUNDLED_PAGE = /^bundles[/\\]pages.*\.(js|jsx)$/
+export const MATCH_ROUTE_NAME = /^bundles[/\\]pages[/\\](.*)\.(js|jsx)$/
 
 export function getAvailableChunks (dir, dist) {
   const chunksDir = join(dir, dist, 'chunks')

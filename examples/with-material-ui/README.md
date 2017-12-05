@@ -3,6 +3,17 @@
 
 ## How to use
 
+### Using `create-next-app`
+
+Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+
+```
+npm i -g create-next-app
+create-next-app --example with-material-ui with-material-ui-app
+```
+
+### Download manually
+
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash

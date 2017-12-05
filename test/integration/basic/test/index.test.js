@@ -16,7 +16,7 @@ import hmr from './hmr'
 import dynamic from './dynamic'
 
 const context = {}
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('Basic Features', () => {
   beforeAll(async () => {
