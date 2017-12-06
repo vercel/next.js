@@ -1,24 +1,21 @@
 {
   "name": "with-jest",
   "version": "1.0.0",
-  "jest": {
-    "setupFiles": [
-      "<rootDir>/shim.js"
-    ]
-  },
   "dependencies": {
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "16.2.0",
+    "react-dom": "16.2.0"
   },
   "devDependencies": {
-    "enzyme": "^2.8.2",
-    "jest": "^21.0.0",
-    "react-addons-test-utils": "^15.6.0",
-    "react-test-renderer": "^16.0.0"
+    "enzyme": "3.2.0",
+    "enzyme-adapter-react-16": "1.1.0",
+    "jest": "21.2.1",
+    "raf": "3.4.0",
+    "react-addons-test-utils": "15.6.2",
+    "react-test-renderer": "16.2.0"
   },
   "scripts": {
-    "test": "jest",
+    "test": "NODE_ENV=test jest",
     "dev": "next",
     "build": "next build",
     "start": "next start"
