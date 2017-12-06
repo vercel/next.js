@@ -20,7 +20,7 @@ const buildImport = (args) => (template(`
       })
       :
       new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
-          const weakId = require.resolveWeak ? require.resolveWeak(SOURCE) : (SOURCE)
+          const weakId = require.resolveWeak ? require.resolveWeak(SOURCE) : /*require.resolveWeak*/(SOURCE)
           try {
             const weakModule = __webpack_require__(weakId)
             return resolve(weakModule)
