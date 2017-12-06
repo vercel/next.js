@@ -9,7 +9,7 @@ const TYPE_IMPORT = 'Import'
 
 const buildImport = (args) => (template(`
   (
-    typeof window === 'undefined' ?
+    (typeof window === 'undefined') || (process.env.NODE_ENV === 'test') ?
       new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
         eval('require.ensure = function (deps, callback) { callback(require) }')
         require.ensure([], (require) => {
@@ -20,12 +20,11 @@ const buildImport = (args) => (template(`
       })
       :
       new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
-          const weakId = require.resolveWeak ? require.resolveWeak(SOURCE) : /*require.resolveWeak*/(SOURCE)
+          const weakId = require.resolveWeak(SOURCE)
           try {
             const weakModule = __webpack_require__(weakId)
             return resolve(weakModule)
           } catch (err) {}
-          (typeof require.ensure !== "function") && eval('(require.ensure = function (deps, callback) { callback(require) })')
           require.ensure([], (require) => {
             try {
               let m = require(SOURCE)
