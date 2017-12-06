@@ -5,6 +5,17 @@ This is an example of using scoped stylesheets and PostCSS, heavily influenced b
 
 ## How to use
 
+### Using `create-next-app`
+
+Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+
+```
+npm i -g create-next-app
+create-next-app --example with-scoped-stylesheets-and-postcss with-scoped-stylesheets-and-postcss-app
+```
+
+### Download manually
+
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash

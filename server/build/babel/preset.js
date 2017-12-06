@@ -46,6 +46,7 @@ module.exports = (context, opts = {}) => ({
     require.resolve('babel-preset-react')
   ],
   plugins: [
+    require.resolve('./plugins/remove-dotjsx-from-import'),
     require.resolve('babel-plugin-react-require'),
     require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),

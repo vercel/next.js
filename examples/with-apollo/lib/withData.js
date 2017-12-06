@@ -5,23 +5,25 @@ import Head from 'next/head'
 import initApollo from './initApollo'
 
 // Gets the display name of a JSX component for dev tools
-function getComponentDisplayName (Component) {
+function getComponentDisplayName(Component) {
   return Component.displayName || Component.name || 'Unknown'
 }
 
 export default ComposedComponent => {
   return class WithData extends React.Component {
-    static displayName = `WithData(${getComponentDisplayName(ComposedComponent)})`
+    static displayName = `WithData(${getComponentDisplayName(
+      ComposedComponent
+    )})`
     static propTypes = {
       serverState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps (ctx) {
+    static async getInitialProps(ctx) {
       // Initial serverState with apollo (empty)
-      let serverState = { 
+      let serverState = {
         apollo: {
-          data: { }
-        } 
+          data: {}
+        }
       }
 
       // Evaluate the composed component's getInitialProps()
@@ -35,7 +37,7 @@ export default ComposedComponent => {
       if (!process.browser) {
         const apollo = initApollo()
         // Provide the `url` prop data in case a GraphQL query uses it
-        const url = {query: ctx.query, pathname: ctx.pathname}
+        const url = { query: ctx.query, pathname: ctx.pathname }
         try {
           // Run all GraphQL queries
           await getDataFromTree(
@@ -66,12 +68,12 @@ export default ComposedComponent => {
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       this.apollo = initApollo(this.props.serverState.apollo.data)
     }
 
-    render () {
+    render() {
       return (
         <ApolloProvider client={this.apollo}>
           <ComposedComponent {...this.props} />

@@ -11,7 +11,7 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  pagesGlobPattern: 'pages/**/*.js'
+  pagesGlobPattern: 'pages/**/*.+(js|jsx)'
 }
 
 export default function getConfig (dir, customConfig) {
