@@ -1,24 +1,22 @@
-import React, { Component } from 'react';
-import { hydrate, keyframes, injectGlobal } from 'react-emotion';
-import { injectGlobalStyles } from '../shared/styles';
+import React, { Component } from 'react'
+import { hydrate } from 'react-emotion'
+import { injectGlobalStyles } from '../shared/styles'
 
 const withEmotion = ComposedComponent => {
   class HOC extends Component {
-      
-      componentWillMount() {
-        if (typeof window !== 'undefined') {
-          hydrate(window.__NEXT_DATA__.ids);
-        }
-        injectGlobalStyles();
+    componentWillMount () {
+      if (typeof window !== 'undefined') {
+        hydrate(window.__NEXT_DATA__.ids)
       }
+      injectGlobalStyles()
+    }
 
-      render() {
-        return <ComposedComponent />
-      }
+    render () {
+      return <ComposedComponent />
+    }
   };
 
-  return HOC;
-};
+  return HOC
+}
 
-export default withEmotion;
-
+export default withEmotion

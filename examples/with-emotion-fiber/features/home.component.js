@@ -1,18 +1,12 @@
-import styled, { css, keyframes } from 'react-emotion';
-import { basicStyles, Basic, Combined, Animated, bounce } from '../shared/styles';
-
+import {Basic, Combined, Animated, bounce} from '../shared/styles'
 const Home = () => (
-    <div>
+  <div>
     <Basic>Cool Styles</Basic>
     <Combined>
       With <code>:hover</code>.
     </Combined>
     <Animated animation={bounce}>Let's bounce.</Animated>
   </div>
-);
+)
 
-export default Home;
-
-
-
-
+export default Home
