@@ -1,6 +1,6 @@
 import { resolve, join, sep } from 'path'
 import { createHash } from 'crypto'
-import { realpathSync } from 'fs'
+import { realpathSync, existsSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -57,11 +57,11 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     // managing pages.
     if (dev) {
       for (const p of devPages) {
-        entries[join('bundles', p)] = [`./${p}?entry`]
+        entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
       }
     } else {
       for (const p of pages) {
-        entries[join('bundles', p)] = [`./${p}?entry`]
+        entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
       }
     }
 
@@ -192,14 +192,14 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   }
 
   const rules = (dev ? [{
-    test: /\.js(\?[^?]*)?$/,
+    test: /\.(js|jsx)(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
       join(dir, 'pages'),
       nextPagesDir
     ]
   }, {
-    test: /\.js(\?[^?]*)?$/,
+    test: /\.(js|jsx)(\?[^?]*)?$/,
     loader: 'react-hot-loader/webpack',
     exclude: /node_modules/
   }] : [])
@@ -207,7 +207,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     test: /\.json$/,
     loader: 'json-loader'
   }, {
-    test: /\.(js|json)(\?[^?]*)?$/,
+    test: /\.(js|jsx|json)(\?[^?]*)?$/,
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
@@ -215,17 +215,34 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     },
     options: {
       name: 'dist/[path][name].[ext]',
+      // We need to strip off .jsx on the server. Otherwise require without .jsx doesn't work.
+      interpolateName: (name) => name.replace('.jsx', '.js'),
+      validateFileName (file) {
+        const cases = [{from: '.js', to: '.jsx'}, {from: '.jsx', to: '.js'}]
+
+        for (const item of cases) {
+          const {from, to} = item
+          if (file.slice(-(from.length)) !== from) {
+            continue
+          }
+
+          const filePath = file.slice(0, -(from.length)) + to
+
+          if (existsSync(filePath)) {
+            throw new Error(`Both ${from} and ${to} file found. Please make sure you only have one of both.`)
+          }
+        }
+      },
       // By default, our babel config does not transpile ES2015 module syntax because
       // webpack knows how to handle them. (That's how it can do tree-shaking)
       // But Node.js doesn't know how to handle them. So, we have to transpile them here.
       transform ({ content, sourceMap, interpolatedName }) {
         // Only handle .js files
-        if (!(/\.js$/.test(interpolatedName))) {
+        if (!(/\.(js|jsx)$/.test(interpolatedName))) {
           return { content, sourceMap }
         }
 
         const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
-
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
@@ -235,6 +252,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
+            require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import.js')),
             [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),
@@ -291,7 +309,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       presets: [require.resolve('./babel/preset')]
     }
   }, {
-    test: /\.js(\?[^?]*)?$/,
+    test: /\.(js|jsx)(\?[^?]*)?$/,
     loader: 'babel-loader',
     include: [dir],
     exclude (str) {
@@ -321,6 +339,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       chunkFilename: '[name]'
     },
     resolve: {
+      extensions: ['.js', '.jsx', '.json'],
       modules: [
         nextNodeModulesDir,
         'node_modules',
