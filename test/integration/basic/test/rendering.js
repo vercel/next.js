@@ -71,12 +71,12 @@ export default function ({ app }, suiteName, render, fetch) {
 
     test('default Content-Type', async () => {
       const res = await fetch('/stateless')
-      expect(res.headers.get('Content-Type')).toMatch('text/html')
+      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
     })
 
     test('setting Content-Type in getInitialProps', async () => {
       const res = await fetch('/custom-encoding')
-      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
+      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
     })
 
     test('allows to import .json files', async () => {
