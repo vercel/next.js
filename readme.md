@@ -1037,7 +1037,7 @@ Here's an example `.babelrc` file:
 
 ```json
 {
-  "presets": ["next/babel", "stage-0"]
+  "presets": ["next/babel", "env"]
 }
 ```
 
