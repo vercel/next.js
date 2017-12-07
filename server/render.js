@@ -186,7 +186,7 @@ export function sendHTML (req, res, html, method, { dev }) {
 
   res.setHeader('ETag', etag)
   if (!res.getHeader('Content-Type')) {
-    res.setHeader('Content-Type', 'text/html')
+    res.setHeader('Content-Type', 'text/html; charset=utf-8')
   }
   res.setHeader('Content-Length', Buffer.byteLength(html))
   res.end(method === 'HEAD' ? null : html)

@@ -19,7 +19,7 @@ create-next-app --example with-scoped-stylesheets-and-postcss with-scoped-styles
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-scoped-stylesheets-and-postcss
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-scoped-stylesheets-and-postcss
 cd with-scoped-stylesheets-and-postcss
 ```
 

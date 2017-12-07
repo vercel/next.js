@@ -18,7 +18,7 @@ create-next-app --example page-transitions page-transitions-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/page-transitions
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/page-transitions
 cd page-transitions
 ```
 

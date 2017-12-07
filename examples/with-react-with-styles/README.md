@@ -18,7 +18,7 @@ create-next-app --example with-react-with-styles with-react-with-styles-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-with-styles
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-with-styles
 cd with-react-with-styles
 ```
 
