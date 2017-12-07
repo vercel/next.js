@@ -18,7 +18,7 @@ create-next-app --example parameterized-routing parameterized-routing-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/parameterized-routing
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/parameterized-routing
 cd parameterized-routing
 ```
 

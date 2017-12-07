@@ -16,7 +16,7 @@ create-next-app --example with-dynamic-import with-dynamic-import-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-dynamic-import
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-dynamic-import
 cd with-dynamic-import
 ```
 
