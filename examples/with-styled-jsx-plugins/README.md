@@ -18,7 +18,7 @@ create-next-app --example with-styled-jsx-plugins with-styled-jsx-plugins-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-styled-jsx-plugins
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-styled-jsx-plugins
 cd with-styled-jsx-plugins
 ```
 

@@ -18,7 +18,7 @@ create-next-app --example with-react-toolbox with-react-toolbox-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-toolbox
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-toolbox
 cd with-react-toolbox
 ```
 
