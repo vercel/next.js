@@ -50,6 +50,7 @@
   },
   "dependencies": {
     "ansi-html": "0.0.7",
+    "await-stream-ready": "1.0.1",
     "babel-core": "6.26.0",
     "babel-generator": "6.26.0",
     "babel-loader": "7.1.2",
@@ -78,6 +79,7 @@
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
     "json-loader": "0.5.7",
+    "json-stream-stringify": "1.5.1",
     "loader-utils": "1.1.0",
     "md5-file": "3.2.3",
     "minimist": "1.2.0",
