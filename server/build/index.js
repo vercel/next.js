@@ -58,9 +58,6 @@ async function writeBuildStats (dir, stats) {
   }
   const buildStatsPath = join(dir, '.next', 'build-stats.json')
   await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
-
-  const statsPath = join(dir, '.next', 'webpack-stats.json')
-  await fs.writeFile(statsPath, JSON.stringify(stats), 'utf8')
 }
 
 async function writeBuildId (dir, buildId) {
