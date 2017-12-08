@@ -29,8 +29,9 @@
     "pretestonly": "taskr pretest",
     "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
     "posttestonly": "taskr posttest",
+    "testall": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "pretest": "npm run lint",
-    "test": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
+    "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
@@ -132,6 +133,7 @@
     "react-dom": "16.0.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
+    "uglifyjs-webpack-plugin": "^1.1.1",
     "wd": "1.4.1"
   },
   "peerDependencies": {

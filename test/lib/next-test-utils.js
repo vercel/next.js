@@ -23,8 +23,12 @@ export function renderViaAPI (app, pathname, query) {
 }
 
 export function renderViaHTTP (appPort, pathname, query) {
+  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
+}
+
+export function fetchViaHTTP (appPort, pathname, query) {
   const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
-  return fetch(url).then((res) => res.text())
+  return fetch(url)
 }
 
 export function findPort () {

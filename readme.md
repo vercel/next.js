@@ -162,7 +162,7 @@ It's possible to use any existing CSS-in-JS solution. The simplest one is inline
 export default () => <p style={{ color: 'red' }}>hi there</p>
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
 
 ### Static file serving (e.g.: images)
 
@@ -197,6 +197,26 @@ export default () =>
   </div>
 ```
 
+To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
+
+```jsx
+import Head from 'next/head'
+export default () => (
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+    </Head>
+    <Head>
+      <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
+)
+```
+
+In this case only the second `<meta name="viewport" />` is rendered.
+ 
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
@@ -383,6 +403,8 @@ export default () =>
 
 If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hyperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
 
+**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
+
 ```jsx
 import Link from 'next/link'
 import Unexpected_A from 'third-library'
@@ -454,15 +476,15 @@ This uses of the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
+- `onRouteChangeStart(url)` - Fires when a route starts to change
+- `onRouteChangeComplete(url)` - Fires when a route changed completely
+- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
+- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onAppUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `onRouteChangeStart`:
 
 ```js
 Router.onRouteChangeStart = url => {
@@ -649,7 +671,19 @@ export default ({ url }) =>
   </ul>
 </details></p>
 
-Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
+Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc.
+
+When using a custom server with a server file, for example called `server.js`, make sure you update the scripts key in `package.json` to:
+
+```json
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}
+```
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
@@ -697,6 +731,21 @@ Supported options:
 - `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
+
+#### Disabling file-system routing
+By default, `Next` will serve each file in `/pages` under a pathname matching the filename (eg, `/pages/some-file.js` is served at `site.com/some-file`.
+
+If your project uses custom routing, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX. 
+
+To disable this behavior & prevent routing based on files in `/pages`, simply set the following option in your `next.config.js`: 
+
+```js
+// next.config.js
+module.exports = {
+  useFileSystemPublicRoutes: false
+}
+```
+
 
 ### Dynamic Import
 
@@ -873,7 +922,7 @@ If you want to render the built-in error page you can by using `next/error`:
 ```jsx
 import React from 'react'
 import Error from 'next/error'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 export default class Page extends React.Component {
   static async getInitialProps() {
@@ -988,7 +1037,7 @@ Here's an example `.babelrc` file:
 
 ```json
 {
-  "presets": ["next/babel", "stage-0"]
+  "presets": ["next/babel", "env"]
 }
 ```
 

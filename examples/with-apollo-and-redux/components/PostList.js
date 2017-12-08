@@ -1,6 +1,7 @@
 import { gql, graphql } from 'react-apollo'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
+import Link from 'next/link'
 
 const POSTS_PER_PAGE = 10
 
@@ -15,7 +16,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
             <li key={post.id}>
               <div>
                 <span>{index + 1}. </span>
-                <a href={post.url}>{post.title}</a>
+                <Link href={{ pathname: '/blog/' + post.id }}><a>{post.title}</a></Link>
                 <PostUpvoter id={post.id} votes={post.votes} />
               </div>
             </li>

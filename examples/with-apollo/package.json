@@ -7,16 +7,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "apollo-client-preset": "^1.0.1",
-    "graphql": "^0.11.7",
-    "graphql-anywhere": "^3.1.0",
-    "graphql-tag": "^2.5.0",
-    "isomorphic-fetch": "^2.2.1",
+    "apollo-client-preset": "1.0.4",
+    "graphql": "0.11.7",
+    "graphql-anywhere": "4.0.2",
+    "graphql-tag": "2.5.0",
+    "isomorphic-unfetch": "2.0.0",
     "next": "latest",
-    "prop-types": "^15.5.8",
-    "react": "^16.0.0",
-    "react-apollo": "^2.0.0",
-    "react-dom": "^16.0.0"
+    "prop-types": "15.6.0",
+    "react": "16.2.0",
+    "react-apollo": "2.0.1",
+    "react-dom": "16.2.0"
   },
   "author": "",
   "license": "ISC"
