@@ -8,9 +8,9 @@ export const withUserAgent = Page => {
       ? await Page.getInitialProps(context)
       : {}
 
-    const userAgent = process.browser
-      ? navigator.userAgent
-      : context.req.headers['user-agent']
+    const userAgent = context.req
+      ? context.req.headers['user-agent']
+      : navigator.userAgent
 
     return {
       ...initialProps,

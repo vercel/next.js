@@ -10,9 +10,9 @@ export const withLanguages = Page => {
       ? await Page.getInitialProps(context)
       : {}
 
-    const languages = process.browser
-      ? navigator.languages
-      : accepts(context.req).languages()
+    const languages = context.req
+      ? accepts(context.req).languages()
+      : navigator.languages
 
     return {
       ...initialProps,
