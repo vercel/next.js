@@ -393,10 +393,6 @@ asynckit@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/asynckit/-/asynckit-0.4.0.tgz#c79ed97f7f34cb8f2ba1bc9790bcc366474b4b79"
 
-await-stream-ready@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/await-stream-ready/-/await-stream-ready-1.0.1.tgz#fa308c63fe14ac7a90966ad70822aa9369f8a6bb"
-
 aws-sign2@~0.6.0:
   version "0.6.0"
   resolved "https://registry.yarnpkg.com/aws-sign2/-/aws-sign2-0.6.0.tgz#14342dd38dbcc94d0e5b87d763cd63612c0e794f"
@@ -3976,10 +3972,6 @@ json-stable-stringify@^1.0.0, json-stable-stringify@^1.0.1:
   resolved "https://registry.yarnpkg.com/json-stable-stringify/-/json-stable-stringify-1.0.1.tgz#9a759d39c5f2ff503fd5300646ed445f88c4f9af"
   dependencies:
     jsonify "~0.0.0"
-
-json-stream-stringify@1.5.1:
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/json-stream-stringify/-/json-stream-stringify-1.5.1.tgz#bab905aea92a2f130a4e142b78e66c8367a1064e"
 
 json-stringify-safe@^5.0.1, json-stringify-safe@~5.0.1:
   version "5.0.1"
