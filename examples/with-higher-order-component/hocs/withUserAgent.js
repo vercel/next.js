@@ -3,9 +3,9 @@ import { getDisplayName } from '../lib/getDisplayName'
 export const withUserAgent = Page => {
   const WithUserAgent = props => <Page {...props} />
 
-  WithUserAgent.getInitialProps = context => {
+  WithUserAgent.getInitialProps = async context => {
     const initialProps = Page.getInitialProps
-      ? Page.getInitialProps(context)
+      ? await Page.getInitialProps(context)
       : {}
 
     const userAgent = process.browser

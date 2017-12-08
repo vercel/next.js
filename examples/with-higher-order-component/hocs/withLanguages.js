@@ -5,9 +5,9 @@ import { getDisplayName } from '../lib/getDisplayName'
 export const withLanguages = Page => {
   const WithLanguages = props => <Page {...props} />
 
-  WithLanguages.getInitialProps = context => {
+  WithLanguages.getInitialProps = async context => {
     const initialProps = Page.getInitialProps
-      ? Page.getInitialProps(context)
+      ? await Page.getInitialProps(context)
       : {}
 
     const languages = process.browser
