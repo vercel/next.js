@@ -36,9 +36,9 @@ now
 
 ## The idea behind the example
 
-Next.js let you prefetch the JS code of another page adding the `prefetch` prop to `next/link`. This can help you avoid the download time a new page you know beforehand the user is most probably going to visit.
+Next.js lets you prefetch the JS code of another page just adding the `prefetch` prop to `next/link`. This can help you avoid the download time a new page you know beforehand the user is most probably going to visit.
 
-In the example we'll extends the `Link` component to have it running the `getInitialProps` (if it's defined) of the new page and saving the resulting props on cache. When the user visit the page it will load the props from cache and avoid any request.
+In the example we'll extend the `Link` component to also run the `getInitialProps` (if it's defined) of the new page and save the resulting props on cache. When the user visits the page it will load the props from cache and avoid any request.
 
 It uses `sessionStorage` as cache but it could be replaced with any other more specialized system. Like IndexedDB or just an in-memory API with a better cache strategy to prune old cache and force new fetching.
 
