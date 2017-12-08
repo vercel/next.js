@@ -7,6 +7,13 @@ import Crypto from 'crypto'
 
 const TYPE_IMPORT = 'Import'
 
+/*
+ Added "typeof require.resolveWeak !== 'function'" check instead of
+ "typeof window === 'undefined'" to support dynamic impports in non-webpack environments.
+ "require.resolveWeak" and "require.ensure" are webpack specific methods.
+ They would fail in Node/CommonJS environments.
+*/
+
 const buildImport = (args) => (template(`
   (
     typeof require.resolveWeak !== 'function' ?
