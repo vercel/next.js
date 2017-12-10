@@ -988,6 +988,8 @@ module.exports = {
 }
 ```
 
+This is development-only feature. If you want to cache SSR pages in production, please see [SSR-caching](https://github.com/zeit/next.js/tree/canary/examples/ssr-caching) example.
+
 ### Customizing webpack config
 
 <p><details>
