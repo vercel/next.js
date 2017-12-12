@@ -1,4 +1,4 @@
 module.exports = {
-  setupFiles: ['<rootDir>/jest.setup.js'],
+  setupFiles: ['raf/polyfill', '<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/']
 }
