@@ -8,7 +8,7 @@
     "lint": "eslint --ext .js,.js ."
   },
   "dependencies": {
-    "babel-plugin-module-resolver": "^2.7.1",
+    "babel-plugin-module-resolver": "^3.0.0",
     "next": "latest",
     "next-redux-wrapper": "^1.0.0",
     "prop-types": "^15.5.10",
