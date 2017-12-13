@@ -325,7 +325,7 @@ Client-side routing behaves exactly like the browser:
 
 1. The component is fetched
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
-3. After 1 and 2 complete, `pushState` is performed and the new component rendered
+3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
 
 Each top-level component receives a `url` property with the following API:
 
@@ -382,7 +382,7 @@ export default () =>
   </div>
 ```
 
-##### Using a component that support `onClick`
+##### Using a component that supports `onClick`
 
 `<Link>` supports any component that supports the `onClick` event. In case you don't provide an `<a>` tag, it will only add the `onClick` event handler and won't pass the `href` property.
 
@@ -498,7 +498,7 @@ If you no longer want to listen to that event, you can simply unset the event li
 Router.onRouteChangeStart = null
 ```
 
-If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contained a `cancelled` property set to `true`.
+If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contain a `cancelled` property set to `true`.
 
 ```js
 Router.onRouteChangeError = (err, url) => {
@@ -1054,7 +1054,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
 ## Production deployment
 
