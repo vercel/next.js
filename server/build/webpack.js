@@ -128,7 +128,8 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       filename: 'manifest.js'
     }),
     new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+      'BUILD_ID': buildId
     }),
     new PagesPlugin(),
     new DynamicChunksPlugin(),
