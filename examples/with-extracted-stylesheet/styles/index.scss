@@ -1,0 +1,23 @@
+@import "~bulma/sass/utilities/initial-variables";
+$primary: #3E3C3D;
+$info: $blue;
+
+@import "~bulma";
+
+.editor {
+  .navbar-brand img {
+    filter: invert(100%);
+  }
+}
+
+.hero {
+  background-image: url("./background.jpg");
+  min-height: 100vh;
+}
+
+.editor-container {
+  width: 300px;
+  height: 450px;
+  margin: 0 auto;
+  border: 1px solid gray;
+}

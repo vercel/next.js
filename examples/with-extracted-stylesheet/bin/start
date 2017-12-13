@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+
+const express = require('express')
+const next = require('next')
+const fs = require('fs')
+const path = require('path')
+const compression = require('compression')
+const device = require('express-device')
+
+const port = parseInt(process.env.PORT, 10) || 3000
+const dev = process.env.NODE_ENV === 'development'
+const app = next({ dev })
+const handle = app.getRequestHandler()
+const rootDir = path.resolve(__dirname, '..')
+const outDir = path.join(rootDir, 'out')
+const routes = require('../routes')
+
+app.prepare().then(() => {
+  const server = express()
+
+  server.use(compression())
+
+  const orderedRoutes = routes.orderedRoutes()
+
+  const hasCritical = fs.existsSync(path.join(outDir, 'index-phone.html'))
+
+  if (dev) {
+    server.use('/static', express.static(path.join(rootDir, '.static')))
+  } else {
+    server.use('/_next/', express.static(path.join(outDir, '_next'), {
+      maxAge: "365d",
+      immutable: true
+    }))
+
+    // We know generated assets are immutable so we set high max-age
+    server.use('/static/assets/', express.static(path.join(outDir, 'static/assets'), {
+      maxAge: "365d",
+      immutable: true
+    }))
+
+    // Other assets are mutable, but we want CDNs to cache it for at least 1m
+    server.use('/static/', express.static(path.join(outDir, 'static'), {
+      maxAge: "1m"
+    }))
+
+    if (hasCritical) {
+      const criticalMiddlewares = {
+        phone: express.static(outDir, { index: 'index-phone.html' }),
+        tablet: express.static(outDir, { index: 'index-tablet.html' }),
+        desktop: express.static(outDir, { index: 'index-desktop.html' })
+      }
+
+      server.use(device.capture())
+      server.use((req, res, next) => {
+        switch (req.device.type) {
+          case 'phone':
+            criticalMiddlewares.phone(req, res, next)
+            return
+          case 'tablet':
+            criticalMiddlewares.tablet(req, res, next)
+            return
+          default:
+            criticalMiddlewares.desktop(req, res, next)
+        }
+      });
+    } else {
+      server.use('/', express.static(path.join(rootDir, 'out')))
+    }
+  }
+
+  // Fallback to dynamic routes
+  orderedRoutes.forEach(({ pathname, page, query }) => {
+    server.get(pathname + '*', (req, res) =>
+      app.render(req, res, page, query || {}))
+  })
+
+  server.get('*', (req, res) => handle(req, res))
+
+  server.listen(port, err => {
+    if (err) throw err
+    console.log(`> Ready on http://localhost:${port}`)
+  })
+})
