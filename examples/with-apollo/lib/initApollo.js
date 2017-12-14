@@ -10,7 +10,7 @@ if (!process.browser) {
   global.fetch = fetch
 }
 
-function create(initialState, ssrMode = !process.browser) {
+function create (initialState, ssrMode = !process.browser) {
   return new ApolloClient({
     connectToDevTools: process.browser,
     ssrMode, // Disables forceFetch on the server (so queries are only run once)
@@ -24,7 +24,7 @@ function create(initialState, ssrMode = !process.browser) {
   })
 }
 
-export default function initApollo(initialState, ssrMode) {
+export default function initApollo (initialState, ssrMode) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (!process.browser) {
