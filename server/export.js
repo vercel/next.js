@@ -68,7 +68,7 @@ export default async function (dir, options, configuration) {
     )
   }
 
-  const exportPathMap = await config.exportPathMap()
+  const exportPathMap = normalizePathMap(await config.exportPathMap())
   const exportPaths = Object.keys(exportPathMap)
 
   // Start the rendering process
@@ -157,4 +157,12 @@ function copyPages (nextDir, outDir, buildId) {
 
     walker.on('end', resolve)
   })
+}
+
+function normalizePathMap (pathMap) {
+  const normalized = {}
+  for (const path in pathMap) {
+    normalized[path.startsWith('/') ? path : `/${path}`] = pathMap[path]
+  }
+  return normalized
 }
