@@ -27,10 +27,7 @@ export default ComposedComponent => {
 
       // Run all GraphQL queries in the component tree
       // and extract the resulting data
-      //
-      // The reason why ssrMode (second param) is set to true is to be able to
-      // run queries after getInitialProps using `ssr: true` in the query options
-      const apollo = initApollo(null, true)
+      const apollo = initApollo()
       // Provide the `url` prop data in case a GraphQL query uses it
       const url = { query: ctx.query, pathname: ctx.pathname }
       try {
