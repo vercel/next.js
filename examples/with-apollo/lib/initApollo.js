@@ -10,30 +10,30 @@ if (!process.browser) {
   global.fetch = fetch
 }
 
-function create (initialState) {
+function create(initialState, ssrMode = !process.browser) {
   return new ApolloClient({
     connectToDevTools: process.browser,
-    ssrMode: !process.browser, // Disables forceFetch on the server (so queries are only run once)
+    ssrMode, // Disables forceFetch on the server (so queries are only run once)
     link: new HttpLink({
       uri: 'https://api.graph.cool/simple/v1/cixmkt2ul01q00122mksg82pn', // Server URL (must be absolute)
       opts: {
         credentials: 'same-origin' // Additional fetch() options like `credentials` or `headers`
       }
     }),
-    cache: new InMemoryCache().restore(initialState || {}),
+    cache: new InMemoryCache().restore(initialState || {})
   })
 }
 
-export default function initApollo (initialState) {
+export default function initApollo(initialState, ssrMode) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (!process.browser) {
-    return create(initialState)
+    return create(initialState, ssrMode)
   }
 
   // Reuse client on the client-side
   if (!apolloClient) {
-    apolloClient = create(initialState)
+    apolloClient = create(initialState, ssrMode)
   }
 
   return apolloClient
