@@ -91,6 +91,9 @@ export default async function (dir, options, configuration) {
 
   for (const path of exportPaths) {
     log(`  exporting path: ${path}`)
+    if (!path.startsWith('/')) {
+      throw new Error(`path "${path}" doesn't start with a backslash`)
+    }
 
     const { page, query = {} } = exportPathMap[path]
     const req = { url: path }
