@@ -36,14 +36,20 @@ export default ComposedComponent => {
       // and extract the resulting data
       if (!process.browser) {
         const apollo = initApollo()
-        // Provide the `url` prop data in case a GraphQL query uses it
-        const url = { query: ctx.query, pathname: ctx.pathname }
+
         try {
           // Run all GraphQL queries
           await getDataFromTree(
             <ApolloProvider client={apollo}>
-              <ComposedComponent url={url} {...composedInitialProps} />
-            </ApolloProvider>
+              <ComposedComponent {...composedInitialProps} />
+            </ApolloProvider>,
+            {
+              router: {
+                asPath: ctx.asPath,
+                pathname: ctx.pathname,
+                query: ctx.query
+              }
+            }
           )
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
