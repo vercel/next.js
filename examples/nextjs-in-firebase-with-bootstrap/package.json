@@ -1,0 +1,18 @@
+{
+  "name": "nextjs-in-firebase-with-bootstrap",
+  "version": "1.0.0",
+  "description": "NextJS in Firebase with Bootstrap.",
+  "scripts": {
+    "install": "yarn build-all",
+    "next": "yarn build-firebase && cd app && yarn && yarn dev",
+    "preserve": "mkdir -p public/static && cp -a \"app/static/\". \"public/static/\" && yarn build-all",
+    "serve": "firebase serve",
+    "predeploy": "cp -a \"app/static/\". \"public/static/\" && yarn build-all",
+    "deploy": "firebase deploy",
+    "build-all": "yarn build-next && yarn build-firebase",
+    "build-next": "cd app && yarn && yarn build",
+    "build-firebase": "cd functions && yarn"
+  },
+  "author": "Anand Dayalan <andaya@microsoft.com>",
+  "license": "MIT"
+}
