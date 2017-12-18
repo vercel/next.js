@@ -1,4 +1,4 @@
-import Logo from 'component-a'
+import Logo from 'component-a/lib/zeit'
 
 export default () => (
   <div>

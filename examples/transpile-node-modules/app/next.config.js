@@ -1,5 +1,3 @@
 module.exports = {
-  transpileModules: [
-    /node_modules\/component-[a|b]/
-  ]
+  exclude: /node_modules(?!\/component-[a|b])/
 }
