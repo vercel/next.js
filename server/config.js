@@ -8,6 +8,7 @@ const defaultConfig = {
   poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
+  assetMap: null,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   pagesGlobPattern: 'pages/**/*.+(js|jsx)'
