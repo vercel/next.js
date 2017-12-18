@@ -118,7 +118,12 @@ export class Main extends Component {
 
 export class NextScript extends Component {
   static propTypes = {
-    nonce: PropTypes.string
+    nonce: PropTypes.string,
+    propsFilter: PropTypes.func,
+  }
+
+  static defaultProps = {
+    propsFilter: props => props,
   }
 
   static contextTypes = {
@@ -176,13 +181,17 @@ export class NextScript extends Component {
     const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
     const { pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
+    const nextData = {
+      ...__NEXT_DATA__,
+      props: propsFilter(__NEXT_DATA__.props),
+    }
 
     __NEXT_DATA__.chunks = chunks
 
     return <Fragment>
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+          __NEXT_DATA__ = ${htmlescape(nextData)}
           module={}
           __NEXT_LOADED_PAGES__ = []
           __NEXT_LOADED_CHUNKS__ = []
