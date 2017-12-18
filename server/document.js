@@ -119,11 +119,11 @@ export class Main extends Component {
 export class NextScript extends Component {
   static propTypes = {
     nonce: PropTypes.string,
-    propsFilter: PropTypes.func,
+    propsFilter: PropTypes.func
   }
 
   static defaultProps = {
-    propsFilter: props => props,
+    propsFilter: props => props
   }
 
   static contextTypes = {
@@ -183,7 +183,7 @@ export class NextScript extends Component {
     const pagePathname = getPagePathname(pathname)
     const nextData = {
       ...__NEXT_DATA__,
-      props: propsFilter(__NEXT_DATA__.props),
+      props: this.props.propsFilter(__NEXT_DATA__.props)
     }
 
     __NEXT_DATA__.chunks = chunks
