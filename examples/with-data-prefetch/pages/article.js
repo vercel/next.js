@@ -3,14 +3,14 @@ import fetch from 'isomorphic-unfetch'
 import { format } from 'url'
 
 export default class Article extends Component {
-  static async getInitialProps ({ req, query, pathname }) {
+  static async getInitialProps ({ req, query, pathname, isVirtualCall }) {
+    const url = format({ pathname, query })
+
     // if we're not running server side
+    // get the props from sessionStorage using the pathname + query as key
+    // if we got something return it as an object
     if (!req) {
-      // get the props from sessionStorage using the pathname + query as key
-      const props = window.sessionStorage.getItem(
-        format({ pathname: pathname, query: query })
-      )
-      // if we got something return it as an object
+      const props = window.sessionStorage.getItem(url)
       if (props) {
         return JSON.parse(props)
       }
@@ -30,7 +30,16 @@ export default class Article extends Component {
       `https://jsonplaceholder.typicode.com/users/${article.userId}`
     ).then(response => response.json())
 
-    return { article, comments, user }
+    const props = { article, comments, user }
+
+    // if the method is being called by our Link component
+    // save props on sessionStorage using the full url (pathname + query)
+    // as key and the serialized props as value
+    if (isVirtualCall) {
+      window.sessionStorage.setItem(url, JSON.stringify(props))
+    }
+
+    return props
   }
 
   render () {
