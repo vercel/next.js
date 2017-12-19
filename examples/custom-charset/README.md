@@ -23,3 +23,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
+
+## The idea behind the example
+
+The goal of this example is to demonstrate how to set character encoding both client-side and server-side. The app is built using a custom express server and the headers are set there. Those headers are then passed to the client via the getInitialProps method and the meta tag. If no character encoding is set either server-side or client-side then the app will default to utf-8 encoding.
