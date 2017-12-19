@@ -1,0 +1,20 @@
+{
+  "name": "with-emotion-fiber",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next"
+  },
+  "keywords": [],
+  "author": "Thomas Greco",
+  "license": "ISC",
+  "dependencies": {
+    "emotion": "^8.0.11",
+    "emotion-server": "^8.0.11",
+    "next": "^4.1.4",
+    "react": "^16.1.1",
+    "react-dom": "^16.1.1",
+    "react-emotion": "^8.0.11"
+  }
+}

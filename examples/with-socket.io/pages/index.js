@@ -1,6 +1,6 @@
 import { Component } from 'react'
 import io from 'socket.io-client'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 class HomePage extends Component {
   // fetch old messages data from the server

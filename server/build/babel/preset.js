@@ -1,3 +1,4 @@
+const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
 const relativeResolve = require('../root-module-relative-path').default(require)
 
 // Resolve styled-jsx plugins
@@ -45,6 +46,7 @@ module.exports = (context, opts = {}) => ({
     require.resolve('babel-preset-react')
   ],
   plugins: [
+    require.resolve('./plugins/remove-dotjsx-from-import'),
     require.resolve('babel-plugin-react-require'),
     require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
@@ -56,7 +58,7 @@ module.exports = (context, opts = {}) => ({
       require.resolve('babel-plugin-module-resolver'),
       {
         alias: {
-          'babel-runtime': relativeResolve('babel-runtime/package'),
+          'babel-runtime': babelRuntimePath,
           'next/link': relativeResolve('../../../lib/link'),
           'next/prefetch': relativeResolve('../../../lib/prefetch'),
           'next/css': relativeResolve('../../../lib/css'),
