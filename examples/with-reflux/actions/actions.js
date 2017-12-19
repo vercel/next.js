@@ -1,8 +1,8 @@
 import Reflux from 'reflux'
 
 var Actions = Reflux.createActions([
-  "increment",
-  "decrement"
+  'increment',
+  'decrement'
 ])
 
 export default Actions
