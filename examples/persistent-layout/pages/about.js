@@ -1,14 +1,12 @@
 import React from 'react'
-import AppLayout from '../components/AppLayout'
+import ContentLayout from '../components/ContentLayout'
 
 export default class AboutPage extends React.Component {
-  static layout = AppLayout
+  static layout = ContentLayout
 
   render () {
     return (
-      <div>
-        about
-      </div>
+      <p>about</p>
     )
   }
 }
