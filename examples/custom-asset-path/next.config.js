@@ -5,7 +5,7 @@ const relativeAliases = require('./relative-alias-webpack-plugin')
 module.exports = {
   assetPrefix: !isProd ? '' : 'http://localhost:3080',
   assetMap: !isProd ? null : {
-    '/page/about': '/page/about/index.js',
+    '/page/about': '/page/about.js',
     '/page/': '/page/index.js'
   },
 
