@@ -6,9 +6,9 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-var setCharset = (req, res, next) => {
+let setCharset = (req, res, next) => {
   res.set({'Content-Type': 'text/html; charset=iso-8859-2'})
-  next();
+  next()
 }
 
 app.prepare()
