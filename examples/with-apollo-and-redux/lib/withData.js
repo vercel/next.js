@@ -6,19 +6,26 @@ import initApollo from './initApollo'
 import initRedux from './initRedux'
 
 // Gets the display name of a JSX component for dev tools
-function getComponentDisplayName (Component) {
+function getComponentDisplayName(Component) {
   return Component.displayName || Component.name || 'Unknown'
 }
 
 export default ComposedComponent => {
   return class WithData extends React.Component {
-    static displayName = `WithData(${getComponentDisplayName(ComposedComponent)})`
+    static displayName = `WithData(${getComponentDisplayName(
+      ComposedComponent
+    )})`
     static propTypes = {
       serverState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps (ctx) {
-      let serverState = {}
+    static async getInitialProps(ctx) {
+      // Initial serverState with apollo (empty)
+      let serverState = {
+        apollo: {
+          data: {}
+        }
+      }
 
       // Evaluate the composed component's getInitialProps()
       let composedInitialProps = {}
@@ -31,17 +38,20 @@ export default ComposedComponent => {
       if (!process.browser) {
         const apollo = initApollo()
         const redux = initRedux(apollo)
-        // Provide the `url` prop data in case a GraphQL query uses it
-        const url = {query: ctx.query, pathname: ctx.pathname}
 
         try {
           // Run all GraphQL queries
           await getDataFromTree(
-            // No need to use the Redux Provider
-            // because Apollo sets up the store for us
-            <ApolloProvider client={apollo} store={redux}>
-              <ComposedComponent url={url} {...composedInitialProps} />
-            </ApolloProvider>
+            <ApolloProvider client={apollo}>
+              <ComposedComponent {...composedInitialProps} />
+            </ApolloProvider>,
+            {
+              router: {
+                asPath: ctx.asPath,
+                pathname: ctx.pathname,
+                query: ctx.query
+              }
+            }
           )
         } catch (error) {
           // Prevent Apollo Client GraphQL errors from crashing SSR.
@@ -55,13 +65,11 @@ export default ComposedComponent => {
         // Extract query data from the store
         const state = redux.getState()
 
-        // No need to include other initial Redux state because when it
-        // initialises on the client-side it'll create it again anyway
-        serverState = {
-          apollo: { // Only include the Apollo data state
-            data: state.apollo.data
-          }
-        }
+        // Extract query data from the Apollo store
+        serverState = Object.assign(
+          state,
+          { apollo: { data: apollo.cache.extract() } }
+        )
       }
 
       return {
@@ -70,17 +78,15 @@ export default ComposedComponent => {
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
-      this.apollo = initApollo()
+      this.apollo = initApollo(this.props.serverState.apollo.data)
       this.redux = initRedux(this.apollo, this.props.serverState)
     }
 
-    render () {
+    render() {
       return (
-        // No need to use the Redux Provider
-        // because Apollo sets up the store for us
-        <ApolloProvider client={this.apollo} store={this.redux}>
+        <ApolloProvider client={this.apollo}>
           <ComposedComponent {...this.props} />
         </ApolloProvider>
       )

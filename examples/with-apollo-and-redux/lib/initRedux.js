@@ -1,3 +1,4 @@
+import { apolloReducer } from 'apollo-cache-redux'
 import { createStore, combineReducers, applyMiddleware, compose } from 'redux'
 import reducers from './reducers'
 
@@ -12,12 +13,12 @@ if (process.browser && window.__REDUX_DEVTOOLS_EXTENSION__) {
 function create (apollo, initialState = {}) {
   return createStore(
     combineReducers({ // Setup reducers
-      ...reducers,
-      apollo: apollo.reducer()
+      apollo: apolloReducer,
+      ...reducers
     }),
     initialState, // Hydrate the store with server-side data
     compose(
-      applyMiddleware(apollo.middleware()), // Add additional middleware here
+      // Add additional middleware here
       devtools
     )
   )

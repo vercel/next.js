@@ -5,7 +5,7 @@ import withData from '../../lib/withData'
 
 export default withData((props) => (
   <App>
-    <Header pathname={props.url.pathname} />
-    <Post id={props.url.query.id} />
+    <Header />
+    <Post />
   </App>
 ))
