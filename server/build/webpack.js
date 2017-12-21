@@ -177,7 +177,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     plugins.push(
       // Minifies javascript bundles
       new UglifyJSPlugin({
-        parallel: false,
+        parallel: true,
         sourceMap: false,
         uglifyOptions: {
           compress: {
