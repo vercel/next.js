@@ -11,7 +11,7 @@ export default class CombineAssetsPlugin {
 
   apply (compiler) {
     compiler.plugin('compilation', (compilation) => {
-      compilation.plugin('additional-chunk-assets', (chunks) => {
+      compilation.plugin('after-optimize-chunk-assets', (chunks) => {
         const concat = new ConcatSource()
 
         this.input.forEach((name) => {
@@ -19,7 +19,6 @@ export default class CombineAssetsPlugin {
           if (!asset) return
 
           concat.add(asset)
-
           // We keep existing assets since that helps when analyzing the bundle
         })
 
@@ -27,10 +26,25 @@ export default class CombineAssetsPlugin {
         compilation.assets[this.output] = concat
 
         // Register the combined file as an output of the associated chunks
-        chunks.filter((chunk) => {
-          return chunk.files.reduce((prev, file) => prev || this.input.includes(file), false)
-        })
-        .forEach((chunk) => chunk.files.push(this.output))
+        // chunks.forEach((chunk) => {
+          
+
+        //   chunk.files.forEach((file) => {
+        //     if(!this.input.includes(file)) {
+        //       return
+        //     }
+
+        //     const index = chunk.files.indexOf(file)
+        //     chunk.files.splice(index, 1)
+        //   })
+
+        //   if(chunk.files.length === 0) {
+        //     const index = compilation.chunks.indexOf(chunk)
+        //     compilation.chunks.splice(index, 1)
+        //   }
+          
+        //   chunk.files.reduce((prev, file) => prev || this.input.includes(file), false)
+        // })
       })
     })
   }
