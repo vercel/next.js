@@ -2,6 +2,7 @@ import React from 'react'
 import { withRouter } from 'next/router'
 import { graphql } from 'react-apollo'
 import gql from 'graphql-tag'
+
 import ErrorMessage from './ErrorMessage'
 import PostVoteUp from './PostVoteUp'
 import PostVoteDown from './PostVoteDown'
@@ -47,7 +48,7 @@ const post = gql`
 `
 
 // The `graphql` wrapper executes a GraphQL query and makes the results
-// available on the `data` prop of the wrapped component (PostList)
+// available on the `data` prop of the wrapped component (Post)
 const ComponentWithMutation = graphql(post, {
   options: ({ router: { query } }) => ({
     variables: {

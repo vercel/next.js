@@ -7,7 +7,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "apollo-cache-redux": "^0.1.0-alpha.7",
+    "apollo-cache-inmemory": "1.1.4",
     "apollo-client-preset": "^1.0.4",
     "graphql": "^0.11.7",
     "graphql-anywhere": "^4.0.2",

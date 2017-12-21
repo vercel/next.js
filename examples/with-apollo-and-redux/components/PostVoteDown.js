@@ -1,13 +1,12 @@
 import React from 'react'
 import { graphql } from 'react-apollo'
 import gql from 'graphql-tag'
+
 import PostVoteButton from './PostVoteButton'
 
 function PostVoteDown ({ downvote, votes, id }) {
   return (
     <PostVoteButton
-      id={id}
-      votes={votes}
       className='downvote'
       onClickHandler={() => downvote(id, votes - 1)}
     />
