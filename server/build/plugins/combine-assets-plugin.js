@@ -22,7 +22,7 @@ export default class CombineAssetsPlugin {
           // We keep existing assets since that helps when analyzing the bundle
         })
 
-        compilation.additionalChunkAssets.push(this.output)
+        // Creates a new asset holding the concatted source
         compilation.assets[this.output] = concat
       })
     })
