@@ -29,55 +29,78 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
+async function getPages(dir, dev) {
+  let pages
+
+  if(dev) {
+    pages = await glob('pages/+(_document|_error).+(js|jsx)', { cwd: dir })    
+  } else {
+    pages = await glob('pages/**/*.+(js|jsx)', { cwd: dir })  
+  }
+
+  return pages
+}
+
+function getPageEntries(pages) {
+  const entries = {}  
+  for (const p of pages) {
+    entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
+  }
+
+  // The default pages (_document.js and _error.js) are only added when they're not provided by the user
+  for (const p of defaultPages) {
+    const entryName = join('bundles', 'pages', p)
+    if (!entries[entryName]) {
+      entries[entryName] = [join(nextPagesDir, p) + '?entry']
+    }
+  }
+
+  return entries
+}
+
 export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
+  // Resolve relative path to absolute path
   dir = realpathSync(resolve(dir))
+
+  // Used to track the amount of pages for webpack commons chunk plugin
+  let totalPages
+
+  // Loads next.config.js and custom configuration provided in custom server initialization
   const config = getConfig(dir, conf)
-  const defaultEntries = dev ? [
+
+  // Middlewares to handle on-demand entries and hot updates in development
+  const devEntries = dev ? [
     join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
     join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
   ] : []
-  const mainJS = dev
-    ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
 
-  let totalPages
+  const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`) // Uses client/next-dev in development for code splitting dev dependencies
 
   const entry = async () => {
+    // Get entries for pages in production mode. In development only _document and _error are added. Because pages are added by on-demand-entry-handler.     
+    const pages = await getPages(dir, dev)
+    const pageEntries = getPageEntries(pages)
+
+    // Used for commons chunk calculations
+    totalPages = pages.length
+    if(pages.indexOf(documentPage) !== -1) {
+      totalPages = totalPages - 1
+    }
+
     const entries = {
       'main.js': [
-        ...defaultEntries,
-        ...config.clientBootstrap || [],
-        mainJS
-      ]
+        ...devEntries, // Adds hot middleware and ondemand entries in development
+        ...config.clientBootstrap || [], // clientBootstrap can be used to load polyfills before code execution
+        mainJS // Main entrypoint in the client folder
+      ],
+      ...pageEntries
     }
-
-    const pages = await glob(config.pagesGlobPattern, { cwd: dir })
-    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
-
-    // In the dev environment, on-demand-entry-handler will take care of
-    // managing pages.
-    if (dev) {
-      for (const p of devPages) {
-        entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
-      }
-    } else {
-      for (const p of pages) {
-        entries[join('bundles', p.replace('.jsx', '.js'))] = [`./${p}?entry`]
-      }
-    }
-
-    for (const p of defaultPages) {
-      const entryName = join('bundles', 'pages', p)
-      if (!entries[entryName]) {
-        entries[entryName] = [join(nextPagesDir, p) + '?entry']
-      }
-    }
-
-    totalPages = pages.filter((p) => p !== documentPage).length
 
     return entries
   }
 
   const plugins = [
+    new CaseSensitivePathPlugin(),
     new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
     new webpack.LoaderOptionsPlugin({
       options: {
@@ -131,8 +154,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
     new PagesPlugin(),
-    new DynamicChunksPlugin(),
-    new CaseSensitivePathPlugin()
+    new DynamicChunksPlugin()
   ]
 
   if (dev) {
@@ -147,19 +169,19 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   } else {
     plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
-      new CombineAssetsPlugin({
-        input: ['manifest.js', 'commons.js', 'main.js'],
-        output: 'app.js'
-      }),
       new UglifyJSPlugin({
-        parallel: true,
+        parallel: false,
         sourceMap: false,
         uglifyOptions: {
           compress: {
             comparisons: false
           }
         }
-      })
+      }),
+      new CombineAssetsPlugin({
+        input: ['manifest.js', 'commons.js', 'main.js'],
+        output: 'app.js'
+      }),
     )
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
