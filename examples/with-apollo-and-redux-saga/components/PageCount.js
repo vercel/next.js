@@ -11,7 +11,7 @@ class PageCount extends Component {
     this.props.dispatch(countDecrease())
   }
 
-  render() {
+  render () {
     const { count } = this.props
     return (
       <div>
