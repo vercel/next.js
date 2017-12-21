@@ -100,8 +100,13 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   }
 
   const plugins = [
-    new CaseSensitivePathPlugin(),
+    // Defines NODE_ENV as development/production. This is used by some npm modules to determine if they should optimize.
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+    }),
+    new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
     new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
+    // Provide legacy options to webpack
     new webpack.LoaderOptionsPlugin({
       options: {
         context: dir,
@@ -110,12 +115,14 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         }
       }
     }),
+    // Writes all generated files to disk, even in development. For SSR.
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
       // required not to cache removed files
       useHashIndex: false
     }),
+    // Moves common modules into commons.js
     new webpack.optimize.CommonsChunkPlugin({
       name: 'commons',
       filename: 'commons.js',
@@ -150,10 +157,9 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       name: 'manifest',
       filename: 'manifest.js'
     }),
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
-    }),
+    // This adds Next.js route definitions to page bundles
     new PagesPlugin(),
+    // Implements support for dynamic imports
     new DynamicChunksPlugin()
   ]
 
@@ -169,6 +175,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   } else {
     plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
+      // Minifies javascript bundles
       new UglifyJSPlugin({
         parallel: false,
         sourceMap: false,
@@ -178,11 +185,13 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           }
         }
       }),
+      // Combines manifest.js commons.js and main.js into app.js in production
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
     )
+    // Implements scope hoisting which speeds up browser execution of javascript
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
