@@ -7,7 +7,7 @@ import PostVoteUp from './PostVoteUp'
 import PostVoteDown from './PostVoteDown'
 import PostVoteCount from './PostVoteCount'
 
-function Post ({ id, data: { error, Post }}) {
+function Post ({ id, data: { error, Post } }) {
   if (error) return <ErrorMessage message='Error loading blog post.' />
   if (Post) {
     return (
@@ -58,6 +58,5 @@ const ComponentWithMutation = graphql(post, {
     data
   })
 })(Post)
-
 
 export default withRouter(ComponentWithMutation)

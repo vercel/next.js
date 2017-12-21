@@ -8,7 +8,7 @@ import PostVoteCount from './PostVoteCount'
 
 const POSTS_PER_PAGE = 10
 
-function handleClick(event, id) {
+function handleClick (event, id) {
   event.preventDefault()
   // With route name and params
   // Router.pushRoute('blog/entry', { id: id })
@@ -16,13 +16,13 @@ function handleClick(event, id) {
   Router.pushRoute(`/blog/${id}`)
 }
 
-function PostList({
+function PostList ({
   data: { loading, error, allPosts, _allPostsMeta },
   loadMorePosts
 }) {
   if (error) return <ErrorMessage message='Error loading posts.' />
   if (allPosts && allPosts.length) {
-    const areMorePosts = allPosts.length < _allPostsMeta.count;
+    const areMorePosts = allPosts.length < _allPostsMeta.count
     return (
       <section>
         <ul>
@@ -92,7 +92,7 @@ function PostList({
       </section>
     )
   }
-  return <div>Loading</div>;
+  return <div>Loading</div>
 }
 
 export const allPosts = gql`
