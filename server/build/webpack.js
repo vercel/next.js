@@ -154,9 +154,40 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     // related to that happens to this chunk.
     // It won't touch commons.js and that gives us much better re-build perf.
     new webpack.optimize.CommonsChunkPlugin({
+      name: 'react',
+      filename: 'react.js',
+      minChunks (module, count) {
+        if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
+          return true
+        }
+
+        if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
+          return true
+        }
+
+        return false
+      }
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'react',
+      filename: 'react.js',
+      minChunks (module, count) {
+        if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
+          return true
+        }
+
+        if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
+          return true
+        }
+
+        return false
+      }
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
       name: 'manifest',
       filename: 'manifest.js'
     }),
+
     // This adds Next.js route definitions to page bundles
     new PagesPlugin(),
     // Implements support for dynamic imports
@@ -177,6 +208,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     plugins.push(
       // Minifies javascript bundles
       new UglifyJSPlugin({
+        exclude: /react\.js/,
         parallel: true,
         sourceMap: false,
         uglifyOptions: {
@@ -189,7 +221,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     plugins.push(
       // Combines manifest.js commons.js and main.js into app.js in production
       new CombineAssetsPlugin({
-        input: ['manifest.js', 'commons.js', 'main.js'],
+        input: ['manifest.js', 'react.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
     )
