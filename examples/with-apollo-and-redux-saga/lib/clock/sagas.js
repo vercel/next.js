@@ -1,18 +1,18 @@
-import { delay } from 'redux-saga';
-import { call, put, take } from 'redux-saga/effects';
-import es6promise from 'es6-promise';
-import 'isomorphic-unfetch';
+import { delay } from 'redux-saga'
+import { call, put, take } from 'redux-saga/effects'
+import es6promise from 'es6-promise'
+import 'isomorphic-unfetch'
 
-import { actionTypes, tickClock } from './actions';
+import { actionTypes, tickClock } from './actions'
 
-es6promise.polyfill();
+es6promise.polyfill()
 
 function* runClockSaga() {
-  yield take(actionTypes.START_CLOCK);
+  yield take(actionTypes.START_CLOCK)
   while (true) {
-    yield put(tickClock(false));
-    yield call(delay, 800);
+    yield put(tickClock(false))
+    yield call(delay, 800)
   }
 }
 
-export default call(runClockSaga);
+export default call(runClockSaga)
