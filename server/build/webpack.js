@@ -184,7 +184,9 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
             comparisons: false
           }
         }
-      }),
+      })
+    )
+    plugins.push(
       // Combines manifest.js commons.js and main.js into app.js in production
       new CombineAssetsPlugin({
         input: ['manifest.js', 'commons.js', 'main.js'],
