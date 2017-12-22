@@ -263,6 +263,121 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     exclude: /node_modules/
   }] : []
 
+  const loaders = [{
+    test: /\.json$/,
+    loader: 'json-loader'
+  }, {
+    test: /\.(js|jsx|json)(\?[^?]*)?$/,
+    loader: 'emit-file-loader',
+    include: [dir, nextPagesDir],
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
+    options: {
+      name: 'dist/[path][name].[ext]',
+      // We need to strip off .jsx on the server. Otherwise require without .jsx doesn't work.
+      interpolateName: (name) => name.replace('.jsx', '.js'),
+      validateFileName (file) {
+        const cases = [{from: '.js', to: '.jsx'}, {from: '.jsx', to: '.js'}]
+
+        for (const item of cases) {
+          const {from, to} = item
+          if (file.slice(-(from.length)) !== from) {
+            continue
+          }
+
+          const filePath = file.slice(0, -(from.length)) + to
+
+          if (existsSync(filePath)) {
+            throw new Error(`Both ${from} and ${to} file found. Please make sure you only have one of both.`)
+          }
+        }
+      },
+      // By default, our babel config does not transpile ES2015 module syntax because
+      // webpack knows how to handle them. (That's how it can do tree-shaking)
+      // But Node.js doesn't know how to handle them. So, we have to transpile them here.
+      transform ({ content, sourceMap, interpolatedName }) {
+        // Only handle .js files
+        if (!(/\.(js|jsx)$/.test(interpolatedName))) {
+          return { content, sourceMap }
+        }
+
+        const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
+        const transpiled = babelCore.transform(content, {
+          babelrc: false,
+          sourceMaps: dev ? 'both' : false,
+          // Here we need to resolve all modules to the absolute paths.
+          // Earlier we did it with the babel-preset.
+          // But since we don't transpile ES2015 in the preset this is not resolving.
+          // That's why we need to do it here.
+          // See more: https://github.com/zeit/next.js/issues/951
+          plugins: [
+            require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import.js')),
+            [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
+            [
+              require.resolve('babel-plugin-module-resolver'),
+              {
+                alias: {
+                  'babel-runtime': babelRuntimePath,
+                  'next/link': relativeResolve('../../lib/link'),
+                  'next/prefetch': relativeResolve('../../lib/prefetch'),
+                  'next/css': relativeResolve('../../lib/css'),
+                  'next/dynamic': relativeResolve('../../lib/dynamic'),
+                  'next/head': relativeResolve('../../lib/head'),
+                  'next/document': relativeResolve('../../server/document'),
+                  'next/router': relativeResolve('../../lib/router'),
+                  'next/error': relativeResolve('../../lib/error'),
+                  'styled-jsx/style': relativeResolve('styled-jsx/style')
+                }
+              }
+            ]
+          ],
+          inputSourceMap: sourceMap
+        })
+
+        // Strip ?entry to map back to filesystem and work with iTerm, etc.
+        let { map } = transpiled
+        let output = transpiled.code
+
+        if (map) {
+          let nodeMap = Object.assign({}, map)
+          nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
+          delete nodeMap.sourcesContent
+
+          // Output explicit inline source map that source-map-support can pickup via requireHook mode.
+          // Since these are not formal chunks, the devtool infrastructure in webpack does not output
+          // a source map for these files.
+          const sourceMapUrl = new Buffer(JSON.stringify(nodeMap), 'utf-8').toString('base64')
+          output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
+        }
+
+        return {
+          content: output,
+          sourceMap: transpiled.map
+        }
+      }
+    }
+  }, {
+    loader: 'babel-loader',
+    include: nextPagesDir,
+    exclude (str) {
+      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+    },
+    options: {
+      babelrc: false,
+      cacheDirectory: true,
+      presets: [require.resolve('./babel/preset')]
+    }
+  }, {
+    test: /\.(js|jsx)(\?[^?]*)?$/,
+    loader: 'babel-loader',
+    include: [dir],
+    exclude (str) {
+      return /node_modules/.test(str)
+    },
+    options: mainBabelOptions
+  }]
+
   let webpackConfig = {
     context: dir,
     entry,
@@ -308,120 +423,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     module: {
       rules: [
         ...devLoaders,
-        {
-          test: /\.json$/,
-          loader: 'json-loader'
-        }, {
-          test: /\.(js|jsx|json)(\?[^?]*)?$/,
-          loader: 'emit-file-loader',
-          include: [dir, nextPagesDir],
-          exclude (str) {
-            return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-          },
-          options: {
-            name: 'dist/[path][name].[ext]',
-            // We need to strip off .jsx on the server. Otherwise require without .jsx doesn't work.
-            interpolateName: (name) => name.replace('.jsx', '.js'),
-            validateFileName (file) {
-              const cases = [{from: '.js', to: '.jsx'}, {from: '.jsx', to: '.js'}]
-
-              for (const item of cases) {
-                const {from, to} = item
-                if (file.slice(-(from.length)) !== from) {
-                  continue
-                }
-
-                const filePath = file.slice(0, -(from.length)) + to
-
-                if (existsSync(filePath)) {
-                  throw new Error(`Both ${from} and ${to} file found. Please make sure you only have one of both.`)
-                }
-              }
-            },
-            // By default, our babel config does not transpile ES2015 module syntax because
-            // webpack knows how to handle them. (That's how it can do tree-shaking)
-            // But Node.js doesn't know how to handle them. So, we have to transpile them here.
-            transform ({ content, sourceMap, interpolatedName }) {
-              // Only handle .js files
-              if (!(/\.(js|jsx)$/.test(interpolatedName))) {
-                return { content, sourceMap }
-              }
-
-              const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
-              const transpiled = babelCore.transform(content, {
-                babelrc: false,
-                sourceMaps: dev ? 'both' : false,
-                // Here we need to resolve all modules to the absolute paths.
-                // Earlier we did it with the babel-preset.
-                // But since we don't transpile ES2015 in the preset this is not resolving.
-                // That's why we need to do it here.
-                // See more: https://github.com/zeit/next.js/issues/951
-                plugins: [
-                  require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import.js')),
-                  [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
-                  [
-                    require.resolve('babel-plugin-module-resolver'),
-                    {
-                      alias: {
-                        'babel-runtime': babelRuntimePath,
-                        'next/link': relativeResolve('../../lib/link'),
-                        'next/prefetch': relativeResolve('../../lib/prefetch'),
-                        'next/css': relativeResolve('../../lib/css'),
-                        'next/dynamic': relativeResolve('../../lib/dynamic'),
-                        'next/head': relativeResolve('../../lib/head'),
-                        'next/document': relativeResolve('../../server/document'),
-                        'next/router': relativeResolve('../../lib/router'),
-                        'next/error': relativeResolve('../../lib/error'),
-                        'styled-jsx/style': relativeResolve('styled-jsx/style')
-                      }
-                    }
-                  ]
-                ],
-                inputSourceMap: sourceMap
-              })
-
-              // Strip ?entry to map back to filesystem and work with iTerm, etc.
-              let { map } = transpiled
-              let output = transpiled.code
-
-              if (map) {
-                let nodeMap = Object.assign({}, map)
-                nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
-                delete nodeMap.sourcesContent
-
-                // Output explicit inline source map that source-map-support can pickup via requireHook mode.
-                // Since these are not formal chunks, the devtool infrastructure in webpack does not output
-                // a source map for these files.
-                const sourceMapUrl = new Buffer(JSON.stringify(nodeMap), 'utf-8').toString('base64')
-                output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
-              }
-
-              return {
-                content: output,
-                sourceMap: transpiled.map
-              }
-            }
-          }
-        }, {
-          loader: 'babel-loader',
-          include: nextPagesDir,
-          exclude (str) {
-            return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-          },
-          options: {
-            babelrc: false,
-            cacheDirectory: true,
-            presets: [require.resolve('./babel/preset')]
-          }
-        }, {
-          test: /\.(js|jsx)(\?[^?]*)?$/,
-          loader: 'babel-loader',
-          include: [dir],
-          exclude (str) {
-            return /node_modules/.test(str)
-          },
-          options: mainBabelOptions
-        }
+        ...loaders
       ]
     },
     devtool: dev ? 'cheap-module-inline-source-map' : false,
