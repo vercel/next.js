@@ -130,7 +130,11 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         // We need to move react-dom explicitly into common chunks.
         // Otherwise, if some other page or module uses it, it might
         // included in that bundle too.
-        if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+        if (dev && module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
+          return true
+        }
+
+        if (dev && module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
           return true
         }
 
@@ -150,39 +154,29 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         return count >= totalPages * 0.5
       }
     }),
+    // This chunk splits out react and react-dom in production to make sure it does not go through uglify
+    new webpack.optimize.CommonsChunkPlugin({
+      name: 'react',
+      filename: 'react.js',
+      minChunks (module, count) {
+        if (dev) {
+          return false
+        }
+
+        if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
+          return true
+        }
+
+        if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
+          return true
+        }
+
+        return false
+      }
+    }),
     // This chunk contains all the webpack related code. So, all the changes
     // related to that happens to this chunk.
     // It won't touch commons.js and that gives us much better re-build perf.
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'react',
-      filename: 'react.js',
-      minChunks (module, count) {
-        if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
-          return true
-        }
-
-        if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
-          return true
-        }
-
-        return false
-      }
-    }),
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'react',
-      filename: 'react.js',
-      minChunks (module, count) {
-        if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
-          return true
-        }
-
-        if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
-          return true
-        }
-
-        return false
-      }
-    }),
     new webpack.optimize.CommonsChunkPlugin({
       name: 'manifest',
       filename: 'manifest.js'
