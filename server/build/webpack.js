@@ -155,7 +155,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       }
     }),
     // This chunk splits out react and react-dom in production to make sure it does not go through uglify. This saved multiple seconds on production builds.
-    // See https://twitter.com/dan_abramov/status/944040306420408325.
+    // See https://twitter.com/dan_abramov/status/944040306420408325
     new webpack.optimize.CommonsChunkPlugin({
       name: 'react',
       filename: 'react.js',
