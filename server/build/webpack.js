@@ -29,13 +29,13 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-async function getPages (dir, dev) {
+async function getPages ({dir, dev, pagesGlobPattern}) {
   let pages
 
   if (dev) {
     pages = await glob('pages/+(_document|_error).+(js|jsx)', { cwd: dir })
   } else {
-    pages = await glob('pages/**/*.+(js|jsx)', { cwd: dir })
+    pages = await glob(pagesGlobPattern, { cwd: dir })
   }
 
   return pages
@@ -78,7 +78,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
 
   const entry = async () => {
     // Get entries for pages in production mode. In development only _document and _error are added. Because pages are added by on-demand-entry-handler.
-    const pages = await getPages(dir, dev)
+    const pages = await getPages({dir, dev, pagesGlobPattern: config.pagesGlobPattern})
     const pageEntries = getPageEntries(pages)
 
     // Used for commons chunk calculations
