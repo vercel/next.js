@@ -284,6 +284,11 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       chunkFilename: '[name]'
     },
     resolve: {
+      alias: {
+        // This bypasses React's check for production mode. Since we know it is in production this way.
+        // This allows us to exclude React from being uglified. Saving multiple seconds per build.
+        'react-dom': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
+      },
       extensions: ['.js', '.jsx', '.json'],
       modules: [
         nextNodeModulesDir,
