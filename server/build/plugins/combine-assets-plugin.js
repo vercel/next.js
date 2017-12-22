@@ -11,26 +11,23 @@ export default class CombineAssetsPlugin {
 
   apply (compiler) {
     compiler.plugin('compilation', (compilation) => {
-      compilation.plugin('additional-chunk-assets', (chunks) => {
+      // This is triggered after uglify and other optimizers have ran.
+      compilation.plugin('after-optimize-chunk-assets', (chunks) => {
         const concat = new ConcatSource()
 
         this.input.forEach((name) => {
           const asset = compilation.assets[name]
           if (!asset) return
 
+          // We add each matched asset from this.input to a new bundle
           concat.add(asset)
 
-          // We keep existing assets since that helps when analyzing the bundle
+          // The original assets are kept because they show up when analyzing the bundle using webpack-bundle-analyzer
+          // See https://github.com/zeit/next.js/tree/canary/examples/with-webpack-bundle-analyzer
         })
 
-        compilation.additionalChunkAssets.push(this.output)
+        // Creates a new asset holding the concatted source
         compilation.assets[this.output] = concat
-
-        // Register the combined file as an output of the associated chunks
-        chunks.filter((chunk) => {
-          return chunk.files.reduce((prev, file) => prev || this.input.includes(file), false)
-        })
-        .forEach((chunk) => chunk.files.push(this.output))
       })
     })
   }
