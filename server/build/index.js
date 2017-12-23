@@ -3,14 +3,16 @@ import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
 import del from 'del'
-import webpack from './webpack'
+import webpack from 'webpack'
+import getConfig from '../config'
+import baseConfig from './webpack/base.config.js'
 import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
+  const config = getConfig(dir, conf)
   const buildId = uuid.v4()
   const tempDir = tmpdir()
-  const buildDir = join(tempDir, uuid.v4())
 
   try {
     await fs.access(tempDir, fs.constants.W_OK)
@@ -19,26 +21,31 @@ export default async function build (dir, conf = null) {
     throw err
   }
 
-  const compiler = await webpack(dir, { buildId, buildDir, conf })
+  const clientCompiler = baseConfig(dir, { buildId, isServer: false, config })
+  const serverCompiler = baseConfig(dir, { buildId, isServer: true, config })
 
   try {
-    const stats = await runCompiler(compiler)
-    await writeBuildStats(buildDir, stats)
-    await writeBuildId(buildDir, buildId)
+    const [stats] = await Promise.all([
+      runCompiler(clientCompiler),
+      runCompiler(serverCompiler)
+    ])
+    await writeBuildStats(dir, stats)
+    await writeBuildId(dir, buildId)
   } catch (err) {
-    console.error(`> Failed to build on ${buildDir}`)
+    console.error(`> Failed to build`)
     throw err
   }
 
-  await replaceCurrentBuild(dir, buildDir)
+  // await replaceCurrentBuild(dir, buildDir)
 
   // no need to wait
-  del(buildDir, { force: true })
+  // del(buildDir, { force: true })
 }
 
 function runCompiler (compiler) {
-  return new Promise((resolve, reject) => {
-    compiler.run((err, stats) => {
+  return new Promise(async (resolve, reject) => {
+    const webpackCompiler = await webpack(await compiler)
+    webpackCompiler.run((err, stats) => {
       if (err) return reject(err)
 
       const jsonStats = stats.toJson()

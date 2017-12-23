@@ -435,5 +435,5 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     console.log(`> Using "webpack" config function defined in ${config.configOrigin}.`)
     webpackConfig = await config.webpack(webpackConfig, { buildId, dev })
   }
-  return webpack(webpackConfig)
+  return webpackConfig
 }
