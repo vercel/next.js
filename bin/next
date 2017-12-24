@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { spawn } from 'cross-spawn'
 import pkg from '../../package.json'
-import getConfig from '../server/config'
 
 if (pkg.peerDependencies) {
   Object.keys(pkg.peerDependencies).forEach(dependency => {
