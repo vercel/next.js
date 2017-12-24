@@ -2,7 +2,7 @@ import React from 'react'
 import Link from 'next/link'
 import withRedux from 'next-redux-wrapper'
 import initStore from '../lib'
-import { startFetchingCharacters, stopFetchingCharacters } from '../lib/reducer'
+import { startFetchingCharacters, stopFetchingCharacters } from '../lib/actions'
 import * as api from '../lib/api'
 import CharacterInfo from '../components/CharacterInfo'
 
