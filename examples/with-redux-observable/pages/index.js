@@ -2,15 +2,18 @@ import React from 'react'
 import Link from 'next/link'
 import withRedux from 'next-redux-wrapper'
 import initStore from '../lib'
-import { startFetchingCharacters, stopFetchingCharacters } from '../lib/actions'
-import * as api from '../lib/api'
 import CharacterInfo from '../components/CharacterInfo'
+import { rootEpic } from "../lib/epics";
+import * as actions from "../lib/actions";
+import { of } from "rxjs/observable/of";
 
 class Counter extends React.Component {
-  static async getInitialProps ({ store, isServer }) {
-    const nextCharacterId = store.getState().nextCharacterId
-    const resultAction = await api.fetchCharacter(nextCharacterId, isServer).toPromise() // we need to convert observable to Promise
-    store.dispatch(resultAction)
+  static async getInitialProps({ store, isServer }) {
+    const resultAction = await rootEpic(
+      of(actions.fetchCharacter(isServer)),
+      store
+    ).toPromise(); // we need to convert Observable to Promise
+    store.dispatch(resultAction);
 
     return { isServer }
   }
@@ -41,7 +44,7 @@ export default withRedux(
   initStore,
   null,
   {
-    startFetchingCharacters,
-    stopFetchingCharacters
+    startFetchingCharacters: actions.startFetchingCharacters,
+    stopFetchingCharacters: actions.stopFetchingCharacters
   },
 )(Counter)

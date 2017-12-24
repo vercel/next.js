@@ -50,3 +50,9 @@ export const fetchCharacterEpic = (action$, store) =>
       )
     )
   );
+
+  
+export const rootEpic = combineEpics(
+  fetchUserEpic,
+  fetchCharacterEpic
+)

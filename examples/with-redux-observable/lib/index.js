@@ -1,14 +1,10 @@
 import { createStore, applyMiddleware } from 'redux'
 import thunkMiddleware from 'redux-thunk'
 import { createLogger } from 'redux-logger'
-import { combineEpics, createEpicMiddleware } from 'redux-observable'
+import { createEpicMiddleware } from 'redux-observable'
 import reducer from './reducer'
-import { fetchUserEpic, fetchCharacterEpic } from './epics'
+import { rootEpic } from './epics'
 
-const rootEpic = combineEpics(
-  fetchUserEpic,
-  fetchCharacterEpic
-)
 
 export default function initStore (initialState) {
   const epicMiddleware = createEpicMiddleware(rootEpic)
