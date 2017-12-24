@@ -1,10 +1,10 @@
 import React from 'react'
 import Link from 'next/link'
 import withRedux from 'next-redux-wrapper'
-import initStore from '../lib'
+import initStore from '../redux'
 import CharacterInfo from '../components/CharacterInfo'
-import { rootEpic } from "../lib/epics";
-import * as actions from "../lib/actions";
+import { rootEpic } from "../redux/epics";
+import * as actions from "../redux/actions";
 import { of } from "rxjs/observable/of";
 
 class Counter extends React.Component {
