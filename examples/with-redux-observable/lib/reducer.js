@@ -1,5 +1,7 @@
 import * as api from './api'
-import { Observable } from './rxjs-library'
+import { Observable } from "rxjs/Observable";
+import { interval } from 'rxjs/observable/interval'
+import { takeUntil, map, mergeMap } from 'rxjs/operators'
 
 const FETCH_CHARACTER_SUCCESS = 'FETCH_CHARACTER_SUCCESS'
 const FETCH_CHARACTER_FAILURE = 'FETCH_CHARACTER_FAILURE'
@@ -31,15 +33,6 @@ export default function reducer (state = INITIAL_STATE, { type, payload }) {
 
 export const startFetchingCharacters = () => ({ type: START_FETCHING_CHARACTERS })
 export const stopFetchingCharacters = () => ({ type: STOP_FETCHING_CHARACTERS })
-
-export const fetchUserEpic = (action$, store) =>
-  action$.ofType(START_FETCHING_CHARACTERS)
-    .mergeMap(
-      action => Observable.interval(3000)
-        .mergeMap(x => api.fetchCharacter(store.getState().nextCharacterId))
-        .takeUntil(action$.ofType(STOP_FETCHING_CHARACTERS))
-    )
-
 export const fetchCharacterSuccess = (response, isServer) => ({
   type: FETCH_CHARACTER_SUCCESS,
   payload: { response, isServer }
@@ -49,3 +42,13 @@ export const fetchCharacterFailure = (error, isServer) => ({
   type: FETCH_CHARACTER_FAILURE,
   payload: { error, isServer }
 })
+
+export const fetchUserEpic = (action$, store) =>
+  action$.ofType(START_FETCHING_CHARACTERS)
+    .mergeMap(
+      action => interval(3000).pipe(
+        mergeMap(x => api.fetchCharacter(store.getState().nextCharacterId)),
+        takeUntil(action$.ofType(STOP_FETCHING_CHARACTERS))
+      )
+    )
+
