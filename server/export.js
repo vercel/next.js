@@ -51,10 +51,10 @@ export default async function (dir, options, configuration) {
   if (existsSync(join(nextDir, 'chunks'))) {
     log('  copying dynamic import chunks')
 
-    await mkdirp(join(outDir, '_next', buildId, 'webpack'))
+    await mkdirp(join(outDir, '_next', 'webpack'))
     await cp(
       join(nextDir, 'chunks'),
-      join(outDir, '_next', buildId, 'webpack', 'chunks')
+      join(outDir, '_next', 'webpack', 'chunks')
     )
   }
 
