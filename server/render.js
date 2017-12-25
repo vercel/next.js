@@ -249,6 +249,7 @@ function loadChunks ({ dev, dir, dist, availableChunks }) {
   const validChunks = []
 
   for (var chunk of flushedChunks) {
+    console.log('XXX', chunk)
     const filename = join(dir, dist, 'chunks', chunk)
     const exists = dev ? existsSync(filename) : availableChunks[chunk]
     if (exists) {
