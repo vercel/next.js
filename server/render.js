@@ -257,7 +257,6 @@ function loadChunks ({ dev, dir, dist, availableChunks }) {
 
   for (var chunk of flushedChunks) {
     const filename = availableChunks[chunk]
-    console.log('XXX', chunk, filename)
     if (filename) {
       response.names.push(chunk)
       response.filenames.push(filename)
