@@ -136,21 +136,17 @@ export default class Server {
       },
 
       // This is to support, webpack dynamic imports in production.
-      '/_next/:buildId/webpack/chunks/:name': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          return this.send404(res)
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
+        // Cache aggressively in production
+        if (!this.dev) {
+          res.setHeader('Cache-Control', 'max-age=31536000, immutable')
         }
-
         const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic import support with HMR
-      '/_next/:buildId/webpack/:id': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          return this.send404(res)
-        }
-
+      '/_next/webpack/:id': async (req, res, params) => {
         const p = join(this.dir, this.dist, 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },

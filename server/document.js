@@ -71,12 +71,12 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
+    let { assetPrefix } = __NEXT_DATA__
     return chunks.filenames.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
@@ -157,7 +157,7 @@ export class NextScript extends Component {
 
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
+    let { assetPrefix } = __NEXT_DATA__
     return (
       <Fragment>
         {chunks.filenames.map((chunk) => (
@@ -165,7 +165,7 @@ export class NextScript extends Component {
             async
             key={chunk}
             type='text/javascript'
-            src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
           />
         ))}
       </Fragment>
