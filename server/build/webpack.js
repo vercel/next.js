@@ -336,7 +336,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         return `webpack:///${resourcePath}?${id}`
       },
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name]'
+      chunkFilename: '[name].js'
     },
     resolve: {
       extensions: ['.js', '.jsx', '.json'],
