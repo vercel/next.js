@@ -1229,7 +1229,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 <details>
   <summary>What syntactic features are transpiled? How do I change them?</summary>
 
-We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
+We track V8. Since V8 has wide support for ES6 and `async` and `await`, we don’t transpile those. Since V8 doesn’t support class decorators, we transpile those.
 
 See [this](https://github.com/zeit/next.js/blob/master/server/build/webpack.js#L79) and [this](https://github.com/zeit/next.js/issues/26)
 
