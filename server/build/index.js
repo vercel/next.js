@@ -25,11 +25,17 @@ export default async function build (dir, conf = null) {
   const serverCompiler = baseConfig(dir, { buildId, isServer: true, config })
 
   try {
-    const [stats] = await Promise.all([
-      runCompiler(clientCompiler),
-      runCompiler(serverCompiler)
+    const configs = await Promise.all([
+      baseConfig(dir, { buildId, isServer: false, config }),
+      baseConfig(dir, { buildId, isServer: true, config })
     ])
-    await writeBuildStats(dir, stats)
+
+    await runCompiler(configs)
+
+    // await fs.writeFile(join(dir, '.next', 'server-stats.json'), JSON.stringify(serverStats), 'utf8')    
+    // await fs.writeFile(join(dir, '.next', 'client-stats.json'), JSON.stringify(stats), 'utf8')    
+    
+    await writeBuildStats(dir)
     await writeBuildId(dir, buildId)
   } catch (err) {
     console.error(`> Failed to build`)
@@ -62,7 +68,7 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildStats (dir, stats) {
+async function writeBuildStats (dir) {
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)

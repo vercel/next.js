@@ -41,7 +41,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   })
 
   compiler.plugin('done', function (stats) {
-    const { compilation } = stats
+    const clientStats = stats.stats.find((stats) => stats.compilation.compiler.name === 'client')
+    const { compilation } = clientStats
     const hardFailedPages = compilation.errors
       .filter(e => {
         // Make sure to only pick errors which marked with missing modules

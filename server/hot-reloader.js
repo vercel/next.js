@@ -2,7 +2,8 @@ import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
-import webpack from './build/webpack'
+import webpack from 'webpack'
+import baseConfig from './build/webpack/base.config'
 import clean from './build/clean'
 import getConfig from './config'
 import UUID from 'uuid'
@@ -45,10 +46,14 @@ export default class HotReloader {
   }
 
   async start () {
-    const [compiler] = await Promise.all([
-      webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
-      clean(this.dir)
+    await clean(this.dir)
+
+    const configs = await Promise.all([
+      baseConfig(this.dir, { dev: true, isServer: false, config: this.conf }),
+      baseConfig(this.dir, { dev: true,isServer: true, config: this.conf })
     ])
+
+    const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
     this.assignBuildTools(buildTools)
@@ -71,10 +76,14 @@ export default class HotReloader {
   async reload () {
     this.stats = null
 
-    const [compiler] = await Promise.all([
-      webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
-      clean(this.dir)
+    await clean(this.dir)
+
+    const configs = await Promise.all([
+      baseConfig(this.dir, { dev: true, isServer: false, config: this.conf }),
+      baseConfig(this.dir, { dev: true,isServer: true, config: this.conf })
     ])
+
+    const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
     this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
@@ -116,7 +125,9 @@ export default class HotReloader {
     })
 
     compiler.plugin('done', (stats) => {
-      const { compilation } = stats
+      const clientStats = stats.stats.find((stats) => stats.compilation.compiler.name === 'client')
+
+      const { compilation } = clientStats
       const chunkNames = new Set(
         compilation.chunks
           .map((c) => c.name)
