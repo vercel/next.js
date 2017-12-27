@@ -12,7 +12,7 @@ import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
-import * as babelCore from 'babel-core'
+import * as babelCore from '@babel/core'
 import findBabelConfig from './babel/find-config'
 import rootModuleRelativePath from './root-module-relative-path'
 
@@ -242,7 +242,8 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           return { content, sourceMap }
         }
 
-        const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
+        const babelRuntimePath = require.resolve('@babel/runtime/package').replace(/[\\/]package\.json$/, '')
+
         const transpiled = babelCore.transform(content, {
           babelrc: false,
           sourceMaps: dev ? 'both' : false,
@@ -253,7 +254,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
             require.resolve(join(__dirname, './babel/plugins/remove-dotjsx-from-import.js')),
-            [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
+            [require.resolve('@babel/plugin-transform-modules-commonjs')],
             [
               require.resolve('babel-plugin-module-resolver'),
               {
