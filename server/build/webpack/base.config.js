@@ -53,7 +53,9 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       path: path.join(dir, '.next', isServer ? 'dist' : ''),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: `/_next/${buildId}/webpack/`
+      publicPath: `/_next/webpack/`,
+      // This saves chunks with the name given via require.ensure()
+      chunkFilename: '[name]-[chunkhash].js'
     },
     resolve: {
       extensions: ['.js', '.jsx', '.json'],
