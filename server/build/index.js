@@ -32,9 +32,9 @@ export default async function build (dir, conf = null) {
 
     await runCompiler(configs)
 
-    // await fs.writeFile(join(dir, '.next', 'server-stats.json'), JSON.stringify(serverStats), 'utf8')    
-    // await fs.writeFile(join(dir, '.next', 'client-stats.json'), JSON.stringify(stats), 'utf8')    
-    
+    // await fs.writeFile(join(dir, '.next', 'server-stats.json'), JSON.stringify(serverStats), 'utf8')
+    // await fs.writeFile(join(dir, '.next', 'client-stats.json'), JSON.stringify(stats), 'utf8')
+
     await writeBuildStats(dir)
     await writeBuildId(dir, buildId)
   } catch (err) {

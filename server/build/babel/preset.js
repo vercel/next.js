@@ -53,7 +53,7 @@ module.exports = (context, opts = {}) => ({
     require.resolve('babel-plugin-transform-class-properties'),
     [require.resolve('babel-plugin-transform-runtime'), opts['transform-runtime'] || {}],
     [require.resolve('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
-    ...plugins,
+    ...plugins
     // [
     //   require.resolve('babel-plugin-module-resolver'),
     //   {

@@ -9,11 +9,11 @@ export async function getPages (dir, {dev, isServer}) {
   return getPageEntries(pageFiles, {isServer})
 }
 
-async function getPageFiles(dir, {dev, isServer}) {
+async function getPageFiles (dir, {dev, isServer}) {
   let pages
 
   if (dev) {
-    pages = await glob(isServer ? 'pages/+(_document|_error).+(js|jsx)': 'pages/_error.+(js|jsx)', { cwd: dir })
+    pages = await glob(isServer ? 'pages/+(_document|_error).+(js|jsx)' : 'pages/_error.+(js|jsx)', { cwd: dir })
   } else {
     pages = await glob(isServer ? 'pages/**/*.+(js|jsx)' : 'pages/**/!(_document)*.+(js|jsx)', { cwd: dir })
   }

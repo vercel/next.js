@@ -64,7 +64,6 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
   }
-  
 
   stripAnsi = passedStripAnsi || stripAnsi
   ErrorDebugComponent = passedDebugComponent

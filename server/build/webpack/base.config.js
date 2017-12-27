@@ -15,8 +15,8 @@ import StatsPlugin from 'stats-webpack-plugin'
 const nextDir = path.join(__dirname, '..', '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 
-export default async function baseConfig(dir, {dev = false, isServer = false, buildId, config}) {
-  const extractCSS = new ExtractTextPlugin('stylesheets/style.css');
+export default async function baseConfig (dir, {dev = false, isServer = false, buildId, config}) {
+  const extractCSS = new ExtractTextPlugin('stylesheets/style.css')
 
   const cssLoader = {
     loader: isServer ? 'css-loader/locals' : 'css-loader',
@@ -42,7 +42,7 @@ export default async function baseConfig(dir, {dev = false, isServer = false, bu
       const clientConfig = !isServer ? {
         'main.js': [
           mainJS
-        ],
+        ]
       } : {}
       return {
         ...clientConfig,
@@ -60,7 +60,7 @@ export default async function baseConfig(dir, {dev = false, isServer = false, bu
       modules: [
         nextNodeModulesDir,
         'node_modules'
-    ],
+      ],
       alias: {
         'next': nextDir,
         'react-dom': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
@@ -83,7 +83,7 @@ export default async function baseConfig(dir, {dev = false, isServer = false, bu
             loader: 'babel-loader',
             options: {
               cacheDirectory: true,
-              presets: [require.resolve('../babel/preset')],
+              presets: [require.resolve('../babel/preset')]
             }
           }
         },
@@ -104,7 +104,7 @@ export default async function baseConfig(dir, {dev = false, isServer = false, bu
       // new StatsPlugin(`stats-${isServer ? 'server':'client'}.json`),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
       dev && new FriendlyErrorsWebpackPlugin(),
-      dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive      
+      dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       dev && new webpack.LoaderOptionsPlugin({
         options: {
           context: dir,
@@ -139,12 +139,12 @@ export default async function baseConfig(dir, {dev = false, isServer = false, bu
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       !isServer && extractCSS,
       !isServer && new PagesPlugin(),
-      !isServer && new DynamicChunksPlugin(),   
+      !isServer && new DynamicChunksPlugin(),
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: `commons`,
         filename: `commons.js`,
-        minChunks: 2,
-      }),        
+        minChunks: 2
+      }),
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'react',
         filename: 'react.js',
@@ -152,19 +152,19 @@ export default async function baseConfig(dir, {dev = false, isServer = false, bu
           if (dev) {
             return false
           }
-  
+
           if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
             return true
           }
-  
+
           if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
             return true
           }
-  
+
           return false
         }
       })
-      
+
     ].filter(Boolean)
   }
 
