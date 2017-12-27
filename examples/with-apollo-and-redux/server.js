@@ -19,15 +19,7 @@ const next = require('next')
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({dev})
-
-/**
- * Parameterized Routing with next-route
- *
- * Benefits: Less code, and easily handles complex url structures
- */
-
-const routes = require('next-routes')()
-routes.add('blog/entry', '/blog/:id')
+const routes = require('./routes')
 
 const handler = routes.getRequestHandler(app)
 app.prepare().then(() => {

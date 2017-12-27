@@ -21,9 +21,9 @@ const buildImport = (args) => (template(`
         eval('require.ensure = function (deps, callback) { callback(require) }')
         require.ensure([], (require) => {
           let m = require(SOURCE)
-          m.__webpackChunkName = '${args.name}.js'
+          m.__webpackChunkName = '${args.name}'
           resolve(m);
-        }, 'chunks/${args.name}.js');
+        }, 'chunks/${args.name}');
       })
       :
       new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
@@ -40,7 +40,7 @@ const buildImport = (args) => (template(`
           } catch(error) {
             reject(error)
           }
-        }, 'chunks/${args.name}.js');
+        }, 'chunks/${args.name}');
       })
   )
 `))

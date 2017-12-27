@@ -1,6 +1,6 @@
 import { ConcatSource } from 'webpack-sources'
 
-const isImportChunk = /^chunks[/\\].*\.js$/
+const isImportChunk = /^chunks[/\\]/
 const matchChunkName = /^chunks[/\\](.*)$/
 
 class DynamicChunkTemplatePlugin {

@@ -386,7 +386,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: `/_next/${buildId}/webpack/`,
+      publicPath: `/_next/webpack/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
@@ -397,7 +397,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         return `webpack:///${resourcePath}?${id}`
       },
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name]'
+      chunkFilename: '[name]-[chunkhash].js'
     },
     resolve: {
       alias: {
