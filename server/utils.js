@@ -13,7 +13,8 @@ export function getAvailableChunks (dir, dist) {
 
   chunkFiles.forEach(filename => {
     if (/\.js$/.test(filename)) {
-      chunksMap[filename] = true
+      const chunkName = filename.replace(/-.*/, '')
+      chunksMap[chunkName] = filename
     }
   })
 
