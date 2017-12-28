@@ -35,6 +35,7 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/stateful'),
       renderViaHTTP(context.appPort, '/stateless'),
       renderViaHTTP(context.appPort, '/styled-jsx'),
+      renderViaHTTP(context.appPort, '/undefined-error'),
       renderViaHTTP(context.appPort, '/with-cdm'),
 
       renderViaHTTP(context.appPort, '/nav'),

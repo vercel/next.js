@@ -101,6 +101,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect($('pre').text()).toMatch(/This is an expected error/)
     })
 
+    test('undefined error', async () => {
+      const $ = await get$('/undefined-error')
+      expect($('pre').text()).toMatch(/Undefined was thrown while rendering page "\/undefined-error".\nStacktrace won't be complete./)
+    })
+
     test('asPath', async () => {
       const $ = await get$('/nav/as-path', { aa: 10 })
       expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
