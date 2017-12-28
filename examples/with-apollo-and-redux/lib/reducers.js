@@ -1,5 +1,5 @@
 export default {
-  example: (state = {}, { type, payload }) => {
+  redux: (state = {}, { type, payload }) => {
     switch (type) {
       case 'EXAMPLE_ACTION':
         return {

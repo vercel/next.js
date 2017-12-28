@@ -1,9 +1,9 @@
 import App from '../components/App'
 import Header from '../components/Header'
 
-export default (props) => (
+export default () => (
   <App>
-    <Header pathname={props.url.pathname} />
+    <Header />
     <article>
       <h1>The Idea Behind This Example</h1>
       <p>
