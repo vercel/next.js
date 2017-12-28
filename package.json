@@ -105,7 +105,7 @@
     "webpack-hot-middleware": "2.19.1",
     "write-file-webpack-plugin": "4.2.0",
     "xss-filters": "1.2.7",
-    "uglifyjs-webpack-plugin": "^1.1.1"    
+    "uglifyjs-webpack-plugin": "^1.1.1"
   },
   "devDependencies": {
     "@taskr/babel": "1.1.0",
@@ -131,8 +131,8 @@
     "node-notifier": "5.1.2",
     "nyc": "11.2.1",
     "portfinder": "1.0.13",
-    "react": "16.0.0",
-    "react-dom": "16.0.0",
+    "react": "16.2.0",
+    "react-dom": "16.2.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
     "wd": "1.4.1"
