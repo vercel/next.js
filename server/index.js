@@ -316,7 +316,14 @@ export default class Server {
 
     try {
       return await renderToHTML(req, res, pathname, query, this.renderOpts)
-    } catch (err) {
+    } catch (rawErr) {
+      let err = rawErr
+      if (!err) {
+        err = new Error(
+          `Undefined was thrown while rendering page "${pathname}".\nStacktrace won't be complete.`
+        )
+      }
+
       if (err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
