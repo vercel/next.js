@@ -71,12 +71,12 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
-    return chunks.map((chunk) => (
+    let { assetPrefix } = __NEXT_DATA__
+    return chunks.filenames.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
@@ -157,15 +157,15 @@ export class NextScript extends Component {
 
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
+    let { assetPrefix } = __NEXT_DATA__
     return (
       <Fragment>
-        {chunks.map((chunk) => (
+        {chunks.filenames.map((chunk) => (
           <script
             async
             key={chunk}
             type='text/javascript'
-            src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
           />
         ))}
       </Fragment>
@@ -177,7 +177,7 @@ export class NextScript extends Component {
     const { pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
-    __NEXT_DATA__.chunks = chunks
+    __NEXT_DATA__.chunks = chunks.names
 
     return <Fragment>
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{

@@ -1,5 +1,4 @@
 import { join } from 'path'
-import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
@@ -10,6 +9,7 @@ import getConfig from './config'
 import resolvePath from './resolve'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
+import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
@@ -246,15 +246,22 @@ async function ensurePage (page, { dir, hotReloader }) {
 
 function loadChunks ({ dev, dir, dist, availableChunks }) {
   const flushedChunks = flushChunks()
-  const validChunks = []
+  const response = {
+    names: [],
+    filenames: []
+  }
+
+  if (dev) {
+    availableChunks = getAvailableChunks(dir, dist)
+  }
 
   for (var chunk of flushedChunks) {
-    const filename = join(dir, dist, 'chunks', chunk)
-    const exists = dev ? existsSync(filename) : availableChunks[chunk]
-    if (exists) {
-      validChunks.push(chunk)
+    const filename = availableChunks[chunk]
+    if (filename) {
+      response.names.push(chunk)
+      response.filenames.push(filename)
     }
   }
 
-  return validChunks
+  return response
 }
