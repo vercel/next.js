@@ -3,14 +3,15 @@ const trash = require('trash')
 
 module.exports = {
   webpack: (config) => {
-    config.plugins = config.plugins.filter(
-      (plugin) => (plugin.constructor.name !== 'UglifyJsPlugin')
-    )
+    // config.plugins = config.plugins.filter(
+    //   (plugin) => (plugin.constructor.name !== 'UglifyJsPlugin')
+    // )
 
     config.module.rules.push(
       {
         test: /\.css$/,
         use: [
+          'babel-loader',
           {
             loader: 'emit-file-loader',
             options: {
@@ -26,11 +27,10 @@ module.exports = {
 
                 trash(fileName)
 
-                return ['module.exports = {',
-                  `classNames: ${classNames},`,
-                  `stylesheet: \`${content}\``,
-                  '}'
-                ].join('')
+                return `module.exports = {
+                  classNames: ${classNames},
+                  stylesheet: \`${content}\`
+                }`
               }
             }
           },
