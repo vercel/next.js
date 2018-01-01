@@ -6,6 +6,7 @@ import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
+import DefaultLayout from '../lib/layout'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -53,6 +54,7 @@ let lastAppProps
 export let router
 export let ErrorComponent
 let ErrorDebugComponent
+let Layout
 let Component
 let stripAnsi = (s) => s
 
@@ -67,6 +69,12 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   stripAnsi = passedStripAnsi || stripAnsi
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
+
+  try {
+    Layout = await pageLoader.loadPage('/_layout')
+  } catch (err) {
+    Layout = DefaultLayout
+  }
 
   try {
     Component = await pageLoader.loadPage(pathname)
@@ -87,7 +95,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
+  render({ Layout, Component, props, hash, err, emitter })
 
   return emitter
 }
@@ -132,7 +140,7 @@ export async function renderError (error) {
   }
 }
 
-async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
+async function doRender ({ Layout, Component, props, hash, err, emitter: emitterProp = emitter }) {
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
@@ -142,9 +150,10 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
   }
 
   Component = Component || lastAppProps.Component
+  Layout = Layout || lastAppProps.Layout
   props = props || lastAppProps.props
 
-  const appProps = { Component, props, hash, err, router, headManager }
+  const appProps = { Layout, Component, props, hash, err, router, headManager }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
