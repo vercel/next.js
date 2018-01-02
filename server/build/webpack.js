@@ -1,6 +1,6 @@
-import { resolve, join, sep } from 'path'
+import { resolve, join, sep, dirname } from 'path'
 import { createHash } from 'crypto'
-import { realpathSync, existsSync } from 'fs'
+import { realpathSync, existsSync, readFileSync } from 'fs'
 import webpack from 'webpack'
 import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -191,6 +191,36 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
+  function shouldTranspileModule (path) {
+    return (config.transpileModules || []).some(pattern => {
+      if (!(pattern instanceof RegExp)) {
+        const message = `Incorrect pattern in config.transpileModules: "${pattern}".` +
+          'It accepts an array of regular expression'
+        throw new Error(message)
+      }
+
+      return pattern.test(path)
+    })
+  }
+
+  function getPackageJsonPath (filePath) {
+    let filePathDirname = dirname(filePath)
+    if (filePathDirname === dir) {
+      return join(dir, 'package.json')
+    }
+
+    while (dir !== filePathDirname) {
+      const packageJsonPath = join(filePathDirname, 'package.json')
+      if (existsSync(packageJsonPath)) {
+        return packageJsonPath
+      }
+      filePathDirname = dirname(filePathDirname)
+    }
+  }
+
+  const packageJsonToCopy = {}
+  const copiedPackageJson = {}
+
   const rules = (dev ? [{
     test: /\.(js|jsx)(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
@@ -211,6 +241,16 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
+      if (shouldTranspileModule(str)) {
+        if (!packageJsonToCopy[str]) {
+          const packageJsonPath = getPackageJsonPath(str)
+          if (packageJsonPath) {
+            packageJsonToCopy[str.replace(dir, '')] = packageJsonPath
+          }
+        }
+        return false
+      }
+
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
@@ -227,9 +267,19 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           }
 
           const filePath = file.slice(0, -(from.length)) + to
-
           if (existsSync(filePath)) {
             throw new Error(`Both ${from} and ${to} file found. Please make sure you only have one of both.`)
+          }
+        }
+      },
+      copyPackageJson (interpolatedName) {
+        const packageJsonPath = packageJsonToCopy[interpolatedName.replace(/^dist/, '')]
+
+        if (packageJsonPath && !copiedPackageJson[packageJsonPath]) {
+          copiedPackageJson[packageJsonPath] = true
+          return {
+            interpolatedName: join('dist', packageJsonPath.replace(dir, '')),
+            content: readFileSync(packageJsonPath, 'utf-8')
           }
         }
       },
@@ -313,6 +363,10 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'babel-loader',
     include: [dir],
     exclude (str) {
+      if (shouldTranspileModule(str)) {
+        return false
+      }
+
       return /node_modules/.test(str)
     },
     options: mainBabelOptions

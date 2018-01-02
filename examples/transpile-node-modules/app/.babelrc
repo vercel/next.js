@@ -1,0 +1,5 @@
+{
+  "presets": [
+    "next/babel"
+  ]
+}

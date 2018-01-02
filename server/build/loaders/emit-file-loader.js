@@ -28,6 +28,13 @@ module.exports = function (content, sourceMap) {
     callback(null, code, map)
   }
 
+  if (query.copyPackageJson) {
+    const info = query.copyPackageJson(interpolatedName)
+    if (info) {
+      this.emitFile(info.interpolatedName, info.content)
+    }
+  }
+
   if (query.transform) {
     const transformed = query.transform({ content, sourceMap, interpolatedName })
     return emit(transformed.content, transformed.sourceMap)

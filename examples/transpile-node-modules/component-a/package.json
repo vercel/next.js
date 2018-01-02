@@ -1,0 +1,15 @@
+{
+  "name": "component-a",
+  "version": "1.0.0",
+  "description": "a test component",
+  "main": "lib/zeit.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Giuseppe Gurgone",
+  "license": "MIT",
+  "dependencies": {
+    "component-b": "file:../component-b"
+  }
+}
