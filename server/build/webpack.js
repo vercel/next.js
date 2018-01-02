@@ -38,6 +38,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   ] : []
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
+  const excludeRegex = config.exclude || /node_modules/
 
   let totalPages
 
@@ -201,7 +202,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
   }, {
     test: /\.(js|jsx)(\?[^?]*)?$/,
     loader: 'react-hot-loader/webpack',
-    exclude: /node_modules/
+    exclude: excludeRegex
   }] : [])
   .concat([{
     test: /\.json$/,
@@ -211,7 +212,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'emit-file-loader',
     include: [dir, nextPagesDir],
     exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+      return excludeRegex.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
       name: 'dist/[path][name].[ext]',
@@ -301,7 +302,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'babel-loader',
     include: nextPagesDir,
     exclude (str) {
-      return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
+      return excludeRegex.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
       babelrc: false,
@@ -313,7 +314,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
     loader: 'babel-loader',
     include: [dir],
     exclude (str) {
-      return /node_modules/.test(str)
+      return excludeRegex.test(str)
     },
     options: mainBabelOptions
   }])
