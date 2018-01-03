@@ -461,5 +461,22 @@ export default (context, render) => {
         })
       })
     })
+
+    describe('with imported page', () => {
+      it('should navigate via the client side', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        const counterText = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#use-imported-page').click()
+          .waitForElementByCss('.nav-about')
+          .elementByCss('#home-link').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('#counter').text()
+
+        expect(counterText).toBe('Counter: 1')
+        browser.close()
+      })
+    })
   })
 }
