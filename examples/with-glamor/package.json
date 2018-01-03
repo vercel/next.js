@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "glamor": "2.20.40",
-    "next": "4.2.1",
+    "next": "latest",
     "react": "16.2.0",
     "react-dom": "16.2.0"
   },
