@@ -8,12 +8,13 @@ module.exports = function (content, sourceMap) {
   this.callback(null, `${content}
     (function (Component, route) {
       if (!module.hot) return
-      if (!__resourceQuery) return
+      // if (!__resourceQuery) return
 
-      var qs = require('querystring')
-      var params = qs.parse(__resourceQuery.slice(1))
-      if (params.entry == null) return
+      // var qs = require('querystring')
+      // var params = qs.parse(__resourceQuery.slice(1))
+      // if (params.entry == null) return
 
+      console.log('ACCEPTING')
       module.hot.accept()
       Component.__route = route
 
