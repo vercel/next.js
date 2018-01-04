@@ -55,9 +55,17 @@ async function doRender (req, res, pathname, query, {
 
   const dist = getConfig(dir).distDir
 
+  const pagePath = join(dir, dist, 'dist', 'bundles', 'pages', page)
+  const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
+  
+  if(page === '/') {
+    delete require.cache[pagePath + 'index.js']
+  } else {
+    delete require.cache[pagePath + '.js']
+  }
   let [Component, Document] = await Promise.all([
-    requireModule(join(dir, dist, 'dist', 'bundles', 'pages', page)),
-    requireModule(join(dir, dist, 'dist', 'bundles', 'pages', '_document'))
+    requireModule(pagePath),
+    requireModule(documentPath)
   ])
   Component = Component.default || Component
   Document = Document.default || Document

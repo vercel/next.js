@@ -84,7 +84,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     },
     module: {
       rules: [
-        dev && {
+        dev && !isServer && {
           test: /\.(js|jsx)(\?[^?]*)?$/,
           loader: 'hot-self-accept-loader',
           include: [
@@ -92,7 +92,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
             nextPagesDir
           ]
         },
-        dev && {
+        dev && !isServer && {
           test: /\.(js|jsx)(\?[^?]*)?$/,
           loader: 'react-hot-loader/webpack',
           exclude: /node_modules/
