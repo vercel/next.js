@@ -24,7 +24,7 @@ const defaultPages = [
 const nextPagesDir = join(__dirname, '..', '..', 'pages')
 const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 const interpolateNames = new Map(defaultPages.map((p) => {
-  return [join(nextPagesDir, p), `dist/pages/${p}`]
+  return [join(nextPagesDir, p), `dist/bundles/pages/${p}`]
 }))
 
 const relativeResolve = rootModuleRelativePath(require)
@@ -59,6 +59,7 @@ function getPageEntries (pages) {
 }
 
 export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
+  console.log('XXXXXXX CREATE')
   // Resolve relative path to absolute path
   dir = realpathSync(resolve(dir))
 
@@ -175,14 +176,6 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
         return false
       }
     }),
-    // This chunk contains all the webpack related code. So, all the changes
-    // related to that happens to this chunk.
-    // It won't touch commons.js and that gives us much better re-build perf.
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'manifest',
-      filename: 'manifest.js'
-    }),
-
     // This adds Next.js route definitions to page bundles
     new PagesPlugin(),
     // Implements support for dynamic imports
@@ -275,7 +268,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
       return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
     },
     options: {
-      name: 'dist/[path][name].[ext]',
+      name: 'dist/bundles/[path][name].[ext]',
       // We need to strip off .jsx on the server. Otherwise require without .jsx doesn't work.
       interpolateName: (name) => name.replace('.jsx', '.js'),
       validateFileName (file) {

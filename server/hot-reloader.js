@@ -58,7 +58,8 @@ export default class HotReloader {
     const buildTools = await this.prepareBuildTools(compiler)
     this.assignBuildTools(buildTools)
 
-    this.stats = await this.waitUntilValid()
+    this.stats = (await this.waitUntilValid()).stats[0]
+    console.log('XXXX', Object.keys(this.stats))
   }
 
   async stop (webpackDevMiddleware) {
@@ -94,19 +95,21 @@ export default class HotReloader {
     await this.stop(oldWebpackDevMiddleware)
   }
 
-  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
+  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntriesClient, onDemandEntriesServer }) {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
-    this.onDemandEntries = onDemandEntries
+    this.onDemandEntriesClient = onDemandEntriesClient
+    this.onDemandEntriesServer = onDemandEntriesServer
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
-      onDemandEntries.middleware()
+      onDemandEntriesClient.middleware(),
+      onDemandEntriesServer.middleware()
     ]
   }
 
   async prepareBuildTools (compiler) {
-    compiler.plugin('after-emit', (compilation, callback) => {
+    compiler.compilers[0].plugin('after-emit', (compilation, callback) => {
       const { assets } = compilation
 
       if (this.prevAssets) {
@@ -124,10 +127,8 @@ export default class HotReloader {
       callback()
     })
 
-    compiler.plugin('done', (stats) => {
-      const clientStats = stats.stats.find((stats) => stats.compilation.compiler.name === 'client')
-
-      const { compilation } = clientStats
+    compiler.compilers[0].plugin('done', (stats) => {
+      const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
           .map((c) => c.name)
@@ -204,12 +205,19 @@ export default class HotReloader {
 
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
-    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
+    const webpackHotMiddleware = WebpackHotMiddleware(compiler.compilers[0], {
       path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
     })
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler, {
+    const onDemandEntriesClient = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers[0], {
+      dir: this.dir,
+      dev: true,
+      reload: this.reload.bind(this),
+      ...this.config.onDemandEntries
+    })
+
+    const onDemandEntriesServer = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers[1], {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
@@ -219,7 +227,8 @@ export default class HotReloader {
     return {
       webpackDevMiddleware,
       webpackHotMiddleware,
-      onDemandEntries
+      onDemandEntriesClient,
+      onDemandEntriesServer
     }
   }
 
@@ -232,7 +241,8 @@ export default class HotReloader {
 
   async getCompilationErrors () {
     // When we are reloading, we need to wait until it's reloaded properly.
-    await this.onDemandEntries.waitUntilReloaded()
+    await this.onDemandEntriesClient.waitUntilReloaded()
+    await this.onDemandEntriesServer.waitUntilReloaded()
 
     if (!this.compilationErrors) {
       this.compilationErrors = new Map()
@@ -260,8 +270,9 @@ export default class HotReloader {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
-  ensurePage (page) {
-    return this.onDemandEntries.ensurePage(page)
+  async ensurePage (page) {
+    await this.onDemandEntriesClient.ensurePage(page)
+    await this.onDemandEntriesServer.ensurePage(page)
   }
 }
 

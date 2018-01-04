@@ -14,7 +14,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   dir,
   dev,
   reload,
-  maxInactiveAge = 1000 * 25,
+  maxInactiveAge = 1000 * 60,
   pagesBufferLength = 2
 }) {
   let entries = {}
@@ -41,8 +41,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   })
 
   compiler.plugin('done', function (stats) {
-    const clientStats = stats.stats.find((stats) => stats.compilation.compiler.name === 'client')
-    const { compilation } = clientStats
+    const { compilation } = stats
     const hardFailedPages = compilation.errors
       .filter(e => {
         // Make sure to only pick errors which marked with missing modules

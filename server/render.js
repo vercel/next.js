@@ -49,13 +49,15 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
+  console.log('XXX - Ensure page', page)
   await ensurePage(page, { dir, hotReloader })
+  console.log('XXX - Page available', page)
 
   const dist = getConfig(dir).distDir
 
   let [Component, Document] = await Promise.all([
-    requireModule(join(dir, dist, 'dist', 'pages', page)),
-    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
+    requireModule(join(dir, dist, 'dist', 'bundles', 'pages', page)),
+    requireModule(join(dir, dist, 'dist', 'bundles', 'pages', '_document'))
   ])
   Component = Component.default || Component
   Document = Document.default || Document

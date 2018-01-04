@@ -6020,6 +6020,12 @@ standard@9.0.2:
     eslint-plugin-standard "~2.0.1"
     standard-engine "~5.4.0"
 
+stats-webpack-plugin@0.6.1:
+  version "0.6.1"
+  resolved "https://registry.yarnpkg.com/stats-webpack-plugin/-/stats-webpack-plugin-0.6.1.tgz#5db260514387bc3d4ba6fb85fc4990bd4a71c415"
+  dependencies:
+    lodash "^4.17.4"
+
 "statuses@>= 1.2.1 < 2", "statuses@>= 1.3.1 < 2", statuses@~1.3.1:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-1.3.1.tgz#faf51b9eb74aaef3b3acf4ad5f61abf24cb7b93e"

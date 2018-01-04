@@ -23,7 +23,7 @@ async function getPageFiles (dir, {dev, isServer}) {
 
 export function getPageEntries (pageFiles, {isServer}) {
   const entries = {}
-  const bundleLocation = isServer ? '' : 'bundles'
+  const bundleLocation = 'bundles'
   for (const p of pageFiles) {
     entries[path.join(bundleLocation, p.replace('.jsx', '.js'))] = [`./${p}`]
   }

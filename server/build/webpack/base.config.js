@@ -10,10 +10,17 @@ import {getPages} from './utils'
 import CombineAssetsPlugin from '../plugins/combine-assets-plugin'
 import PagesPlugin from '../plugins/pages-plugin'
 import DynamicChunksPlugin from '../plugins/dynamic-chunks-plugin'
-import StatsPlugin from 'stats-webpack-plugin'
 
 const nextDir = path.join(__dirname, '..', '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
+const nextPagesDir = path.join(nextDir, 'pages')
+const defaultPages = [
+  '_error.js',
+  '_document.js'
+]
+const interpolateNames = new Map(defaultPages.map((p) => {
+  return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
+}))
 
 export default async function baseConfig (dir, {dev = false, isServer = false, buildId, config}) {
   const extractCSS = new ExtractTextPlugin('stylesheets/style.css')
@@ -36,8 +43,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     externals,
     context: dir,
     entry: async () => {
-      // We use on-demand-entries in development
-      const pages = dev ? {} : await getPages(dir, {dev, isServer})
+      const pages = await getPages(dir, {dev, isServer})
       const mainJS = require.resolve(`../../../client/next${dev ? '-dev' : ''}`)
       const clientConfig = !isServer ? {
         'main.js': [
@@ -165,6 +171,10 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
 
           return false
         }
+      }),
+      !isServer && new webpack.optimize.CommonsChunkPlugin({
+        name: 'manifest',
+        filename: 'manifest.js'
       })
 
     ].filter(Boolean)
