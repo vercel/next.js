@@ -271,8 +271,11 @@ export default class HotReloader {
   }
 
   async ensurePage (page) {
-    await this.onDemandEntriesClient.ensurePage(page)
-    await this.onDemandEntriesServer.ensurePage(page)
+    await Promise.all([
+      this.onDemandEntriesClient.ensurePage(page),
+      this.onDemandEntriesServer.ensurePage(page)
+    ])
+    
   }
 }
 
