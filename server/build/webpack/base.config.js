@@ -62,7 +62,8 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       modules: true,
       minimize: !dev,
       sourceMap: dev,
-      importLoaders: 1
+      importLoaders: 1,
+      ...(config.cssLoaderConfig || {})
     }
   }
 
@@ -143,7 +144,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
           exclude: /node_modules/
         },
         {
-          test: /\.js$/,
+          test: /\.+(js|jsx)$/,
           include: [dir],
           exclude: /node_modules/,
           use: {
