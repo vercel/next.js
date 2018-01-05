@@ -10,6 +10,7 @@ import {getPages} from './utils'
 import CombineAssetsPlugin from '../plugins/combine-assets-plugin'
 import PagesPlugin from '../plugins/pages-plugin'
 import DynamicChunksPlugin from '../plugins/dynamic-chunks-plugin'
+import findBabelConfig from '../babel/find-config'
 
 const nextDir = path.join(__dirname, '..', '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -21,6 +22,33 @@ const defaultPages = [
 const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
 }))
+
+function babelConfig(dir) {
+  const mainBabelOptions = {
+    cacheDirectory: true,
+    presets: []
+  }
+
+  const externalBabelConfig = findBabelConfig(dir)
+  if (externalBabelConfig) {
+    console.log(`> Using external babel configuration`)
+    console.log(`> Location: "${externalBabelConfig.loc}"`)
+    // It's possible to turn off babelrc support via babelrc itself.
+    // In that case, we should add our default preset.
+    // That's why we need to do this.
+    const { options } = externalBabelConfig
+    mainBabelOptions.babelrc = options.babelrc !== false
+  } else {
+    mainBabelOptions.babelrc = false
+  }
+
+  // Add our default preset if the no "babelrc" found.
+  if (!mainBabelOptions.babelrc) {
+    mainBabelOptions.presets.push(require.resolve('../babel/preset'))
+  }
+
+  return mainBabelOptions
+}
 
 export default async function baseConfig (dir, {dev = false, isServer = false, buildId, config}) {
   const extractCSS = new ExtractTextPlugin('stylesheets/style.css')
@@ -107,10 +135,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
           exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
-            options: {
-              cacheDirectory: true,
-              presets: [require.resolve('../babel/preset')]
-            }
+            options: babelConfig(dir)
           }
         },
         {
