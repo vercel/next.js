@@ -51,16 +51,29 @@ function babelConfig(dir) {
 }
 
 export default async function baseConfig (dir, {dev = false, isServer = false, buildId, config}) {
-  const extractCSS = new ExtractTextPlugin('static/style.css')
+  const extractCSS = new ExtractTextPlugin({
+    filename: 'static/style.css',
+    disable: dev
+  })
 
   const cssLoader = {
     loader: isServer ? 'css-loader/locals' : 'css-loader',
     options: {
       modules: true,
       minimize: !dev,
-      sourceMap: dev
+      sourceMap: dev,
+      importLoaders: 1
     }
   }
+
+  const postcssLoader = {
+    loader: 'postcss-loader',
+    options: {
+      plugins: () => {}
+    }
+  }
+
+  const babelLoaderOptions = babelConfig(dir)
 
   const externals = isServer ? [nodeExternals(nextNodeModulesDir), nodeExternals(path.join(dir, 'node_modules'))] : []
   let webpackConfig = {
@@ -135,14 +148,44 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
           exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
-            options: babelConfig(dir)
+            options: babelLoaderOptions
           }
         },
         {
           test: /\.css$/,
           use: [
             isServer && cssLoader,
-            ...(!isServer ? extractCSS.extract([cssLoader]) : [])
+            isServer && postcssLoader,
+            ...(!isServer ? extractCSS.extract({
+              use: [cssLoader, postcssLoader],
+              // Use style-loader in development
+              fallback: {
+                loader: 'style-loader',
+                options: {
+                  sourceMap: true,
+                  importLoaders: 1
+                }
+              }
+            }) : [])
+          ].filter(Boolean)
+        },
+        {
+          test: /\.scss$/,
+          use: [
+            isServer && cssLoader,
+            isServer && postcssLoader,
+            isServer && 'sass-loader',
+            ...(!isServer ? extractCSS.extract({
+              use: [cssLoader, postcssLoader, 'sass-loader'],
+              // Use style-loader in development
+              fallback: {
+                loader: 'style-loader',
+                options: {
+                  sourceMap: true,
+                  importLoaders: 1
+                }
+              }
+            }) : [])
           ].filter(Boolean)
         }
       ].filter(Boolean)
@@ -224,9 +267,9 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     ].filter(Boolean)
   }
 
-  // if(isServer && typeof config.webpack === 'function') {
-  //   webpackConfig = config.webpack(webpackConfig, {dev, buildId})
-  // }
+  if(typeof config.webpack === 'function') {
+    webpackConfig = config.webpack(webpackConfig, {dev, isServer, buildId, babelLoaderOptions})
+  }
 
   return webpackConfig
 }
