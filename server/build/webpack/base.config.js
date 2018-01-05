@@ -51,7 +51,7 @@ function babelConfig(dir) {
 }
 
 export default async function baseConfig (dir, {dev = false, isServer = false, buildId, config}) {
-  const extractCSS = new ExtractTextPlugin('stylesheets/style.css')
+  const extractCSS = new ExtractTextPlugin('static/style.css')
 
   const cssLoader = {
     loader: isServer ? 'css-loader/locals' : 'css-loader',

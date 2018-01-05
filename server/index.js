@@ -226,6 +226,11 @@ export default class Server {
         await renderScript(req, res, page, this.renderOpts)
       },
 
+      '/_next/static/:path*': async (req, res, params) => {
+        const p = join(this.dist, 'static', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      },
+
       // It's very important keep this route's param optional.
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
