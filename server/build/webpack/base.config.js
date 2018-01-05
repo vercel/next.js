@@ -36,7 +36,8 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
 
   const externals = isServer ? [nodeExternals(nextNodeModulesDir), nodeExternals(path.join(dir, 'node_modules'))] : []
   let webpackConfig = {
-    devtool: dev ? 'inline-source-map' : 'source-map',
+    devtool: dev ? 'cheap-module-source-map' : 'source-map',
+    // devtool: 'source-map',
     name: isServer ? 'server' : 'client',
     cache: true,
     profile: true,
@@ -48,8 +49,10 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       const mainJS = require.resolve(`../../../client/next${dev ? '-dev' : ''}`)
       const clientConfig = !isServer ? {
         'main.js': [
+          dev && !isServer && path.join(__dirname, '..', '..', '..', 'client', 'webpack-hot-middleware-client'),
+          dev && !isServer && path.join(__dirname, '..', '..', '..', 'client', 'on-demand-entries-client'),
           mainJS
-        ]
+        ].filter(Boolean)
       } : {}
       return {
         ...clientConfig,
@@ -62,7 +65,8 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       libraryTarget: 'commonjs2',
       publicPath: `/_next/webpack/`,
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name]-[chunkhash].js'
+      chunkFilename: '[name]-[chunkhash].js',
+      sourceMapFilename: '[file].map?[contenthash]'
     },
     resolve: {
       extensions: ['.js', '.jsx', '.json'],
