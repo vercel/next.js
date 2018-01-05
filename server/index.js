@@ -17,6 +17,7 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import reactPkg from 'react/package'
+import resolvePath from './resolve'
 
 // TODO: Remove this in Next.js 5
 if (!(/^16\./.test(reactPkg.version))) {
@@ -181,6 +182,28 @@ export default class Server {
         this.handleBuildHash('app.js', params.hash, res)
         const p = join(this.dir, this.dist, 'app.js')
         await this.serveStatic(req, res, p)
+      },
+
+      '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
+        const paths = params.path || ['']
+        const page = `/${paths.join('/')}`
+
+        if (this.dev) {
+          try {
+            await this.hotReloader.ensurePage(page)
+          } catch (error) {}
+
+          const compilationErr = await this.getCompilationError()
+          if (compilationErr) {
+            const customFields = { statusCode: 500 }
+            return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
+          }
+        }
+        
+        const dist = getConfig(this.dir).distDir
+
+        const path = join(this.dir, dist, 'bundles', 'pages', `${page}.js.map`)
+        await serveStatic(req, res, path)
       },
 
       '/_next/:buildId/page/_error*': async (req, res, params) => {
