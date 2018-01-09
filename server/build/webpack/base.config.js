@@ -1,5 +1,6 @@
 import path, {sep} from 'path'
 import webpack from 'webpack'
+
 import nodeExternals from 'webpack-node-externals'
 import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
@@ -141,6 +142,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       chunkFilename: '[name]-[chunkhash].js',
       sourceMapFilename: '[file].map?[contenthash]'
     },
+    performance: { hints: false },
     resolve: {
       extensions: ['.js', '.jsx', '.json'],
       modules: [
@@ -204,6 +206,8 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       // }),
       // new StatsPlugin(`stats-${isServer ? 'server':'client'}.json`),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
+      dev && new webpack.NoEmitOnErrorsPlugin(),
+      // dev && new UnlinkFilePlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
@@ -221,6 +225,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
         // required not to cache removed files
         useHashIndex: false
       }),
+      !dev && new webpack.IgnorePlugin(/react-hot-loader/),
       !isServer && !dev && new UglifyJSPlugin({
         exclude: /react\.js/,
         parallel: true,
