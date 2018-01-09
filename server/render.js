@@ -49,9 +49,9 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
-  console.log('XXX - Ensure page', page)
+  // console.log('XXX - Ensure page', page)
   await ensurePage(page, { dir, hotReloader })
-  console.log('XXX - Page available', page)
+  // console.log('XXX - Page available', page)
 
   const dist = getConfig(dir).distDir
 

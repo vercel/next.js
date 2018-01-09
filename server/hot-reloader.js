@@ -59,7 +59,7 @@ export default class HotReloader {
     this.assignBuildTools(buildTools)
 
     this.stats = (await this.waitUntilValid()).stats[0]
-    console.log('XXXX', Object.keys(this.stats))
+    // console.log('XXXX', Object.keys(this.stats))
   }
 
   async stop (webpackDevMiddleware) {
@@ -205,11 +205,12 @@ export default class HotReloader {
 
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
-    const webpackHotMiddleware = WebpackHotMiddleware(compiler.compilers[0], {
+    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
       path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
     })
+
     const onDemandEntriesClient = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers[0], {
       dir: this.dir,
       dev: true,
