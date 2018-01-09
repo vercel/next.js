@@ -2,11 +2,11 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
-import del from 'del'
+// import del from 'del'
 import webpack from 'webpack'
 import getConfig from '../config'
 import baseConfig from './webpack/base.config.js'
-import replaceCurrentBuild from './replace'
+// import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
@@ -20,9 +20,6 @@ export default async function build (dir, conf = null) {
     console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
     throw err
   }
-
-  const clientCompiler = baseConfig(dir, { buildId, isServer: false, config })
-  const serverCompiler = baseConfig(dir, { buildId, isServer: true, config })
 
   try {
     const configs = await Promise.all([

@@ -275,7 +275,6 @@ export default class HotReloader {
       this.onDemandEntriesClient.ensurePage(page),
       this.onDemandEntriesServer.ensurePage(page)
     ])
-    
   }
 }
 

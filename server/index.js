@@ -17,7 +17,6 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import reactPkg from 'react/package'
-import resolvePath from './resolve'
 
 // TODO: Remove this in Next.js 5
 if (!(/^16\./.test(reactPkg.version))) {
@@ -43,14 +42,6 @@ const blockedPages = {
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
-    // When in dev mode, remap the inline source maps that we generate within the webpack portion
-    // of the build.
-    if (dev) {
-      require('source-map-support').install({
-        hookRequire: true
-      })
-    }
-
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
@@ -199,7 +190,7 @@ export default class Server {
             return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
           }
         }
-        
+
         const dist = getConfig(this.dir).distDir
 
         const path = join(this.dir, dist, 'bundles', 'pages', `${page}.js.map`)

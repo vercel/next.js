@@ -1,6 +1,3 @@
-const babelRuntimePath = require.resolve('babel-runtime/package').replace(/[\\/]package\.json$/, '')
-const relativeResolve = require('../root-module-relative-path').default(require)
-
 // Resolve styled-jsx plugins
 function styledJsxOptions (opts) {
   if (!opts) {
@@ -54,21 +51,5 @@ module.exports = (context, opts = {}) => ({
     [require.resolve('babel-plugin-transform-runtime'), opts['transform-runtime'] || {}],
     [require.resolve('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
     ...plugins
-    // [
-    //   require.resolve('babel-plugin-module-resolver'),
-    //   {
-    //     alias: {
-    //       'babel-runtime': babelRuntimePath,
-    //       'next/link': relativeResolve('../../../lib/link'),
-    //       'next/prefetch': relativeResolve('../../../lib/prefetch'),
-    //       'next/css': relativeResolve('../../../lib/css'),
-    //       'next/dynamic': relativeResolve('../../../lib/dynamic'),
-    //       'next/head': relativeResolve('../../../lib/head'),
-    //       'next/document': relativeResolve('../../../server/document'),
-    //       'next/router': relativeResolve('../../../lib/router'),
-    //       'next/error': relativeResolve('../../../lib/error')
-    //     }
-    //   }
-    // ]
   ]
 })

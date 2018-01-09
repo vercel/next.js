@@ -23,7 +23,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
 }))
 
-function babelConfig(dir) {
+function babelConfig (dir) {
   const mainBabelOptions = {
     cacheDirectory: true,
     presets: []
@@ -59,7 +59,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
   const cssLoader = {
     loader: isServer ? 'css-loader/locals' : 'css-loader',
     options: {
-      modules: true,
+      modules: false,
       minimize: !dev,
       sourceMap: dev,
       importLoaders: 1,
@@ -74,9 +74,40 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     }
   }
 
+  function cssLoaderConfig (loader = false) {
+    return [
+      isServer && !cssLoader.options.modules && 'ignore-loader',
+      isServer && cssLoader.options.modules && cssLoader,
+      isServer && cssLoader.options.modules && postcssLoader,
+      isServer && cssLoader.options.modules && loader,
+      ...(!isServer ? extractCSS.extract({
+        use: [cssLoader, postcssLoader, loader].filter(Boolean),
+        // Use style-loader in development
+        fallback: {
+          loader: 'style-loader',
+          options: {
+            sourceMap: true,
+            importLoaders: 1
+          }
+        }
+      }) : [])
+    ].filter(Boolean)
+  }
+
   const babelLoaderOptions = babelConfig(dir)
 
-  const externals = isServer ? [nodeExternals(nextNodeModulesDir), nodeExternals(path.join(dir, 'node_modules'))] : []
+  const externals = isServer ? [
+    nodeExternals({
+      modulesDir: nextNodeModulesDir,
+      includeAbsolutePaths: true,
+      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
+    }),
+    nodeExternals({
+      modulesDir: path.join(dir, 'node_modules'),
+      includeAbsolutePaths: true,
+      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
+    })
+  ] : []
   let webpackConfig = {
     devtool: dev ? 'cheap-module-source-map' : 'source-map',
     // devtool: 'source-map',
@@ -154,40 +185,15 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
         },
         {
           test: /\.css$/,
-          use: [
-            isServer && cssLoader,
-            isServer && postcssLoader,
-            ...(!isServer ? extractCSS.extract({
-              use: [cssLoader, postcssLoader],
-              // Use style-loader in development
-              fallback: {
-                loader: 'style-loader',
-                options: {
-                  sourceMap: true,
-                  importLoaders: 1
-                }
-              }
-            }) : [])
-          ].filter(Boolean)
+          use: cssLoaderConfig()
         },
         {
           test: /\.scss$/,
-          use: [
-            isServer && cssLoader,
-            isServer && postcssLoader,
-            isServer && 'sass-loader',
-            ...(!isServer ? extractCSS.extract({
-              use: [cssLoader, postcssLoader, 'sass-loader'],
-              // Use style-loader in development
-              fallback: {
-                loader: 'style-loader',
-                options: {
-                  sourceMap: true,
-                  importLoaders: 1
-                }
-              }
-            }) : [])
-          ].filter(Boolean)
+          use: cssLoaderConfig('sass-loader')
+        },
+        {
+          test: /\.less$/,
+          use: cssLoaderConfig('less-loader')
         }
       ].filter(Boolean)
     },
@@ -198,8 +204,8 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       // }),
       // new StatsPlugin(`stats-${isServer ? 'server':'client'}.json`),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
-      // dev && new FriendlyErrorsWebpackPlugin(),
-      dev && new webpack.HotModuleReplacementPlugin(), // Hot module replacement      
+      dev && !isServer && new FriendlyErrorsWebpackPlugin(),
+      dev && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       dev && new webpack.LoaderOptionsPlugin({
         options: {
@@ -268,7 +274,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     ].filter(Boolean)
   }
 
-  if(typeof config.webpack === 'function') {
+  if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {dev, isServer, buildId, babelLoaderOptions})
   }
 
