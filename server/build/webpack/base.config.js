@@ -210,6 +210,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       dev && new webpack.NoEmitOnErrorsPlugin(),
       // dev && new UnlinkFilePlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
+      dev && new webpack.NamedModulesPlugin(),
       dev && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       dev && new webpack.LoaderOptionsPlugin({

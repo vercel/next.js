@@ -59,7 +59,6 @@ let stripAnsi = (s) => s
 export const emitter = new EventEmitter()
 
 export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
-  console.log('TEST')
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
@@ -88,7 +87,6 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   })
 
   const hash = location.hash.substring(1)
-  console.log('TEST 1')
   render({ Component, props, hash, err, emitter })
 
   return emitter

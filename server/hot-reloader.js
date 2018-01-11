@@ -205,7 +205,7 @@ export default class HotReloader {
 
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
-    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
+    const webpackHotMiddleware = WebpackHotMiddleware(compiler.compilers[0], {
       path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
@@ -242,8 +242,10 @@ export default class HotReloader {
 
   async getCompilationErrors () {
     // When we are reloading, we need to wait until it's reloaded properly.
-    await this.onDemandEntriesClient.waitUntilReloaded()
-    await this.onDemandEntriesServer.waitUntilReloaded()
+    await Promise.all([
+      this.onDemandEntriesClient.waitUntilReloaded(),
+      this.onDemandEntriesServer.waitUntilReloaded()
+    ])
 
     if (!this.compilationErrors) {
       this.compilationErrors = new Map()

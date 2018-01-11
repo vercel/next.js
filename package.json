@@ -97,7 +97,7 @@
     "postcss-loader": "2.0.10",
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
-    "react-hot-loader": "3.1.1",
+    "react-hot-loader": "3.1.3",
     "recursive-copy": "2.0.6",
     "sass-loader": "6.0.6",
     "send": "0.16.1",
@@ -114,7 +114,7 @@
     "walk": "2.3.9",
     "webpack": "3.10.0",
     "webpack-dev-middleware": "1.12.0",
-    "webpack-hot-middleware": "2.19.1",
+    "webpack-hot-middleware": "2.21.0",
     "webpack-node-externals": "1.6.0",
     "write-file-webpack-plugin": "4.2.0",
     "xss-filters": "1.2.7"
