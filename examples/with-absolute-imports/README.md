@@ -16,7 +16,7 @@ create-next-app --example with-absolute-imports with-absolute-imports-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-absolute-import
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-absolute-import
 cd with-absolute-import
 ```
 

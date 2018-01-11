@@ -18,7 +18,7 @@ create-next-app --example ssr-caching ssr-caching-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/ssr-caching
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/ssr-caching
 cd ssr-caching
 ```
 

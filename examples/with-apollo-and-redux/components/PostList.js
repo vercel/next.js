@@ -1,28 +1,56 @@
-import { gql, graphql } from 'react-apollo'
+import { graphql } from 'react-apollo'
+import gql from 'graphql-tag'
+import { Router } from '../routes'
 import ErrorMessage from './ErrorMessage'
-import PostUpvoter from './PostUpvoter'
-import Link from 'next/link'
+import PostVoteUp from './PostVoteUp'
+import PostVoteDown from './PostVoteDown'
+import PostVoteCount from './PostVoteCount'
 
 const POSTS_PER_PAGE = 10
 
-function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMorePosts }) {
+function handleClick (event, id) {
+  event.preventDefault()
+  // With route name and params
+  // Router.pushRoute('blog/entry', { id: id })
+  // With route URL
+  Router.pushRoute(`/blog/${id}`)
+}
+
+function PostList ({
+  data: { loading, error, allPosts, _allPostsMeta },
+  loadMorePosts
+}) {
   if (error) return <ErrorMessage message='Error loading posts.' />
   if (allPosts && allPosts.length) {
     const areMorePosts = allPosts.length < _allPostsMeta.count
     return (
       <section>
         <ul>
-          {allPosts.map((post, index) =>
+          {allPosts.map((post, index) => (
             <li key={post.id}>
               <div>
                 <span>{index + 1}. </span>
-                <Link href={{ pathname: '/blog/' + post.id }}><a>{post.title}</a></Link>
-                <PostUpvoter id={post.id} votes={post.votes} />
+                <a
+                  href={`/blog/${post.id}`}
+                  onClick={(event) => handleClick(event, post.id)}
+                >
+                  {post.title}
+                </a>
+                <PostVoteUp id={post.id} votes={post.votes} />
+                <PostVoteCount votes={post.votes} />
+                <PostVoteDown id={post.id} votes={post.votes} />
               </div>
             </li>
-          )}
+          ))}
         </ul>
-        {areMorePosts ? <button onClick={() => loadMorePosts()}> {loading ? 'Loading...' : 'Show More'} </button> : ''}
+        {areMorePosts ? (
+          <button onClick={() => loadMorePosts()}>
+            {' '}
+            {loading ? 'Loading...' : 'Show More'}{' '}
+          </button>
+        ) : (
+          ''
+        )}
         <style jsx>{`
           section {
             padding-bottom: 20px;
@@ -55,7 +83,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
             border-style: solid;
             border-width: 6px 4px 0 4px;
             border-color: #ffffff transparent transparent transparent;
-            content: "";
+            content: '';
             height: 0;
             margin-right: 5px;
             width: 0;
@@ -67,7 +95,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
   return <div>Loading</div>
 }
 
-const allPosts = gql`
+export const allPosts = gql`
   query allPosts($first: Int!, $skip: Int!) {
     allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
       id
@@ -75,21 +103,23 @@ const allPosts = gql`
       votes
       url
       createdAt
-    },
+    }
     _allPostsMeta {
       count
     }
   }
 `
 
+export const allPostsQueryVars = {
+  skip: 0,
+  first: POSTS_PER_PAGE
+}
+
 // The `graphql` wrapper executes a GraphQL query and makes the results
 // available on the `data` prop of the wrapped component (PostList)
 export default graphql(allPosts, {
   options: {
-    variables: {
-      skip: 0,
-      first: POSTS_PER_PAGE
-    }
+    variables: allPostsQueryVars
   },
   props: ({ data }) => ({
     data,

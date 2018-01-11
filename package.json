@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "4.2.0-zones.2",
+  "version": "4.3.0-zones.1",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -71,10 +71,11 @@
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "etag": "1.8.1",
+    "find-up": "2.1.0",
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.6.1",
     "glob": "7.1.2",
-    "glob-promise": "3.2.0",
+    "glob-promise": "3.3.0",
     "hoist-non-react-statics": "2.3.1",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
@@ -94,7 +95,7 @@
     "recursive-copy": "2.0.6",
     "send": "0.16.1",
     "source-map-support": "0.4.18",
-    "strip-ansi": "4.0.0",
+    "strip-ansi": "3.0.1",
     "styled-jsx": "2.2.1",
     "touch": "3.1.0",
     "unfetch": "3.0.0",
@@ -106,7 +107,8 @@
     "webpack-dev-middleware": "1.12.0",
     "webpack-hot-middleware": "2.19.1",
     "write-file-webpack-plugin": "4.2.0",
-    "xss-filters": "1.2.7"
+    "xss-filters": "1.2.7",
+    "uglifyjs-webpack-plugin": "^1.1.1"
   },
   "devDependencies": {
     "@taskr/babel": "1.1.0",
@@ -132,11 +134,10 @@
     "node-notifier": "5.1.2",
     "nyc": "11.2.1",
     "portfinder": "1.0.13",
-    "react": "16.0.0",
-    "react-dom": "16.0.0",
+    "react": "16.2.0",
+    "react-dom": "16.2.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
-    "uglifyjs-webpack-plugin": "^1.1.1",
     "wd": "1.4.1"
   },
   "peerDependencies": {

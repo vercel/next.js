@@ -135,21 +135,17 @@ export default class Server {
       },
 
       // This is to support, webpack dynamic imports in production.
-      '/_next/:buildId/webpack/chunks/:name': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          return this.send404(res)
+      '/_next/webpack/chunks/:name': async (req, res, params) => {
+        // Cache aggressively in production
+        if (!this.dev) {
+          res.setHeader('Cache-Control', 'max-age=31536000, immutable')
         }
-
         const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic import support with HMR
-      '/_next/:buildId/webpack/:id': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          return this.send404(res)
-        }
-
+      '/_next/webpack/:id': async (req, res, params) => {
         const p = join(this.dir, this.dist, 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },
@@ -200,7 +196,10 @@ export default class Server {
 
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
+        // We need to remove `.js` from the page otherwise it won't work with
+        // page rewrites
+        // eg:- we re-write page/index.js into page.js
+        const page = `/${paths.join('/')}`.replace('.js', '')
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
