@@ -143,8 +143,8 @@
     "node-notifier": "5.1.2",
     "nyc": "11.2.1",
     "portfinder": "1.0.13",
-    "react": "16.0.0",
-    "react-dom": "16.0.0",
+    "react": "16.2.0",
+    "react-dom": "16.2.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
     "wd": "1.4.1"
