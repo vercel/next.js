@@ -208,7 +208,6 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       // new StatsPlugin(`stats-${isServer ? 'server':'client'}.json`),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
       dev && new webpack.NoEmitOnErrorsPlugin(),
-      // dev && new UnlinkFilePlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new webpack.NamedModulesPlugin(),
       dev && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
