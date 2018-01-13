@@ -105,7 +105,7 @@
     "xss-filters": "1.2.7"
   },
   "devDependencies": {
-    "uglifyjs-webpack-plugin": "^1.1.1"
+    "uglifyjs-webpack-plugin": "^1.1.1",
     "@taskr/babel": "1.1.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
