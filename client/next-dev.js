@@ -1,4 +1,3 @@
-import 'react-hot-loader/patch'
 import stripAnsi from 'strip-ansi'
 import initNext, * as next from './'
 import ErrorDebugComponent from '../lib/error-debug'

@@ -159,7 +159,7 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
 let isInitialRender = true
 function renderReactElement (reactEl, domEl) {
-  if (isInitialRender) {
+  if (isInitialRender && typeof ReactDOM.hydrate === 'function') {
     ReactDOM.hydrate(reactEl, domEl)
     isInitialRender = false
   } else {
