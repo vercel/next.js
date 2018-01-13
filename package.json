@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "4.3.0-canary.1",
+  "version": "4.2.3",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -29,9 +29,8 @@
     "pretestonly": "taskr pretest",
     "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
     "posttestonly": "taskr posttest",
-    "testall": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "pretest": "npm run lint",
-    "test": "cross-env npm run testall || npm run testall",
+    "test": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
@@ -70,11 +69,10 @@
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "etag": "1.8.1",
-    "find-up": "2.1.0",
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.6.1",
     "glob": "7.1.2",
-    "glob-promise": "3.3.0",
+    "glob-promise": "3.2.0",
     "hoist-non-react-statics": "2.3.1",
     "htmlescape": "1.1.1",
     "http-status": "1.0.1",
@@ -104,10 +102,10 @@
     "webpack-dev-middleware": "1.12.0",
     "webpack-hot-middleware": "2.19.1",
     "write-file-webpack-plugin": "4.2.0",
-    "xss-filters": "1.2.7",
-    "uglifyjs-webpack-plugin": "^1.1.1"
+    "xss-filters": "1.2.7"
   },
   "devDependencies": {
+    "uglifyjs-webpack-plugin": "^1.1.1"
     "@taskr/babel": "1.1.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -131,8 +129,8 @@
     "node-notifier": "5.1.2",
     "nyc": "11.2.1",
     "portfinder": "1.0.13",
-    "react": "16.2.0",
-    "react-dom": "16.2.0",
+    "react": "16.0.0",
+    "react-dom": "16.0.0",
     "standard": "9.0.2",
     "taskr": "1.1.0",
     "wd": "1.4.1"
