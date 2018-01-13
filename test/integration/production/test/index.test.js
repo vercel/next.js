@@ -13,6 +13,7 @@ import {
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
+import { readFileSync } from 'fs'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -109,6 +110,21 @@ describe('Production Usage', () => {
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
       expect(data).toBe('item')
+    })
+
+    it('should only access files inside .next directory', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const pathsToCheck = [
+        `/_next/${buildId}/page/../../../info`,
+        `/_next/${buildId}/page/../../../info.js`,
+        `/_next/${buildId}/page/../../../info.json`
+      ]
+
+      for (const path of pathsToCheck) {
+        const data = await renderViaHTTP(appPort, path)
+        expect(data.includes('cool-version')).toBeFalsy()
+      }
     })
   })
 
