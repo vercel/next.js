@@ -8,7 +8,6 @@ import {
   renderErrorToHTML,
   sendHTML,
   serveStatic,
-  renderScript,
   renderScriptError
 } from './render'
 import Router from './router'
@@ -195,12 +194,12 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/:path*': async (req, res, params) => {
+      '/_next/:buildId/page/:path*.js': async (req, res, params) => {
         const paths = params.path || ['']
-        // We need to remove `.js` from the page otherwise it won't work with
-        // page rewrites
-        // eg:- we re-write page/index.js into page.js
-        const page = `/${paths.join('/')}`.replace('.js', '')
+        // URL is asks for ${page}.js (to support loading assets from static dirs)
+        // But there's no .js in the actual page.
+        // So, we need to remove .js to get the page name.
+        const page = `/${paths.join('/')}`
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
@@ -223,7 +222,11 @@ export default class Server {
           }
         }
 
-        await renderScript(req, res, page, this.renderOpts)
+        let p = join(this.dir, this.dist, 'bundles', 'pages', paths.join('/'))
+        if (!fs.existsSync(`${p}.js`)) {
+          p = join(p, 'index') // It's possible to have index.js in a subfolder
+        }
+        await this.serveStatic(req, res, `${p}.js`)
       },
 
       // It's very important keep this route's param optional.
