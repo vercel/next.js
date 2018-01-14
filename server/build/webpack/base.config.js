@@ -123,7 +123,6 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       const mainJS = require.resolve(`../../../client/next${dev ? '-dev' : ''}`)
       const clientConfig = !isServer ? {
         'main.js': [
-          ...config.clientBootstrap || [],
           dev && !isServer && path.join(__dirname, '..', '..', '..', 'client', 'webpack-hot-middleware-client'),
           dev && !isServer && path.join(__dirname, '..', '..', '..', 'client', 'on-demand-entries-client'),
           mainJS
