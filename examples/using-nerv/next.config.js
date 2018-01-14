@@ -7,10 +7,10 @@ module.exports = {
     }
 
     config.resolve.alias = {
-        react: 'nervjs',
-        'react-dom': 'nervjs'
-    };
+      react: 'nervjs',
+      'react-dom': 'nervjs'
+    }
 
     return config
   }
-};
+}
