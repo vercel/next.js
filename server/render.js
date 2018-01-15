@@ -133,22 +133,6 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderScript (req, res, page, opts) {
-  try {
-    const dist = getConfig(opts.dir).distDir
-    const path = join(opts.dir, dist, 'bundles', 'pages', page)
-    const realPath = await resolvePath(path)
-    await serveStatic(req, res, realPath)
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      renderScriptError(req, res, page, err, {}, opts)
-      return
-    }
-
-    throw err
-  }
-}
-
 export async function renderScriptError (req, res, page, error, customFields, { dev }) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
