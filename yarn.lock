@@ -2580,7 +2580,7 @@ fast-deep-equal@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/fast-deep-equal/-/fast-deep-equal-1.0.0.tgz#96256a3bc975595eb36d82e9929d060d893439ff"
 
-fast-levenshtein@~2.0.4:
+fast-levenshtein@^2.0.6, fast-levenshtein@~2.0.4:
   version "2.0.6"
   resolved "https://registry.yarnpkg.com/fast-levenshtein/-/fast-levenshtein-2.0.6.tgz#3d8a5c66883a16a30ca8643e851f19baa7797917"
 
@@ -3087,7 +3087,7 @@ hoek@4.x.x:
   version "4.2.0"
   resolved "https://registry.yarnpkg.com/hoek/-/hoek-4.2.0.tgz#72d9d0754f7fe25ca2d01ad8f8f9a9449a89526d"
 
-hoist-non-react-statics@2.3.1:
+hoist-non-react-statics@2.3.1, hoist-non-react-statics@^2.3.1:
   version "2.3.1"
   resolved "https://registry.yarnpkg.com/hoist-non-react-statics/-/hoist-non-react-statics-2.3.1.tgz#343db84c6018c650778898240135a1420ee22ce0"
 
@@ -4123,7 +4123,7 @@ lodash@4.16.2:
   version "4.16.2"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.16.2.tgz#3e626db827048a699281a8a125226326cfc0e652"
 
-lodash@^4.0.0, lodash@^4.14.0, lodash@^4.17.4, lodash@^4.2.0, lodash@^4.3.0, lodash@^4.5.1, lodash@^4.6.1, lodash@^4.8.0:
+lodash@^4.0.0, lodash@^4.14.0, lodash@^4.17.4, lodash@^4.2.0, lodash@^4.3.0, lodash@^4.5.1, lodash@^4.8.0:
   version "4.17.4"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.4.tgz#78203a4d1c328ae1d86dca6460e369b57f4055ae"
 
@@ -5358,10 +5358,6 @@ rc@^1.1.7:
     minimist "^1.2.0"
     strip-json-comments "~2.0.1"
 
-react-deep-force-update@^2.1.1:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/react-deep-force-update/-/react-deep-force-update-2.1.1.tgz#8ea4263cd6455a050b37445b3f08fd839d86e909"
-
 react-dom@16.2.0:
   version "16.2.0"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-16.2.0.tgz#69003178601c0ca19b709b33a83369fe6124c044"
@@ -5371,21 +5367,22 @@ react-dom@16.2.0:
     object-assign "^4.1.1"
     prop-types "^15.6.0"
 
-react-hot-loader@3.1.1:
-  version "3.1.1"
-  resolved "https://registry.yarnpkg.com/react-hot-loader/-/react-hot-loader-3.1.1.tgz#e06db8cd0841c41e3ab0b395b2b774126fc8914e"
+react-hot-loader@4.0.0-beta.14:
+  version "4.0.0-beta.14"
+  resolved "https://registry.yarnpkg.com/react-hot-loader/-/react-hot-loader-4.0.0-beta.14.tgz#9575065aadda9c53ef455e757b8b36c1fd14e5d6"
   dependencies:
+    fast-levenshtein "^2.0.6"
     global "^4.3.0"
-    react-deep-force-update "^2.1.1"
-    react-proxy "^3.0.0-alpha.0"
+    hoist-non-react-statics "^2.3.1"
+    react-stand-in "^4.0.0-beta.14"
     redbox-react "^1.3.6"
     source-map "^0.6.1"
 
-react-proxy@^3.0.0-alpha.0:
-  version "3.0.0-alpha.1"
-  resolved "https://registry.yarnpkg.com/react-proxy/-/react-proxy-3.0.0-alpha.1.tgz#4400426bcfa80caa6724c7755695315209fa4b07"
+react-stand-in@^4.0.0-beta.14:
+  version "4.0.0-beta.14"
+  resolved "https://registry.yarnpkg.com/react-stand-in/-/react-stand-in-4.0.0-beta.14.tgz#0a06a94b44bc4ca1d06575414acf400585d84e35"
   dependencies:
-    lodash "^4.6.1"
+    shallowequal "^1.0.2"
 
 react@16.2.0:
   version "16.2.0"
@@ -5846,6 +5843,10 @@ sha.js@^2.4.0, sha.js@^2.4.8:
   dependencies:
     inherits "^2.0.1"
     safe-buffer "^5.0.1"
+
+shallowequal@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/shallowequal/-/shallowequal-1.0.2.tgz#1561dbdefb8c01408100319085764da3fcf83f8f"
 
 shebang-command@^1.2.0:
   version "1.2.0"
