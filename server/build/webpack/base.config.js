@@ -165,6 +165,11 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       rules: [
         dev && !isServer && {
           test: /\.(js|jsx)(\?[^?]*)?$/,
+          loader: 'react-hot-loader/webpack',
+          exclude: /node_modules/
+        },
+        dev && !isServer && {
+          test: /\.(js|jsx)(\?[^?]*)?$/,
           loader: 'hot-self-accept-loader',
           include: [
             path.join(dir, 'pages'),
