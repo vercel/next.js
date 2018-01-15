@@ -1,4 +1,5 @@
 import path, {sep} from 'path'
+import fs from 'fs'
 import webpack from 'webpack'
 
 import nodeExternals from 'webpack-node-externals'
@@ -54,6 +55,33 @@ function babelConfig (dir, isServer) {
   return mainBabelOptions
 }
 
+function externalsConfig (dir, isServer) {
+  const externals = []
+
+  if (!isServer) {
+    return externals
+  }
+
+  if (fs.existsSync(nextNodeModulesDir)) {
+    externals.push(nodeExternals({
+      modulesDir: nextNodeModulesDir,
+      includeAbsolutePaths: true,
+      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
+    }))
+  }
+
+  const dirNodeModules = path.join(dir, 'node_modules')
+  if (fs.existsSync(dirNodeModules)) {
+    nodeExternals({
+      modulesDir: dirNodeModules,
+      includeAbsolutePaths: true,
+      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
+    })
+  }
+
+  return externals
+}
+
 export default async function baseConfig (dir, {dev = false, isServer = false, buildId, config}) {
   const extractCSS = new ExtractTextPlugin({
     filename: 'static/style.css',
@@ -100,18 +128,6 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
 
   const babelLoaderOptions = babelConfig(dir, isServer)
 
-  const externals = isServer ? [
-    nodeExternals({
-      modulesDir: nextNodeModulesDir,
-      includeAbsolutePaths: true,
-      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
-    }),
-    nodeExternals({
-      modulesDir: path.join(dir, 'node_modules'),
-      includeAbsolutePaths: true,
-      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
-    })
-  ] : []
   let webpackConfig = {
     devtool: dev ? 'cheap-module-source-map' : 'source-map',
     // devtool: 'source-map',
@@ -119,7 +135,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     cache: true,
     profile: true,
     target: isServer ? 'node' : 'web',
-    externals,
+    externals: externalsConfig(dir, isServer),
     context: dir,
     entry: async () => {
       const pages = await getPages(dir, {dev, isServer})
