@@ -151,7 +151,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
   const babelLoaderOptions = babelConfig(dir, isServer)
 
   let webpackConfig = {
-    devtool: dev ? 'cheap-module-source-map' : 'source-map',
+    devtool: dev ? 'cheap-module-source-map' : false,
     // devtool: 'source-map',
     name: isServer ? 'server' : 'client',
     cache: true,
