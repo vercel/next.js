@@ -42,3 +42,5 @@ This example uses [Nerv](https://nerv.aotu.io/) instead of React. It's a "blazin
 Here's how we did it:
 
 * Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)
+
+N.B. We use react and react-dom for development, and use nerv when building the bundle. You can see the size of app.js is around 107 KB with nerv and 179 KB without.
