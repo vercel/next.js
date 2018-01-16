@@ -25,28 +25,6 @@ const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
 }))
 
-function shouldTranspileModule (transpileModules, path) {
-  return (transpileModules || []).some(pattern => {
-    if (!(pattern instanceof RegExp)) {
-      const message = `Incorrect pattern in config.transpileModules: "${pattern}".` +
-        'It accepts an array of regular expression'
-      throw new Error(message)
-    }
-
-    return pattern.test(path)
-  })
-}
-
-function excludeModules (config) {
-  return (str) => {
-    if (shouldTranspileModule(config.transpileModules, str)) {
-      return false
-    }
-
-    return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-  }
-}
-
 function babelConfig (dir, isServer) {
   const mainBabelOptions = {
     cacheDirectory: Boolean(process.env.BABEL_DISABLE_CACHE),
@@ -215,7 +193,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
         {
           test: /\.+(js|jsx)$/,
           include: [dir],
-          exclude: excludeModules(config),
+          exclude: /node_modules/,
           use: {
             loader: 'babel-loader',
             options: babelLoaderOptions
@@ -224,7 +202,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
         {
           test: /\.+(ts|tsx)$/,
           include: [dir],
-          exclude: excludeModules(config),
+          exclude: /node_modules/,
           use: [
             {
               loader: 'babel-loader',
