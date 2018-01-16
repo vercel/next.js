@@ -13,9 +13,9 @@ async function getPageFiles (dir, {dev, isServer}) {
   let pages
 
   if (dev) {
-    pages = await glob(isServer ? 'pages/+(_document|_error).+(js|jsx)' : 'pages/_error.+(js|jsx)', { cwd: dir })
+    pages = await glob(isServer ? 'pages/+(_document|_error).+(js|jsx|ts|tsx)' : 'pages/_error.+(js|jsx|ts|tsx)', { cwd: dir })
   } else {
-    pages = await glob(isServer ? 'pages/**/*.+(js|jsx)' : 'pages/**/!(_document)*.+(js|jsx)', { cwd: dir })
+    pages = await glob(isServer ? 'pages/**/*.+(js|jsx|ts|tsx)' : 'pages/**/!(_document)*.+(js|jsx|ts|tsx)', { cwd: dir })
   }
 
   return pages
@@ -25,7 +25,7 @@ export function getPageEntries (pageFiles, {isServer}) {
   const entries = {}
   const bundleLocation = 'bundles'
   for (const p of pageFiles) {
-    entries[path.join(bundleLocation, p.replace('.jsx', '.js'))] = [`./${p}`]
+    entries[path.join(bundleLocation, p.replace(/\.+(jsx|tsx|ts)/, '.js'))] = [`./${p}`]
   }
 
   // The default pages (_document.js and _error.js) are only added when they're not provided by the user

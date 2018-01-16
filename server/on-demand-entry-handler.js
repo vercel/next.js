@@ -1,6 +1,6 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
-import { join } from 'path'
+import { join, relative } from 'path'
 import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
@@ -130,8 +130,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
       const pagePath = join(dir, 'pages', page)
       const pathname = await resolvePath(pagePath)
-      const name = join('bundles', pathname.substring(dir.length))
-
+      const name = join('bundles', relative(dir, pathname.replace(/\.+(jsx|tsx|ts)/, '.js')))
       const entry = [`${pathname}`]
 
       await new Promise((resolve, reject) => {

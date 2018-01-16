@@ -163,7 +163,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     },
     performance: { hints: false },
     resolve: {
-      extensions: ['.js', '.jsx', '.json'],
+      extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
       modules: [
         nextNodeModulesDir,
         'node_modules'
@@ -198,6 +198,23 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
             loader: 'babel-loader',
             options: babelLoaderOptions
           }
+        },
+        {
+          test: /\.+(ts|tsx)$/,
+          include: [dir],
+          exclude: /node_modules/,
+          use: [
+            {
+              loader: 'babel-loader',
+              options: babelLoaderOptions
+            },
+            {
+              loader: 'ts-loader',
+              options: {
+                transpileOnly: true
+              }
+            }
+          ]
         },
         {
           test: /\.css$/,
