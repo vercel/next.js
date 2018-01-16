@@ -49,7 +49,7 @@ function excludeModules (config) {
 
 function babelConfig (dir, isServer) {
   const mainBabelOptions = {
-    cacheDirectory: true,
+    cacheDirectory: Boolean(process.env.BABEL_DISABLE_CACHE),
     presets: [],
     plugins: [
       !isServer && require.resolve('react-hot-loader/babel')
