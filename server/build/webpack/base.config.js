@@ -66,7 +66,7 @@ function externalsConfig (dir, isServer) {
     externals.push(nodeExternals({
       modulesDir: nextNodeModulesDir,
       includeAbsolutePaths: true,
-      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
+      whitelist: [/\.(?!(?:js|json)$).{1,5}$/i]
     }))
   }
 
@@ -75,7 +75,7 @@ function externalsConfig (dir, isServer) {
     nodeExternals({
       modulesDir: dirNodeModules,
       includeAbsolutePaths: true,
-      whitelist: [/es6-promise|\.(?!(?:js|json)$).{1,5}$/i]
+      whitelist: [/\.(?!(?:js|json)$).{1,5}$/i]
     })
   }
 
@@ -138,17 +138,18 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     less: cssLoaderConfig('less-loader')
   }
 
+  let totalPages
+
   let webpackConfig = {
     devtool: dev ? 'cheap-module-source-map' : false,
-    // devtool: 'source-map',
     name: isServer ? 'server' : 'client',
     cache: true,
-    profile: true,
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer),
     context: dir,
     entry: async () => {
       const pages = await getPages(dir, {dev, isServer})
+      totalPages = Object.keys(pages).length
       const mainJS = require.resolve(`../../../client/next${dev ? '-dev' : ''}`)
       const clientConfig = !isServer ? {
         'main.js': [
@@ -221,11 +222,6 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       ].filter(Boolean)
     },
     plugins: [
-      // Useful when profiling
-      // new webpack.ProgressPlugin({
-      //   profile: true
-      // }),
-      // new StatsPlugin(`stats-${isServer ? 'server':'client'}.json`),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
@@ -271,7 +267,33 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: `commons`,
         filename: `commons.js`,
-        minChunks: 2
+        minChunks (module, count) {
+          // We need to move react-dom explicitly into common chunks.
+          // Otherwise, if some other page or module uses it, it might
+          // included in that bundle too.
+          if (dev && module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
+            return true
+          }
+
+          if (dev && module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+            return true
+          }
+
+          // In the dev we use on-demand-entries.
+          // So, it makes no sense to use commonChunks based on the minChunks count.
+          // Instead, we move all the code in node_modules into each of the pages.
+          if (dev) {
+            return false
+          }
+
+          // If there are one or two pages, only move modules to common if they are
+          // used in all of the pages. Otherwise, move modules used in at-least
+          // 1/2 of the total pages into commons.
+          if (totalPages <= 2) {
+            return count >= totalPages
+          }
+          return count >= totalPages * 0.5
+        }
       }),
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'react',
