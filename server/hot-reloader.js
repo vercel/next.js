@@ -3,7 +3,7 @@ import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
-import baseConfig from './build/webpack/base.config'
+import getBaseWebpackConfig from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
 import UUID from 'uuid'
@@ -49,8 +49,8 @@ export default class HotReloader {
     await clean(this.dir)
 
     const configs = await Promise.all([
-      baseConfig(this.dir, { dev: true, isServer: false, config: this.config }),
-      baseConfig(this.dir, { dev: true, isServer: true, config: this.config })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
     ])
 
     const compiler = webpack(configs)
@@ -79,8 +79,8 @@ export default class HotReloader {
     await clean(this.dir)
 
     const configs = await Promise.all([
-      baseConfig(this.dir, { dev: true, isServer: false, config: this.conf }),
-      baseConfig(this.dir, { dev: true, isServer: true, config: this.conf })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.conf }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.conf })
     ])
 
     const compiler = webpack(configs)

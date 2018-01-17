@@ -5,7 +5,7 @@ import uuid from 'uuid'
 // import del from 'del'
 import webpack from 'webpack'
 import getConfig from '../config'
-import baseConfig from './webpack/base.config.js'
+import getBaseWebpackConfig from './webpack'
 // import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
@@ -23,8 +23,8 @@ export default async function build (dir, conf = null) {
 
   try {
     const configs = await Promise.all([
-      baseConfig(dir, { buildId, isServer: false, config }),
-      baseConfig(dir, { buildId, isServer: true, config })
+      getBaseWebpackConfig(dir, { buildId, isServer: false, config }),
+      getBaseWebpackConfig(dir, { buildId, isServer: true, config })
     ])
 
     await runCompiler(configs)
