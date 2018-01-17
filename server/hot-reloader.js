@@ -273,10 +273,13 @@ export default class HotReloader {
   }
 
   async ensurePage (page) {
-    await Promise.all([
-      this.onDemandEntriesClient.ensurePage(page),
-      this.onDemandEntriesServer.ensurePage(page)
-    ])
+    // We need to do this one after another.
+    // Otherwise it'll mess up with webpack hash.
+    // (due to concurrent devMiddleware.invalidate() calls)
+    // TODO: In the future, we need handle both client and server using
+    // a single onDemandEntryHandler instance.
+    await this.onDemandEntriesClient.ensurePage(page)
+    await this.onDemandEntriesServer.ensurePage(page)
   }
 }
 
