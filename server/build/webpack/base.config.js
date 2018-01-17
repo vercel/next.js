@@ -95,7 +95,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       minimize: !dev,
       sourceMap: dev,
       importLoaders: 1,
-      ...(config.cssLoaderConfig || {})
+      ...(config.cssLoader || {})
     }
   }
 
@@ -128,6 +128,16 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
 
   const babelLoaderOptions = babelConfig(dir, isServer)
 
+  const defaultLoaders = {
+    babel: {
+      loader: 'babel-loader',
+      options: babelLoaderOptions
+    },
+    css: cssLoaderConfig(),
+    scss: cssLoaderConfig('sass-loader'),
+    less: cssLoaderConfig('less-loader')
+  }
+
   let webpackConfig = {
     devtool: dev ? 'cheap-module-source-map' : false,
     // devtool: 'source-map',
@@ -153,7 +163,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
       }
     },
     output: {
-      path: path.join(dir, '.next', isServer ? 'dist' : ''),
+      path: path.join(dir, '.next', isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: `/_next/webpack/`,
@@ -163,7 +173,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
     },
     performance: { hints: false },
     resolve: {
-      extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
+      extensions: ['.js', '.jsx', '.json'],
       modules: [
         nextNodeModulesDir,
         'node_modules'
@@ -194,39 +204,19 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
           test: /\.+(js|jsx)$/,
           include: [dir],
           exclude: /node_modules/,
-          use: {
-            loader: 'babel-loader',
-            options: babelLoaderOptions
-          }
-        },
-        {
-          test: /\.+(ts|tsx)$/,
-          include: [dir],
-          exclude: /node_modules/,
-          use: [
-            {
-              loader: 'babel-loader',
-              options: babelLoaderOptions
-            },
-            {
-              loader: 'ts-loader',
-              options: {
-                transpileOnly: true
-              }
-            }
-          ]
+          use: defaultLoaders.babel
         },
         {
           test: /\.css$/,
-          use: cssLoaderConfig()
+          use: defaultLoaders.css
         },
         {
           test: /\.scss$/,
-          use: cssLoaderConfig('sass-loader')
+          use: defaultLoaders.scss
         },
         {
           test: /\.less$/,
-          use: cssLoaderConfig('less-loader')
+          use: defaultLoaders.less
         }
       ].filter(Boolean)
     },
@@ -311,7 +301,7 @@ export default async function baseConfig (dir, {dev = false, isServer = false, b
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, {dev, isServer, buildId, babelLoaderOptions})
+    webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders})
   }
 
   return webpackConfig
