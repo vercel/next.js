@@ -2,17 +2,18 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
-// import del from 'del'
+import del from 'del'
 import webpack from 'webpack'
 import getConfig from '../config'
 import getBaseWebpackConfig from './webpack'
-// import replaceCurrentBuild from './replace'
+import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
   const config = getConfig(dir, conf)
   const buildId = uuid.v4()
   const tempDir = tmpdir()
+  const buildDir = join(tempDir, buildId)
 
   try {
     await fs.access(tempDir, fs.constants.W_OK)
@@ -23,14 +24,11 @@ export default async function build (dir, conf = null) {
 
   try {
     const configs = await Promise.all([
-      getBaseWebpackConfig(dir, { buildId, isServer: false, config }),
-      getBaseWebpackConfig(dir, { buildId, isServer: true, config })
+      getBaseWebpackConfig(dir, { buildId, buildDir, isServer: false, config }),
+      getBaseWebpackConfig(dir, { buildId, buildDir, isServer: true, config })
     ])
 
     await runCompiler(configs)
-
-    // await fs.writeFile(join(dir, '.next', 'server-stats.json'), JSON.stringify(serverStats), 'utf8')
-    // await fs.writeFile(join(dir, '.next', 'client-stats.json'), JSON.stringify(stats), 'utf8')
 
     await writeBuildStats(dir)
     await writeBuildId(dir, buildId)
@@ -39,10 +37,10 @@ export default async function build (dir, conf = null) {
     throw err
   }
 
-  // await replaceCurrentBuild(dir, buildDir)
+  await replaceCurrentBuild(dir, buildDir)
 
   // no need to wait
-  // del(buildDir, { force: true })
+  del(buildDir, { force: true })
 }
 
 function runCompiler (compiler) {

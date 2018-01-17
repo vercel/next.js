@@ -82,7 +82,7 @@ function externalsConfig (dir, isServer) {
   return externals
 }
 
-export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, buildDir, config}) {
   const extractCSS = new ExtractTextPlugin({
     filename: 'static/style.css',
     disable: dev
@@ -164,7 +164,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }
     },
     output: {
-      path: path.join(dir, '.next', isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
+      path: path.join(buildDir || dir, '.next', isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: `/_next/webpack/`,
