@@ -2,8 +2,8 @@
   "name": "with-next",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node bin/start",
-    "build": "NODE_ENV=production next build && next export && node bin/bundle",
+    "dev": "cross-env NODE_ENV=development node bin/start",
+    "build": "cross-env-shell NODE_ENV=production 'next build && next export && node bin/bundle'",
     "start": "cross-env NODE_ENV=production node bin/start"
   },
   "author": "Adam Stankiewicz <sheerun@sher.pl> (https://sheerun.net)",
