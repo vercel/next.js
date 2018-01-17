@@ -59,7 +59,6 @@ export default class HotReloader {
     this.assignBuildTools(buildTools)
 
     this.stats = (await this.waitUntilValid()).stats[0]
-    // console.log('XXXX', Object.keys(this.stats))
   }
 
   async stop (webpackDevMiddleware) {

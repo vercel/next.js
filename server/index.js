@@ -197,9 +197,6 @@ export default class Server {
 
       '/_next/:buildId/page/:path*.js': async (req, res, params) => {
         const paths = params.path || ['']
-        // URL is asks for ${page}.js (to support loading assets from static dirs)
-        // But there's no .js in the actual page.
-        // So, we need to remove .js to get the page name.
         const page = `/${paths.join('/')}`
 
         if (!this.handleBuildId(params.buildId, res)) {
@@ -257,7 +254,6 @@ export default class Server {
     if (this.config.useFileSystemPublicRoutes) {
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
-        // console.log('XXXX - render', pathname, typeof (res))
         await this.render(req, res, pathname, query)
       }
     }
@@ -317,9 +313,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
-      // console.log('XXX - Taking Error', typeof (res))
       const compilationErr = await this.getCompilationError()
-      // console.log('XXX - ERROR Found', compilationErr, typeof (res))
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
@@ -327,9 +321,7 @@ export default class Server {
     }
 
     try {
-      // console.log('XXX - Rendering HTML', typeof (res))
       const out = await renderToHTML(req, res, pathname, query, this.renderOpts)
-      // console.log('XXX - HTML Rendered', typeof (res))
       return out
     } catch (err) {
       if (err.code === 'ENOENT') {

@@ -59,7 +59,6 @@ function getPageEntries (pages) {
 }
 
 export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
-  console.log('XXXXXXX CREATE')
   // Resolve relative path to absolute path
   dir = realpathSync(resolve(dir))
 
