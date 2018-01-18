@@ -2,8 +2,9 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, relative } from 'path'
 import { parse } from 'url'
-import resolvePath from './resolve'
 import touch from 'touch'
+import resolvePath from './resolve'
+import {createEntry} from './build/webpack/utils'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
 
 const ADDED = Symbol('added')
@@ -129,9 +130,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       page = normalizePage(page)
 
       const pagePath = join(dir, 'pages', page)
-      const pathname = await resolvePath(pagePath)
-      const name = join('bundles', relative(dir, pathname.replace(/\.+(jsx|tsx|ts)/, '.js')))
-      const entry = [`${pathname}`]
+      const pathname = relative(dir, await resolvePath(pagePath))
+      const {name, files} = createEntry(pathname)
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
@@ -150,7 +150,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
         console.log(`> Building page: ${page}`)
 
-        entries[page] = { name, entry, pathname, status: ADDED }
+        entries[page] = { name, entry: files, pathname, status: ADDED }
         doneCallbacks.on(page, processCallback)
 
         invalidator.invalidate()
