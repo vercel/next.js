@@ -27,7 +27,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 function babelConfig (dir, isServer) {
   const mainBabelOptions = {
-    cacheDirectory: Boolean(process.env.BABEL_DISABLE_CACHE),
+    cacheDirectory: true,
     presets: [],
     plugins: [
       !isServer && require.resolve('react-hot-loader/babel')
