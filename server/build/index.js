@@ -1,22 +1,17 @@
-import { tmpdir } from 'os'
 import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
-import del from 'del'
 import webpack from 'webpack'
 import getConfig from '../config'
 import getBaseWebpackConfig from './webpack'
-import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
   const config = getConfig(dir, conf)
   const buildId = uuid.v4()
-  const tempDir = tmpdir()
-  const buildDir = join(tempDir, buildId)
 
   try {
-    await fs.access(tempDir, fs.constants.W_OK)
+    await fs.access(dir, fs.constants.W_OK)
   } catch (err) {
     console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
     throw err
@@ -24,8 +19,8 @@ export default async function build (dir, conf = null) {
 
   try {
     const configs = await Promise.all([
-      getBaseWebpackConfig(dir, { buildId, buildDir, isServer: false, config }),
-      getBaseWebpackConfig(dir, { buildId, buildDir, isServer: true, config })
+      getBaseWebpackConfig(dir, { buildId, isServer: false, config }),
+      getBaseWebpackConfig(dir, { buildId, isServer: true, config })
     ])
 
     await runCompiler(configs)
@@ -36,11 +31,6 @@ export default async function build (dir, conf = null) {
     console.error(`> Failed to build`)
     throw err
   }
-
-  await replaceCurrentBuild(dir, buildDir)
-
-  // no need to wait
-  del(buildDir, { force: true })
 }
 
 function runCompiler (compiler) {
