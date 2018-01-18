@@ -164,7 +164,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }
     },
     output: {
-      path: path.join(dir, '.next', isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
+      path: path.join(dir, config.distDir, isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: `/_next/webpack/`,

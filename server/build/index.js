@@ -25,8 +25,8 @@ export default async function build (dir, conf = null) {
 
     await runCompiler(configs)
 
-    await writeBuildStats(dir)
-    await writeBuildId(dir, buildId)
+    await writeBuildStats(dir, config)
+    await writeBuildId(dir, buildId, config)
   } catch (err) {
     console.error(`> Failed to build`)
     throw err
@@ -53,21 +53,21 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildStats (dir) {
+async function writeBuildStats (dir, config) {
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)
   // So, we need to generate the hash ourself.
   const assetHashMap = {
     'app.js': {
-      hash: await md5File(join(dir, '.next', 'app.js'))
+      hash: await md5File(join(dir, config.distDir, 'app.js'))
     }
   }
-  const buildStatsPath = join(dir, '.next', 'build-stats.json')
+  const buildStatsPath = join(dir, config.distDir, 'build-stats.json')
   await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
 }
 
-async function writeBuildId (dir, buildId) {
-  const buildIdPath = join(dir, '.next', 'BUILD_ID')
+async function writeBuildId (dir, buildId, config) {
+  const buildIdPath = join(dir, config.distDir, 'BUILD_ID')
   await fs.writeFile(buildIdPath, buildId, 'utf8')
 }
