@@ -301,10 +301,8 @@ export default class Server {
       return await this.render404(req, res, parsedUrl)
     }
 
-    if (this.config.poweredByHeader) {
-      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
-    }
     const html = await this.renderToHTML(req, res, pathname, query)
+    res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 
