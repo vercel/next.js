@@ -36,9 +36,8 @@ export function entry ({isServer}) {
     // Makes sure supported extensions are stripped off. The outputted file should always be `.js`
     entryName = entryName.replace(/\.+(jsx|tsx|ts)/, '.js')
 
-    const bundlesDir = isServer ? '' : 'bundles'
     return {
-      name: path.join(bundlesDir, entryName),
+      name: path.join('bundles', entryName),
       file: parsedPath.root ? filePath : `./${filePath}`
     }
   }
