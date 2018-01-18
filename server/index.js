@@ -220,11 +220,8 @@ export default class Server {
           }
         }
 
-        let p = join(this.dir, this.dist, 'bundles', 'pages', paths.join('/'))
-        if (!fs.existsSync(`${p}.js`)) {
-          p = join(p, 'index') // It's possible to have index.js in a subfolder
-        }
-        await this.serveStatic(req, res, `${p}.js`)
+        const p = join(this.dir, this.dist, 'bundles', 'pages', paths.join('/'), '.js')
+        await this.serveStatic(req, res, p)
       },
 
       '/_next/static/:path*': async (req, res, params) => {
