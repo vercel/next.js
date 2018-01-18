@@ -215,6 +215,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   }
 }
 
+// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
 function addEntry (compilation, context, name, entry) {
   return new Promise((resolve, reject) => {
     const dep = DynamicEntryPlugin.createDependency(entry, name)
