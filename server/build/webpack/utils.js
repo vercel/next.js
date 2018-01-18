@@ -38,7 +38,7 @@ export function entry ({isServer}) {
 
     return {
       name: path.join('bundles', entryName),
-      file: parsedPath.root ? filePath : `./${filePath}`
+      files: [parsedPath.root ? filePath : `./${filePath}`] // The entry always has to be an array.
     }
   }
 }
@@ -51,20 +51,20 @@ export function getPageEntries (pagePaths, {dir, isServer}) {
 
   for (const filePath of pagePaths) {
     const entry = createEntry(filePath)
-    entries[entry.name] = entry.file
+    entries[entry.name] = entry.files
   }
 
   const errorPagePath = path.join(nextPagesDir, '_error.js')
   const errorPageEntry = createEntry(errorPagePath, 'pages/_error.js') // default error.js
   if (!entries[errorPageEntry.name]) {
-    entries[errorPageEntry.name] = errorPageEntry.file
+    entries[errorPageEntry.name] = errorPageEntry.files
   }
 
   if (isServer) {
     const documentPagePath = path.join(nextPagesDir, '_document.js')
     const documentPageEntry = createEntry(documentPagePath, 'pages/_document.js')
     if (!entries[documentPageEntry.name]) {
-      entries[documentPageEntry.name] = documentPageEntry.file
+      entries[documentPageEntry.name] = documentPageEntry.files
     }
   }
 
