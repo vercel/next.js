@@ -68,7 +68,5 @@ export function getPageEntries (pagePaths, {dir, isServer}) {
     }
   }
 
-  console.log(entries)
-
   return entries
 }
