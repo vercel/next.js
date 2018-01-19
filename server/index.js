@@ -163,22 +163,13 @@ export default class Server {
 
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
+        const page = paths.join('/')
 
         if (this.dev) {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (error) {}
-
-          const compilationErr = await this.getCompilationError()
-          if (compilationErr) {
-            const customFields = { statusCode: 500 }
-            return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
-          }
+          await this.hotReloader.ensurePage(page)
         }
 
         const dist = getConfig(this.dir).distDir
-
         const path = join(this.dir, dist, 'bundles', 'pages', `${page}.js.map`)
         await serveStatic(req, res, path)
       },
@@ -197,7 +188,7 @@ export default class Server {
 
       '/_next/:buildId/page/:path*.js': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
+        const page = paths.join('/')
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
@@ -220,7 +211,7 @@ export default class Server {
           }
         }
 
-        const p = join(this.dir, this.dist, 'bundles', 'pages', paths.join('/'), '.js')
+        const p = join(this.dir, this.dist, 'bundles', 'pages', `${page}.js`)
         await this.serveStatic(req, res, p)
       },
 
