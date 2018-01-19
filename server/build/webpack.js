@@ -191,6 +191,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         'node_modules'
       ],
       alias: {
+        'next': nextDir,
         'react-dom': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
       }
     },
