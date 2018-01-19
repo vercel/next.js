@@ -1,5 +1,6 @@
 import { join } from 'path'
 import { createElement } from 'react'
+import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
@@ -74,8 +75,6 @@ async function doRender (req, res, pathname, query, {
 
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
-
-  const { renderToString, renderToStaticMarkup } = require('react-dom/server')
 
   const renderPage = (enhancer = Page => Page) => {
     const app = createElement(App, {
