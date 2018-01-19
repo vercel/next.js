@@ -62,6 +62,17 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
+  // This will externalize all the 'next/xxx' modules to load from
+  // node_modules always.
+  // This is very useful in Next.js development where we use symlinked version
+  // of Next.js or using next/xxx inside test apps.
+  externals.push(function (context, request, callback) {
+    if (/^next\//.test(request)) {
+      return callback(null, `commonjs ${request}`)
+    }
+    callback()
+  })
+
   if (fs.existsSync(nextNodeModulesDir)) {
     externals.push(nodeExternals({
       modulesDir: nextNodeModulesDir,
@@ -180,7 +191,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         'node_modules'
       ],
       alias: {
-        'next': nextDir,
         'react-dom': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
       }
     },
@@ -226,7 +236,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new webpack.NamedModulesPlugin(),
-      dev && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
+      dev && !isServer && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       dev && new webpack.LoaderOptionsPlugin({
         options: {
