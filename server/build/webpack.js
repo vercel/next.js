@@ -25,12 +25,12 @@ const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
 }))
 
-function babelConfig (dir, isServer) {
+function babelConfig (dir, {isServer, dev}) {
   const mainBabelOptions = {
     cacheDirectory: true,
     presets: [],
     plugins: [
-      !isServer && require.resolve('react-hot-loader/babel')
+      dev && !isServer && require.resolve('react-hot-loader/babel')
     ].filter(Boolean)
   }
 
@@ -126,7 +126,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     ].filter(Boolean)
   }
 
-  const babelLoaderOptions = babelConfig(dir, isServer)
+  const babelLoaderOptions = babelConfig(dir, {dev, isServer})
 
   const defaultLoaders = {
     babel: {
@@ -251,7 +251,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           compress: {
             arrows: false,
             booleans: false,
-            cascade: false,
             collapse_vars: false,
             comparisons: false,
             computed_props: false,
