@@ -9,7 +9,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "ioc": "1.0.2",
+    "ioc": "1.0.3",
     "next": "latest",
     "next-routes": "^1.0.17",
     "react": "^16.0.0",
