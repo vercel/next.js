@@ -1,1 +1,1 @@
-module.exports = require('next/document')
+module.exports = require('../server/document')
