@@ -38,6 +38,12 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).not.toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
     })
 
+    test('header helper renders Fragment children', async () => {
+      const html = await (render('/head'))
+      expect(html).toContain('<title class="next-head">Fragment title</title>')
+      expect(html).toContain('<meta content="meta fragment" class="next-head"/>')
+    })
+
     it('should render the page with custom extension', async () => {
       const html = await render('/custom-extension')
       expect(html).toContain('<div>Hello</div>')

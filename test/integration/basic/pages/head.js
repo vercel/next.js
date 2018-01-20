@@ -10,6 +10,11 @@ export default () => <div>
 
     <meta content='my meta' />
 
+    <React.Fragment>
+      <title>Fragment title</title>
+      <meta content='meta fragment' />
+    </React.Fragment>
+
     {/* the following 2 links tag will be rendered both */}
     <link rel='stylesheet' href='/dup-style.css' />
     <link rel='stylesheet' href='/dup-style.css' />
