@@ -80,17 +80,6 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
-  // This will externalize all the 'next/xxx' modules to load from
-  // node_modules always.
-  // This is very useful in Next.js development where we use symlinked version
-  // of Next.js or using next/xxx inside test apps.
-  externals.push(function (context, request, callback) {
-    if (/^next\//.test(request)) {
-      return callback(null, `commonjs ${request}`)
-    }
-    callback()
-  })
-
   if (fs.existsSync(nextNodeModulesDir)) {
     externals.push(nodeExternals({
       modulesDir: nextNodeModulesDir,
@@ -107,6 +96,19 @@ function externalsConfig (dir, isServer) {
       whitelist: [/\.(?!(?:js|json)$).{1,5}$/i]
     })
   }
+
+  // Externalize any locally loaded modules
+  // This is needed when developing Next.js and running tests inside Next.js
+  externals.push(function (context, request, callback) {
+    const actualPath = path.resolve(context, request)
+    // If the request is inside the app dir we don't need proceed
+    if (actualPath.startsWith(dir)) {
+      callback()
+      return
+    }
+
+    callback(null, `commonjs ${require.resolve(actualPath)}`)
+  })
 
   return externals
 }
