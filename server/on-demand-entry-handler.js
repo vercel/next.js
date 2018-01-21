@@ -130,8 +130,8 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       page = normalizePage(page)
 
       const pagePath = join(dir, 'pages', page)
-      const pathname = relative(dir, await resolvePath(pagePath))
-      const {name, files} = createEntry(pathname)
+      const pathname = await resolvePath(pagePath)
+      const {name, files} = createEntry(relative(dir, pathname))
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
