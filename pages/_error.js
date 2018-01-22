@@ -1,1 +1,1 @@
-module.exports = require('../lib/error')
+module.exports = require('next/error')
