@@ -13,9 +13,7 @@ import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import findBabelConfig from './babel/find-config'
-import rootModuleRelativePath from './root-module-relative-path'
 
-const relativeResolve = rootModuleRelativePath(require)
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 const nextPagesDir = path.join(nextDir, 'pages')
@@ -32,22 +30,6 @@ function babelConfig (dir, {isServer, dev}) {
     cacheDirectory: true,
     presets: [],
     plugins: [
-      isServer && [
-        require.resolve('babel-plugin-module-resolver'),
-        {
-          alias: {
-            'babel-runtime': relativeResolve('babel-runtime/package'),
-            'next/link': relativeResolve('../../lib/link'),
-            'next/prefetch': relativeResolve('../../lib/prefetch'),
-            'next/dynamic': relativeResolve('../../lib/dynamic'),
-            'next/head': relativeResolve('../../lib/head'),
-            'next/document': relativeResolve('../../server/document'),
-            'next/router': relativeResolve('../../lib/router'),
-            'next/error': relativeResolve('../../lib/error'),
-            'styled-jsx/style': relativeResolve('styled-jsx/style')
-          }
-        }
-      ],
       dev && !isServer && require.resolve('react-hot-loader/babel')
     ].filter(Boolean)
   }
@@ -96,19 +78,6 @@ function externalsConfig (dir, isServer) {
       whitelist: [/\.(?!(?:js|json)$).{1,5}$/i]
     })
   }
-
-  // Externalize any locally loaded modules
-  // This is needed when developing Next.js and running tests inside Next.js
-  externals.push(function (context, request, callback) {
-    const actualPath = path.resolve(context, request)
-    // If the request is inside the app dir we don't need proceed
-    if (actualPath.startsWith(dir)) {
-      callback()
-      return
-    }
-
-    callback(null, `commonjs ${require.resolve(actualPath)}`)
-  })
 
   return externals
 }
