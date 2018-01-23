@@ -179,7 +179,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       publicPath: `/_next/webpack/`,
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
-      sourceMapFilename: '[file].map?[contenthash]'
+      sourceMapFilename: '[file].map?[contenthash]',
+      strictModuleExceptionHandling: true
     },
     performance: { hints: false },
     resolve: {
