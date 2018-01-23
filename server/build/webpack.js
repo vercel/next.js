@@ -1,8 +1,6 @@
 import path, {sep} from 'path'
-import fs from 'fs'
 import webpack from 'webpack'
 import resolve from 'resolve'
-import nodeExternals from 'webpack-node-externals'
 import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
@@ -62,20 +60,12 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
-  if (fs.existsSync(nextNodeModulesDir)) {
-    externals.push(nodeExternals({
-      modulesDir: nextNodeModulesDir,
-      includeAbsolutePaths: true,
-      whitelist: [/\.(?!(?:js|json)$).{1,5}$/i]
-    }))
-  }
-
   // This will externalize all the 'next/xxx' modules to load from
   // node_modules always.
   // This is very useful in Next.js development where we use symlinked version
   // of Next.js or using next/xxx inside test apps.
   externals.push((context, request, callback) => {
-    resolve(request, { basedir: dir }, (err, res) => {
+    resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
       if (err) {
         return callback()
       }
