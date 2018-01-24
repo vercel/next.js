@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { join, sep } from 'path'
 import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
@@ -122,18 +122,37 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
+function isServeableUrl (path, opts) {
+  if (
+    path.indexOf(join(opts.dir, opts.dist) + sep) !== 0 &&
+    path.indexOf(join(opts.dir, 'static') + sep) !== 0
+  ) {
+    // Seems like the user is trying to traverse the filesystem.
+    return false
+  }
+
+  return true
+}
+
 export async function renderScript (req, res, page, opts) {
   try {
     const dist = getConfig(opts.dir).distDir
     const path = join(opts.dir, dist, 'bundles', 'pages', page)
     const realPath = await resolvePath(path)
+
+    if (!isServeableUrl(realPath, opts)) {
+      res.statusCode = 404
+
+      res.end('404')
+      return
+    }
+
     await serveStatic(req, res, realPath)
   } catch (err) {
     if (err.code === 'ENOENT') {
       renderScriptError(req, res, page, err, {}, opts)
       return
     }
-
     throw err
   }
 }

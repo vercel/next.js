@@ -55,6 +55,7 @@ export default class Server {
       dev,
       staticMarkup,
       dir: this.dir,
+      dist: this.dist,
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
