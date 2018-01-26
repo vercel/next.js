@@ -9,6 +9,7 @@ import ExtractTextPlugin from 'extract-text-webpack-plugin'
 import {getPages} from './webpack/utils'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import PagesPlugin from './plugins/pages-plugin'
+import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import findBabelConfig from './babel/find-config'
 
@@ -293,6 +294,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && extractCSS,
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
+      isServer && new NextJsSsrImportPlugin({ dir, dist: config.distDir }),
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: `commons`,
         filename: `commons.js`,
