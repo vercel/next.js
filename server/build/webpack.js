@@ -5,7 +5,6 @@ import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import ExtractTextPlugin from 'extract-text-webpack-plugin'
 import {getPages} from './webpack/utils'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import PagesPlugin from './plugins/pages-plugin'
@@ -83,59 +82,13 @@ function externalsConfig (dir, isServer) {
 }
 
 export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
-  const extractCSS = new ExtractTextPlugin({
-    filename: 'static/style.css',
-    disable: dev
-  })
-
-  const cssLoader = {
-    loader: isServer ? 'css-loader/locals' : 'css-loader',
-    options: {
-      modules: false,
-      minimize: !dev,
-      sourceMap: dev,
-      importLoaders: 1,
-      ...(config.cssLoader || {})
-    }
-  }
-
-  const postcssLoader = {
-    loader: 'postcss-loader',
-    options: {
-      plugins: () => {}
-    }
-  }
-
-  function cssLoaderConfig (loader = false) {
-    return [
-      isServer && !cssLoader.options.modules && 'ignore-loader',
-      isServer && cssLoader.options.modules && cssLoader,
-      isServer && cssLoader.options.modules && postcssLoader,
-      isServer && cssLoader.options.modules && loader,
-      ...(!isServer ? extractCSS.extract({
-        use: [cssLoader, postcssLoader, loader].filter(Boolean),
-        // Use style-loader in development
-        fallback: {
-          loader: 'style-loader',
-          options: {
-            sourceMap: true,
-            importLoaders: 1
-          }
-        }
-      }) : [])
-    ].filter(Boolean)
-  }
-
   const babelLoaderOptions = babelConfig(dir, {dev, isServer})
 
   const defaultLoaders = {
     babel: {
       loader: 'babel-loader',
       options: babelLoaderOptions
-    },
-    css: cssLoaderConfig(),
-    scss: cssLoaderConfig('sass-loader'),
-    less: cssLoaderConfig('less-loader')
+    }
   }
 
   let totalPages
@@ -210,18 +163,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           include: [dir],
           exclude: /node_modules/,
           use: defaultLoaders.babel
-        },
-        {
-          test: /\.css$/,
-          use: defaultLoaders.css
-        },
-        {
-          test: /\.scss$/,
-          use: defaultLoaders.scss
-        },
-        {
-          test: /\.less$/,
-          use: defaultLoaders.less
         }
       ].filter(Boolean)
     },
@@ -291,7 +232,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         output: 'app.js'
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
-      !isServer && extractCSS,
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin({ dir, dist: config.distDir }),
