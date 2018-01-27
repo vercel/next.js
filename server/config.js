@@ -5,6 +5,15 @@ const cache = new Map()
 const defaultConfig = {
   webpack: null,
   webpackDevMiddleware: null,
+  webpackModuleShouldBeCommonInProduction: function ({totalPages, count}) {
+    // If there are one or two pages, only move modules to common if they are
+    // used in all of the pages. Otherwise, move modules used in at-least
+    // 1/2 of the total pages into commons.
+    if (totalPages <= 2) {
+      return count >= totalPages
+    }
+    return count >= totalPages * 0.5
+  },
   poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',

@@ -145,13 +145,7 @@ export default async function createCompiler (dir, { buildId, dev = false, quiet
           return false
         }
 
-        // If there are one or two pages, only move modules to common if they are
-        // used in all of the pages. Otherwise, move modules used in at-least
-        // 1/2 of the total pages into commons.
-        if (totalPages <= 2) {
-          return count >= totalPages
-        }
-        return count >= totalPages * 0.5
+        return config.webpackModuleShouldBeCommonInProduction({totalPages, count})
       }
     }),
     // This chunk splits out react and react-dom in production to make sure it does not go through uglify. This saved multiple seconds on production builds.
