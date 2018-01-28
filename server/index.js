@@ -163,10 +163,14 @@ export default class Server {
 
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = paths.join('/')
+        const page = `/${paths.join('/')}`
 
         if (this.dev) {
-          await this.hotReloader.ensurePage(page)
+          try {
+            await this.hotReloader.ensurePage(page)
+          } catch (err) {
+            await this.render404(req, res)
+          }
         }
 
         const dist = getConfig(this.dir).distDir
