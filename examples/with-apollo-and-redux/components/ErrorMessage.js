@@ -1,4 +1,4 @@
-export default ({message}) => (
+export default ({ message }) => (
   <aside>
     {message}
     <style jsx>{`
@@ -10,4 +10,4 @@ export default ({message}) => (
       }
     `}</style>
   </aside>
-)
+);

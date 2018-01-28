@@ -16,7 +16,7 @@ function Submit ({ createPost }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <h1>Submit</h1>
+      <h1>Apollo: Submit</h1>
       <input placeholder='title' name='title' type='text' required />
       <input placeholder='url' name='url' type='url' required />
       <button type='submit'>Submit</button>
