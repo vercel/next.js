@@ -4,6 +4,7 @@ import fs from 'mz/fs'
 import uuid from 'uuid'
 import del from 'del'
 import webpack from './webpack'
+import getConfig from '../config'
 import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
@@ -65,8 +66,18 @@ async function writeBuildStats (dir, stats) {
       hash: await md5File(join(dir, '.next', 'app.js'))
     }
   }
+
+  const statsOutputFiles = []
+
   const buildStatsPath = join(dir, '.next', 'build-stats.json')
-  await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
+  statsOutputFiles.push(fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8'))
+
+  if (getConfig(process.cwd()).webpackStats) {
+    const statsPath = join(dir, '.next', 'webpack-stats.json')
+    statsOutputFiles.push(fs.writeFile(statsPath, JSON.stringify(stats), 'utf8'))
+  }
+
+  return Promise.all(statsOutputFiles)
 }
 
 async function writeBuildId (dir, buildId) {
