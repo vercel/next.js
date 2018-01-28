@@ -188,7 +188,7 @@ export default class Server {
 
       '/_next/:buildId/page/:path*.js': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = paths.join('/')
+        const page = `/${paths.join('/')}`
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
