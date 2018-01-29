@@ -108,6 +108,7 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (compiler) {
+    // This flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
     compiler.compilers.forEach((singleCompiler) => {
       singleCompiler.plugin('after-emit', (compilation, callback) => {
         const { assets } = compilation
