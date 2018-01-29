@@ -30,6 +30,12 @@
   dependencies:
     chokidar "^1.7.0"
 
+"@zeit/source-map-support@0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@zeit/source-map-support/-/source-map-support-0.6.0.tgz#3808cbe343ae786a9a5cad06fd5a1aab210baea0"
+  dependencies:
+    source-map "^0.6.0"
+
 abab@^1.0.3:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/abab/-/abab-1.0.4.tgz#5faad9c2c07f60dd76770f71cf025b62a63cfd4e"
@@ -5311,12 +5317,6 @@ sntp@2.x.x:
 source-list-map@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/source-list-map/-/source-list-map-2.0.0.tgz#aaa47403f7b245a92fbc97ea08f250d6087ed085"
-
-source-map-support@0.5.0:
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.0.tgz#2018a7ad2bdf8faf2691e5fddab26bed5a2bacab"
-  dependencies:
-    source-map "^0.6.0"
 
 source-map-support@^0.4.15:
   version "0.4.18"

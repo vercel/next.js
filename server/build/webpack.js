@@ -98,7 +98,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   let totalPages
 
   let webpackConfig = {
-    devtool: dev ? 'cheap-module-source-map' : false,
+    devtool: dev ? 'source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
@@ -127,8 +127,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       publicPath: `/_next/webpack/`,
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
-      sourceMapFilename: '[file].map?[contenthash]',
-      strictModuleExceptionHandling: true
+      strictModuleExceptionHandling: true,
+      devtoolModuleFilenameTemplate: '[absolute-resource-path]'
     },
     performance: { hints: false },
     resolve: {
@@ -294,7 +294,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         name: 'manifest',
         filename: 'manifest.js'
       })
-
     ].filter(Boolean)
   }
 
