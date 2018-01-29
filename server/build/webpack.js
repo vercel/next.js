@@ -34,8 +34,11 @@ function babelConfig (dir, {isServer, dev}) {
 
   const externalBabelConfig = findBabelConfig(dir)
   if (externalBabelConfig) {
-    console.log(`> Using external babel configuration`)
-    console.log(`> Location: "${externalBabelConfig.loc}"`)
+    // Log it out once
+    if (!isServer) {
+      console.log(`> Using external babel configuration`)
+      console.log(`> Location: "${externalBabelConfig.loc}"`)
+    }
     // It's possible to turn off babelrc support via babelrc itself.
     // In that case, we should add our default preset.
     // That's why we need to do this.
