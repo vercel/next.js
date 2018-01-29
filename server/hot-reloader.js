@@ -108,22 +108,24 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (compiler) {
-    compiler.compilers[0].plugin('after-emit', (compilation, callback) => {
-      const { assets } = compilation
+    compiler.compilers.forEach((singleCompiler) => {
+      singleCompiler.plugin('after-emit', (compilation, callback) => {
+        const { assets } = compilation
 
-      if (this.prevAssets) {
-        for (const f of Object.keys(assets)) {
-          deleteCache(assets[f].existsAt)
-        }
-        for (const f of Object.keys(this.prevAssets)) {
-          if (!assets[f]) {
-            deleteCache(this.prevAssets[f].existsAt)
+        if (this.prevAssets) {
+          for (const f of Object.keys(assets)) {
+            deleteCache(assets[f].existsAt)
+          }
+          for (const f of Object.keys(this.prevAssets)) {
+            if (!assets[f]) {
+              deleteCache(this.prevAssets[f].existsAt)
+            }
           }
         }
-      }
-      this.prevAssets = assets
+        this.prevAssets = assets
 
-      callback()
+        callback()
+      })
     })
 
     compiler.compilers[0].plugin('done', (stats) => {

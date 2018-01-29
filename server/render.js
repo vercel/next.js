@@ -55,14 +55,6 @@ async function doRender (req, res, pathname, query, {
   const pagePath = join(dir, dist, 'dist', 'bundles', 'pages', page)
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
 
-  // Delete the require cache to facilitate hot reloading on the server side.
-  if (hotReloader) {
-    if (page === '/') {
-      delete require.cache[pagePath + 'index.js']
-    } else {
-      delete require.cache[pagePath + '.js']
-    }
-  }
   let [Component, Document] = await Promise.all([
     requireModule(pagePath),
     requireModule(documentPath)
