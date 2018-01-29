@@ -11,7 +11,7 @@ const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
-export default function onDemandEntryHandler (devMiddleware, compiler, {
+export default function onDemandEntryHandler (devMiddleware, compilers, {
   dir,
   dev,
   reload,
@@ -26,81 +26,90 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
+  // Keep the names of compilers which are building pages at a given moment.
+  const currentBuilders = new Set()
 
-  compiler.plugin('make', function (compilation, done) {
-    invalidator.startBuilding()
+  compilers.forEach(compiler => {
+    compiler.plugin('make', function (compilation, done) {
+      invalidator.startBuilding()
+      currentBuilders.add(compiler.name)
 
-    const allEntries = Object.keys(entries).map((page) => {
-      const { name, entry } = entries[page]
-      entries[page].status = BUILDING
-      return addEntry(compilation, this.context, name, entry)
+      const allEntries = Object.keys(entries).map((page) => {
+        const { name, entry } = entries[page]
+        entries[page].status = BUILDING
+        return addEntry(compilation, this.context, name, entry)
+      })
+
+      Promise.all(allEntries)
+        .then(() => done())
+        .catch(done)
     })
 
-    Promise.all(allEntries)
-      .then(() => done())
-      .catch(done)
-  })
+    compiler.plugin('done', function (stats) {
+      // Wait until all the compilers mark the build as done.
+      currentBuilders.delete(compiler.name)
+      if (currentBuilders.size !== 0) return
 
-  compiler.plugin('done', function (stats) {
-    const { compilation } = stats
-    const hardFailedPages = compilation.errors
-      .filter(e => {
-        // Make sure to only pick errors which marked with missing modules
-        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-        if (!hasNoModuleFoundError) return false
+      const { compilation } = stats
+      const hardFailedPages = compilation.errors
+        .filter(e => {
+          // Make sure to only pick errors which marked with missing modules
+          const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+          if (!hasNoModuleFoundError) return false
 
-        // The page itself is missing. So this is a failed page.
-        if (IS_BUNDLED_PAGE.test(e.module.name)) return true
+          // The page itself is missing. So this is a failed page.
+          if (IS_BUNDLED_PAGE.test(e.module.name)) return true
 
-        // No dependencies means this is a top level page.
-        // So this is a failed page.
-        return e.module.dependencies.length === 0
+          // No dependencies means this is a top level page.
+          // So this is a failed page.
+          return e.module.dependencies.length === 0
+        })
+        .map(e => e.module.chunks)
+        .reduce((a, b) => [...a, ...b], [])
+        .map(c => {
+          const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
+          return normalizePage(`/${pageName}`)
+        })
+
+      // Call all the doneCallbacks
+      Object.keys(entries).forEach((page) => {
+        const entryInfo = entries[page]
+        if (entryInfo.status !== BUILDING) return
+
+        // With this, we are triggering a filesystem based watch trigger
+        // It'll memorize some timestamp related info related to common files used
+        // in the page
+        // That'll reduce the page building time significantly.
+        if (!touchedAPage) {
+          setTimeout(() => {
+            touch.sync(entryInfo.pathname)
+          }, 1000)
+          touchedAPage = true
+        }
+
+        entryInfo.status = BUILT
+        entries[page].lastActiveTime = Date.now()
+        doneCallbacks.emit(page)
       })
-      .map(e => e.module.chunks)
-      .reduce((a, b) => [...a, ...b], [])
-      .map(c => {
-        const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
-        return normalizePage(`/${pageName}`)
-      })
 
-    // Call all the doneCallbacks
-    Object.keys(entries).forEach((page) => {
-      const entryInfo = entries[page]
-      if (entryInfo.status !== BUILDING) return
+      invalidator.doneBuilding(compiler.name)
 
-      // With this, we are triggering a filesystem based watch trigger
-      // It'll memorize some timestamp related info related to common files used
-      // in the page
-      // That'll reduce the page building time significantly.
-      if (!touchedAPage) {
-        setTimeout(() => {
-          touch.sync(entryInfo.pathname)
-        }, 1000)
-        touchedAPage = true
+      if (hardFailedPages.length > 0 && !reloading) {
+        console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
+        reloading = true
+        reload()
+          .then(() => {
+            console.log('> Webpack reloaded.')
+            reloadCallbacks.emit('done')
+            stop()
+          })
+          .catch(err => {
+            console.error(`> Webpack reloading failed: ${err.message}`)
+            console.error(err.stack)
+            process.exit(1)
+          })
       }
-
-      entryInfo.status = BUILT
-      entries[page].lastActiveTime = Date.now()
-      doneCallbacks.emit(page)
     })
-
-    invalidator.doneBuilding()
-
-    if (hardFailedPages.length > 0 && !reloading) {
-      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
-      reloading = true
-      reload()
-        .then(() => {
-          console.log('> Webpack reloaded.')
-          reloadCallbacks.emit('done')
-          stop()
-        })
-        .catch(err => {
-          console.error(`> Webpack reloading failed: ${err.message}`)
-          console.error(err.stack)
-          process.exit(1)
-        })
-    }
   })
 
   const disposeHandler = setInterval(function () {
@@ -143,7 +152,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.on(page, processCallback)
+            doneCallbacks.once(page, handleCallback)
             return
           }
         }
@@ -151,11 +160,11 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
         console.log(`> Building page: ${page}`)
 
         entries[page] = { name, entry: files, pathname, status: ADDED }
-        doneCallbacks.on(page, processCallback)
+        doneCallbacks.once(page, handleCallback)
 
         invalidator.invalidate()
 
-        function processCallback (err) {
+        function handleCallback (err) {
           if (err) return reject(err)
           resolve()
         }
@@ -272,6 +281,7 @@ function sendJson (res, payload) {
 class Invalidator {
   constructor (devMiddleware) {
     this.devMiddleware = devMiddleware
+    // contains an array of types of compilers currently building
     this.building = false
     this.rebuildAgain = false
   }
@@ -296,6 +306,7 @@ class Invalidator {
 
   doneBuilding () {
     this.building = false
+
     if (this.rebuildAgain) {
       this.rebuildAgain = false
       this.invalidate()

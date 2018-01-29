@@ -94,16 +94,14 @@ export default class HotReloader {
     await this.stop(oldWebpackDevMiddleware)
   }
 
-  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntriesClient, onDemandEntriesServer }) {
+  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
-    this.onDemandEntriesClient = onDemandEntriesClient
-    this.onDemandEntriesServer = onDemandEntriesServer
+    this.onDemandEntries = onDemandEntries
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
-      onDemandEntriesClient.middleware(),
-      onDemandEntriesServer.middleware()
+      onDemandEntries.middleware()
     ]
   }
 
@@ -213,14 +211,7 @@ export default class HotReloader {
       heartbeat: 2500
     })
 
-    const onDemandEntriesClient = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers[0], {
-      dir: this.dir,
-      dev: true,
-      reload: this.reload.bind(this),
-      ...this.config.onDemandEntries
-    })
-
-    const onDemandEntriesServer = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers[1], {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers, {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
@@ -230,8 +221,7 @@ export default class HotReloader {
     return {
       webpackDevMiddleware,
       webpackHotMiddleware,
-      onDemandEntriesClient,
-      onDemandEntriesServer
+      onDemandEntries
     }
   }
 
@@ -244,10 +234,7 @@ export default class HotReloader {
 
   async getCompilationErrors () {
     // When we are reloading, we need to wait until it's reloaded properly.
-    await Promise.all([
-      this.onDemandEntriesClient.waitUntilReloaded(),
-      this.onDemandEntriesServer.waitUntilReloaded()
-    ])
+    await this.onDemandEntries.waitUntilReloaded()
 
     if (!this.compilationErrors) {
       this.compilationErrors = new Map()
@@ -276,13 +263,7 @@ export default class HotReloader {
   }
 
   async ensurePage (page) {
-    // We need to do this one after another.
-    // Otherwise it'll mess up with webpack hash.
-    // (due to concurrent devMiddleware.invalidate() calls)
-    // TODO: In the future, we need handle both client and server using
-    // a single onDemandEntryHandler instance.
-    await this.onDemandEntriesClient.ensurePage(page)
-    await this.onDemandEntriesServer.ensurePage(page)
+    await this.onDemandEntries.ensurePage(page)
   }
 }
 

@@ -10,6 +10,7 @@ import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
+import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import findBabelConfig from './babel/find-config'
 
 const nextDir = path.join(__dirname, '..', '..', '..')
@@ -175,6 +176,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new webpack.NamedModulesPlugin(),
       dev && !isServer && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
+      dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       dev && new webpack.LoaderOptionsPlugin({
         options: {
