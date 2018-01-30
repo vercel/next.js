@@ -18,6 +18,7 @@
     "dynamic.js",
     "prefetch.js",
     "router.js",
+    "asset.js",
     "error.js"
   ],
   "bin": {

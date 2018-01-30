@@ -12,15 +12,11 @@ import {
   renderScriptError
 } from './render'
 import Router from './router'
-import { getAvailableChunks } from './utils'
+import { getAvailableChunks, isInternalUrl } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
-
-const internalPrefixes = [
-  /^\/_next\//,
-  /^\/static\//
-]
+import * as asset from '../lib/asset'
 
 const blockedPages = {
   '/_document': true,
@@ -53,6 +49,9 @@ export default class Server {
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
+
+    // With this, static assets will work across zones
+    asset.setAssetPrefix(this.config.assetPrefix)
 
     this.defineRoutes()
   }
@@ -289,7 +288,7 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
-    if (this.isInternalUrl(req)) {
+    if (isInternalUrl(req.url)) {
       return this.handleRequest(req, res, parsedUrl)
     }
 
@@ -386,16 +385,6 @@ export default class Server {
     }
 
     return true
-  }
-
-  isInternalUrl (req) {
-    for (const prefix of internalPrefixes) {
-      if (prefix.test(req.url)) {
-        return true
-      }
-    }
-
-    return false
   }
 
   readBuildId () {
