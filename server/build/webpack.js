@@ -64,17 +64,13 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
-  // This will externalize all the 'next/xxx' modules to load from
-  // node_modules always.
-  // This is very useful in Next.js development where we use symlinked version
-  // of Next.js or using next/xxx inside test apps.
   externals.push((context, request, callback) => {
     resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
       if (err) {
         return callback()
       }
 
-      if (res.match(/node_modules/)) {
+      if (res.match(/node_modules/) && !res.match(/.(css|sass|scss|less|svg)/)) {
         return callback(null, `commonjs ${request}`)
       }
 

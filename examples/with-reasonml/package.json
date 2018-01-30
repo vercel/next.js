@@ -9,7 +9,7 @@
   "license": "ISC",
   "dependencies": {
     "babel-plugin-bucklescript": "^0.2.4",
-    "next": "^4.1.4",
+    "next": "latest",
     "react": "^16.1.1",
     "react-dom": "^16.1.1",
     "reason-react": "^0.3.0"

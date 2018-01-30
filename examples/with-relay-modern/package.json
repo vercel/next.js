@@ -16,7 +16,7 @@
     "dotenv": "^4.0.0",
     "dotenv-webpack": "^1.5.4",
     "isomorphic-unfetch": "^2.0.0",
-    "next": "^4.1.4",
+    "next": "latest",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
     "react-relay": "^1.4.1"

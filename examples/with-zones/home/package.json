@@ -6,7 +6,7 @@
     "start": "next start -p 4000"
   },
   "dependencies": {
-    "next": "zones",
+    "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
   },
