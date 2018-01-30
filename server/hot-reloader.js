@@ -79,8 +79,8 @@ export default class HotReloader {
     await clean(this.dir)
 
     const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.conf }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.conf })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
     ])
 
     const compiler = webpack(configs)
