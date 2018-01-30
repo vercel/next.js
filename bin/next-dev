@@ -1,11 +1,9 @@
 #!/usr/bin/env node
-import 'source-map-support/register'
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
-import pkgUp from 'pkg-up'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -64,7 +62,7 @@ srv.start(argv.port, argv.hostname)
 .catch((err) => {
   if (err.code === 'EADDRINUSE') {
     let errorMessage = `Port ${argv.port} is already in use.`
-    const pkgAppPath = pkgUp.sync('.')
+    const pkgAppPath = require('pkg-up').sync('.')
     const appPackage = JSON.parse(readFileSync(pkgAppPath, 'utf8'))
     const nextScript = Object.entries(appPackage.scripts).find(scriptLine => scriptLine[1] === 'next')
     if (nextScript) errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
