@@ -43,7 +43,8 @@ export default async function (dir, options, configuration) {
     log('  copying "static" directory')
     await cp(
       join(dir, 'static'),
-      join(outDir, 'static')
+      join(outDir, 'static'),
+      { expand: true }
     )
   }
 
