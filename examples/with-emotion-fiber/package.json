@@ -12,7 +12,7 @@
   "dependencies": {
     "emotion": "^8.0.11",
     "emotion-server": "^8.0.11",
-    "next": "^4.1.4",
+    "next": "latest",
     "react": "^16.1.1",
     "react-dom": "^16.1.1",
     "react-emotion": "^8.0.11"
