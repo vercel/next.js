@@ -1,0 +1,26 @@
+{
+  "name": "with-ioc",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "test": "NODE_ENV=test jest",
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "ioc": "1.0.3",
+    "next": "latest",
+    "next-routes": "^1.0.17",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "devDependencies": {
+    "babel-plugin-transform-decorators-legacy": "1.3.4",
+    "enzyme": "3.3.0",
+    "enzyme-adapter-react-16": "1.1.1",
+    "jest": "22.1.3",
+    "react-addons-test-utils": "15.6.2",
+    "react-test-renderer": "16.2.0"
+  }
+}

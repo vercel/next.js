@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Head from 'next/head'
 
 type Props = {
-  children?: React.Element<any>,
+  children?: React.Node,
   title?: string
 }
 
