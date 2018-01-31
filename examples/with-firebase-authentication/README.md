@@ -19,7 +19,7 @@ Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-authentication
-cd with-firebase
+cd with-firebase-authentication
 ```
 
 Set up firebase:

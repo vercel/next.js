@@ -35,7 +35,9 @@ now
 ```
 
 ## The idea behind the example
-In 2.0.0, Apollo Client severs out-of-the-box support for redux in favor of Apollo's client side state management. This example aims to be an amalgamation of the [`with-apollo`](https://github.com/zeit/next.js/tree/master/examples/with-apollo) and [`with-redux`](https://github.com/zeit/next.js/tree/master/examples/with-redux) examples.
+This example serves as a conduit if you were using Apollo 1.X with Redux, and are migrating to Apollo 2.x, however, you have chosen not to manage your entire application state within Apollo (`apollo-link-state`).
+
+In 2.0.0, Apollo severs out-of-the-box support for redux in favor of Apollo's state management. This example aims to be an amalgamation of the [`with-apollo`](https://github.com/zeit/next.js/tree/master/examples/with-apollo) and [`with-redux`](https://github.com/zeit/next.js/tree/master/examples/with-redux) examples.
 
 Note that you can access the redux store like you normally would using `react-redux`'s `connect`. Here's a quick example:
 
@@ -44,7 +46,5 @@ const mapStateToProps = state => ({
   location: state.form.location,
 });
 
-export default withData(connect(mapStateToProps, null)(Index));
+export default withRedux(connect(mapStateToProps, null)(Index));
 ```
-
-`connect` must go inside `withData` otherwise `connect` will not be able to find the store.
