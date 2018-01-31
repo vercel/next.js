@@ -5,8 +5,11 @@ module.exports = function (content, sourceMap) {
 
   const route = getRoute(this)
 
+  // Webpack has a built in system to prevent default from colliding, giving it a random letter per export.
+  // We can safely check if Component is undefined since all other pages imported into the entrypoint don't have __webpack_exports__.default
   this.callback(null, `${content}
     (function (Component, route) {
+      if(!Component) return
       if (!module.hot) return
       module.hot.accept()
       Component.__route = route
