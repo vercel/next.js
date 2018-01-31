@@ -70,7 +70,8 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules\/.*\.js/)) {
+      // Webpack itself has to be compiled because it doesn't always use module relative paths
+      if (res.match(/node_modules\/.*\.js/) && !res.match(/node_modules\/webpack/)) {
         return callback(null, `commonjs ${request}`)
       }
 
