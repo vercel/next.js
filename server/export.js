@@ -43,7 +43,8 @@ export default async function (dir, options, configuration) {
     log('  copying "static" directory')
     await cp(
       join(dir, 'static'),
-      join(outDir, 'static')
+      join(outDir, 'static'),
+      { expand: true }
     )
   }
 
@@ -138,7 +139,7 @@ function copyPages (nextDir, outDir, buildId) {
 
       // We should not expose this page to the client side since
       // it has no use in the client side.
-      if (relativeFilePath === '/_document.js') {
+      if (relativeFilePath === `${sep}_document.js`) {
         next()
         return
       }
