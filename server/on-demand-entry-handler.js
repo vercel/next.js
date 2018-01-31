@@ -117,6 +117,8 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
     disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
   }, 5000)
 
+  disposeHandler.unref()
+
   function stop () {
     clearInterval(disposeHandler)
     stopped = true
