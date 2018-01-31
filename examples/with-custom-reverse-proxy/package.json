@@ -1,14 +1,11 @@
 {
   "name": "with-custom-reverse-proxy",
-  "engines": {
-    "node": "7.x.x"
-  },
   "license": "ISC",
   "dependencies": {
     "express": "^4.15.3",
-    "next": "^3.0.1-beta.13",
-    "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "next": "latest",
+    "react": "16.2.0",
+    "react-dom": "16.2.0"
   },
   "devDependencies": {
     "babel-preset-latest": "^6.24.1",

@@ -164,6 +164,14 @@ export default () => <p style={{ color: 'red' }}>hi there</p>
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
 
+#### Importing CSS / Sass / Less files
+
+To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
+
+- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+
 ### Static file serving (e.g.: images)
 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
@@ -1006,7 +1014,7 @@ In order to extend our usage of `webpack`, you can define a function that extend
 // (But you could use ES2015 features supported by your Node.js version)
 
 module.exports = {
-  webpack: (config, { buildId, dev }) => {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
     // Perform customizations to webpack config
 
     // Important: return the modified config
@@ -1021,7 +1029,15 @@ module.exports = {
 }
 ```
 
-*Warning: Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack and thus it won't work on the initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
+Some commonly asked for features are available as modules:
+
+- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- ![@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
+- ![@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+
+*Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
 
 ### Customizing babel config
 
@@ -1213,20 +1229,6 @@ If you want to create re-usable React components that you can embed in your Next
 
 Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS-in-JS solution in your Next app by just including your favorite library [as mentioned before](#css-in-js) in the document.
 </details>
-
-<details>
-  <summary>How do I use CSS preprocessors like SASS / SCSS / LESS?</summary>
-
-Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS preprocessor solution in your Next app by following one of these examples:
-
-- [with-external-scoped-css](./examples/with-external-scoped-css)
-- [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
-- [with-global-stylesheet](./examples/with-global-stylesheet)
-- [with-styled-jsx-scss](./examples/with-styled-jsx-scss)
-- [with-styled-jsx-plugins](./examples/with-styled-jsx-plugins)
-
-</details>
-
 
 <details>
   <summary>What syntactic features are transpiled? How do I change them?</summary>
