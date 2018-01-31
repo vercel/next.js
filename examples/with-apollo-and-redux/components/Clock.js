@@ -14,10 +14,10 @@ export default ({ lastUpdate, light }) => {
           background-color: #999;
         }
       `}</style>
-     </div>
-    )
-  }
-  
-  const format = t => `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-  
-  const pad = n => n < 10 ? `0${n}` : n
+    </div>
+  )
+}
+
+const format = t => `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
+
+const pad = n => n < 10 ? `0${n}` : n

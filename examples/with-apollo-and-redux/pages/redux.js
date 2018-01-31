@@ -1,3 +1,4 @@
+import React from 'react'
 import { bindActionCreators } from 'redux'
 import {
   initStore,
@@ -12,22 +13,22 @@ import Header from '../components/Header'
 import Page from '../components/Page'
 
 class Index extends React.Component {
-  static getInitialProps({ store, isServer }) {
+  static getInitialProps ({ store, isServer }) {
     store.dispatch(serverRenderClock(isServer))
     store.dispatch(addCount())
 
     return { isServer }
   }
 
-  componentDidMount() {
+  componentDidMount () {
     this.timer = this.props.startClock()
   }
 
-  componentWillUnmount() {
+  componentWillUnmount () {
     clearInterval(this.timer)
   }
 
-  render() {
+  render () {
     return (
       <App>
         <Header />
