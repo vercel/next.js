@@ -11,9 +11,6 @@ import withRedux from 'next-redux-wrapper'
 import App from '../components/App'
 import Header from '../components/Header'
 import Page from '../components/Page'
-import Submit from '../components/Submit'
-import PostList from '../components/PostList'
-import withApollo from '../lib/withApollo'
 
 class Index extends React.Component {
   static getInitialProps ({ store, isServer }) {
@@ -35,9 +32,7 @@ class Index extends React.Component {
     return (
       <App>
         <Header />
-        <Page title='Index' />
-        <Submit />
-        <PostList />
+        <Page title='Redux' />
       </App>
     )
   }
@@ -50,6 +45,4 @@ const mapDispatchToProps = dispatch => {
   }
 }
 
-export default withRedux(initStore, null, mapDispatchToProps)(
-  withApollo(Index)
-)
+export default withRedux(initStore, null, mapDispatchToProps)(Index)
