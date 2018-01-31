@@ -1,4 +1,4 @@
-import Link from '../components/link'
+import Link, { prefetch } from '../components/link'
 
 // we just render a list of 3 articles having 2 with prefetched data
 export default () => (
@@ -16,8 +16,8 @@ export default () => (
         </Link>
       </li>
       <li>
-        <Link href='/article?id=3' prefetch withData>
-          <a>Article 3</a>
+        <Link href='/article?id=3' >
+          <a onMouseOver={e => prefetch('/article?id=3')} >Article 3</a>
         </Link>
       </li>
     </ul>
