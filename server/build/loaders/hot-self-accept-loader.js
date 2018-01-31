@@ -7,6 +7,7 @@ module.exports = function (content, sourceMap) {
 
   this.callback(null, `${content}
     (function (Component, route) {
+      if(!Component) return
       if (!module.hot) return
       module.hot.accept()
       Component.__route = route
