@@ -70,7 +70,7 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules/) && !res.match(/.(css|sass|scss|less|svg)/)) {
+      if (res.match(/node_modules\/.*\.js/)) {
         return callback(null, `commonjs ${request}`)
       }
 
