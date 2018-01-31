@@ -6,7 +6,6 @@ import generateETag from 'etag'
 import fresh from 'fresh'
 import requireModule from './require'
 import getConfig from './config'
-import resolvePath from './resolve'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import { getAvailableChunks } from './utils'
@@ -53,9 +52,12 @@ async function doRender (req, res, pathname, query, {
 
   const dist = getConfig(dir).distDir
 
+  const pagePath = join(dir, dist, 'dist', 'bundles', 'pages', page)
+  const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
+
   let [Component, Document] = await Promise.all([
-    requireModule(join(dir, dist, 'dist', 'pages', page)),
-    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
+    requireModule(pagePath),
+    requireModule(documentPath)
   ])
   Component = Component.default || Component
   Document = Document.default || Document
@@ -118,22 +120,6 @@ async function doRender (req, res, pathname, query, {
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export async function renderScript (req, res, page, opts) {
-  try {
-    const dist = getConfig(opts.dir).distDir
-    const path = join(opts.dir, dist, 'bundles', 'pages', page)
-    const realPath = await resolvePath(path)
-    await serveStatic(req, res, realPath)
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      renderScriptError(req, res, page, err, {}, opts)
-      return
-    }
-
-    throw err
-  }
 }
 
 export async function renderScriptError (req, res, page, error, customFields, { dev }) {

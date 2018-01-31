@@ -1,0 +1,15 @@
+{
+  "name": "custom-server-polka",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "next": "latest",
+    "polka": "0.2.3",
+    "react": "16.2.0",
+    "react-dom": "16.2.0"
+  }
+}

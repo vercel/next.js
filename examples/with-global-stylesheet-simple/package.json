@@ -6,7 +6,7 @@
   },
   "dependencies": {
     "babel-plugin-inline-import": "^2.0.6",
-    "next": "^4.1.3",
+    "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "tachyons": "^4.8.1"

@@ -11,17 +11,17 @@ export default (context, render) => {
         return cheerio.load(html)
       }
 
-      it('should render dynmaic import components', async () => {
+      it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
         expect($('p').text()).toBe('Hello World 1')
       })
 
-      it('should stop render dynmaic import components', async () => {
+      it('should stop render dynamic import components', async () => {
         const $ = await get$('/dynamic/no-ssr')
         expect($('p').text()).toBe('loading...')
       })
 
-      it('should stop render dynmaic import components with custom loading', async () => {
+      it('should stop render dynamic import components with custom loading', async () => {
         const $ = await get$('/dynamic/no-ssr-custom-loading')
         expect($('p').text()).toBe('LOADING')
       })
