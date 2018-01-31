@@ -20,6 +20,7 @@
     "trash": "^4.0.1"
   },
   "devDependencies": {
+    "babel-plugin-wrap-in-js": "1.1.1",
     "now": "^4.10.3"
   }
 }

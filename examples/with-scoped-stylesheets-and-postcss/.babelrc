@@ -1,0 +1,14 @@
+{
+  "presets": [
+    "next/babel",
+    "env"
+  ],
+  "plugins": [
+    [
+      "wrap-in-js",
+      {
+        "extensions": ["css$", "less$"]
+      }
+    ]
+  ]
+}
