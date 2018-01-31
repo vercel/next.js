@@ -7,7 +7,7 @@ import fresh from 'fresh'
 import requireModule from './require'
 import getConfig from './config'
 import { Router } from '../lib/router'
-import { loadGetInitialProps } from '../lib/utils'
+import { loadGetInitialProps, isResSent } from '../lib/utils'
 import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
@@ -66,7 +66,7 @@ async function doRender (req, res, pathname, query, {
   const props = await loadGetInitialProps(Component, ctx)
 
   // the response might be finshed on the getinitialprops call
-  if (res.finished) return
+  if (isResSent(res)) return
 
   const renderPage = (enhancer = Page => Page) => {
     const app = createElement(App, {
@@ -99,7 +99,7 @@ async function doRender (req, res, pathname, query, {
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
 
-  if (res.finished) return
+  if (isResSent(res)) return
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
   const doc = createElement(Document, {
@@ -155,7 +155,7 @@ export async function renderScriptError (req, res, page, error, customFields, { 
 }
 
 export function sendHTML (req, res, html, method, { dev }) {
-  if (res.finished) return
+  if (isResSent(res)) return
   const etag = generateETag(html)
 
   if (fresh(req.headers, { etag })) {
@@ -179,7 +179,7 @@ export function sendHTML (req, res, html, method, { dev }) {
 }
 
 export function sendJSON (res, obj, method) {
-  if (res.finished) return
+  if (isResSent(res)) return
 
   const json = JSON.stringify(obj)
   res.setHeader('Content-Type', 'application/json')
