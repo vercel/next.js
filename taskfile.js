@@ -29,12 +29,12 @@ export async function client (task, opts) {
 }
 
 // Create node_modules/next for the use of test apps
-export async function symlinkNextForTesting() {
+export async function symlinkNextForTesting () {
   rimraf.sync('test/node_modules/next')
   mkdirp.sync('test/node_modules')
 
-  const symlinkCommand = isWindows? 'mklink /D "next" "..\\..\\"' : 'ln -s next ../../'
-  childProcess.execSync(symlinkCommand, { cwd: 'test/node_modules'})
+  const symlinkCommand = isWindows ? 'mklink /D "next" "..\\..\\"' : 'ln -s ../../ next'
+  childProcess.execSync(symlinkCommand, { cwd: 'test/node_modules' })
 }
 
 export async function copy (task) {
