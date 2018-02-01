@@ -1,4 +1,4 @@
-import pathMatch from 'path-match'
+import pathMatch from './path-match'
 
 const route = pathMatch()
 
