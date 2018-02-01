@@ -179,7 +179,11 @@ export default class Server {
         await serveStatic(req, res, path)
       },
 
-      '/_next/:buildId/page/_error*': async (req, res, params) => {
+      // This is very similar to the following route.
+      // But for this one, the page already built when the Next.js process starts.
+      // There's no need to build it in on-demand manner and check for other things.
+      // So, it's clean to have a seperate route for this.
+      '/_next/:buildId/page/_error.js': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
