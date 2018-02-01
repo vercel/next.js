@@ -92,6 +92,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     }
   }
 
+  // Support for NODE_PATH
+  const nodePathList = (process.env.NODE_PATH || '')
+    .split(process.platform === 'win32' ? ';' : ':')
+    .filter((p) => !!p)
+
   let totalPages
 
   let webpackConfig = {
@@ -132,7 +137,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       extensions: ['.js', '.jsx', '.json'],
       modules: [
         nextNodeModulesDir,
-        'node_modules'
+        'node_modules',
+        ...nodePathList // Support for NODE_PATH environment variable
       ],
       alias: {
         next: nextDir,
@@ -146,7 +152,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       modules: [
         nextNodeModulesDir,
         'node_modules',
-        path.join(__dirname, 'loaders')
+        path.join(__dirname, 'loaders'),
+        ...nodePathList // Support for NODE_PATH environment variable
       ]
     },
     module: {
