@@ -18,6 +18,7 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import * as asset from '../lib/asset'
+import { isResSent } from '../lib/utils'
 
 const blockedPages = {
   '/_document': true,
@@ -309,6 +310,10 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query)
+    if (isResSent(res)) {
+      return
+    }
+
     res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
