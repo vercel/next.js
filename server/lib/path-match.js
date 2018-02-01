@@ -1,3 +1,7 @@
+// We borrow this code from https://github.com/pillarjs/path-match
+// That's because, ^^^ package comes with very old version of path-to-regexp
+// So, it'll give us issues when the app has used a newer version of path-to-regexp
+// (When webpack resolving packages)
 var pathToRegexp = require('path-to-regexp')
 var createError = require('http-errors')
 
