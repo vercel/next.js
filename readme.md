@@ -698,7 +698,7 @@ When using a custom server with a server file, for example called `server.js`, m
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
-// This file doesn't not go through babel or webpack transformation.
+// This file doesn't go through babel or webpack transformation.
 // Make sure the syntax and sources this file requires are compatible with the current node version you are running
 // See https://github.com/zeit/next.js/issues/1245 for discussions on Universal Webpack or universal Babel
 const { createServer } = require('http')
