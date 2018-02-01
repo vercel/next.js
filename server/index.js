@@ -3,6 +3,7 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
+import fsAsync from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
@@ -216,6 +217,13 @@ export default class Server {
         }
 
         const p = join(this.dir, this.dist, 'bundles', 'pages', `${page}.js`)
+
+        // [production] If the page is not exists, we need to send a proper Next.js style 404
+        // Otherwise, it'll affect the multi-zones feature.
+        if (!(await fsAsync.exists(p))) {
+          return await renderScriptError(req, res, page, { code: 'ENOENT' }, {}, this.renderOpts)
+        }
+
         await this.serveStatic(req, res, p)
       },
 
