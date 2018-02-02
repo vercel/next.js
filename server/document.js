@@ -3,6 +3,10 @@ import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
+const Fragment = React.Fragment || function Fragment ({ children }) {
+  return <div>{children}</div>
+}
+
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
     const { html, head, errorHtml, chunks } = renderPage()
@@ -67,12 +71,12 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
-    return chunks.map((chunk) => (
+    let { assetPrefix } = __NEXT_DATA__
+    return chunks.filenames.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
-        href={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
         as='script'
       />
     ))
@@ -84,7 +88,7 @@ export class Head extends Component {
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
-      {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
+      {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
       {this.getPreloadDynamicChunks()}
@@ -96,22 +100,17 @@ export class Head extends Component {
 }
 
 export class Main extends Component {
-  static propTypes = {
-    className: PropTypes.string
-  }
-
   static contextTypes = {
     _documentProps: PropTypes.any
   }
 
   render () {
     const { html, errorHtml } = this.context._documentProps
-    const { className } = this.props
     return (
-      <div className={className}>
+      <Fragment>
         <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
         <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
-      </div>
+      </Fragment>
     )
   }
 }
@@ -157,18 +156,18 @@ export class NextScript extends Component {
 
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
+    let { assetPrefix } = __NEXT_DATA__
     return (
-      <div>
-        {chunks.map((chunk) => (
+      <Fragment>
+        {chunks.filenames.map((chunk) => (
           <script
             async
             key={chunk}
             type='text/javascript'
-            src={`${assetPrefix}/_next/${buildId}/webpack/chunks/${chunk}`}
+            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
           />
         ))}
-      </div>
+      </Fragment>
     )
   }
 
@@ -177,9 +176,9 @@ export class NextScript extends Component {
     const { pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
-    __NEXT_DATA__.chunks = chunks
+    __NEXT_DATA__.chunks = chunks.names
 
-    return <div>
+    return <Fragment>
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
@@ -200,7 +199,7 @@ export class NextScript extends Component {
       <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
-    </div>
+    </Fragment>
   }
 }
 

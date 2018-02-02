@@ -3,6 +3,12 @@
 import Router from '../lib/router'
 import fetch from 'unfetch'
 
+const {
+  __NEXT_DATA__: {
+    assetPrefix
+  }
+} = window
+
 export default () => {
   Router.ready(() => {
     Router.router.events.on('routeChangeComplete', ping)
@@ -10,16 +16,16 @@ export default () => {
 
   async function ping () {
     try {
-      const url = `/_next/on-demand-entries-ping?page=${Router.pathname}`
+      const url = `${assetPrefix}/_next/on-demand-entries-ping?page=${Router.pathname}`
       const res = await fetch(url, {
-        credentials: 'same-origin'
+        credentials: 'omit'
       })
       const payload = await res.json()
       if (payload.invalid) {
         // Payload can be invalid even if the page is not exists.
         // So, we need to make sure it's exists before reloading.
         const pageRes = await fetch(location.href, {
-          credentials: 'same-origin'
+          credentials: 'omit'
         })
         if (pageRes.status === 200) {
           location.reload()

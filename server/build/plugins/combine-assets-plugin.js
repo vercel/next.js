@@ -1,3 +1,5 @@
+import { ConcatSource } from 'webpack-sources'
+
 // This plugin combines a set of assets into a single asset
 // This should be only used with text assets,
 // otherwise the result is unpredictable.
@@ -8,23 +10,24 @@ export default class CombineAssetsPlugin {
   }
 
   apply (compiler) {
-    compiler.plugin('after-compile', (compilation, callback) => {
-      let newSource = ''
-      this.input.forEach((name) => {
-        const asset = compilation.assets[name]
-        if (!asset) return
+    compiler.plugin('compilation', (compilation) => {
+      // This is triggered after uglify and other optimizers have ran.
+      compilation.plugin('after-optimize-chunk-assets', (chunks) => {
+        const concat = new ConcatSource()
 
-        newSource += `${asset.source()}\n`
+        this.input.forEach((name) => {
+          const asset = compilation.assets[name]
+          if (!asset) return
 
-        // We keep existing assets since that helps when analyzing the bundle
+          // We add each matched asset from this.input to a new bundle
+          concat.add(asset)
+          // The original assets are kept because they show up when analyzing the bundle using webpack-bundle-analyzer
+          // See https://github.com/zeit/next.js/tree/canary/examples/with-webpack-bundle-analyzer
+        })
+
+        // Creates a new asset holding the concatted source
+        compilation.assets[this.output] = concat
       })
-
-      compilation.assets[this.output] = {
-        source: () => newSource,
-        size: () => newSource.length
-      }
-
-      callback()
     })
   }
 }

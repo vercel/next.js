@@ -18,7 +18,7 @@ const appDir = join(__dirname, '../')
 let appPort
 let server
 let app
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 40000
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 const context = {}
 
@@ -100,6 +100,9 @@ describe('Production Usage', () => {
       const req = { url: '/stateless', headers: {} }
       const headers = {}
       const res = {
+        getHeader (key) {
+          return headers[key]
+        },
         setHeader (key, value) {
           headers[key] = value
         },
@@ -108,23 +111,6 @@ describe('Production Usage', () => {
 
       await app.render(req, res, req.url)
       expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
-    })
-
-    it('should not set it when poweredByHeader==false', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.config.poweredByHeader
-      app.config.poweredByHeader = false
-      const res = {
-        setHeader (key, value) {
-          if (key === 'X-Powered-By') {
-            throw new Error('Should not set the X-Powered-By header')
-          }
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      app.config.poweredByHeader = originalConfigValue
     })
   })
 
