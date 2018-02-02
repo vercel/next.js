@@ -6,6 +6,7 @@ import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
+import * as asset from '../lib/asset'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -28,6 +29,9 @@ const {
   },
   location
 } = window
+
+// With this, static assets will work across zones
+asset.setAssetPrefix(assetPrefix)
 
 const asPath = getURL()
 
@@ -93,10 +97,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
 }
 
 export async function render (props) {
-  // There are some errors we should ignore.
-  // Next.js rendering logic knows how to handle them.
-  // These are specially 404 errors
-  if (props.err && !props.err.ignore) {
+  if (props.err) {
     await renderError(props.err)
     return
   }
@@ -159,7 +160,8 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
 let isInitialRender = true
 function renderReactElement (reactEl, domEl) {
-  if (isInitialRender) {
+  // The check for `.hydrate` is there to support React alternatives like preact
+  if (isInitialRender && typeof ReactDOM.hydrate === 'function') {
     ReactDOM.hydrate(reactEl, domEl)
     isInitialRender = false
   } else {

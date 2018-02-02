@@ -1,34 +1,24 @@
-import { gql, graphql } from 'react-apollo'
+import { graphql } from 'react-apollo'
+import gql from 'graphql-tag'
+import { allPosts, allPostsQueryVars } from './PostList'
 
 function Submit ({ createPost }) {
-  function handleSubmit (e) {
-    e.preventDefault()
+  function handleSubmit (event) {
+    event.preventDefault()
 
-    let title = e.target.elements.title.value
-    let url = e.target.elements.url.value
+    const form = event.target
 
-    if (title === '' || url === '') {
-      window.alert('Both fields are required.')
-      return false
-    }
+    const formData = new window.FormData(form)
+    createPost(formData.get('title'), formData.get('url'))
 
-    // prepend http if missing from url
-    if (!url.match(/^[a-zA-Z]+:\/\//)) {
-      url = `http://${url}`
-    }
-
-    createPost(title, url)
-
-    // reset form
-    e.target.elements.title.value = ''
-    e.target.elements.url.value = ''
+    form.reset()
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <h1>Submit</h1>
-      <input placeholder='title' name='title' />
-      <input placeholder='url' name='url' />
+      <h1>Apollo: Submit</h1>
+      <input placeholder='title' name='title' type='text' required />
+      <input placeholder='url' name='url' type='url' required />
       <button type='submit'>Submit</button>
       <style jsx>{`
         form {
@@ -62,17 +52,23 @@ const createPost = gql`
 
 export default graphql(createPost, {
   props: ({ mutate }) => ({
-    createPost: (title, url) => mutate({
-      variables: { title, url },
-      updateQueries: {
-        allPosts: (previousResult, { mutationResult }) => {
-          const newPost = mutationResult.data.createPost
-          return Object.assign({}, previousResult, {
-            // Append the new post
-            allPosts: [newPost, ...previousResult.allPosts]
+    createPost: (title, url) =>
+      mutate({
+        variables: { title, url },
+        update: (proxy, { data: { createPost } }) => {
+          const data = proxy.readQuery({
+            query: allPosts,
+            variables: allPostsQueryVars
+          })
+          proxy.writeQuery({
+            query: allPosts,
+            data: {
+              ...data,
+              allPosts: [createPost, ...data.allPosts]
+            },
+            variables: allPostsQueryVars
           })
         }
-      }
-    })
+      })
   })
 })(Submit)

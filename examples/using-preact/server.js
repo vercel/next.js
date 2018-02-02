@@ -1,13 +1,7 @@
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
-const moduleAlias = require('module-alias')
 
-// For the development version, we'll use React.
-// Because, it support react hot loading and so on.
-if (!dev) {
-  moduleAlias.addAlias('react', 'preact-compat')
-  moduleAlias.addAlias('react-dom', 'preact-compat')
-}
+require('@zeit/next-preact/alias')()
 
 const { createServer } = require('http')
 const { parse } = require('url')

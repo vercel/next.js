@@ -2,7 +2,7 @@
   "name": "app",
   "description": "Next.js React SSR App",
   "dependencies": {
-    "next": "4.0.0-beta.2",
+    "next": "latest",
     "react": "16.0.0",
     "react-dom": "16.0.0"
   },

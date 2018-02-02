@@ -43,7 +43,8 @@ export default async function (dir, options, configuration) {
     log('  copying "static" directory')
     await cp(
       join(dir, 'static'),
-      join(outDir, 'static')
+      join(outDir, 'static'),
+      { expand: true }
     )
   }
 
@@ -51,10 +52,10 @@ export default async function (dir, options, configuration) {
   if (existsSync(join(nextDir, 'chunks'))) {
     log('  copying dynamic import chunks')
 
-    await mkdirp(join(outDir, '_next', buildId, 'webpack'))
+    await mkdirp(join(outDir, '_next', 'webpack'))
     await cp(
       join(nextDir, 'chunks'),
-      join(outDir, '_next', buildId, 'webpack', 'chunks')
+      join(outDir, '_next', 'webpack', 'chunks')
     )
   }
 
@@ -91,6 +92,9 @@ export default async function (dir, options, configuration) {
 
   for (const path of exportPaths) {
     log(`  exporting path: ${path}`)
+    if (!path.startsWith('/')) {
+      throw new Error(`path "${path}" doesn't start with a backslash`)
+    }
 
     const { page, query = {} } = exportPathMap[path]
     const req = { url: path }
@@ -135,17 +139,19 @@ function copyPages (nextDir, outDir, buildId) {
 
       // We should not expose this page to the client side since
       // it has no use in the client side.
-      if (relativeFilePath === '/_document.js') {
+      if (relativeFilePath === `${sep}_document.js`) {
         next()
         return
       }
 
       let destFilePath = null
-      if (/index\.js$/.test(filename)) {
+      if (relativeFilePath === `${sep}index.js`) {
         destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
-      } else {
-        const newRelativeFilePath = relativeFilePath.replace(/\.js/, `${sep}index.js`)
+      } else if (/index\.js$/.test(filename)) {
+        const newRelativeFilePath = relativeFilePath.replace(`${sep}index.js`, '.js')
         destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
+      } else {
+        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
       }
 
       cp(fullFilePath, destFilePath)
