@@ -126,7 +126,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       path: path.join(dir, config.distDir, isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: `${config.assetPrefix}/_next/webpack/`,
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
       strictModuleExceptionHandling: true,

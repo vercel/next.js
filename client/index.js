@@ -30,7 +30,10 @@ const {
   location
 } = window
 
-// With this, static assets will work across zones
+// With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
+// So, this is how we do it in the client side at runtime
+__webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
+// Initialize next/asset with the assetPrefix
 asset.setAssetPrefix(assetPrefix)
 
 const asPath = getURL()
