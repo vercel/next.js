@@ -70,7 +70,8 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules\/.*\.js/)) {
+      // Webpack itself has to be compiled because it doesn't always use module relative paths
+      if (res.match(/node_modules\/.*\.js/) && !res.match(/node_modules\/webpack/)) {
         return callback(null, `commonjs ${request}`)
       }
 
@@ -90,6 +91,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       options: babelLoaderOptions
     }
   }
+
+  // Support for NODE_PATH
+  const nodePathList = (process.env.NODE_PATH || '')
+    .split(process.platform === 'win32' ? ';' : ':')
+    .filter((p) => !!p)
 
   let totalPages
 
@@ -131,7 +137,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       extensions: ['.js', '.jsx', '.json'],
       modules: [
         nextNodeModulesDir,
-        'node_modules'
+        'node_modules',
+        ...nodePathList // Support for NODE_PATH environment variable
       ],
       alias: {
         next: nextDir,
@@ -145,7 +152,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       modules: [
         nextNodeModulesDir,
         'node_modules',
-        path.join(__dirname, 'loaders')
+        path.join(__dirname, 'loaders'),
+        ...nodePathList // Support for NODE_PATH environment variable
       ]
     },
     module: {

@@ -47,7 +47,11 @@ module.exports = (context, opts = {}) => ({
     require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
     require.resolve('babel-plugin-transform-class-properties'),
-    [require.resolve('babel-plugin-transform-runtime'), opts['transform-runtime'] || {}],
+    [require.resolve('babel-plugin-transform-runtime'), opts['transform-runtime'] || {
+      helpers: false,
+      polyfill: false,
+      regenerator: true
+    }],
     [require.resolve('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
     ...plugins
   ]

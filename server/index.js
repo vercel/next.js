@@ -3,6 +3,7 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
+import fsAsync from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
@@ -17,6 +18,7 @@ import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import * as asset from '../lib/asset'
+import { isResSent } from '../lib/utils'
 
 const blockedPages = {
   '/_document': true,
@@ -46,13 +48,10 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    // With this, static assets will work across zones
-    asset.setAssetPrefix(this.config.assetPrefix)
-
+    this.setAssetPrefix(this.config.assetPrefix)
     this.defineRoutes()
   }
 
@@ -83,6 +82,11 @@ export default class Server {
 
   getRequestHandler () {
     return this.handleRequest.bind(this)
+  }
+
+  setAssetPrefix (prefix) {
+    this.renderOpts.assetPrefix = prefix.replace(/\/$/, '')
+    asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
   async prepare () {
@@ -178,7 +182,11 @@ export default class Server {
         await serveStatic(req, res, path)
       },
 
-      '/_next/:buildId/page/_error*': async (req, res, params) => {
+      // This is very similar to the following route.
+      // But for this one, the page already built when the Next.js process starts.
+      // There's no need to build it in on-demand manner and check for other things.
+      // So, it's clean to have a seperate route for this.
+      '/_next/:buildId/page/_error.js': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
@@ -216,6 +224,13 @@ export default class Server {
         }
 
         const p = join(this.dir, this.dist, 'bundles', 'pages', `${page}.js`)
+
+        // [production] If the page is not exists, we need to send a proper Next.js style 404
+        // Otherwise, it'll affect the multi-zones feature.
+        if (!(await fsAsync.exists(p))) {
+          return await renderScriptError(req, res, page, { code: 'ENOENT' }, {}, this.renderOpts)
+        }
+
         await this.serveStatic(req, res, p)
       },
 
@@ -297,6 +312,10 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query)
+    if (isResSent(res)) {
+      return
+    }
+
     res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
