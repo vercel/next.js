@@ -16,7 +16,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const context = {}
 
-describe('Production Usage', () => {
+describe('Custom Server', () => {
   beforeAll(async () => {
     const scriptPath = join(appDir, 'server.js')
     context.appPort = appPort = await getPort()
