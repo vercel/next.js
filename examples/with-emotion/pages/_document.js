@@ -1,12 +1,8 @@
 import Document, { Head, Main, NextScript } from 'next/document'
-import { extractCritical } from 'emotion/server'
-import { flush } from 'emotion'
-
-const dev = process.env.NODE_ENV !== 'production'
+import { extractCritical } from 'emotion-server'
 
 export default class MyDocument extends Document {
   static getInitialProps ({ renderPage }) {
-    if (dev) { flush() }
     const page = renderPage()
     const styles = extractCritical(page.html)
     return { ...page, ...styles }
@@ -16,7 +12,7 @@ export default class MyDocument extends Document {
     super(props)
     const { __NEXT_DATA__, ids } = props
     if (ids) {
-      __NEXT_DATA__.ids = this.props.ids
+      __NEXT_DATA__.ids = ids
     }
   }
 

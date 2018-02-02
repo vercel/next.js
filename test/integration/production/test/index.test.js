@@ -2,16 +2,17 @@
 
 import { join } from 'path'
 import {
+  pkg,
   nextServer,
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP,
-  waitFor
+  renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
+import security from './security'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -72,22 +73,62 @@ describe('Production Usage', () => {
     })
   })
 
-  describe('With XSS Attacks', () => {
-    it('should prevent URI based attaks', async () => {
-      const browser = await webdriver(appPort, '/\',document.body.innerHTML="HACKED",\'')
-      // Wait 5 secs to make sure we load all the client side JS code
-      await waitFor(5000)
+  describe('Misc', () => {
+    it('should handle already finished responses', async () => {
+      const res = {
+        finished: false,
+        end () {
+          this.finished = true
+        }
+      }
+      const html = await app.renderToHTML({}, res, '/finish-response', {})
+      expect(html).toBeFalsy()
+    })
 
-      const bodyText = await browser
-        .elementByCss('body').text()
+    it('should allow to access /static/ and /_next/', async () => {
+      // This is a test case which prevent the following issue happening again.
+      // See: https://github.com/zeit/next.js/issues/2617
+      await renderViaHTTP(appPort, '/_next/')
+      await renderViaHTTP(appPort, '/static/')
+      const data = await renderViaHTTP(appPort, '/static/data/item.txt')
+      expect(data).toBe('item')
+    })
+  })
 
-      if (/HACKED/.test(bodyText)) {
-        throw new Error('Vulnerable to XSS attacks')
+  describe('X-Powered-By header', () => {
+    it('should set it by default', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const headers = {}
+      const res = {
+        setHeader (key, value) {
+          headers[key] = value
+        },
+        end () {}
       }
 
-      browser.close()
+      await app.render(req, res, req.url)
+      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
+    })
+
+    it('should not set it when poweredByHeader==false', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const originalConfigValue = app.config.poweredByHeader
+      app.config.poweredByHeader = false
+      const res = {
+        setHeader (key, value) {
+          if (key === 'X-Powered-By') {
+            throw new Error('Should not set the X-Powered-By header')
+          }
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      app.config.poweredByHeader = originalConfigValue
     })
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+
+  security(context)
 })

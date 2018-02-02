@@ -10,9 +10,9 @@
   "dependencies": {
     "classnames": "^2.2.5",
     "next": "latest",
-    "react": "^15.5.4",
+    "react": "^16.0.0",
     "react-addons-css-transition-group": "^15.5.2",
-    "react-dom": "^15.5.4",
+    "react-dom": "^16.0.0",
     "react-toolbox": "^2.0.0-beta.8"
   },
   "devDependencies": {

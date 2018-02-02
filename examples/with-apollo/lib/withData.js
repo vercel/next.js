@@ -17,7 +17,7 @@ export default ComposedComponent => {
     }
 
     static async getInitialProps (ctx) {
-      let serverState = {}
+      let serverState = { apollo: {} }
 
       // Evaluate the composed component's getInitialProps()
       let composedInitialProps = {}
@@ -48,12 +48,9 @@ export default ComposedComponent => {
         Head.rewind()
 
         // Extract query data from the Apollo store
-        const state = apollo.getInitialState()
-
         serverState = {
           apollo: {
-            // Only include the Apollo data state
-            data: state.data
+            data: apollo.cache.extract()
           }
         }
       }
@@ -66,7 +63,7 @@ export default ComposedComponent => {
 
     constructor (props) {
       super(props)
-      this.apollo = initApollo(this.props.serverState)
+      this.apollo = initApollo(this.props.serverState.apollo.data)
     }
 
     render () {

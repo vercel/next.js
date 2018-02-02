@@ -7,10 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "emotion": "^5.1.4",
-    "next": "^2.4.6",
+    "babel-plugin-emotion": "^8.0.4",
+    "emotion": "^8.0.5",
+    "emotion-server": "^8.0.5",
+    "next": "^3.0.6",
     "react": "^15.6.1",
-    "react-dom": "^15.6.1"
+    "react-dom": "^15.6.1",
+    "react-emotion": "^8.0.5"
   },
   "license": "ISC"
 }

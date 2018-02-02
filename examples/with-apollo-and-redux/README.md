@@ -24,4 +24,17 @@ now
 ```
 
 ## The idea behind the example
-By default, Apollo Client creates its own internal Redux store to manage queries and their results. If you are already using Redux for the rest of your app, [you can have the client integrate with your existing store instead](http://dev.apollodata.com/react/redux.html). This example is identical to the [`with-apollo`](https://github.com/zeit/next.js/tree/master/examples/with-apollo) with the exception of this Redux store integration.
+By default, Apollo Client creates its own internal Redux store to manage queries and their results. If you are already using Redux for the rest of your app, [you can have the client integrate with your existing store instead](http://dev.apollodata.com/react/redux.html), which is what this example does. This example is identical to the [`with-apollo`](https://github.com/zeit/next.js/tree/master/examples/with-apollo) with the exception of this Redux store integration. 
+
+Note that you can acesss the redux store like you normally would using `react-redux`'s `connect` as per [here](http://dev.apollodata.com/react/redux.html#using-connect). Here's a quick example:
+
+```js
+const mapStateToProps = state => ({
+  location: state.form.location,
+});
+
+export default withData(connect(mapStateToProps, null)(Index));
+```
+
+`connect` must go inside `withData` otherwise `connect` will not be able to find the store. 
+

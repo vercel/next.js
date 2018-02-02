@@ -3,6 +3,6 @@
     "next/babel"
   ],
   "plugins": [
-    ["emotion/babel", { "inline": true }]
+    ["emotion", { "inline": true }]
   ]
 }

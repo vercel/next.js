@@ -3,7 +3,6 @@ import Router from 'next/router'
 import Header from '../components/Header'
 import Counter from '../components/Counter'
 import dynamic from 'next/dynamic'
-import { asyncReactor } from 'async-reactor'
 
 const DynamicComponent = dynamic(import('../components/hello1'))
 const DynamicComponentWithCustomLoading = dynamic(
@@ -16,11 +15,6 @@ const DynamicComponentWithNoSSR = dynamic(
   import('../components/hello3'),
   { ssr: false }
 )
-const DynamicComponentWithAsyncReactor = asyncReactor(async () => {
-  const Hello4 = await import('../components/hello4')
-  return (<Hello4 />)
-})
-
 const DynamicComponent5 = dynamic(import('../components/hello5'))
 
 const DynamicBundle = dynamic({
@@ -67,7 +61,6 @@ export default class Index extends React.Component {
         <DynamicComponent />
         <DynamicComponentWithCustomLoading />
         <DynamicComponentWithNoSSR />
-        <DynamicComponentWithAsyncReactor />
         <DynamicBundle showMore={showMore} />
         <button onClick={() => this.toggleShowMore()}>Toggle Show More</button>
         {

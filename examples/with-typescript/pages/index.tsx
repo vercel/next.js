@@ -1,8 +1,9 @@
-import * as React from 'react'
-import MyComponent from '../components/MyComponent'
+import Link from 'next/link'
 
-export default () => 
+export default () =>
   <div>
-    <h1>Hello world</h1>
-    <MyComponent />
+    Hello World.{' '}
+    <Link href="/about">
+      <a>About</a>
+    </Link>
   </div>

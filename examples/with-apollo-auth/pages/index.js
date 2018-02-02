@@ -2,9 +2,9 @@ import React from 'react'
 import cookie from 'cookie'
 import { withApollo, compose } from 'react-apollo'
 
-import withData from '../lib/with-data'
+import withData from '../lib/withData'
 import redirect from '../lib/redirect'
-import checkLoggedIn from '../lib/check-logged-in'
+import checkLoggedIn from '../lib/checkLoggedIn'
 
 class Index extends React.Component {
   static async getInitialProps (context, apolloClient) {

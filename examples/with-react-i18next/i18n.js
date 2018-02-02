@@ -36,7 +36,7 @@ if (!i18n.isInitialized) i18n.init(options)
 
 // a simple helper to getInitialProps passed on loaded i18n data
 i18n.getInitialProps = (req, namespaces) => {
-  if (!namespaces) namespaces = i18n.options.defautlNS
+  if (!namespaces) namespaces = i18n.options.defaultNS
   if (typeof namespaces === 'string') namespaces = [namespaces]
 
   req.i18n.toJSON = () => null // do not serialize i18next instance and send to client

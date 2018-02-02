@@ -188,6 +188,21 @@ export default (context, render) => {
         })
       })
 
+      describe('when hash set to empty', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-a').click()
+            .elementByCss('#via-empty-hash').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 0')
+
+          browser.close()
+        })
+      })
+
       describe('when hash changed to a different hash', () => {
         it('should not run getInitialProps', async () => {
           const browser = await webdriver(context.appPort, '/nav/hash-changes')
@@ -384,6 +399,26 @@ export default (context, render) => {
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
+        browser.close()
+      })
+    })
+
+    describe('with the HOC based router', () => {
+      it('should navigate as expected', async () => {
+        const browser = await webdriver(context.appPort, '/nav/with-hoc')
+
+        const pathname = await browser.elementByCss('#pathname').text()
+        expect(pathname).toBe('Current path: /nav/with-hoc')
+
+        const asPath = await browser.elementByCss('#asPath').text()
+        expect(asPath).toBe('Current asPath: /nav/with-hoc')
+
+        const text = await browser
+          .elementByCss('.nav-with-hoc a').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the home.')
         browser.close()
       })
     })

@@ -1,6 +1,8 @@
-import next from './'
+import initNext, * as next from './'
 
-next()
+window.next = next
+
+initNext()
   .catch((err) => {
     console.error(`${err.message}\n${err.stack}`)
   })

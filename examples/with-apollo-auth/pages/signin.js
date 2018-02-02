@@ -4,9 +4,9 @@ import cookie from 'cookie'
 import Link from 'next/link'
 import gql from 'graphql-tag'
 
-import withData from '../lib/with-data'
+import withData from '../lib/withData'
 import redirect from '../lib/redirect'
-import checkLoggedIn from '../lib/check-logged-in'
+import checkLoggedIn from '../lib/checkLoggedIn'
 
 class Signin extends React.Component {
   static async getInitialProps (context, apolloClient) {

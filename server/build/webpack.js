@@ -5,7 +5,6 @@ import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
-import UglifyJsPlugin from 'uglifyjs-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
@@ -28,7 +27,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 
 const relativeResolve = rootModuleRelativePath(require)
 
-export default async function createCompiler (dir, { dev = false, quiet = false, buildDir, conf = null } = {}) {
+export default async function createCompiler (dir, { buildId, dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
@@ -44,6 +43,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
     const entries = {
       'main.js': [
         ...defaultEntries,
+        ...config.clientBootstrap || [],
         mainJS
       ]
     }
@@ -95,19 +95,18 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       name: 'commons',
       filename: 'commons.js',
       minChunks (module, count) {
-        // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
-        // Instead, we move all the code in node_modules into this chunk.
-        // With that, we could gain better performance for page-rebuild process.
-        if (dev) {
-          return module.context && module.context.indexOf('node_modules') >= 0
-        }
-
         // We need to move react-dom explicitly into common chunks.
         // Otherwise, if some other page or module uses it, it might
         // included in that bundle too.
         if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
           return true
+        }
+
+        // In the dev we use on-demand-entries.
+        // So, it makes no sense to use commonChunks based on the minChunks count.
+        // Instead, we move all the code in node_modules into each of the pages.
+        if (dev) {
+          return false
         }
 
         // If there are one or two pages, only move modules to common if they are
@@ -150,7 +149,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
         input: ['manifest.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
-      new UglifyJsPlugin({
+      new webpack.optimize.UglifyJsPlugin({
         compress: { warnings: false },
         sourceMap: false
       })
@@ -170,7 +169,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
   const externalBabelConfig = findBabelConfig(dir)
   if (externalBabelConfig) {
     console.log(`> Using external babel configuration`)
-    console.log(`> location: "${externalBabelConfig.loc}"`)
+    console.log(`> Location: "${externalBabelConfig.loc}"`)
     // It's possible to turn off babelrc support via babelrc itself.
     // In that case, we should add our default preset.
     // That's why we need to do this.
@@ -249,8 +248,24 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
           inputSourceMap: sourceMap
         })
 
+        // Strip ?entry to map back to filesystem and work with iTerm, etc.
+        let { map } = transpiled
+        let output = transpiled.code
+
+        if (map) {
+          let nodeMap = Object.assign({}, map)
+          nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
+          delete nodeMap.sourcesContent
+
+          // Output explicit inline source map that source-map-support can pickup via requireHook mode.
+          // Since these are not formal chunks, the devtool infrastructure in webpack does not output
+          // a source map for these files.
+          const sourceMapUrl = new Buffer(JSON.stringify(nodeMap), 'utf-8').toString('base64')
+          output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
+        }
+
         return {
-          content: transpiled.code,
+          content: output,
           sourceMap: transpiled.map
         }
       }
@@ -283,7 +298,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
       path: buildDir ? join(buildDir, '.next') : join(dir, config.distDir),
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: '/_next/webpack/',
+      publicPath: `/_next/${buildId}/webpack/`,
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate ({ resourcePath }) {
         const hash = createHash('sha1')
@@ -321,7 +336,7 @@ export default async function createCompiler (dir, { dev = false, quiet = false,
 
   if (config.webpack) {
     console.log(`> Using "webpack" config function defined in ${config.configOrigin}.`)
-    webpackConfig = await config.webpack(webpackConfig, { dev })
+    webpackConfig = await config.webpack(webpackConfig, { buildId, dev })
   }
   return webpack(webpackConfig)
 }

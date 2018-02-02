@@ -1,11 +1,13 @@
 import 'react-hot-loader/patch'
-import ReactReconciler from 'react-dom/lib/ReactReconciler'
+import stripAnsi from 'strip-ansi'
+import initNext, * as next from './'
+import ErrorDebugComponent from '../lib/error-debug'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
-const next = window.next = require('./')
+window.next = next
 
-next.default()
+initNext({ ErrorDebugComponent, stripAnsi })
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()
@@ -33,19 +35,5 @@ next.default()
     })
   })
   .catch((err) => {
-    console.error(`${err.message}\n${err.stack}`)
+    console.error(stripAnsi(`${err.message}\n${err.stack}`))
   })
-
-// This is a patch to catch most of the errors throw inside React components.
-const originalMountComponent = ReactReconciler.mountComponent
-ReactReconciler.mountComponent = function (...args) {
-  try {
-    return originalMountComponent(...args)
-  } catch (err) {
-    if (!err.abort) {
-      next.renderError(err)
-      err.abort = true
-    }
-    throw err
-  }
-}

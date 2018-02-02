@@ -8,7 +8,6 @@ import {
   renderErrorToHTML,
   sendHTML,
   serveStatic,
-  renderScript,
   renderScriptError
 } from './render'
 import Router from './router'
@@ -16,6 +15,19 @@ import { getAvailableChunks } from './utils'
 import getConfig from './config'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
+import reactPkg from 'react/package'
+
+// TODO: Remove this in Next.js 5
+if (!(/^16\./.test(reactPkg.version))) {
+  const message = `
+Error: Next.js 4 requires React 16.
+Install React 16 with:
+  npm remove react react-dom
+  npm install --save react@16 react-dom@16
+`
+  console.error(message)
+  process.exit(1)
+}
 
 const internalPrefixes = [
   /^\/_next\//,
@@ -29,6 +41,14 @@ const blockedPages = {
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
+    // When in dev mode, remap the inline source maps that we generate within the webpack portion
+    // of the build.
+    if (dev) {
+      require('source-map-support').install({
+        hookRequire: true
+      })
+    }
+
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
@@ -115,14 +135,21 @@ export default class Server {
       },
 
       // This is to support, webpack dynamic imports in production.
-      '/_next/webpack/chunks/:name': async (req, res, params) => {
-        res.setHeader('Cache-Control', 'max-age=365000000, immutable')
+      '/_next/:buildId/webpack/chunks/:name': async (req, res, params) => {
+        if (!this.handleBuildId(params.buildId, res)) {
+          return this.send404(res)
+        }
+
         const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req, res, params) => {
+      '/_next/:buildId/webpack/:id': async (req, res, params) => {
+        if (!this.handleBuildId(params.buildId, res)) {
+          return this.send404(res)
+        }
+
         const p = join(this.dir, this.dist, 'chunks', params.id)
         await this.serveStatic(req, res, p)
       },
@@ -173,7 +200,10 @@ export default class Server {
 
       '/_next/:buildId/page/:path*': async (req, res, params) => {
         const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
+        // URL is asks for ${page}.js (to support loading assets from static dirs)
+        // But there's no .js in the actual page.
+        // So, we need to remove .js to get the page name.
+        const page = `/${paths.join('/')}`.replace('.js', '')
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
@@ -196,15 +226,24 @@ export default class Server {
           }
         }
 
-        await renderScript(req, res, page, this.renderOpts)
+        const p = join(this.dir, this.dist, 'bundles', 'pages', paths.join('/'))
+        await this.serveStatic(req, res, p)
       },
 
-      '/_next/:path+': async (req, res, params) => {
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, seperated by '/')
+      // Othewise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      '/_next/:path*': async (req, res, params) => {
         const p = join(__dirname, '..', 'client', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
-      '/static/:path+': async (req, res, params) => {
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, seperated by '/')
+      // Othewise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      '/static/:path*': async (req, res, params) => {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       }

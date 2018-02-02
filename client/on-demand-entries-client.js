@@ -30,15 +30,31 @@ export default () => {
     }
   }
 
+  let pingerTimeout
   async function runPinger () {
-    while (true) {
-      await new Promise((resolve) => setTimeout(resolve, 5000))
+    // Will restart on the visibilitychange API below. For older browsers, this
+    // will always be true and will always run, but support is fairly prevalent
+    // at this point.
+    while (!document.hidden) {
       await ping()
+      await new Promise((resolve) => {
+        pingerTimeout = setTimeout(resolve, 5000)
+      })
     }
   }
 
-  runPinger()
-    .catch((err) => {
-      console.error(err)
-    })
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      runPinger()
+    } else {
+      clearTimeout(pingerTimeout)
+    }
+  }, false)
+
+  setTimeout(() => {
+    runPinger()
+      .catch((err) => {
+        console.error(err)
+      })
+  }, 10000)
 }

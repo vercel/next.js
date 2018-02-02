@@ -15,6 +15,10 @@ class Counter extends React.Component {
     this.timer = this.props.startClock()
   }
 
+  componentWillUnmount () {
+    clearInterval(this.timer)
+  }
+
   render () {
     return (
       <Page title='Other Page' linkTo='/' />

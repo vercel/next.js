@@ -5,7 +5,6 @@ import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
-import ErrorDebugComponent from '../lib/error-debug'
 import PageLoader from '../lib/page-loader'
 
 // Polyfill Promise globally
@@ -53,20 +52,26 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
+let ErrorDebugComponent
 let Component
+let stripAnsi = (s) => s
 
-export default async () => {
+export const emitter = new EventEmitter()
+
+export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
   }
 
+  stripAnsi = passedStripAnsi || stripAnsi
+  ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {
     Component = await pageLoader.loadPage(pathname)
   } catch (err) {
-    console.error(`${err.message}\n${err.stack}`)
+    console.error(stripAnsi(`${err.message}\n${err.stack}`))
     Component = ErrorComponent
   }
 
@@ -76,8 +81,6 @@ export default async () => {
     ErrorComponent,
     err
   })
-
-  const emitter = new EventEmitter()
 
   router.subscribe(({ Component, props, hash, err }) => {
     render({ Component, props, err, hash, emitter })
@@ -118,28 +121,24 @@ export async function renderError (error) {
   ReactDOM.unmountComponentAtNode(appContainer)
 
   const errorMessage = `${error.message}\n${error.stack}`
-  console.error(errorMessage)
+  console.error(stripAnsi(errorMessage))
 
   if (prod) {
     const initProps = { err: error, pathname, query, asPath }
     const props = await loadGetInitialProps(ErrorComponent, initProps)
-    ReactDOM.render(createElement(ErrorComponent, props), errorContainer)
+    renderReactElement(createElement(ErrorComponent, props), errorContainer)
   } else {
-    ReactDOM.render(createElement(ErrorDebugComponent, { error }), errorContainer)
+    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
   }
 }
 
-async function doRender ({ Component, props, hash, err, emitter }) {
+async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
     const { pathname, query, asPath } = router
     props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
-  }
-
-  if (emitter) {
-    emitter.emit('before-reactdom-render', { Component, ErrorComponent })
   }
 
   Component = Component || lastAppProps.Component
@@ -149,11 +148,21 @@ async function doRender ({ Component, props, hash, err, emitter }) {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
+  emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
+
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  ReactDOM.render(createElement(App, appProps), appContainer)
+  renderReactElement(createElement(App, appProps), appContainer)
 
-  if (emitter) {
-    emitter.emit('after-reactdom-render', { Component, ErrorComponent })
+  emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+}
+
+let isInitialRender = true
+function renderReactElement (reactEl, domEl) {
+  if (isInitialRender) {
+    ReactDOM.hydrate(reactEl, domEl)
+    isInitialRender = false
+  } else {
+    ReactDOM.render(reactEl, domEl)
   }
 }

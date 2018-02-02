@@ -21,6 +21,9 @@ export default class SelfReload extends Component {
         <Link href='/nav/hash-changes'>
           <a id='page-url'>Page URL</a>
         </Link>
+        <Link href='#'>
+          <a id='via-empty-hash'>Via Empty Hash</a>
+        </Link>
         <p>COUNT: {this.props.count}</p>
       </div>
     )
