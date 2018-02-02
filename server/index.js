@@ -48,13 +48,10 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    // With this, static assets will work across zones
-    asset.setAssetPrefix(this.config.assetPrefix)
-
+    this.setAssetPrefix(this.config.assetPrefix)
     this.defineRoutes()
   }
 
@@ -85,6 +82,11 @@ export default class Server {
 
   getRequestHandler () {
     return this.handleRequest.bind(this)
+  }
+
+  setAssetPrefix (prefix) {
+    this.renderOpts.assetPrefix = prefix.replace(/\/$/, '')
+    asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
   async prepare () {
