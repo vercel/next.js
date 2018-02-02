@@ -11,7 +11,7 @@ const handleNextRequests = app.getRequestHandler()
 app.prepare().then(() => {
   const server = micro((req, res) => {
     if (/setAssetPrefix/.test(req.url)) {
-      app.setAssetPrefix('https://cdn.com/myapp')
+      app.setAssetPrefix(`http://127.0.0.1:${port}`)
     } else {
       // This is to support multi-zones support in localhost
       // and may be in staging deployments
