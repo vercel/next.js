@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Deploy it to github
+### Deploy it to github
 
 Edit ```env-config.js``` and replace ```'Next-gh-page-example'``` by your project name.
 
