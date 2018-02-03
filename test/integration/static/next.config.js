@@ -3,6 +3,7 @@ module.exports = {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
+      '/asset': { page: '/asset' },
       '/button-link': { page: '/button-link' },
       '/get-initial-props-with-no-query': { page: '/get-initial-props-with-no-query' },
       '/counter': { page: '/counter' },

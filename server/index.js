@@ -85,7 +85,7 @@ export default class Server {
   }
 
   setAssetPrefix (prefix) {
-    this.renderOpts.assetPrefix = prefix.replace(/\/$/, '')
+    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
     asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
