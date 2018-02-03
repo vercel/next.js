@@ -8,6 +8,7 @@ import getConfig from './config'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
+import { setAssetPrefix } from '../lib/asset'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
@@ -84,6 +85,9 @@ export default async function (dir, options, configuration) {
     hotReloader: null,
     availableChunks: getAvailableChunks(dir, config.distDir)
   }
+
+  // set the assetPrefix to use for 'next/asset'
+  setAssetPrefix(renderOpts.assetPrefix)
 
   // We need this for server rendering the Link component.
   global.__NEXT_DATA__ = {

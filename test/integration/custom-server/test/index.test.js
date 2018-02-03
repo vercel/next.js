@@ -38,6 +38,11 @@ describe('Custom Server', () => {
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
     })
 
+    it('should handle null assetPrefix accordingly', async () => {
+      const $normal = cheerio.load(await renderViaHTTP(appPort, '/asset?setEmptyAssetPrefix=1'))
+      expect($normal('img').attr('src')).toBe('/static/myimage.png')
+    })
+
     it('should set the assetPrefix to a given request', async () => {
       for (let lc = 0; lc < 1000; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
