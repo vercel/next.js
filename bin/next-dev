@@ -4,6 +4,10 @@ import parseArgs from 'minimist'
 import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
+import pkg from '../../package.json'
+import updateNotifier from '@zeit/check-updates'
+
+updateNotifier(pkg, 'next')
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
