@@ -7,13 +7,12 @@ import {
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP,
-  waitFor
+  renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
-import { readFileSync } from 'fs'
+import security from './security'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -74,23 +73,6 @@ describe('Production Usage', () => {
     })
   })
 
-  describe('With XSS Attacks', () => {
-    it('should prevent URI based attaks', async () => {
-      const browser = await webdriver(appPort, '/\',document.body.innerHTML="HACKED",\'')
-      // Wait 5 secs to make sure we load all the client side JS code
-      await waitFor(5000)
-
-      const bodyText = await browser
-        .elementByCss('body').text()
-
-      if (/HACKED/.test(bodyText)) {
-        throw new Error('Vulnerable to XSS attacks')
-      }
-
-      browser.close()
-    })
-  })
-
   describe('Misc', () => {
     it('should handle already finished responses', async () => {
       const res = {
@@ -110,21 +92,6 @@ describe('Production Usage', () => {
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
       expect(data).toBe('item')
-    })
-
-    it('should only access files inside .next directory', async () => {
-      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
-
-      const pathsToCheck = [
-        `/_next/${buildId}/page/../../../info`,
-        `/_next/${buildId}/page/../../../info.js`,
-        `/_next/${buildId}/page/../../../info.json`
-      ]
-
-      for (const path of pathsToCheck) {
-        const data = await renderViaHTTP(appPort, path)
-        expect(data.includes('cool-version')).toBeFalsy()
-      }
     })
   })
 
@@ -148,4 +115,6 @@ describe('Production Usage', () => {
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+
+  security(context)
 })
