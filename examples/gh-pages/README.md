@@ -34,11 +34,11 @@ npm run deploy
 
 Test it:
 
-Reaplce 'github-user-name' and 'github-projet-name'
+Replace 'github-user-name' and 'github-project-name'
 
 ```bash
 
-https://github-user-name.github.io/github-projet-name/
+https://github-user-name.github.io/github-project-name/
 
 ```
 
