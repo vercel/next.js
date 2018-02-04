@@ -17,13 +17,13 @@ export const nextBuild = build
 export const nextExport = _export
 export const pkg = _pkg
 
-export function renderViaAPI (app, pathname, query = {}) {
-  const url = `${pathname}?${qs.stringify(query)}`
+export function renderViaAPI (app, pathname, query) {
+  const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
-export function renderViaHTTP (appPort, pathname, query = {}) {
-  const url = `http://localhost:${appPort}${pathname}?${qs.stringify(query)}`
+export function renderViaHTTP (appPort, pathname, query) {
+  const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return fetch(url).then((res) => res.text())
 }
 

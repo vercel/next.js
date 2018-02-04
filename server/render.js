@@ -7,7 +7,6 @@ import generateETag from 'etag'
 import fresh from 'fresh'
 import requireModule from './require'
 import getConfig from './config'
-import resolvePath from './resolve'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
@@ -70,7 +69,7 @@ async function doRender (req, res, pathname, query, {
     const app = createElement(App, {
       Component: enhancer(Component),
       props,
-      router: new Router(pathname, query)
+      router: new Router(pathname, query, asPath)
     })
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
@@ -78,16 +77,19 @@ async function doRender (req, res, pathname, query, {
     let html
     let head
     let errorHtml = ''
+
     try {
-      html = render(app)
+      if (err && dev) {
+        errorHtml = render(createElement(ErrorDebug, { error: err }))
+      } else if (err) {
+        errorHtml = render(app)
+      } else {
+        html = render(app)
+      }
     } finally {
       head = Head.rewind() || defaultHead()
     }
     const chunks = loadChunks({ dev, dir, dist, availableChunks })
-
-    if (err && dev) {
-      errorHtml = render(createElement(ErrorDebug, { error: err }))
-    }
 
     return { html, head, errorHtml, chunks }
   }
@@ -120,22 +122,6 @@ async function doRender (req, res, pathname, query, {
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export async function renderScript (req, res, page, opts) {
-  try {
-    const dist = getConfig(opts.dir).distDir
-    const path = join(opts.dir, dist, 'bundles', 'pages', page)
-    const realPath = await resolvePath(path)
-    await serveStatic(req, res, realPath)
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      renderScriptError(req, res, page, err, {}, opts)
-      return
-    }
-
-    throw err
-  }
 }
 
 export async function renderScriptError (req, res, page, error, customFields, { dev }) {

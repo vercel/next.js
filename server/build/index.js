@@ -13,8 +13,8 @@ export default async function build (dir, conf = null) {
   const compiler = await webpack(dir, { buildId, buildDir, conf })
 
   try {
-    await runCompiler(compiler)
-    await writeBuildStats(buildDir)
+    const stats = await runCompiler(compiler)
+    await writeBuildStats(buildDir, stats)
     await writeBuildId(buildDir, buildId)
   } catch (err) {
     console.error(`> Failed to build on ${buildDir}`)
@@ -46,7 +46,7 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildStats (dir) {
+async function writeBuildStats (dir, stats) {
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)

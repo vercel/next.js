@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "4.1.0",
+  "version": "4.2.3",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -10,6 +10,7 @@
   "files": [
     "dist",
     "babel.js",
+    "client.js",
     "link.js",
     "css.js",
     "head.js",
@@ -90,8 +91,8 @@
     "recursive-copy": "2.0.6",
     "send": "0.16.1",
     "source-map-support": "0.4.18",
-    "strip-ansi": "4.0.0",
-    "styled-jsx": "2.1.1",
+    "strip-ansi": "3.0.1",
+    "styled-jsx": "2.2.1",
     "touch": "3.1.0",
     "unfetch": "3.0.0",
     "url": "0.11.0",

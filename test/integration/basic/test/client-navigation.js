@@ -407,8 +407,11 @@ export default (context, render) => {
       it('should navigate as expected', async () => {
         const browser = await webdriver(context.appPort, '/nav/with-hoc')
 
-        const spanText = await browser.elementByCss('span').text()
-        expect(spanText).toBe('Current path: /nav/with-hoc')
+        const pathname = await browser.elementByCss('#pathname').text()
+        expect(pathname).toBe('Current path: /nav/with-hoc')
+
+        const asPath = await browser.elementByCss('#asPath').text()
+        expect(asPath).toBe('Current asPath: /nav/with-hoc')
 
         const text = await browser
           .elementByCss('.nav-with-hoc a').click()

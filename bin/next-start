@@ -4,8 +4,6 @@ import { resolve } from 'path'
 import parseArgs from 'minimist'
 import Server from '../server'
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'production'
-
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',

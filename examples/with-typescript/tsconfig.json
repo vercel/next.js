@@ -1,8 +1,8 @@
 {
-    "compilerOptions": {
-        "module": "commonjs",
-        "target": "es2015",
-        "jsx": "react",
-        "allowJs": true
-    }
+  "compilerOptions": {
+    "jsx": "react-native",
+    "module": "commonjs",
+    "strict": true,
+    "target": "es2017"
+  }
 }

@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^3.0.3",
+    "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "react-lazyload": "^2.2.7"

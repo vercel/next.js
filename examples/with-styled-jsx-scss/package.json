@@ -11,7 +11,7 @@
     "node-sass": "4.5.3",
     "react": "16.0.0",
     "react-dom": "16.0.0",
-    "styled-jsx-plugin-sass": "0.1.0"
+    "styled-jsx-plugin-sass": "0.2.0"
   },
   "license": "ISC"
 }
