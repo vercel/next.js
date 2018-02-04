@@ -1,0 +1,15 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
+  "version": "1.0.0",
+  "dependencies": {
+    "firebase-admin": "^5.0.1",
+    "firebase-functions": "^0.6.0",
+    "next": "^4.2.1",
+    "prop-types": "^15.6.0",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
+    "styled-jsx": "^2.2.1"
+  },
+  "private": true
+}

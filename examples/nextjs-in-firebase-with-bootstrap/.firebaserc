@@ -1,0 +1,5 @@
+{
+  "projects": {
+    "default": "nextjs-in-firebase-functions"
+  }
+}
