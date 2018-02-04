@@ -2,12 +2,14 @@ import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
-import webpack from './build/webpack'
+import webpack from 'webpack'
+import getBaseWebpackConfig from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
 import UUID from 'uuid'
 import {
-  IS_BUNDLED_PAGE
+  IS_BUNDLED_PAGE,
+  addCorsSupport
 } from './utils'
 
 export default class HotReloader {
@@ -34,6 +36,15 @@ export default class HotReloader {
   }
 
   async run (req, res) {
+    // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
+    // With when the app runs for multi-zones support behind a proxy,
+    // the current page is trying to access this URL via assetPrefix.
+    // That's when the CORS support is needed.
+    const { preflight } = addCorsSupport(req, res)
+    if (preflight) {
+      return
+    }
+
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
         fn(req, res, (err) => {
@@ -45,15 +56,19 @@ export default class HotReloader {
   }
 
   async start () {
-    const [compiler] = await Promise.all([
-      webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
-      clean(this.dir)
+    await clean(this.dir)
+
+    const configs = await Promise.all([
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
     ])
+
+    const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
     this.assignBuildTools(buildTools)
 
-    this.stats = await this.waitUntilValid()
+    this.stats = (await this.waitUntilValid()).stats[0]
   }
 
   async stop (webpackDevMiddleware) {
@@ -71,10 +86,14 @@ export default class HotReloader {
   async reload () {
     this.stats = null
 
-    const [compiler] = await Promise.all([
-      webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
-      clean(this.dir)
+    await clean(this.dir)
+
+    const configs = await Promise.all([
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
     ])
+
+    const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
     this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
@@ -97,25 +116,28 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (compiler) {
-    compiler.plugin('after-emit', (compilation, callback) => {
-      const { assets } = compilation
+    // This flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
+    compiler.compilers.forEach((singleCompiler) => {
+      singleCompiler.plugin('after-emit', (compilation, callback) => {
+        const { assets } = compilation
 
-      if (this.prevAssets) {
-        for (const f of Object.keys(assets)) {
-          deleteCache(assets[f].existsAt)
-        }
-        for (const f of Object.keys(this.prevAssets)) {
-          if (!assets[f]) {
-            deleteCache(this.prevAssets[f].existsAt)
+        if (this.prevAssets) {
+          for (const f of Object.keys(assets)) {
+            deleteCache(assets[f].existsAt)
+          }
+          for (const f of Object.keys(this.prevAssets)) {
+            if (!assets[f]) {
+              deleteCache(this.prevAssets[f].existsAt)
+            }
           }
         }
-      }
-      this.prevAssets = assets
+        this.prevAssets = assets
 
-      callback()
+        callback()
+      })
     })
 
-    compiler.plugin('done', (stats) => {
+    compiler.compilers[0].plugin('done', (stats) => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
@@ -193,12 +215,13 @@ export default class HotReloader {
 
     const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
 
-    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
+    const webpackHotMiddleware = WebpackHotMiddleware(compiler.compilers[0], {
       path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
     })
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler, {
+
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers, {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
@@ -249,8 +272,8 @@ export default class HotReloader {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
-  ensurePage (page) {
-    return this.onDemandEntries.ensurePage(page)
+  async ensurePage (page) {
+    await this.onDemandEntries.ensurePage(page)
   }
 }
 

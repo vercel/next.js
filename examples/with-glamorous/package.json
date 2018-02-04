@@ -9,9 +9,9 @@
   "dependencies": {
     "glamor": "^2.20.24",
     "glamorous": "^4.11.0",
-    "next": "^2.0.1",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "next": "latest",
+    "react": "16.2.0",
+    "react-dom": "16.2.0"
   },
   "license": "ISC"
 }

@@ -1,20 +1,9 @@
 import { graphql } from 'react-apollo'
 import gql from 'graphql-tag'
-import { Router } from '../routes'
 import ErrorMessage from './ErrorMessage'
-import PostVoteUp from './PostVoteUp'
-import PostVoteDown from './PostVoteDown'
-import PostVoteCount from './PostVoteCount'
+import PostUpvoter from './PostUpvoter'
 
 const POSTS_PER_PAGE = 10
-
-function handleClick (event, id) {
-  event.preventDefault()
-  // With route name and params
-  // Router.pushRoute('blog/entry', { id: id })
-  // With route URL
-  Router.pushRoute(`/blog/${id}`)
-}
 
 function PostList ({
   data: { loading, error, allPosts, _allPostsMeta },
@@ -30,15 +19,8 @@ function PostList ({
             <li key={post.id}>
               <div>
                 <span>{index + 1}. </span>
-                <a
-                  href={`/blog/${post.id}`}
-                  onClick={(event) => handleClick(event, post.id)}
-                >
-                  {post.title}
-                </a>
-                <PostVoteUp id={post.id} votes={post.votes} />
-                <PostVoteCount votes={post.votes} />
-                <PostVoteDown id={post.id} votes={post.votes} />
+                <a href={post.url}>{post.title}</a>
+                <PostUpvoter id={post.id} votes={post.votes} />
               </div>
             </li>
           ))}
@@ -109,7 +91,6 @@ export const allPosts = gql`
     }
   }
 `
-
 export const allPostsQueryVars = {
   skip: 0,
   first: POSTS_PER_PAGE
