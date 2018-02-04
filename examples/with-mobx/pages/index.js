@@ -1,25 +1,57 @@
-import React from 'react'
-import { Provider } from 'mobx-react'
-import { initStore } from '../store'
+/* global setTimeout */
+
+// modules
+import { Component } from 'react'
+
+// components
 import Page from '../components/Page'
 
-export default class Counter extends React.Component {
-  static getInitialProps ({ req }) {
-    const isServer = !!req
-    const store = initStore(isServer)
-    return { lastUpdate: store.lastUpdate, isServer }
-  }
+// store
+import { initStore, withMobX } from '../store'
 
-  constructor (props) {
-    super(props)
-    this.store = initStore(props.isServer, props.lastUpdate)
-  }
+export default withMobX('store', initStore, 'anotherStore', initStore)(
+    class Index extends Component {
+      static async getInitialProps (ctx) {
+            // MobX stores are available within wrapped getInitialProps at
+            // `ctx.store` and `ctx.anotherStore`
 
-  render () {
-    return (
-      <Provider store={this.store}>
-        <Page title='Index Page' linkTo='/other' />
-      </Provider>
-    )
-  }
-}
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(
+            { myInitProp: 'TRUE',
+              InitLastUpdate_1: ctx.store.lastUpdate,
+              InitLastUpdate_2: ctx.anotherStore.lastUpdate
+            }
+                ))
+        })
+      }
+
+        // MobX stores are available within wrapped component at
+        // `this.props.store` and `this.props.anotherStore`
+
+      componentDidMount () {
+        this.props.anotherStore.start()
+      }
+
+      componentWillUnmount () {
+        this.props.anotherStore.stop()
+      }
+
+      render () {
+        return (
+          <div>
+            <Page title='Index Page' linkTo='/other' />
+            <p>Raw clocks: &nbsp;
+                    {this.props.store.lastUpdate}&ensp;
+              {this.props.anotherStore.lastUpdate}
+            </p>
+            <p>withMobX calls page's getInitialProps static method: &nbsp;
+                    {this.props.myInitProp}</p>
+            <p>withMobX forwards initialized stores as props<br />on the
+                    context argument of page's getInitialProps: &nbsp;
+                    {this.props.InitLastUpdate_1}&ensp;
+              {this.props.InitLastUpdate_2}</p>
+          </div>
+        )
+      }
+    }
+)

@@ -7,8 +7,8 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "mobx": "^2.7.0",
-    "mobx-react": "^4.0.4",
+    "mobx": "^3.3.1",
+    "mobx-react": "^4.3.3",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"

@@ -1,10 +1,15 @@
-import React from 'react'
-import Link from 'next/link'
+// modules
 import { inject, observer } from 'mobx-react'
+import Link from 'next/link'
+import { Component } from 'react'
+
+// components
 import Clock from './Clock'
 
 @inject('store') @observer
-class Page extends React.Component {
+export default class extends Component {
+    // MobX store is available within decorated component at `this.props.store`
+
   componentDidMount () {
     this.props.store.start()
   }
@@ -17,7 +22,8 @@ class Page extends React.Component {
     return (
       <div>
         <h1>{this.props.title}</h1>
-        <Clock lastUpdate={this.props.store.lastUpdate} light={this.props.store.light} />
+        <Clock />
+        <br /><br />
         <nav>
           <Link href={this.props.linkTo}><a>Navigate</a></Link>
         </nav>
@@ -25,5 +31,3 @@ class Page extends React.Component {
     )
   }
 }
-
-export default Page
