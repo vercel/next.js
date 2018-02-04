@@ -1,5 +1,4 @@
 import { join } from 'path'
-import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
@@ -7,9 +6,9 @@ import generateETag from 'etag'
 import fresh from 'fresh'
 import requireModule from './require'
 import getConfig from './config'
-import resolvePath from './resolve'
 import { Router } from '../lib/router'
-import { loadGetInitialProps } from '../lib/utils'
+import { loadGetInitialProps, isResSent } from '../lib/utils'
+import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
@@ -53,9 +52,12 @@ async function doRender (req, res, pathname, query, {
 
   const dist = getConfig(dir).distDir
 
+  const pagePath = join(dir, dist, 'dist', 'bundles', 'pages', page)
+  const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
+
   let [Component, Document] = await Promise.all([
-    requireModule(join(dir, dist, 'dist', 'pages', page)),
-    requireModule(join(dir, dist, 'dist', 'pages', '_document'))
+    requireModule(pagePath),
+    requireModule(documentPath)
   ])
   Component = Component.default || Component
   Document = Document.default || Document
@@ -64,7 +66,7 @@ async function doRender (req, res, pathname, query, {
   const props = await loadGetInitialProps(Component, ctx)
 
   // the response might be finshed on the getinitialprops call
-  if (res.finished) return
+  if (isResSent(res)) return
 
   const renderPage = (enhancer = Page => Page) => {
     const app = createElement(App, {
@@ -97,7 +99,7 @@ async function doRender (req, res, pathname, query, {
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
 
-  if (res.finished) return
+  if (isResSent(res)) return
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
   const doc = createElement(Document, {
@@ -118,22 +120,6 @@ async function doRender (req, res, pathname, query, {
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export async function renderScript (req, res, page, opts) {
-  try {
-    const dist = getConfig(opts.dir).distDir
-    const path = join(opts.dir, dist, 'bundles', 'pages', page)
-    const realPath = await resolvePath(path)
-    await serveStatic(req, res, realPath)
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      renderScriptError(req, res, page, err, {}, opts)
-      return
-    }
-
-    throw err
-  }
 }
 
 export async function renderScriptError (req, res, page, error, customFields, { dev }) {
@@ -169,7 +155,7 @@ export async function renderScriptError (req, res, page, error, customFields, { 
 }
 
 export function sendHTML (req, res, html, method, { dev }) {
-  if (res.finished) return
+  if (isResSent(res)) return
   const etag = generateETag(html)
 
   if (fresh(req.headers, { etag })) {
@@ -193,7 +179,7 @@ export function sendHTML (req, res, html, method, { dev }) {
 }
 
 export function sendJSON (res, obj, method) {
-  if (res.finished) return
+  if (isResSent(res)) return
 
   const json = JSON.stringify(obj)
   res.setHeader('Content-Type', 'application/json')
@@ -246,15 +232,22 @@ async function ensurePage (page, { dir, hotReloader }) {
 
 function loadChunks ({ dev, dir, dist, availableChunks }) {
   const flushedChunks = flushChunks()
-  const validChunks = []
+  const response = {
+    names: [],
+    filenames: []
+  }
+
+  if (dev) {
+    availableChunks = getAvailableChunks(dir, dist)
+  }
 
   for (var chunk of flushedChunks) {
-    const filename = join(dir, dist, 'chunks', chunk)
-    const exists = dev ? existsSync(filename) : availableChunks[chunk]
-    if (exists) {
-      validChunks.push(chunk)
+    const filename = availableChunks[chunk]
+    if (filename) {
+      response.names.push(chunk)
+      response.filenames.push(filename)
     }
   }
 
-  return validChunks
+  return response
 }

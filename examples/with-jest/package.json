@@ -8,9 +8,8 @@
   },
   "devDependencies": {
     "enzyme": "3.2.0",
-    "enzyme-adapter-react-16": "1.1.0",
-    "jest": "21.2.1",
-    "raf": "3.4.0",
+    "enzyme-adapter-react-16": "1.1.1",
+    "jest": "22.0.1",
     "react-addons-test-utils": "15.6.2",
     "react-test-renderer": "16.2.0"
   },

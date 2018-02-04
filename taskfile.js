@@ -1,5 +1,7 @@
 const notifier = require('node-notifier')
 const childProcess = require('child_process')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile (task) {
@@ -26,12 +28,21 @@ export async function client (task, opts) {
   notify('Compiled client files')
 }
 
+// Create node_modules/next for the use of test apps
+export async function symlinkNextForTesting () {
+  rimraf.sync('test/node_modules/next')
+  mkdirp.sync('test/node_modules')
+
+  const symlinkCommand = isWindows ? 'mklink /D "next" "..\\..\\"' : 'ln -s ../../ next'
+  childProcess.execSync(symlinkCommand, { cwd: 'test/node_modules' })
+}
+
 export async function copy (task) {
   await task.source('pages/**/*.js').target('dist/pages')
 }
 
 export async function build (task) {
-  await task.serial(['copy', 'compile'])
+  await task.serial(['symlinkNextForTesting', 'copy', 'compile'])
 }
 
 export default async function (task) {
@@ -53,8 +64,10 @@ export async function release (task) {
 // the lifetime of the original npm script.
 
 export async function pretest (task) {
+  // Start chromedriver
   const processName = isWindows ? 'chromedriver.cmd' : 'chromedriver'
   childProcess.spawn(processName, { stdio: 'inherit' })
+
   // We need to do this, otherwise this task's process will keep waiting.
   setTimeout(() => process.exit(0), 2000)
 }

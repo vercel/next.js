@@ -14,6 +14,7 @@ import rendering from './rendering'
 import clientNavigation from './client-navigation'
 import hmr from './hmr'
 import dynamic from './dynamic'
+import asset from './asset'
 
 const context = {}
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -60,4 +61,5 @@ describe('Basic Features', () => {
   clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  asset(context)
 })
