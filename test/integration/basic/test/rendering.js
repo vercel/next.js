@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 
-export default function ({ app }, suiteName, render) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -28,6 +28,28 @@ export default function ({ app }, suiteName, render) {
       expect(html.includes('I can haz meta tags')).toBeTruthy()
     })
 
+    test('header helper dedupes tags', async () => {
+      const html = await (render('/head'))
+      expect(html).toContain('<meta charSet="iso-8859-5" class="next-head"/>')
+      expect(html).not.toContain('<meta charSet="utf-8" class="next-head"/>')
+      expect(html).toContain('<meta content="my meta" class="next-head"/>')
+      expect(html).toContain('<link rel="stylesheet" href="/dup-style.css" class="next-head"/><link rel="stylesheet" href="/dup-style.css" class="next-head"/>')
+      expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
+      expect(html).not.toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
+    })
+
+    test('header helper renders Fragment children', async () => {
+      const html = await (render('/head'))
+      expect(html).toContain('<title class="next-head">Fragment title</title>')
+      expect(html).toContain('<meta content="meta fragment" class="next-head"/>')
+    })
+
+    it('should render the page with custom extension', async () => {
+      const html = await render('/custom-extension')
+      expect(html).toContain('<div>Hello</div>')
+      expect(html).toContain('<div>World</div>')
+    })
+
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
       const styleId = $('#blue-box').attr('class')
@@ -51,6 +73,16 @@ export default function ({ app }, suiteName, render) {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
       expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+    })
+
+    test('default Content-Type', async () => {
+      const res = await fetch('/stateless')
+      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=utf-8')
+    })
+
+    test('setting Content-Type in getInitialProps', async () => {
+      const res = await fetch('/custom-encoding')
+      expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
     })
 
     test('allows to import .json files', async () => {

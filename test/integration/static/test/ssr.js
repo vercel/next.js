@@ -42,5 +42,11 @@ export default function (context) {
       const html = await renderViaHTTP(context.port, '/get-initial-props-with-no-query')
       expect(html).toMatch(/Query is: {}/)
     })
+
+    it('should handle next/asset properly', async () => {
+      const html = await renderViaHTTP(context.port, '/asset')
+      const $ = cheerio.load(html)
+      expect($('img').attr('src')).toBe('/static/myimage.png')
+    })
   })
 }

@@ -4,7 +4,7 @@
   "dependencies": {
     "firebase-admin": "5.3.0",
     "firebase-functions": "0.6.3",
-    "next": "4.0.0-beta.2",
+    "next": "latest",
     "react": "16.0.0",
     "react-dom": "16.0.0"
   }

@@ -1,10 +1,7 @@
 #!/usr/bin/env node
-
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { spawn } from 'cross-spawn'
-import { watchFile } from 'fs'
 import pkg from '../../package.json'
-import getConfig from '../server/config'
 
 if (pkg.peerDependencies) {
   Object.keys(pkg.peerDependencies).forEach(dependency => {
@@ -27,11 +24,16 @@ const commands = new Set([
 ])
 
 let cmd = process.argv[2]
-let args
+let args = []
+let nodeArgs = []
 
 if (new Set(['--version', '-v']).has(cmd)) {
   console.log(`next.js v${pkg.version}`)
   process.exit(0)
+}
+
+if (new Set(process.argv).has('--inspect')) {
+  nodeArgs.push('--inspect')
 }
 
 if (new Set(['--help', '-h']).has(cmd)) {
@@ -61,7 +63,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 const bin = join(__dirname, 'next-' + cmd)
 
 const startProcess = () => {
-  const proc = spawn(bin, args, { stdio: 'inherit', customFds: [0, 1, 2] })
+  const proc = spawn('node', [...nodeArgs, ...[bin], ...args], { stdio: 'inherit', customFds: [0, 1, 2] })
   proc.on('close', (code, signal) => {
     if (code !== null) {
       process.exit(code)
@@ -83,10 +85,10 @@ const startProcess = () => {
 }
 
 let proc = startProcess()
-const { pagesDirectory = resolve(process.cwd(), 'pages') } = getConfig(process.cwd())
 
 if (cmd === 'dev') {
-  watchFile(`${resolve(pagesDirectory, '..')}/next.config.js`, (cur, prev) => {
+  const {watchFile} = require('fs')
+  watchFile(`${process.cwd()}/next.config.js`, (cur, prev) => {
     if (cur.size > 0 || prev.size > 0) {
       console.log('\n> Found a change in next.config.js, restarting the server...')
       // Don't listen to 'close' now since otherwise parent gets killed by listener
