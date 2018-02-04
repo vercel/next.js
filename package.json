@@ -50,7 +50,7 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "@zeit/source-map-support": "0.6.0",
+    "@zeit/source-map-support": "0.6.2",
     "ansi-html": "0.0.7",
     "babel-core": "6.26.0",
     "babel-loader": "7.1.2",
