@@ -30,7 +30,7 @@ describe('On Demand Entries', () => {
   })
 
   it('should compile pages for JSON page requests', async () => {
-    const pageContent = await renderViaHTTP(context.appPort, '/_next/-/page/about')
+    const pageContent = await renderViaHTTP(context.appPort, '/_next/-/page/about.js')
     expect(pageContent.includes('About Page')).toBeTruthy()
   })
 
@@ -39,11 +39,11 @@ describe('On Demand Entries', () => {
     expect(existsSync(indexPagePath)).toBeTruthy()
 
     // Render two pages after the index, since the server keeps at least two pages
-    await renderViaHTTP(context.appPort, '/_next/-/page/about')
+    await renderViaHTTP(context.appPort, '/about')
     await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/about'})
     const aboutPagePath = resolve(__dirname, '../.next/bundles/pages/about.js')
 
-    await renderViaHTTP(context.appPort, '/_next/-/page/third')
+    await renderViaHTTP(context.appPort, '/third')
     await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/third'})
     const thirdPagePath = resolve(__dirname, '../.next/bundles/pages/third.js')
 

@@ -17,7 +17,7 @@ export default ComposedComponent => {
     }
 
     static async getInitialProps (ctx) {
-      let serverState = {}
+      let serverState = { apollo: {} }
 
       // Evaluate the composed component's getInitialProps()
       let composedInitialProps = {}
