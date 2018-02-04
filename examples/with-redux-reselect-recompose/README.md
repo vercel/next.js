@@ -4,10 +4,21 @@
 
 ## How to use
 
+### Using `create-next-app`
+
+Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+
+```
+npm i -g create-next-app
+create-next-app --example with-redux-reselect-recompose with-redux-reselect-recompose-app
+```
+
+### Download manually
+
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-redux-reselect-recompose
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-reselect-recompose
 cd with-redux-reselect-recompose
 ```
 
