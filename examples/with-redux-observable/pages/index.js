@@ -3,17 +3,17 @@ import Link from 'next/link'
 import withRedux from 'next-redux-wrapper'
 import initStore from '../redux'
 import CharacterInfo from '../components/CharacterInfo'
-import { rootEpic } from "../redux/epics";
-import * as actions from "../redux/actions";
-import { of } from "rxjs/observable/of";
+import { rootEpic } from '../redux/epics'
+import * as actions from '../redux/actions'
+import { of } from 'rxjs/observable/of'
 
 class Counter extends React.Component {
-  static async getInitialProps({ store, isServer }) {
+  static async getInitialProps ({ store, isServer }) {
     const resultAction = await rootEpic(
       of(actions.fetchCharacter(isServer)),
       store
-    ).toPromise(); // we need to convert Observable to Promise
-    store.dispatch(resultAction);
+    ).toPromise() // we need to convert Observable to Promise
+    store.dispatch(resultAction)
 
     return { isServer }
   }

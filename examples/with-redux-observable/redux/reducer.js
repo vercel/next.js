@@ -1,5 +1,4 @@
-import { Observable } from "rxjs/Observable";
-import * as types from "./actionTypes"
+import * as types from './actionTypes'
 
 const INITIAL_STATE = {
   nextCharacterId: 1,
@@ -23,5 +22,3 @@ export default function reducer (state = INITIAL_STATE, { type, payload }) {
       return state
   }
 }
-
-

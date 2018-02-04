@@ -1,11 +1,11 @@
-import { interval } from "rxjs/observable/interval";
-import { of } from "rxjs/observable/of"
-import { takeUntil, map, mergeMap, catchError } from "rxjs/operators";
-import { combineEpics, ofType } from "redux-observable";
-import ajax from "universal-rx-request"; // because standard AjaxObservable only works in browser
+import { interval } from 'rxjs/observable/interval'
+import { of } from 'rxjs/observable/of'
+import { takeUntil, mergeMap, catchError } from 'rxjs/operators'
+import { combineEpics, ofType } from 'redux-observable'
+import ajax from 'universal-rx-request' // because standard AjaxObservable only works in browser
 
-import * as actions from "./actions";
-import * as types from "./actionTypes";
+import * as actions from './actions'
+import * as types from './actionTypes'
 
 export const fetchUserEpic = (action$, store) =>
   action$.pipe(
@@ -20,9 +20,9 @@ export const fetchUserEpic = (action$, store) =>
           )
         ),
         takeUntil(action$.ofType(types.STOP_FETCHING_CHARACTERS))
-      );
+      )
     })
-  );
+  )
 
 export const fetchCharacterEpic = (action$, store) =>
   action$.pipe(
@@ -49,9 +49,8 @@ export const fetchCharacterEpic = (action$, store) =>
         )
       )
     )
-  );
+  )
 
-  
 export const rootEpic = combineEpics(
   fetchUserEpic,
   fetchCharacterEpic
