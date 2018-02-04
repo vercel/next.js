@@ -8,6 +8,7 @@ import getConfig from './config'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
+import { setAssetPrefix } from '../lib/asset'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
@@ -43,7 +44,8 @@ export default async function (dir, options, configuration) {
     log('  copying "static" directory')
     await cp(
       join(dir, 'static'),
-      join(outDir, 'static')
+      join(outDir, 'static'),
+      { expand: true }
     )
   }
 
@@ -51,10 +53,10 @@ export default async function (dir, options, configuration) {
   if (existsSync(join(nextDir, 'chunks'))) {
     log('  copying dynamic import chunks')
 
-    await mkdirp(join(outDir, '_next', buildId, 'webpack'))
+    await mkdirp(join(outDir, '_next', 'webpack'))
     await cp(
       join(nextDir, 'chunks'),
-      join(outDir, '_next', buildId, 'webpack', 'chunks')
+      join(outDir, '_next', 'webpack', 'chunks')
     )
   }
 
@@ -83,6 +85,9 @@ export default async function (dir, options, configuration) {
     hotReloader: null,
     availableChunks: getAvailableChunks(dir, config.distDir)
   }
+
+  // set the assetPrefix to use for 'next/asset'
+  setAssetPrefix(renderOpts.assetPrefix)
 
   // We need this for server rendering the Link component.
   global.__NEXT_DATA__ = {
@@ -138,7 +143,7 @@ function copyPages (nextDir, outDir, buildId) {
 
       // We should not expose this page to the client side since
       // it has no use in the client side.
-      if (relativeFilePath === '/_document.js') {
+      if (relativeFilePath === `${sep}_document.js`) {
         next()
         return
       }

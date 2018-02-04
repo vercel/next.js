@@ -7,12 +7,12 @@ import {
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP,
-  waitFor
+  renderViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
+import security from './security'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -73,23 +73,6 @@ describe('Production Usage', () => {
     })
   })
 
-  describe('With XSS Attacks', () => {
-    it('should prevent URI based attaks', async () => {
-      const browser = await webdriver(appPort, '/\',document.body.innerHTML="HACKED",\'')
-      // Wait 5 secs to make sure we load all the client side JS code
-      await waitFor(5000)
-
-      const bodyText = await browser
-        .elementByCss('body').text()
-
-      if (/HACKED/.test(bodyText)) {
-        throw new Error('Vulnerable to XSS attacks')
-      }
-
-      browser.close()
-    })
-  })
-
   describe('Misc', () => {
     it('should handle already finished responses', async () => {
       const res = {
@@ -129,27 +112,9 @@ describe('Production Usage', () => {
       await app.render(req, res, req.url)
       expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
     })
-
-    it('should not set it when poweredByHeader==false', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.config.poweredByHeader
-      app.config.poweredByHeader = false
-      const res = {
-        getHeader () {
-          return false
-        },
-        setHeader (key, value) {
-          if (key === 'X-Powered-By') {
-            throw new Error('Should not set the X-Powered-By header')
-          }
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      app.config.poweredByHeader = originalConfigValue
-    })
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+
+  security(context)
 })

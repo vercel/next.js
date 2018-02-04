@@ -1,0 +1,44 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`With Snapshot Testing App shows "Menu" 1`] = `
+<ul>
+  <li>
+    <a
+      href="/blog/hello-world"
+      onClick={[Function]}
+    >
+      Blog: Hello world
+    </a>
+  </li>
+  <li>
+    <a
+      href="/blog/another-blog-post"
+      onClick={[Function]}
+    >
+      Blog: Another blog post
+    </a>
+  </li>
+  <li>
+    <a
+      href="/blog/non-existant"
+      onClick={[Function]}
+    >
+      Blog: Not found
+    </a>
+  </li>
+  <li>
+    <button
+      onClick={[Function]}
+    >
+      About foo bar
+    </button>
+  </li>
+  <li>
+    <button
+      onClick={[Function]}
+    >
+      About foo baz
+    </button>
+  </li>
+</ul>
+`;

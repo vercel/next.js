@@ -21,7 +21,6 @@ export default class CombineAssetsPlugin {
 
           // We add each matched asset from this.input to a new bundle
           concat.add(asset)
-
           // The original assets are kept because they show up when analyzing the bundle using webpack-bundle-analyzer
           // See https://github.com/zeit/next.js/tree/canary/examples/with-webpack-bundle-analyzer
         })
