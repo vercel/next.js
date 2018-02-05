@@ -1068,11 +1068,11 @@ module.exports = {
 
 Some commonly asked for features are available as modules:
 
-- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
-- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
-- ![@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- ![@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
+- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
 
 *Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
 
