@@ -1,4 +1,4 @@
-/* global describe, test, it, expect */
+/* global describe, test, expect */
 
 import cheerio from 'cheerio'
 

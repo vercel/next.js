@@ -15,7 +15,7 @@ import rendering from './rendering'
 const context = {}
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-describe('Basic Features', () => {
+describe('Next Plugins', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort, true)
