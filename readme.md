@@ -44,6 +44,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
+- [Multi Zones](#multi-zones)
 - [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -1219,6 +1220,48 @@ With next export, we build HTML version of your app when you run the command `ne
 So, you could only use `pathname`, `query` and `asPath` fields of the `context` object passed to `getInitialProps`. You can't use `req` or `res` fields.
 
 > Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
+
+## Multi Zones
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-zones">With Zones</a></li></ul>
+</details></p>
+
+A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones. Then you can merge them as a single app.
+
+For an example, you can have two zones like this:
+
+* https://docs.my-app.com for serving `/docs/**`
+* https://ui.my-app.com for serving all other pages
+
+With multi zones support, you can merge both these apps into a single one. Which allows your customers to browse it using a single URL. But you can develop and deploy both apps independently.
+
+> This is exactly the same concept as microservices, but for frontend apps.
+
+### How to define a zone
+
+There are no special zones related APIs. You only need to do following things:
+
+* Make sure to keep only the pages you need in your app. (For an example, https://ui.my-app.com should not contain pages for `/docs/**`)
+* Make sure your app has an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix). (You can also define the assetPrefix [dynamically](https://github.com/zeit/next.js#dynamic-assetprefix).)
+
+### How to merge them
+
+You can merge zones using any HTTP proxy.
+
+You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local proxy server. It allows you to easily define routing rules like below:
+
+```json
+{
+  "rules": [
+    {"pathname": "/docs**", "method":["GET", "POST", "OPTIONS"], "dest": "https://docs.my-app.com"},
+    {"pathname": "/**", "dest": "https://ui.my-app.com"}
+  ]
+}
+```
+
+For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as show above.
 
 ## Recipes
 
