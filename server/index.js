@@ -5,6 +5,7 @@ import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import fsAsync from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
+import updateNotifier from '@zeit/check-updates'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -35,6 +36,11 @@ export default class Server {
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
+
+    if (dev) {
+      updateNotifier(pkg, 'next')
+    }
+
     if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
