@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "next build",
-    "start": "next start -p 4000"
+    "start": "next start -p 5000"
   },
   "dependencies": {
     "next": "zones",
