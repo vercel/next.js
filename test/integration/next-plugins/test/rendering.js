@@ -58,6 +58,16 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
+    test('renders css imports', async () => {
+      const $ = await get$('/webpack-css')
+      expect($('._46QtCORzC4BWRnIseSbG-').text() === 'Hello World')
+    })
+
+    test('renders non-js imports from node_modules', async () => {
+      const $ = await get$('/webpack-css')
+      expect($('._2pRSkKTPDMGLMnmsEkP__J').text() === 'Hello World')
+    })
+
     test('renders properties populated asynchronously', async () => {
       const html = await render('/async-props')
       expect(html.includes('Diego Milito')).toBeTruthy()
