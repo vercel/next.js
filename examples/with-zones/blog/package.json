@@ -1,0 +1,14 @@
+{
+  "name": "with-zones-blog",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "next build",
+    "start": "next start -p 5000"
+  },
+  "dependencies": {
+    "next": "zones",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC"
+}

@@ -1,11 +1,11 @@
 // @flow
 
-import type {Element} from 'React'
+import * as React from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
 
 type Props = {
-  children?: Element<any>,
+  children?: React.Node,
   title?: string
 }
 

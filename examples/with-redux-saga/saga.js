@@ -3,7 +3,7 @@
 import {delay} from 'redux-saga'
 import {all, call, put, take, takeLatest} from 'redux-saga/effects'
 import es6promise from 'es6-promise'
-import 'isomorphic-fetch'
+import 'isomorphic-unfetch'
 
 import {actionTypes, failure, loadDataSuccess, tickClock} from './actions'
 

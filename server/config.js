@@ -1,12 +1,10 @@
-import { join } from 'path'
-import { existsSync } from 'fs'
+import findUp from 'find-up'
 
 const cache = new Map()
 
 const defaultConfig = {
   webpack: null,
   webpackDevMiddleware: null,
-  poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
@@ -25,14 +23,18 @@ function loadConfig (dir, customConfig) {
     customConfig.configOrigin = 'server'
     return withDefaults(customConfig)
   }
-  const path = join(dir, 'next.config.js')
+  const path = findUp.sync('next.config.js', {
+    cwd: dir
+  })
 
   let userConfig = {}
 
-  const userHasConfig = existsSync(path)
-  if (userHasConfig) {
+  if (path && path.length) {
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
+    if (userConfig.poweredByHeader === true || userConfig.poweredByHeader === false) {
+      console.warn('> the `poweredByHeader` option has been removed https://err.sh/zeit/next.js/powered-by-header-option-removed')
+    }
     userConfig.configOrigin = 'next.config.js'
   }
 

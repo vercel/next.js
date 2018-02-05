@@ -1,6 +1,6 @@
 <img width="112" alt="screen shot 2016-10-25 at 2 37 27 pm" src="https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png">
 
-[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next) 
+[![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
@@ -162,7 +162,15 @@ It's possible to use any existing CSS-in-JS solution. The simplest one is inline
 export default () => <p style={{ color: 'red' }}>hi there</p>
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
+
+#### Importing CSS / Sass / Less files
+
+To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
+
+- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 
 ### Static file serving (e.g.: images)
 
@@ -197,6 +205,26 @@ export default () =>
   </div>
 ```
 
+To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
+
+```jsx
+import Head from 'next/head'
+export default () => (
+  <div>
+    <Head>
+      <title>My page title</title>
+      <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+    </Head>
+    <Head>
+      <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
+    </Head>
+    <p>Hello world!</p>
+  </div>
+)
+```
+
+In this case only the second `<meta name="viewport" />` is rendered.
+
 _Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
 
 ### Fetching data and component lifecycle
@@ -228,6 +256,8 @@ export default class extends React.Component {
 ```
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
+
+Data returned from `getInitialProps` is serialized when server rendering, similar to a `JSON.stringify`. Make sure the returned object from `getInitialProps` is a plain `Object` and not using `Date`, `Map` or `Set`.
 
 For the initial page load, `getInitialProps` will execute on the server only. `getInitialProps` will only be executed on the client when navigating to a different route via the `Link` component or using the routing APIs.
 
@@ -305,7 +335,7 @@ Client-side routing behaves exactly like the browser:
 
 1. The component is fetched
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
-3. After 1 and 2 complete, `pushState` is performed and the new component rendered
+3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
 
 Each top-level component receives a `url` property with the following API:
 
@@ -362,7 +392,7 @@ export default () =>
   </div>
 ```
 
-##### Using a component that support `onClick`
+##### Using a component that supports `onClick`
 
 `<Link>` supports any component that supports the `onClick` event. In case you don't provide an `<a>` tag, it will only add the `onClick` event handler and won't pass the `href` property.
 
@@ -382,6 +412,8 @@ export default () =>
 ##### Forcing the Link to expose `href` to its child
 
 If child is an `<a>` tag and doesn't have a href attribute we specify it so that the repetition is not needed by the user. However, sometimes, you’ll want to pass an `<a>` tag inside of a wrapper and the `Link` won’t recognize it as a *hyperlink*, and, consequently, won’t transfer its `href` to the child. In cases like that, you should define a boolean `passHref` property to the `Link`, forcing it to expose its `href` property to the child.
+
+**Please note**: using a tag other than `a` and failing to pass `passHref` may result in links that appear to navigate correctly, but, when being crawled by search engines, will not be recognized as links (owing to the lack of `href` attribute). This may result in negative effects on your sites SEO.
 
 ```jsx
 import Link from 'next/link'
@@ -454,15 +486,15 @@ This uses of the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `appUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
+- `onRouteChangeStart(url)` - Fires when a route starts to change
+- `onRouteChangeComplete(url)` - Fires when a route changed completely
+- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
+- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onAppUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `routeChangeStart`:
+Here's how to properly listen to the router event `onRouteChangeStart`:
 
 ```js
 Router.onRouteChangeStart = url => {
@@ -476,7 +508,7 @@ If you no longer want to listen to that event, you can simply unset the event li
 Router.onRouteChangeStart = null
 ```
 
-If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contained a `cancelled` property set to `true`.
+If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contain a `cancelled` property set to `true`.
 
 ```js
 Router.onRouteChangeError = (err, url) => {
@@ -649,12 +681,24 @@ export default ({ url }) =>
   </ul>
 </details></p>
 
-Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc
+Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc.
+
+When using a custom server with a server file, for example called `server.js`, make sure you update the scripts key in `package.json` to:
+
+```json
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}
+```
 
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
-// This file doesn't not go through babel or webpack transformation.
+// This file doesn't go through babel or webpack transformation.
 // Make sure the syntax and sources this file requires are compatible with the current node version you are running
 // See https://github.com/zeit/next.js/issues/1245 for discussions on Universal Webpack or universal Babel
 const { createServer } = require('http')
@@ -687,7 +731,6 @@ app.prepare().then(() => {
 ```
 
 The `next` API is as follows:
-- `next(path: string, opts: object)` - `path` is where the Next project is located
 - `next(opts: object)`
 
 Supported options:
@@ -697,6 +740,58 @@ Supported options:
 - `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
 
 Then, change your `start` script to `NODE_ENV=production node server.js`.
+
+#### Disabling file-system routing
+By default, `Next` will serve each file in `/pages` under a pathname matching the filename (eg, `/pages/some-file.js` is served at `site.com/some-file`.
+
+If your project uses custom routing, this behavior may result in the same content being served from multiple paths, which can present problems with SEO and UX.
+
+To disable this behavior & prevent routing based on files in `/pages`, simply set the following option in your `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  useFileSystemPublicRoutes: false
+}
+```
+
+#### Dynamic assetPrefix
+
+Sometimes we need to set the `assetPrefix` dynamically. This is useful when changing the `assetPrefix` based on incoming requests.
+For that, we can use `app.setAssetPrefix`.
+
+Here's an example usage of it:
+
+```js
+const next = require('next')
+const micro = require('micro')
+
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
+const handle = app.getRequestHandler()
+
+app.prepare().then(() => {
+  const server = micro((req, res) => {
+    // Add assetPrefix support based on the hostname
+    if (req.headers.host === 'my-app.com') {
+      app.setAssetPrefix('http://cdn.com/myapp')
+    } else {
+      app.setAssetPrefix('')
+    }
+
+    handleNextRequests(req, res)
+  })
+
+  server.listen(port, (err) => {
+    if (err) {
+      throw err
+    }
+
+    console.log(`> Ready on http://localhost:${port}`)
+  })
+})
+
+```
 
 ### Dynamic Import
 
@@ -873,7 +968,7 @@ If you want to render the built-in error page you can by using `next/error`:
 ```jsx
 import React from 'react'
 import Error from 'next/error'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 export default class Page extends React.Component {
   static async getInitialProps() {
@@ -939,6 +1034,8 @@ module.exports = {
 }
 ```
 
+This is development-only feature. If you want to cache SSR pages in production, please see [SSR-caching](https://github.com/zeit/next.js/tree/canary/examples/ssr-caching) example.
+
 ### Customizing webpack config
 
 <p><details>
@@ -954,7 +1051,7 @@ In order to extend our usage of `webpack`, you can define a function that extend
 // (But you could use ES2015 features supported by your Node.js version)
 
 module.exports = {
-  webpack: (config, { buildId, dev }) => {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
     // Perform customizations to webpack config
 
     // Important: return the modified config
@@ -969,7 +1066,15 @@ module.exports = {
 }
 ```
 
-*Warning: Adding loaders to support new file types (css, less, svg, etc.) is __not__ recommended because only the client code gets bundled via webpack and thus it won't work on the initial server rendering. Babel plugins are a good alternative because they're applied consistently between server/client rendering (e.g. [babel-plugin-inline-react-svg](https://github.com/kesne/babel-plugin-inline-react-svg)).*
+Some commonly asked for features are available as modules:
+
+- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
+- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+
+*Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
 
 ### Customizing babel config
 
@@ -988,7 +1093,7 @@ Here's an example `.babelrc` file:
 
 ```json
 {
-  "presets": ["next/babel", "stage-0"]
+  "presets": ["next/babel", "env"]
 }
 ```
 
@@ -1004,7 +1109,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
 ## Production deployment
 
@@ -1037,7 +1142,7 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
-Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
+Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration)). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
 
 ## Static HTML export
 
@@ -1163,20 +1268,6 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 </details>
 
 <details>
-  <summary>How do I use CSS preprocessors like SASS / SCSS / LESS?</summary>
-
-Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scoped css. However you can use any CSS preprocessor solution in your Next app by following one of these examples:
-
-- [with-external-scoped-css](./examples/with-external-scoped-css)
-- [with-scoped-stylesheets-and-postcss](./examples/with-scoped-stylesheets-and-postcss)
-- [with-global-stylesheet](./examples/with-global-stylesheet)
-- [with-styled-jsx-scss](./examples/with-styled-jsx-scss)
-- [with-styled-jsx-plugins](./examples/with-styled-jsx-plugins)
-
-</details>
-
-
-<details>
   <summary>What syntactic features are transpiled? How do I change them?</summary>
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
@@ -1261,9 +1352,9 @@ Please see our [contributing.md](./contributing.md)
 
 ## Authors
 
-- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – ▲ZEIT
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens))
-- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – ▲ZEIT
-- Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – ▲ZEIT
-- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – ▲ZEIT
+- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – [ZEIT](https://zeit.co)
+- Tim Neutkens ([@timneutkens](https://github.com/timneutkens)) – [ZEIT](https://zeit.co)
+- Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – [ZEIT](https://zeit.co)
+- Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
+- Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project

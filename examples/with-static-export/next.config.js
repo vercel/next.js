@@ -1,4 +1,4 @@
-const fetch = require('isomorphic-fetch')
+const fetch = require('isomorphic-unfetch')
 
 module.exports = {
   async exportPathMap () {

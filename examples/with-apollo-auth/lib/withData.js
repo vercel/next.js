@@ -2,13 +2,14 @@ import React from 'react'
 import cookie from 'cookie'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
+import Head from 'next/head'
 
 import initApollo from './initApollo'
 
-function parseCookies (ctx = {}, options = {}) {
+function parseCookies(context = {}, options = {}) {
   return cookie.parse(
-    ctx.req && ctx.req.headers.cookie
-      ? ctx.req.headers.cookie
+    context.req && context.req.headers.cookie
+      ? context.req.headers.cookie
       : document.cookie,
     options
   )
@@ -21,7 +22,7 @@ export default ComposedComponent => {
       serverState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps (context) {
+    static async getInitialProps(context) {
       let serverState = {}
 
       // Setup a server-side one-time-use apollo client for initial props and
@@ -46,30 +47,32 @@ export default ComposedComponent => {
         }
 
         // Provide the `url` prop data in case a graphql query uses it
-        const url = {query: context.query, pathname: context.pathname}
-
-        // Run all graphql queries
-        const app = (
-          <ApolloProvider client={apollo}>
-            <ComposedComponent url={url} {...composedInitialProps} />
-          </ApolloProvider>
-        )
-        await getDataFromTree(app, {
-          router: {
-            query: context.query,
-            pathname: context.pathname,
-            asPath: context.asPath
-          }
-        })
+        const url = { query: context.query, pathname: context.pathname }
+        try {
+          // Run all GraphQL queries
+          const app = (
+            <ApolloProvider client={apollo}>
+              <ComposedComponent url={url} {...composedInitialProps} />
+            </ApolloProvider>
+          )
+          await getDataFromTree(app, {
+            router: {
+              query: context.query,
+              pathname: context.pathname,
+              asPath: context.asPath
+            }
+          })
+        } catch (error) {
+          // Prevent Apollo Client GraphQL errors from crashing SSR.
+          // Handle them in components via the data.error prop:
+          // http://dev.apollodata.com/react/api-queries.html#graphql-query-data-error
+        }
+        // getDataFromTree does not call componentWillUnmount
+        // head side effect therefore need to be cleared manually
+        Head.rewind()
 
         // Extract query data from the Apollo's store
-        const state = apollo.getInitialState()
-
-        serverState = {
-          apollo: { // Make sure to only include Apollo's data state
-            data: state.data
-          }
-        }
+        serverState = apollo.cache.extract()
       }
 
       return {
@@ -78,7 +81,7 @@ export default ComposedComponent => {
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       // Note: Apollo should never be used on the server side beyond the initial
       // render within `getInitialProps()` above (since the entire prop tree
@@ -89,7 +92,7 @@ export default ComposedComponent => {
       })
     }
 
-    render () {
+    render() {
       return (
         <ApolloProvider client={this.apollo}>
           <ComposedComponent {...this.props} />

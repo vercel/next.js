@@ -15,8 +15,8 @@
     "react-dom": "^16.0.0"
   },
   "devDependencies": {
-    "babel-eslint": "^7.1.1",
-    "babel-plugin-transform-flow-strip-types": "^6.21.0",
-    "flow-bin": "^0.37.4"
+    "babel-eslint": "8.2.1",
+    "babel-plugin-transform-flow-strip-types": "6.22.0",
+    "flow-bin": "0.64.0"
   }
 }

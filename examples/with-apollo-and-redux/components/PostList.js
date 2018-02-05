@@ -1,17 +1,21 @@
-import { gql, graphql } from 'react-apollo'
+import { graphql } from 'react-apollo'
+import gql from 'graphql-tag'
 import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
 const POSTS_PER_PAGE = 10
 
-function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMorePosts }) {
+function PostList ({
+  data: { loading, error, allPosts, _allPostsMeta },
+  loadMorePosts
+}) {
   if (error) return <ErrorMessage message='Error loading posts.' />
   if (allPosts && allPosts.length) {
     const areMorePosts = allPosts.length < _allPostsMeta.count
     return (
       <section>
         <ul>
-          {allPosts.map((post, index) =>
+          {allPosts.map((post, index) => (
             <li key={post.id}>
               <div>
                 <span>{index + 1}. </span>
@@ -19,9 +23,16 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
                 <PostUpvoter id={post.id} votes={post.votes} />
               </div>
             </li>
-          )}
+          ))}
         </ul>
-        {areMorePosts ? <button onClick={() => loadMorePosts()}> {loading ? 'Loading...' : 'Show More'} </button> : ''}
+        {areMorePosts ? (
+          <button onClick={() => loadMorePosts()}>
+            {' '}
+            {loading ? 'Loading...' : 'Show More'}{' '}
+          </button>
+        ) : (
+          ''
+        )}
         <style jsx>{`
           section {
             padding-bottom: 20px;
@@ -54,7 +65,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
             border-style: solid;
             border-width: 6px 4px 0 4px;
             border-color: #ffffff transparent transparent transparent;
-            content: "";
+            content: '';
             height: 0;
             margin-right: 5px;
             width: 0;
@@ -66,7 +77,7 @@ function PostList ({ data: { loading, error, allPosts, _allPostsMeta }, loadMore
   return <div>Loading</div>
 }
 
-const allPosts = gql`
+export const allPosts = gql`
   query allPosts($first: Int!, $skip: Int!) {
     allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
       id
@@ -74,21 +85,22 @@ const allPosts = gql`
       votes
       url
       createdAt
-    },
+    }
     _allPostsMeta {
       count
     }
   }
 `
+export const allPostsQueryVars = {
+  skip: 0,
+  first: POSTS_PER_PAGE
+}
 
 // The `graphql` wrapper executes a GraphQL query and makes the results
 // available on the `data` prop of the wrapped component (PostList)
 export default graphql(allPosts, {
   options: {
-    variables: {
-      skip: 0,
-      first: POSTS_PER_PAGE
-    }
+    variables: allPostsQueryVars
   },
   props: ({ data }) => ({
     data,
