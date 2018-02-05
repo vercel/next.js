@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "freactal": "^1.1.1",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"

@@ -6,10 +6,21 @@ This is an example of how you can include a global stylesheet in a next.js webap
 
 ## How to use
 
+### Using `create-next-app`
+
+Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+
+```
+npm i -g create-next-app
+create-next-app --example with-global-stylesheet with-global-stylesheet-app
+```
+
+### Download manually
+
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-global-stylesheet
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-global-stylesheet
 cd with-global-stylesheet
 ```
 
@@ -49,3 +60,7 @@ This project shows how you can set it up. Have a look at:
 
 Please, report any issue on enhancement related to this example to its original
 github repository https://github.com/davibe/next.js-css-global-style-test
+
+## If your stylesheets import fonts
+
+Install `postcss-url` and insert `require('postcss-url')({ url: 'inline' })` as the 2nd element of the `plugins` array in `postcss.config.js`.
