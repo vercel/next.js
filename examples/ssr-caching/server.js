@@ -59,7 +59,7 @@ async function renderAndCache (req, res, pagePath, queryParams) {
     // If not let's render the page into HTML
     const html = await app.renderToHTML(req, res, pagePath, queryParams)
 
-    // Something is wrong with the request. Let's skip the cache.
+    // Something is wrong with the request, let's skip the cache
     if (res.statusCode !== 200) {
       res.send(html)
       return
