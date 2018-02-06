@@ -49,6 +49,15 @@ export default async function (dir, options, configuration) {
     )
   }
 
+  // Copy .next/static directory
+  if (existsSync(join(dir, '.next', 'static'))) {
+    log('  copying ".next/static" directory')
+    await cp(
+      join(dir, '.next', 'static'),
+      join(outDir, '_next', 'static')
+    )
+  }
+
   // Copy dynamic import chunks
   if (existsSync(join(nextDir, 'chunks'))) {
     log('  copying dynamic import chunks')
