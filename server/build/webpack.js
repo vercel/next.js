@@ -71,11 +71,11 @@ function externalsConfig (dir, isServer) {
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if(res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
+      if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
         return callback()
       }
 
-      if(res.match(/node_modules[/\\]webpack/)) {
+      if (res.match(/node_modules[/\\]webpack/)) {
         return callback()
       }
 
