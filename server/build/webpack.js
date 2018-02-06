@@ -250,11 +250,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           // We need to move react-dom explicitly into common chunks.
           // Otherwise, if some other page or module uses it, it might
           // included in that bundle too.
-          if (dev && module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
+          if (module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
             return true
           }
 
-          if (dev && module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
             return true
           }
 
