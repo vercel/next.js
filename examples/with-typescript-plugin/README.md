@@ -12,7 +12,7 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```
 npm i -g create-next-app
-create-next-app --example with-typescript2 with-typescript-app
+create-next-app --example with-typescript-plugin with-typescript-app
 ```
 
 ### Download manually
@@ -20,8 +20,8 @@ create-next-app --example with-typescript2 with-typescript-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
   
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-typescript2
-cd with-typescript
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-typescript-plugin
+cd with-typescript-plugin
 ```
 
 Install it and run:
@@ -31,4 +31,3 @@ npm install
 npm run dev
 ```  
 
-Output JS files are aside the related TypeScript ones.  

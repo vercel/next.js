@@ -1,5 +1,5 @@
 {
-  "name": "with-typescript2",
+  "name": "with-typescript-plugin",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
