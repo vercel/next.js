@@ -50,10 +50,10 @@ export default async function (dir, options, configuration) {
   }
 
   // Copy .next/static directory
-  if (existsSync(join(dir, '.next', 'static'))) {
-    log('  copying ".next/static" directory')
+  if (existsSync(join(nextDir, 'static'))) {
+    log('  copying "static build" directory')
     await cp(
-      join(dir, '.next', 'static'),
+      join(nextDir, 'static'),
       join(outDir, '_next', 'static')
     )
   }
