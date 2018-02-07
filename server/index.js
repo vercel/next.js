@@ -241,7 +241,7 @@ export default class Server {
       },
 
       '/_next/static/:path*': async (req, res, params) => {
-        const p = join(this.dist, 'static', ...(params.path || []))
+        const p = join(this.dir, this.dist, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
