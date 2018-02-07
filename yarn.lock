@@ -6361,9 +6361,9 @@ style-loader@^0.19.1:
     loader-utils "^1.0.2"
     schema-utils "^0.3.0"
 
-styled-jsx@2.2.3:
-  version "2.2.3"
-  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-2.2.3.tgz#9fe3df55c852388019c3bf4c026bcbf8b3e003de"
+styled-jsx@2.2.4:
+  version "2.2.4"
+  resolved "https://registry.yarnpkg.com/styled-jsx/-/styled-jsx-2.2.4.tgz#aac903fd0a4240c356af335261183aa8f8673075"
   dependencies:
     babel-plugin-syntax-jsx "6.18.0"
     babel-types "6.26.0"
