@@ -4,7 +4,7 @@ import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
-  return children
+  return <div>{children}</div>
 }
 
 export default class Document extends Component {
@@ -106,7 +106,6 @@ export class Main extends Component {
 
   render () {
     const { html, errorHtml } = this.context._documentProps
-
     return (
       <Fragment>
         <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />

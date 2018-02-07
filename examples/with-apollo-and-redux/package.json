@@ -1,26 +1,29 @@
 {
-  "name": "with-apollo-and-redux",
-  "version": "2.0.0",
-  "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "start": "NODE_ENV=production node server.js"
-  },
-  "dependencies": {
-    "apollo-cache-inmemory": "1.1.4",
-    "apollo-client-preset": "^1.0.4",
-    "graphql": "^0.11.7",
-    "graphql-anywhere": "^4.0.2",
-    "graphql-tag": "^2.5.0",
-    "isomorphic-unfetch": "^2.0.0",
-    "next": "latest",
-    "next-routes": "^1.2.0",
-    "prop-types": "^15.6.0",
-    "react": "^16.0.0",
-    "react-apollo": "^2.0.0",
-    "react-dom": "^16.0.0",
-    "redux": "^3.7.0"
-  },
-  "author": "",
-  "license": "ISC"
+    "name": "with-apollo-and-redux",
+    "version": "2.0.0",
+    "scripts": {
+        "dev": "next",
+        "build": "next build",
+        "start": "next start"
+    },
+    "dependencies": {
+        "apollo-client": "2.2.0",
+        "apollo-client-preset": "^1.0.4",
+        "graphql": "^0.11.7",
+        "graphql-anywhere": "^4.0.2",
+        "graphql-tag": "^2.5.0",
+        "isomorphic-unfetch": "^2.0.0",
+        "next": "latest",
+        "next-redux-wrapper": "^1.3.5",
+        "prop-types": "^15.6.0",
+        "react": "^16.2.0",
+        "react-apollo": "^2.0.1",
+        "react-dom": "^16.2.0",
+        "react-redux": "^5.0.6",
+        "redux": "^3.7.2",
+        "redux-devtools-extension": "^2.13.2",
+        "redux-thunk": "^2.2.0"
+    },
+    "author": "",
+    "license": "ISC"
 }

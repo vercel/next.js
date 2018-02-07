@@ -60,3 +60,7 @@ This project shows how you can set it up. Have a look at:
 
 Please, report any issue on enhancement related to this example to its original
 github repository https://github.com/davibe/next.js-css-global-style-test
+
+## If your stylesheets import fonts
+
+Install `postcss-url` and insert `require('postcss-url')({ url: 'inline' })` as the 2nd element of the `plugins` array in `postcss.config.js`.

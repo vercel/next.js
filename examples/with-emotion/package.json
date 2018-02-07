@@ -10,9 +10,9 @@
     "babel-plugin-emotion": "^8.0.4",
     "emotion": "^8.0.5",
     "emotion-server": "^8.0.5",
-    "next": "^3.0.6",
-    "react": "^15.6.1",
-    "react-dom": "^15.6.1",
+    "next": "latest",
+    "react": "16.2.0",
+    "react-dom": "16.2.0",
     "react-emotion": "^8.0.5"
   },
   "license": "ISC"

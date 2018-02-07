@@ -38,6 +38,6 @@ now
 ## The idea behind the example
 
 Next.js was conceived to make it easy to create universal apps. That's why fetching data
-on the server and the client when necessary it's so easy with Next.
+on the server and the client when necessary is so easy with Next.
 
-Using `getInitialProps` we will fetch data in the server for SSR and then in the client only when the component is re-mounted but not in the first paint.
+Using `getInitialProps` fetches data on the server for SSR and then on the client when the component is re-mounted (not on the first paint).

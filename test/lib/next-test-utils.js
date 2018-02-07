@@ -17,6 +17,36 @@ export const nextBuild = build
 export const nextExport = _export
 export const pkg = _pkg
 
+export function initNextServerScript (scriptPath, successRegexp, env) {
+  return new Promise((resolve, reject) => {
+    const instance = spawn('node', [scriptPath], { env })
+
+    function handleStdout (data) {
+      const message = data.toString()
+      if (successRegexp.test(message)) {
+        resolve(instance)
+      }
+      process.stdout.write(message)
+    }
+
+    function handleStderr (data) {
+      process.stderr.write(data.toString())
+    }
+
+    instance.stdout.on('data', handleStdout)
+    instance.stderr.on('data', handleStderr)
+
+    instance.on('close', () => {
+      instance.stdout.removeListener('data', handleStdout)
+      instance.stderr.removeListener('data', handleStderr)
+    })
+
+    instance.on('error', (err) => {
+      reject(err)
+    })
+  })
+}
+
 export function renderViaAPI (app, pathname, query) {
   const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return app.renderToHTML({ url }, {}, pathname, query)
