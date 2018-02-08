@@ -1,9 +1,9 @@
-import style from '../styles/style.scss'
 import PageWrapper from '../components/PageWrapper'
+import '../styles/style.scss'
 
 export default () =>
   <PageWrapper>
-    <div className={style.example}>
+    <div className='example'>
       Hello World!
     </div>
   </PageWrapper>
