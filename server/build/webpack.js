@@ -149,10 +149,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       ],
       alias: {
         next: nextDir,
-        // This bypasses React's check for production mode. Since we know it is in production this way.
-        // This allows us to exclude React from being uglified. Saving multiple seconds per build.
-        react: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
-        'react-dom': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
+        // React already does something similar to this.
+        // But if the user has react-devtools, it'll throw an error showing that
+        // we haven't done dead code elimination (via uglifyjs).
+        // We purposly do not uglify React code to save the build time.
+        // (But it didn't increase the overall build size)
+        // Here we are doing an exact match with '$'
+        // So, you can still require nested modules like `react-dom/server`
+        react$: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
+        'react-dom$': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
       }
     },
     resolveLoader: {
