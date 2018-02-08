@@ -5563,16 +5563,17 @@ react-dom@16.2.0:
     object-assign "^4.1.1"
     prop-types "^15.6.0"
 
-react-hot-loader@4.0.0-beta.18:
-  version "4.0.0-beta.18"
-  resolved "https://registry.yarnpkg.com/react-hot-loader/-/react-hot-loader-4.0.0-beta.18.tgz#5a3d1b5bd813633380b88c0c660019dbf638975d"
+react-hot-loader@4.0.0-beta.21:
+  version "4.0.0-beta.21"
+  resolved "https://registry.yarnpkg.com/react-hot-loader/-/react-hot-loader-4.0.0-beta.21.tgz#46a0345621f1a03cb3c1c6dc130f153fa66e5bae"
   dependencies:
     fast-levenshtein "^2.0.6"
     global "^4.3.0"
     hoist-non-react-statics "^2.3.1"
-    react-stand-in "^4.0.0-beta.18"
+    prop-types "^15.6.0"
+    react-stand-in "^4.0.0-beta.21"
 
-react-stand-in@^4.0.0-beta.18:
+react-stand-in@^4.0.0-beta.21:
   version "4.0.0-beta.21"
   resolved "https://registry.yarnpkg.com/react-stand-in/-/react-stand-in-4.0.0-beta.21.tgz#fb694e465cb20fab7f36d3284f82b68bbd7a657e"
   dependencies:
