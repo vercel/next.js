@@ -38,6 +38,6 @@ This example features:
 
 * An app with next-sass
 
-> This example is use next-sass with css-modules. The config can be found in `next.config.js`, change `withSass({cssModules: true})` to `withSass()` if you don't use css-modules. Then in the code, you just import the stylesheet directly as `import '../styles/style.scss'`.
+This example uses next-sass with css-modules. The config can be found in `next.config.js`, change `withSass({cssModules: true})` to `withSass()` if you don't use css-modules. Then in the code, you just import the stylesheet directly as `import '../styles/style.scss'`.
 
 [Learn more](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)

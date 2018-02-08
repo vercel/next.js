@@ -1,3 +1,4 @@
+import React from 'react'
 import Head from 'next/head'
 
 // In production the stylesheet is compiled to .next/static/style.css.
@@ -5,7 +6,7 @@ import Head from 'next/head'
 // You could include it into the page using either next/head or a custom _document.js.
 
 export default ({children}) =>
-  <div>
+  <React.Fragment>
     <Head>
       <link
         rel='stylesheet'
@@ -13,4 +14,4 @@ export default ({children}) =>
       />
     </Head>
     {children}
-  </div>
+  </React.Fragment>
