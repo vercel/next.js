@@ -1,0 +1,17 @@
+{
+  "name": "with-draft-js",
+  "version": "1.0.0",
+  "author": "Asten Mies",
+  "license": "ISC",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "draft-js": "0.10.5",
+    "next": "5.0.0",
+    "react": "16.2.0",
+    "react-dom": "16.2.0"
+  }
+}
