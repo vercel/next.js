@@ -1094,7 +1094,8 @@ Here's an example `.babelrc` file:
 
 ```json
 {
-  "presets": ["next/babel", "env"]
+  "presets": ["next/babel"],
+  "plugins": []
 }
 ```
 
