@@ -3,7 +3,11 @@ module.exports = {
     const originalEntry = cfg.entry
     cfg.entry = async () => {
       const entries = await originalEntry()
-      entries['main.js'].unshift('./client/polyfills.js')
+
+      if (entries['main.js']) {
+        entries['main.js'].unshift('./client/polyfills.js')
+      }
+
       return entries
     }
 
