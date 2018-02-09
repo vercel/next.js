@@ -112,6 +112,16 @@ export default function ({ app }, suiteName, render, fetch) {
       expect($('h2').text()).toBe('This page could not be found.')
     })
 
+    test('error 404 should not have page script', async () => {
+      const $ = await get$('/non-existent')
+      $('script[src]').each((index, element) => {
+        const src = $(element).attr('src')
+        if (src.includes('/non-existent')) {
+          throw new Error('Page includes page script')
+        }
+      })
+    })
+
     describe('with the HOC based router', () => {
       it('should navigate as expected', async () => {
         const $ = await get$('/nav/with-hoc')
