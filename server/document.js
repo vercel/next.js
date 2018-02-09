@@ -195,7 +195,7 @@ export class NextScript extends Component {
           }
 
           ${page === '_error' && `
-          __NEXT_REGISTER_PAGE('${htmlescape(pathname)}', function() {
+          __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
             var error = new Error('Page does not exist: ${htmlescape(pathname)}')
             error.statusCode = 404
     
