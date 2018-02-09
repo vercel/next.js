@@ -105,7 +105,8 @@ async function doRender (req, res, pathname, query, {
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props,
-      pathname,
+      page, // the rendered page
+      pathname, // the requested path
       query,
       buildId,
       buildStats,
