@@ -22,8 +22,5 @@
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "sass-loader": "^6.0.6"
-  },
-  "devDependencies": {
-    "now": "^8.3.10"
   }
 }
