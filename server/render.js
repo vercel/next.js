@@ -30,7 +30,7 @@ export async function renderError (err, req, res, pathname, query, opts) {
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
+  return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
 }
 
 async function doRender (req, res, pathname, query, {
@@ -226,7 +226,7 @@ export function serveStatic (req, res, path) {
 
 async function ensurePage (page, { dir, hotReloader }) {
   if (!hotReloader) return
-  if (page === '_error' || page === '_document') return
+  if (page === '/_error' || page === '_document') return
 
   await hotReloader.ensurePage(page)
 }
