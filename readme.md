@@ -241,8 +241,8 @@ When you need state, lifecycle hooks or **initial data population** you can expo
 import React from 'react'
 
 export default class extends React.Component {
-  static async getInitialProps({ req }) {
-    const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
+  static async getInitialProps({ isServer, req }) {
+    const userAgent = isServer ? req.headers['user-agent'] : navigator.userAgent
     return { userAgent }
   }
 
@@ -293,6 +293,7 @@ export default Page
 - `pathname` - path section of URL
 - `query` - query string section of URL parsed as an object
 - `asPath` - `String` of the actual path (including the query) shows in the browser
+- `isServer` - `boolean` representing whether `getInitialProps` is running on the server
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
 - `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
