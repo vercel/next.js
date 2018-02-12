@@ -171,23 +171,6 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-
-        if (this.dev) {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (err) {
-            await this.render404(req, res)
-          }
-        }
-
-        const dist = getConfig(this.dir).distDir
-        const path = join(this.dir, dist, 'bundles', 'pages', `${page}.js.map`)
-        await serveStatic(req, res, path)
-      },
-
       // This is very similar to the following route.
       // But for this one, the page already built when the Next.js process starts.
       // There's no need to build it in on-demand manner and check for other things.
@@ -204,7 +187,49 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/:path*.js': async (req, res, params) => {
+      '/_next/static/:path*': async (req, res, params) => {
+        const p = join(this.dir, this.dist, 'static', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      },
+
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, seperated by '/')
+      // Othewise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      '/_next/:path*': async (req, res, params) => {
+        const p = join(__dirname, '..', 'client', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      },
+
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, seperated by '/')
+      // Othewise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      '/static/:path*': async (req, res, params) => {
+        const p = join(this.dir, 'static', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      }
+    }
+
+    if (this.config.useFileSystemPublicRoutes) {
+      routes['/_next/:buildId/page/:path*.js.map'] = async (req, res, params) => {
+        const paths = params.path || ['']
+        const page = `/${paths.join('/')}`
+
+        if (this.dev) {
+          try {
+            await this.hotReloader.ensurePage(page)
+          } catch (err) {
+            await this.render404(req, res)
+          }
+        }
+
+        const dist = getConfig(this.dir).distDir
+        const path = join(this.dir, dist, 'bundles', 'pages', `${page}.js.map`)
+        await serveStatic(req, res, path)
+      }
+
+      routes['/_next/:buildId/page/:path*.js'] = async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
 
@@ -238,33 +263,8 @@ export default class Server {
         }
 
         await this.serveStatic(req, res, p)
-      },
-
-      '/_next/static/:path*': async (req, res, params) => {
-        const p = join(this.dir, this.dist, 'static', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      },
-
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      '/_next/:path*': async (req, res, params) => {
-        const p = join(__dirname, '..', 'client', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      },
-
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      '/static/:path*': async (req, res, params) => {
-        const p = join(this.dir, 'static', ...(params.path || []))
-        await this.serveStatic(req, res, p)
       }
-    }
 
-    if (this.config.useFileSystemPublicRoutes) {
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query)
