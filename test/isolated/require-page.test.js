@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 
-import { join } from 'path'
+import { join, sep } from 'path'
 import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
 
 const dir = '/path/to/some/project'
@@ -20,19 +20,19 @@ describe('pageNotFoundError', () => {
 
 describe('normalizePagePath', () => {
   it('Should turn / into /index', () => {
-    expect(normalizePagePath('/')).toBe('/index')
+    expect(normalizePagePath('/')).toBe(`${sep}index`)
   })
 
   it('Should turn _error into /_error', () => {
-    expect(normalizePagePath('_error')).toBe('/_error')
+    expect(normalizePagePath('_error')).toBe(`${sep}_error`)
   })
 
   it('Should turn /abc into /abc', () => {
-    expect(normalizePagePath('/abc')).toBe('/abc')
+    expect(normalizePagePath('/abc')).toBe(`${sep}abc`)
   })
 
   it('Should turn /abc/def into /abc/def', () => {
-    expect(normalizePagePath('/abc/def')).toBe('/abc/def')
+    expect(normalizePagePath('/abc/def')).toBe(`${sep}abc${sep}def`)
   })
 
   it('Should throw on /../../test.js', () => {
@@ -43,12 +43,12 @@ describe('normalizePagePath', () => {
 describe('getPagePath', () => {
   it('Should append /index to the / page', () => {
     const pagePath = getPagePath('/', {dir, dist})
-    expect(pagePath).toBe(join(pathToBundles, '/index'))
+    expect(pagePath).toBe(join(pathToBundles, `${sep}index`))
   })
 
   it('Should prepend / when a page does not have it', () => {
     const pagePath = getPagePath('_error', {dir, dist})
-    expect(pagePath).toBe(join(pathToBundles, '/_error'))
+    expect(pagePath).toBe(join(pathToBundles, `${sep}_error`))
   })
 
   it('Should throw with paths containing ../', () => {
