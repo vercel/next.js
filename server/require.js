@@ -1,4 +1,4 @@
-import {join, parse, resolve, sep} from 'path'
+import {join, parse, normalize, sep} from 'path'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -23,7 +23,7 @@ export function normalizePagePath (page) {
   }
 
   // Throw when using ../ etc in the pathname
-  const resolvedPage = resolve(page)
+  const resolvedPage = normalize(page)
   if (page !== resolvedPage) {
     throw new Error('Requested and resolved page mismatch')
   }
@@ -51,7 +51,7 @@ export function getPagePath (page, {dir, dist}) {
   return pagePath
 }
 
-export default async function requirePage (page, {dir, dist}) {
+export default function requirePage (page, {dir, dist}) {
   const pagePath = getPagePath(page, {dir, dist})
   try {
     return require(pagePath)
