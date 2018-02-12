@@ -226,7 +226,7 @@ export function serveStatic (req, res, path) {
 
 async function ensurePage (page, { dir, hotReloader }) {
   if (!hotReloader) return
-  if (page === '/_error' || page === '_document') return
+  if (page === '/_error') return
 
   await hotReloader.ensurePage(page)
 }
