@@ -14,7 +14,7 @@ class Store {
     this.timer = setInterval(() => {
       this.lastUpdate = Date.now()
       this.light = true
-    })
+    }, 1000)
   }
 
   stop = () => clearInterval(this.timer)
