@@ -4,7 +4,7 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requireModule from './require'
+import requirePage from './require'
 import getConfig from './config'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
@@ -52,12 +52,11 @@ async function doRender (req, res, pathname, query, {
 
   const dist = getConfig(dir).distDir
 
-  const pagePath = join(dir, dist, 'dist', 'bundles', 'pages', page)
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
 
   let [Component, Document] = await Promise.all([
-    requireModule(pagePath),
-    requireModule(documentPath)
+    requirePage(page, {dir, dist}),
+    require(documentPath) // Document is not variable so we can require it directly
   ])
   Component = Component.default || Component
   Document = Document.default || Document
