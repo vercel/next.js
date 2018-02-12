@@ -1,4 +1,4 @@
-import {join, parse, resolve} from 'path'
+import {join, parse, resolve, sep} from 'path'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -6,9 +6,7 @@ export function pageNotFoundError (page) {
   return err
 }
 
-export function getPagePath (page, {dir, dist}) {
-  const pageBundlesPath = join(dir, dist, 'dist', 'bundles', 'pages')
-
+export function normalizePagePath (page) {
   // If the page is `/` we need to append `/index`, otherwise the returned directory root will be bundles instead of pages
   if (page === '/') {
     page = '/index'
@@ -19,18 +17,35 @@ export function getPagePath (page, {dir, dist}) {
     page = `/${page}`
   }
 
+  // Windows compatibility
+  if (sep !== '/') {
+    page = page.replace(/\//g, sep)
+  }
+
   // Throw when using ../ etc in the pathname
   const resolvedPage = resolve(page)
   if (page !== resolvedPage) {
-    throw pageNotFoundError(resolvedPage)
+    throw new Error('Requested and resolved page mismatch')
   }
 
-  const pagePath = join(pageBundlesPath, resolvedPage) // Path to the page that is to be loaded
+  return page
+}
+
+export function getPagePath (page, {dir, dist}) {
+  const pageBundlesPath = join(dir, dist, 'dist', 'bundles', 'pages')
+
+  try {
+    page = normalizePagePath(page)
+  } catch (err) {
+    throw pageNotFoundError(page)
+  }
+
+  const pagePath = join(pageBundlesPath, page) // Path to the page that is to be loaded
 
   // Don't allow wandering outside of the bundles directory
   const pathDir = parse(pagePath).dir
   if (pathDir.indexOf(pageBundlesPath) !== 0) {
-    throw pageNotFoundError(resolvedPage)
+    throw pageNotFoundError(page)
   }
 
   return pagePath
