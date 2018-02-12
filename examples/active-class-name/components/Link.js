@@ -7,7 +7,7 @@ const ActiveLink = ({ router, children, ...props }) => {
 
   let className = child.props.className || null
   if (router.pathname === props.href && props.activeClassName) {
-className = `${className !== null ? className : ''} ${activeClassName}`.trim()
+className = `${props.className !== null ? props.className : ''} ${activeClassName}`.trim()
   }
 
   delete props.activeClassName
