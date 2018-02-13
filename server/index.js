@@ -27,11 +27,10 @@ const blockedPages = {
 }
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null, xPoweredBy = true } = {}) {
+  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
-    this.xPoweredBy = xPoweredBy
     this.router = new Router()
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, conf }) : null
     this.http = null
@@ -323,7 +322,7 @@ export default class Server {
       return
     }
 
-    if (this.xPoweredBy) {
+    if (this.config.xPoweredBy) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     return sendHTML(req, res, html, req.method, this.renderOpts)
