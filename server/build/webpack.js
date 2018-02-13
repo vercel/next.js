@@ -309,13 +309,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         name: 'main.js',
         filename: 'app.js',
         minChunks (module, count) {
-
-          console.log(module.resource)
           // react
-          if (dev) {
-            return false
-          }
-
           if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
             return true
           }
@@ -323,29 +317,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
             return true
           }
-
-          console.log(module.context);
           // react end
 
           // commons
-          // We need to move react-dom explicitly into common chunks.
-          // Otherwise, if some other page or module uses it, it might
-          // included in that bundle too.
-          if (module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
-            return true
-          }
-
-          if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
-            return true
-          }
-
-          // In the dev we use on-demand-entries.
-          // So, it makes no sense to use commonChunks based on the minChunks count.
-          // Instead, we move all the code in node_modules into each of the pages.
-          if (dev) {
-            return false
-          }
-
           // If there are one or two pages, only move modules to common if they are
           // used in all of the pages. Otherwise, move modules used in at-least
           // 1/2 of the total pages into commons.
@@ -355,7 +329,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           return count >= totalPages * 0.5
           // commons end
         }
-      }),
+      })
     ].filter(Boolean)
   }
 
