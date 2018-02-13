@@ -1,6 +1,6 @@
 import { interval } from 'rxjs/observable/interval'
 import { of } from 'rxjs/observable/of'
-import { takeUntil, mergeMap, catchError } from 'rxjs/operators'
+import { takeUntil, mergeMap, catchError, map } from 'rxjs/operators'
 import { combineEpics, ofType } from 'redux-observable'
 import ajax from 'universal-rx-request' // because standard AjaxObservable only works in browser
 
@@ -13,11 +13,9 @@ export const fetchUserEpic = (action$, store) =>
     mergeMap(action => {
       return interval(3000).pipe(
         mergeMap(x =>
-          of(
-            actions.fetchCharacter({
-              isServer: store.getState().isServer
-            })
-          )
+          actions.fetchCharacter({
+            isServer: store.getState().isServer
+          })
         ),
         takeUntil(action$.ofType(types.STOP_FETCHING_CHARACTERS))
       )
@@ -31,12 +29,10 @@ export const fetchCharacterEpic = (action$, store) =>
       ajax({
         url: `https://swapi.co/api/people/${store.getState().nextCharacterId}`
       }).pipe(
-        mergeMap(response =>
-          of(
-            actions.fetchCharacterSuccess(
-              response.body,
-              store.getState().isServer
-            )
+        map(response =>
+          actions.fetchCharacterSuccess(
+            response.body,
+            store.getState().isServer
           )
         ),
         catchError(error =>
