@@ -31,6 +31,7 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/error'),
       renderViaHTTP(context.appPort, '/finish-response'),
       renderViaHTTP(context.appPort, '/head'),
+      renderViaHTTP(context.appPort, '/head-without-title'),
       renderViaHTTP(context.appPort, '/json'),
       renderViaHTTP(context.appPort, '/link'),
       renderViaHTTP(context.appPort, '/stateful'),

@@ -1,8 +1,9 @@
 /* global describe, test, it, expect */
 
+import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-export default function ({ app }, suiteName, render, fetch) {
+export default function (context, suiteName, render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -141,6 +142,16 @@ export default function ({ app }, suiteName, render, fetch) {
         const $ = await get$('/nav/with-hoc')
 
         expect($('#asPath').text()).toBe('Current asPath: /nav/with-hoc')
+      })
+    })
+
+    describe('with browser', () => {
+      test('header manager renders title from document', async () => {
+        const browser = await webdriver(context.appPort, '/head-without-title')
+        const title = await browser.title()
+
+        expect(title).toBe('Default document title')
+        browser.close()
       })
     })
   })
