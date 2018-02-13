@@ -1,0 +1,17 @@
+{
+  "name": "with-react-native-web",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
+    "react-native-web": "^0.4.0"
+  },
+  "devDependencies": {
+    "babel-plugin-react-native-web": "^0.4.0"
+  }
+}
