@@ -4,7 +4,7 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requireModule from './require'
+import requirePage from './require'
 import getConfig from './config'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
@@ -30,7 +30,7 @@ export async function renderError (err, req, res, pathname, query, opts) {
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
+  return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
 }
 
 async function doRender (req, res, pathname, query, {
@@ -48,17 +48,16 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
-  await ensurePage(page, { dir, hotReloader })
+  if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
+    await ensurePage(page, { dir, hotReloader })
+  }
 
   const dist = getConfig(dir).distDir
 
-  const pagePath = join(dir, dist, 'dist', 'bundles', 'pages', page)
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
 
-  let [Component, Document] = await Promise.all([
-    requireModule(pagePath),
-    requireModule(documentPath)
-  ])
+  let Component = requirePage(page, {dir, dist})
+  let Document = require(documentPath)
   Component = Component.default || Component
   Document = Document.default || Document
   const asPath = req.url
@@ -105,7 +104,8 @@ async function doRender (req, res, pathname, query, {
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props,
-      pathname,
+      page, // the rendered page
+      pathname, // the requested path
       query,
       buildId,
       buildStats,
@@ -224,8 +224,7 @@ export function serveStatic (req, res, path) {
 }
 
 async function ensurePage (page, { dir, hotReloader }) {
-  if (!hotReloader) return
-  if (page === '_error' || page === '_document') return
+  if (page === '/_error') return
 
   await hotReloader.ensurePage(page)
 }
