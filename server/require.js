@@ -37,6 +37,7 @@ export function getPagePath (page, {dir, dist}) {
   try {
     page = normalizePagePath(page)
   } catch (err) {
+    console.error(err)
     throw pageNotFoundError(page)
   }
 
@@ -45,6 +46,7 @@ export function getPagePath (page, {dir, dist}) {
   // Don't allow wandering outside of the bundles directory
   const pathDir = parse(pagePath).dir
   if (pathDir.indexOf(pageBundlesPath) !== 0) {
+    console.error('Resolved page path goes outside of bundles path')
     throw pageNotFoundError(page)
   }
 
@@ -56,6 +58,7 @@ export default function requirePage (page, {dir, dist}) {
   try {
     return require(pagePath)
   } catch (err) {
+    console.error(err)
     throw pageNotFoundError(page)
   }
 }
