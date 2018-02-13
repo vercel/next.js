@@ -58,7 +58,6 @@ export default function requirePage (page, {dir, dist}) {
   try {
     return require(pagePath)
   } catch (err) {
-    console.error(err)
     throw pageNotFoundError(page)
   }
 }
