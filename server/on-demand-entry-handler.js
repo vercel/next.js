@@ -3,7 +3,8 @@ import { EventEmitter } from 'events'
 import { join, relative } from 'path'
 import { parse } from 'url'
 import touch from 'touch'
-import resolvePath from './resolve'
+import glob from 'glob-promise'
+import {normalizePagePath, pageNotFoundError} from './require'
 import {createEntry} from './build/webpack/utils'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
 
@@ -15,6 +16,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   dir,
   dev,
   reload,
+  pageExtensions,
   maxInactiveAge = 1000 * 60,
   pagesBufferLength = 2
 }) {
@@ -139,10 +141,18 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
     async ensurePage (page) {
       await this.waitUntilReloaded()
       page = normalizePage(page)
+      const normalizedPagePath = normalizePagePath(page)
+      const pagePath = join(dir, 'pages', normalizedPagePath)
+      const extensions = pageExtensions.join('|')
+      const paths = await glob(`${pagePath}.+(${extensions})`, {cwd: dir})
 
-      const pagePath = join(dir, 'pages', page)
-      const pathname = await resolvePath(pagePath)
-      const {name, files} = createEntry(relative(dir, pathname))
+      if (paths.length === 0) {
+        throw pageNotFoundError(normalizedPagePath)
+      }
+
+      const pathname = paths[0]
+
+      const {name, files} = createEntry(relative(dir, pathname), {pageExtensions: extensions})
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]

@@ -225,6 +225,7 @@ export default class HotReloader {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
+      pageExtensions: this.config.pageExtensions,
       ...this.config.onDemandEntries
     })
 
