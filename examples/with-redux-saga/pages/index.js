@@ -1,11 +1,12 @@
 import React from 'react'
 
-import {increment, loadData, startClock} from '../actions'
+import {increment, loadData, startClock, tickClock} from '../actions'
 import {withReduxSaga} from '../store'
 import Page from '../components/page'
 
 class Counter extends React.Component {
-  static async getInitialProps ({store}) {
+  static async getInitialProps ({store, isServer}) {
+    store.dispatch(tickClock(isServer))
     store.dispatch(increment())
     if (!store.getState().placeholderData) {
       store.dispatch(loadData())

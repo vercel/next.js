@@ -14,7 +14,7 @@ const Store = types
         // mobx-state-tree doesn't allow anonymous callbacks changing data
         // pass off to another action instead
         self.update()
-      })
+      }, 1000)
     }
 
     function update () {
