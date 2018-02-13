@@ -89,7 +89,7 @@ export class Head extends Component {
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
-      {page !== '_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />}
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />}
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
@@ -198,13 +198,13 @@ export class NextScript extends Component {
           __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
             var error = new Error('Page does not exist: ${htmlescape(pathname)}')
             error.statusCode = 404
-    
+
             return { error: error }
           })
           `}
         `
       }} />}
-      {page !== '_error' && <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />}
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />}
       <script async id={`__NEXT_PAGE__/_error`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}

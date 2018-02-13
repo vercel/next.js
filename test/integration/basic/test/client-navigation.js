@@ -370,16 +370,8 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should work with dir/index page ', async () => {
-        const browser = await webdriver(context.appPort, '/nested-cdm/index')
-        const text = await browser.elementByCss('p').text()
-
-        expect(text).toBe('ComponentDidMount executed on client.')
-        browser.close()
-      })
-
       it('should work with dir/ page ', async () => {
-        const browser = await webdriver(context.appPort, '/nested-cdm/')
+        const browser = await webdriver(context.appPort, '/nested-cdm')
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
@@ -426,7 +418,7 @@ export default (context, render) => {
     describe('with asPath', () => {
       describe('inside getInitialProps', () => {
         it('should show the correct asPath with a Link with as prop', async () => {
-          const browser = await webdriver(context.appPort, '/nav/')
+          const browser = await webdriver(context.appPort, '/nav')
           const asPath = await browser
             .elementByCss('#as-path-link').click()
             .waitForElementByCss('.as-path-content')
@@ -437,7 +429,7 @@ export default (context, render) => {
         })
 
         it('should show the correct asPath with a Link without the as prop', async () => {
-          const browser = await webdriver(context.appPort, '/nav/')
+          const browser = await webdriver(context.appPort, '/nav')
           const asPath = await browser
             .elementByCss('#as-path-link-no-as').click()
             .waitForElementByCss('.as-path-content')
@@ -450,7 +442,7 @@ export default (context, render) => {
 
       describe('with next/router', () => {
         it('should show the correct asPath', async () => {
-          const browser = await webdriver(context.appPort, '/nav/')
+          const browser = await webdriver(context.appPort, '/nav')
           const asPath = await browser
             .elementByCss('#as-path-using-router-link').click()
             .waitForElementByCss('.as-path-content')
@@ -459,6 +451,32 @@ export default (context, render) => {
           expect(asPath).toBe('/nav/as-path-using-router')
           browser.close()
         })
+      })
+    })
+
+    describe('with 404 pages', () => {
+      it('should 404 on not existent page', async () => {
+        const browser = await webdriver(context.appPort, '/non-existent')
+        expect(await browser.elementByCss('h1').text()).toBe('404')
+        expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
+        browser.close()
+      })
+
+      it('should 404 for <page>/', async () => {
+        const browser = await webdriver(context.appPort, '/nav/about/')
+        expect(await browser.elementByCss('h1').text()).toBe('404')
+        expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
+        browser.close()
+      })
+
+      it('should should not contain a page script in a 404 page', async () => {
+        const browser = await webdriver(context.appPort, '/non-existent')
+        const scripts = await browser.elementsByCss('script[src]')
+        for (const script of scripts) {
+          const src = await script.getAttribute('src')
+          expect(src.includes('/non-existent')).toBeFalsy()
+        }
+        browser.close()
       })
     })
   })
