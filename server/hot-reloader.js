@@ -1,10 +1,10 @@
 import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
+import del from 'del'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from './build/webpack'
-import clean from './build/clean'
 import getConfig from './config'
 import UUID from 'uuid'
 import {
@@ -55,8 +55,12 @@ export default class HotReloader {
     }
   }
 
+  async clean () {
+    return del(join(this.dir, this.config.distDir), { force: true })
+  }
+
   async start () {
-    await clean(this.dir)
+    await this.clean()
 
     const configs = await Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
@@ -86,7 +90,7 @@ export default class HotReloader {
   async reload () {
     this.stats = null
 
-    await clean(this.dir)
+    await this.clean()
 
     const configs = await Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
