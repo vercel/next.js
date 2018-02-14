@@ -1077,6 +1077,17 @@ Some commonly asked for features are available as modules:
 
 *Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
 
+Multiple configurations can be combined together with function composition. For example:
+
+```js
+module.exports = withTypescript(withSass({
+  webpack(config, options) {
+    // Further custom configuration here
+    return config
+  }
+}))
+```
+
 ### Customizing babel config
 
 <p><details>
