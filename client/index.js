@@ -21,6 +21,7 @@ const {
   __NEXT_DATA__: {
     props,
     err,
+    page,
     pathname,
     query,
     buildId,
@@ -76,7 +77,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {
-    Component = await pageLoader.loadPage(pathname)
+    Component = await pageLoader.loadPage(page)
   } catch (err) {
     console.error(stripAnsi(`${err.message}\n${err.stack}`))
     Component = ErrorComponent
