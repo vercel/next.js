@@ -479,5 +479,37 @@ export default (context, render) => {
         browser.close()
       })
     })
+
+    describe('head-manager updates title', async () => {
+      it('should set document title', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+        const title = await browser.title()
+
+        expect(title).toBe('Default document title')
+        browser.close()
+      })
+
+      it('should set page title', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+        const title = await browser
+          .elementByCss('#about-link').click()
+          .waitForElementByCss('.nav-about')
+          .title()
+
+        expect(title).toBe('About')
+        browser.close()
+      })
+
+      it('should set document title if not changed in head', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+        const title = await browser
+          .elementByCss('#head-without-title-link').click()
+          .waitForElementByCss('.head-without-title')
+          .title()
+
+        expect(title).toBe('Default document title')
+        browser.close()
+      })
+    })
   })
 }

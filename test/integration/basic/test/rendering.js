@@ -1,9 +1,8 @@
 /* global describe, test, it, expect */
 
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 
-export default function (context, suiteName, render, fetch) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -20,6 +19,11 @@ export default function (context, suiteName, render, fetch) {
       const $ = await get$('/stateful')
       const answer = $('#answer')
       expect(answer.text()).toBe('The answer is 42')
+    })
+
+    test('header helper renders title from document', async () => {
+      const html = await (render('/head-without-title'))
+      expect(html).toContain('<title>Default document title</title>')
     })
 
     test('header helper renders header information', async () => {
@@ -142,16 +146,6 @@ export default function (context, suiteName, render, fetch) {
         const $ = await get$('/nav/with-hoc')
 
         expect($('#asPath').text()).toBe('Current asPath: /nav/with-hoc')
-      })
-    })
-
-    describe('with browser', () => {
-      test('header manager renders title from document', async () => {
-        const browser = await webdriver(context.appPort, '/head-without-title')
-        const title = await browser.title()
-
-        expect(title).toBe('Default document title')
-        browser.close()
       })
     })
   })
