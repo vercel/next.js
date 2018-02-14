@@ -44,6 +44,6 @@ function loadConfig (dir, customConfig) {
 
 function withDefaults (config) {
   const combinedConfig = Object.assign({}, defaultConfig, config)
-  combinedConfig.pageExtensions = combinedConfig.decoratePageExtensions(['js', 'jsx']) // Set pageExtensions using decoratePageExtensions. Allowing external modules to add or override page extensions.
+  combinedConfig.pageExtensions = combinedConfig.decoratePageExtensions(['jsx', 'js']) // Set pageExtensions using decoratePageExtensions. Allowing external modules to add or override page extensions.
   return combinedConfig
 }
