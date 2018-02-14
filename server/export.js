@@ -85,6 +85,7 @@ export default async function (dir, options, configuration) {
   // Start the rendering process
   const renderOpts = {
     dir,
+    dist: config.distDir,
     buildStats,
     buildId,
     nextExport: true,
