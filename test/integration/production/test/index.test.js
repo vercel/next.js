@@ -134,6 +134,26 @@ describe('Production Usage', () => {
       await app.render(req, res, req.url)
       expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
     })
+
+    it('should not set it when poweredByHeader==false', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const originalConfigValue = app.config.poweredByHeader
+      app.config.poweredByHeader = false
+      const res = {
+        getHeader () {
+          return false
+        },
+        setHeader (key, value) {
+          if (key === 'XPoweredBy') {
+            throw new Error('Should not set the XPoweredBy header')
+          }
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      app.config.poweredByHeader = originalConfigValue
+    })
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
