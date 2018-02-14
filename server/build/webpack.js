@@ -115,7 +115,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     externals: externalsConfig(dir, isServer),
     context: dir,
     entry: async () => {
-      const pages = await getPages(dir, {dev, isServer})
+      const pages = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
       totalPages = Object.keys(pages).length
       const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`)
       const clientConfig = !isServer ? {

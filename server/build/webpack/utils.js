@@ -1,11 +1,9 @@
 import path from 'path'
 import glob from 'glob-promise'
-import getConfig from '../../config'
 
 const nextPagesDir = path.join(__dirname, '..', '..', '..', 'pages')
 
-export async function getPages (dir, {dev, isServer}) {
-  const pageExtensions = getConfig(dir).pageExtensions.join('|')
+export async function getPages (dir, {dev, isServer, pageExtensions}) {
   const pageFiles = await getPagePaths(dir, {dev, isServer, pageExtensions})
 
   return getPageEntries(pageFiles, {isServer, pageExtensions})
