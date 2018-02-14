@@ -93,6 +93,24 @@ describe('Production Usage', () => {
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
       expect(data).toBe('item')
     })
+
+    it('should reload the page on page script error', async () => {
+      const browser = await webdriver(appPort, '/counter')
+      const counter = await browser
+          .elementByCss('#increase').click().click()
+          .elementByCss('#counter').text()
+      expect(counter).toBe('Counter: 2')
+
+      const counterAfter404Page = await browser
+        .elementByCss('#no-such-page').click()
+        .waitForElementByCss('h1')
+        .back()
+        .waitForElementByCss('#counter-page')
+        .elementByCss('#counter').text()
+      expect(counterAfter404Page).toBe('Counter: 0')
+
+      browser.close()
+    })
   })
 
   describe('X-Powered-By header', () => {
