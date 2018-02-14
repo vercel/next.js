@@ -5,7 +5,6 @@ import del from 'del'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from './build/webpack'
-import getConfig from './config'
 import UUID from 'uuid'
 import {
   IS_BUNDLED_PAGE,
@@ -13,7 +12,7 @@ import {
 } from './utils'
 
 export default class HotReloader {
-  constructor (dir, { quiet, conf } = {}) {
+  constructor (dir, { quiet, config } = {}) {
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -32,7 +31,7 @@ export default class HotReloader {
     // it should be the same value.
     this.buildId = UUID.v4()
 
-    this.config = getConfig(dir, conf)
+    this.config = config
   }
 
   async run (req, res) {
