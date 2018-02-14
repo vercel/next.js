@@ -16,7 +16,7 @@ create-next-app --example with-react-native-web
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-emotion
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-native-web
 cd with-react-native-web
 ```
 
