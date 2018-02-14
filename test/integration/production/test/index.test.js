@@ -101,6 +101,10 @@ describe('Production Usage', () => {
           .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
+      // When we go to the 404 page, it'll do a hard reload.
+      // So, it's possible for the front proxy to load a page from another zone.
+      // Since the page is reloaded, when we go back to the counter page again,
+      // previous counter value should be gone.
       const counterAfter404Page = await browser
         .elementByCss('#no-such-page').click()
         .waitForElementByCss('h1')
