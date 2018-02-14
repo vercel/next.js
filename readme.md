@@ -1080,6 +1080,9 @@ Some commonly asked for features are available as modules:
 Multiple configurations can be combined together with function composition. For example:
 
 ```js
+const withTypescript = require('@zeit/next-typescript')
+const withSass = require('@zeit/next-sass')
+
 module.exports = withTypescript(withSass({
   webpack(config, options) {
     // Further custom configuration here
@@ -1087,6 +1090,7 @@ module.exports = withTypescript(withSass({
   }
 }))
 ```
+
 
 ### Customizing babel config
 
