@@ -4,7 +4,7 @@ import { renderStatic } from 'glamor/server'
 export default class MyDocument extends Document {
   static async getInitialProps ({ renderPage }) {
     const page = renderPage()
-    const styles = renderStatic(() => page.html)
+    const styles = renderStatic(() => page.html || page.errorHtml)
     return { ...page, ...styles }
   }
 
