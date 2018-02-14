@@ -21,6 +21,12 @@ describe('createEntry', () => {
     expect(entry.files[0]).toBe('./pages/index.ts')
   })
 
+  it('Should allow custom extension like .jsx to be turned into .js', () => {
+    const entry = createEntry('pages/index.jsx', {pageExtensions: ['jsx', 'js'].join('|')})
+    expect(entry.name).toBe('bundles/pages/index.js')
+    expect(entry.files[0]).toBe('./pages/index.jsx')
+  })
+
   it('Should turn pages/blog/index.js into pages/blog.js', () => {
     const entry = createEntry('pages/blog/index.js')
     expect(entry.name).toBe('bundles/pages/blog.js')

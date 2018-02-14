@@ -9,7 +9,7 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  pageExtensions: ['js', 'jsx']
+  pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
 }
 
 export default function getConfig (dir, customConfig) {
