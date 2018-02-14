@@ -1,6 +1,6 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
-import { join, relative } from 'path'
+import { join } from 'path'
 import { parse } from 'url'
 import touch from 'touch'
 import glob from 'glob-promise'
@@ -141,18 +141,26 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
     async ensurePage (page) {
       await this.waitUntilReloaded()
       page = normalizePage(page)
-      const normalizedPagePath = normalizePagePath(page)
-      const pagePath = join(dir, 'pages', normalizedPagePath)
+      let normalizedPagePath
+      try {
+        normalizedPagePath = normalizePagePath(page)
+      } catch (err) {
+        console.error(err)
+        throw pageNotFoundError(normalizedPagePath)
+      }
+
       const extensions = pageExtensions.join('|')
-      const paths = await glob(`${pagePath}.+(${extensions})`, {cwd: dir})
+      const paths = await glob(`pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${extensions})`, {cwd: dir})
 
       if (paths.length === 0) {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const pathname = paths[0]
+      const relativePathToPage = paths[0]
 
-      const {name, files} = createEntry(relative(dir, pathname), {pageExtensions: extensions})
+      const pathname = join(dir, relativePathToPage)
+
+      const {name, files} = createEntry(relativePathToPage, {pageExtensions: extensions})
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
