@@ -5,6 +5,7 @@ const cache = new Map()
 const defaultConfig = {
   webpack: null,
   webpackDevMiddleware: null,
+  poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
@@ -33,9 +34,6 @@ function loadConfig (dir, customConfig) {
   if (path && path.length) {
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
-    if (userConfig.poweredByHeader === true || userConfig.poweredByHeader === false) {
-      console.warn('> the `poweredByHeader` option has been removed https://err.sh/zeit/next.js/powered-by-header-option-removed')
-    }
     userConfig.configOrigin = 'next.config.js'
   }
 
