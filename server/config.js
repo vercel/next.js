@@ -9,7 +9,7 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
+  decoratePageExtensions: (defaultExtensions) => defaultExtensions // jsx before js because otherwise regex matching will match js first
 }
 
 export default function getConfig (dir, customConfig) {
@@ -43,5 +43,7 @@ function loadConfig (dir, customConfig) {
 }
 
 function withDefaults (config) {
-  return Object.assign({}, defaultConfig, config)
+  const combinedConfig = Object.assign({}, defaultConfig, config)
+  combinedConfig.pageExtensions = combinedConfig.decoratePageExtensions(['js', 'jsx']) // Set pageExtensions using decoratePageExtensions. Allowing external modules to add or override page extensions.
+  return combinedConfig
 }
