@@ -252,62 +252,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin({ dir, dist: config.distDir }),
       dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: `commons`,
-        filename: `commons.js`,
-        minChunks (module, count) {
-          // We need to move react-dom explicitly into common chunks.
-          // Otherwise, if some other page or module uses it, it might
-          // included in that bundle too.
-          if (module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
-            return true
-          }
-
-          if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
-            return true
-          }
-
-          // In the dev we use on-demand-entries.
-          // So, it makes no sense to use commonChunks based on the minChunks count.
-          // Instead, we move all the code in node_modules into each of the pages.
-          if (dev) {
-            return false
-          }
-
-          // If there are one or two pages, only move modules to common if they are
-          // used in all of the pages. Otherwise, move modules used in at-least
-          // 1/2 of the total pages into commons.
-          if (totalPages <= 2) {
-            return count >= totalPages
-          }
-          return count >= totalPages * 0.5
-        }
-      }),
-      dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: 'react',
-        filename: 'react.js',
-        minChunks (module, count) {
-          if (dev) {
-            return false
-          }
-
-          if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
-            return true
-          }
-
-          if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
-            return true
-          }
-
-          return false
-        }
-      }),
-      dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'manifest',
         filename: 'manifest.js'
       }),
       !dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'main.js',
-        filename: 'app.js',
+        filename: 'main.js',
         minChunks (module, count) {
           // react
           if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
