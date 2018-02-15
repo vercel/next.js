@@ -30,13 +30,13 @@ export default async function (dir, options, configuration) {
   // Initialize the output directory
   const outDir = options.outdir
   await del(join(outDir, '*'))
-  await mkdirp(join(outDir, '_next', buildStats['app.js'].hash))
+  await mkdirp(join(outDir, '_next', buildStats['main.js'].hash))
   await mkdirp(join(outDir, '_next', buildId))
 
   // Copy files
   await cp(
-    join(nextDir, 'app.js'),
-    join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
+    join(nextDir, 'main.js'),
+    join(outDir, '_next', buildStats['main.js'].hash, 'main.js')
   )
 
   // Copy static directory
