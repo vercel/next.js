@@ -163,14 +163,6 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/app.js': async (req, res, params) => {
-        if (this.dev) return this.send404(res)
-
-        this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'app.js')
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
