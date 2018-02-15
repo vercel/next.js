@@ -134,7 +134,7 @@ describe('Production Usage', () => {
       // Since the page is reloaded, when we go back to the counter page again,
       // previous counter value should be gone.
       const counterAfter404Page = await browser
-        .elementByCss('#no-such-page').click()
+        .elementByCss('#no-such-page-prefetch').click()
         .waitForElementByCss('h1')
         .back()
         .waitForElementByCss('#counter-page')
