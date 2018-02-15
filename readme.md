@@ -1037,6 +1037,17 @@ module.exports = {
 
 This is development-only feature. If you want to cache SSR pages in production, please see [SSR-caching](https://github.com/zeit/next.js/tree/canary/examples/ssr-caching) example.
 
+#### Configuring extensions looked for when resolving pages in `pages`
+
+Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+
+```js
+// next.config.js
+module.exports = {
+  pageExtensions: ['jsx', 'js']
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
@@ -1268,6 +1279,7 @@ For the production deployment, you can use the [path alias](https://zeit.co/docs
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
+- [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
 
 ## FAQ
 
