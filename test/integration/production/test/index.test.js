@@ -93,6 +93,28 @@ describe('Production Usage', () => {
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
       expect(data).toBe('item')
     })
+
+    it('should reload the page on page script error', async () => {
+      const browser = await webdriver(appPort, '/counter')
+      const counter = await browser
+          .elementByCss('#increase').click().click()
+          .elementByCss('#counter').text()
+      expect(counter).toBe('Counter: 2')
+
+      // When we go to the 404 page, it'll do a hard reload.
+      // So, it's possible for the front proxy to load a page from another zone.
+      // Since the page is reloaded, when we go back to the counter page again,
+      // previous counter value should be gone.
+      const counterAfter404Page = await browser
+        .elementByCss('#no-such-page').click()
+        .waitForElementByCss('h1')
+        .back()
+        .waitForElementByCss('#counter-page')
+        .elementByCss('#counter').text()
+      expect(counterAfter404Page).toBe('Counter: 0')
+
+      browser.close()
+    })
   })
 
   describe('X-Powered-By header', () => {
@@ -111,6 +133,26 @@ describe('Production Usage', () => {
 
       await app.render(req, res, req.url)
       expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
+    })
+
+    it('should not set it when poweredByHeader==false', async () => {
+      const req = { url: '/stateless', headers: {} }
+      const originalConfigValue = app.config.poweredByHeader
+      app.config.poweredByHeader = false
+      const res = {
+        getHeader () {
+          return false
+        },
+        setHeader (key, value) {
+          if (key === 'XPoweredBy') {
+            throw new Error('Should not set the XPoweredBy header')
+          }
+        },
+        end () {}
+      }
+
+      await app.render(req, res, req.url)
+      app.config.poweredByHeader = originalConfigValue
     })
   })
 
