@@ -4,7 +4,6 @@ import uuid from 'uuid'
 import webpack from 'webpack'
 import getConfig from '../config'
 import getBaseWebpackConfig from './webpack'
-import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
   const config = getConfig(dir, conf)
@@ -25,7 +24,6 @@ export default async function build (dir, conf = null) {
 
     await runCompiler(configs)
 
-    await writeBuildStats(dir, config)
     await writeBuildId(dir, buildId, config)
   } catch (err) {
     console.error(`> Failed to build`)
@@ -51,16 +49,6 @@ function runCompiler (compiler) {
       resolve(jsonStats)
     })
   })
-}
-
-async function writeBuildStats (dir, config) {
-  const assetHashMap = {
-    'main.js': {
-      hash: await md5File(join(dir, config.distDir, 'main.js'))
-    }
-  }
-  const buildStatsPath = join(dir, config.distDir, 'build-stats.json')
-  await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
 }
 
 async function writeBuildId (dir, buildId, config) {

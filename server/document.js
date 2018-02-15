@@ -40,8 +40,8 @@ export class Head extends Component {
 
   getChunkPreloadLink (filename) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
-    const hash = buildStats ? buildStats[filename].hash : buildId
+    let { assetPrefix, buildId } = __NEXT_DATA__
+    const hash = buildId
 
     return (
       <link
@@ -125,8 +125,8 @@ export class NextScript extends Component {
 
   getChunkScript (filename, additionalProps = {}) {
     const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
-    const hash = buildStats ? buildStats[filename].hash : buildId
+    let { assetPrefix, buildId } = __NEXT_DATA__
+    const hash = buildId
 
     return (
       <script
