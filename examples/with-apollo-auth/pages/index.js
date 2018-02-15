@@ -25,7 +25,7 @@ class Index extends React.Component {
 
     // Force a reload of all the current queries now that the user is
     // logged in, so we don't accidentally leave any state around.
-    this.props.client.resetStore().then(() => {
+    this.props.client.cache.reset().then(() => {
       // Redirect to a more useful page when signed out
       redirect({}, '/signin')
     })
