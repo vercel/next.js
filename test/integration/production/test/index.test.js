@@ -7,7 +7,8 @@ import {
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
+  waitFor
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
@@ -107,6 +108,33 @@ describe('Production Usage', () => {
       // previous counter value should be gone.
       const counterAfter404Page = await browser
         .elementByCss('#no-such-page').click()
+        .waitForElementByCss('h1')
+        .back()
+        .waitForElementByCss('#counter-page')
+        .elementByCss('#counter').text()
+      expect(counterAfter404Page).toBe('Counter: 0')
+
+      browser.close()
+    })
+
+    it('should reload the page on page script error with prefetch', async () => {
+      const browser = await webdriver(appPort, '/counter')
+      const counter = await browser
+          .elementByCss('#increase').click().click()
+          .elementByCss('#counter').text()
+      expect(counter).toBe('Counter: 2')
+
+      // Let the browser to prefetch the page and error it on the console.
+      await waitFor(3000)
+      const browserLogs = await browser.log('browser')
+      expect(browserLogs[0].message).toMatch(/Page does not exist: \/no-such-page/)
+
+      // When we go to the 404 page, it'll do a hard reload.
+      // So, it's possible for the front proxy to load a page from another zone.
+      // Since the page is reloaded, when we go back to the counter page again,
+      // previous counter value should be gone.
+      const counterAfter404Page = await browser
+        .elementByCss('#no-such-page-prefetch').click()
         .waitForElementByCss('h1')
         .back()
         .waitForElementByCss('#counter-page')
