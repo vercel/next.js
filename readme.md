@@ -169,9 +169,9 @@ To use more sophisticated CSS-in-JS solutions, you typically have to implement s
 
 To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
 
-- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
-- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 
 ### Static file serving (e.g.: images)
 
