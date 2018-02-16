@@ -1,11 +1,10 @@
 import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
+import del from 'del'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from './build/webpack'
-import clean from './build/clean'
-import getConfig from './config'
 import UUID from 'uuid'
 import {
   IS_BUNDLED_PAGE,
@@ -13,7 +12,7 @@ import {
 } from './utils'
 
 export default class HotReloader {
-  constructor (dir, { quiet, conf } = {}) {
+  constructor (dir, { quiet, config } = {}) {
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -32,7 +31,7 @@ export default class HotReloader {
     // it should be the same value.
     this.buildId = UUID.v4()
 
-    this.config = getConfig(dir, conf)
+    this.config = config
   }
 
   async run (req, res) {
@@ -55,8 +54,12 @@ export default class HotReloader {
     }
   }
 
+  async clean () {
+    return del(join(this.dir, this.config.distDir), { force: true })
+  }
+
   async start () {
-    await clean(this.dir)
+    await this.clean()
 
     const configs = await Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
@@ -86,7 +89,7 @@ export default class HotReloader {
   async reload () {
     this.stats = null
 
-    await clean(this.dir)
+    await this.clean()
 
     const configs = await Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
@@ -225,6 +228,7 @@ export default class HotReloader {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
+      pageExtensions: this.config.pageExtensions,
       ...this.config.onDemandEntries
     })
 
