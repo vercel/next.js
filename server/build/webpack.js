@@ -71,7 +71,15 @@ function externalsConfig (dir, isServer) {
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if (res.match(/node_modules\/.*\.js/) && !res.match(/node_modules\/webpack/)) {
+      if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
+        return callback()
+      }
+
+      if (res.match(/node_modules[/\\]webpack/)) {
+        return callback()
+      }
+
+      if (res.match(/node_modules[/\\].*\.js/)) {
         return callback(null, `commonjs ${request}`)
       }
 
@@ -107,7 +115,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     externals: externalsConfig(dir, isServer),
     context: dir,
     entry: async () => {
-      const pages = await getPages(dir, {dev, isServer})
+      const pages = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
       totalPages = Object.keys(pages).length
       const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`)
       const clientConfig = !isServer ? {
@@ -126,7 +134,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       path: path.join(dir, config.distDir, isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
       filename: '[name]',
       libraryTarget: 'commonjs2',
-      publicPath: `${config.assetPrefix}/_next/webpack/`,
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
       strictModuleExceptionHandling: true,
@@ -142,10 +149,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       ],
       alias: {
         next: nextDir,
-        // This bypasses React's check for production mode. Since we know it is in production this way.
-        // This allows us to exclude React from being uglified. Saving multiple seconds per build.
-        react: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
-        'react-dom': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
+        // React already does something similar to this.
+        // But if the user has react-devtools, it'll throw an error showing that
+        // we haven't done dead code elimination (via uglifyjs).
+        // We purposly do not uglify React code to save the build time.
+        // (But it didn't increase the overall build size)
+        // Here we are doing an exact match with '$'
+        // So, you can still require nested modules like `react-dom/server`
+        react$: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
+        'react-dom$': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
       }
     },
     resolveLoader: {
@@ -251,11 +263,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           // We need to move react-dom explicitly into common chunks.
           // Otherwise, if some other page or module uses it, it might
           // included in that bundle too.
-          if (dev && module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
+          if (module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
             return true
           }
 
-          if (dev && module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
             return true
           }
 

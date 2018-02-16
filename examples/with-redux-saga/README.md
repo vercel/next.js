@@ -61,7 +61,7 @@ The second example, under `components/add-count.js`, shows a simple add counter 
 
 ## What changed with next-redux-saga
 
-The digital clock is updated every 800ms using the `runClockSaga` found in `saga.js`.
+The digital clock is updated every second using the `runClockSaga` found in `saga.js`.
 
 All pages are also being wrapped by `next-redux-saga` using a helper function from `store.js`:
 

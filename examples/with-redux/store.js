@@ -32,7 +32,7 @@ export const serverRenderClock = (isServer) => dispatch => {
 }
 
 export const startClock = () => dispatch => {
-  return setInterval(() => dispatch({ type: actionTypes.TICK, light: true, ts: Date.now() }), 800)
+  return setInterval(() => dispatch({ type: actionTypes.TICK, light: true, ts: Date.now() }), 1000)
 }
 
 export const addCount = () => dispatch => {

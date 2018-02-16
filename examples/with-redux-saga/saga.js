@@ -13,7 +13,7 @@ function * runClockSaga () {
   yield take(actionTypes.START_CLOCK)
   while (true) {
     yield put(tickClock(false))
-    yield call(delay, 800)
+    yield call(delay, 1000)
   }
 }
 

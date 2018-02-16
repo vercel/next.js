@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "5.0.0-universal-alpha.14",
+  "version": "5.0.1-canary.5",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -50,7 +50,8 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "@zeit/source-map-support": "0.6.0",
+    "@zeit/check-updates": "1.1.0",
+    "@zeit/source-map-support": "0.6.2",
     "ansi-html": "0.0.7",
     "babel-core": "6.26.0",
     "babel-loader": "7.1.2",
@@ -89,12 +90,12 @@
     "pkg-up": "2.0.0",
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
-    "react-hot-loader": "4.0.0-beta.14",
+    "react-hot-loader": "4.0.0-beta.22",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
     "send": "0.16.1",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "2.2.3",
+    "styled-jsx": "2.2.4",
     "touch": "3.1.0",
     "uglifyjs-webpack-plugin": "1.1.6",
     "unfetch": "3.0.0",
@@ -104,6 +105,7 @@
     "webpack": "3.10.0",
     "webpack-dev-middleware": "1.12.0",
     "webpack-hot-middleware": "2.21.0",
+    "webpack-sources": "1.1.0",
     "write-file-webpack-plugin": "4.2.0",
     "xss-filters": "1.2.7"
   },
@@ -112,6 +114,7 @@
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
+    "@zeit/next-css": "0.0.7",
     "babel-eslint": "8.0.1",
     "babel-jest": "21.2.0",
     "babel-plugin-istanbul": "4.1.5",

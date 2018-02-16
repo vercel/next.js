@@ -44,6 +44,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
+- [Multi Zones](#multi-zones)
 - [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -168,9 +169,9 @@ To use more sophisticated CSS-in-JS solutions, you typically have to implement s
 
 To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
 
-- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
-- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 
 ### Static file serving (e.g.: images)
 
@@ -698,7 +699,7 @@ When using a custom server with a server file, for example called `server.js`, m
 This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
-// This file doesn't not go through babel or webpack transformation.
+// This file doesn't go through babel or webpack transformation.
 // Make sure the syntax and sources this file requires are compatible with the current node version you are running
 // See https://github.com/zeit/next.js/issues/1245 for discussions on Universal Webpack or universal Babel
 const { createServer } = require('http')
@@ -1036,6 +1037,17 @@ module.exports = {
 
 This is development-only feature. If you want to cache SSR pages in production, please see [SSR-caching](https://github.com/zeit/next.js/tree/canary/examples/ssr-caching) example.
 
+#### Configuring extensions looked for when resolving pages in `pages`
+
+Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+
+```js
+// next.config.js
+module.exports = {
+  pageExtensions: ['jsx', 'js']
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
@@ -1068,13 +1080,28 @@ module.exports = {
 
 Some commonly asked for features are available as modules:
 
-- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
-- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
-- ![@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- ![@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
+- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
 
 *Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
+
+Multiple configurations can be combined together with function composition. For example:
+
+```js
+const withTypescript = require('@zeit/next-typescript')
+const withSass = require('@zeit/next-sass')
+
+module.exports = withTypescript(withSass({
+  webpack(config, options) {
+    // Further custom configuration here
+    return config
+  }
+}))
+```
+
 
 ### Customizing babel config
 
@@ -1093,7 +1120,8 @@ Here's an example `.babelrc` file:
 
 ```json
 {
-  "presets": ["next/babel", "env"]
+  "presets": ["next/babel"],
+  "plugins": []
 }
 ```
 
@@ -1220,10 +1248,53 @@ So, you could only use `pathname`, `query` and `asPath` fields of the `context` 
 
 > Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
 
+## Multi Zones
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/with-zones">With Zones</a></li></ul>
+</details></p>
+
+A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones. Then you can merge them as a single app.
+
+For an example, you can have two zones like this:
+
+* https://docs.my-app.com for serving `/docs/**`
+* https://ui.my-app.com for serving all other pages
+
+With multi zones support, you can merge both these apps into a single one. Which allows your customers to browse it using a single URL. But you can develop and deploy both apps independently.
+
+> This is exactly the same concept as microservices, but for frontend apps.
+
+### How to define a zone
+
+There are no special zones related APIs. You only need to do following things:
+
+* Make sure to keep only the pages you need in your app. (For an example, https://ui.my-app.com should not contain pages for `/docs/**`)
+* Make sure your app has an [assetPrefix](https://github.com/zeit/next.js#cdn-support-with-asset-prefix). (You can also define the assetPrefix [dynamically](https://github.com/zeit/next.js#dynamic-assetprefix).)
+
+### How to merge them
+
+You can merge zones using any HTTP proxy.
+
+You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local proxy server. It allows you to easily define routing rules like below:
+
+```json
+{
+  "rules": [
+    {"pathname": "/docs**", "method":["GET", "POST", "OPTIONS"], "dest": "https://docs.my-app.com"},
+    {"pathname": "/**", "dest": "https://ui.my-app.com"}
+  ]
+}
+```
+
+For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as show above.
+
 ## Recipes
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
+- [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
 
 ## FAQ
 

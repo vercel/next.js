@@ -21,6 +21,7 @@ const {
   __NEXT_DATA__: {
     props,
     err,
+    page,
     pathname,
     query,
     buildId,
@@ -30,7 +31,10 @@ const {
   location
 } = window
 
-// With this, static assets will work across zones
+// With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
+// So, this is how we do it in the client side at runtime
+__webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
+// Initialize next/asset with the assetPrefix
 asset.setAssetPrefix(assetPrefix)
 
 const asPath = getURL()
@@ -73,7 +77,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {
-    Component = await pageLoader.loadPage(pathname)
+    Component = await pageLoader.loadPage(page)
   } catch (err) {
     console.error(stripAnsi(`${err.message}\n${err.stack}`))
     Component = ErrorComponent
