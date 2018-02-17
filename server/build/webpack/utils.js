@@ -36,7 +36,7 @@ export function createEntry (filePath, {name, pageExtensions} = {}) {
 
   // Makes sure supported extensions are stripped off. The outputted file should always be `.js`
   if (pageExtensions) {
-    entryName = entryName.replace(new RegExp(`\\.+(${pageExtensions})`), '.js')
+    entryName = entryName.replace(new RegExp(`\\.+(${pageExtensions})$`), '.js')
   }
 
   return {
