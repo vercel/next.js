@@ -314,7 +314,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders})
+    webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders, totalPages})
   }
 
   return webpackConfig
