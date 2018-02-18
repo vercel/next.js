@@ -86,6 +86,7 @@
     "path-match": "1.2.4",
     "pkg-up": "2.0.0",
     "prop-types": "15.6.0",
+    "querystring": "0.2.0",
     "react-hot-loader": "3.1.1",
     "recursive-copy": "2.0.6",
     "send": "0.16.1",
