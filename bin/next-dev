@@ -4,7 +4,7 @@ import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { existsSync, readFileSync } from 'fs'
 import Server from '../server'
-import { printAndExit } from '../lib/utils'
+import { printAndExit } from '../server/utils'
 import pkgUp from 'pkg-up'
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'development'
