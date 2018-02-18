@@ -9,7 +9,7 @@ const TYPE_IMPORT = 'Import'
 const buildImport = (args) => (template(`
   (
     typeof window === 'undefined' ?
-      new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
+      new (require('next/same-loop-promise').default)((resolve, reject) => {
         eval('require.ensure = function (deps, callback) { callback(require) }')
         require.ensure([], (require) => {
           let m = require(SOURCE)
@@ -18,7 +18,7 @@ const buildImport = (args) => (template(`
         }, 'chunks/${args.name}.js');
       })
       :
-      new (require('next/dynamic').SameLoopPromise)((resolve, reject) => {
+      new (require('next/same-loop-promise').default)((resolve, reject) => {
         const weakId = require.resolveWeak(SOURCE)
         try {
           const weakModule = __webpack_require__(weakId)

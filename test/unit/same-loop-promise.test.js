@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 
-import { SameLoopPromise } from '../../dist/lib/dynamic'
+import SameLoopPromise from '../../dist/lib/same-loop-promise'
 
 describe('SameLoopPromise', () => {
   describe('basic api', () => {
