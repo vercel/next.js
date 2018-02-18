@@ -1,0 +1,20 @@
+{
+  "scripts": {
+    "dev": "nodemon server/index.ts",
+    "build": "next build && tsc --module commonjs",
+    "start": "NODE_ENV=production node lib/index.js"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0"
+  },
+  "devDependencies": {
+    "@types/next": "^2.4.7",
+    "@types/react": "^16.0.36",
+    "@zeit/next-typescript": "^0.0.8",
+    "nodemon": "^1.12.1",
+    "ts-node": "^4.1.0",
+    "typescript": "^2.7.1"
+  }
+}
