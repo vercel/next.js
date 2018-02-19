@@ -255,7 +255,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
-      isServer && new NextJsSsrImportPlugin({ dir, dist: config.distDir }),
+      isServer && new NextJsSsrImportPlugin(),
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: `commons`,
         filename: `commons.js`,
