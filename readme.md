@@ -169,9 +169,9 @@ To use more sophisticated CSS-in-JS solutions, you typically have to implement s
 
 To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
 
-- ![@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
-- ![@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
-- ![@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
+- [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
+- [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 
 ### Static file serving (e.g.: images)
 
@@ -1037,6 +1037,17 @@ module.exports = {
 
 This is development-only feature. If you want to cache SSR pages in production, please see [SSR-caching](https://github.com/zeit/next.js/tree/canary/examples/ssr-caching) example.
 
+#### Configuring extensions looked for when resolving pages in `pages`
+
+Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+
+```js
+// next.config.js
+module.exports = {
+  pageExtensions: ['jsx', 'js']
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
@@ -1077,6 +1088,21 @@ Some commonly asked for features are available as modules:
 
 *Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
 
+Multiple configurations can be combined together with function composition. For example:
+
+```js
+const withTypescript = require('@zeit/next-typescript')
+const withSass = require('@zeit/next-sass')
+
+module.exports = withTypescript(withSass({
+  webpack(config, options) {
+    // Further custom configuration here
+    return config
+  }
+}))
+```
+
+
 ### Customizing babel config
 
 <p><details>
@@ -1094,7 +1120,8 @@ Here's an example `.babelrc` file:
 
 ```json
 {
-  "presets": ["next/babel", "env"]
+  "presets": ["next/babel"],
+  "plugins": []
 }
 ```
 
@@ -1267,6 +1294,7 @@ For the production deployment, you can use the [path alias](https://zeit.co/docs
 
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
+- [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
 
 ## FAQ
 

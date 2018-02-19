@@ -31,4 +31,3 @@ npm install
 npm run dev
 ```  
 
-Output JS files are aside the related TypeScript ones.  

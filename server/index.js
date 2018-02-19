@@ -32,10 +32,11 @@ export default class Server {
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, conf }) : null
     this.http = null
     this.config = getConfig(this.dir, conf)
     this.dist = this.config.distDir
+
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.config }) : null
 
     if (dev) {
       updateNotifier(pkg, 'next')
@@ -51,6 +52,7 @@ export default class Server {
       dev,
       staticMarkup,
       dir: this.dir,
+      dist: this.dist,
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
@@ -183,8 +185,7 @@ export default class Server {
           }
         }
 
-        const dist = getConfig(this.dir).distDir
-        const path = join(this.dir, dist, 'bundles', 'pages', `${page}.js.map`)
+        const path = join(this.dir, this.dist, 'bundles', 'pages', `${page}.js.map`)
         await serveStatic(req, res, path)
       },
 
@@ -241,7 +242,7 @@ export default class Server {
       },
 
       '/_next/static/:path*': async (req, res, params) => {
-        const p = join(this.dist, 'static', ...(params.path || []))
+        const p = join(this.dir, this.dist, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
@@ -322,7 +323,9 @@ export default class Server {
       return
     }
 
-    res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
+    if (this.config.poweredByHeader) {
+      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
+    }
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 

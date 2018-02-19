@@ -18,7 +18,7 @@ const test = require('ava')
  *   Apollo that we can clear, etc
  */
 
-const apolloFilePath = require.resolve('../lib/init-apollo')
+const apolloFilePath = require.resolve('../lib/initApollo')
 
 test.beforeEach(() => {
   // Clean up the cache
