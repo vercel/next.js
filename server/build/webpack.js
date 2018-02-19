@@ -140,11 +140,11 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
     plugins.push(
       new CombineAssetsPlugin({
-        input: ['manifest.js', 'commons.js', 'main.js'],
+        input: ['manifest.js', 'pages/_error.js', 'commons.js', 'main.js'],
         output: 'app.js'
       }),
       new webpack.optimize.UglifyJsPlugin({
-        exclude: ['manifest.js', 'commons.js', 'main.js'],
+        exclude: ['manifest.js', 'commons.js', 'main.js', 'pages/_error.js'],
         compress: { warnings: false },
         sourceMap: false
       })
