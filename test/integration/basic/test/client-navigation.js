@@ -108,42 +108,6 @@ export default (context, render) => {
       })
     })
 
-    describe('with the current url', () => {
-      it('should reload the page', async () => {
-        const browser = await webdriver(context.appPort, '/nav/self-reload')
-        const defaultCount = await browser.elementByCss('p').text()
-        expect(defaultCount).toBe('COUNT: 0')
-
-        const countAfterClicked = await browser
-          .elementByCss('#self-reload-link').click()
-          .elementByCss('p').text()
-
-        expect(countAfterClicked).toBe('COUNT: 1')
-        browser.close()
-      })
-
-      it('should always replace the state', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-
-        const countAfterClicked = await browser
-          .elementByCss('#self-reload-link').click()
-          .waitForElementByCss('#self-reload-page')
-          .elementByCss('#self-reload-link').click()
-          .elementByCss('#self-reload-link').click()
-          .elementByCss('p').text()
-
-        // counts (page change + two clicks)
-        expect(countAfterClicked).toBe('COUNT: 3')
-
-        // Since we replace the state, back button would simply go us back to /nav
-        await browser
-          .back()
-          .waitForElementByCss('.nav-home')
-
-        browser.close()
-      })
-    })
-
     describe('with hash changes', () => {
       describe('when hash change via Link', () => {
         it('should not run getInitialProps', async () => {
@@ -182,7 +146,7 @@ export default (context, render) => {
             .elementByCss('#page-url').click()
             .elementByCss('p').text()
 
-          expect(counter).toBe('COUNT: 1')
+          expect(counter).toBe('COUNT: 0')
 
           browser.close()
         })
