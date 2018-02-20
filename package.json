@@ -106,8 +106,7 @@
     "webpack-dev-middleware": "1.12.0",
     "webpack-hot-middleware": "2.21.0",
     "webpack-sources": "1.1.0",
-    "write-file-webpack-plugin": "4.2.0",
-    "xss-filters": "1.2.7"
+    "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
     "@taskr/babel": "1.1.0",
