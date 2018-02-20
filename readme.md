@@ -608,7 +608,7 @@ The above `router` object comes with an API similar to [`next/router`](#imperati
 
 ### Prefetching Pages
 
-(This is a production only feature)
+⚠️ This is a production only feature ⚠️
 
 <p><details>
   <summary><b>Examples</b></summary>
