@@ -12,7 +12,8 @@ import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
-import xssFilters from 'xss-filters'
+
+const logger = console
 
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, query, opts)
@@ -120,36 +121,19 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderScriptError (req, res, page, error, customFields, { dev }) {
+export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  // prevent XSS attacks by filtering the page before printing it.
-  page = xssFilters.uriInSingleQuotedAttr(page)
-  res.setHeader('Content-Type', 'text/javascript')
 
   if (error.code === 'ENOENT') {
-    res.end(`
-      window.__NEXT_REGISTER_PAGE('${page}', function() {
-        var error = new Error('Page does not exist: ${page}')
-        error.statusCode = 404
-
-        return { error: error }
-      })
-    `)
+    res.statusCode = 404
+    res.end('404 - Not Found')
     return
   }
 
-  const errorJson = {
-    ...serializeError(dev, error),
-    ...customFields
-  }
-
-  res.end(`
-    window.__NEXT_REGISTER_PAGE('${page}', function() {
-      var error = ${JSON.stringify(errorJson)}
-      return { error: error }
-    })
-  `)
+  logger.error(error.stack)
+  res.statusCode = 500
+  res.end('500 - Internal Error')
 }
 
 export function sendHTML (req, res, html, method, { dev }) {

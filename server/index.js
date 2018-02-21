@@ -196,9 +196,7 @@ export default class Server {
       '/_next/:buildId/page/_error.js': async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
-          const customFields = { buildIdMismatched: true }
-
-          return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
+          return await renderScriptError(req, res, '/_error', error)
         }
 
         const p = join(this.dir, `${this.dist}/bundles/pages/_error.js`)
@@ -211,22 +209,19 @@ export default class Server {
 
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
-          const customFields = { buildIdMismatched: true }
-
-          return await renderScriptError(req, res, page, error, customFields, this.renderOpts)
+          return await renderScriptError(req, res, page, error)
         }
 
         if (this.dev) {
           try {
             await this.hotReloader.ensurePage(page)
           } catch (error) {
-            return await renderScriptError(req, res, page, error, {}, this.renderOpts)
+            return await renderScriptError(req, res, page, error)
           }
 
           const compilationErr = await this.getCompilationError()
           if (compilationErr) {
-            const customFields = { statusCode: 500 }
-            return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
+            return await renderScriptError(req, res, page, compilationErr)
           }
         }
 
@@ -235,7 +230,7 @@ export default class Server {
         // [production] If the page is not exists, we need to send a proper Next.js style 404
         // Otherwise, it'll affect the multi-zones feature.
         if (!(await fsAsync.exists(p))) {
-          return await renderScriptError(req, res, page, { code: 'ENOENT' }, {}, this.renderOpts)
+          return await renderScriptError(req, res, page, { code: 'ENOENT' })
         }
 
         await this.serveStatic(req, res, p)
