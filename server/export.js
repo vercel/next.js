@@ -12,7 +12,7 @@ import { setAssetPrefix } from '../lib/asset'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = configuration || getConfig(dir)
+  const config = configuration || getConfig('export', dir)
   const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)

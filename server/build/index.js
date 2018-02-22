@@ -7,7 +7,7 @@ import getBaseWebpackConfig from './webpack'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
-  const config = getConfig(dir, conf)
+  const config = getConfig('build', dir, conf)
   const buildId = uuid.v4()
 
   try {
