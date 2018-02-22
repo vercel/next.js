@@ -3,10 +3,10 @@ import findUp from 'find-up'
 const cache = new Map()
 
 export const phases = {
-  PRODUCTION_BUILD: 'production-build',
-  PRODUCTION_SERVER: 'production-server',
-  DEVELOPMENT_SERVER: 'development-server',
-  EXPORT: 'export'
+  PRODUCTION_BUILD: 'PRODUCTION_BUILD',
+  PRODUCTION_SERVER: 'PRODUCTION_SERVER',
+  DEVELOPMENT_SERVER: 'DEVELOPMENT_SERVER',
+  EXPORT: 'EXPORT'
 }
 
 const defaultConfig = {
