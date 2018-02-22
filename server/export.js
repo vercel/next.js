@@ -4,7 +4,7 @@ import mkdirp from 'mkdirp-then'
 import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
-import getConfig from './config'
+import getConfig, {phases} from './config'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
@@ -12,7 +12,7 @@ import { setAssetPrefix } from '../lib/asset'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = configuration || getConfig('export', dir)
+  const config = configuration || getConfig(phases.EXPORT, dir)
   const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)
