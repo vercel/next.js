@@ -327,8 +327,10 @@ export default class Server {
   }
 
   async renderToHTML (req, res, pathname, query) {
+    console.log('Render To HTML')
     if (this.dev) {
       const compilationErr = await this.getCompilationError()
+      console.log('COMP ERROR', compilationErr)
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
