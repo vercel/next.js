@@ -19,7 +19,8 @@
     "prefetch.js",
     "router.js",
     "asset.js",
-    "error.js"
+    "error.js",
+    "constants.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
