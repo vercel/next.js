@@ -2,12 +2,13 @@ import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
 import webpack from 'webpack'
-import getConfig, {phases} from '../config'
+import getConfig from '../config'
+import {PHASE_PRODUCTION_BUILD} from '../../lib/constants'
 import getBaseWebpackConfig from './webpack'
 import md5File from 'md5-file/promise'
 
 export default async function build (dir, conf = null) {
-  const config = getConfig(phases.PRODUCTION_BUILD, dir, conf)
+  const config = getConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = uuid.v4()
 
   try {

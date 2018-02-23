@@ -2,13 +2,6 @@ import findUp from 'find-up'
 
 const cache = new Map()
 
-export const phases = {
-  PRODUCTION_BUILD: 'PRODUCTION_BUILD',
-  PRODUCTION_SERVER: 'PRODUCTION_SERVER',
-  DEVELOPMENT_SERVER: 'DEVELOPMENT_SERVER',
-  EXPORT: 'EXPORT'
-}
-
 const defaultConfig = {
   webpack: null,
   webpackDevMiddleware: null,
@@ -27,7 +20,7 @@ export default function getConfig (phase, dir, customConfig) {
   return cache.get(dir)
 }
 
-function loadConfig (phase, dir, customConfig) {
+export function loadConfig (phase, dir, customConfig) {
   if (customConfig && typeof customConfig === 'object') {
     customConfig.configOrigin = 'server'
     return withDefaults(customConfig)
@@ -42,7 +35,7 @@ function loadConfig (phase, dir, customConfig) {
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
     if (typeof userConfigModule === 'function') {
-      userConfig = userConfigModule(phase, {defaultConfig, phases})
+      userConfig = userConfigModule(phase, {defaultConfig})
     }
     userConfig.configOrigin = 'next.config.js'
   }

@@ -15,7 +15,8 @@ import {
 } from './render'
 import Router from './router'
 import { getAvailableChunks, isInternalUrl } from './utils'
-import getConfig, {phases} from './config'
+import getConfig from './config'
+import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import * as asset from '../lib/asset'
@@ -33,7 +34,7 @@ export default class Server {
     this.quiet = quiet
     this.router = new Router()
     this.http = null
-    const phase = dev ? phases.DEVELOPMENT_SERVER : phases.PRODUCTION_SERVER
+    const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
     this.config = getConfig(phase, this.dir, conf)
     this.dist = this.config.distDir
 
