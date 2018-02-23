@@ -55,7 +55,7 @@ export function getPagePath (page, {dir, dist}) {
 
 export default function requirePage (page, {dir, dist}) {
   const pagePath = getPagePath(page, {dir, dist})
-  // If there's an error, it should be something with the content for the page.
+  // If there's an error, it should be something with the content of the page.
   // So, Next.js rendering system will catch it and process.
   return require(pagePath)
 }
