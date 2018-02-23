@@ -5,6 +5,7 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
+import {PHASE_EXPORT} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
@@ -12,7 +13,7 @@ import { setAssetPrefix } from '../lib/asset'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = configuration || getConfig(dir)
+  const config = configuration || getConfig(PHASE_EXPORT, dir)
   const nextDir = join(dir, config.distDir)
 
   log(`  using build directory: ${nextDir}`)
