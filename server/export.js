@@ -10,7 +10,7 @@ import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 import { setAssetPrefix } from '../lib/asset'
-import * as envConfig from '../lib/config'
+import * as envConfig from '../lib/env-config'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
