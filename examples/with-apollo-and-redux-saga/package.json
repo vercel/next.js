@@ -1,0 +1,31 @@
+{
+  "name": "with-apollo-and-redux-saga",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "apollo-client-preset": "^1.0.4",
+    "es6-promise": "^4.1.1",
+    "graphql": "^0.11.7",
+    "graphql-anywhere": "^4.0.2",
+    "graphql-tag": "^2.5.0",
+    "isomorphic-unfetch": "^2.0.0",
+    "next": "latest",
+    "next-redux-saga": "^1.0.0",
+    "next-redux-wrapper": "^1.3.5",
+    "next-routes": "^1.2.0",
+    "prop-types": "^15.6.0",
+    "react": "^16.0.0",
+    "react-apollo": "^2.0.0",
+    "react-dom": "^16.0.0",
+    "react-redux": "^5.0.0",
+    "redux": "^3.7.0",
+    "redux-devtools-extension": "^2.13.2",
+    "redux-saga": "^0.16.0"
+  },
+  "author": "",
+  "license": "ISC"
+}
