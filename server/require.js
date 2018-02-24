@@ -55,7 +55,18 @@ export function getPagePath (page, {dir, dist}) {
 
 export default function requirePage (page, {dir, dist}) {
   const pagePath = getPagePath(page, {dir, dist})
-  // If there's an error, it should be something with the content of the page.
-  // So, Next.js rendering system will catch it and process.
-  return require(pagePath)
+
+  try {
+    return require(pagePath)
+  } catch (err) {
+    console.error(err)
+    if (err.code === 'MODULE_NOT_FOUND') {
+      throw pageNotFoundError(page)
+    }
+
+    // If this is not a MODULE_NOT_FOUND error,
+    // it should be something with the content of the page.
+    // So, Next.js rendering system will catch it and process.
+    throw err
+  }
 }
