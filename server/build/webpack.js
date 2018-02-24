@@ -45,6 +45,9 @@ function babelConfig (dir, {isServer, dev}) {
     // That's why we need to do this.
     const { options } = externalBabelConfig
     mainBabelOptions.babelrc = options.babelrc !== false
+    if (!mainBabelOptions.babelrc) {
+      Object.assign(mainBabelOptions, externalBabelConfig.options)
+    }
   } else {
     mainBabelOptions.babelrc = false
   }
