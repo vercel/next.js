@@ -20,7 +20,8 @@
     "router.js",
     "asset.js",
     "error.js",
-    "constants.js"
+    "constants.js",
+    "config.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
