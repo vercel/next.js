@@ -59,11 +59,10 @@ export default function requirePage (page, {dir, dist}) {
   try {
     return require(pagePath)
   } catch (err) {
-    console.error(err)
     if (err.code === 'MODULE_NOT_FOUND') {
       throw pageNotFoundError(page)
     }
-
+    console.error(err)
     // If this is not a MODULE_NOT_FOUND error,
     // it should be something with the content of the page.
     // So, Next.js rendering system will catch it and process.
