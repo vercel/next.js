@@ -1,12 +1,12 @@
-import Document, { Head, Main, NextScript } from 'next/document';
+import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
-  static getInitialProps({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage();
-    return { html, head, errorHtml, chunks };
+  static getInitialProps ({ renderPage }) {
+    const { html, head, errorHtml, chunks } = renderPage()
+    return { html, head, errorHtml, chunks }
   }
 
-  render() {
+  render () {
     return (
       <html>
         <Head>
@@ -17,6 +17,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </html>
-    );
+    )
   }
 }
