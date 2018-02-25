@@ -9,8 +9,8 @@ const {
 
 export default () => {
   webpackHotMiddlewareClient.setOptionsAndConnect({
-    overlay: false,
-    reload: true,
+    overlay: 'false',
+    reload: 'true',
     path: `${assetPrefix}/_next/webpack-hmr`
   })
 
