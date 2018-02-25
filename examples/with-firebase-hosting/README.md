@@ -56,6 +56,12 @@ to locally host the built Next.js app as expected. [This issue is where solution
 npm run deploy
 ```
 
+#### Clean dist folder
+
+```bash
+npm run clean
+```
+
 ## The idea behind the example
 
 The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
@@ -66,4 +72,4 @@ This is based off of the work at https://github.com/geovanisouza92/serverless-fi
 
 * The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 * `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks runs most of the npm scripts when `npm run deploy` runs `firebase deploy`. The only scripts you should need are `dev` and `deploy`.
+* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks runs most of the npm scripts when `npm run deploy` runs `firebase deploy`. The only scripts you should need are `dev`, `clean` and `deploy`.
