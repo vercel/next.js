@@ -1,10 +1,18 @@
+import 'semantic-ui-css/components/modal.css'
+import 'semantic-ui-css/components/header.css'
+import 'semantic-ui-css/components/button.css'
+import 'semantic-ui-css/components/list.css'
+import 'semantic-ui-css/components/icon.css'
+import 'semantic-ui-css/themes/default/assets/fonts/icons.eot'
+import 'semantic-ui-css/themes/default/assets/fonts/icons.woff'
+import 'semantic-ui-css/themes/default/assets/fonts/icons.woff2'
+import { Modal, Header, Button, List, Icon } from 'semantic-ui-react'
 import Head from 'next/head'
-import { Modal, Header, Button, List } from 'semantic-ui-react'
 
 export default () => (
   <div>
     <Head>
-      <link rel='stylesheet' href='//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.2/semantic.min.css' />
+      <link rel='stylesheet' href='/_next/static/style.css' />
     </Head>
     <Modal trigger={<Button>Show Modal</Button>}>
       <Modal.Header>Select a Photo</Modal.Header>
@@ -34,5 +42,7 @@ export default () => (
         </List.Content>
       </List.Item>
     </List>
+
+    Hello <Icon name='world' />
   </div>
 )
