@@ -39,7 +39,7 @@ __webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
 // Initialize next/asset with the assetPrefix
 asset.setAssetPrefix(assetPrefix)
 // Initialize next/config with the environment configuration
-envConfig.setConfig(config)
+envConfig.setConfig(config || {})
 
 const asPath = getURL()
 
