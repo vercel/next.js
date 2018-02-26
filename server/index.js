@@ -357,7 +357,7 @@ export default class Server {
     if (this.nextConfig.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
-    return sendHTML(req, res, html, req.method, this.renderOpts)
+    return sendHTML(req, res, html, req.method, this.renderOpts, this.nextConfig)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -386,7 +386,7 @@ export default class Server {
 
   async renderError (err, req, res, pathname, query) {
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(req, res, html, req.method, this.renderOpts)
+    return sendHTML(req, res, html, req.method, this.renderOpts, this.nextConfig)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
