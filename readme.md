@@ -1143,6 +1143,34 @@ Here's an example `.babelrc` file:
 }
 ```
 
+#### Exposing configuration to the server / client side
+
+The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
+
+```js
+// next.config.js
+module.exports = {
+  runtimeConfig: {
+    mySecret: 'secret',
+    public: {
+      staticFolder: '/static'
+    }
+  }
+}
+```
+
+```js
+// pages/index.js
+import getConfig from 'next/config'
+const config = getConfig()
+console.log(config.mySecret) // Will be 'secret' on the server, `undefined` on the client
+console.log(config.public.staticFolder) // Will be '/static' on both server and client
+
+export default () => <div>
+  <img src={`${config.public.staticFolder}/logo.png`} />
+</div>
+```
+
 ### CDN support with Asset Prefix
 
 To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.

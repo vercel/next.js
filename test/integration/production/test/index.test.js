@@ -165,8 +165,8 @@ describe('Production Usage', () => {
 
     it('should not set it when poweredByHeader==false', async () => {
       const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.config.poweredByHeader
-      app.config.poweredByHeader = false
+      const originalConfigValue = app.nextConfig.poweredByHeader
+      app.nextConfig.poweredByHeader = false
       const res = {
         getHeader () {
           return false
@@ -180,7 +180,7 @@ describe('Production Usage', () => {
       }
 
       await app.render(req, res, req.url)
-      app.config.poweredByHeader = originalConfigValue
+      app.nextConfig.poweredByHeader = originalConfigValue
     })
   })
 

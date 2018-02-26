@@ -40,6 +40,7 @@ async function doRender (req, res, pathname, query, {
   buildStats,
   hotReloader,
   assetPrefix,
+  runtimeConfig,
   availableChunks,
   dist,
   dir = process.cwd(),
@@ -109,6 +110,7 @@ async function doRender (req, res, pathname, query, {
       buildId,
       buildStats,
       assetPrefix,
+      runtimeConfig,
       nextExport,
       err: (err) ? serializeError(dev, err) : null
     },

@@ -10,11 +10,12 @@ import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 import { setAssetPrefix } from '../lib/asset'
+import * as envConfig from '../lib/runtime-config'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = configuration || getConfig(PHASE_EXPORT, dir)
-  const nextDir = join(dir, config.distDir)
+  const nextConfig = configuration || getConfig(PHASE_EXPORT, dir)
+  const nextDir = join(dir, nextConfig.distDir)
 
   log(`  using build directory: ${nextDir}`)
 
@@ -73,28 +74,42 @@ export default async function (dir, options, configuration) {
   await copyPages(nextDir, outDir, buildId)
 
   // Get the exportPathMap from the `next.config.js`
-  if (typeof config.exportPathMap !== 'function') {
+  if (typeof nextConfig.exportPathMap !== 'function') {
     printAndExit(
       '> Could not find "exportPathMap" function inside "next.config.js"\n' +
       '> "next export" uses that function to build html pages.'
     )
   }
 
-  const exportPathMap = await config.exportPathMap()
+  const exportPathMap = await nextConfig.exportPathMap()
   const exportPaths = Object.keys(exportPathMap)
 
   // Start the rendering process
   const renderOpts = {
     dir,
-    dist: config.distDir,
+    dist: nextConfig.distDir,
     buildStats,
     buildId,
     nextExport: true,
-    assetPrefix: config.assetPrefix.replace(/\/$/, ''),
+    assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    availableChunks: getAvailableChunks(dir, config.distDir)
+    availableChunks: getAvailableChunks(dir, nextConfig.distDir)
+  }
+
+  // Allow configuration from next.config.js to be passed to the server / client
+  if (nextConfig.runtimeConfig) {
+    // Initialize next/config with the environment configuration
+    envConfig.setConfig(nextConfig.runtimeConfig)
+
+    // Only the `public` key is exposed to the client side
+    // It'll be rendered as part of __NEXT_DATA__ on the client side
+    if (nextConfig.runtimeConfig.public) {
+      renderOpts.runtimeConfig = {
+        public: nextConfig.runtimeConfig.public
+      }
+    }
   }
 
   // set the assetPrefix to use for 'next/asset'

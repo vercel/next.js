@@ -5,5 +5,11 @@ module.exports = withCSS({
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
   },
-  cssModules: true
+  cssModules: true,
+  runtimeConfig: {
+    mySecret: 'secret',
+    public: {
+      staticFolder: '/static'
+    }
+  }
 })

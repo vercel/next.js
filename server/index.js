@@ -20,6 +20,7 @@ import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constant
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import * as asset from '../lib/asset'
+import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
 const blockedPages = {
@@ -35,10 +36,10 @@ export default class Server {
     this.router = new Router()
     this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
-    this.config = getConfig(phase, this.dir, conf)
-    this.dist = this.config.distDir
+    this.nextConfig = getConfig(phase, this.dir, conf)
+    this.dist = this.nextConfig.distDir
 
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.config }) : null
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
 
     if (dev) {
       updateNotifier(pkg, 'next')
@@ -48,6 +49,7 @@ export default class Server {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
     }
+
     this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
@@ -61,7 +63,21 @@ export default class Server {
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    this.setAssetPrefix(this.config.assetPrefix)
+    // Allow configuration from next.config.js to be passed to the server / client
+    if (this.nextConfig.runtimeConfig) {
+      // Initialize next/config with the environment configuration
+      envConfig.setConfig(this.nextConfig.runtimeConfig)
+
+      // Only the `public` key is exposed to the client side
+      // It'll be rendered as part of __NEXT_DATA__ on the client side
+      if (this.nextConfig.runtimeConfig.public) {
+        this.renderOpts.runtimeConfig = {
+          public: this.nextConfig.runtimeConfig.public
+        }
+      }
+    }
+
+    this.setAssetPrefix(this.nextConfig.assetPrefix)
     this.defineRoutes()
   }
 
@@ -262,7 +278,7 @@ export default class Server {
       }
     }
 
-    if (this.config.useFileSystemPublicRoutes) {
+    if (this.nextConfig.useFileSystemPublicRoutes) {
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query)
@@ -320,7 +336,7 @@ export default class Server {
       return
     }
 
-    if (this.config.poweredByHeader) {
+    if (this.nextConfig.poweredByHeader) {
       res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
     }
     return sendHTML(req, res, html, req.method, this.renderOpts)

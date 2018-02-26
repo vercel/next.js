@@ -18,5 +18,15 @@ export default function ({ app }, suiteName, render, fetch) {
       const $ = await get$('/webpack-css')
       expect($('._2pRSkKTPDMGLMnmsEkP__J').text() === 'Hello World')
     })
+
+    test('renders server config on the server only', async () => {
+      const $ = await get$('/next-config')
+      expect($('#server-only').text() === 'mySecret')
+    })
+
+    test('renders public config on the server only', async () => {
+      const $ = await get$('/next-config')
+      expect($('#server-and-client').text() === '/static')
+    })
   })
 }
