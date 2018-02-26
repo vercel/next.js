@@ -91,8 +91,8 @@ function externalsConfig (dir, isServer) {
 }
 
 export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
+  const defaultNodeEnv = dev ? 'development' : 'production'
   const babelLoaderOptions = babelConfig(dir, {dev, isServer})
-
   const defaultLoaders = {
     babel: {
       loader: 'babel-loader',
@@ -246,7 +246,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         }
       }),
       new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+        'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ? process.env.NODE_ENV : defaultNodeEnv)
       }),
       !isServer && new CombineAssetsPlugin({
         input: ['manifest.js', 'react.js', 'commons.js', 'main.js'],
