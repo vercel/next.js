@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/env-config')
+module.exports = require('./dist/lib/runtime-config')

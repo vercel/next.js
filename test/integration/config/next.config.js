@@ -6,7 +6,7 @@ module.exports = withCSS({
     maxInactiveAge: 1000 * 60 * 60
   },
   cssModules: true,
-  config: {
+  runtimeConfig: {
     mySecret: 'secret',
     public: {
       staticFolder: '/static'

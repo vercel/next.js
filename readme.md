@@ -1150,7 +1150,7 @@ The `config` key allows for exposing runtime configuration in your app. All keys
 ```js
 // next.config.js
 module.exports = {
-  config: {
+  runtimeConfig: {
     mySecret: 'secret',
     public: {
       staticFolder: '/static'

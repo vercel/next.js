@@ -10,7 +10,7 @@ import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 import { setAssetPrefix } from '../lib/asset'
-import * as envConfig from '../lib/env-config'
+import * as envConfig from '../lib/runtime-config'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
@@ -99,15 +99,15 @@ export default async function (dir, options, configuration) {
   }
 
   // Allow configuration from next.config.js to be passed to the server / client
-  if (nextConfig.config) {
+  if (nextConfig.runtimeConfig) {
     // Initialize next/config with the environment configuration
-    envConfig.setConfig(nextConfig.config)
+    envConfig.setConfig(nextConfig.runtimeConfig)
 
     // Only the `public` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (nextConfig.config.public) {
-      renderOpts.config = {
-        public: nextConfig.config.public
+    if (nextConfig.runtimeConfig.public) {
+      renderOpts.runtimeConfig = {
+        public: nextConfig.runtimeConfig.public
       }
     }
   }

@@ -20,7 +20,7 @@ import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constant
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
 import * as asset from '../lib/asset'
-import * as envConfig from '../lib/env-config'
+import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
 const blockedPages = {
@@ -64,15 +64,15 @@ export default class Server {
     }
 
     // Allow configuration from next.config.js to be passed to the server / client
-    if (this.nextConfig.config) {
+    if (this.nextConfig.runtimeConfig) {
       // Initialize next/config with the environment configuration
-      envConfig.setConfig(this.nextConfig.config)
+      envConfig.setConfig(this.nextConfig.runtimeConfig)
 
       // Only the `public` key is exposed to the client side
       // It'll be rendered as part of __NEXT_DATA__ on the client side
-      if (this.nextConfig.config.public) {
-        this.renderOpts.config = {
-          public: this.nextConfig.config.public
+      if (this.nextConfig.runtimeConfig.public) {
+        this.renderOpts.runtimeConfig = {
+          public: this.nextConfig.runtimeConfig.public
         }
       }
     }

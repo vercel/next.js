@@ -7,7 +7,7 @@ import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
-import * as envConfig from '../lib/env-config'
+import * as envConfig from '../lib/runtime-config'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -28,7 +28,7 @@ const {
     buildId,
     chunks,
     assetPrefix,
-    config
+    runtimeConfig
   },
   location
 } = window
@@ -39,7 +39,7 @@ __webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
 // Initialize next/asset with the assetPrefix
 asset.setAssetPrefix(assetPrefix)
 // Initialize next/config with the environment configuration
-envConfig.setConfig(config || {})
+envConfig.setConfig(runtimeConfig || {})
 
 const asPath = getURL()
 
