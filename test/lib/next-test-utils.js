@@ -146,3 +146,13 @@ export async function startStaticServer (dir) {
   await promiseCall(server, 'listen')
   return server
 }
+
+export async function check (contentFn, regex) {
+  while (true) {
+    try {
+      const newContent = await contentFn()
+      if (regex.test(newContent)) break
+      await waitFor(1000)
+    } catch (ex) {}
+  }
+}
