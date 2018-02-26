@@ -143,6 +143,30 @@ export default (context, render) => {
       browser.close()
     })
 
+    it('should recover after a bad return from the render function', async () => {
+      const browser = await webdriver(context.appPort, '/hmr/about')
+      const text = await browser
+        .elementByCss('p').text()
+      expect(text).toBe('This is the about page.')
+
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      aboutPage.replace('export default', 'export default () => /search/ \nexport const fn = ')
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Objects are not valid as a React child/
+      )
+
+      aboutPage.restore()
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /This is the about page/
+      )
+
+      browser.close()
+    })
+
     it('should recover from errors in getInitialProps in client')
     it('should recover after an error reported via SSR')
     it('should recover from 404 after a page has been added')
