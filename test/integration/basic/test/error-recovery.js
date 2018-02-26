@@ -1,35 +1,7 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
-import { check } from 'next-test-utils'
-
-class File {
-  constructor (path) {
-    this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
-  }
-
-  write (content) {
-    if (!this.originalContent) {
-      this.originalContent = content
-    }
-    writeFileSync(this.path, content, 'utf8')
-  }
-
-  replace (pattern, newValue) {
-    const newContent = this.originalContent.replace(pattern, newValue)
-    this.write(newContent)
-  }
-
-  delete () {
-    unlinkSync(this.path)
-  }
-
-  restore () {
-    this.write(this.originalContent)
-  }
-}
+import { check, File } from 'next-test-utils'
 
 export default (context, render) => {
   describe('Error Recovery', () => {
