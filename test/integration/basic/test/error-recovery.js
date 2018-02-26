@@ -188,7 +188,26 @@ export default (context, render) => {
       browser.close()
     })
 
-    it('should recover after an error reported via SSR')
+    it('should recover after an error reported via SSR', async () => {
+      const browser = await webdriver(context.appPort, '/hmr/error-in-gip')
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /an-expected-error-in-gip/
+      )
+
+      const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
+      erroredPage.replace('throw error', 'return {}')
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Hello/
+      )
+
+      erroredPage.restore()
+      browser.close()
+    })
+
     it('should recover from 404 after a page has been added')
   })
 }
