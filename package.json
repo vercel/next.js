@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "5.0.1-canary.8",
+  "version": "5.0.1-canary.9",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
