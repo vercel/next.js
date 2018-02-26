@@ -57,18 +57,14 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should render even there are no physical chunk exists', async () => {
-        const browser = await webdriver(context.appPort, '/dynamic/no-chunk')
+      it('no ssr with error in chunk', async () => {
+        const browser = await webdriver(context.appPort, '/dynamic/no-ssr-error')
 
-        while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
-          if (
-            /Welcome, normal/.test(bodyText) &&
-            /Welcome, dynamic/.test(bodyText)
-          ) break
-          await waitFor(1000)
-        }
+        await waitFor(2000)
+        const bodyText = await browser
+          .elementByCss('body').text()
+
+        expect(/Expected error/.test(bodyText)).toBe(true)
 
         browser.close()
       })
