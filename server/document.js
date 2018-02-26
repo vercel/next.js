@@ -189,7 +189,6 @@ export class NextScript extends Component {
           }
 
           __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
-            console.log('TEST', chunkName)
             __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
           }
 
