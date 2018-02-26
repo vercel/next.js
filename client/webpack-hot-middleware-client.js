@@ -1,4 +1,4 @@
-import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?autoConnect=false&overlay=false&reload=true'
+import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?autoConnect=false'
 import Router from '../lib/router'
 
 const {

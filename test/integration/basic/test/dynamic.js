@@ -63,6 +63,7 @@ export default (context, render) => {
         await waitFor(5000)
         const bodyText = await browser
           .elementByCss('body').text()
+        console.log(bodyText)
 
         expect(/Expected error/.test(bodyText)).toBe(true)
 
