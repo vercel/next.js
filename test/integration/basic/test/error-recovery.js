@@ -1,22 +1,29 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { check } from 'next-test-utils'
 
 class File {
   constructor (path) {
     this.path = path
-    this.originalContent = readFileSync(this.path, 'utf8')
+    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
   }
 
   write (content) {
+    if (!this.originalContent) {
+      this.originalContent = content
+    }
     writeFileSync(this.path, content, 'utf8')
   }
 
   replace (pattern, newValue) {
     const newContent = this.originalContent.replace(pattern, newValue)
     this.write(newContent)
+  }
+
+  delete () {
+    unlinkSync(this.path)
   }
 
   restore () {
@@ -208,6 +215,25 @@ export default (context, render) => {
       browser.close()
     })
 
-    it('should recover from 404 after a page has been added')
+    it('should recover from 404 after a page has been added', async () => {
+      const browser = await webdriver(context.appPort, '/hmr/new-page')
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /This page could not be found/
+      )
+
+      // Add the page
+      const newPage = new File(join(__dirname, '../', 'pages', 'hmr', 'new-page.js'))
+      newPage.write('export default () => (<div>the-new-page</div>)')
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /the-new-page/
+      )
+
+      newPage.delete()
+      browser.close()
+    })
   })
 }
