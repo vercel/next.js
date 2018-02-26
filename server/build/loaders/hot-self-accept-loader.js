@@ -35,6 +35,11 @@ function getRoute (loaderContext) {
   const { resourcePath } = loaderContext
   const dir = [pagesDir, nextPagesDir]
   .find((d) => resourcePath.indexOf(d) === 0)
+  
+  if (!dir) {
+    return;
+  }
+  
   const path = relative(dir, resourcePath)
   return '/' + path.replace(/((^|\/)index)?\.js$/, '')
 }
