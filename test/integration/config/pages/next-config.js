@@ -1,8 +1,7 @@
-// pages/index.js
 import getConfig from 'next/config'
-const config = getConfig()
+const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 
 export default () => <div>
-  <p id='server-only'>{config.mySecret}</p>
-  <p id='server-and-client'>{config.public.staticFolder}</p>
+  <p id='server-only'>{serverRuntimeConfig.mySecret}</p>
+  <p id='server-and-client'>{publicRuntimeConfig.staticFolder}</p>
 </div>

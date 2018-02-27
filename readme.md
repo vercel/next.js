@@ -1150,11 +1150,11 @@ The `config` key allows for exposing runtime configuration in your app. All keys
 ```js
 // next.config.js
 module.exports = {
-  runtimeConfig: {
-    mySecret: 'secret',
-    public: {
-      staticFolder: '/static'
-    }
+  serverRuntimeConfig: { // Will only be available on the server side
+    mySecret: 'secret'
+  },
+  publicRuntimeConfig: { // Will be available on both server and client
+    staticFolder: '/static'
   }
 }
 ```
@@ -1162,12 +1162,13 @@ module.exports = {
 ```js
 // pages/index.js
 import getConfig from 'next/config'
-const config = getConfig()
-console.log(config.mySecret) // Will be 'secret' on the server, `undefined` on the client
-console.log(config.public.staticFolder) // Will be '/static' on both server and client
+const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
+
+console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
+console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
 export default () => <div>
-  <img src={`${config.public.staticFolder}/logo.png`} />
+  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} />
 </div>
 ```
 
