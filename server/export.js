@@ -98,19 +98,16 @@ export default async function (dir, options, configuration) {
     availableChunks: getAvailableChunks(dir, nextConfig.distDir)
   }
 
-  // Allow configuration from next.config.js to be passed to the server / client
-  if (nextConfig.runtimeConfig) {
-    // Initialize next/config with the environment configuration
-    envConfig.setConfig(nextConfig.runtimeConfig)
+  const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
 
-    // Only the `public` key is exposed to the client side
-    // It'll be rendered as part of __NEXT_DATA__ on the client side
-    if (nextConfig.runtimeConfig.public) {
-      renderOpts.runtimeConfig = {
-        public: nextConfig.runtimeConfig.public
-      }
-    }
+  if (publicRuntimeConfig) {
+    renderOpts.runtimeConfig = publicRuntimeConfig
   }
+
+  envConfig.setConfig({
+    serverRuntimeConfig,
+    publicRuntimeConfig
+  })
 
   // set the assetPrefix to use for 'next/asset'
   setAssetPrefix(renderOpts.assetPrefix)

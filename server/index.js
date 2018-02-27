@@ -63,21 +63,21 @@ export default class Server {
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    // Allow configuration from next.config.js to be passed to the server / client
-    if (this.nextConfig.runtimeConfig) {
-      // Initialize next/config with the environment configuration
-      envConfig.setConfig(this.nextConfig.runtimeConfig)
+    const {serverRuntimeConfig, publicRuntimeConfig, assetPrefix} = this.nextConfig
 
-      // Only the `public` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      if (this.nextConfig.runtimeConfig.public) {
-        this.renderOpts.runtimeConfig = {
-          public: this.nextConfig.runtimeConfig.public
-        }
-      }
+    // Only the `publicRuntimeConfig` key is exposed to the client side
+    // It'll be rendered as part of __NEXT_DATA__ on the client side
+    if (publicRuntimeConfig) {
+      this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
-    this.setAssetPrefix(this.nextConfig.assetPrefix)
+    // Initialize next/config with the environment configuration
+    envConfig.setConfig({
+      serverRuntimeConfig,
+      publicRuntimeConfig
+    })
+
+    this.setAssetPrefix(assetPrefix)
     this.defineRoutes()
   }
 
