@@ -1009,7 +1009,7 @@ module.exports = (phase, {defaultConfig}){
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [contants](./lib/constants.js)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](./lib/constants.js)
 Phases can be imported from `next/constants`:
 
 ```js
