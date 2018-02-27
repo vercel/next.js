@@ -89,7 +89,8 @@ export default () => <div>Welcome to next.js!</div>
 
 To start the development server from your project directory:
 
-```npm run dev
+```bash
+npm run dev
 ```
 
 Then go to `http://localhost:3000`. 
