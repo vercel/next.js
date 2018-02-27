@@ -85,7 +85,16 @@ Populate `./pages/index.js` inside your project:
 export default () => <div>Welcome to next.js!</div>
 ```
 
-and then just run `npm run dev` and go to `http://localhost:3000`. To use another port, you can run `npm run dev -- -p <your port here>`.
+### Run the development server
+
+To start the development server from your project directory:
+
+```npm run dev
+```
+
+Then go to `http://localhost:3000`. 
+
+To use another port, you can run `npm run dev -- -p <your port here>`.
 
 So far, we get:
 
