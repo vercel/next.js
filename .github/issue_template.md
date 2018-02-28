@@ -1,7 +1,7 @@
 <!--- Provide a general summary of the issue in the Title above -->
 
 <!--
-IMPORTANT
+⚠️ IMPORTANT ⚠️
 If you have a question about Next.js please ask it on Spectrum https://spectrum.chat/next-js
 or join our Slack community at https://zeit.chat and ask it in the `#next` channel
 -->
@@ -12,7 +12,7 @@ or join our Slack community at https://zeit.chat and ask it in the `#next` chann
 -->
 
 <!-- Checked checkbox should look like this: [x] -->
-- [ ] I have searched the [issues](https://github.com/zeit/next.js/issues) of this repository and believe that this is not a duplicate.
+- [ ] I have searched the [issues](https://github.com/zeit/next.js/issues?q=is%3Aissue) of this repository and believe that this is not a duplicate.
 
 ## Expected Behavior
 <!--- If you're describing a bug, tell us what should happen -->
