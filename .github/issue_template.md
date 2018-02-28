@@ -1,6 +1,12 @@
 <!--- Provide a general summary of the issue in the Title above -->
 
 <!--
+IMPORTANT
+> If you have a question about Next.js you should ask your question on Spectrum https://spectrum.chat/next-js
+> or join our Slack community at https://zeit.chat and ask in the `#next` channel
+-->
+
+<!--
     Thank you very much for contributing to Next.js by creating an issue! ❤️
     To avoid duplicate issues we ask you to check off the following list
 -->
