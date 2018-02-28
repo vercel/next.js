@@ -2,8 +2,8 @@
 
 <!--
 IMPORTANT
-> If you have a question about Next.js you should ask your question on Spectrum https://spectrum.chat/next-js
-> or join our Slack community at https://zeit.chat and ask in the `#next` channel
+If you have a question about Next.js please ask it on Spectrum https://spectrum.chat/next-js
+or join our Slack community at https://zeit.chat and ask it in the `#next` channel
 -->
 
 <!--
