@@ -7,10 +7,14 @@ import { PHASE_PRODUCTION_BUILD } from '../../lib/constants'
 import getBaseWebpackConfig from './webpack'
 import md5File from 'md5-file/promise'
 
-export default async function build(dir, conf = null) {
+export default async function build (dir, conf = null) {
   const config = getConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = process.env.BUILD_ID || uuid.v4()
-
+  let buildId
+  if (typeof config.generateBuildId === 'function') {
+    buildId = await config.generateBuildId()
+  } else {
+    buildId = uuid.v4()
+  }
   try {
     await fs.access(dir, fs.constants.W_OK)
   } catch (err) {
@@ -34,7 +38,7 @@ export default async function build(dir, conf = null) {
   }
 }
 
-function runCompiler(compiler) {
+function runCompiler (compiler) {
   return new Promise(async (resolve, reject) => {
     const webpackCompiler = await webpack(await compiler)
     webpackCompiler.run((err, stats) => {
@@ -54,7 +58,7 @@ function runCompiler(compiler) {
   })
 }
 
-async function writeBuildStats(dir, config) {
+async function writeBuildStats (dir, config) {
   // Here we can't use hashes in webpack chunks.
   // That's because the "app.js" is not tied to a chunk.
   // It's created by merging a few assets. (commons.js and main.js)
@@ -68,7 +72,7 @@ async function writeBuildStats(dir, config) {
   await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
 }
 
-async function writeBuildId(dir, buildId, config) {
+async function writeBuildId (dir, buildId, config) {
   const buildIdPath = join(dir, config.distDir, 'BUILD_ID')
   await fs.writeFile(buildIdPath, buildId, 'utf8')
 }

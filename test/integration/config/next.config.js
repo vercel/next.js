@@ -11,5 +11,6 @@ module.exports = withCSS({
   },
   publicRuntimeConfig: {
     staticFolder: '/static'
-  }
+  },
+  generateBuildId: () => Promise.resolve('TEST_BUILD_ID')
 })

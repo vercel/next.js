@@ -1066,6 +1066,25 @@ module.exports = {
 }
 ```
 
+#### Configuring the build ID
+
+Next uses a constant generated at build time to identify which version of your application it is being served by. This can cause problems in multi-server deployments because the default ID is not stable across server builds. In order to make it stable you can customize as you see fit, syncronously:
+
+```js
+module.exports = {
+  generateBuildId: () => process.env.BUILD_ID
+}
+```
+
+or asyncronously:
+
+
+```js
+module.exports = {
+  generateBuildId: () => generateIdFromGitSHA() // returns a Promise
+}
+```
+
 ### Customizing webpack config
 
 <p><details>
