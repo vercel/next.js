@@ -467,7 +467,11 @@ export default class Server {
     }
 
     if (hash !== this.buildStats[filename].hash) {
-      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+      if (this.dev) {
+        throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
+      } else {
+        this.send404(res)
+      }
     }
 
     res.setHeader('Cache-Control', 'max-age=31536000, immutable')
