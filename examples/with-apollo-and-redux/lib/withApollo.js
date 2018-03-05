@@ -10,20 +10,21 @@ function getComponentDisplayName(Component) {
 }
 
 export default ComposedComponent => {
-  return class WithData extends React.Component {
+  class WithData extends React.Component {
     static displayName = `WithData(${getComponentDisplayName(
-      ComposedComponent
+      ComposedComponent,
     )})`
+
     static propTypes = {
-      serverState: PropTypes.object.isRequired
+      serverState: PropTypes.object, // eslint-disable-line
     }
 
     static async getInitialProps(ctx) {
       // Initial serverState with apollo (empty)
       let serverState = {
         apollo: {
-          data: {}
-        }
+          data: {},
+        },
       }
 
       // Evaluate the composed component's getInitialProps()
@@ -47,11 +48,12 @@ export default ComposedComponent => {
               router: {
                 asPath: ctx.asPath,
                 pathname: ctx.pathname,
-                query: ctx.query
-              }
-            }
+                query: ctx.query,
+              },
+            },
           )
         } catch (error) {
+          console.log('WITH APOLLO COMPONENT FAILED ', error)
           // Prevent Apollo Client GraphQL errors from crashing SSR.
           // Handle them in components via the data.error prop:
           // http://dev.apollodata.com/react/api-queries.html#graphql-query-data-error
@@ -63,20 +65,24 @@ export default ComposedComponent => {
         // Extract query data from the Apollo store
         serverState = {
           apollo: {
-            data: apollo.cache.extract()
-          }
+            data: apollo.cache.extract(),
+          },
         }
       }
 
       return {
         serverState,
-        ...composedInitialProps
+        ...composedInitialProps,
       }
     }
 
     constructor(props) {
       super(props)
       this.apollo = initApollo(this.props.serverState.apollo.data)
+    }
+
+    getChildContext() {
+      return { apolloClient: this.apollo }
     }
 
     render() {
@@ -87,4 +93,10 @@ export default ComposedComponent => {
       )
     }
   }
+
+  WithData.childContextTypes = {
+    apolloClient: PropTypes.object,
+  }
+
+  return WithData
 }
