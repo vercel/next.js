@@ -3,6 +3,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
+    "jsx": "preserve",
     "allowJs": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
@@ -21,7 +22,7 @@
       "es2015",
       "es2016"
     ],
-    "outDir": "lib/"
+    "outDir": "production-server/"
   },
   "include": [
     "server/**/*.ts"

@@ -2,7 +2,7 @@
   "scripts": {
     "dev": "nodemon server/index.ts",
     "build": "next build && tsc --module commonjs",
-    "start": "NODE_ENV=production node lib/index.js"
+    "start": "NODE_ENV=production node production-server/index.js"
   },
   "dependencies": {
     "next": "latest",
