@@ -63,7 +63,9 @@ export default class Server {
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
-    const {serverRuntimeConfig, publicRuntimeConfig, assetPrefix} = this.nextConfig
+    // Only serverRuntimeConfig needs the default
+    // publicRuntimeConfig gets it's default in client/index.js
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix} = this.nextConfig
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
