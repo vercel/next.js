@@ -10,7 +10,7 @@ export default class MyDocument extends Document {
 
     const page = renderPage(App => props => (
       <FelaProvider renderer={serverRenderer}>
-        <App />
+        <App {...props} />
       </FelaProvider>
     ))
 
