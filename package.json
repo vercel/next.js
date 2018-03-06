@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "5.0.1-canary.10",
+  "version": "5.0.1-canary.11",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -52,7 +52,7 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "@zeit/check-updates": "1.1.0",
+    "@zeit/check-updates": "1.1.1",
     "@zeit/source-map-support": "0.6.2",
     "ansi-html": "0.0.7",
     "babel-core": "6.26.0",
