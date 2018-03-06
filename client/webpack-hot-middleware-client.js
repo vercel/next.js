@@ -1,3 +1,4 @@
+import 'event-source-polyfill'
 import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?autoConnect=false'
 import Router from '../lib/router'
 
