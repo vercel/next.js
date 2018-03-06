@@ -83,7 +83,6 @@
     "http-status": "1.0.1",
     "json-loader": "0.5.7",
     "loader-utils": "1.1.0",
-    "md5-file": "3.2.3",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
