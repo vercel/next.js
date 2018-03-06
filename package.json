@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "5.0.1-canary.6",
+  "version": "5.0.1-canary.10",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -19,7 +19,9 @@
     "prefetch.js",
     "router.js",
     "asset.js",
-    "error.js"
+    "error.js",
+    "constants.js",
+    "config.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -105,10 +107,9 @@
     "walk": "2.3.9",
     "webpack": "3.10.0",
     "webpack-dev-middleware": "1.12.0",
-    "webpack-hot-middleware": "2.21.0",
+    "webpack-hot-middleware": "2.19.1",
     "webpack-sources": "1.1.0",
-    "write-file-webpack-plugin": "4.2.0",
-    "xss-filters": "1.2.7"
+    "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
     "@taskr/babel": "1.1.0",

@@ -96,9 +96,14 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(pre.text()).toMatch(/The default export is not a React Component/)
     })
 
-    test('error', async () => {
-      const $ = await get$('/error')
+    test('error-inside-page', async () => {
+      const $ = await get$('/error-inside-page')
       expect($('pre').text()).toMatch(/This is an expected error/)
+    })
+
+    test('error-in-the-global-scope', async () => {
+      const $ = await get$('/error-in-the-global-scope')
+      expect($('pre').text()).toMatch(/aa is not defined/)
     })
 
     test('asPath', async () => {
