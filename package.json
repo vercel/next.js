@@ -72,6 +72,7 @@
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "etag": "1.8.1",
+    "event-source-polyfill": "0.0.12",
     "find-up": "2.1.0",
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.6.1",
