@@ -776,7 +776,7 @@ may still access those paths. If using this option, you should guard against nav
 you do not want programmatically.
 
 You may also wish to configure the client-side Router to disallow client-side redirects to filename
-routes; please refer to [Filtering `popstate`](#filtering-popstate)
+routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
 
 #### Dynamic assetPrefix
 
