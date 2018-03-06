@@ -27,19 +27,11 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
-  const buildStats = require(join(nextDir, 'build-stats.json'))
 
   // Initialize the output directory
   const outDir = options.outdir
   await del(join(outDir, '*'))
-  await mkdirp(join(outDir, '_next', buildStats['app.js'].hash))
   await mkdirp(join(outDir, '_next', buildId))
-
-  // Copy files
-  await cp(
-    join(nextDir, 'app.js'),
-    join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
-  )
 
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
@@ -50,6 +42,12 @@ export default async function (dir, options, configuration) {
       { expand: true }
     )
   }
+
+  // Copy main.js
+  await cp(
+    join(nextDir, 'main.js'),
+    join(outDir, '_next', buildId, 'main.js')
+  )
 
   // Copy .next/static directory
   if (existsSync(join(nextDir, 'static'))) {
@@ -88,7 +86,6 @@ export default async function (dir, options, configuration) {
   const renderOpts = {
     dir,
     dist: nextConfig.distDir,
-    buildStats,
     buildId,
     nextExport: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),

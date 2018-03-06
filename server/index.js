@@ -49,8 +49,6 @@ export default class Server {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
     }
-
-    this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
@@ -58,7 +56,6 @@ export default class Server {
       dir: this.dir,
       dist: this.dist,
       hotReloader: this.hotReloader,
-      buildStats: this.buildStats,
       buildId: this.buildId,
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
@@ -170,27 +167,22 @@ export default class Server {
       },
 
       '/_next/:hash/main.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
+        if (this.dev) {
+          this.handleBuildHash('main.js', params.hash, res)
+          const p = join(this.dir, this.dist, 'main.js')
+          await this.serveStatic(req, res, p)
+        } else {
+          const buildId = params.hash
+          if (!this.handleBuildId(buildId, res)) {
+            const error = new Error('INVALID_BUILD_ID')
+            const customFields = { buildIdMismatched: true }
 
-        this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'main.js')
-        await this.serveStatic(req, res, p)
-      },
+            return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
+          }
 
-      '/_next/:hash/commons.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'commons.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:hash/app.js': async (req, res, params) => {
-        if (this.dev) return this.send404(res)
-
-        this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'app.js')
-        await this.serveStatic(req, res, p)
+          const p = join(this.dir, this.dist, 'main.js')
+          await this.serveStatic(req, res, p)
+        }
       },
 
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
@@ -464,10 +456,6 @@ export default class Server {
     if (this.dev) {
       res.setHeader('Cache-Control', 'no-store, must-revalidate')
       return true
-    }
-
-    if (hash !== this.buildStats[filename].hash) {
-      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
     }
 
     res.setHeader('Cache-Control', 'max-age=31536000, immutable')
