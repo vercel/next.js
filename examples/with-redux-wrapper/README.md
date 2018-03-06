@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux-wrapper)
 
 # Redux example
 
@@ -10,7 +10,7 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```
 npm i -g create-next-app
-create-next-app --example with-redux with-redux-app
+create-next-app --example with-redux-wrapper with-redux-wrapper-app
 ```
 
 ### Download manually
@@ -18,8 +18,8 @@ create-next-app --example with-redux with-redux-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux
-cd with-redux
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-wrapper
+cd with-redux-wrapper
 ```
 
 Install it and run:
@@ -37,21 +37,17 @@ now
 
 ## The idea behind the example
 
-This example is based on [full example](https://github.com/kirill-konshin/next-redux-wrapper) which should probably be used for production. The next.js example with this library can be found [here](https://github.com/zeit/next.js/tree/canary/examples/with-redux-wrapper)
-
-The reason for this example is to show an easier to follow and extendable way to include Redux in a next.js app.
-
 Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use redux that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
 
 In the first example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color than the client one.
 
 ![](http://i.imgur.com/JCxtWSj.gif)
 
-Our page is located at `pages/index.js` so it will map the route `/`. To get the initial data for rendering we are implementing the static method `getInitialProps`, initializing the redux store and dispatching the required actions until we are ready to return the initial state to be rendered. Since the component is wrapped with `withRedux.js`, the component is automatically connected to Redux and wrapped with `react-redux Provider`, that allows us to access redux state immediately and send the store down to children components so they can access to the state when required.
+Our page is located at `pages/index.js` so it will map the route `/`. To get the initial data for rendering we are implementing the static method `getInitialProps`, initializing the redux store and dispatching the required actions until we are ready to return the initial state to be rendered. Since the component is wrapped with `next-redux-wrapper`, the component is automatically connected to Redux and wrapped with `react-redux Provider`, that allows us to access redux state immediately and send the store down to children components so they can access to the state when required.
 
 For safety it is recommended to wrap all pages, no matter if they use Redux or not, so that you should not care about it anymore in all child components.
 
-`withRedux` function accepts `initStore` as first argument, all other arguments are internally passed to `react-redux connect()` function. `initStore` function will receive initialState as one argument and should return a new instance of redux store each time when called, no memoization needed here.
+`withRedux` function accepts `makeStore` as first argument, all other arguments are internally passed to `react-redux connect()` function. `makeStore` function will receive initialState as one argument and should return a new instance of redux store each time when called, no memoization needed here. See the [full example](https://github.com/kirill-konshin/next-redux-wrapper#usage) in the Next Redux Wrapper repository. And there's another package [next-connect-redux](https://github.com/huzidaha/next-connect-redux) available with similar features.
 
 To pass the initial state from the server to the client we pass it as a prop called `initialState` so then it's available when the client takes over.
 
