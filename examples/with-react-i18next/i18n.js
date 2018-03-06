@@ -45,7 +45,7 @@ i18n.getInitialProps = (req, namespaces) => {
   req.i18n.languages.forEach((l) => {
     initialI18nStore[l] = {}
     namespaces.forEach((ns) => {
-      initialI18nStore[l][ns] = req.i18n.services.resourceStore.data[l][ns] || {}
+      initialI18nStore[l][ns] = (req.i18n.services.resourceStore.data[l] || {})[ns] || {}
     })
   })
 

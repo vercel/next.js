@@ -39,7 +39,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
       const allEntries = Object.keys(entries).map((page) => {
         const { name, entry } = entries[page]
         entries[page].status = BUILDING
-        return addEntry(compilation, this.context, name, entry)
+        return addEntry(compilation, compiler.context, name, entry)
       })
 
       Promise.all(allEntries)

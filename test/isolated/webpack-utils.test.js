@@ -28,6 +28,18 @@ describe('createEntry', () => {
     expect(entry.files[0]).toBe('./pages/index.jsx')
   })
 
+  it('Should allow custom extension like .tsx to be turned into .js', () => {
+    const entry = createEntry('pages/index.tsx', {pageExtensions: ['tsx', 'ts'].join('|')})
+    expect(entry.name).toBe(normalize('bundles/pages/index.js'))
+    expect(entry.files[0]).toBe('./pages/index.tsx')
+  })
+
+  it('Should allow custom extension like .tsx to be turned into .js with another order', () => {
+    const entry = createEntry('pages/index.tsx', {pageExtensions: ['ts', 'tsx'].join('|')})
+    expect(entry.name).toBe(normalize('bundles/pages/index.js'))
+    expect(entry.files[0]).toBe('./pages/index.tsx')
+  })
+
   it('Should turn pages/blog/index.js into pages/blog.js', () => {
     const entry = createEntry('pages/blog/index.js')
     expect(entry.name).toBe(normalize('bundles/pages/blog.js'))

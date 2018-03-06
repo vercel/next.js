@@ -2,7 +2,6 @@ const express = require('express')
 const path = require('path')
 const next = require('next')
 
-const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
@@ -17,6 +16,7 @@ i18n
   .use(Backend)
   .use(i18nextMiddleware.LanguageDetector)
   .init({
+    fallbackLng: 'en',
     preload: ['en', 'de'], // preload all langages
     ns: ['common', 'home', 'page2'], // need to preload all the namespaces
     backend: {
@@ -41,9 +41,9 @@ i18n
         // use next.js
         server.get('*', (req, res) => handle(req, res))
 
-        server.listen(port, (err) => {
+        server.listen(3000, (err) => {
           if (err) throw err
-          console.log(`> Ready on http://localhost:${port}`)
+          console.log('> Ready on http://localhost:3000')
         })
       })
   })

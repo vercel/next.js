@@ -5,15 +5,17 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
+import {PHASE_EXPORT} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { printAndExit } from '../lib/utils'
 import { setAssetPrefix } from '../lib/asset'
+import * as envConfig from '../lib/runtime-config'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
-  const config = configuration || getConfig(dir)
-  const nextDir = join(dir, config.distDir)
+  const nextConfig = configuration || getConfig(PHASE_EXPORT, dir)
+  const nextDir = join(dir, nextConfig.distDir)
 
   log(`  using build directory: ${nextDir}`)
 
@@ -25,19 +27,11 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
-  const buildStats = require(join(nextDir, 'build-stats.json'))
 
   // Initialize the output directory
   const outDir = options.outdir
   await del(join(outDir, '*'))
-  await mkdirp(join(outDir, '_next', buildStats['app.js'].hash))
   await mkdirp(join(outDir, '_next', buildId))
-
-  // Copy files
-  await cp(
-    join(nextDir, 'app.js'),
-    join(outDir, '_next', buildStats['app.js'].hash, 'app.js')
-  )
 
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
@@ -48,6 +42,12 @@ export default async function (dir, options, configuration) {
       { expand: true }
     )
   }
+
+  // Copy main.js
+  await cp(
+    join(nextDir, 'main.js'),
+    join(outDir, '_next', buildId, 'main.js')
+  )
 
   // Copy .next/static directory
   if (existsSync(join(nextDir, 'static'))) {
@@ -72,29 +72,39 @@ export default async function (dir, options, configuration) {
   await copyPages(nextDir, outDir, buildId)
 
   // Get the exportPathMap from the `next.config.js`
-  if (typeof config.exportPathMap !== 'function') {
+  if (typeof nextConfig.exportPathMap !== 'function') {
     printAndExit(
       '> Could not find "exportPathMap" function inside "next.config.js"\n' +
       '> "next export" uses that function to build html pages.'
     )
   }
 
-  const exportPathMap = await config.exportPathMap()
+  const exportPathMap = await nextConfig.exportPathMap()
   const exportPaths = Object.keys(exportPathMap)
 
   // Start the rendering process
   const renderOpts = {
     dir,
-    dist: config.distDir,
-    buildStats,
+    dist: nextConfig.distDir,
     buildId,
     nextExport: true,
-    assetPrefix: config.assetPrefix.replace(/\/$/, ''),
+    assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    availableChunks: getAvailableChunks(dir, config.distDir)
+    availableChunks: getAvailableChunks(dir, nextConfig.distDir)
   }
+
+  const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
+
+  if (publicRuntimeConfig) {
+    renderOpts.runtimeConfig = publicRuntimeConfig
+  }
+
+  envConfig.setConfig({
+    serverRuntimeConfig,
+    publicRuntimeConfig
+  })
 
   // set the assetPrefix to use for 'next/asset'
   setAssetPrefix(renderOpts.assetPrefix)
