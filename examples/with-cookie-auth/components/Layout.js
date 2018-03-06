@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { processLogout } from "../lib/auth"
+import { processLogout } from '../lib/auth'
 
 const Layout = ({ auth, children }) => {
   const { user = {} } = auth || {}

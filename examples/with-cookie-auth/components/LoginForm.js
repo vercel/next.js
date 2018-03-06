@@ -1,5 +1,5 @@
 import Router from 'next/router'
-import { processLogin } from "../lib/auth"
+import { processLogin } from '../lib/auth'
 
 class LoginForm extends React.PureComponent {
   state = {
