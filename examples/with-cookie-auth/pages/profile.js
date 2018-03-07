@@ -1,15 +1,16 @@
+import React from 'react'
 import Layout from '../components/Layout'
 import { authInitialProps, getProfile } from '../lib/auth'
 
 export default class Profile extends React.PureComponent {
   state = { user: 'Loading...' }
 
-  componentDidMount() {
+  componentDidMount () {
     // to test withCredentials
     getProfile().then(user => this.setState({ user }))
   }
 
-  render() {
+  render () {
     return (
       <Layout {...this.props}>
         <h1>Profile</h1>

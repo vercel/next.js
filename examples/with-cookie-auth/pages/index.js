@@ -1,9 +1,10 @@
+import React from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 import { authInitialProps } from '../lib/auth'
 
 export default class Home extends React.PureComponent {
-  render() {
+  render () {
     return (
       <Layout {...this.props}>
         <h1>Home</h1>

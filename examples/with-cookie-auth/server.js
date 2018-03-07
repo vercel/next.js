@@ -40,7 +40,7 @@ app.prepare()
       const { email, password } = req.body || {}
       const user = await authenticate(email, password)
       if (!user) {
-        return res.status(403).send("Invalid email or password")
+        return res.status(403).send('Invalid email or password')
       }
       const info = {
         email: user.email,
