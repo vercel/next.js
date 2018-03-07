@@ -429,6 +429,15 @@ export default ({ href, name }) =>
   </Link>
 ```
 
+##### Disabling the scroll changes to top on page
+
+The default behaviour of `<Link>` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, just like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `<Link>`:
+
+```jsx
+<Link scroll={false} href="/?counter=10"><a>Disables scrolling</a></Link>
+<Link href="/?counter=10"><a>Changes with scrolling to top</a></Link>
+```
+
 #### Imperatively
 
 <p><details>
