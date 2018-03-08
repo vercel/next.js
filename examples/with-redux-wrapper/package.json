@@ -1,5 +1,5 @@
 {
-  "name": "with-redux",
+  "name": "with-redux-wrapper",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "next": "latest",
+    "next-redux-wrapper": "^1.0.0",
     "react": "^16.0.0",
     "redux-devtools-extension": "^2.13.2",
     "react-dom": "^16.0.0",
