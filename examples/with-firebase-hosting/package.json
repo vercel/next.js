@@ -1,25 +1,22 @@
 {
   "name": "with-firebase-hosting",
   "version": "3.0.0",
-  "description":
-    "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
+  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
   "scripts": {
     "dev": "next src/app",
-    "serve":
-      "echo \"for details see:\n\thttps://github.com/firebase/firebase-tools/issues/535 \n\thttps://github.com/zeit/next.js/issues/3167\";",
+    "serve": "echo \"for details see:\n\thttps://github.com/firebase/firebase-tools/issues/535 \n\thttps://github.com/zeit/next.js/issues/3167\";",
     "deploy": "firebase deploy",
     "clean": "rimraf \"dist/functions\" && rimraf \"dist/public\"",
     "build-public": "cpx \"src/public/**/*.*\" \"dist/public\" -C",
     "build-funcs": "babel \"src/functions\" --out-dir \"dist/functions\"",
     "build-app": "next build \"src/app\"",
-    "copy-deps":
-      "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\"",
+    "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\"",
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
     "firebase-admin": "5.8.1",
     "firebase-functions": "^0.8.1",
-    "next": "latest",
+    "next": "^5.0.1-canary.13",
     "react": "^16.2.0",
     "react-dom": "^16.2.0"
   },
