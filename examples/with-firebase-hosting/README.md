@@ -1,11 +1,5 @@
 # With Firebase Hosting example
 
-**Note: for some impossible to debug reason, this example has an `Internal Server Error` with any Next.js version < 5.0.1.canary.11, even the 5.0.0 stable build. By default all examples use next@latest tag, which will only install the latest stable build of 5.0.0. This will error. Please manually update**
-
-```shell
-npm i next@canary
-```
-
 ## How to use
 
 ### Using `create-next-app`
