@@ -1,5 +1,8 @@
 import { join } from 'path'
-import { unlink } from 'mz/fs'
+import {promisify} from 'util'
+import fs from 'fs'
+
+const unlink = promisify(fs.unlink)
 
 export default class UnlinkFilePlugin {
   constructor () {

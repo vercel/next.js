@@ -1,5 +1,8 @@
 import {join, parse, normalize, sep} from 'path'
-import fs from 'mz/fs'
+import {promisify} from 'util'
+import fs from 'fs'
+
+const exists = promisify(fs.exists)
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -56,7 +59,7 @@ export function getPagePath (page, {dir, dist}) {
 
 export default async function requirePage (page, {dir, dist}) {
   const pagePath = getPagePath(page, {dir, dist}) + '.js'
-  const fileExists = await fs.exists(pagePath)
+  const fileExists = await exists(pagePath)
   if (!fileExists) {
     throw pageNotFoundError(page)
   }
