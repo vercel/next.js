@@ -99,15 +99,20 @@ export class Head extends Component {
 }
 
 export class Main extends Component {
+  static propTypes = {
+    className: PropTypes.string
+  }
+
   static contextTypes = {
     _documentProps: PropTypes.any
   }
 
   render () {
     const { html, errorHtml } = this.context._documentProps
+    const { className } = this.props
     return (
       <Fragment>
-        <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
+        <div id='__next' dangerouslySetInnerHTML={{ __html: html }} className={className} />
         <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </Fragment>
     )
