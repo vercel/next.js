@@ -5,6 +5,7 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
+[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
@@ -428,6 +429,15 @@ export default ({ href, name }) =>
   </Link>
 ```
 
+##### Disabling the scroll changes to top on page
+
+The default behaviour of `<Link>` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, just like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `<Link>`:
+
+```jsx
+<Link scroll={false} href="/?counter=10"><a>Disables scrolling</a></Link>
+<Link href="/?counter=10"><a>Changes with scrolling to top</a></Link>
+```
+
 #### Imperatively
 
 <p><details>
@@ -551,7 +561,7 @@ componentWillReceiveProps(nextProps) {
 
 > NOTES:
 >
-> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
+> Shallow routing works **only** for same page URL changes. For an example, let's assume we have another page called `about`, and you run this:
 > ```js
 > Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
 > ```
@@ -1150,11 +1160,11 @@ The `config` key allows for exposing runtime configuration in your app. All keys
 ```js
 // next.config.js
 module.exports = {
-  runtimeConfig: {
-    mySecret: 'secret',
-    public: {
-      staticFolder: '/static'
-    }
+  serverRuntimeConfig: { // Will only be available on the server side
+    mySecret: 'secret'
+  },
+  publicRuntimeConfig: { // Will be available on both server and client
+    staticFolder: '/static'
   }
 }
 ```
@@ -1162,12 +1172,13 @@ module.exports = {
 ```js
 // pages/index.js
 import getConfig from 'next/config'
-const config = getConfig()
-console.log(config.mySecret) // Will be 'secret' on the server, `undefined` on the client
-console.log(config.public.staticFolder) // Will be '/static' on both server and client
+const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
+
+console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
+console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
 export default () => <div>
-  <img src={`${config.public.staticFolder}/logo.png`} />
+  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} />
 </div>
 ```
 

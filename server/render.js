@@ -37,7 +37,6 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
-  buildStats,
   hotReloader,
   assetPrefix,
   runtimeConfig,
@@ -108,7 +107,6 @@ async function doRender (req, res, pathname, query, {
       pathname, // the requested path
       query,
       buildId,
-      buildStats,
       assetPrefix,
       runtimeConfig,
       nextExport,
