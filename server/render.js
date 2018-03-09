@@ -55,8 +55,10 @@ async function doRender (req, res, pathname, query, {
 
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
 
-  let Component = requirePage(page, {dir, dist})
-  let Document = require(documentPath)
+  let [Component, Document] = await Promise.all([
+    requirePage(page, {dir, dist}),
+    require(documentPath)
+  ])
   Component = Component.default || Component
   Document = Document.default || Document
   const asPath = req.url

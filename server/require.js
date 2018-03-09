@@ -1,4 +1,5 @@
 import {join, parse, normalize, sep} from 'path'
+import fs from 'mz/fs'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -53,19 +54,12 @@ export function getPagePath (page, {dir, dist}) {
   return pagePath
 }
 
-export default function requirePage (page, {dir, dist}) {
-  const pagePath = getPagePath(page, {dir, dist})
-
-  try {
-    return require(pagePath)
-  } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') {
-      throw pageNotFoundError(page)
-    }
-    console.error(err)
-    // If this is not a MODULE_NOT_FOUND error,
-    // it should be something with the content of the page.
-    // So, Next.js rendering system will catch it and process.
-    throw err
+export default async function requirePage (page, {dir, dist}) {
+  const pagePath = getPagePath(page, {dir, dist}) + '.js'
+  const fileExists = await fs.exists(pagePath)
+  if (!fileExists) {
+    throw pageNotFoundError(page)
   }
+
+  return require(pagePath)
 }
