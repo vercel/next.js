@@ -1,4 +1,5 @@
 import {join, parse, normalize, sep} from 'path'
+import {existsSync} from 'fs'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -59,7 +60,7 @@ export default function requirePage (page, {dir, dist}) {
   try {
     return require(pagePath)
   } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') {
+    if (err.code === 'MODULE_NOT_FOUND' && !existsSync(pagePath)) {
       throw pageNotFoundError(page)
     }
     console.error(err)

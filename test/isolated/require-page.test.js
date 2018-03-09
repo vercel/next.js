@@ -73,10 +73,26 @@ describe('requirePage', () => {
   })
 
   it('Should throw when using /../../test.js', () => {
-    expect(() => requirePage('/../../test.js', {dir: __dirname, dist: '_resolvedata'})).toThrow()
+    try {
+      requirePage('/../../test.js', {dir: __dirname, dist: '_resolvedata'})
+    } catch (err) {
+      expect(err.code).toBe('ENOENT')
+    }
   })
 
   it('Should throw when using non existent pages like /non-existent.js', () => {
-    expect(() => requirePage('/non-existent.js', {dir: __dirname, dist: '_resolvedata'})).toThrow()
+    try {
+      requirePage('/non-existent.js', {dir: __dirname, dist: '_resolvedata'})
+    } catch (err) {
+      expect(err.code).toBe('ENOENT')
+    }
+  })
+
+  it('Should bubble up errors in the child component', () => {
+    try {
+      requirePage('/non-existent-child.js', {dir: __dirname, dist: '_resolvedata'})
+    } catch (err) {
+      expect(err.code).toBe('MODULE_NOT_FOUND')
+    }
   })
 })
