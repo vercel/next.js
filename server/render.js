@@ -138,9 +138,9 @@ export async function renderScriptError (req, res, page, error) {
   res.end('500 - Internal Error')
 }
 
-export function sendHTML (req, res, html, method, { dev }) {
+export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
-  const etag = generateETag(html)
+  const etag = generateEtags && generateETag(html)
 
   if (fresh(req.headers, { etag })) {
     res.statusCode = 304
@@ -154,7 +154,10 @@ export function sendHTML (req, res, html, method, { dev }) {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
-  res.setHeader('ETag', etag)
+  if (etag) {
+    res.setHeader('ETag', etag)
+  }
+
   if (!res.getHeader('Content-Type')) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
   }

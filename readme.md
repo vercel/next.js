@@ -1047,6 +1047,17 @@ module.exports = {
 }
 ```
 
+#### Disabling etag generation
+
+You can disable etag generation for HTML pages depending on your cache strategy. If no configuration is specified then Next will generate etags for every page.
+
+```js
+// next.config.js
+module.exports = {
+  generateEtags: false
+}
+```
+
 #### Configuring the onDemandEntries
 
 Next exposes some options that give you some control over how the server will dispose or keep in memories pages built:
