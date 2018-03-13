@@ -18,6 +18,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 - [How to use](#how-to-use)
   - [Setup](#setup)
+    - [Simple (using Create Next App)](#simple-using-create-next-app)
+    - [Advanced (manual setup)](#advanced-manual-setup)
   - [Automatic code splitting](#automatic-code-splitting)
   - [CSS](#css)
     - [Built-in CSS support](#built-in-css-support)
@@ -55,6 +57,24 @@ Next.js is a minimalistic framework for server-rendered React applications.
 ## How to use
 
 ### Setup
+
+#### Simple (using Create Next App)
+
+[Create Next App](https://github.com/segmentio/create-next-app) is the simplest way to start building a Next.js application. It generates a simple application with minimal boilerplate to get started.
+
+```
+npm install -g create-next-app
+
+create-next-app my-app
+cd my-app/
+npm run dev
+```
+
+and then go to `http://localhost:3000`. When you're ready to deploy to production, run `npm run build` then `npm run start`.
+
+You can learn more about Create Next App from its [README](https://github.com/segmentio/create-next-app#create-next-app) and the [website](https://open.segment.com/create-next-app).
+
+#### Advanced (manual setup)
 
 Install it:
 
