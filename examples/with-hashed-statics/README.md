@@ -8,6 +8,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example with-hashed-statics with-hashed-statics-app
+# or
+yarn create next-app --example with-hashed-statics with-hashed-statics-app
 ```
 
 ### Download manually

@@ -8,6 +8,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example with-react-native-web
+# or
+yarn create next-app --example with-react-native-web with-react-native-web-app
 ```
 
 ### Download manually

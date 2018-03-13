@@ -11,6 +11,8 @@ bootstrap the example:
 
 ```bash
 npx create-next-app --example with-higher-order-component with-higher-order-component-app
+# or
+yarn create next-app --example with-higher-order-component with-higher-order-component-app
 ```
 
 ### Download manually

@@ -10,6 +10,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example custom-server-koa custom-server-koa-app
+# or
+yarn create next-app --example custom-server-koa custom-server-koa-app
 ```
 
 ### Download manually

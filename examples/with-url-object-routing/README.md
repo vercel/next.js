@@ -9,6 +9,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example with-url-object-routing with-url-object-routing-app
+# or
+yarn create next-app --example with-url-object-routing with-url-object-routing-app
 ```
 
 ### Download manually

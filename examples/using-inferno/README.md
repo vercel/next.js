@@ -10,6 +10,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example using-inferno using-inferno-app
+# or
+yarn create next-app --example using-inferno using-inferno-app
 ```
 
 ### Download manually

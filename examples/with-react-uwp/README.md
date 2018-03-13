@@ -9,6 +9,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example with-react-uwp with-react-uwp-app
+# or
+yarn create next-app --example with-react-uwp with-react-uwp-app
 ```
 
 ### Download manually

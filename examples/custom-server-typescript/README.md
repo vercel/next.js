@@ -10,6 +10,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example custom-server-typescript custom-server-typescript-app
+# or
+yarn create next-app --example custom-server-typescript custom-server-typescript-app
 ```
 
 ### Download manually

@@ -9,6 +9,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example using-router using-router-app
+# or
+yarn create next-app --example using-router using-router-app
 ```
 
 ### Download manually

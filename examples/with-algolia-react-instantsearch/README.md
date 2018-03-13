@@ -10,6 +10,8 @@ Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bo
 
 ```bash
 npx create-next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
+# or
+yarn create next-app --example with-algolia-react-instantsearch with-algolia-react-instantsearch-app
 ```
 
 ### Download manually
