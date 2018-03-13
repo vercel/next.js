@@ -10,7 +10,7 @@ This is a really simple project that show the usage of Next.js with TypeScript.
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
+```bash
 npx create-next-app --example with-typescript with-typescript-app
 ```
 

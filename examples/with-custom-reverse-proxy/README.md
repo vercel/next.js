@@ -9,7 +9,7 @@ Sorry for the extra packages. I belong to the minority camp of writing ES6 code 
 
 ## How to run it
 
-```
+```bash
 npm i; npm run build; npm run dev;
 ```
 

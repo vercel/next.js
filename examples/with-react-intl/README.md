@@ -7,7 +7,7 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
+```bash
 npx create-next-app --example with-react-intl with-react-intl-app
 ```
 
@@ -52,7 +52,7 @@ This app stores translations and default strings in the `lang/` dir. This dir ha
 
 The translated messages files that exist at `lang/*.json` are only used during production, and are automatically provided to the `<IntlProvider>`. During development the `defaultMessage`s defined in the source code are used. To prepare the example app for localization and production run the build script and start the server in production mode:
 
-```
+```bash
 $ npm run build
 $ npm start
 ```

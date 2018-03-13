@@ -11,7 +11,7 @@ https://next-with-apollo-auth.now.sh
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
+```bash
 npx create-next-app --example with-apollo-auth with-apollo-auth-app
 ```
 
