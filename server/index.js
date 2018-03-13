@@ -3,7 +3,7 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import {promisify} from 'util'
+import promisify from './lib/promisify'
 import http, { STATUS_CODES } from 'http'
 import updateNotifier from '@zeit/check-updates'
 import {

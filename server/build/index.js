@@ -1,5 +1,5 @@
 import { join } from 'path'
-import {promisify} from 'util'
+import promisify from '../lib/promisify'
 import fs from 'fs'
 import uuid from 'uuid'
 import webpack from 'webpack'
