@@ -11,7 +11,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-react-md with-react-md-app
+npx create-next-app --example with-react-md with-react-md-app
 ```
 
 ### Download manually

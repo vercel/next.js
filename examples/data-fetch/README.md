@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example data-fetch data-fetch-app
+npx create-next-app --example data-fetch data-fetch-app
 ```
 
 ### Download manually

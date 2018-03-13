@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example custom-server-koa custom-server-koa-app
+npx create-next-app --example custom-server-koa custom-server-koa-app
 ```
 
 ### Download manually

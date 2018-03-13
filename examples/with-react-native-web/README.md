@@ -7,7 +7,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-react-native-web
+npx create-next-app --example with-react-native-web
 ```
 
 ### Download manually

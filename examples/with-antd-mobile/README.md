@@ -8,7 +8,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-antd-mobile with-antd-mobile-app
+npx create-next-app --example with-antd-mobile with-antd-mobile-app
 ```
 
 ### Download manually

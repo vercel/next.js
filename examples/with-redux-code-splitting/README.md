@@ -10,7 +10,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-redux-code-splitting with-redux-code-splitting-app
+npx create-next-app --example with-redux-code-splitting with-redux-code-splitting-app
 ```
 
 ### Download manually

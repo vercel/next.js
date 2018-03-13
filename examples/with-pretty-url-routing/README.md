@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-pretty-url-routing with-pretty-url-routing-app
+npx create-next-app --example with-pretty-url-routing with-pretty-url-routing-app
 ```
 
 ### Download manually

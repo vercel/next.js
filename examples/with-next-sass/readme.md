@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```bash
-create-next-app --example with-next-sass with-next-sass-app
+npx create-next-app --example with-next-sass with-next-sass-app
 ```
 
 ### Download manually

@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-webpack-bundle-size-analyzer with-webpack-bundle-size-analyzer-app
+npx create-next-app --example with-webpack-bundle-size-analyzer with-webpack-bundle-size-analyzer-app
 ```
 
 ### Download manually

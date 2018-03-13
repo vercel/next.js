@@ -7,7 +7,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-absolute-imports with-absolute-imports-app
+npx create-next-app --example with-absolute-imports with-absolute-imports-app
 ```
 
 ### Download manually

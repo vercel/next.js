@@ -8,7 +8,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-next-routes with-next-routes-app
+npx create-next-app --example with-next-routes with-next-routes-app
 ```
 
 ### Download manually

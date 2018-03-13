@@ -7,7 +7,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-static-export with-static-export-app
+npx create-next-app --example with-static-export with-static-export-app
 ```
 
 ### Download manually

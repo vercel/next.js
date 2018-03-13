@@ -12,7 +12,7 @@ https://next-with-apollo.now.sh
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-apollo with-apollo-app
+npx create-next-app --example with-apollo with-apollo-app
 ```
 
 ### Download manually

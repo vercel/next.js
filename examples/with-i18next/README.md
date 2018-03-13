@@ -8,7 +8,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-i18next with-i18next-app
+npx create-next-app --example with-i18next with-i18next-app
 ```
 
 ### Download manually

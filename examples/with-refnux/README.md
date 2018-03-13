@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-refnux with-refnux-app
+npx create-next-app --example with-refnux with-refnux-app
 ```
 
 ### Download manually

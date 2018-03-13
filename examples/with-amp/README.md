@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-amp with-amp-app
+npx create-next-app --example with-amp with-amp-app
 ```
 
 ### Download manually

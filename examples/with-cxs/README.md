@@ -9,7 +9,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-cxs with-cxs-app
+npx create-next-app --example with-cxs with-cxs-app
 ```
 
 ### Download manually

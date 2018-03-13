@@ -8,7 +8,7 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-create-next-app --example with-apollo-and-redux with-apollo-and-redux-app
+npx create-next-app --example with-apollo-and-redux with-apollo-and-redux-app
 ```
 
 ### Download manually
