@@ -1049,7 +1049,7 @@ module.exports = {
 
 #### Disabling etag generation
 
-You can disable etag generation for HTML pages depending on your cache strategy. If no configuration is specified then next will generate etags for every page.
+You can disable etag generation for HTML pages depending on your cache strategy. If no configuration is specified then Next will generate etags for every page.
 
 ```js
 // next.config.js

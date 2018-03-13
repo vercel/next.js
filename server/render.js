@@ -15,18 +15,18 @@ import { flushChunks } from '../lib/dynamic'
 
 const logger = console
 
-export async function render (req, res, pathname, query, opts, nextOpts) {
+export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, query, opts)
-  sendHTML(req, res, html, req.method, opts, nextOpts)
+  sendHTML(req, res, html, req.method, opts)
 }
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
 }
 
-export async function renderError (err, req, res, pathname, query, opts, nextOpts) {
+export async function renderError (err, req, res, pathname, query, opts) {
   const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(req, res, html, req.method, opts, nextOpts)
+  sendHTML(req, res, html, req.method, opts)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
@@ -138,7 +138,7 @@ export async function renderScriptError (req, res, page, error) {
   res.end('500 - Internal Error')
 }
 
-export function sendHTML (req, res, html, method, { dev }, { generateEtags }) {
+export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
   const etag = generateEtags && generateETag(html)
 
