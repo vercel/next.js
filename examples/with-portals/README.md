@@ -7,7 +7,6 @@
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-npm i -g create-next-app
 create-next-app --example with-portals with-portals-app
 ```
 

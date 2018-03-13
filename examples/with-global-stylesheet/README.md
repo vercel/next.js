@@ -11,7 +11,6 @@ This is an example of how you can include a global stylesheet in a next.js webap
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
 ```
-npm i -g create-next-app
 create-next-app --example with-global-stylesheet with-global-stylesheet-app
 ```
 
