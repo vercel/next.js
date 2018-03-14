@@ -63,7 +63,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 const bin = join(__dirname, 'next-' + cmd)
 
 const startProcess = () => {
-  const proc = spawn('node', [...nodeArgs, ...[bin], ...args], { stdio: 'inherit', customFds: [0, 1, 2] })
+  const proc = spawn('node', [...nodeArgs, ...[bin], ...args], { stdio: 'inherit' })
   proc.on('close', (code, signal) => {
     if (code !== null) {
       process.exit(code)
