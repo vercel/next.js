@@ -27,6 +27,10 @@ Install it
 
 ```bash
 npm install
+npm run dev
+# or
+yarn
+yarn dev
 ```
 
 ## The idea behind the example
@@ -37,4 +41,6 @@ To analyze your webpack output, invoke the following command:
 
 ```bash
 npm run analyze
+# or
+yarn analyze
 ```

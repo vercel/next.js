@@ -27,11 +27,21 @@ Install it and run:
 
 ```bash
 npm install
-npm run build
-npm run start
+npm run dev
+# or
+yarn
+yarn dev
 ```
 
-The dev mode is also support via `npm run dev`
+Run production build with:
+
+```bash
+npm run build
+npm run start
+# or
+yarn build
+yarn start
+```
 
 ## The idea behind the example
 

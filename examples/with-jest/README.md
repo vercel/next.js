@@ -1,5 +1,6 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-jest)
-# Example app with jest tests
+
+# Example app with Jest tests
 
 ## How to use
 
@@ -22,11 +23,22 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-jest
 ```
 
-Install it and test:
+Install it and run:
 
 ```bash
 npm install
-npm test
+npm run dev
+# or
+yarn
+yarn dev
+```
+
+## Run Jest tests
+
+```bash
+npm run test
+# or
+yarn test
 ```
 
 ## The idea behind the example

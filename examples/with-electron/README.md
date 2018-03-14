@@ -27,7 +27,10 @@ Install it and run:
 
 ```bash
 npm install
-npm start
+npm run start
+# or
+yarn
+yarn start
 ```
 
 ## The idea behind the example

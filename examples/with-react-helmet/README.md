@@ -28,20 +28,22 @@ Install it and run:
 ```bash
 npm install
 npm run dev
-```
-_Or alternatively:_
-```bash
+# or
 yarn
-yarn run dev
+yarn dev
+# or
+yarn
+yarn dev
 ```
-
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
 now
 ```
+
 ## Notes
+
 This an minimalistic example of how to combine next.js and [react-helmet](https://github.com/nfl/react-helmet).
 The title of the page shall be changed to "Hello next.js!"
 The rest is all up to you.

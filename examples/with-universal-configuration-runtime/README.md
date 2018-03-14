@@ -28,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 API_URL='https://example.com' npm run dev
+# or
+yarn
+API_URL='https://example.com' yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -39,4 +42,3 @@ now
 ## The idea behind the example
 
 This example show how to set custom environment variables for your application at runtime
-
