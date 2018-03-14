@@ -4,7 +4,6 @@
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
-[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
 Next.js is a minimalistic framework for server-rendered React applications.
@@ -427,6 +426,15 @@ export default ({ href, name }) =>
       {name}
     </Unexpected_A>
   </Link>
+```
+
+##### Disabling the scroll changes to top on page
+
+The default behaviour of `<Link>` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, just like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `<Link>`:
+
+```jsx
+<Link scroll={false} href="/?counter=10"><a>Disables scrolling</a></Link>
+<Link href="/?counter=10"><a>Changes with scrolling to top</a></Link>
 ```
 
 #### Imperatively
@@ -1069,6 +1077,17 @@ You can specify a name to use for a custom build directory. For example, the fol
 // next.config.js
 module.exports = {
   distDir: 'build'
+}
+```
+
+#### Disabling etag generation
+
+You can disable etag generation for HTML pages depending on your cache strategy. If no configuration is specified then Next will generate etags for every page.
+
+```js
+// next.config.js
+module.exports = {
+  generateEtags: false
 }
 ```
 

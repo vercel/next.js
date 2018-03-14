@@ -7,11 +7,11 @@
         "function": "next"
       }
     ],
-    "predeploy": "yarn build-public"
+    "predeploy": "npm run build-public"
   },
   "functions": {
     "source": "dist/functions",
     "predeploy":
-      "yarn build-funcs && yarn build-app && yarn copy-deps && yarn install-deps"
+      "npm run build-funcs && npm run build-app && npm run copy-deps && npm run install-deps"
   }
 }

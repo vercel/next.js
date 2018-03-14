@@ -6,9 +6,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-dynamic-import with-dynamic-import-app
+```bash
+npx create-next-app --example with-dynamic-import with-dynamic-import-app
+# or
+yarn create next-app --example with-dynamic-import with-dynamic-import-app
 ```
 
 ### Download manually

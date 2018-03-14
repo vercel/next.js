@@ -10,6 +10,7 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
+  generateEtags: true,
   pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
 }
 

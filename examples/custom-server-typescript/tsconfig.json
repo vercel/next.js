@@ -21,10 +21,6 @@
       "dom",
       "es2015",
       "es2016"
-    ],
-    "outDir": "production-server/"
-  },
-  "include": [
-    "server/**/*.ts"
-  ]
+    ]
+  }
 }

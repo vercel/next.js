@@ -238,9 +238,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             toplevel: false,
             typeofs: false,
             unused: false,
-            conditionals: false,
+            conditionals: true,
             dead_code: true,
-            evaluate: false
+            evaluate: true
           }
         }
       }),

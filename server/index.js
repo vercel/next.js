@@ -45,6 +45,10 @@ export default class Server {
       updateNotifier(pkg, 'next')
     }
 
+    // Only serverRuntimeConfig needs the default
+    // publicRuntimeConfig gets it's default in client/index.js
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+
     if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
@@ -57,12 +61,9 @@ export default class Server {
       dist: this.dist,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist),
+      generateEtags
     }
-
-    // Only serverRuntimeConfig needs the default
-    // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix} = this.nextConfig
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -158,21 +159,29 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/manifest.js': async (req, res, params) => {
+      '/_next/:buildId/manifest.js': async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
-        this.handleBuildHash('manifest.js', params.hash, res)
+        this.handleBuildId(params.buildId, res)
         const p = join(this.dir, this.dist, 'manifest.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/main.js': async (req, res, params) => {
+      '/_next/:buildId/manifest.js.map': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
+        this.handleBuildId(params.buildId, res)
+        const p = join(this.dir, this.dist, 'manifest.js.map')
+        await this.serveStatic(req, res, p)
+      },
+
+      '/_next/:buildId/main.js': async (req, res, params) => {
         if (this.dev) {
-          this.handleBuildHash('main.js', params.hash, res)
+          this.handleBuildId(params.buildId, res)
           const p = join(this.dir, this.dist, 'main.js')
           await this.serveStatic(req, res, p)
         } else {
-          const buildId = params.hash
+          const buildId = params.buildId
           if (!this.handleBuildId(buildId, res)) {
             const error = new Error('INVALID_BUILD_ID')
             const customFields = { buildIdMismatched: true }
@@ -181,6 +190,22 @@ export default class Server {
           }
 
           const p = join(this.dir, this.dist, 'main.js')
+          await this.serveStatic(req, res, p)
+        }
+      },
+
+      '/_next/:buildId/main.js.map': async (req, res, params) => {
+        if (this.dev) {
+          this.handleBuildId(params.buildId, res)
+          const p = join(this.dir, this.dist, 'main.js.map')
+          await this.serveStatic(req, res, p)
+        } else {
+          const buildId = params.buildId
+          if (!this.handleBuildId(buildId, res)) {
+            return await this.render404(req, res)
+          }
+
+          const p = join(this.dir, this.dist, 'main.js.map')
           await this.serveStatic(req, res, p)
         }
       },
@@ -450,16 +475,6 @@ export default class Server {
 
     // Return the very first error we found.
     return Array.from(errors.values())[0][0]
-  }
-
-  handleBuildHash (filename, hash, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    res.setHeader('Cache-Control', 'max-age=31536000, immutable')
-    return true
   }
 
   send404 (res) {
