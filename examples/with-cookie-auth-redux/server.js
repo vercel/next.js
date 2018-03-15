@@ -61,8 +61,8 @@ app.prepare()
       if (req.cookies.hasOwnProperty('session_id')) {
         const sessionId = parseInt(req.cookies.session_id, 10)
         let user
-        for(username in dummyUserDatabase) {
-          if(dummyUserDatabase[username].id === sessionId) {
+        for (let username in dummyUserDatabase) {
+          if (dummyUserDatabase[username].id === sessionId) {
             user = dummyUserDatabase[username]
             break
           }

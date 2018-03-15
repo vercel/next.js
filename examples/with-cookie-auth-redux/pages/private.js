@@ -2,8 +2,7 @@ import React from 'react'
 import withRedux from 'next-redux-wrapper'
 import { compose } from 'redux'
 import { initStore } from '../store'
-import withAuth from '../components/withAuth';
-
+import withAuth from '../components/withAuth'
 
 class Private extends React.Component {
   render () {

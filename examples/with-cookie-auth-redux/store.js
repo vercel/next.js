@@ -4,7 +4,7 @@ import { composeWithDevTools } from 'redux-devtools-extension'
 import thunkMiddleware from 'redux-thunk'
 import axios from 'axios'
 
-const initialState = {
+const exampleInitialState = {
   user: null
 }
 
@@ -13,7 +13,7 @@ export const actionTypes = {
 }
 
 // REDUCERS
-export const reducer = (state = initialState, action) => {
+export const reducer = (state = exampleInitialState, action) => {
   switch (action.type) {
     case actionTypes.SET_USER: {
       return {...state, user: action.user}
@@ -55,8 +55,8 @@ export function logout () {
   }
 }
 
-// This is used server side on the first page render. 
-// Sends the cookie to server to verify active session. 
+// This is used server side on the first page render.
+// Sends the cookie to server to verify active session.
 // If session is active it saves the user to redux store
 export function whoAmI (cookie) {
   return (dispatch) => {
@@ -80,6 +80,6 @@ export function whoAmI (cookie) {
   }
 }
 
-export const initStore = (initialState = initialState) => {
+export const initStore = (initialState = exampleInitialState) => {
   return createStore(reducer, initialState, composeWithDevTools(applyMiddleware(thunkMiddleware)))
 }

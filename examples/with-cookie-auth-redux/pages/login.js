@@ -5,7 +5,8 @@ import { initStore, login } from '../store'
 class Login extends Component {
   state = {
     username: '',
-    password: ''
+    password: '',
+    errorMessage: ''
   }
 
   handleOnChange = (e) => {
@@ -23,7 +24,7 @@ class Login extends Component {
     }
     dispatch(login(payload))
       .catch(err => {
-        alert(err.response.data.message)
+        this.setState({errorMessage: err.response.data.message})
       })
   }
 
@@ -33,17 +34,17 @@ class Login extends Component {
         <form onSubmit={this.handleLoginSubmit}>
           <div>
             <label>Username</label>
-            <input type="text" name="username" onChange={this.handleOnChange}/>
+            <input type='text' name='username' onChange={this.handleOnChange} />
           </div>
           <div>
             <label>Password</label>
-            <input type="password" name="password" onChange={this.handleOnChange}/>
+            <input type='password' name='password' onChange={this.handleOnChange} />
           </div>
           <div>
             <button>Login</button>
           </div>
           <small>Username: "user@example.com", password: "changeme"</small>
-          <br/>
+          <br />
           <small>Staff username: "staff@example.com", password: "changeme"</small>
         </form>
       </div>
