@@ -1,5 +1,5 @@
 {
-  "name": "with-analytics",
+  "name": "with-segment-analytics",
   "scripts": {
     "dev": "next",
     "build": "next build",
