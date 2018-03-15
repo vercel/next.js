@@ -7,9 +7,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-draft-js
+```bash
+npx create-next-app --example with-draft-js
+# or
+yarn create next-app --example with-draft-js with-draft-js-app
 ```
 
 ### Download manually

@@ -8,9 +8,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-mobx with-mobx-app
+```bash
+npx create-next-app --example with-mobx with-mobx-app
+# or
+yarn create next-app --example with-mobx with-mobx-app
 ```
 
 ### Download manually
