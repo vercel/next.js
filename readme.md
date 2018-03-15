@@ -562,7 +562,7 @@ componentWillReceiveProps(nextProps) {
 >
 > Shallow routing works **only** for same page URL changes. For an example, let's assume we have another page called `about`, and you run this:
 > ```js
-> Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
+> Router.push('/?counter=10', '/about?counter=10', { shallow: true })
 > ```
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
