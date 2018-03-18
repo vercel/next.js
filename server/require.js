@@ -1,5 +1,13 @@
 import {join, parse, normalize, sep} from 'path'
-import fs from 'mz/fs'
+import fs from 'fs'
+
+function exists (path) {
+  return new Promise((resolve, reject) => {
+    fs.exists(path, (exists) => (
+      resolve(exists)
+    ))
+  })
+}
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -56,7 +64,7 @@ export function getPagePath (page, {dir, dist}) {
 
 export default async function requirePage (page, {dir, dist}) {
   const pagePath = getPagePath(page, {dir, dist}) + '.js'
-  const fileExists = await fs.exists(pagePath)
+  const fileExists = await exists(pagePath)
   if (!fileExists) {
     throw pageNotFoundError(page)
   }

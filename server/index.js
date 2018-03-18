@@ -3,7 +3,6 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import fsAsync from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
 import updateNotifier from '@zeit/check-updates'
 import {
@@ -22,6 +21,14 @@ import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
+
+function exists (path) {
+  return new Promise((resolve, reject) => {
+    fs.exists(path, (exists) => (
+      resolve(exists)
+    ))
+  })
+}
 
 const blockedPages = {
   '/_document': true,
@@ -266,7 +273,7 @@ export default class Server {
 
         // [production] If the page is not exists, we need to send a proper Next.js style 404
         // Otherwise, it'll affect the multi-zones feature.
-        if (!(await fsAsync.exists(p))) {
+        if (!(await exists(p))) {
           return await renderScriptError(req, res, page, { code: 'ENOENT' })
         }
 
