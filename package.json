@@ -77,7 +77,6 @@
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.6.1",
     "glob": "7.1.2",
-    "glob-promise": "3.3.0",
     "hoist-non-react-statics": "2.3.1",
     "htmlescape": "1.1.1",
     "http-errors": "1.6.2",

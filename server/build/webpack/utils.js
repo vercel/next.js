@@ -1,5 +1,8 @@
 import path from 'path'
-import glob from 'glob-promise'
+import promisify from '../../lib/promisify'
+import globModule from 'glob'
+
+const glob = promisify(globModule)
 
 const nextPagesDir = path.join(__dirname, '..', '..', '..', 'pages')
 
