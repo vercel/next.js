@@ -20,11 +20,7 @@ export default ComposedComponent => {
 
     static async getInitialProps(ctx) {
       // Initial serverState with apollo (empty)
-      let serverState = {
-        apollo: {
-          data: {}
-        }
-      }
+      let serverState
 
       // Evaluate the composed component's getInitialProps()
       let composedInitialProps = {}
@@ -38,15 +34,14 @@ export default ComposedComponent => {
       try {
         // Run all GraphQL queries
         await getDataFromTree(
-          <ApolloProvider client={apollo}>
-            <ComposedComponent {...composedInitialProps} />
-          </ApolloProvider>,
+          <ComposedComponent ctx={ctx} {...composedInitialProps} />,
           {
             router: {
               asPath: ctx.asPath,
               pathname: ctx.pathname,
               query: ctx.query
-            }
+            },
+            client: apollo
           }
         )
       } catch (error) {

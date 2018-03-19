@@ -24,8 +24,7 @@
     email: "leo@zeit.co",
     tag: "canary",
     api_key: {
-      secure:
-        "br9gLncKeLSoL7iOq0PXFeD1Gp3jRI8QMCSNIrGdZg/MuLeuwYPv36kmMgf7aGIfpjFLtU2/eVrOHSB+T5g1nKgOsqmWsfZE1tQYWph0//ookd/sj+IyxIx8nVLbUV/C4ctYOhX/efotRgNn56w5Av5hWc1IQLmW9mSN8ijrQnM+GzRI8QitiofeY2EP3N1eO8vC8E2oGkOsAdcypiX6lFG908zyWt7X2SD+iOsK2eAHjxoAEUdrxE5a8gTDhcTH6qnmtBs9rCeEKbO3JZjEy5dvccxlX3Nd+2GC1rckayk6o5L/zveTilsUx6Auqqbwn1dT5ffQuYsV4RPofs8IMrhnizc8y+OfUcCCpBJ4ia4w7N8FEP56TnRNTFoFBGJL5Y6NfeT0HHAlClxUWMG9pRGWGN+sskODDQ9FEntGZoqwV396ogs+3YhkxbY0AIr84QOctflsFcPtOgr/CoBeOsjbB+o9+Rlsqwlf3u3B7qhtU9eV6KcMfK4x9qW+2cwTllK+gD8S9wILx5BChkfx99g/7u/Rg1PCym64tTsDOBtqTVC2YCqeYYvjmpw4Vl3ofLrFsoNQnbmb6Q5+JSpOcJ/bEj7P/FuZdlU0fNV28tFhElu5caKhSCJz/avUlXG7NeveW1Ee8gjhURC4V/l4ryacyjA2vcDY/4RRkWtHNr4="
+      secure: "mvLXMXn1z1ri29wAy5/CCrDuO7ZC3gxckcnY5W00cbL8aFuK5buvpizKr3dz1pYX7vC55I+nZMtVa2vn4oOlTae07dd0BYGmmpiwq692XD4P+PHVs8D5MlbiT62vIJl/ezv/TcyoAbfIVPfUfLXA7H6a04Kodyzj3LffannOYpZNTPRNSdNAtkVtHPCuHksVpZoj6WhmC52MBEWkh0TCV3OdbeQAs6z3m6j81XcTduhXdraO4UmyXi/ML+eAgEBSejH70/7O/RSGludBOtIWMuxSrEey4wB4F4/xpN7k4LjPQRS+EtUBg9DSb3vB5y/hGwbDqwx7gGfN/yP/ssc9j3G8syTevv3fxH4ver9kg5tvltTJ8/gOzV7nF2sK1+Nb8legL4fLwHvgThf4sB9dAgNc7R8dYNgYwivkLUrrAy9WJsu7OsXLhg3NpEb9PcbKH7yFwrAzQjRPguVxg7bC02g41v0c2i1UXTb0D0/1KW5Mdg7HYZEw4uUXRhJCLWZbOcBCWdmiB+hwKSaq+aO49C5aX2UAyIsUPmG0OgqY91H/Y09KP3O6jN4j7ADrIIrdMwcyx15UJDZMwADCHHesnzeelDah7w3H6q+/heOA4nzbWhZaYQEDK4/aouRDINdXMmCmt9NNYjUA50BAI2dPpqetjaqq3gaPSAXsMvzNvRs="
     },
     skip_cleanup: true,
     on: {
