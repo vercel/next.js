@@ -16,6 +16,32 @@ const argv = parseArgs(process.argv.slice(2), {
   default: { p: 3000 }
 })
 
+if (!argv.hostname) {
+  var address
+  const os = require('os')
+  var aInterfaces = os.networkInterfaces()
+
+  // Get available interfaces
+  for (var dev in aInterfaces) {
+    var aInterface = aInterfaces[dev].filter(function (details) {
+      return details.family === 'IPv4' && details.internal === false
+    })
+
+    if (aInterface.length > 0) {
+      address = aInterface[0].address
+    }
+  }
+
+  // Print the result
+  if (address) {
+    console.log(`\x1b[32m`,
+      `\n> Network interface detected: `, address, `\x1b[37m`,
+      `\n> Run this command again with `, `\x1b[32m`, `"--hostname ` + address + `" `, `\x1b[37m`,
+      `to access your project from a different device on your network.`
+    )
+  }
+}
+
 if (argv.help) {
   console.log(`
     Description
