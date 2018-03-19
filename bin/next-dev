@@ -16,6 +16,29 @@ const argv = parseArgs(process.argv.slice(2), {
   default: { p: 3000 }
 })
 
+if (!argv.hostname) {
+  // Get available network interfaces
+  var address
+  const os = require('os')
+  var ifaces = os.networkInterfaces()
+
+  for (var dev in ifaces) {
+    var iface = ifaces[dev].filter(function (details) {
+      return details.family === 'IPv4' && details.internal === false
+    })
+
+    if (iface.length > 0) {
+      address = iface[0].address
+    }
+  }
+
+  // Print the result
+  if (address) {
+    console.log('\x1b[32m', '> Network interface detected: ', address, '\x1b[37m')
+    console.log('> If you wish to use this address instead of localhost, run this command again with "--hostname ' + address + '" ', '\x1b[37m')
+  }
+}
+
 if (argv.help) {
   console.log(`
     Description
