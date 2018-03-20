@@ -7,7 +7,8 @@ import cheerio from 'cheerio'
 import {
   initNextServerScript,
   killApp,
-  renderViaHTTP
+  renderViaHTTP,
+  fetchViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -18,18 +19,24 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
 const context = {}
 
+const startServer = async (optEnv = {}) => {
+  const scriptPath = join(appDir, 'server.js')
+  context.appPort = appPort = await getPort()
+  const env = Object.assign(
+    {},
+    clone(process.env),
+    { PORT: `${appPort}` },
+    optEnv
+  )
+
+  server = await initNextServerScript(scriptPath, /Ready on/, env)
+}
+
 describe('Custom Server', () => {
-  beforeAll(async () => {
-    const scriptPath = join(appDir, 'server.js')
-    context.appPort = appPort = await getPort()
-    const env = clone(process.env)
-    env.PORT = `${appPort}`
-
-    server = await initNextServerScript(scriptPath, /Ready on/, env)
-  })
-  afterAll(() => killApp(server))
-
   describe('with dynamic assetPrefix', () => {
+    beforeAll(() => startServer())
+    afterAll(() => killApp(server))
+
     it('should set the assetPrefix dynamically', async () => {
       const normalUsage = await renderViaHTTP(appPort, '/asset')
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
@@ -81,6 +88,26 @@ describe('Custom Server', () => {
       expect(await browser2.elementByCss('img').getAttribute('src'))
         .toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
       browser2.close()
+    })
+  })
+
+  describe('with generateEtags enabled', () => {
+    beforeAll(() => startServer({ GENERATE_ETAGS: 'true' }))
+    afterAll(() => killApp(server))
+
+    it('response includes etag header', async () => {
+      const response = await fetchViaHTTP(appPort, '/')
+      expect(response.headers.get('etag')).toBeTruthy()
+    })
+  })
+
+  describe('with generateEtags disabled', () => {
+    beforeAll(() => startServer({ GENERATE_ETAGS: 'false' }))
+    afterAll(() => killApp(server))
+
+    it('response does not include etag header', async () => {
+      const response = await fetchViaHTTP(appPort, '/')
+      expect(response.headers.get('etag')).toBeNull()
     })
   })
 })

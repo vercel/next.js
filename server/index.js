@@ -45,6 +45,10 @@ export default class Server {
       updateNotifier(pkg, 'next')
     }
 
+    // Only serverRuntimeConfig needs the default
+    // publicRuntimeConfig gets it's default in client/index.js
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+
     if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
@@ -57,12 +61,9 @@ export default class Server {
       dist: this.dist,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist),
+      generateEtags
     }
-
-    // Only serverRuntimeConfig needs the default
-    // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix} = this.nextConfig
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -163,6 +164,14 @@ export default class Server {
 
         this.handleBuildId(params.buildId, res)
         const p = join(this.dir, this.dist, 'manifest.js')
+        await this.serveStatic(req, res, p)
+      },
+
+      '/_next/:buildId/manifest.js.map': async (req, res, params) => {
+        if (!this.dev) return this.send404(res)
+
+        this.handleBuildId(params.buildId, res)
+        const p = join(this.dir, this.dist, 'manifest.js.map')
         await this.serveStatic(req, res, p)
       },
 
