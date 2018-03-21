@@ -253,11 +253,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       isServer && new NextJsSsrImportPlugin(),
       // In dev mode, we don't move anything to the commons bundle.
       // In production we move common modules into the existing main.js bundle
-      !dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
+      !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'main.js',
         filename: 'main.js',
         minChunks (module, count) {
-          // react
+          // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
           if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
             return true
           }
@@ -265,7 +265,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
             return true
           }
-          // react end
+
+          // In the dev we use on-demand-entries.
+          // So, it makes no sense to use commonChunks based on the minChunks count.
+          // Instead, we move all the code in node_modules into each of the pages.
+          if (dev) {
+            return false
+          }
 
           // commons
           // If there are one or two pages, only move modules to common if they are
