@@ -1,7 +1,7 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, File } from 'next-test-utils'
+import { check, File, waitFor } from 'next-test-utils'
 
 export default (context, render) => {
   describe('Error Recovery', () => {
@@ -26,6 +26,30 @@ export default (context, render) => {
         /This is the about page/
       )
 
+      browser.close()
+    })
+
+    it('should not show the default HMR error overlay', async() => {
+      const browser = await webdriver(context.appPort, '/hmr/about')
+      const text = await browser
+        .elementByCss('p').text()
+      expect(text).toBe('This is the about page.')
+
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      aboutPage.replace('</div>', 'div')
+
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Unterminated JSX contents/
+      )
+
+      await waitFor(2000)
+
+      // Check for the error overlay
+      const bodyHtml = await browser.elementByCss('body').getAttribute('innerHTML')
+      expect(bodyHtml.includes('webpack-hot-middleware-clientOverlay')).toBeFalsy()
+
+      aboutPage.restore()
       browser.close()
     })
 
