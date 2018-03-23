@@ -136,7 +136,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
       strictModuleExceptionHandling: true,
-      devtoolModuleFilenameTemplate: '[absolute-resource-path]'
+      devtoolModuleFilenameTemplate (info) {
+        if (dev) {
+          return '[absolute-resource-path]'
+        }
+
+        return `${info.absoluteResourcePath.replace(dir, '.').replace(nextDir, './node_modules/next')}`
+      }
     },
     performance: { hints: false },
     resolve: {
