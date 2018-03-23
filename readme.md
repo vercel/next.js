@@ -900,6 +900,9 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
+// _document is only rendered on the server side and not on the client side
+// Event handlers like onClick can't be added to this file
+
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 import flush from 'styled-jsx/server'
