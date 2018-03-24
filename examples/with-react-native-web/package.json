@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "5.0.1-canary.2",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "react-native-web": "^0.4.0"
