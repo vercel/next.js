@@ -110,7 +110,7 @@
     "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
-    "@taskr/babel": "1.1.0",
+    "@taskr/babel": "1.1.0-next.1",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
