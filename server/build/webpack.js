@@ -5,12 +5,15 @@ import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
+import {loadPartialConfig, createConfigItem} from '@babel/core'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import findBabelConfig from './babel/find-config'
+
+const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
+const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -28,11 +31,12 @@ function babelConfig (dir, {isServer, dev}) {
     cacheDirectory: true,
     presets: [],
     plugins: [
-      dev && !isServer && require.resolve('react-hot-loader/babel')
+      dev && !isServer && hotLoaderItem
     ].filter(Boolean)
   }
 
-  const externalBabelConfig = findBabelConfig(dir)
+  const filename = path.join(dir, 'filename.js')
+  const externalBabelConfig = loadPartialConfig({ babelrc: true, filename })
   if (externalBabelConfig && externalBabelConfig.babelrc) {
     // Log it out once
     if (!isServer) {
@@ -46,7 +50,7 @@ function babelConfig (dir, {isServer, dev}) {
 
   // Add our default preset if the no "babelrc" found.
   if (!mainBabelOptions.babelrc) {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
+    mainBabelOptions.presets.push(presetItem)
   }
 
   return mainBabelOptions
