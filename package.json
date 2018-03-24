@@ -110,7 +110,6 @@
     "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
-    "@babel/preset-es2015": "7.0.0-beta.42",
     "@taskr/babel": "1.1.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",

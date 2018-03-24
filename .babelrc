@@ -11,8 +11,11 @@
   "env": {
     "test": {
       "presets": [
-        "@babel/preset-es2015",
-        "./babel"
+        ["./babel", {
+          "preset-env": {
+            "modules": "commonjs"
+          }
+        }]
        ]
     }
   }
