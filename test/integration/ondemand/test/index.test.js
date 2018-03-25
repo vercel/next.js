@@ -1,12 +1,10 @@
 /* global jasmine, describe, beforeAll, afterAll, it, expect */
-import { join, resolve } from 'path'
-import { existsSync } from 'fs'
+import { join } from 'path'
 import {
   renderViaHTTP,
   findPort,
   launchApp,
-  killApp,
-  waitFor
+  killApp
 } from 'next-test-utils'
 
 const context = {}
@@ -32,29 +30,5 @@ describe('On Demand Entries', () => {
   it('should compile pages for JSON page requests', async () => {
     const pageContent = await renderViaHTTP(context.appPort, '/_next/-/pages/about.js')
     expect(pageContent.includes('About Page')).toBeTruthy()
-  })
-
-  it('should dispose inactive pages', async () => {
-    const indexPagePath = resolve(__dirname, '../.next/bundles/pages/index.js')
-    expect(existsSync(indexPagePath)).toBeTruthy()
-
-    // Render two pages after the index, since the server keeps at least two pages
-    await renderViaHTTP(context.appPort, '/_next/-/pages/about.js')
-    await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/about'})
-    const aboutPagePath = resolve(__dirname, '../.next/bundles/pages/about.js')
-
-    await renderViaHTTP(context.appPort, '/_next/-/pages/third.js')
-    await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/third'})
-    const thirdPagePath = resolve(__dirname, '../.next/bundles/pages/third.js')
-
-    // Wait maximum of jasmine.DEFAULT_TIMEOUT_INTERVAL checking
-    // for disposing /about
-    while (true) {
-      await waitFor(1000 * 1)
-      // Assert that the two lastly demanded page are not disposed
-      expect(existsSync(aboutPagePath)).toBeTruthy()
-      expect(existsSync(thirdPagePath)).toBeTruthy()
-      if (!existsSync(indexPagePath)) return
-    }
   })
 })

@@ -29,32 +29,4 @@ export default () => {
       console.error(`Error with on-demand-entries-ping: ${err.message}`)
     }
   }
-
-  let pingerTimeout
-  async function runPinger () {
-    // Will restart on the visibilitychange API below. For older browsers, this
-    // will always be true and will always run, but support is fairly prevalent
-    // at this point.
-    while (!document.hidden) {
-      await ping()
-      await new Promise((resolve) => {
-        pingerTimeout = setTimeout(resolve, 5000)
-      })
-    }
-  }
-
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      runPinger()
-    } else {
-      clearTimeout(pingerTimeout)
-    }
-  }, false)
-
-  setTimeout(() => {
-    runPinger()
-      .catch((err) => {
-        console.error(err)
-      })
-  }, 10000)
 }

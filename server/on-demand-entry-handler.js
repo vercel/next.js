@@ -102,13 +102,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
     }
   })
 
-  const disposeHandler = setInterval(function () {
-    if (stopped) return
-    disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
-  }, 5000)
-
   function stop () {
-    clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
     reloadCallbacks = null
@@ -224,35 +218,6 @@ function addEntry (compilation, context, name, entry) {
       resolve()
     })
   })
-}
-
-function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxInactiveAge) {
-  const disposingPages = []
-
-  Object.keys(entries).forEach((page) => {
-    const { lastActiveTime, status } = entries[page]
-
-    // This means this entry is currently building or just added
-    // We don't need to dispose those entries.
-    if (status !== BUILT) return
-
-    // We should not build the last accessed page even we didn't get any pings
-    // Sometimes, it's possible our XHR ping to wait before completing other requests.
-    // In that case, we should not dispose the current viewing page
-    if (lastAccessPages.includes(page)) return
-
-    if (Date.now() - lastActiveTime > maxInactiveAge) {
-      disposingPages.push(page)
-    }
-  })
-
-  if (disposingPages.length > 0) {
-    disposingPages.forEach((page) => {
-      delete entries[page]
-    })
-    console.log(`> Disposing inactive page(s): ${disposingPages.join(', ')}`)
-    devMiddleware.invalidate()
-  }
 }
 
 // /index and / is the same. So, we need to identify both pages as the same.
