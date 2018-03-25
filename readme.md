@@ -178,7 +178,7 @@ To support importing `.css` `.scss` or `.less` files you can use these modules, 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
-export default () => <img src="/static/my-image.png" />
+export default () => <img src="/static/my-image.png" alt="my image" />
 ```
 
 ### Populating `<head>`
@@ -405,7 +405,7 @@ export default () =>
   <div>
     Click{' '}
     <Link href="/about">
-      <img src="/static/image.png" />
+      <img src="/static/image.png" alt="image" />
     </Link>
   </div>
 ```
@@ -1191,7 +1191,7 @@ console.log(serverRuntimeConfig.mySecret) // Will only be available on the serve
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
 export default () => <div>
-  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} />
+  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
 ```
 
