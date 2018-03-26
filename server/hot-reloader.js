@@ -6,10 +6,7 @@ import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from './build/webpack'
 import UUID from 'uuid'
-import {
-  IS_BUNDLED_PAGE,
-  addCorsSupport
-} from './utils'
+import { IS_BUNDLED_PAGE, addCorsSupport } from './utils'
 
 export default class HotReloader {
   constructor (dir, { quiet, config } = {}) {
@@ -46,7 +43,7 @@ export default class HotReloader {
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
-        fn(req, res, (err) => {
+        fn(req, res, err => {
           if (err) return reject(err)
           resolve()
         })
@@ -62,8 +59,16 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
+      getBaseWebpackConfig(this.dir, {
+        dev: true,
+        isServer: false,
+        config: this.config
+      }),
+      getBaseWebpackConfig(this.dir, {
+        dev: true,
+        isServer: true,
+        config: this.config
+      })
     ])
 
     const compiler = webpack(configs)
@@ -78,7 +83,7 @@ export default class HotReloader {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
-        middleware.close((err) => {
+        middleware.close(err => {
           if (err) return reject(err)
           resolve()
         })
@@ -92,8 +97,16 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
+      getBaseWebpackConfig(this.dir, {
+        dev: true,
+        isServer: false,
+        config: this.config
+      }),
+      getBaseWebpackConfig(this.dir, {
+        dev: true,
+        isServer: true,
+        config: this.config
+      })
     ])
 
     const compiler = webpack(configs)
@@ -107,7 +120,11 @@ export default class HotReloader {
     await this.stop(oldWebpackDevMiddleware)
   }
 
-  assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
+  assignBuildTools ({
+    webpackDevMiddleware,
+    webpackHotMiddleware,
+    onDemandEntries
+  }) {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
@@ -120,7 +137,7 @@ export default class HotReloader {
 
   async prepareBuildTools (compiler) {
     // This flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-    compiler.compilers.forEach((singleCompiler) => {
+    compiler.compilers.forEach(singleCompiler => {
       singleCompiler.plugin('after-emit', (compilation, callback) => {
         const { assets } = compilation
 
@@ -140,25 +157,27 @@ export default class HotReloader {
       })
     })
 
-    compiler.compilers[0].plugin('done', (stats) => {
+    compiler.compilers[0].plugin('done', stats => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
-          .map((c) => c.name)
+          .map(c => c.name)
           .filter(name => IS_BUNDLED_PAGE.test(name))
       )
 
-      const failedChunkNames = new Set(compilation.errors
-      .map((e) => e.module.reasons)
-      .reduce((a, b) => a.concat(b), [])
-      .map((r) => r.module.chunks)
-      .reduce((a, b) => a.concat(b), [])
-      .map((c) => c.name))
+      const failedChunkNames = new Set(
+        compilation.errors
+          .map(e => (e && e.module ? e.module.reasons : e))
+          .reduce((a, b) => a.concat(b), [])
+          .map(r => (r && r.module ? r.module.chunks : r))
+          .reduce((a, b) => a.concat(b), [])
+          .map(c => c.name || c)
+      )
 
       const chunkHashes = new Map(
         compilation.chunks
           .filter(c => IS_BUNDLED_PAGE.test(c.name))
-          .map((c) => [c.name, c.hash])
+          .map(c => [c.name, c.hash])
       )
 
       if (this.initialized) {
@@ -174,7 +193,12 @@ export default class HotReloader {
 
         const rootDir = join('bundles', 'pages')
 
-        for (const n of new Set([...added, ...removed, ...failed, ...succeeded])) {
+        for (const n of new Set([
+          ...added,
+          ...removed,
+          ...failed,
+          ...succeeded
+        ])) {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)
         }
@@ -212,11 +236,20 @@ export default class HotReloader {
     }
 
     if (this.config.webpackDevMiddleware) {
-      console.log(`> Using "webpackDevMiddleware" config function defined in ${this.config.configOrigin}.`)
-      webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
+      console.log(
+        `> Using "webpackDevMiddleware" config function defined in ${
+          this.config.configOrigin
+        }.`
+      )
+      webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(
+        webpackDevMiddlewareConfig
+      )
     }
 
-    const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
+    const webpackDevMiddleware = WebpackDevMiddleware(
+      compiler,
+      webpackDevMiddlewareConfig
+    )
 
     const webpackHotMiddleware = WebpackHotMiddleware(compiler.compilers[0], {
       path: '/_next/webpack-hmr',
@@ -224,13 +257,16 @@ export default class HotReloader {
       heartbeat: 2500
     })
 
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers, {
-      dir: this.dir,
-      dev: true,
-      reload: this.reload.bind(this),
-      pageExtensions: this.config.pageExtensions,
-      ...this.config.onDemandEntries
-    })
+    const onDemandEntries = onDemandEntryHandler(
+      webpackDevMiddleware,
+      compiler.compilers,
+      {
+        dir: this.dir,
+        dev: true,
+        reload: this.reload.bind(this),
+        ...this.config.onDemandEntries
+      }
+    )
 
     return {
       webpackDevMiddleware,
@@ -241,7 +277,7 @@ export default class HotReloader {
 
   waitUntilValid (webpackDevMiddleware) {
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       middleware.waitUntilValid(resolve)
     })
   }
@@ -257,13 +293,20 @@ export default class HotReloader {
         const { compiler, errors } = this.stats.compilation
 
         for (const err of errors) {
-          for (const r of err.module.reasons) {
-            for (const c of r.module.chunks) {
-              // get the path of the bundle file
-              const path = join(compiler.outputPath, c.name)
-              const errors = this.compilationErrors.get(path) || []
-              this.compilationErrors.set(path, errors.concat([err]))
+          if (err.module) {
+            for (const r of err.module.reasons) {
+              for (const c of r.module.chunks) {
+                // get the path of the bundle file
+                const path = join(compiler.outputPath, c.name)
+                const errors = this.compilationErrors.get(path) || []
+                this.compilationErrors.set(path, errors.concat([err]))
+              }
             }
+          } else {
+            // If the error format is different (in case of typescript), just output the error.
+            const path = join(compiler.outputPath, err.message)
+            const errors = this.compilationErrors.get(path) || []
+            this.compilationErrors.set(path, errors.concat([err.message]))
           }
         }
       }
@@ -286,7 +329,7 @@ function deleteCache (path) {
 }
 
 function diff (a, b) {
-  return new Set([...a].filter((v) => !b.has(v)))
+  return new Set([...a].filter(v => !b.has(v)))
 }
 
 function toRoute (file) {
