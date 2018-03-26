@@ -97,6 +97,16 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
+    // Let plugins hook into the request
+    if (typeof this.nextConfig.handleRequest === 'function') {
+      const pluginResponse = this.nextConfig.handleRequest(this, req, res, parsedUrl)
+
+      // A plugin has handled this request
+      if (pluginResponse === true) {
+        return
+      }
+    }
+
     res.statusCode = 200
     return this.run(req, res, parsedUrl)
       .catch((err) => {
