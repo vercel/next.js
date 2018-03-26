@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "5.0.1-canary.6",
+  "version": "5.0.1-canary.17",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -19,7 +19,9 @@
     "prefetch.js",
     "router.js",
     "asset.js",
-    "error.js"
+    "error.js",
+    "constants.js",
+    "config.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -50,7 +52,7 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "@zeit/check-updates": "1.1.0",
+    "@zeit/check-updates": "1.1.1",
     "@zeit/source-map-support": "0.6.2",
     "ansi-html": "0.0.7",
     "babel-core": "6.26.0",
@@ -70,6 +72,7 @@
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "etag": "1.8.1",
+    "event-source-polyfill": "0.0.12",
     "find-up": "2.1.0",
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.6.1",
@@ -79,23 +82,19 @@
     "htmlescape": "1.1.1",
     "http-errors": "1.6.2",
     "http-status": "1.0.1",
-    "json-loader": "0.5.7",
     "loader-utils": "1.1.0",
-    "md5-file": "3.2.3",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
-    "mv": "2.1.1",
     "mz": "2.7.0",
     "path-to-regexp": "2.1.0",
-    "pkg-up": "2.0.0",
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
-    "react-hot-loader": "4.0.0-beta.23",
+    "react-hot-loader": "4.0.0",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
     "send": "0.16.1",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "2.2.5",
+    "styled-jsx": "2.2.6",
     "touch": "3.1.0",
     "uglifyjs-webpack-plugin": "1.1.6",
     "unfetch": "3.0.0",
@@ -104,10 +103,9 @@
     "walk": "2.3.9",
     "webpack": "3.10.0",
     "webpack-dev-middleware": "1.12.0",
-    "webpack-hot-middleware": "2.21.0",
+    "webpack-hot-middleware": "2.19.1",
     "webpack-sources": "1.1.0",
-    "write-file-webpack-plugin": "4.2.0",
-    "xss-filters": "1.2.7"
+    "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
     "@taskr/babel": "1.1.0",

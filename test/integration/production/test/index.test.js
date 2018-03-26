@@ -127,7 +127,7 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
-      expect(browserLogs[0].message).toMatch(/Page does not exist: \/no-such-page/)
+      expect(browserLogs[0].message).toMatch(/\/no-such-page.js - Failed to load resource/)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
@@ -165,8 +165,8 @@ describe('Production Usage', () => {
 
     it('should not set it when poweredByHeader==false', async () => {
       const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.config.poweredByHeader
-      app.config.poweredByHeader = false
+      const originalConfigValue = app.nextConfig.poweredByHeader
+      app.nextConfig.poweredByHeader = false
       const res = {
         getHeader () {
           return false
@@ -180,7 +180,7 @@ describe('Production Usage', () => {
       }
 
       await app.render(req, res, req.url)
-      app.config.poweredByHeader = originalConfigValue
+      app.nextConfig.poweredByHeader = originalConfigValue
     })
   })
 

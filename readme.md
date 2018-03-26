@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
 [![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
-[![Slack Channel](http://zeit-slackin.now.sh/badge.svg)](https://zeit.chat)
+[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
@@ -62,7 +62,7 @@ Install it:
 npm install --save next react react-dom
 ```
 
-> Next.js 4 only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
+> Next.js only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
 > We had to drop React 15 support due to the way React 16 works and how we use it.
 
 and add a script to your package.json like this:
@@ -178,7 +178,7 @@ To support importing `.css` `.scss` or `.less` files you can use these modules, 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
-export default () => <img src="/static/my-image.png" />
+export default () => <img src="/static/my-image.png" alt="my image" />
 ```
 
 ### Populating `<head>`
@@ -405,7 +405,7 @@ export default () =>
   <div>
     Click{' '}
     <Link href="/about">
-      <img src="/static/image.png" />
+      <img src="/static/image.png" alt="image" />
     </Link>
   </div>
 ```
@@ -426,6 +426,15 @@ export default ({ href, name }) =>
       {name}
     </Unexpected_A>
   </Link>
+```
+
+##### Disabling the scroll changes to top on page
+
+The default behaviour of `<Link>` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, just like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `<Link>`:
+
+```jsx
+<Link scroll={false} href="/?counter=10"><a>Disables scrolling</a></Link>
+<Link href="/?counter=10"><a>Changes with scrolling to top</a></Link>
 ```
 
 #### Imperatively
@@ -491,7 +500,6 @@ Here's a list of supported events:
 - `onRouteChangeComplete(url)` - Fires when a route changed completely
 - `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
 - `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
-- `onAppUpdated(nextRoute)` - Fires when switching pages and there's a new version of the app
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
@@ -516,17 +524,6 @@ Router.onRouteChangeError = (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
-}
-```
-
-If you change a route while in between a new deployment, we can't navigate the app via client side. We need to do a full browser navigation. We do it automatically for you.
-
-But you can customize that via `Route.onAppUpdated` event like this:
-
-```js
-Router.onAppUpdated = nextUrl => {
-  // persist the local state
-  location.href = nextUrl
 }
 ```
 
@@ -563,9 +560,9 @@ componentWillReceiveProps(nextProps) {
 
 > NOTES:
 >
-> Shallow routing works **only** for same page URL changes. For an example, let's assume we've another page called `about`, and you run this:
+> Shallow routing works **only** for same page URL changes. For an example, let's assume we have another page called `about`, and you run this:
 > ```js
-> Router.push('/about?counter=10', '/about?counter=10', { shallow: true })
+> Router.push('/?counter=10', '/about?counter=10', { shallow: true })
 > ```
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
@@ -608,7 +605,7 @@ The above `router` object comes with an API similar to [`next/router`](#imperati
 
 ### Prefetching Pages
 
-(This is a production only feature)
+⚠️ This is a production only feature ⚠️
 
 <p><details>
   <summary><b>Examples</b></summary>
@@ -903,6 +900,9 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
+// _document is only rendered on the server side and not on the client side
+// Event handlers like onClick can't be added to this file
+
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 import flush from 'styled-jsx/server'
@@ -1009,6 +1009,36 @@ module.exports = {
 }
 ```
 
+Or use a function:
+
+```js
+module.exports = (phase, {defaultConfig}){
+  //
+  // https://github.com/zeit/
+  return {
+    /* config options here */
+  }
+}
+```
+
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](./lib/constants.js)
+Phases can be imported from `next/constants`:
+
+```js
+const {PHASE_DEVELOPMENT_SERVER} = require('next/constants')
+module.exports = (phase, {defaultConfig}){
+  if(phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      /* development only config options here */
+    }
+  }
+
+  return {
+    /* config options for all phases except development here */
+  }
+}
+```
+
 #### Setting a custom build directory
 
 You can specify a name to use for a custom build directory. For example, the following config will create a `build` folder instead of a `.next` folder. If no configuration is specified then next will create a `.next` folder.
@@ -1017,6 +1047,17 @@ You can specify a name to use for a custom build directory. For example, the fol
 // next.config.js
 module.exports = {
   distDir: 'build'
+}
+```
+
+#### Disabling etag generation
+
+You can disable etag generation for HTML pages depending on your cache strategy. If no configuration is specified then Next will generate etags for every page.
+
+```js
+// next.config.js
+module.exports = {
+  generateEtags: false
 }
 ```
 
@@ -1123,6 +1164,35 @@ Here's an example `.babelrc` file:
   "presets": ["next/babel"],
   "plugins": []
 }
+```
+
+#### Exposing configuration to the server / client side
+
+The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
+
+```js
+// next.config.js
+module.exports = {
+  serverRuntimeConfig: { // Will only be available on the server side
+    mySecret: 'secret'
+  },
+  publicRuntimeConfig: { // Will be available on both server and client
+    staticFolder: '/static'
+  }
+}
+```
+
+```js
+// pages/index.js
+import getConfig from 'next/config'
+const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
+
+console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
+console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
+
+export default () => <div>
+  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
+</div>
 ```
 
 ### CDN support with Asset Prefix

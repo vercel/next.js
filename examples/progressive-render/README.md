@@ -7,9 +7,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example progressive-render progressive-render-app
+```bash
+npx create-next-app --example progressive-render progressive-render-app
+# or
+yarn create next-app --example progressive-render progressive-render-app
 ```
 
 ### Download manually

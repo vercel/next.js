@@ -57,26 +57,42 @@ describe('getPagePath', () => {
 })
 
 describe('requirePage', () => {
-  it('Should require /index.js when using /', () => {
-    const page = requirePage('/', {dir: __dirname, dist: '_resolvedata'})
+  it('Should require /index.js when using /', async () => {
+    const page = await requirePage('/', {dir: __dirname, dist: '_resolvedata'})
     expect(page.test).toBe('hello')
   })
 
-  it('Should require /index.js when using /index', () => {
-    const page = requirePage('/index', {dir: __dirname, dist: '_resolvedata'})
+  it('Should require /index.js when using /index', async () => {
+    const page = await requirePage('/index', {dir: __dirname, dist: '_resolvedata'})
     expect(page.test).toBe('hello')
   })
 
-  it('Should require /world.js when using /world', () => {
-    const page = requirePage('/world', {dir: __dirname, dist: '_resolvedata'})
+  it('Should require /world.js when using /world', async () => {
+    const page = await requirePage('/world', {dir: __dirname, dist: '_resolvedata'})
     expect(page.test).toBe('world')
   })
 
-  it('Should throw when using /../../test.js', () => {
-    expect(() => requirePage('/../../test.js', {dir: __dirname, dist: '_resolvedata'})).toThrow()
+  it('Should throw when using /../../test.js', async () => {
+    try {
+      await requirePage('/../../test', {dir: __dirname, dist: '_resolvedata'})
+    } catch (err) {
+      expect(err.code).toBe('ENOENT')
+    }
   })
 
-  it('Should throw when using non existent pages like /non-existent.js', () => {
-    expect(() => requirePage('/non-existent.js', {dir: __dirname, dist: '_resolvedata'})).toThrow()
+  it('Should throw when using non existent pages like /non-existent.js', async () => {
+    try {
+      await requirePage('/non-existent', {dir: __dirname, dist: '_resolvedata'})
+    } catch (err) {
+      expect(err.code).toBe('ENOENT')
+    }
+  })
+
+  it('Should bubble up errors in the child component', async () => {
+    try {
+      await requirePage('/non-existent-child', {dir: __dirname, dist: '_resolvedata'})
+    } catch (err) {
+      expect(err.code).toBe('MODULE_NOT_FOUND')
+    }
   })
 })

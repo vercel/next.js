@@ -1,20 +1,15 @@
-import React from 'react'
-import withApp from '../components/withApp'
+import flowRight from 'lodash.flowright'
 
-class Index extends React.Component {
-  static getInitialProps (context) {
-    const { isServer } = context
-    return { isServer }
-  }
-  render () {
-    const { greeting } = this.props
-    return (
-      <div>
-        <h2>Index page</h2>
-        <h3 style={{ color: 'red' }}>{greeting}</h3>
-      </div>
-    )
-  }
-}
+import { Nav } from '../components/Nav'
+import { withLanguages } from '../hocs/withLanguages'
+import { withUserAgent } from '../hocs/withUserAgent'
 
-export default withApp(Index)
+const IndexPage = props => (
+  <div>
+    <Nav />
+    <h1>Index</h1>
+    <pre>{JSON.stringify(props, null, 2)}</pre>
+  </div>
+)
+
+export default flowRight([withLanguages, withUserAgent])(IndexPage)

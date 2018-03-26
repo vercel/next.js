@@ -10,17 +10,18 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
+  generateEtags: true,
   pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
 }
 
-export default function getConfig (dir, customConfig) {
+export default function getConfig (phase, dir, customConfig) {
   if (!cache.has(dir)) {
-    cache.set(dir, loadConfig(dir, customConfig))
+    cache.set(dir, loadConfig(phase, dir, customConfig))
   }
   return cache.get(dir)
 }
 
-function loadConfig (dir, customConfig) {
+export function loadConfig (phase, dir, customConfig) {
   if (customConfig && typeof customConfig === 'object') {
     customConfig.configOrigin = 'server'
     return withDefaults(customConfig)
@@ -34,6 +35,9 @@ function loadConfig (dir, customConfig) {
   if (path && path.length) {
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
+    if (typeof userConfigModule === 'function') {
+      userConfig = userConfigModule(phase, {defaultConfig})
+    }
     userConfig.configOrigin = 'next.config.js'
   }
 
