@@ -46,5 +46,5 @@ export default withRedux(
   {
     startFetchingCharacters: actions.startFetchingCharacters,
     stopFetchingCharacters: actions.stopFetchingCharacters
-  },
+  }
 )(Counter)

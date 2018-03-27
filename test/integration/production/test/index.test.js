@@ -65,9 +65,9 @@ describe('Production Usage', () => {
     it('should navigate via client side', async () => {
       const browser = await webdriver(appPort, '/')
       const text = await browser
-          .elementByCss('a').click()
-          .waitForElementByCss('.about-page')
-          .elementByCss('div').text()
+        .elementByCss('a').click()
+        .waitForElementByCss('.about-page')
+        .elementByCss('div').text()
 
       expect(text).toBe('About Page')
       browser.close()
@@ -98,8 +98,8 @@ describe('Production Usage', () => {
     it('should reload the page on page script error', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+        .elementByCss('#increase').click().click()
+        .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
       // When we go to the 404 page, it'll do a hard reload.
@@ -120,8 +120,8 @@ describe('Production Usage', () => {
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+        .elementByCss('#increase').click().click()
+        .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
       // Let the browser to prefetch the page and error it on the console.

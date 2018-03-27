@@ -113,7 +113,7 @@
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "@zeit/next-css": "0.0.7",
-    "babel-eslint": "8.0.1",
+    "babel-eslint": "8.2.2",
     "babel-jest": "21.2.0",
     "babel-plugin-istanbul": "4.1.5",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
@@ -139,7 +139,7 @@
     "react": "16.2.0",
     "react-dom": "16.2.0",
     "rimraf": "2.6.2",
-    "standard": "9.0.2",
+    "standard": "11.0.1",
     "taskr": "1.1.0",
     "wd": "1.4.1"
   },
