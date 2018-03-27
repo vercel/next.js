@@ -73,7 +73,7 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the `next.config.js`
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log('> Could not find "exportPathMap" function inside "next.config.js". Using paths from "/pages" instead.')
+    console.log('> No "exportPathMap" found in "next.config.js". Generating map from "./pages"')
     nextConfig.exportPathMap = async () => {
       const dev = false
       const isServer = false
