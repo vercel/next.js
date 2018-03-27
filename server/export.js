@@ -8,16 +8,16 @@ import getConfig from './config'
 import {PHASE_EXPORT} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
-import { printAndExit } from '../lib/utils'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
+import { getPages } from '../server/build/webpack/utils'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
   const nextConfig = configuration || getConfig(PHASE_EXPORT, dir)
   const nextDir = join(dir, nextConfig.distDir)
 
-  log(`  using build directory: ${nextDir}`)
+  log(`> using build directory: ${nextDir}`)
 
   if (!existsSync(nextDir)) {
     console.error(
@@ -73,10 +73,21 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the `next.config.js`
   if (typeof nextConfig.exportPathMap !== 'function') {
-    printAndExit(
-      '> Could not find "exportPathMap" function inside "next.config.js"\n' +
-      '> "next export" uses that function to build html pages.'
-    )
+    console.log('> Could not find "exportPathMap" function inside "next.config.js". Using paths from "/pages" instead.')
+    nextConfig.exportPathMap = async () => {
+      const dev = false
+      const isServer = false
+      const pageExtensions = nextConfig.pageExtensions.join('|')
+      const pageEntries = await getPages(dir, {dev, isServer, pageExtensions})
+
+      const pathMap = {}
+      for (const pageEntryPath of Object.keys(pageEntries)) {
+        const page = pageEntryPath.replace(/^bundles\/pages/, '').replace(/\.js$/, '')
+        pathMap[page] = { page }
+      }
+
+      return pathMap
+    }
   }
 
   const exportPathMap = await nextConfig.exportPathMap()
@@ -115,7 +126,7 @@ export default async function (dir, options, configuration) {
   }
 
   for (const path of exportPaths) {
-    log(`  exporting path: ${path}`)
+    log(`> exporting path: ${path}`)
     if (!path.startsWith('/')) {
       throw new Error(`path "${path}" doesn't start with a backslash`)
     }
