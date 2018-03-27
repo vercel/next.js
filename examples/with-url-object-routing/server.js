@@ -11,19 +11,19 @@ const route = pathMatch()
 const match = route('/about/:name')
 
 app.prepare()
-.then(() => {
-  createServer((req, res) => {
-    const { pathname } = parse(req.url)
-    const params = match(pathname)
-    if (params === false) {
-      handle(req, res)
-      return
-    }
+  .then(() => {
+    createServer((req, res) => {
+      const { pathname } = parse(req.url)
+      const params = match(pathname)
+      if (params === false) {
+        handle(req, res)
+        return
+      }
 
-    app.render(req, res, '/about', params)
+      app.render(req, res, '/about', params)
+    })
+      .listen(port, (err) => {
+        if (err) throw err
+        console.log(`> Ready on http://localhost:${port}`)
+      })
   })
-  .listen(port, (err) => {
-    if (err) throw err
-    console.log(`> Ready on http://localhost:${port}`)
-  })
-})

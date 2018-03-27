@@ -7,23 +7,23 @@ const app = Next({ dev })
 const handle = app.getRequestHandler()
 
 app.prepare()
-.then(() => {
-  const server = fastify()
+  .then(() => {
+    const server = fastify()
 
-  server.get('/a', (req, res) => {
-    return app.render(req.req, res.res, '/a', req.query)
-  })
+    server.get('/a', (req, res) => {
+      return app.render(req.req, res.res, '/a', req.query)
+    })
 
-  server.get('/b', (req, res) => {
-    return app.render(req.req, res.res, '/b', req.query)
-  })
+    server.get('/b', (req, res) => {
+      return app.render(req.req, res.res, '/b', req.query)
+    })
 
-  server.get('/*', (req, res) => {
-    return handle(req.req, res.res)
-  })
+    server.get('/*', (req, res) => {
+      return handle(req.req, res.res)
+    })
 
-  server.listen(port, (err) => {
-    if (err) throw err
-    console.log(`> Ready on http://localhost:${port}`)
+    server.listen(port, (err) => {
+      if (err) throw err
+      console.log(`> Ready on http://localhost:${port}`)
+    })
   })
-})
