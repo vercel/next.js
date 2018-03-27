@@ -78,10 +78,6 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules[/\\].*\.js/)) {
-        return callback(null, `commonjs ${request}`)
-      }
-
       callback()
     })
   })
