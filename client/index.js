@@ -35,7 +35,10 @@ const {
 
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
+if (process.env.NODE_ENV == 'development')
+  __webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
+else
+  __webpack_public_path__ = `${assetPrefix}`
 // Initialize next/asset with the assetPrefix
 asset.setAssetPrefix(assetPrefix)
 // Initialize next/config with the environment configuration
