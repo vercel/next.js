@@ -33,7 +33,7 @@ class CreateAccount extends React.Component {
   }
 };
 
-export default compose( //TODO: Maybe remove the usage of compose?
+export default compose( // TODO: Maybe remove the usage of compose?
   // withData gives us server-side graphql queries before rendering
   withData
 )(CreateAccount)
