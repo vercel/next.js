@@ -1,6 +1,7 @@
 // @flow
 import { RawSource } from 'webpack-sources'
 import { MATCH_ROUTE_NAME } from '../../utils'
+import {PAGES_MANIFEST} from '../../../lib/constants'
 
 export default class PagesManifestPlugin {
   apply (compiler: any) {
@@ -19,7 +20,7 @@ export default class PagesManifestPlugin {
         pages[`/${pagePath}`] = name
       }
 
-      compilation.assets['pages-manifest.json'] = new RawSource(JSON.stringify(pages))
+      compilation.assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages))
       callback()
     })
   }

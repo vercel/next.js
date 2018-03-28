@@ -5,12 +5,11 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
-import {PHASE_EXPORT} from '../lib/constants'
+import {PHASE_EXPORT, PAGES_MANIFEST} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
-import { getPages } from '../server/build/webpack/utils'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
@@ -27,6 +26,17 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
+  const pagesManifest = require(join(nextDir, 'dist', PAGES_MANIFEST))
+
+  const pages = Object.keys(pagesManifest)
+  const defaultPathMap = {}
+
+  for (const page of pages) {
+    if (page === '/_document') {
+      continue
+    }
+    defaultPathMap[page] = { page }
+  }
 
   // Initialize the output directory
   const outDir = options.outdir
@@ -74,23 +84,12 @@ export default async function (dir, options, configuration) {
   // Get the exportPathMap from the `next.config.js`
   if (typeof nextConfig.exportPathMap !== 'function') {
     console.log('> No "exportPathMap" found in "next.config.js". Generating map from "./pages"')
-    nextConfig.exportPathMap = async () => {
-      const dev = false
-      const isServer = false
-      const pageExtensions = nextConfig.pageExtensions.join('|')
-      const pageEntries = await getPages(dir, {dev, isServer, pageExtensions})
-
-      const pathMap = {}
-      for (const pageEntryPath of Object.keys(pageEntries)) {
-        const page = pageEntryPath.replace(/^bundles\/pages/, '').replace(/\.js$/, '')
-        pathMap[page] = { page }
-      }
-
-      return pathMap
+    nextConfig.exportPathMap = async (defaultMap) => {
+      return defaultMap
     }
   }
 
-  const exportPathMap = await nextConfig.exportPathMap()
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
   const exportPaths = Object.keys(exportPathMap)
 
   // Start the rendering process

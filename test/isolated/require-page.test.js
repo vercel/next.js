@@ -1,8 +1,9 @@
 /* global describe, it, expect */
 
-import { join, sep } from 'path'
+import { join } from 'path'
 import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
 
+const sep = '/'
 const pathToBundles = join(__dirname, '_resolvedata', 'dist', 'bundles', 'pages')
 
 describe('pageNotFoundError', () => {
