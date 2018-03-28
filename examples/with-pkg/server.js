@@ -8,10 +8,10 @@ const app = next({ dev })
 const handle = app.getRequestHandler()
 
 app.prepare()
-.then(() => {
-  createServer((req, res) => handle(req, res, parse(req.url, true).pathname))
-  .listen(port, (err) => {
-    if (err) throw err
-    console.log(`> Ready on http://localhost:${port}`)
+  .then(() => {
+    createServer((req, res) => handle(req, res, parse(req.url, true).pathname))
+      .listen(port, (err) => {
+        if (err) throw err
+        console.log(`> Ready on http://localhost:${port}`)
+      })
   })
-})

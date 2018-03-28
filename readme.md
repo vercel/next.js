@@ -62,7 +62,7 @@ Install it:
 npm install --save next react react-dom
 ```
 
-> Next.js 4 only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
+> Next.js only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
 > We had to drop React 15 support due to the way React 16 works and how we use it.
 
 and add a script to your package.json like this:
@@ -178,7 +178,7 @@ To support importing `.css` `.scss` or `.less` files you can use these modules, 
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
-export default () => <img src="/static/my-image.png" />
+export default () => <img src="/static/my-image.png" alt="my image" />
 ```
 
 ### Populating `<head>`
@@ -405,7 +405,7 @@ export default () =>
   <div>
     Click{' '}
     <Link href="/about">
-      <img src="/static/image.png" />
+      <img src="/static/image.png" alt="image" />
     </Link>
   </div>
 ```
@@ -900,6 +900,9 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
 ```jsx
+// _document is only rendered on the server side and not on the client side
+// Event handlers like onClick can't be added to this file
+
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 import flush from 'styled-jsx/server'
@@ -1188,7 +1191,7 @@ console.log(serverRuntimeConfig.mySecret) // Will only be available on the serve
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
 export default () => <div>
-  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} />
+  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
 ```
 
