@@ -29,7 +29,7 @@ export default (context, render) => {
       browser.close()
     })
 
-    it('should not show the default HMR error overlay', async() => {
+    it('should not show the default HMR error overlay', async () => {
       const browser = await webdriver(context.appPort, '/hmr/about')
       const text = await browser
         .elementByCss('p').text()

@@ -1,6 +1,6 @@
 import React from 'react'
 import { graphql } from 'react-apollo'
-import gql from 'graphql-tag'
+import { gql } from 'apollo-boost'
 
 function PostUpvoter ({ upvote, votes, id }) {
   return (
