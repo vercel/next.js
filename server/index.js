@@ -10,6 +10,8 @@ import promisify from './lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
+  renderToParts,
+  renderErrorToParts,
   sendHTML,
   serveStatic,
   renderScriptError
@@ -386,6 +388,21 @@ export default class Server {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
+      }
+    }
+  }
+
+  async renderToParts (req, res, pathname, query, opts) {
+    try {
+      return await renderToParts(req, res, pathname, query, Object.assign({}, this.renderOpts, opts))
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        res.statusCode = 404
+        return renderErrorToParts(null, req, res, pathname, query, Object.assign({}, this.renderOpts, opts))
+      } else {
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        return renderErrorToParts(err, req, res, pathname, query, Object.assign({}, this.renderOpts, opts))
       }
     }
   }
