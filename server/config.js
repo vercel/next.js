@@ -24,10 +24,8 @@ export default function getConfig (phase: string, dir: string, customConfig?: ?O
 
 export function loadConfig (phase: string, dir: string, customConfig?: ?Object) {
   if (customConfig && typeof customConfig === 'object') {
-    return withDefaults({
-      configOrigin: 'server',
-      ...customConfig
-    })
+    customConfig.configOrigin = 'server'
+    return withDefaults(customConfig)
   }
   const path: string = findUp.sync('next.config.js', {
     cwd: dir
@@ -49,5 +47,5 @@ export function loadConfig (phase: string, dir: string, customConfig?: ?Object) 
 }
 
 function withDefaults (config: Object) {
-  return {...defaultConfig, config}
+  return Object.assign({}, defaultConfig, config)
 }
