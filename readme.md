@@ -1185,7 +1185,8 @@ module.exports = {
 ```js
 // pages/index.js
 import getConfig from 'next/config'
-const {serverRuntimeConfig, publicRuntimeConfig} = getConfig() // Only holds serverRuntimeConfig and publicRuntimeConfig from next.config.js nothing else.
+// Only holds serverRuntimeConfig and publicRuntimeConfig from next.config.js nothing else.
+const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
