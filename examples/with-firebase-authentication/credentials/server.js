@@ -1,3 +1,3 @@
 module.exports = {
-    // TODO firebase server config
+  // TODO firebase server config
 }

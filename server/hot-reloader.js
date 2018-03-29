@@ -149,11 +149,11 @@ export default class HotReloader {
       )
 
       const failedChunkNames = new Set(compilation.errors
-      .map((e) => e.module.reasons)
-      .reduce((a, b) => a.concat(b), [])
-      .map((r) => r.module.chunks)
-      .reduce((a, b) => a.concat(b), [])
-      .map((c) => c.name))
+        .map((e) => e.module.reasons)
+        .reduce((a, b) => a.concat(b), [])
+        .map((r) => r.module.chunks)
+        .reduce((a, b) => a.concat(b), [])
+        .map((c) => c.name))
 
       const chunkHashes = new Map(
         compilation.chunks

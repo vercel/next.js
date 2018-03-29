@@ -2,7 +2,7 @@ import React from 'react'
 
 export default class AsyncProps extends React.Component {
   static async getInitialProps () {
-    return await fetchData()
+    return fetchData()
   }
 
   render () {
