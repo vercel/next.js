@@ -1,4 +1,4 @@
-import {join, normalize, sep} from 'path'
+import {join, normalize} from 'path'
 import {PAGES_MANIFEST} from '../lib/constants'
 
 export function pageNotFoundError (page) {
@@ -16,11 +16,6 @@ export function normalizePagePath (page) {
   // Resolve on anything that doesn't start with `/`
   if (page[0] !== '/') {
     page = `/${page}`
-  }
-
-  // Windows compatibility
-  if (sep !== '/') {
-    page = page.replace(/\//g, sep)
   }
 
   // Throw when using ../ etc in the pathname
