@@ -1,4 +1,4 @@
-import {join, normalize} from 'path'
+import {join, posix} from 'path'
 import {PAGES_MANIFEST} from '../lib/constants'
 
 export function pageNotFoundError (page) {
@@ -19,7 +19,7 @@ export function normalizePagePath (page) {
   }
 
   // Throw when using ../ etc in the pathname
-  const resolvedPage = normalize(page)
+  const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {
     throw new Error('Requested and resolved page mismatch')
   }
