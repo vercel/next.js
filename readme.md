@@ -1012,7 +1012,7 @@ module.exports = {
 Or use a function:
 
 ```js
-module.exports = (phase, {defaultConfig}){
+module.exports = (phase, {defaultConfig}) => {
   //
   // https://github.com/zeit/
   return {
