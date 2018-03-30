@@ -20,7 +20,7 @@ export default class PagesManifestPlugin {
         }
 
         const {name} = entry
-        pages[`/${pagePath}`] = name
+        pages[`/${pagePath.replace(/\\/g, '/')}`] = name
       }
 
       compilation.assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages))
