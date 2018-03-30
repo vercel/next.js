@@ -1259,7 +1259,7 @@ Simply develop your app as you normally do with Next.js. Then create a custom Ne
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: function() {
+  exportPathMap: function(defaultPathMap) {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
