@@ -9,7 +9,7 @@ export async function getPages (dir, {dev, isServer, pageExtensions}) {
   return getPageEntries(pageFiles, {isServer, pageExtensions})
 }
 
-async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
+export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
   let pages
 
   if (dev) {

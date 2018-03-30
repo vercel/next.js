@@ -1,3 +1,4 @@
+/* eslint-disable import/first, no-return-await */
 require('@zeit/source-map-support').install()
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'

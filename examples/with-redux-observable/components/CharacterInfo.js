@@ -39,5 +39,5 @@ export default connect(
     character: state.character,
     error: state.error,
     isFetchedOnServer: state.isFetchedOnServer
-  }),
+  })
 )(CharacterInfo)

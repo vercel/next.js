@@ -10,6 +10,7 @@ import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
+import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import findBabelConfig from './babel/find-config'
 
 const nextDir = path.join(__dirname, '..', '..', '..')
@@ -254,6 +255,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
+      isServer && new PagesManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin(),

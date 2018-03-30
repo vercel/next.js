@@ -198,15 +198,15 @@ function serializeError (dev, err) {
 export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
-    .on('directory', () => {
+      .on('directory', () => {
       // We don't allow directories to be read.
-      const err = new Error('No directory access')
-      err.code = 'ENOENT'
-      reject(err)
-    })
-    .on('error', reject)
-    .pipe(res)
-    .on('finish', resolve)
+        const err = new Error('No directory access')
+        err.code = 'ENOENT'
+        reject(err)
+      })
+      .on('error', reject)
+      .pipe(res)
+      .on('finish', resolve)
   })
 }
 
