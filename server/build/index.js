@@ -15,7 +15,7 @@ export default async function build (dir, conf = null) {
   const buildId = uuid.v4()
 
   try {
-    await access(dir, fs.constants.W_OK)
+    await access(dir, (fs.constants || fs).W_OK)
   } catch (err) {
     console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
     throw err

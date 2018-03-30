@@ -25,9 +25,9 @@ import { isResSent } from '../lib/utils'
 
 function exists (path) {
   return new Promise((resolve, reject) => {
-    fs.exists(path, (exists) => (
-      resolve(exists)
-    ))
+    fs.access(path, (fs.constants || fs).R_OK, (err) => {
+      resolve(!err)
+    })
   })
 }
 
