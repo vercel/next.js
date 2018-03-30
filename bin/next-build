@@ -43,7 +43,7 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 build(dir)
-.catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })

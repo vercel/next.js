@@ -1,3 +1,4 @@
+// @flow
 import findUp from 'find-up'
 
 const cache = new Map()
@@ -11,28 +12,29 @@ const defaultConfig = {
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateEtags: true,
-  pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
+  pageExtensions: ['jsx', 'js']
 }
 
-export default function getConfig (phase, dir, customConfig) {
+export default function getConfig (phase: string, dir: string, customConfig?: ?Object) {
   if (!cache.has(dir)) {
     cache.set(dir, loadConfig(phase, dir, customConfig))
   }
   return cache.get(dir)
 }
 
-export function loadConfig (phase, dir, customConfig) {
+export function loadConfig (phase: string, dir: string, customConfig?: ?Object) {
   if (customConfig && typeof customConfig === 'object') {
     customConfig.configOrigin = 'server'
     return withDefaults(customConfig)
   }
-  const path = findUp.sync('next.config.js', {
+  const path: string = findUp.sync('next.config.js', {
     cwd: dir
   })
 
   let userConfig = {}
 
   if (path && path.length) {
+    // $FlowFixMe
     const userConfigModule = require(path)
     userConfig = userConfigModule.default || userConfigModule
     if (typeof userConfigModule === 'function') {
@@ -44,6 +46,6 @@ export function loadConfig (phase, dir, customConfig) {
   return withDefaults(userConfig)
 }
 
-function withDefaults (config) {
+function withDefaults (config: Object) {
   return Object.assign({}, defaultConfig, config)
 }
