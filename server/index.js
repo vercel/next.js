@@ -6,6 +6,7 @@ import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
 import updateNotifier from '@zeit/check-updates'
+import promisify from './lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -23,13 +24,7 @@ import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
-function exists (path) {
-  return new Promise((resolve, reject) => {
-    fs.access(path, (fs.constants || fs).R_OK, (err) => {
-      resolve(!err)
-    })
-  })
-}
+const access = promisify(fs.access)
 
 const blockedPages = {
   '/_document': true,
@@ -274,7 +269,9 @@ export default class Server {
 
         // [production] If the page is not exists, we need to send a proper Next.js style 404
         // Otherwise, it'll affect the multi-zones feature.
-        if (!(await exists(p))) {
+        try {
+          await access(p, (fs.constants || fs).R_OK)
+        } catch (err) {
           return await renderScriptError(req, res, page, { code: 'ENOENT' })
         }
 
