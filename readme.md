@@ -1012,7 +1012,7 @@ module.exports = {
 Or use a function:
 
 ```js
-module.exports = (phase, {defaultConfig}){
+module.exports = (phase, {defaultConfig}) => {
   //
   // https://github.com/zeit/
   return {
@@ -1185,6 +1185,7 @@ module.exports = {
 ```js
 // pages/index.js
 import getConfig from 'next/config'
+// Only holds serverRuntimeConfig and publicRuntimeConfig from next.config.js nothing else.
 const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
@@ -1258,7 +1259,7 @@ Simply develop your app as you normally do with Next.js. Then create a custom Ne
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: function() {
+  exportPathMap: function(defaultPathMap) {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },

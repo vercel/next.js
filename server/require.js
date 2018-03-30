@@ -1,13 +1,5 @@
-import {join, parse, normalize, sep} from 'path'
-import fs from 'fs'
-
-function exists (path) {
-  return new Promise((resolve, reject) => {
-    fs.exists(path, (exists) => (
-      resolve(exists)
-    ))
-  })
-}
+import {join, posix} from 'path'
+import {PAGES_MANIFEST} from '../lib/constants'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -26,13 +18,8 @@ export function normalizePagePath (page) {
     page = `/${page}`
   }
 
-  // Windows compatibility
-  if (sep !== '/') {
-    page = page.replace(/\//g, sep)
-  }
-
   // Throw when using ../ etc in the pathname
-  const resolvedPage = normalize(page)
+  const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {
     throw new Error('Requested and resolved page mismatch')
   }
@@ -41,7 +28,8 @@ export function normalizePagePath (page) {
 }
 
 export function getPagePath (page, {dir, dist}) {
-  const pageBundlesPath = join(dir, dist, 'dist', 'bundles', 'pages')
+  const serverBuildPath = join(dir, dist, 'dist')
+  const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
     page = normalizePagePath(page)
@@ -50,24 +38,14 @@ export function getPagePath (page, {dir, dist}) {
     throw pageNotFoundError(page)
   }
 
-  const pagePath = join(pageBundlesPath, page) // Path to the page that is to be loaded
-
-  // Don't allow wandering outside of the bundles directory
-  const pathDir = parse(pagePath).dir
-  if (pathDir.indexOf(pageBundlesPath) !== 0) {
-    console.error('Resolved page path goes outside of bundles path')
+  if (!pagesManifest[page]) {
     throw pageNotFoundError(page)
   }
 
-  return pagePath
+  return join(serverBuildPath, pagesManifest[page])
 }
 
 export default async function requirePage (page, {dir, dist}) {
-  const pagePath = getPagePath(page, {dir, dist}) + '.js'
-  const fileExists = await exists(pagePath)
-  if (!fileExists) {
-    throw pageNotFoundError(page)
-  }
-
+  const pagePath = getPagePath(page, {dir, dist})
   return require(pagePath)
 }
