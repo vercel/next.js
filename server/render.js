@@ -37,7 +37,6 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
-  buildStats,
   hotReloader,
   assetPrefix,
   runtimeConfig,
@@ -56,8 +55,10 @@ async function doRender (req, res, pathname, query, {
 
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
 
-  let Component = requirePage(page, {dir, dist})
-  let Document = require(documentPath)
+  let [Component, Document] = await Promise.all([
+    requirePage(page, {dir, dist}),
+    require(documentPath)
+  ])
   Component = Component.default || Component
   Document = Document.default || Document
   const asPath = req.url
@@ -108,7 +109,6 @@ async function doRender (req, res, pathname, query, {
       pathname, // the requested path
       query,
       buildId,
-      buildStats,
       assetPrefix,
       runtimeConfig,
       nextExport,
@@ -138,9 +138,9 @@ export async function renderScriptError (req, res, page, error) {
   res.end('500 - Internal Error')
 }
 
-export function sendHTML (req, res, html, method, { dev }) {
+export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
-  const etag = generateETag(html)
+  const etag = generateEtags && generateETag(html)
 
   if (fresh(req.headers, { etag })) {
     res.statusCode = 304
@@ -154,7 +154,10 @@ export function sendHTML (req, res, html, method, { dev }) {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
-  res.setHeader('ETag', etag)
+  if (etag) {
+    res.setHeader('ETag', etag)
+  }
+
   if (!res.getHeader('Content-Type')) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8')
   }
@@ -195,15 +198,15 @@ function serializeError (dev, err) {
 export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
-    .on('directory', () => {
+      .on('directory', () => {
       // We don't allow directories to be read.
-      const err = new Error('No directory access')
-      err.code = 'ENOENT'
-      reject(err)
-    })
-    .on('error', reject)
-    .pipe(res)
-    .on('finish', resolve)
+        const err = new Error('No directory access')
+        err.code = 'ENOENT'
+        reject(err)
+      })
+      .on('error', reject)
+      .pipe(res)
+      .on('finish', resolve)
   })
 }
 

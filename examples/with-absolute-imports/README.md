@@ -6,9 +6,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-absolute-imports with-absolute-imports-app
+```bash
+npx create-next-app --example with-absolute-imports with-absolute-imports-app
+# or
+yarn create next-app --example with-absolute-imports with-absolute-imports-app
 ```
 
 ### Download manually
@@ -16,8 +17,8 @@ create-next-app --example with-absolute-imports with-absolute-imports-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-absolute-import
-cd with-absolute-import
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-absolute-imports
+cd with-absolute-imports
 ```
 
 Install it and run:
