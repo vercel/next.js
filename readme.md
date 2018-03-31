@@ -458,6 +458,31 @@ export default () =>
   </div>
 ```
 
+#### Intercepting `popstate`
+
+In some cases (for example, if using a [custom router](#custom-server-and-routing)), you may wish
+to listen to `popstate` and react before the router acts on it.
+For example, you could use this to manipulate the request, or force an SSR refresh.
+
+```jsx
+import Router from 'next/router'
+
+Router.beforePopState(({ url, as, options }) => {
+  // I only want to allow these two routes!
+  if (as !== "/" || as !== "/other") {
+    // Have SSR render bad routes as a 404.
+    window.location.href = as
+    return false
+  }
+
+  return true
+});
+```
+
+If you return a falsy value from `beforePopState`, `Router` will not handle `popstate`;
+you'll be responsible for handling it, in that case.
+See [Disabling File-System Routing](#disabling-file-system-routing).
+
 Above `Router` object comes with the following API:
 
 - `route` - `String` of the current route
@@ -466,6 +491,7 @@ Above `Router` object comes with the following API:
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `beforePopState(cb=function)` - intercept popstate before router processes the event.
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
@@ -752,6 +778,13 @@ module.exports = {
   useFileSystemPublicRoutes: false
 }
 ```
+
+Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing
+may still access those paths. If using this option, you should guard against navigation to routes
+you do not want programmatically.
+
+You may also wish to configure the client-side Router to disallow client-side redirects to filename
+routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
 
 #### Dynamic assetPrefix
 
