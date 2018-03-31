@@ -1,0 +1,6 @@
+{
+  "/index": "bundles/pages/index.js",
+  "/world": "bundles/pages/world.js",
+  "/_error": "bundles/pages/_error.js",
+  "/non-existent-child": "bundles/pages/non-existent-child.js"
+}

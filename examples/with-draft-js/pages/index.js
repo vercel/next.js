@@ -5,7 +5,7 @@ import {
   RichUtils,
   convertToRaw,
   convertFromRaw
-  } from 'draft-js'
+} from 'draft-js'
 
 export default class App extends React.Component {
   constructor (props) {
@@ -62,7 +62,7 @@ export default class App extends React.Component {
   setSelectionXY = () => {
     var r = window.getSelection().getRangeAt(0).getBoundingClientRect()
     var relative = document.body.parentNode.getBoundingClientRect()
-      // 2-a Set the selection coordinates in the state
+    // 2-a Set the selection coordinates in the state
     this.setState({
       selectionCoordinates: r,
       windowWidth: relative.width,
@@ -176,7 +176,7 @@ export default class App extends React.Component {
             this.elemHeight = elem ? elem.clientHeight : 0
           }}
           style={toolbarStyle}
-          >
+        >
           <ToolBar
             editorState={editorState}
             onToggle={this.toggleToolbar}
@@ -261,8 +261,8 @@ const ToolBar = (props) => {
           label={toolbarItem.label}
           onToggle={props.onToggle}
           style={toolbarItem.style}
-            />
-          )}
+        />
+      )}
     </div>
   )
 }

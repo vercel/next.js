@@ -1,5 +1,6 @@
 import { createComponent } from 'react-fela'
-import Page from '../layout'
+
+import FelaProvider from '../FelaProvider'
 
 const Container = createComponent(() => ({
   maxWidth: 700,
@@ -20,13 +21,14 @@ const Title = createComponent(
     fontSize: size,
     color: '#555'
   }),
-  Text,
+  Text
 )
 
-export default () =>
-  <Page>
+export default () => (
+  <FelaProvider>
     <Container>
       <Title size={50}>My Title</Title>
       <Text>Hi, I am Fela.</Text>
     </Container>
-  </Page>
+  </FelaProvider>
+)

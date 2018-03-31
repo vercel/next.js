@@ -50,6 +50,6 @@ const mapDispatchToProps = dispatch => {
   }
 }
 
-export default withRedux(initStore, null, mapDispatchToProps)(
-  withApollo(Index)
+export default withApollo(
+  withRedux(initStore, null, mapDispatchToProps)(Index)
 )

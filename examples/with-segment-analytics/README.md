@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-analytics)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-segment-analytics)
 
 # Example app with analytics
 
@@ -8,9 +8,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-analytics with-analytics-app
+```bash
+npx create-next-app --example with-segment-analytics with-segment-analytics-app
+# or
+yarn create next-app --example with-segment-analytics with-segment-analytics-app
 ```
 
 ### Download manually
@@ -18,8 +19,8 @@ create-next-app --example with-analytics with-analytics-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-analytics
-cd with-analytics
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-segment-analytics
+cd with-segment-analytics
 ```
 
 Install it and run:

@@ -46,12 +46,12 @@ const dir = resolve(argv._[0] || '.')
 
 const srv = new Server({ dir })
 srv.start(argv.port, argv.hostname)
-.then(() => {
-  if (!process.env.NOW) {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
-  }
-})
-.catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+  .then(() => {
+    if (!process.env.NOW) {
+      console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    }
+  })
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
