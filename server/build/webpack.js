@@ -105,7 +105,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  let totalPages
+  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const totalPages = Object.keys(pagesEntries).length
+  const clientEntries = !isServer ? {
+    'main.js': [
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
+      require.resolve(`../../client/next${dev ? '-dev' : ''}`)
+    ].filter(Boolean)
+  } : {}
 
   let webpackConfig = {
     devtool: dev ? 'source-map' : false,
@@ -114,20 +122,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer),
     context: dir,
+    // Kept as function to be backwards compatible
     entry: async () => {
-      const pages = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
-      totalPages = Object.keys(pages).length
-      const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`)
-      const clientConfig = !isServer ? {
-        'main.js': [
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
-          mainJS
-        ].filter(Boolean)
-      } : {}
       return {
-        ...clientConfig,
-        ...pages
+        ...clientEntries,
+        // Only _error and _document when in development. The rest is handled by on-demand-entries
+        ...pagesEntries
       }
     },
     output: {
