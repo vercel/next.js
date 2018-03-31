@@ -11,6 +11,5 @@ module.exports = withCSS({
   },
   publicRuntimeConfig: {
     staticFolder: '/static'
-  },
-  generateBuildId: async () => 'test-build-id'
+  }
 })
