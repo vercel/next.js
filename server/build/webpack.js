@@ -301,6 +301,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   }
 
   if (typeof config.webpack === 'function') {
+    // Run entry to populate `totalPages` before passing it to `config.webpack()`
+    await webpackConfig.entry()
+
     webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders, totalPages})
   }
 
