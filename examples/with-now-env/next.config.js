@@ -1,3 +1,4 @@
+const webpack = require('webpack')
 /**
  * After the next require you can use process.env to get your secrets
  */
@@ -16,12 +17,13 @@ console.log({
  */
 module.exports = {
   webpack: config => {
-    config.plugins.forEach(plugin => {
-      if (plugin.constructor.name === 'DefinePlugin') {
-        plugin.definitions['process.env.SECRET'] = JSON.stringify(process.env.SECRET)
-      }
-    })
-
+    config.plugins.push(
+      new webpack.DefinePlugin({
+        'process.env.SECRET': JSON.stringify(process.env.SECRET)
+      })
+      // Same as above
+      // new webpack.EnvironmentPlugin(['SECRET'])
+    )
     return config
   }
 }
