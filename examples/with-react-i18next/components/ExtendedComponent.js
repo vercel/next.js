@@ -1,14 +1,10 @@
 import React from 'react'
 import { translate } from 'react-i18next'
 
-function MyComponennt ({ t }) {
-  return (
-    <div>
-      {t('extendedComponent')}
-    </div>
-  )
+function MyComponent ({ t }) {
+  return <p>{t('extendedComponent')}</p>
 }
 
-const Extended = translate('common')(MyComponennt)
+const Extended = translate('common')(MyComponent)
 
 export default Extended

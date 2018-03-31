@@ -1,4 +1,5 @@
-import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?autoConnect=false'
+import 'event-source-polyfill'
+import webpackHotMiddlewareClient from 'webpack-hot-middleware/client?autoConnect=false&overlay=false&reload=true'
 import Router from '../lib/router'
 
 const {
@@ -9,8 +10,6 @@ const {
 
 export default () => {
   webpackHotMiddlewareClient.setOptionsAndConnect({
-    overlay: false,
-    reload: true,
     path: `${assetPrefix}/_next/webpack-hmr`
   })
 

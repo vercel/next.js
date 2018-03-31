@@ -11,9 +11,10 @@ https://next-with-apollo-auth.now.sh
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-apollo-auth with-apollo-auth-app
+```bash
+npx create-next-app --example with-apollo-auth with-apollo-auth-app
+# or
+yarn create next-app --example with-apollo-auth with-apollo-auth-app
 ```
 
 ### Download manually
@@ -65,3 +66,7 @@ It is important to note the use of Apollo's `resetStore()` method after signing 
 
 To get this example running locally, you will need to create a graph.cool
 account, and provide [the `project.graphcool` schema](https://github.com/zeit/next.js/blob/master/examples/with-apollo-auth/project.graphcool).
+
+
+### Note:
+In these *with-apollo* examples, the ```withData()``` HOC must wrap a top-level component from within the ```pages``` directory. Wrapping a child component with the HOC will result in a ```Warning: Failed prop type: The prop 'serverState' is marked as required in 'WithData(Apollo(Component))', but its value is 'undefined'``` error. Down-tree child components will have access to Apollo, and can be wrapped with any other sort of ```graphql()```, ```compose()```, etc HOC's.

@@ -8,9 +8,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-semantic-ui with-semantic-ui-app
+```bash
+npx create-next-app --example with-semantic-ui with-semantic-ui-app
+# or
+yarn create next-app --example with-semantic-ui with-semantic-ui-app
 ```
 
 ### Download manually
@@ -37,5 +38,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to use Next.js along with [Semantic UI React](http://react.semantic-ui.com). This is intended to show the integration of this 
-UI toolkit with the Framework,
+This example shows how to use Next.js along with [Semantic UI React](http://react.semantic-ui.com) including handling of external styles and assets. This is intended to show the integration of this UI toolkit with the Framework.

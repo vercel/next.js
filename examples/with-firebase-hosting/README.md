@@ -6,9 +6,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-firebase-hosting with-firebase-hosting-app
+```bash
+npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
+# or
+yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
 ### Download manually
@@ -20,48 +21,56 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-firebase-hosting
 ```
 
-It is recommended to use a package manager that uses a lockfile and caching for faster dev/test cycles:
-- [Yarn](https://github.com/yarnpkg/yarn)
-- [npm5.1.x](https://github.com/npm/npm)
-- [pnpm](https://github.com/pnpm/pnpm)
-
 Set up firebase:
-- install Firebase Tools: `npm i -g firebase-tools`
-- create a project through the [firebase web console](https://console.firebase.google.com/)
-- grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
-- update the `.firebaserc` default project ID to the newly created project
 
-Install project:
+* install Firebase Tools: `npm i -g firebase-tools`
+* create a project through the [firebase web console](https://console.firebase.google.com/)
+* grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
+* update the `.firebaserc` default project ID to the newly created project
+* login to the Firebase CLI tool with `firebase login`
+
+#### Install project:
 
 ```bash
 npm install
 ```
 
-Run Next.js development:
+#### Run Next.js development:
 
 ```bash
-npm run next
+npm run dev
 ```
 
-Run Firebase locally for testing:
+#### Run Firebase locally for testing:
+
+Unfortunately I have been unable to get any combination of
 
 ```bash
-npm run serve
+firebase serve --only functions,hosting
 ```
 
-Deploy it to the cloud with Firebase:
+to locally host the built Next.js app as expected. [This issue is where solutions are being explored](https://github.com/firebase/firebase-tools/issues/535) and they will be shared here and on the [Next.js repo's similar issue](https://github.com/zeit/next.js/issues/3167) when discovered.
+
+#### Deploy it to the cloud with Firebase:
 
 ```bash
 npm run deploy
 ```
 
+#### Clean dist folder
+
+```bash
+npm run clean
+```
+
 ## The idea behind the example
+
 The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
 
 This is based off of the work at https://github.com/geovanisouza92/serverless-firebase & https://github.com/jthegedus/firebase-functions-next-example as described [here](https://medium.com/@jthegedus/next-js-on-cloud-functions-for-firebase-with-firebase-hosting-7911465298f2).
 
-## Important / Caveats
-*   The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
-*   `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-*   Testing on Firebase locally requires a complete build of the Next.js app. `npm run serve` handles everything required.
-*   **Any npm modules dependencies used in the Next.js app (`app/` folder) must also be installed as dependencies for the Cloud Functions project (`functions` folder).**
+## Important
+
+* The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
+* `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
+* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks run most of the npm scripts when `npm run deploy` runs `firebase deploy`. The only scripts you should need are `dev`, `clean` and `deploy`.

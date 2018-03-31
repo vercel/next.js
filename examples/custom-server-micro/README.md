@@ -8,9 +8,10 @@
 
 Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example custom-server-micro custom-server-micro-app
+```bash
+npx create-next-app --example custom-server-micro custom-server-micro-app
+# or
+yarn create next-app --example custom-server-micro custom-server-micro-app
 ```
 
 ### Download manually

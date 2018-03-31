@@ -1,6 +1,6 @@
-import { ApolloClient } from 'apollo-client'
-import { HttpLink } from 'apollo-link-http'
-import { InMemoryCache } from 'apollo-cache-inmemory'
+import { ApolloClient } from 'apollo-boost'
+import { HttpLink } from 'apollo-boost'
+import { InMemoryCache } from 'apollo-boost'
 import fetch from 'isomorphic-unfetch'
 
 let apolloClient = null
