@@ -127,7 +127,7 @@ export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
 
-  if (error.code === 'ENOENT') {
+  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
     res.end('404 - Not Found')
     return
