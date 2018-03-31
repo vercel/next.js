@@ -1,4 +1,5 @@
 import findUp from 'find-up'
+import uuid from 'uuid'
 
 const cache = new Map()
 
@@ -10,6 +11,7 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
+  generateBuildId: () => uuid.v4(),
   pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
 }
 

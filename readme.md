@@ -1068,20 +1068,15 @@ module.exports = {
 
 #### Configuring the build ID
 
-Next uses a constant generated at build time to identify which version of your application it is being served by. This can cause problems in multi-server deployments because the default ID is not stable across server builds. In order to make it stable you can customize as you see fit, syncronously:
+Next.js uses a constant generated at build time to identify which version of your application is being served. This can cause problems in multi-server deployments when `next build` is ran on every server. In order to keep a static build id between builds you can provide the `generateBuildId` function:
 
 ```js
+// next.config.js
 module.exports = {
-  generateBuildId: () => process.env.BUILD_ID
-}
-```
-
-or asyncronously:
-
-
-```js
-module.exports = {
-  generateBuildId: () => generateIdFromGitSHA() // returns a Promise
+  generateBuildId: async () => {
+    // For example get the latest git commit hash here
+    return 'my-build-id'
+  }
 }
 ```
 
