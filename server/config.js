@@ -1,5 +1,6 @@
 // @flow
 import findUp from 'find-up'
+import uuid from 'uuid'
 
 const cache = new Map()
 
@@ -11,6 +12,7 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
+  generateBuildId: () => uuid.v4(),
   generateEtags: true,
   pageExtensions: ['jsx', 'js']
 }
