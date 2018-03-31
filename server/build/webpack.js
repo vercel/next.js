@@ -177,15 +177,18 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     module: {
       rules: [
         dev && !isServer && {
-          test: /\.(js|jsx)(\?[^?]*)?$/,
+          test: /\.(js|jsx)$/,
           loader: 'hot-self-accept-loader',
           include: [
             path.join(dir, 'pages'),
             nextPagesDir
-          ]
+          ],
+          options: {
+            extensions: /\.(js|jsx)$/
+          }
         },
         {
-          test: /\.+(js|jsx)$/,
+          test: /\.(js|jsx)$/,
           include: [dir],
           exclude: /node_modules/,
           use: defaultLoaders.babel
