@@ -10,16 +10,16 @@
     "test": "NODE_ENV=test ava"
   },
   "dependencies": {
-    "apollo-client-preset": "1.0.2",
-    "apollo-link-context": "1.0.0",
+    "apollo-boost": "^0.1.4",
+    "apollo-link-context": "^1.0.7",
     "cookie": "^0.3.1",
-    "graphql": "0.11.7",
+    "graphql": "^0.13.2",
     "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
-    "prop-types": "^15.5.10",
-    "react": "^16.0.0",
-    "react-apollo": "2.0.0",
-    "react-dom": "^16.0.0"
+    "prop-types": "^15.6.1",
+    "react": "^16.2.0",
+    "react-apollo": "^2.1.1",
+    "react-dom": "^16.2.0"
   },
   "devDependencies": {
     "ava": "^0.19.1",
