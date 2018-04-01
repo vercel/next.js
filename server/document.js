@@ -190,14 +190,14 @@ export class NextScript extends Component {
             __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
           }
 
-          ${page === '_error' && `
+          ${page === '_error' ? `
           __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
             var error = new Error('Page does not exist: ${htmlescape(pathname)}')
             error.statusCode = 404
 
             return { error: error }
           })
-          `}
+          ` : ''}
         `
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />}

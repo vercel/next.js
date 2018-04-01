@@ -51,6 +51,7 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/as-path-using-router'),
 
       renderViaHTTP(context.appPort, '/nested-cdm/index'),
+      renderViaHTTP(context.appPort, '/dynamic/no-ssr-error'),
 
       renderViaHTTP(context.appPort, '/hmr/about'),
       renderViaHTTP(context.appPort, '/hmr/contact'),
