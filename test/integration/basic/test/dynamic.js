@@ -60,12 +60,12 @@ export default (context, render) => {
       it('should render an error when no ssr with error in chunk', async () => {
         const browser = await webdriver(context.appPort, '/dynamic/no-ssr-error')
 
-        await waitFor(5000)
-        const bodyText = await browser
-          .elementByCss('body').text()
-        console.log(bodyText)
-
-        expect(/Expected error/.test(bodyText)).toBe(true)
+        while (true) {
+          const bodyText = await browser
+            .elementByCss('body').text()
+          if (/Expected error/.test(bodyText)) break
+          await waitFor(1000)
+        }
 
         browser.close()
       })
