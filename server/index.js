@@ -1,11 +1,12 @@
+/* eslint-disable import/first, no-return-await */
 require('@zeit/source-map-support').install()
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import fsAsync from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
 import updateNotifier from '@zeit/check-updates'
+import promisify from './lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -22,6 +23,8 @@ import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
+
+const access = promisify(fs.access)
 
 const blockedPages = {
   '/_document': true,
@@ -45,12 +48,14 @@ export default class Server {
       updateNotifier(pkg, 'next')
     }
 
+    // Only serverRuntimeConfig needs the default
+    // publicRuntimeConfig gets it's default in client/index.js
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+
     if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
     }
-
-    this.buildStats = !dev ? require(join(this.dir, this.dist, 'build-stats.json')) : null
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
@@ -58,26 +63,24 @@ export default class Server {
       dir: this.dir,
       dist: this.dist,
       hotReloader: this.hotReloader,
-      buildStats: this.buildStats,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
+      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist),
+      generateEtags
     }
 
-    // Allow configuration from next.config.js to be passed to the server / client
-    if (this.nextConfig.runtimeConfig) {
-      // Initialize next/config with the environment configuration
-      envConfig.setConfig(this.nextConfig.runtimeConfig)
-
-      // Only the `public` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      if (this.nextConfig.runtimeConfig.public) {
-        this.renderOpts.runtimeConfig = {
-          public: this.nextConfig.runtimeConfig.public
-        }
-      }
+    // Only the `publicRuntimeConfig` key is exposed to the client side
+    // It'll be rendered as part of __NEXT_DATA__ on the client side
+    if (publicRuntimeConfig) {
+      this.renderOpts.runtimeConfig = publicRuntimeConfig
     }
 
-    this.setAssetPrefix(this.nextConfig.assetPrefix)
+    // Initialize next/config with the environment configuration
+    envConfig.setConfig({
+      serverRuntimeConfig,
+      publicRuntimeConfig
+    })
+
+    this.setAssetPrefix(assetPrefix)
     this.defineRoutes()
   }
 
@@ -159,36 +162,55 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/manifest.js': async (req, res, params) => {
+      '/_next/:buildId/manifest.js': async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
-        this.handleBuildHash('manifest.js', params.hash, res)
+        this.handleBuildId(params.buildId, res)
         const p = join(this.dir, this.dist, 'manifest.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/main.js': async (req, res, params) => {
+      '/_next/:buildId/manifest.js.map': async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
-        this.handleBuildHash('main.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'main.js')
+        this.handleBuildId(params.buildId, res)
+        const p = join(this.dir, this.dist, 'manifest.js.map')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/commons.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
+      '/_next/:buildId/main.js': async (req, res, params) => {
+        if (this.dev) {
+          this.handleBuildId(params.buildId, res)
+          const p = join(this.dir, this.dist, 'main.js')
+          await this.serveStatic(req, res, p)
+        } else {
+          const buildId = params.buildId
+          if (!this.handleBuildId(buildId, res)) {
+            const error = new Error('INVALID_BUILD_ID')
+            const customFields = { buildIdMismatched: true }
 
-        this.handleBuildHash('commons.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'commons.js')
-        await this.serveStatic(req, res, p)
+            return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
+          }
+
+          const p = join(this.dir, this.dist, 'main.js')
+          await this.serveStatic(req, res, p)
+        }
       },
 
-      '/_next/:hash/app.js': async (req, res, params) => {
-        if (this.dev) return this.send404(res)
+      '/_next/:buildId/main.js.map': async (req, res, params) => {
+        if (this.dev) {
+          this.handleBuildId(params.buildId, res)
+          const p = join(this.dir, this.dist, 'main.js.map')
+          await this.serveStatic(req, res, p)
+        } else {
+          const buildId = params.buildId
+          if (!this.handleBuildId(buildId, res)) {
+            return await this.render404(req, res)
+          }
 
-        this.handleBuildHash('app.js', params.hash, res)
-        const p = join(this.dir, this.dist, 'app.js')
-        await this.serveStatic(req, res, p)
+          const p = join(this.dir, this.dist, 'main.js.map')
+          await this.serveStatic(req, res, p)
+        }
       },
 
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
@@ -247,7 +269,9 @@ export default class Server {
 
         // [production] If the page is not exists, we need to send a proper Next.js style 404
         // Otherwise, it'll affect the multi-zones feature.
-        if (!(await fsAsync.exists(p))) {
+        try {
+          await access(p, (fs.constants || fs).R_OK)
+        } catch (err) {
           return await renderScriptError(req, res, page, { code: 'ENOENT' })
         }
 
@@ -456,20 +480,6 @@ export default class Server {
 
     // Return the very first error we found.
     return Array.from(errors.values())[0][0]
-  }
-
-  handleBuildHash (filename, hash, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    if (hash !== this.buildStats[filename].hash) {
-      throw new Error(`Invalid Build File Hash(${hash}) for chunk: ${filename}`)
-    }
-
-    res.setHeader('Cache-Control', 'max-age=31536000, immutable')
-    return true
   }
 
   send404 (res) {

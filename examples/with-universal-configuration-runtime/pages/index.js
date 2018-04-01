@@ -5,7 +5,7 @@ const {API_URL} = env
 
 export default class extends React.Component {
   static async getInitialProps () {
-        // fetch(`${API_URL}/some-path`)
+    // fetch(`${API_URL}/some-path`)
     return {}
   }
 

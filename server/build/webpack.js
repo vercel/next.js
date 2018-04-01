@@ -6,11 +6,11 @@ import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import {getPages} from './webpack/utils'
-import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
+import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import findBabelConfig from './babel/find-config'
 
 const nextDir = path.join(__dirname, '..', '..', '..')
@@ -79,7 +79,7 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules[/\\].*\.js/)) {
+      if (res.match(/node_modules[/\\].*\.js$/)) {
         return callback(null, `commonjs ${request}`)
       }
 
@@ -105,7 +105,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  let totalPages
+  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const totalPages = Object.keys(pagesEntries).length
+  const clientEntries = !isServer ? {
+    'main.js': [
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
+      require.resolve(`../../client/next${dev ? '-dev' : ''}`)
+    ].filter(Boolean)
+  } : {}
 
   let webpackConfig = {
     devtool: dev ? 'source-map' : false,
@@ -114,20 +122,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer),
     context: dir,
+    // Kept as function to be backwards compatible
     entry: async () => {
-      const pages = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
-      totalPages = Object.keys(pages).length
-      const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`)
-      const clientConfig = !isServer ? {
-        'main.js': [
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
-          mainJS
-        ].filter(Boolean)
-      } : {}
       return {
-        ...clientConfig,
-        ...pages
+        ...clientEntries,
+        // Only _error and _document when in development. The rest is handled by on-demand-entries
+        ...pagesEntries
       }
     },
     output: {
@@ -137,7 +137,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
       strictModuleExceptionHandling: true,
-      devtoolModuleFilenameTemplate: '[absolute-resource-path]'
+      devtoolModuleFilenameTemplate (info) {
+        if (dev) {
+          return '[absolute-resource-path]'
+        }
+
+        return `${info.absoluteResourcePath.replace(dir, '.').replace(nextDir, './node_modules/next')}`
+      }
     },
     performance: { hints: false },
     resolve: {
@@ -171,15 +177,18 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     module: {
       rules: [
         dev && !isServer && {
-          test: /\.(js|jsx)(\?[^?]*)?$/,
+          test: /\.(js|jsx)$/,
           loader: 'hot-self-accept-loader',
           include: [
             path.join(dir, 'pages'),
             nextPagesDir
-          ]
+          ],
+          options: {
+            extensions: /\.(js|jsx)$/
+          }
         },
         {
-          test: /\.+(js|jsx)$/,
+          test: /\.(js|jsx)$/,
           include: [dir],
           exclude: /node_modules/,
           use: defaultLoaders.babel
@@ -239,35 +248,32 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             toplevel: false,
             typeofs: false,
             unused: false,
-            conditionals: false,
+            conditionals: true,
             dead_code: true,
-            evaluate: false
+            evaluate: true
           }
         }
       }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
       }),
-      !isServer && new CombineAssetsPlugin({
-        input: ['manifest.js', 'react.js', 'commons.js', 'main.js'],
-        output: 'app.js'
-      }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
+      isServer && new PagesManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin(),
+      // In dev mode, we don't move anything to the commons bundle.
+      // In production we move common modules into the existing main.js bundle
       !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: `commons`,
-        filename: `commons.js`,
+        name: 'main.js',
+        filename: 'main.js',
         minChunks (module, count) {
-          // We need to move react-dom explicitly into common chunks.
-          // Otherwise, if some other page or module uses it, it might
-          // included in that bundle too.
-          if (module.context && module.context.indexOf(`${sep}react${sep}`) >= 0) {
+          // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
+          if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
             return true
           }
 
-          if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
+          if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
             return true
           }
 
@@ -278,6 +284,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return false
           }
 
+          // commons
           // If there are one or two pages, only move modules to common if they are
           // used in all of the pages. Otherwise, move modules used in at-least
           // 1/2 of the total pages into commons.
@@ -285,28 +292,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return count >= totalPages
           }
           return count >= totalPages * 0.5
+          // commons end
         }
       }),
-      !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: 'react',
-        filename: 'react.js',
-        minChunks (module, count) {
-          if (dev) {
-            return false
-          }
-
-          if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
-            return true
-          }
-
-          if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
-            return true
-          }
-
-          return false
-        }
-      }),
-      !isServer && new webpack.optimize.CommonsChunkPlugin({
+      // We use a manifest file in development to speed up HMR
+      dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'manifest',
         filename: 'manifest.js'
       })

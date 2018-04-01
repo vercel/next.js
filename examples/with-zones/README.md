@@ -10,14 +10,14 @@ We also have a set of rules defined in `rules.json` for the proxy.
 
 Now let's start two of our app using:
 
-```
+```bash
 npm run home
 npm run blog
 ```
 
 Then start the proxy:
 
-```
+```bash
 npm run proxy
 ```
 
