@@ -63,6 +63,7 @@ export default (context, render) => {
         while (true) {
           const bodyText = await browser
             .elementByCss('body').text()
+          console.log(bodyText)
           if (/Expected error/.test(bodyText)) break
           await waitFor(1000)
         }
