@@ -43,13 +43,9 @@ npm run dev
 
 #### Run Firebase locally for testing:
 
-Unfortunately I have been unable to get any combination of
-
-```bash
-firebase serve --only functions,hosting
 ```
-
-to locally host the built Next.js app as expected. [This issue is where solutions are being explored](https://github.com/firebase/firebase-tools/issues/535) and they will be shared here and on the [Next.js repo's similar issue](https://github.com/zeit/next.js/issues/3167) when discovered.
+npm run serve
+```
 
 #### Deploy it to the cloud with Firebase:
 

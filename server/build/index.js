@@ -1,17 +1,20 @@
 import { join } from 'path'
-import fs from 'mz/fs'
-import uuid from 'uuid'
+import promisify from '../lib/promisify'
+import fs from 'fs'
 import webpack from 'webpack'
 import getConfig from '../config'
-import {PHASE_PRODUCTION_BUILD} from '../../lib/constants'
+import { PHASE_PRODUCTION_BUILD } from '../../lib/constants'
 import getBaseWebpackConfig from './webpack'
+
+const access = promisify(fs.access)
+const writeFile = promisify(fs.writeFile)
 
 export default async function build (dir, conf = null) {
   const config = getConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = uuid.v4()
+  const buildId = await config.generateBuildId() // defaults to a uuid
 
   try {
-    await fs.access(dir, fs.constants.W_OK)
+    await access(dir, (fs.constants || fs).W_OK)
   } catch (err) {
     console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
     throw err
@@ -54,5 +57,5 @@ function runCompiler (compiler) {
 
 async function writeBuildId (dir, buildId, config) {
   const buildIdPath = join(dir, config.distDir, 'BUILD_ID')
-  await fs.writeFile(buildIdPath, buildId, 'utf8')
+  await writeFile(buildIdPath, buildId, 'utf8')
 }

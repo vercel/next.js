@@ -2,6 +2,7 @@
   "presets": [
     "@babel/preset-env",
     "@babel/preset-react"
+    "flow"
   ],
   "plugins": [
     "@babel/plugin-proposal-object-rest-spread",

@@ -11,6 +11,7 @@ import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
+import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 
 const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
 const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
@@ -78,7 +79,7 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules[/\\].*\.js/)) {
+      if (res.match(/node_modules[/\\].*\.js$/)) {
         return callback(null, `commonjs ${request}`)
       }
 
@@ -104,7 +105,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  let totalPages
+  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const totalPages = Object.keys(pagesEntries).length
+  const clientEntries = !isServer ? {
+    'main.js': [
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
+      require.resolve(`../../client/next${dev ? '-dev' : ''}`)
+    ].filter(Boolean)
+  } : {}
 
   let webpackConfig = {
     devtool: dev ? 'source-map' : false,
@@ -113,20 +122,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer),
     context: dir,
+    // Kept as function to be backwards compatible
     entry: async () => {
-      const pages = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
-      totalPages = Object.keys(pages).length
-      const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`)
-      const clientConfig = !isServer ? {
-        'main.js': [
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
-          mainJS
-        ].filter(Boolean)
-      } : {}
       return {
-        ...clientConfig,
-        ...pages
+        ...clientEntries,
+        // Only _error and _document when in development. The rest is handled by on-demand-entries
+        ...pagesEntries
       }
     },
     output: {
@@ -176,15 +177,18 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     module: {
       rules: [
         dev && !isServer && {
-          test: /\.(js|jsx)(\?[^?]*)?$/,
+          test: /\.(js|jsx)$/,
           loader: 'hot-self-accept-loader',
           include: [
             path.join(dir, 'pages'),
             nextPagesDir
-          ]
+          ],
+          options: {
+            extensions: /\.(js|jsx)$/
+          }
         },
         {
-          test: /\.+(js|jsx)$/,
+          test: /\.(js|jsx)$/,
           include: [dir],
           exclude: /node_modules/,
           use: defaultLoaders.babel
@@ -254,6 +258,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
+      isServer && new PagesManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin(),

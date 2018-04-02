@@ -3,7 +3,8 @@ import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
 import touch from 'touch'
-import glob from 'glob-promise'
+import promisify from './lib/promisify'
+import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
 import {createEntry} from './build/webpack/utils'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
@@ -11,6 +12,8 @@ import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
+
+const glob = promisify(globModule)
 
 export default function onDemandEntryHandler (devMiddleware, compilers, {
   dir,
