@@ -13,7 +13,12 @@ export default class PagesManifestPlugin {
       const pages = {}
 
       for (const entry of entries) {
-        const pagePath = MATCH_ROUTE_NAME.exec(entry.name)[1]
+        const result = MATCH_ROUTE_NAME.exec(entry.name)
+        if (!result) {
+          continue
+        }
+
+        const pagePath = result[1]
 
         if (!pagePath) {
           continue
