@@ -6,7 +6,7 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-next-sass with-next-sass-app
@@ -27,11 +27,21 @@ Install it and run:
 
 ```bash
 npm install
-npm run build
-npm run start
+npm run dev
+# or
+yarn
+yarn dev
 ```
 
-The dev mode is also support via `npm run dev`
+Run production build with:
+
+```bash
+npm run build
+npm run start
+# or
+yarn build
+yarn start
+```
 
 ## The idea behind the example
 

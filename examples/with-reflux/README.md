@@ -1,6 +1,6 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/form-handler)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-reflux)
 
-# Form Handler
+# Pass Server Data Directly to a Next.js Page during SSR
 
 ## How to use
 
@@ -9,9 +9,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example form-handler form-handler-app
+npx create-next-app --example with-reflux with-reflux-app
 # or
-yarn create next-app --example form-handler form-handler-app
+yarn create next-app --example with-reflux with-reflux-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example form-handler form-handler-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/form-handler
-cd form-handler
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-reflux
+cd with-reflux
 ```
 
 Install it and run:
@@ -41,5 +41,4 @@ now
 
 ## The idea behind the example
 
-Sometimes handle multiple forms can be tricky, the idea is to have a global reducer
-with the name of each form and the inputs of it; making accessible everywhere.
+Use [reflux](https://github.com/reflux/refluxjs) to manage an application store with unidirectional dataflow.

@@ -1,6 +1,20 @@
-# Hello World example
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/only-client-render-external-dependencies)
 
-## Only client render for external dependencies
+# Only client render for external dependencies
+
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+
+```bash
+npx create-next-app --example only-client-render-external-dependencies only-client-render-external-dependencies-app
+# or
+yarn create next-app --example only-client-render-external-dependencies only-client-render-external-dependencies-app
+```
+
+### Download manually
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
@@ -14,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))

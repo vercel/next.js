@@ -1,6 +1,6 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/custom-server-express)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/custom-server-polka)
 
-# Custom Express Server example
+# Custom [Polka](https://github.com/lukeed/polka) Server example
 
 ## How to use
 
@@ -9,9 +9,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example custom-server-express custom-server-express-app
+npx create-next-app --example custom-server-polka custom-server-polka-app
 # or
-yarn create next-app --example custom-server-express custom-server-express-app
+yarn create next-app --example custom-server-polka custom-server-polka-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example custom-server-express custom-server-express-app
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-express
-cd custom-server-express
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-polka
+cd custom-server-polka
 ```
 
 Install it and run:
