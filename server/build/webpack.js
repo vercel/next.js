@@ -221,7 +221,9 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
           // That's why we need to do it here.
           // See more: https://github.com/zeit/next.js/issues/951
           plugins: [
-            [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
+            [require.resolve('babel-plugin-transform-es2015-modules-commonjs'), {
+              'strict': true,
+            }],
             [
               require.resolve('babel-plugin-module-resolver'),
               {
