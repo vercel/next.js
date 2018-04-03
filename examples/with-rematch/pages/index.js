@@ -1,13 +1,11 @@
-import React, { Component } from "react";
-import { bindActionCreators } from "redux";
-
-import { dispatch } from "@rematch/core";
-import { initStore } from "../shared/store";
-import withRematch from "../shared/utils/withRematch";
-import Header from "../shared/components/header";
+import React, { Component } from 'react'
+import { dispatch } from '@rematch/core'
+import { initStore } from '../shared/store'
+import withRematch from '../shared/utils/withRematch'
+import Header from '../shared/components/header'
 
 class Home extends Component {
-  render() {
+  render () {
     return (
       <div>
         <Header />
@@ -23,18 +21,18 @@ class Home extends Component {
         </p>
         <br />
       </div>
-    );
+    )
   }
 }
 
 const mapState = state => ({
   counter: state.counter
-});
+})
 
 const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   increment: () => increment(1),
   incrementBy: amount => () => increment(amount),
   incrementAsync: () => incrementAsync(1)
-});
+})
 
-export default withRematch(initStore, mapState, mapDispatch)(Home);
+export default withRematch(initStore, mapState, mapDispatch)(Home)

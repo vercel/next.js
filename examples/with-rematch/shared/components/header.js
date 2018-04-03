@@ -1,27 +1,27 @@
-import React, { Component } from "react";
-import Link from "next/link";
+import React, { Component } from 'react'
+import Link from 'next/link'
 
 class Header extends Component {
-  render() {
+  render () {
     return (
       <div>
         <nav>
           <ul>
             <li>
-              <Link href="/" passHref>
+              <Link href='/' passHref>
                 <a>Home</a>
               </Link>
             </li>
             <li>
-              <Link href="/github-users" passHref>
+              <Link href='/github-users' passHref>
                 <a>Async Example </a>
               </Link>
             </li>
           </ul>
         </nav>
       </div>
-    );
+    )
   }
 }
 
-export default Header;
+export default Header
