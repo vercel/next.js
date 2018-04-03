@@ -4,6 +4,7 @@ import { dispatch } from '@rematch/core'
 import { initStore } from '../shared/store'
 import withRematch from '../shared/utils/withRematch'
 import Header from '../shared/components/header'
+import CounterDisplay from '../shared/components/counter-display'
 
 class Github extends Component {
   static async getInitialProps ({ isServer, initialState }) {
@@ -37,6 +38,8 @@ class Github extends Component {
           </div>
         ))}
         <br />
+
+        <CounterDisplay />
       </div>
     )
   }

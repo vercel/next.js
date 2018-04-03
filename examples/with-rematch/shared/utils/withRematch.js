@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect, Provider } from 'react-redux'
 
-const __NEXT_REDUX_STORE__ = '__NEXT_REDUX_STORE__'
+const __NEXT_REMATCH_STORE__ = '__NEXT_REMATCH_STORE__'
 
 // https://github.com/iliakan/detect-node
 const checkServer = () =>
@@ -14,10 +14,10 @@ const getOrCreateStore = (initStore, initialState) => {
   }
 
   // Memoize store in global variable if client
-  if (!window[__NEXT_REDUX_STORE__]) {
-    window[__NEXT_REDUX_STORE__] = initStore(initialState)
+  if (!window[__NEXT_REMATCH_STORE__]) {
+    window[__NEXT_REMATCH_STORE__] = initStore(initialState)
   }
-  return window[__NEXT_REDUX_STORE__]
+  return window[__NEXT_REMATCH_STORE__]
 }
 
 export default (...args) => Component => {
