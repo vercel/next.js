@@ -1,7 +1,7 @@
 // Based on https://github.com/airbnb/babel-plugin-dynamic-import-webpack
 // We've added support for SSR with this version
-import template from 'babel-template'
-import syntax from 'babel-plugin-syntax-dynamic-import'
+import template from '@babel/template'
+import syntax from '@babel/plugin-syntax-dynamic-import'
 import { dirname, resolve, sep } from 'path'
 import Crypto from 'crypto'
 

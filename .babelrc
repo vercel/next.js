@@ -1,19 +1,22 @@
 {
   "presets": [
-    "env",
-    "react",
-    "flow"
+    "@babel/preset-env",
+    "@babel/preset-react",
+    "@babel/preset-flow"
   ],
   "plugins": [
-    "transform-object-rest-spread",
-    "transform-class-properties",
-    "transform-runtime"
+    "@babel/plugin-proposal-object-rest-spread",
+    "@babel/plugin-proposal-class-properties",
+    "@babel/plugin-transform-runtime"
   ],
   "env": {
     "test": {
       "presets": [
-        "es2015",
-        "./babel"
+        ["./babel", {
+          "preset-env": {
+            "modules": "commonjs"
+          }
+        }]
        ]
     }
   }

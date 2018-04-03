@@ -25,10 +25,10 @@ function styledJsxOptions (opts) {
 
 const envPlugins = {
   'development': [
-    require.resolve('babel-plugin-transform-react-jsx-source')
+    require('@babel/plugin-transform-react-jsx-source')
   ],
   'production': [
-    require.resolve('babel-plugin-transform-react-remove-prop-types')
+    require('babel-plugin-transform-react-remove-prop-types')
   ]
 }
 
@@ -36,23 +36,23 @@ const plugins = envPlugins[process.env.NODE_ENV] || envPlugins['development']
 
 module.exports = (context, opts = {}) => ({
   presets: [
-    [require.resolve('babel-preset-env'), {
+    [require('@babel/preset-env'), {
       modules: false,
       ...opts['preset-env']
     }],
-    require.resolve('babel-preset-react')
+    require('@babel/preset-react')
   ],
   plugins: [
-    require.resolve('babel-plugin-react-require'),
-    require.resolve('./plugins/handle-import'),
-    require.resolve('babel-plugin-transform-object-rest-spread'),
-    require.resolve('babel-plugin-transform-class-properties'),
-    [require.resolve('babel-plugin-transform-runtime'), opts['transform-runtime'] || {
+    require('babel-plugin-react-require'),
+    require('./plugins/handle-import'),
+    require('@babel/plugin-proposal-class-properties'),
+    require('@babel/plugin-proposal-object-rest-spread'),
+    [require('@babel/plugin-transform-runtime'), opts['transform-runtime'] || {
       helpers: false,
       polyfill: false,
       regenerator: true
     }],
-    [require.resolve('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
+    [require('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
     ...plugins
   ]
 })
