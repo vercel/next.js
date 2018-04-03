@@ -18,27 +18,27 @@ export default function (context) {
       expect(filePathLink).toEqual('/file-name.md')
     })
 
-    it('should render a page with getInitialProps', async() => {
+    it('should render a page with getInitialProps', async () => {
       const html = await renderViaHTTP(context.port, '/dynamic')
       expect(html).toMatch(/cool dynamic text/)
     })
 
-    it('should render a dynamically rendered custom url page', async() => {
+    it('should render a dynamically rendered custom url page', async () => {
       const html = await renderViaHTTP(context.port, '/dynamic/one')
       expect(html).toMatch(/next export is nice/)
     })
 
-    it('should render pages with dynamic imports', async() => {
+    it('should render pages with dynamic imports', async () => {
       const html = await renderViaHTTP(context.port, '/dynamic-imports')
       expect(html).toMatch(/Welcome to dynamic imports/)
     })
 
-    it('should render paths with extensions', async() => {
+    it('should render paths with extensions', async () => {
       const html = await renderViaHTTP(context.port, '/file-name.md')
       expect(html).toMatch(/this file has an extension/)
     })
 
-    it('should give empty object for query if there is no query', async() => {
+    it('should give empty object for query if there is no query', async () => {
       const html = await renderViaHTTP(context.port, '/get-initial-props-with-no-query')
       expect(html).toMatch(/Query is: {}/)
     })

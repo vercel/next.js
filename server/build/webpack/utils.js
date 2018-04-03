@@ -1,5 +1,8 @@
 import path from 'path'
-import glob from 'glob-promise'
+import promisify from '../../lib/promisify'
+import globModule from 'glob'
+
+const glob = promisify(globModule)
 
 const nextPagesDir = path.join(__dirname, '..', '..', '..', 'pages')
 
@@ -9,7 +12,7 @@ export async function getPages (dir, {dev, isServer, pageExtensions}) {
   return getPageEntries(pageFiles, {isServer, pageExtensions})
 }
 
-async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
+export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
   let pages
 
   if (dev) {
