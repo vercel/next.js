@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "5.0.1-canary.17",
+  "version": "5.0.1-canary.18",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -107,7 +107,7 @@
     "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
-    "@babel/preset-flow": "7.0.0-beta.43",    
+    "@babel/preset-flow": "7.0.0-beta.43",
     "@taskr/babel": "1.1.0-next.1",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
