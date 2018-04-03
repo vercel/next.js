@@ -57,10 +57,18 @@ export default () => ({
       if (path.node.callee.type === TYPE_IMPORT) {
         const { opts } = path.hub.file
 
-        const moduleName = path.node.arguments[0].value
-        const currentDir = dirname(opts.filename)
-        const modulePath = resolve(currentDir, moduleName)
-        const chunkName = relative(opts.sourceRoot || process.cwd(), modulePath).replace(/[^\w]/g, '-')
+        const arg = path.node.arguments[0]
+        const chunknameComment = arg.leadingComments && arg.leadingComments.map(({value}) => value.trim()).filter((value) => /webpackChunkName:/.test(value))[0]
+        const moduleRequest = arg.value
+
+        let chunkName
+        if (chunknameComment) {
+          chunkName = JSON.parse(chunknameComment.replace(/webpackChunkName:\s*/, ''))
+        } else {
+          const currentDir = dirname(opts.filename)
+          const modulePath = resolve(currentDir, moduleRequest)
+          chunkName = relative(opts.sourceRoot || process.cwd(), modulePath).replace(/[^\w]/g, '-')
+        }
 
         const newImport = buildImport({
           name: chunkName
