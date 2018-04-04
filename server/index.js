@@ -303,6 +303,8 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      // Makes `next export` exportPathMap work in development mode.
+      // So that the user doesn't have to define a custom server reading the exportPathMap
       if (this.dev && this.nextConfig.exportPathMap) {
         console.log('Defining routes from exportPathMap')
         const exportPathMap = await this.nextConfig.exportPathMap({}) // In development we can't give a default path mapping
