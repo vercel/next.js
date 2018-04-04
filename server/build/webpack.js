@@ -115,7 +115,27 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     ].filter(Boolean)
   } : {}
 
+  function optimization ({dev, isServer}) {
+    if (isServer) {
+      return {}
+    }
+
+    return {
+      splitChunks: {
+        cacheGroups: {
+          commons: {
+            test: /(node_modules\/(react|react-dom|core-js|next)|next\.js\/dist)/,
+            chunks: 'all',
+            priority: 10,
+            name: 'vendor.js'
+          }
+        }
+      }
+    }
+  }
+
   let webpackConfig = {
+    optimization: optimization({dev, isServer}),
     mode: dev ? 'development' : 'production',
     devtool: dev ? 'source-map' : false,
     name: isServer ? 'server' : 'client',
@@ -136,7 +156,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       filename: '[name]',
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name]-[chunkhash].js',
+      chunkFilename: dev ? '[name]' : '[name]-[chunkhash].js',
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate (info) {
         if (dev) {
