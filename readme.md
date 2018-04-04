@@ -165,13 +165,14 @@ export default () => <p style={{ color: 'red' }}>hi there</p>
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
 
-#### Importing CSS / Sass / Less files
+#### Importing CSS / Sass / Less / Stylus files
 
-To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
+To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these modules, which configure sensible defaults for server rendered applications.
 
 - [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
 
 ### Static file serving (e.g.: images)
 
@@ -458,6 +459,31 @@ export default () =>
   </div>
 ```
 
+#### Intercepting `popstate`
+
+In some cases (for example, if using a [custom router](#custom-server-and-routing)), you may wish
+to listen to `popstate` and react before the router acts on it.
+For example, you could use this to manipulate the request, or force an SSR refresh.
+
+```jsx
+import Router from 'next/router'
+
+Router.beforePopState(({ url, as, options }) => {
+  // I only want to allow these two routes!
+  if (as !== "/" || as !== "/other") {
+    // Have SSR render bad routes as a 404.
+    window.location.href = as
+    return false
+  }
+
+  return true
+});
+```
+
+If you return a falsy value from `beforePopState`, `Router` will not handle `popstate`;
+you'll be responsible for handling it, in that case.
+See [Disabling File-System Routing](#disabling-file-system-routing).
+
 Above `Router` object comes with the following API:
 
 - `route` - `String` of the current route
@@ -466,6 +492,7 @@ Above `Router` object comes with the following API:
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
+- `beforePopState(cb=function)` - intercept popstate before router processes the event.
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
@@ -753,6 +780,13 @@ module.exports = {
 }
 ```
 
+Note that `useFileSystemPublicRoutes` simply disables filename routes from SSR; client-side routing
+may still access those paths. If using this option, you should guard against navigation to routes
+you do not want programmatically.
+
+You may also wish to configure the client-side Router to disallow client-side redirects to filename
+routes; please refer to [Intercepting `popstate`](#intercepting-popstate).
+
 #### Dynamic assetPrefix
 
 Sometimes we need to set the `assetPrefix` dynamically. This is useful when changing the `assetPrefix` based on incoming requests.
@@ -1012,7 +1046,7 @@ module.exports = {
 Or use a function:
 
 ```js
-module.exports = (phase, {defaultConfig}){
+module.exports = (phase, {defaultConfig}) => {
   //
   // https://github.com/zeit/
   return {
@@ -1086,6 +1120,20 @@ Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plu
 // next.config.js
 module.exports = {
   pageExtensions: ['jsx', 'js']
+}
+```
+
+#### Configuring the build ID
+
+Next.js uses a constant generated at build time to identify which version of your application is being served. This can cause problems in multi-server deployments when `next build` is ran on every server. In order to keep a static build id between builds you can provide the `generateBuildId` function:
+
+```js
+// next.config.js
+module.exports = {
+  generateBuildId: async () => {
+    // For example get the latest git commit hash here
+    return 'my-build-id'
+  }
 }
 ```
 
@@ -1185,6 +1233,7 @@ module.exports = {
 ```js
 // pages/index.js
 import getConfig from 'next/config'
+// Only holds serverRuntimeConfig and publicRuntimeConfig from next.config.js nothing else.
 const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
@@ -1240,7 +1289,7 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
-Note: we recommend putting `.next`, or your custom dist folder (Please have a look at ['Custom Config'](https://github.com/zeit/next.js#custom-configuration)). You can set a custom folder in config, `.npmignore`, or `.gitignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy (and obviously exclude `.next` or your custom dist folder).
+Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
 
 ## Static HTML export
 
@@ -1258,7 +1307,7 @@ Simply develop your app as you normally do with Next.js. Then create a custom Ne
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: function() {
+  exportPathMap: function(defaultPathMap) {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },

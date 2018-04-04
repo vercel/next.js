@@ -127,7 +127,7 @@ export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
 
-  if (error.code === 'ENOENT') {
+  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
     res.end('404 - Not Found')
     return
@@ -198,15 +198,15 @@ function serializeError (dev, err) {
 export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
-    .on('directory', () => {
+      .on('directory', () => {
       // We don't allow directories to be read.
-      const err = new Error('No directory access')
-      err.code = 'ENOENT'
-      reject(err)
-    })
-    .on('error', reject)
-    .pipe(res)
-    .on('finish', resolve)
+        const err = new Error('No directory access')
+        err.code = 'ENOENT'
+        reject(err)
+      })
+      .on('error', reject)
+      .pipe(res)
+      .on('finish', resolve)
   })
 }
 

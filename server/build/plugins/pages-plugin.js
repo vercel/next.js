@@ -13,12 +13,12 @@ class PageChunkTemplatePlugin {
 
       let routeName = MATCH_ROUTE_NAME.exec(chunk.name)[1]
 
-        // We need to convert \ into / when we are in windows
-        // to get the proper route name
-        // Here we need to do windows check because it's possible
-        // to have "\" in the filename in unix.
-        // Anyway if someone did that, he'll be having issues here.
-        // But that's something we cannot avoid.
+      // We need to convert \ into / when we are in windows
+      // to get the proper route name
+      // Here we need to do windows check because it's possible
+      // to have "\" in the filename in unix.
+      // Anyway if someone did that, he'll be having issues here.
+      // But that's something we cannot avoid.
       if (/^win/.test(process.platform)) {
         routeName = routeName.replace(/\\/g, '/')
       }

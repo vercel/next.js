@@ -5,12 +5,16 @@ import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
+import {loadPartialConfig, createConfigItem} from '@babel/core'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import findBabelConfig from './babel/find-config'
+import PagesManifestPlugin from './plugins/pages-manifest-plugin'
+
+const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
+const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -28,29 +32,26 @@ function babelConfig (dir, {isServer, dev}) {
     cacheDirectory: true,
     presets: [],
     plugins: [
-      dev && !isServer && require.resolve('react-hot-loader/babel')
+      dev && !isServer && hotLoaderItem
     ].filter(Boolean)
   }
 
-  const externalBabelConfig = findBabelConfig(dir)
-  if (externalBabelConfig) {
+  const filename = path.join(dir, 'filename.js')
+  const externalBabelConfig = loadPartialConfig({ babelrc: true, filename })
+  if (externalBabelConfig && externalBabelConfig.babelrc) {
     // Log it out once
     if (!isServer) {
       console.log(`> Using external babel configuration`)
-      console.log(`> Location: "${externalBabelConfig.loc}"`)
+      console.log(`> Location: "${externalBabelConfig.babelrc}"`)
     }
-    // It's possible to turn off babelrc support via babelrc itself.
-    // In that case, we should add our default preset.
-    // That's why we need to do this.
-    const { options } = externalBabelConfig
-    mainBabelOptions.babelrc = options.babelrc !== false
+    // By default babel-loader will look for babelrc, so no need to set it to true
   } else {
     mainBabelOptions.babelrc = false
   }
 
   // Add our default preset if the no "babelrc" found.
   if (!mainBabelOptions.babelrc) {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
+    mainBabelOptions.presets.push(presetItem)
   }
 
   return mainBabelOptions
@@ -78,7 +79,7 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      if (res.match(/node_modules[/\\].*\.js/)) {
+      if (res.match(/node_modules[/\\].*\.js$/)) {
         return callback(null, `commonjs ${request}`)
       }
 
@@ -104,7 +105,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  let totalPages
+  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const totalPages = Object.keys(pagesEntries).length
+  const clientEntries = !isServer ? {
+    'main.js': [
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
+      require.resolve(`../../client/next${dev ? '-dev' : ''}`)
+    ].filter(Boolean)
+  } : {}
 
   let webpackConfig = {
     devtool: dev ? 'source-map' : false,
@@ -113,20 +122,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer),
     context: dir,
+    // Kept as function to be backwards compatible
     entry: async () => {
-      const pages = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
-      totalPages = Object.keys(pages).length
-      const mainJS = require.resolve(`../../client/next${dev ? '-dev' : ''}`)
-      const clientConfig = !isServer ? {
-        'main.js': [
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
-          dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
-          mainJS
-        ].filter(Boolean)
-      } : {}
       return {
-        ...clientConfig,
-        ...pages
+        ...clientEntries,
+        // Only _error and _document when in development. The rest is handled by on-demand-entries
+        ...pagesEntries
       }
     },
     output: {
@@ -176,15 +177,18 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     module: {
       rules: [
         dev && !isServer && {
-          test: /\.(js|jsx)(\?[^?]*)?$/,
+          test: /\.(js|jsx)$/,
           loader: 'hot-self-accept-loader',
           include: [
             path.join(dir, 'pages'),
             nextPagesDir
-          ]
+          ],
+          options: {
+            extensions: /\.(js|jsx)$/
+          }
         },
         {
-          test: /\.+(js|jsx)$/,
+          test: /\.(js|jsx)$/,
           include: [dir],
           exclude: /node_modules/,
           use: defaultLoaders.babel
@@ -254,6 +258,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
+      isServer && new PagesManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin(),

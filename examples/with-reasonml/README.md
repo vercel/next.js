@@ -1,11 +1,12 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-reasonml)
+
 # Example app using ReasonML & ReasonReact components
 
 ## How to use
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-reasonml with-reasonml-app
@@ -26,8 +27,20 @@ Install it and run:
 
 ```bash
 npm install
-npm run build
 npm run dev
+# or
+yarn
+yarn dev
+```
+
+Build and run:
+
+```bash
+npm run build
+npm run start
+# or
+yarn build
+yarn start
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -35,6 +48,7 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
+
 ### Recommendation:
 
 Run BuckleScript build system `bsb -w` and `next -w` separately. For the sake
