@@ -165,13 +165,14 @@ export default () => <p style={{ color: 'red' }}>hi there</p>
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
 
-#### Importing CSS / Sass / Less files
+#### Importing CSS / Sass / Less / Stylus files
 
-To support importing `.css` `.scss` or `.less` files you can use these modules, which configure sensible defaults for server rendered applications.
+To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these modules, which configure sensible defaults for server rendered applications.
 
 - [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
+- [@zeit/next-stylus](https://github.com/zeit/next-plugins/tree/master/packages/next-stylus)
 
 ### Static file serving (e.g.: images)
 
