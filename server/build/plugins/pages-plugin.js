@@ -45,7 +45,7 @@ class PageChunkTemplatePlugin {
 export default class PagesPlugin {
   apply (compiler) {
     compiler.plugin('compilation', (compilation) => {
-      compilation.chunkTemplate.apply(new PageChunkTemplatePlugin())
+      compilation.mainTemplate.apply(new PageChunkTemplatePlugin())
     })
   }
 }

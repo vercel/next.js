@@ -1,4 +1,4 @@
-import path, {sep} from 'path'
+import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
 import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
@@ -116,6 +116,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   } : {}
 
   let webpackConfig = {
+    mode: dev ? 'development' : 'production',
     devtool: dev ? 'source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
@@ -261,45 +262,45 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       isServer && new PagesManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
-      isServer && new NextJsSsrImportPlugin(),
+      isServer && new NextJsSsrImportPlugin()
       // In dev mode, we don't move anything to the commons bundle.
       // In production we move common modules into the existing main.js bundle
-      !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: 'main.js',
-        filename: 'main.js',
-        minChunks (module, count) {
-          // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
-          if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
-            return true
-          }
+      // !isServer && new webpack.optimize.CommonsChunkPlugin({
+      //   name: 'main.js',
+      //   filename: 'main.js',
+      //   minChunks (module, count) {
+      //     // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
+      //     if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
+      //       return true
+      //     }
 
-          if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
-            return true
-          }
+      //     if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
+      //       return true
+      //     }
 
-          // In the dev we use on-demand-entries.
-          // So, it makes no sense to use commonChunks based on the minChunks count.
-          // Instead, we move all the code in node_modules into each of the pages.
-          if (dev) {
-            return false
-          }
+      //     // In the dev we use on-demand-entries.
+      //     // So, it makes no sense to use commonChunks based on the minChunks count.
+      //     // Instead, we move all the code in node_modules into each of the pages.
+      //     if (dev) {
+      //       return false
+      //     }
 
-          // commons
-          // If there are one or two pages, only move modules to common if they are
-          // used in all of the pages. Otherwise, move modules used in at-least
-          // 1/2 of the total pages into commons.
-          if (totalPages <= 2) {
-            return count >= totalPages
-          }
-          return count >= totalPages * 0.5
-          // commons end
-        }
-      }),
-      // We use a manifest file in development to speed up HMR
-      dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: 'manifest',
-        filename: 'manifest.js'
-      })
+      //     // commons
+      //     // If there are one or two pages, only move modules to common if they are
+      //     // used in all of the pages. Otherwise, move modules used in at-least
+      //     // 1/2 of the total pages into commons.
+      //     if (totalPages <= 2) {
+      //       return count >= totalPages
+      //     }
+      //     return count >= totalPages * 0.5
+      //     // commons end
+      //   }
+      // }),
+      // // We use a manifest file in development to speed up HMR
+      // dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
+      //   name: 'manifest',
+      //   filename: 'manifest.js'
+      // })
     ].filter(Boolean)
   }
 
