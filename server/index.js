@@ -81,7 +81,6 @@ export default class Server {
     })
 
     this.setAssetPrefix(assetPrefix)
-    this.defineRoutes()
   }
 
   getHotReloader (dir, options) {
@@ -119,6 +118,7 @@ export default class Server {
   }
 
   async prepare () {
+    await this.defineRoutes()
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
@@ -139,7 +139,7 @@ export default class Server {
     }
   }
 
-  defineRoutes () {
+  async defineRoutes () {
     const routes = {
       '/_next-prefetcher.js': async (req, res, params) => {
         const p = join(__dirname, '../client/next-prefetcher-bundle.js')
@@ -303,9 +303,22 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      // Makes `next export` exportPathMap work in development mode.
+      // So that the user doesn't have to define a custom server reading the exportPathMap
+      if (this.dev && this.nextConfig.exportPathMap) {
+        console.log('Defining routes from exportPathMap')
+        const exportPathMap = await this.nextConfig.exportPathMap({}) // In development we can't give a default path mapping
+        for (const path in exportPathMap) {
+          const options = exportPathMap[path]
+          routes[path] = async (req, res, params, parsedUrl) => {
+            await this.render(req, res, options.page, options.query, parsedUrl)
+          }
+        }
+      }
+
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
-        await this.render(req, res, pathname, query)
+        await this.render(req, res, pathname, query, parsedUrl)
       }
     }
 
