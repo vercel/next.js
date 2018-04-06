@@ -12,6 +12,7 @@ import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
+import { BUILD_MANIFEST } from '../lib/constants'
 
 const logger = console
 
@@ -54,6 +55,7 @@ async function doRender (req, res, pathname, query, {
   }
 
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
+  const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
 
   let [Component, Document] = await Promise.all([
     requirePage(page, {dir, dist}),
@@ -94,7 +96,7 @@ async function doRender (req, res, pathname, query, {
     }
     const chunks = loadChunks({ dev, dir, dist, availableChunks })
 
-    return { html, head, errorHtml, chunks }
+    return { html, head, errorHtml, chunks, buildManifest }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -117,6 +119,7 @@ async function doRender (req, res, pathname, query, {
     dev,
     dir,
     staticMarkup,
+    buildManifest,
     ...docProps
   })
 

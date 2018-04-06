@@ -12,6 +12,7 @@ import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
+import BuildManifestPlugin from './plugins/build-manifest-plugin'
 
 const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
 const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
@@ -259,6 +260,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),
+      !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin(),
@@ -266,7 +268,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       // In production we move common modules into the existing main.js bundle
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'main.js',
-        filename: 'main.js',
+        filename: dev ? 'static/commons/main.js' : 'static/commons/main-[chunkhash].js',
         minChunks (module, count) {
           // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
           if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
@@ -297,8 +299,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }),
       // We use a manifest file in development to speed up HMR
       dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: 'manifest',
-        filename: 'manifest.js'
+        name: 'manifest.js',
+        filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js'
       })
     ].filter(Boolean)
   }
