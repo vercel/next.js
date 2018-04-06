@@ -7,7 +7,7 @@ const BlogPosts = props => {
     <div>
       <h1>Blog posts</h1>
       {props.viewer.allBlogPosts.edges.map(({ node }) =>
-        <BlogPostPreview post={node} />
+        <BlogPostPreview key={node.id}post={node} />
       )}
     </div>
   )
@@ -20,6 +20,7 @@ export default createFragmentContainer(BlogPosts, {
                 edges {
                     node {
                         ...BlogPostPreview_post
+                        id
                     }
                 }
             }
