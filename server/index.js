@@ -162,19 +162,15 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/manifest.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
+      '/_next/:buildId/vendor.js': async (req, res, params) => {
         this.handleBuildId(params.buildId, res)
-        const p = join(this.dir, this.dist, 'manifest.js')
+        const p = join(this.dir, this.dist, 'vendor.js')
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/manifest.js.map': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
+      '/_next/:buildId/vendor.js.map': async (req, res, params) => {
         this.handleBuildId(params.buildId, res)
-        const p = join(this.dir, this.dist, 'manifest.js.map')
+        const p = join(this.dir, this.dist, 'vendor.js.map')
         await this.serveStatic(req, res, p)
       },
 

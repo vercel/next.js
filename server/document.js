@@ -58,7 +58,7 @@ export class Head extends Component {
     const { dev } = this.context._documentProps
     if (dev) {
       return [
-        this.getChunkPreloadLink('manifest.js'),
+        this.getChunkPreloadLink('vendor.js'),
         this.getChunkPreloadLink('main.js')
       ]
     }
@@ -142,7 +142,7 @@ export class NextScript extends Component {
     const { dev } = this.context._documentProps
     if (dev) {
       return [
-        this.getChunkScript('manifest.js'),
+        this.getChunkScript('vendor.js'),
         this.getChunkScript('main.js')
       ]
     }
