@@ -923,6 +923,47 @@ const HelloBundle = dynamic({
 export default () => <HelloBundle title="Dynamic Bundle" />
 ```
 
+### Custom `<App>`
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/layout-component">Using `_app.js` for layout</a></li></ul>
+  <ul><li><a href="./examples/componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
+</details></p>
+
+- Is rendered on both client and server side
+- `this.state` should not be overwritten. Instead create a new component to handle the state ([layout example](./examples/layout-component))
+- Handles calling `getInitialProps` of the **page** `Component`
+- Implements `componentDidCatch` on the client side, and renders the error page accordingly. ([overriding `componentDidCatch` example](./examples/componentdidcatch))
+- The `Container` implements React Hot Loader when in development mode.
+- The `Container` implements scrolling to a hash when using `<Link href="/about#example-hash">`
+
+To override the default `_app.js` behaviour you can create a file `./pages/_app.js`, where you can extend the `App` class:
+
+```js
+import App, {Container} from 'next/app'
+import React from 'react'
+
+export default class MyApp extends App {
+  static async getInitialProps ({ Component, router, ctx }) {
+    let pageProps = {}
+
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
+    }
+
+    return {pageProps}
+  }
+
+  render () {
+    const {Component, pageProps} = this.props
+    return <Container>
+      <Component {...pageProps} />
+    </Container>
+  }
+}
+```
+
 ### Custom `<Document>`
 
 <p><details>
@@ -930,6 +971,10 @@ export default () => <HelloBundle title="Dynamic Bundle" />
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
   <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
+
+- Is rendered on the server side
+- Is used to change the initial server side rendered document markup
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](./examples/with-styled-components), [glamorous](./examples/with-glamorous) or [emotion](with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -969,7 +1014,7 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-__Note: React-components outside of `<Main />` will not be initialised by the browser. If you need shared components in all your pages (like a menu or a toolbar), do _not_ add application logic  here, but take a look at [this example](https://github.com/zeit/next.js/tree/master/examples/layout-component).__
+__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
 
 ### Custom error handling
 
