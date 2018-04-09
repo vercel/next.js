@@ -21,7 +21,8 @@
     "asset.js",
     "error.js",
     "constants.js",
-    "config.js"
+    "config.js",
+    "app.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
