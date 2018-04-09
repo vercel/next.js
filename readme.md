@@ -984,13 +984,11 @@ Pages in `Next.js` skip the definition of the surrounding document's markup. For
 
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
-import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
-  static getInitialProps({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage()
-    const styles = flush()
-    return { html, head, errorHtml, chunks, styles }
+  static async getInitialProps(ctx) {
+    const initialProps = await Document.getInitialProps(ctx)
+    return { ...initialProps }
   }
 
   render() {
@@ -1000,7 +998,6 @@ export default class MyDocument extends Document {
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
         <body className="custom_class">
-          {this.props.customValue}
           <Main />
           <NextScript />
         </body>
