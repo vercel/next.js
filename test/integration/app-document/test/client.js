@@ -7,86 +7,78 @@ import { check } from 'next-test-utils'
 
 export default (context, render) => {
   describe('Client side', () => {
-    describe('_app', () => {
-      it('should keep state between page navigations', async () => {
-        const browser = await webdriver(context.appPort, '/')
+    it('should detect the changes to pages/_app.js and display it', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      const text = await browser
+        .elementByCss('#hello-hmr').text()
+      expect(text).toBe('Hello HMR')
 
-        const randomNumber = await browser.elementByCss('#random-number').text()
+      const appPath = join(__dirname, '../', 'pages', '_app.js')
 
-        const switchedRandomNumer = await browser
-          .elementByCss('#about-link').click()
-          .waitForElementByCss('.page-about')
-          .elementByCss('#random-number').text()
+      const originalContent = readFileSync(appPath, 'utf8')
+      const editedContent = originalContent.replace('Hello HMR', 'Hi HMR')
 
-        expect(switchedRandomNumer).toBe(randomNumber)
-        browser.close()
-      })
+      // change the content
+      writeFileSync(appPath, editedContent, 'utf8')
 
-      describe('HMR', () => {
-        it('should detect the changes to pages/_app.js and display it', async () => {
-          const browser = await webdriver(context.appPort, '/')
-          const text = await browser
-            .elementByCss('#hello-hmr').text()
-          expect(text).toBe('Hello HMR')
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Hi HMR/
+      )
 
-          const appPath = join(__dirname, '../', 'pages', '_app.js')
+      // add the original content
+      writeFileSync(appPath, originalContent, 'utf8')
 
-          const originalContent = readFileSync(appPath, 'utf8')
-          const editedContent = originalContent.replace('Hello HMR', 'Hi HMR')
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Hello HMR/
+      )
 
-          // change the content
-          writeFileSync(appPath, editedContent, 'utf8')
-
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hi HMR/
-          )
-
-          // add the original content
-          writeFileSync(appPath, originalContent, 'utf8')
-
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello HMR/
-          )
-
-          browser.close()
-        })
-      })
+      browser.close()
     })
 
-    describe('_document', () => {
-      describe('HMR', () => {
-        it('should detect the changes to pages/_document.js and display it', async () => {
-          const browser = await webdriver(context.appPort, '/')
-          const text = await browser
-            .elementByCss('#hello-hmr').text()
-          expect(text).toBe('Hello HMR')
+    it('should detect the changes to pages/_document.js and display it', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      const text = await browser
+        .elementByCss('#hello-hmr').text()
+      expect(text).toBe('Hello HMR')
 
-          const appPath = join(__dirname, '../', 'pages', '_document.js')
+      const appPath = join(__dirname, '../', 'pages', '_document.js')
 
-          const originalContent = readFileSync(appPath, 'utf8')
-          const editedContent = originalContent.replace('Hello Document HMR', 'Hi Document HMR')
+      const originalContent = readFileSync(appPath, 'utf8')
+      const editedContent = originalContent.replace('Hello Document HMR', 'Hi Document HMR')
 
-          // change the content
-          writeFileSync(appPath, editedContent, 'utf8')
+      // change the content
+      writeFileSync(appPath, editedContent, 'utf8')
 
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hi Document HMR/
-          )
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Hi Document HMR/
+      )
 
-          // add the original content
-          writeFileSync(appPath, originalContent, 'utf8')
+      // add the original content
+      writeFileSync(appPath, originalContent, 'utf8')
 
-          await check(
-            () => browser.elementByCss('body').text(),
-            /Hello Document HMR/
-          )
+      await check(
+        () => browser.elementByCss('body').text(),
+        /Hello Document HMR/
+      )
 
-          browser.close()
-        })
-      })
+      browser.close()
+    })
+
+    it('should keep state between page navigations', async () => {
+      const browser = await webdriver(context.appPort, '/')
+
+      const randomNumber = await browser.elementByCss('#random-number').text()
+
+      const switchedRandomNumer = await browser
+        .elementByCss('#about-link').click()
+        .waitForElementByCss('.page-about')
+        .elementByCss('#random-number').text()
+
+      expect(switchedRandomNumer).toBe(randomNumber)
+      browser.close()
     })
   })
 }
