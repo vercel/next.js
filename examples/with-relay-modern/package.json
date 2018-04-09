@@ -7,7 +7,7 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "relay": "relay-compiler --src ./ --exclude **/.next/** **/node_modules/** **/test/**  **/__generated__/** --schema ./schema/schema.graphql",
+    "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude './schema/**' --schema ./schema/schema.graphql",
     "schema": "graphql get-schema dev"
   },
   "author": "",
@@ -19,12 +19,12 @@
     "next": "latest",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
-    "react-relay": "^1.4.1"
+    "react-relay": "^1.5.0"
   },
   "devDependencies": {
-    "graphql-cli": "^1.0.0-beta.4",
     "babel-plugin-relay": "^1.4.1",
     "graphcool": "^1.2.1",
-    "relay-compiler": "^1.4.1"
+    "graphql-cli": "^1.0.0-beta.4",
+    "relay-compiler": "^1.5.0"
   }
 }
