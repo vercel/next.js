@@ -931,14 +931,14 @@ export default () => <HelloBundle title="Dynamic Bundle" />
   <ul><li><a href="./examples/componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
 </details></p>
 
-Next.js uses the `App` component to initialize pages. This can be used for:
+Next.js uses the App component to initialize pages. You can override it and control the page initialization. Which allows you can do amazing things like:
 
 - Persisting layout between page changes
 - Keeping state when navigating pages
 - Custom error handling using `componentDidCatch`
-- Handling of calling **page** `Component`s `getInitialProps`
+- Inject additional data into pages (for example by processing GraphQL queries)
 
-To override the default `_app.js` behaviour you can create a file `./pages/_app.js`, where you can extend the `App` class:
+To override, create the `./pages/_app.js` file and override the App class as shown below:
 
 ```js
 import App, {Container} from 'next/app'
