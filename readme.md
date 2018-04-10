@@ -931,12 +931,12 @@ export default () => <HelloBundle title="Dynamic Bundle" />
   <ul><li><a href="./examples/componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
 </details></p>
 
-- Is rendered on both client and server side
-- `this.state` should not be overwritten. Instead create a new component to handle the state ([layout example](./examples/layout-component))
-- Handles calling `getInitialProps` of the **page** `Component`
-- Implements `componentDidCatch` on the client side, and renders the error page accordingly. ([overriding `componentDidCatch` example](./examples/componentdidcatch))
-- The `Container` implements React Hot Loader when in development mode.
-- The `Container` implements scrolling to a hash when using `<Link href="/about#example-hash">`
+Next.js uses the `App` component to initialize pages. This can be used for:
+
+- Persisting layout between page changes
+- Keeping state when navigating pages
+- Custom error handling using `componentDidCatch`
+- Handling of calling **page** `Component`s `getInitialProps`
 
 To override the default `_app.js` behaviour you can create a file `./pages/_app.js`, where you can extend the `App` class:
 
@@ -953,6 +953,36 @@ export default class MyApp extends App {
     }
 
     return {pageProps}
+  }
+
+  render () {
+    const {Component, pageProps} = this.props
+    return <Container>
+      <Component {...pageProps} />
+    </Container>
+  }
+}
+```
+
+When using state inside app the `hasError` property has to be defined:
+
+```js
+import App, {Container} from 'next/app'
+import React from 'react'
+
+export default class MyApp extends App {
+  static async getInitialProps ({ Component, router, ctx }) {
+    let pageProps = {}
+
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
+    }
+
+    return {pageProps}
+  }
+
+  state = {
+    hasError: null
   }
 
   render () {
