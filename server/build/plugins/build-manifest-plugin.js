@@ -1,6 +1,5 @@
 // @flow
 import { RawSource } from 'webpack-sources'
-import { MATCH_ROUTE_NAME } from '../../utils'
 import {BUILD_MANIFEST} from '../../../lib/constants'
 
 // This plugin creates a build-manifest.json for all assets that are being output
@@ -16,7 +15,6 @@ export default class BuildManifestPlugin {
           continue
         }
 
-        let pageFile
         const files = []
 
         for (const file of chunk.files) {
@@ -28,27 +26,12 @@ export default class BuildManifestPlugin {
             continue
           }
 
-          if (MATCH_ROUTE_NAME.exec(file)) {
-            pageFile = file
+          if (/\.css$/.exec(file)) {
+            assetMap.css.push(file)
             continue
           }
 
-          if (/\.css$/.exec(file)) {
-            assetMap.css.push(file)
-          }
-
           files.push(file)
-        }
-
-        const result = MATCH_ROUTE_NAME.exec(chunk.name)
-        if (result) {
-          let pagePath = result[1]
-          if (pagePath === 'index') {
-            pagePath = ''
-          }
-          const page = `/${pagePath.replace(/\\/g, '/')}`
-          assetMap.pages[page] = {pageFile, files}
-          continue
         }
 
         if (files.length > 0) {
