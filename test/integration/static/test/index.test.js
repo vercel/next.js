@@ -31,13 +31,13 @@ describe('Static Export', () => {
     context.server = await startStaticServer(join(appDir, 'out'))
     context.port = context.server.address().port
 
-    devContext.appPort = await findPort()
-    devContext.server = await launchApp(join(__dirname, '../'), devContext.appPort, true)
+    devContext.port = await findPort()
+    devContext.server = await launchApp(join(__dirname, '../'), devContext.port, true)
 
     // pre-build all pages at the start
     await Promise.all([
-      renderViaHTTP(devContext.appPort, '/'),
-      renderViaHTTP(devContext.appPort, '/dynamic/one')
+      renderViaHTTP(devContext.port, '/'),
+      renderViaHTTP(devContext.port, '/dynamic/one')
     ])
   })
   afterAll(() => {
@@ -47,5 +47,5 @@ describe('Static Export', () => {
 
   ssr(context)
   browser(context)
-  dev(context)
+  dev(devContext)
 })
