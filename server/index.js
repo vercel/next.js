@@ -228,6 +228,8 @@ export default class Server {
       },
 
       '/_next/static/:path*': async (req, res, params) => {
+        // The commons folder holds commonschunk files
+        // In development they don't have a hash, and shouldn't be cached by the browser.
         if (this.dev && params.path[0] === 'commons') {
           res.setHeader('Cache-Control', 'no-store, must-revalidate')
         }
