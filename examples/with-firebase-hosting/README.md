@@ -4,7 +4,7 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
@@ -43,13 +43,9 @@ npm run dev
 
 #### Run Firebase locally for testing:
 
-Unfortunately I have been unable to get any combination of
-
-```bash
-firebase serve --only functions,hosting
 ```
-
-to locally host the built Next.js app as expected. [This issue is where solutions are being explored](https://github.com/firebase/firebase-tools/issues/535) and they will be shared here and on the [Next.js repo's similar issue](https://github.com/zeit/next.js/issues/3167) when discovered.
+npm run serve
+```
 
 #### Deploy it to the cloud with Firebase:
 
@@ -68,6 +64,8 @@ npm run clean
 The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
 
 This is based off of the work at https://github.com/geovanisouza92/serverless-firebase & https://github.com/jthegedus/firebase-functions-next-example as described [here](https://medium.com/@jthegedus/next-js-on-cloud-functions-for-firebase-with-firebase-hosting-7911465298f2).
+
+If you're having issues, feel free to tag @jthegedus in the [issue you create on the next.js repo](https://github.com/zeit/next.js/issues/new)
 
 ## Important
 

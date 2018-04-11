@@ -32,9 +32,16 @@ export default ComposedComponent => {
       // and extract the resulting data
       const apollo = initApollo()
       try {
+        // create the url prop which is passed to every page
+        const url = {
+          query: ctx.query,
+          asPath: ctx.asPath,
+          pathname: ctx.pathname,
+        };
+
         // Run all GraphQL queries
         await getDataFromTree(
-          <ComposedComponent ctx={ctx} {...composedInitialProps} />,
+          <ComposedComponent ctx={ctx} url={url} {...composedInitialProps} />,
           {
             router: {
               asPath: ctx.asPath,

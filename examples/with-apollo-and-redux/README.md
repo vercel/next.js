@@ -5,7 +5,7 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-apollo-and-redux with-apollo-and-redux-app
@@ -27,6 +27,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
@@ -49,3 +52,6 @@ const mapStateToProps = state => ({
 
 export default withRedux(connect(mapStateToProps, null)(Index));
 ```
+
+### Note:
+In these *with-apollo* examples, the ```withData()``` HOC must wrap a top-level component from within the ```pages``` directory. Wrapping a child component with the HOC will result in a ```Warning: Failed prop type: The prop 'serverState' is marked as required in 'WithData(Apollo(Component))', but its value is 'undefined'``` error. Down-tree child components will have access to Apollo, and can be wrapped with any other sort of ```graphql()```, ```compose()```, etc HOC's.

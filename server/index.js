@@ -1,11 +1,12 @@
+/* eslint-disable import/first, no-return-await */
 require('@zeit/source-map-support').install()
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import fsAsync from 'mz/fs'
 import http, { STATUS_CODES } from 'http'
 import updateNotifier from '@zeit/check-updates'
+import promisify from './lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -22,6 +23,8 @@ import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
+
+const access = promisify(fs.access)
 
 const blockedPages = {
   '/_document': true,
@@ -78,7 +81,6 @@ export default class Server {
     })
 
     this.setAssetPrefix(assetPrefix)
-    this.defineRoutes()
   }
 
   getHotReloader (dir, options) {
@@ -116,6 +118,7 @@ export default class Server {
   }
 
   async prepare () {
+    await this.defineRoutes()
     if (this.hotReloader) {
       await this.hotReloader.start()
     }
@@ -136,7 +139,7 @@ export default class Server {
     }
   }
 
-  defineRoutes () {
+  async defineRoutes () {
     const routes = {
       '/_next-prefetcher.js': async (req, res, params) => {
         const p = join(__dirname, '../client/next-prefetcher-bundle.js')
@@ -266,7 +269,9 @@ export default class Server {
 
         // [production] If the page is not exists, we need to send a proper Next.js style 404
         // Otherwise, it'll affect the multi-zones feature.
-        if (!(await fsAsync.exists(p))) {
+        try {
+          await access(p, (fs.constants || fs).R_OK)
+        } catch (err) {
           return await renderScriptError(req, res, page, { code: 'ENOENT' })
         }
 
@@ -298,9 +303,22 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      // Makes `next export` exportPathMap work in development mode.
+      // So that the user doesn't have to define a custom server reading the exportPathMap
+      if (this.dev && this.nextConfig.exportPathMap) {
+        console.log('Defining routes from exportPathMap')
+        const exportPathMap = await this.nextConfig.exportPathMap({}) // In development we can't give a default path mapping
+        for (const path in exportPathMap) {
+          const options = exportPathMap[path]
+          routes[path] = async (req, res, params, parsedUrl) => {
+            await this.render(req, res, options.page, options.query, parsedUrl)
+          }
+        }
+      }
+
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
-        await this.render(req, res, pathname, query)
+        await this.render(req, res, pathname, query, parsedUrl)
       }
     }
 

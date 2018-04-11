@@ -15,6 +15,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    test('renders with fragment syntax', async () => {
+      const html = await render('/fragment-syntax')
+      expect(html.includes('My component!')).toBeTruthy()
+    })
+
     test('renders a stateful component', async () => {
       const $ = await get$('/stateful')
       const answer = $('#answer')

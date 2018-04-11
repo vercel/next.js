@@ -1,14 +1,17 @@
 {
-  "name": "with-analytics",
+  "name": "with-now-env",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@segment/snippet": "^4.0.1",
     "next": "latest",
     "react": "^16.2.0",
     "react-dom": "^16.2.0"
+  },
+  "devDependencies": {
+    "now-env": "^3.0.4"
   }
 }

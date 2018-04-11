@@ -9,7 +9,7 @@ https://next-with-apollo.now.sh
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-apollo with-apollo-app
@@ -31,6 +31,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download)):
@@ -48,3 +51,6 @@ In this simple example, we integrate Apollo seamlessly with Next by wrapping our
 On initial page load, while on the server and inside `getInitialProps`, we invoke the Apollo method,  [`getDataFromTree`](http://dev.apollodata.com/react/server-side-rendering.html#getDataFromTree). This method returns a promise; at the point in which the promise resolves, our Apollo Client store is completely initialized.
 
 This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
+
+### Note:
+In these *with-apollo* examples, the ```withData()``` HOC must wrap a top-level component from within the ```pages``` directory. Wrapping a child component with the HOC will result in a ```Warning: Failed prop type: The prop 'serverState' is marked as required in 'WithData(Apollo(Component))', but its value is 'undefined'``` error. Down-tree child components will have access to Apollo, and can be wrapped with any other sort of ```graphql()```, ```compose()```, etc HOC's.

@@ -1,12 +1,10 @@
 /* global describe, it, expect */
 
-import { join, sep } from 'path'
+import { join } from 'path'
 import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
 
-const dir = '/path/to/some/project'
-const dist = '.next'
-
-const pathToBundles = join(dir, dist, 'dist', 'bundles', 'pages')
+const sep = '/'
+const pathToBundles = join(__dirname, '_resolvedata', 'dist', 'bundles', 'pages')
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
@@ -42,17 +40,17 @@ describe('normalizePagePath', () => {
 
 describe('getPagePath', () => {
   it('Should append /index to the / page', () => {
-    const pagePath = getPagePath('/', {dir, dist})
-    expect(pagePath).toBe(join(pathToBundles, `${sep}index`))
+    const pagePath = getPagePath('/', {dir: __dirname, dist: '_resolvedata'})
+    expect(pagePath).toBe(join(pathToBundles, `${sep}index.js`))
   })
 
   it('Should prepend / when a page does not have it', () => {
-    const pagePath = getPagePath('_error', {dir, dist})
-    expect(pagePath).toBe(join(pathToBundles, `${sep}_error`))
+    const pagePath = getPagePath('_error', {dir: __dirname, dist: '_resolvedata'})
+    expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
   })
 
   it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', {dir, dist})).toThrow()
+    expect(() => getPagePath('/../../package.json', {dir: __dirname, dist: '_resolvedata'})).toThrow()
   })
 })
 
