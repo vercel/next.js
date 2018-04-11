@@ -1,10 +1,6 @@
 {
-  "name": "next-typescript-jest",
-  "description": "Next.js Jest testing with TypeScript example.",
+  "name": "next-jest-typescript",
   "version": "1.0.0",
-  "main": "index.js",
-  "license": "MIT",
-  "author": "Harun Djulic <harundjulic@gmail.com>",
   "scripts": {
     "test": "NODE_ENV=test jest",
     "dev": "next",
