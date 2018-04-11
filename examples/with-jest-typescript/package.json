@@ -1,5 +1,5 @@
 {
-  "name": "next-jest-typescript",
+  "name": "with-jest-typescript",
   "version": "1.0.0",
   "scripts": {
     "test": "NODE_ENV=test jest",
