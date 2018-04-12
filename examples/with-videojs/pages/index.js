@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import Head from 'next/head'
 import React from 'react'
 import Player from '../components/Player'
@@ -16,11 +17,11 @@ export default class Index extends React.Component {
 
     return (
       <div>
-        <Head>
-          <link rel='stylesheet' href='/_next/static/style.css' />
-        </Head>
+      <Head>
+      <link rel='stylesheet' href='/_next/static/style.css' />
+      </Head>
 
-        <Player {...videoJsOptions} />
+      <Player {...videoJsOptions} />
       </div>
     )
   }
