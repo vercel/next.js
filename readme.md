@@ -22,12 +22,20 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [CSS](#css)
     - [Built-in CSS support](#built-in-css-support)
     - [CSS-in-JS](#css-in-js)
+    - [Importing CSS / Sass / Less / Stylus files](#importing-css--sass--less--stylus-files)
   - [Static file serving (e.g.: images)](#static-file-serving-eg-images)
   - [Populating `<head>`](#populating-head)
   - [Fetching data and component lifecycle](#fetching-data-and-component-lifecycle)
   - [Routing](#routing)
     - [With `<Link>`](#with-link)
+      - [With URL object](#with-url-object)
+      - [Replace instead of push url](#replace-instead-of-push-url)
+      - [Using a component that supports `onClick`](#using-a-component-that-supports-onclick)
+      - [Forcing the Link to expose `href` to its child](#forcing-the-link-to-expose-href-to-its-child)
+      - [Disabling the scroll changes to top on page](#disabling-the-scroll-changes-to-top-on-page)
     - [Imperatively](#imperatively)
+    - [Intercepting `popstate`](#intercepting-popstate)
+      - [With URL object](#with-url-object-1)
       - [Router Events](#router-events)
       - [Shallow Routing](#shallow-routing)
     - [Using a Higher Order Component](#using-a-higher-order-component)
@@ -35,16 +43,34 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [With `<Link>`](#with-link-1)
     - [Imperatively](#imperatively-1)
   - [Custom server and routing](#custom-server-and-routing)
+    - [Disabling file-system routing](#disabling-file-system-routing)
+    - [Dynamic assetPrefix](#dynamic-assetprefix)
   - [Dynamic Import](#dynamic-import)
+    - [1. Basic Usage (Also does SSR)](#1-basic-usage-also-does-ssr)
+    - [2. With Custom Loading Component](#2-with-custom-loading-component)
+    - [3. With No SSR](#3-with-no-ssr)
+    - [4. With Multiple Modules At Once](#4-with-multiple-modules-at-once)
+  - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
   - [Custom error handling](#custom-error-handling)
+  - [Reusing the built-in error page](#reusing-the-built-in-error-page)
   - [Custom configuration](#custom-configuration)
+    - [Setting a custom build directory](#setting-a-custom-build-directory)
+    - [Disabling etag generation](#disabling-etag-generation)
+    - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
+    - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
+    - [Configuring the build ID](#configuring-the-build-id)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
+    - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
+  - [Usage](#usage)
+  - [Limitation](#limitation)
 - [Multi Zones](#multi-zones)
+  - [How to define a zone](#how-to-define-a-zone)
+  - [How to merge them](#how-to-merge-them)
 - [Recipes](#recipes)
 - [FAQ](#faq)
 - [Contributing](#contributing)
@@ -923,6 +949,77 @@ const HelloBundle = dynamic({
 export default () => <HelloBundle title="Dynamic Bundle" />
 ```
 
+### Custom `<App>`
+
+<p><details>
+  <summary><b>Examples</b></summary>
+  <ul><li><a href="./examples/layout-component">Using `_app.js` for layout</a></li></ul>
+  <ul><li><a href="./examples/componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
+</details></p>
+
+Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you can do amazing things like:
+
+- Persisting layout between page changes
+- Keeping state when navigating pages
+- Custom error handling using `componentDidCatch`
+- Inject additional data into pages (for example by processing GraphQL queries)
+
+To override, create the `./pages/_app.js` file and override the App class as shown below:
+
+```js
+import App, {Container} from 'next/app'
+import React from 'react'
+
+export default class MyApp extends App {
+  static async getInitialProps ({ Component, router, ctx }) {
+    let pageProps = {}
+
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
+    }
+
+    return {pageProps}
+  }
+
+  render () {
+    const {Component, pageProps} = this.props
+    return <Container>
+      <Component {...pageProps} />
+    </Container>
+  }
+}
+```
+
+When using state inside app the `hasError` property has to be defined:
+
+```js
+import App, {Container} from 'next/app'
+import React from 'react'
+
+export default class MyApp extends App {
+  static async getInitialProps ({ Component, router, ctx }) {
+    let pageProps = {}
+
+    if (Component.getInitialProps) {
+      pageProps = await Component.getInitialProps(ctx)
+    }
+
+    return {pageProps}
+  }
+
+  state = {
+    hasError: null
+  }
+
+  render () {
+    const {Component, pageProps} = this.props
+    return <Container>
+      <Component {...pageProps} />
+    </Container>
+  }
+}
+```
+
 ### Custom `<Document>`
 
 <p><details>
@@ -930,6 +1027,10 @@ export default () => <HelloBundle title="Dynamic Bundle" />
   <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
   <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
 </details></p>
+
+- Is rendered on the server side
+- Is used to change the initial server side rendered document markup
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](./examples/with-styled-components), [glamorous](./examples/with-glamorous) or [emotion](with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -939,13 +1040,11 @@ Pages in `Next.js` skip the definition of the surrounding document's markup. For
 
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
-import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
-  static getInitialProps({ renderPage }) {
-    const { html, head, errorHtml, chunks, buildManifest } = renderPage()
-    const styles = flush()
-    return { html, head, errorHtml, chunks, styles, buildManifest }
+  static async getInitialProps(ctx) {
+    const initialProps = await Document.getInitialProps(ctx)
+    return { ...initialProps }
   }
 
   render() {
@@ -955,7 +1054,6 @@ export default class MyDocument extends Document {
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
         <body className="custom_class">
-          {this.props.customValue}
           <Main />
           <NextScript />
         </body>
@@ -969,7 +1067,7 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-__Note: React-components outside of `<Main />` will not be initialised by the browser. If you need shared components in all your pages (like a menu or a toolbar), do _not_ add application logic  here, but take a look at [this example](https://github.com/zeit/next.js/tree/master/examples/layout-component).__
+__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
 
 ### Custom error handling
 

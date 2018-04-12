@@ -22,7 +22,8 @@ const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 const nextPagesDir = path.join(nextDir, 'pages')
 const defaultPages = [
   '_error.js',
-  '_document.js'
+  '_document.js',
+  '_app.js'
 ]
 const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
@@ -71,11 +72,12 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      // Webpack itself has to be compiled because it doesn't always use module relative paths
+      // Default pages have to be transpiled
       if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
         return callback()
       }
 
+      // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/)) {
         return callback()
       }

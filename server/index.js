@@ -28,6 +28,7 @@ const access = promisify(fs.access)
 
 const blockedPages = {
   '/_document': true,
+  '/_app': true,
   '/_error': true
 }
 
@@ -178,20 +179,6 @@ export default class Server {
         await serveStatic(req, res, path)
       },
 
-      // This is very similar to the following route.
-      // But for this one, the page already built when the Next.js process starts.
-      // There's no need to build it in on-demand manner and check for other things.
-      // So, it's clean to have a seperate route for this.
-      '/_next/:buildId/page/_error.js': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          return await renderScriptError(req, res, '/_error', error)
-        }
-
-        const p = join(this.dir, `${this.dist}/bundles/pages/_error.js`)
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/:buildId/page/:path*.js': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
@@ -201,7 +188,7 @@ export default class Server {
           return await renderScriptError(req, res, page, error)
         }
 
-        if (this.dev) {
+        if (this.dev && page !== '/_error' && page !== '/_app') {
           try {
             await this.hotReloader.ensurePage(page)
           } catch (error) {
