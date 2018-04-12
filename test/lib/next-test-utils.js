@@ -3,7 +3,7 @@ import qs from 'querystring'
 import http from 'http'
 import express from 'express'
 import path from 'path'
-import portfinder from 'portfinder'
+import getPort from 'get-port'
 import { spawn } from 'child_process'
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import fkill from 'fkill'
@@ -63,8 +63,7 @@ export function fetchViaHTTP (appPort, pathname, query) {
 }
 
 export function findPort () {
-  portfinder.basePort = 20000 + Math.ceil(Math.random() * 10000)
-  return portfinder.getPortPromise()
+  return getPort()
 }
 
 // Launch the app in dev mode.

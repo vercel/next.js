@@ -134,7 +134,6 @@
     "node-fetch": "1.7.3",
     "node-notifier": "5.1.2",
     "nyc": "11.2.1",
-    "portfinder": "1.0.13",
     "react": "16.2.0",
     "react-dom": "16.2.0",
     "rimraf": "2.6.2",

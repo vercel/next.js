@@ -943,9 +943,9 @@ import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
   static getInitialProps({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage()
+    const { html, head, errorHtml, chunks, buildManifest } = renderPage()
     const styles = flush()
-    return { html, head, errorHtml, chunks, styles }
+    return { html, head, errorHtml, chunks, styles, buildManifest }
   }
 
   render() {
