@@ -488,7 +488,7 @@ export default () =>
 #### Intercepting `popstate`
 
 In some cases (for example, if using a [custom router](#custom-server-and-routing)), you may wish
-to listen to `popstate` and react before the router acts on it.
+to listen to [`popstate`](https://developer.mozilla.org/en-US/docs/Web/Events/popstate) and react before the router acts on it.
 For example, you could use this to manipulate the request, or force an SSR refresh.
 
 ```jsx
