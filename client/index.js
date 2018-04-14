@@ -116,7 +116,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
 
 export async function render (props) {
   if (props.err) {
-    await renderError(props.err)
+    await renderError(props)
     return
   }
 
@@ -124,31 +124,31 @@ export async function render (props) {
     await doRender(props)
   } catch (err) {
     if (err.abort) return
-    await renderError(err)
+    await renderError({...props, err})
   }
 }
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (error) {
-  const prod = process.env.NODE_ENV === 'production'
-  // We need to unmount the current app component because it's
-  // in the inconsistant state.
-  // Otherwise, we need to face issues when the issue is fixed and
-  // it's get notified via HMR
-  ReactDOM.unmountComponentAtNode(appContainer)
-
-  const errorMessage = `${error.message}\n${error.stack}`
+export async function renderError (props) {
+  const {err} = props
+  const errorMessage = `${err.message}\n${err.stack}`
   console.error(stripAnsi(errorMessage))
 
-  if (prod) {
-    const initProps = {Component: ErrorComponent, router, ctx: {err: error, pathname, query, asPath}}
-    const props = await loadGetInitialProps(ErrorComponent, initProps)
-    renderReactElement(createElement(ErrorComponent, props), errorContainer)
-  } else {
-    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
+  if (process.env.NODE_ENV !== 'production') {
+    // We need to unmount the current app component because it's
+    // in the inconsistant state.
+    // Otherwise, we need to face issues when the issue is fixed and
+    // it's get notified via HMR
+    ReactDOM.unmountComponentAtNode(appContainer)
+    renderReactElement(createElement(ErrorDebugComponent, { error: props.err }), errorContainer)
+    return
   }
+
+  // In production we do a normal render with the `ErrorComponent` as component.
+  // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
+  await doRender({...props, Component: ErrorComponent})
 }
 
 async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {

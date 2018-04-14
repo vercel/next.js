@@ -95,7 +95,7 @@ async function doRender (req, res, pathname, query, {
       if (err && dev) {
         errorHtml = render(createElement(ErrorDebug, { error: err }))
       } else if (err) {
-        errorHtml = render(app)
+        html = render(app)
       } else {
         html = render(app)
       }
