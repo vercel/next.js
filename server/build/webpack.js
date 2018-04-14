@@ -142,7 +142,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       strictModuleExceptionHandling: true,
       devtoolModuleFilenameTemplate (info) {
         if (dev) {
-          return '[absolute-resource-path]'
+          return info.absoluteResourcePath
         }
 
         return `${info.absoluteResourcePath.replace(dir, '.').replace(nextDir, './node_modules/next')}`
