@@ -336,6 +336,8 @@ export default class Server {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
+        const {rewriteErrorTrace} = require('./lib/source-map-support')
+        await rewriteErrorTrace(err)
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
