@@ -1,7 +1,4 @@
 // @flow
-import fetch from 'unfetch'
-import {SourceMapConsumer} from 'source-map'
-
 const filenameRE = /\(([^)]+\.js):(\d+):(\d+)\)$/
 
 export async function rewriteErrorTrace (e: any): Promise<void> {
@@ -33,12 +30,14 @@ async function rewriteTraceLine (trace: string): Promise<string> {
 
   const mapPath = `${filePath}.map`
 
+  const fetch = require('unfetch')
   const res = await fetch(mapPath)
   if (res.status !== 200) {
     return trace
   }
 
   const mapContents = await res.json()
+  const {SourceMapConsumer} = require('source-map')
   const map = new SourceMapConsumer(mapContents)
   const originalPosition = map.originalPositionFor({
     line: Number(m[2]),

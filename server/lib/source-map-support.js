@@ -1,10 +1,4 @@
 // @flow
-import fs from 'fs'
-import promisify from './promisify'
-import {SourceMapConsumer} from 'source-map'
-
-const readFile = promisify(fs.readFile)
-const access = promisify(fs.access)
 const filenameRE = /\(([^)]+\.js):(\d+):(\d+)\)$/
 
 export async function rewriteErrorTrace (e: any): Promise<void> {
@@ -32,6 +26,13 @@ async function rewriteTraceLine (trace: string): Promise<string> {
   const filePath = m[1]
   const mapPath = `${filePath}.map`
 
+  // Load these on demand.
+  const fs = require('fs')
+  const promisify = require('./promisify')
+
+  const readFile = promisify(fs.readFile)
+  const access = promisify(fs.access)
+
   try {
     await access(mapPath, (fs.constants || fs).R_OK)
   } catch (err) {
@@ -39,6 +40,7 @@ async function rewriteTraceLine (trace: string): Promise<string> {
   }
 
   const mapContents = await readFile(mapPath)
+  const {SourceMapConsumer} = require('source-map')
   const map = new SourceMapConsumer(JSON.parse(mapContents))
   const originalPosition = map.originalPositionFor({
     line: Number(m[2]),
