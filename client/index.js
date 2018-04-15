@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
@@ -7,7 +7,7 @@ import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
-import {rewriteErrorTrace} from './source-map-support'
+import {AppContainer} from 'react-hot-loader'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -74,6 +74,21 @@ let stripAnsi = (s) => s
 
 export const emitter = new EventEmitter()
 
+// This handles logging the source-mapped error and then returns it for further use
+async function applySourceMapsAndLog (err) {
+  if (process.env.NODE_ENV !== 'production') {
+    // In development we rewrite the error with sourcemaps
+    const {rewriteErrorTrace} = require('./source-map-support')
+
+    await rewriteErrorTrace(err)
+  }
+
+  const str = stripAnsi(`${err.message}\n${err.stack}${err.info ? `\n\n${err.info.componentStack}` : ''}`)
+  console.error(str)
+
+  return err
+}
+
 export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
@@ -92,7 +107,7 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
       throw new Error(`The default export is not a React Component in page: "${pathname}"`)
     }
   } catch (error) {
-    console.error(stripAnsi(`${error.message}\n${error.stack}`))
+    applySourceMapsAndLog(error)
     Component = ErrorComponent
   }
 
@@ -133,12 +148,9 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (props) {
-  const {err, info} = props
+  const {err} = props
 
-  await rewriteErrorTrace(err)
-
-  const errorMessage = `${err.message}\n${err.stack}${info ? `\n\n${info.componentStack}` : ''}`
-  console.error(stripAnsi(errorMessage))
+  const sourcemappedErr = await applySourceMapsAndLog(err)
 
   if (process.env.NODE_ENV !== 'production') {
     // We need to unmount the current app component because it's
@@ -146,13 +158,13 @@ export async function renderError (props) {
     // Otherwise, we need to face issues when the issue is fixed and
     // it's get notified via HMR
     ReactDOM.unmountComponentAtNode(appContainer)
-    renderReactElement(createElement(ErrorDebugComponent, { error: err }), errorContainer)
+    renderReactElement(<ErrorDebugComponent error={sourcemappedErr} />, errorContainer)
     return
   }
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
-  await doRender({...props, err, Component: ErrorComponent})
+  await doRender({...props, err: sourcemappedErr, Component: ErrorComponent})
 }
 
 async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
@@ -176,7 +188,9 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  renderReactElement(createElement(App, appProps), appContainer)
+  renderReactElement(<AppContainer errorReporter={ErrorDebugComponent} warnings={false}>
+    <App {...appProps} />
+  </AppContainer>, appContainer)
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
