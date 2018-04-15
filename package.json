@@ -64,7 +64,6 @@
     "@babel/runtime": "7.0.0-beta.42",
     "@babel/template": "7.0.0-beta.42",
     "@zeit/check-updates": "1.1.1",
-    "@zeit/source-map-support": "0.6.2",
     "ansi-html": "0.0.7",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.0-beta.2",
