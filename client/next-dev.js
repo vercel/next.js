@@ -3,10 +3,12 @@ import initNext, * as next from './'
 import {ClientDebug} from '../lib/error-debug'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
+import {AppContainer as HotAppContainer} from 'react-hot-loader'
+import {rewriteErrorTrace} from './source-map-support'
 
 window.next = next
 
-initNext({ ErrorDebugComponent: ClientDebug, stripAnsi })
+initNext({ HotAppContainer, ErrorDebugComponent: ClientDebug, rewriteErrorTrace, stripAnsi })
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()

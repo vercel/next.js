@@ -7,7 +7,6 @@ import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
-import {AppContainer} from 'react-hot-loader'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -67,19 +66,19 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
+let HotAppContainer
 let ErrorDebugComponent
 let Component
 let App
 let stripAnsi = (s) => s
+let rewriteErrorTrace = (e) => e
 
 export const emitter = new EventEmitter()
 
 // This handles logging the source-mapped error and then returns it for further use
 async function applySourceMapsAndLog (err) {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV === 'production') {
     // In development we rewrite the error with sourcemaps
-    const {rewriteErrorTrace} = require('./source-map-support')
-
     await rewriteErrorTrace(err)
   }
 
@@ -89,13 +88,20 @@ async function applySourceMapsAndLog (err) {
   return err
 }
 
-export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
+export default async ({
+  HotAppContainer: passedHotAppContainer,
+  ErrorDebugComponent: passedDebugComponent,
+  stripAnsi: passedStripAnsi,
+  rewriteErrorTrace: passedRewriteErrorTrace
+} = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
   }
 
   stripAnsi = passedStripAnsi || stripAnsi
+  rewriteErrorTrace = passedRewriteErrorTrace || rewriteErrorTrace
+  HotAppContainer = passedHotAppContainer
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
@@ -188,9 +194,15 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  renderReactElement(<AppContainer errorReporter={ErrorDebugComponent} warnings={false}>
-    <App {...appProps} />
-  </AppContainer>, appContainer)
+
+  // In development we render react-hot-loader's wrapper component
+  if (HotAppContainer) {
+    renderReactElement(<HotAppContainer errorReporter={ErrorDebugComponent} warnings={false}>
+      <App {...appProps} />
+    </HotAppContainer>, appContainer)
+  } else {
+    renderReactElement(<App {...appProps} />, appContainer)
+  }
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
