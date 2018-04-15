@@ -45,8 +45,6 @@ async function rewriteTraceLine (trace: string): Promise<string> {
     column: Number(m[3])
   })
 
-  console.log('POSITION', originalPosition)
-
   if (originalPosition.source != null) {
     const { source, line, column } = originalPosition
     const mappedPosition = `(${source.replace(/^webpack:\/\/\//, '')}:${String(line)}:${String(column)})`
