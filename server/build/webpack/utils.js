@@ -16,8 +16,9 @@ export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
   let pages
 
   if (dev) {
-    // In development we only compile _document.js and _error.js when starting, since they're always needed. All other pages are compiled with on demand entries
-    pages = await glob(isServer ? `pages/+(_document|_error).+(${pageExtensions})` : `pages/_error.+(${pageExtensions})`, { cwd: dir })
+    // In development we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
+    // _document also has to be in the client compiler in development because we want to detect HMR changes and reload the client
+    pages = await glob(`pages/+(_document|_app|_error).+(${pageExtensions})`, { cwd: dir })
   } else {
     // In production get all pages from the pages directory
     pages = await glob(isServer ? `pages/**/*.+(${pageExtensions})` : `pages/**/!(_document)*.+(${pageExtensions})`, { cwd: dir })
@@ -55,6 +56,12 @@ export function getPageEntries (pagePaths, {isServer = false, pageExtensions} = 
   for (const filePath of pagePaths) {
     const entry = createEntry(filePath, {pageExtensions})
     entries[entry.name] = entry.files
+  }
+
+  const appPagePath = path.join(nextPagesDir, '_app.js')
+  const appPageEntry = createEntry(appPagePath, {name: 'pages/_app.js'}) // default app.js
+  if (!entries[appPageEntry.name]) {
+    entries[appPageEntry.name] = appPageEntry.files
   }
 
   const errorPagePath = path.join(nextPagesDir, '_error.js')

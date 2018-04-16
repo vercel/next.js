@@ -8,7 +8,7 @@
     "next": "latest",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
-    "@zeit/next-typescript": "0.0.11",
+    "@zeit/next-typescript": "0.1.1",
     "typescript": "^2.7.1"
   },
   "devDependencies": {

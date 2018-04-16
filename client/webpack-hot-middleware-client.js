@@ -27,6 +27,13 @@ export default () => {
         return
       }
 
+      // If the App component changes we have to reload the current route
+      if (route === '/_app') {
+        Router.reload(Router.route)
+        return
+      }
+
+      // Since _document is server only we need to reload the full page when it changes.
       if (route === '/_document') {
         window.location.reload()
         return
@@ -36,6 +43,13 @@ export default () => {
     },
 
     change (route) {
+      // If the App component changes we have to reload the current route
+      if (route === '/_app') {
+        Router.reload(Router.route)
+        return
+      }
+
+      // Since _document is server only we need to reload the full page when it changes.
       if (route === '/_document') {
         window.location.reload()
         return
