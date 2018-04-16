@@ -32,8 +32,9 @@ if (new Set(['--version', '-v']).has(cmd)) {
   process.exit(0)
 }
 
-if (new Set(process.argv).has('--inspect')) {
-  nodeArgs.push('--inspect')
+const inspectArg = process.argv.find(arg => arg.includes('--inspect'))
+if (inspectArg) {
+  nodeArgs.push(inspectArg)
 }
 
 if (new Set(['--help', '-h']).has(cmd)) {
