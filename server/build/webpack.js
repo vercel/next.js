@@ -30,14 +30,7 @@ const interpolateNames = new Map(defaultPages.map((p) => {
 }))
 
 function babelConfig (dir, {isServer, dev}) {
-  const mainBabelOptions = {
-    cacheDirectory: true,
-    presets: [],
-    plugins: [
-      dev && !isServer && hotLoaderItem
-    ].filter(Boolean)
-  }
-
+  // Check for user supplied babelrc config
   const filename = path.join(dir, 'filename.js')
   const externalBabelConfig = loadPartialConfig({ babelrc: true, filename })
   if (externalBabelConfig && externalBabelConfig.babelrc) {
@@ -47,13 +40,22 @@ function babelConfig (dir, {isServer, dev}) {
       console.log(`> Location: "${externalBabelConfig.babelrc}"`)
     }
     // By default babel-loader will look for babelrc, so no need to set it to true
-  } else {
-    mainBabelOptions.babelrc = false
+
+    if (dev && !isServer) {
+      externalBabelConfig.options.plugins.push(hotLoaderItem)
+    }
+
+    return externalBabelConfig.options
   }
 
-  // Add our default preset if the no "babelrc" found.
-  if (!mainBabelOptions.babelrc) {
-    mainBabelOptions.presets.push(presetItem)
+  // User didn't supply config, go about with our own.
+  const mainBabelOptions = {
+    babelrc: false,
+    cacheDirectory: true,
+    presets: [presetItem],
+    plugins: [
+      dev && !isServer && hotLoaderItem
+    ].filter(Boolean)
   }
 
   return mainBabelOptions
