@@ -106,6 +106,8 @@ export default async ({
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
 
+  let initialErr = err
+
   try {
     Component = await pageLoader.loadPage(page)
 
@@ -113,8 +115,8 @@ export default async ({
       throw new Error(`The default export is not a React Component in page: "${pathname}"`)
     }
   } catch (error) {
-    applySourceMapsAndLog(error)
-    Component = ErrorComponent
+    // This catches errors like throwing in the top level of a module
+    initialErr = error
   }
 
   router = createRouter(pathname, query, asPath, {
@@ -123,7 +125,7 @@ export default async ({
     App,
     Component,
     ErrorComponent,
-    err
+    err: initialErr
   })
 
   router.subscribe(({ Component, props, hash, err }) => {
@@ -131,7 +133,7 @@ export default async ({
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
+  render({ Component, props, hash, err: initialErr, emitter })
 
   return emitter
 }
