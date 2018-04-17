@@ -1,5 +1,5 @@
-import React from 'react';
-import Head from 'next/head';
+import React from 'react'
+import Head from 'next/head'
 
 function Index() {
   return (
@@ -18,7 +18,7 @@ function Index() {
         </a>
       </p>
     </div>
-  );
+  )
 }
 
-export default Index;
+export default Index

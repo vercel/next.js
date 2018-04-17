@@ -8,6 +8,9 @@ module.exports = {
   plugins: ['react', 'jsx-a11y', 'import'],
   rules: {
     'max-len': ['error', 100],
+    'semi': ['error', 'never'],
+    'quotes': ['error', 'single'],
+    'comma-dangle': ['error', 'never'],
     'no-underscore-dangle': ['error', { allow: ['_id'] }],
     'prefer-destructuring': [
       'error',
