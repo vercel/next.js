@@ -1,7 +1,7 @@
 // @flow
 const filenameRE = /\(([^)]+\.js):(\d+):(\d+)\)$/
 
-export async function rewriteErrorTrace (e: any): Promise<void> {
+export async function rewriteErrorTrace (e: any): Promise<Error> {
   if (!e || typeof e.stack !== 'string' || e.sourceMapsApplied) {
     return
   }
@@ -15,6 +15,7 @@ export async function rewriteErrorTrace (e: any): Promise<void> {
   e.stack = result.join('\n')
   // This is to make sure we don't apply the sourcemaps twice on the same object
   e.sourceMapsApplied = true
+  return e
 }
 
 async function rewriteTraceLine (trace: string): Promise<string> {

@@ -75,19 +75,6 @@ let rewriteErrorTrace = (e) => e
 
 export const emitter = new EventEmitter()
 
-// This handles logging the source-mapped error and then returns it for further use
-async function applySourceMapsAndLog (err) {
-  if (process.env.NODE_ENV === 'production') {
-    // In development we rewrite the error with sourcemaps
-    await rewriteErrorTrace(err)
-  }
-
-  const str = stripAnsi(`${err.message}\n${err.stack}${err.info ? `\n\n${err.info.componentStack}` : ''}`)
-  console.error(str)
-
-  return err
-}
-
 export default async ({
   HotAppContainer: passedHotAppContainer,
   ErrorDebugComponent: passedDebugComponent,
@@ -158,7 +145,14 @@ export async function render (props) {
 export async function renderError (props) {
   const {err} = props
 
-  const sourcemappedErr = await applySourceMapsAndLog(err)
+  let sourcemappedErr = err
+  // In development we rewrite the error with sourcemaps
+  if (process.env.NODE_ENV !== 'production') {
+    sourcemappedErr = await rewriteErrorTrace(err)
+  }
+
+  const str = stripAnsi(`${err.message}\n${err.stack}${err.info ? `\n\n${err.info.componentStack}` : ''}`)
+  console.error(str)
 
   if (process.env.NODE_ENV !== 'production') {
     // We need to unmount the current app component because it's
