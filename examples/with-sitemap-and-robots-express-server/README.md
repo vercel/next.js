@@ -61,4 +61,4 @@ In case you want to deploy this example, replace the URL in the following locati
 - `Sitemap` at the bottom of `robots.txt`
 - `alias` in `now.json`
 
-Deploy directly to your domain with `yarn now`
+Deploy with `now` or with `yarn now` if you specified `alias` in `now.json`
