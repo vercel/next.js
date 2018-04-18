@@ -89,7 +89,7 @@
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
-    "react-hot-loader": "4.0.0",
+    "react-hot-loader": "4.0.1",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
     "send": "0.16.1",
