@@ -71,7 +71,7 @@ let ErrorDebugComponent
 let Component
 let App
 let stripAnsi = (s) => s
-let rewriteErrorTrace = (e) => e
+let applySourcemaps = (e) => e
 
 export const emitter = new EventEmitter()
 
@@ -79,7 +79,7 @@ export default async ({
   HotAppContainer: passedHotAppContainer,
   ErrorDebugComponent: passedDebugComponent,
   stripAnsi: passedStripAnsi,
-  rewriteErrorTrace: passedRewriteErrorTrace
+  applySourcemaps: passedApplySourcemaps
 } = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
@@ -87,7 +87,7 @@ export default async ({
   }
 
   stripAnsi = passedStripAnsi || stripAnsi
-  rewriteErrorTrace = passedRewriteErrorTrace || rewriteErrorTrace
+  applySourcemaps = passedApplySourcemaps || applySourcemaps
   HotAppContainer = passedHotAppContainer
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
@@ -145,10 +145,9 @@ export async function render (props) {
 export async function renderError (props) {
   const {err} = props
 
-  let sourcemappedErr = err
-  // In development we rewrite the error with sourcemaps
+  // In development we apply sourcemaps to the error
   if (process.env.NODE_ENV !== 'production') {
-    sourcemappedErr = await rewriteErrorTrace(err)
+    await applySourcemaps(err)
   }
 
   const str = stripAnsi(`${err.message}\n${err.stack}${err.info ? `\n\n${err.info.componentStack}` : ''}`)
@@ -160,13 +159,13 @@ export async function renderError (props) {
     // Otherwise, we need to face issues when the issue is fixed and
     // it's get notified via HMR
     ReactDOM.unmountComponentAtNode(appContainer)
-    renderReactElement(<ErrorDebugComponent error={sourcemappedErr} />, errorContainer)
+    renderReactElement(<ErrorDebugComponent error={err} />, errorContainer)
     return
   }
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
-  await doRender({...props, err: sourcemappedErr, Component: ErrorComponent})
+  await doRender({...props, err, Component: ErrorComponent})
 }
 
 async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {

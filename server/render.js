@@ -12,7 +12,7 @@ import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
 import { BUILD_MANIFEST } from '../lib/constants'
-import { rewriteErrorTrace } from './lib/source-map-support'
+import { applySourcemaps } from './lib/source-map-support'
 
 const logger = console
 
@@ -50,7 +50,7 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
-  await rewriteErrorTrace(err)
+  await applySourcemaps(err)
 
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
