@@ -32,15 +32,27 @@ export function createEntry (filePath, {name, pageExtensions} = {}) {
   const parsedPath = path.parse(filePath)
   let entryName = name || filePath
 
-  // This makes sure we compile `pages/blog/index.js` to `pages/blog.js`.
-  // Excludes `pages/index.js` from this rule since we do want `/` to route to `pages/index.js`
-  if (parsedPath.dir !== 'pages' && parsedPath.name === 'index') {
-    entryName = `${parsedPath.dir}.js`
-  }
-
-  // Makes sure supported extensions are stripped off. The outputted file should always be `.js`
   if (pageExtensions) {
-    entryName = entryName.replace(new RegExp(`\\.+(${pageExtensions})$`), '.js')
+    // Regular expression to match only the extension of a given file
+    const extensionsRegex = new RegExp(`\\.+(${pageExtensions})$`)
+
+    // This makes sure we compile passed page extensions (including multi-period extensions)
+    // like `pages/blog/index.entry.ts` to `pages/blog.js`
+    // Excludes `pages/index.js` from this rule since we do want `/` to route to `pages/index.js`
+    if (
+      parsedPath.dir !== 'pages' &&
+      parsedPath.base.replace(extensionsRegex, '') === 'index'
+    ) {
+      entryName = `${parsedPath.dir}.js`
+    }
+
+    // Makes sure supported extensions are stripped off. The outputted file should always be `.js`
+    entryName = entryName.replace(extensionsRegex, '.js')
+  } else {
+    // Check to ensure we compile `pages/blog/index.js` to `pages/blog.js`
+    if (parsedPath.dir !== 'pages' && parsedPath.name === 'index') {
+      entryName = `${parsedPath.dir}.js`
+    }
   }
 
   return {

@@ -40,10 +40,28 @@ describe('createEntry', () => {
     expect(entry.files[0]).toBe('./pages/index.tsx')
   })
 
+  it('Should allow custom multi-period extension like .entry.tsx to be turned into .js', () => {
+    const entry = createEntry('pages/index.entry.tsx', {pageExtensions: ['entry.tsx']})
+    expect(entry.name).toBe(normalize('bundles/pages/index.js'))
+    expect(entry.files[0]).toBe('./pages/index.entry.tsx')
+  })
+
   it('Should turn pages/blog/index.js into pages/blog.js', () => {
     const entry = createEntry('pages/blog/index.js')
     expect(entry.name).toBe(normalize('bundles/pages/blog.js'))
     expect(entry.files[0]).toBe('./pages/blog/index.js')
+  })
+
+  it('Should turn custom extension pages/blog/index.tsx into pages/blog.js', () => {
+    const entry = createEntry('pages/blog/index.tsx', {pageExtensions: ['tsx']})
+    expect(entry.name).toBe(normalize('bundles/pages/blog.js'))
+    expect(entry.files[0]).toBe('./pages/blog/index.tsx')
+  })
+
+  it('Should turn custom multi-period extension pages/blog/index.entry.tsx into pages/blog.js', () => {
+    const entry = createEntry('pages/blog/index.entry.tsx', {pageExtensions: ['entry.tsx']})
+    expect(entry.name).toBe(normalize('bundles/pages/blog.js'))
+    expect(entry.files[0]).toBe('./pages/blog/index.entry.tsx')
   })
 })
 
