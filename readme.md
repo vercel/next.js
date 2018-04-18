@@ -990,36 +990,6 @@ export default class MyApp extends App {
 }
 ```
 
-When using state inside app the `hasError` property has to be defined:
-
-```js
-import App, {Container} from 'next/app'
-import React from 'react'
-
-export default class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return {pageProps}
-  }
-
-  state = {
-    hasError: null
-  }
-
-  render () {
-    const {Component, pageProps} = this.props
-    return <Container>
-      <Component {...pageProps} />
-    </Container>
-  }
-}
-```
-
 ### Custom `<Document>`
 
 <p><details>
