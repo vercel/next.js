@@ -104,11 +104,14 @@ export default function ({ app }, suiteName, render, fetch) {
     test('error-inside-page', async () => {
       const $ = await get$('/error-inside-page')
       expect($('pre').text()).toMatch(/This is an expected error/)
+      // Check if the the source map line is correct
+      expect($('body').text()).toMatch(/pages\/error-inside-page\.js:2:0/)
     })
 
     test('error-in-the-global-scope', async () => {
       const $ = await get$('/error-in-the-global-scope')
       expect($('pre').text()).toMatch(/aa is not defined/)
+      expect($('body').text()).toMatch(/pages\/error-in-the-global-scope\.js:1:0/)
     })
 
     test('asPath', async () => {
