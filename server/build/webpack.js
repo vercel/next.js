@@ -16,6 +16,7 @@ import BuildManifestPlugin from './plugins/build-manifest-plugin'
 
 const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
 const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
+const reactJsxSourceItem = createConfigItem(require('@babel/plugin-transform-react-jsx-source'), {type: 'plugin'})
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -34,7 +35,8 @@ function babelConfig (dir, {isServer, dev}) {
     cacheDirectory: true,
     presets: [],
     plugins: [
-      dev && !isServer && hotLoaderItem
+      dev && !isServer && hotLoaderItem,
+      dev && reactJsxSourceItem
     ].filter(Boolean)
   }
 
@@ -119,7 +121,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   } : {}
 
   let webpackConfig = {
-    devtool: dev ? 'source-map' : false,
+    devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
@@ -139,14 +141,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
-      strictModuleExceptionHandling: true,
-      devtoolModuleFilenameTemplate (info) {
-        if (dev) {
-          return info.absoluteResourcePath
-        }
-
-        return `${info.absoluteResourcePath.replace(dir, '.').replace(nextDir, './node_modules/next')}`
-      }
+      strictModuleExceptionHandling: true
     },
     performance: { hints: false },
     resolve: {
