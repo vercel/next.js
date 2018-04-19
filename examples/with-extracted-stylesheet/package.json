@@ -1,0 +1,40 @@
+{
+  "name": "with-next",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development node bin/start",
+    "build": "cross-env-shell NODE_ENV=production 'next build && next export && node bin/bundle'",
+    "start": "cross-env NODE_ENV=production node bin/start"
+  },
+  "author": "Adam Stankiewicz <sheerun@sher.pl> (https://sheerun.net)",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "autoprefixer": "^7.1.6",
+    "brace": "^0.11.0",
+    "bulma": "^0.6.1",
+    "compression": "^1.7.1",
+    "cross-env": "^5.1.1",
+    "css-loader": "^0.28.7",
+    "express": "^4.16.2",
+    "express-device": "^0.4.2",
+    "extract-text-webpack-plugin": "^3.0.2",
+    "extracted-loader": "^1.0.3",
+    "file-loader": "1.1.5",
+    "font-awesome": "^4.7.0",
+    "fs-extra": "4.0.3",
+    "glob-promise": "^3.3.0",
+    "img-loader": "2.0.0",
+    "next": "latest",
+    "node-sass": "^4.4.0",
+    "postcss-loader": "^2.0.7",
+    "react": "^16.0.0",
+    "react-ace": "^5.8.0",
+    "react-dom": "^16.0.0",
+    "react-icons": "^2.2.7",
+    "sass-loader": "^6.0.6",
+    "url-loader": "0.6.2"
+  },
+  "devDependencies": {
+    "now": "^8.3.10"
+  }
+}

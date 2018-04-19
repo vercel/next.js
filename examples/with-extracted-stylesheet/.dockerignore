@@ -1,0 +1,5 @@
+Dockerfile
+node_modules
+.next
+.static
+out
