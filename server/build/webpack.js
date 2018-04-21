@@ -228,8 +228,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
                   alias: {
                     'babel-runtime': relativeResolve('babel-runtime/package'),
                     'next/link': relativeResolve('../../lib/link'),
-                    'next/prefetch': relativeResolve('../../lib/prefetch'),
-                    'next/css': relativeResolve('../../lib/css'),
                     'next/dynamic': relativeResolve('../../lib/dynamic'),
                     'next/same-loop-promise': relativeResolve('../../lib/same-loop-promise'),
                     'next/head': relativeResolve('../../lib/head'),
