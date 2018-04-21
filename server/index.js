@@ -143,20 +143,20 @@ export default class Server {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
 
-          return await renderScriptError(req, res, page, error, customFields, this.renderOpts)
+          return renderScriptError(req, res, page, error, customFields, this.renderOpts)
         }
 
         if (this.dev && page !== '/_error.js') {
           try {
             await this.hotReloader.ensurePage(page)
           } catch (error) {
-            return await renderScriptError(req, res, page, error, {}, this.renderOpts)
+            return renderScriptError(req, res, page, error, {}, this.renderOpts)
           }
 
           const compilationErr = await this.getCompilationError()
           if (compilationErr) {
             const customFields = { statusCode: 500 }
-            return await renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
+            return renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
           }
         }
 
@@ -183,7 +183,7 @@ export default class Server {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
 
-          return await renderScriptError(req, res, name, error, customFields, this.renderOpts)
+          return renderScriptError(req, res, name, error, customFields, this.renderOpts)
         }
 
         const p = join(this.dir, this.dist, 'bundles', name)
@@ -250,7 +250,7 @@ export default class Server {
     }
 
     if (blockedPages[pathname]) {
-      return await this.render404(req, res, parsedUrl)
+      return this.render404(req, res, parsedUrl)
     }
 
     if (this.config.poweredByHeader) {

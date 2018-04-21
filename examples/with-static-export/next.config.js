@@ -15,7 +15,7 @@ module.exports = {
             query: { id: post.id }
           }
         }),
-      {},
+      {}
     )
 
     // combine the map of post pages with the home

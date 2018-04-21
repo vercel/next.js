@@ -130,7 +130,7 @@
     "portfinder": "1.0.13",
     "react": "16.2.0",
     "react-dom": "16.2.0",
-    "standard": "9.0.2",
+    "standard": "11.0.1",
     "taskr": "1.1.0",
     "wd": "1.6.1"
   },

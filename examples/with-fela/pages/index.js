@@ -20,7 +20,7 @@ const Title = createComponent(
     fontSize: size,
     color: '#555'
   }),
-  Text,
+  Text
 )
 
 export default () =>

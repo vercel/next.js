@@ -23,33 +23,33 @@ const pluginOptions = [
 ]
 
 app.prepare()
-.then(() => {
-  server.connection({ port })
-  server.register(pluginOptions)
   .then(() => {
-    server.route({
-      method: 'GET',
-      path: '/a',
-      handler: pathWrapper(app, '/a')
-    })
+    server.connection({ port })
+    server.register(pluginOptions)
+      .then(() => {
+        server.route({
+          method: 'GET',
+          path: '/a',
+          handler: pathWrapper(app, '/a')
+        })
 
-    server.route({
-      method: 'GET',
-      path: '/b',
-      handler: pathWrapper(app, '/b')
-    })
+        server.route({
+          method: 'GET',
+          path: '/b',
+          handler: pathWrapper(app, '/b')
+        })
 
-    server.route({
-      method: 'GET',
-      path: '/{p*}', /* catch all route */
-      handler: defaultHandlerWrapper(app)
-    })
+        server.route({
+          method: 'GET',
+          path: '/{p*}', /* catch all route */
+          handler: defaultHandlerWrapper(app)
+        })
 
-    server.start().catch(error => {
-      console.log('Error starting server')
-      console.log(error)
-    }).then(() => {
-      console.log(`> Ready on http://localhost:${port}`)
-    })
+        server.start().catch(error => {
+          console.log('Error starting server')
+          console.log(error)
+        }).then(() => {
+          console.log(`> Ready on http://localhost:${port}`)
+        })
+      })
   })
-})

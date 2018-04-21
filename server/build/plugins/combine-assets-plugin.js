@@ -30,7 +30,7 @@ export default class CombineAssetsPlugin {
         chunks.filter((chunk) => {
           return chunk.files.reduce((prev, file) => prev || this.input.includes(file), false)
         })
-        .forEach((chunk) => chunk.files.push(this.output))
+          .forEach((chunk) => chunk.files.push(this.output))
       })
     })
   }

@@ -21,7 +21,7 @@ export default class MyDocument extends Document {
         data-fela-type={type}
         key={`${type}-${media}`}
         media={media}
-      />,
+      />
     )
 
     return (

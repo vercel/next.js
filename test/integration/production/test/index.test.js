@@ -64,9 +64,9 @@ describe('Production Usage', () => {
     it('should navigate via client side', async () => {
       const browser = await webdriver(appPort, '/')
       const text = await browser
-          .elementByCss('a').click()
-          .waitForElementByCss('.about-page')
-          .elementByCss('div').text()
+        .elementByCss('a').click()
+        .waitForElementByCss('.about-page')
+        .elementByCss('div').text()
 
       expect(text).toBe('About Page')
       browser.close()
