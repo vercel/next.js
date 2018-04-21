@@ -105,36 +105,6 @@ export default (context, render) => {
 
         browser.close()
       })
-
-      it('should not reload unrelated pages', async () => {
-        const browser = await webdriver(context.appPort, '/hmr/counter')
-        const text = await browser
-          .elementByCss('button').click()
-          .elementByCss('button').click()
-          .elementByCss('p').text()
-        expect(text).toBe('COUNT: 2')
-
-        const aboutPagePath = join(__dirname, '../', 'pages', 'hmr', 'about.js')
-
-        const originalContent = readFileSync(aboutPagePath, 'utf8')
-        const editedContent = originalContent.replace('This is the about page', 'COOL page')
-
-        // Change the about.js page
-        writeFileSync(aboutPagePath, editedContent, 'utf8')
-
-        // wait for 5 seconds
-        await waitFor(5000)
-
-        // Check whether the this page has reloaded or not.
-        const newText = await browser
-          .elementByCss('p').text()
-        expect(newText).toBe('COUNT: 2')
-
-        // restore the about page content.
-        writeFileSync(aboutPagePath, originalContent, 'utf8')
-
-        browser.close()
-      })
     })
   })
 }
