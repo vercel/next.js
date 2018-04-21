@@ -1,5 +1,4 @@
 /* eslint-disable import/first, no-return-await */
-require('@zeit/source-map-support').install()
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
@@ -337,6 +336,8 @@ export default class Server {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
+        const {applySourcemaps} = require('./lib/source-map-support')
+        await applySourcemaps(err)
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)

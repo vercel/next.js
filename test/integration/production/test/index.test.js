@@ -74,6 +74,26 @@ describe('Production Usage', () => {
     })
   })
 
+  describe('Runtime errors', () => {
+    it('should render a server side error on the client side', async () => {
+      const browser = await webdriver(appPort, '/error-in-ssr-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      // this makes sure we don't leak the actual error to the client side in production
+      expect(text).toMatch(/Internal Server Error\./)
+      const headingText = await browser.elementByCss('h1').text()
+      // This makes sure we render statusCode on the client side correctly
+      expect(headingText).toBe('500')
+    })
+
+    it('should render a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/An unexpected error has occurred\./)
+    })
+  })
+
   describe('Misc', () => {
     it('should handle already finished responses', async () => {
       const res = {
