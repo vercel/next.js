@@ -233,8 +233,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
                     'next/head': relativeResolve('../../lib/head'),
                     'next/document': relativeResolve('../../server/document'),
                     'next/router': relativeResolve('../../lib/router'),
-                    'next/error': relativeResolve('../../lib/error'),
-                    'styled-jsx/style': relativeResolve('styled-jsx/style')
+                    'next/error': relativeResolve('../../lib/error')
                   }
                 }
               ]
