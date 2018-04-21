@@ -23,7 +23,6 @@ const {
     pathname,
     query,
     buildId,
-    chunks,
     assetPrefix
   },
   location
@@ -40,14 +39,7 @@ window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })
 delete window.__NEXT_LOADED_PAGES__
-
-window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
-  pageLoader.registerChunk(chunkName, fn)
-})
-delete window.__NEXT_LOADED_CHUNKS__
-
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
-window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
@@ -63,11 +55,6 @@ let stripAnsi = (s) => s
 export const emitter = new EventEmitter()
 
 export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
-  // Wait for all the dynamic chunks to get loaded
-  for (const chunkName of chunks) {
-    await pageLoader.waitForChunk(chunkName)
-  }
-
   stripAnsi = passedStripAnsi || stripAnsi
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')

@@ -6,7 +6,6 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
-import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 import * as babelCore from 'babel-core'
@@ -123,7 +122,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
     }),
     new PagesPlugin(),
-    new DynamicChunksPlugin(),
     new CaseSensitivePathPlugin()
   ]
 
