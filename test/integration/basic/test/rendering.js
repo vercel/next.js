@@ -119,6 +119,22 @@ export default function ({ app }, suiteName, render, fetch) {
       expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
     })
 
+    describe('Url prop', () => {
+      it('should provide pathname, query and asPath', async () => {
+        const $ = await get$('/url-prop')
+        expect($('#pathname').text()).toBe('/url-prop')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop')
+      })
+
+      it('should override props.url, even when getInitialProps returns url as property', async () => {
+        const $ = await get$('/url-prop-override')
+        expect($('#pathname').text()).toBe('/url-prop-override')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop-override')
+      })
+    })
+
     describe('404', () => {
       it('should 404 on not existent page', async () => {
         const $ = await get$('/non-existent')
