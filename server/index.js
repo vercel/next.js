@@ -113,7 +113,7 @@ export default class Server {
   }
 
   async prepare () {
-    if (this.dev) {
+    if (this.dev && process.stdout.isTTY) {
       const checkForUpdate = require('update-check')
       const update = await checkForUpdate(pkg, {
         distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
