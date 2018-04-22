@@ -4,7 +4,6 @@ import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
-import updateNotifier from '@zeit/check-updates'
 import promisify from './lib/promisify'
 import {
   renderToHTML,
@@ -43,10 +42,6 @@ export default class Server {
     this.dist = this.nextConfig.distDir
 
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
-
-    if (dev) {
-      updateNotifier(pkg, 'next')
-    }
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -118,6 +113,17 @@ export default class Server {
   }
 
   async prepare () {
+    if (this.dev && process.stdout.isTTY) {
+      const checkForUpdate = require('update-check')
+      const update = await checkForUpdate(pkg, {
+        distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
+      })
+      if (update) {
+        // bgRed from chalk
+        console.log(`\u001B[41mUPDATE AVAILABLE\u001B[49m The latest version of \`next\` is ${update.latest}`)
+      }
+    }
+
     await this.defineRoutes()
     if (this.hotReloader) {
       await this.hotReloader.start()
