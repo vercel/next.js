@@ -12,6 +12,7 @@ import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
 import { BUILD_MANIFEST } from '../lib/constants'
+import { applySourcemaps } from './lib/source-map-support'
 
 const logger = console
 
@@ -48,6 +49,8 @@ async function doRender (req, res, pathname, query, {
   nextExport = false
 } = {}) {
   page = page || pathname
+
+  await applySourcemaps(err)
 
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
@@ -95,7 +98,7 @@ async function doRender (req, res, pathname, query, {
       if (err && dev) {
         errorHtml = render(createElement(ErrorDebug, { error: err }))
       } else if (err) {
-        errorHtml = render(app)
+        html = render(app)
       } else {
         html = render(app)
       }
