@@ -29,8 +29,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
-    join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
-    join(__dirname, '..', '..', 'client', 'on-demand-entries-client')
+    join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client')
   ] : []
   const mainJS = dev
     ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')

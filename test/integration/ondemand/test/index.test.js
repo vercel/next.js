@@ -18,15 +18,6 @@ describe('On Demand Entries', () => {
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
   })
   afterAll(() => killApp(context.server))
-
-  it('should compile pages for SSR', async () => {
-    // The buffer of built page uses the on-demand-entries-ping to know which pages should be
-    // buffered. Therefore, we need to double each render call with a ping.
-    const pageContent = await renderViaHTTP(context.appPort, '/')
-    await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/'})
-    expect(pageContent.includes('Index Page')).toBeTruthy()
-  })
-
   it('should compile pages for JSON page requests', async () => {
     const pageContent = await renderViaHTTP(context.appPort, '/_next/-/pages/about.js')
     expect(pageContent.includes('About Page')).toBeTruthy()

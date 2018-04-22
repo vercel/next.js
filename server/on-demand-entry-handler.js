@@ -1,7 +1,6 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
-import { parse } from 'url'
 import resolvePath from './resolve'
 import touch from 'touch'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE, normalizePageEntryName } from './utils'
@@ -18,7 +17,6 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   pagesBufferLength = 2
 }) {
   let entries = {}
-  let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
   const invalidator = new Invalidator(devMiddleware)
   let touchedAPage = false
@@ -176,34 +174,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
               res.end('302')
             })
         } else {
-          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
-
-          const { query } = parse(req.url, true)
-          const page = normalizePage(query.page)
-          const entryInfo = entries[page]
-
-          // If there's no entry.
-          // Then it seems like an weird issue.
-          if (!entryInfo) {
-            const message = `Client pings, but there's no entry for page: ${page}`
-            console.error(message)
-            sendJson(res, { invalid: true })
-            return
-          }
-
-          sendJson(res, { success: true })
-
-          // We don't need to maintain active state of anything other than BUILT entries
-          if (entryInfo.status !== BUILT) return
-
-          // If there's an entryInfo
-          if (!lastAccessPages.includes(page)) {
-            lastAccessPages.unshift(page)
-
-            // Maintain the buffer max length
-            if (lastAccessPages.length > pagesBufferLength) lastAccessPages.pop()
-          }
-          entryInfo.lastActiveTime = Date.now()
+          return next()
         }
       }
     }
@@ -224,12 +195,6 @@ function addEntry (compilation, context, name, entry) {
 // This also applies to sub pages as well.
 function normalizePage (page) {
   return page.replace(/\.js$/, '').replace(/\/index$/, '/')
-}
-
-function sendJson (res, payload) {
-  res.setHeader('Content-Type', 'application/json')
-  res.status = 200
-  res.end(JSON.stringify(payload))
 }
 
 // Make sure only one invalidation happens at a time
