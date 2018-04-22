@@ -40,6 +40,8 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/custom-extension'),
       renderViaHTTP(context.appPort, '/styled-jsx'),
       renderViaHTTP(context.appPort, '/with-cdm'),
+      renderViaHTTP(context.appPort, '/url-prop'),
+      renderViaHTTP(context.appPort, '/url-prop-override'),
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
