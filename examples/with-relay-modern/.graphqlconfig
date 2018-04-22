@@ -1,8 +1,0 @@
-{
-  "schemaPath": "schema/schema.graphql",
-  "extensions": {
-    "endpoints": {
-      "dev": "https://api.graph.cool/relay/v1/next-js-with-relay-modern-example"
-    }
-  }
-}
