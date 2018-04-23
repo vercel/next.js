@@ -29,7 +29,8 @@ export default async function (dir, options, configuration) {
   const defaultPathMap = {}
 
   for (const page of pages) {
-    if (page === '/_document') {
+    // _document and _app are not real pages.
+    if (page === '/_document' || page === '/_app') {
       continue
     }
     defaultPathMap[page] = { page }
