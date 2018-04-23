@@ -1,5 +1,5 @@
 {
-  "name": "hello-world",
+  "name": "with-componentdidcatch",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
