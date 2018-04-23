@@ -525,7 +525,7 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an url.
+You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
 
 ```jsx
 import Router from 'next/router'
@@ -542,7 +542,7 @@ export default () =>
   </div>
 ```
 
-This uses of the same exact parameters as in the `<Link>` component.
+This uses the same exact parameters as in the `<Link>` component.
 
 ##### Router Events
 
