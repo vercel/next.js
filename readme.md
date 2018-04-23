@@ -954,7 +954,7 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 <p><details>
   <summary><b>Examples</b></summary>
   <ul><li><a href="./examples/layout-component">Using `_app.js` for layout</a></li></ul>
-  <ul><li><a href="./examples/componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
+  <ul><li><a href="./examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
 </details></p>
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
