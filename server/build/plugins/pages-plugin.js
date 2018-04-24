@@ -27,9 +27,8 @@ class PageChunkTemplatePlugin {
 
       const source = new ConcatSource()
 
-      source.add(`
-        __NEXT_REGISTER_PAGE('${routeName}', function() {
-          var comp = 
+      source.add(`__NEXT_REGISTER_PAGE('${routeName}', function() {
+          var comp =
       `)
       source.add(modules)
       source.add(`
