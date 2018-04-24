@@ -5,12 +5,12 @@ axios.defaults.withCredentials = true
 
 const WINDOW_USER_SCRIPT_VARIABLE = `__USER__`
 
-const decode = ({ token }) => {
+const decode = ({token}) => {
   if (!token) {
     return {}
   }
-  const { email, type, } = token || {}
-  return { user: { email, type } }
+  const {email, type} = token || {}
+  return {user: {email, type}}
 }
 
 export const getUserScript = (user) => {
@@ -18,9 +18,8 @@ export const getUserScript = (user) => {
   return `${WINDOW_USER_SCRIPT_VARIABLE} = ${json};`
 }
 
-
 export const getServerSideToken = (req) => {
-  const { signedCookies } = req
+  const {signedCookies} = req
 
   if (!signedCookies) {
     return {}
@@ -35,9 +34,9 @@ export const getServerSideToken = (req) => {
 export const getClientSideToken = () => {
   if (typeof window !== 'undefined') {
     const user = window[WINDOW_USER_SCRIPT_VARIABLE] || {}
-    return { user }
+    return {user}
   }
-  return { user: {} }
+  return {user: {}}
 }
 
 const getRedirectPath = (userType) => {
@@ -59,7 +58,7 @@ const redirect = (res, path) => {
   return {}
 }
 
-export const authInitialProps = (redirectIfAuth, secured) => async ({ req, res }) => {
+export const authInitialProps = (redirectIfAuth, secured) => async ({req, res}) => {
   const auth = req ? getServerSideToken(req) : getClientSideToken()
   const current = req ? req.url : window.location.pathname
   const user = auth.user
@@ -73,28 +72,26 @@ export const authInitialProps = (redirectIfAuth, secured) => async ({ req, res }
       return redirect(res, path)
     }
   }
-  return { auth }
+  return {auth}
 }
 
-export const getProfile = () => axios
-  .get('/api/profile')
-  .then(response => response.data)
+export const getProfile = async () => {
+  const response = await axios.get('/api/profile')
+  return response.data
+}
 
-export const processLogin = async ({ email, password }) => {
-  const user = await axios
-    .post('/api/login', { email, password })
-    .then(response => response.data)
+export const processLogin = async ({email, password}) => {
+  const response = await axios.post('/api/login', {email, password})
+  const {data} = response
   if (typeof window !== 'undefined') {
-    window[WINDOW_USER_SCRIPT_VARIABLE] = user || {}
+    window[WINDOW_USER_SCRIPT_VARIABLE] = data || {}
   }
 }
 
-export const processLogout = () => {
+export const processLogout = async () => {
   if (typeof window !== 'undefined') {
     window[WINDOW_USER_SCRIPT_VARIABLE] = {}
   }
-  axios.post('/api/logout').then(() => Router.push('/login'))
+  await axios.post('/api/logout')
+  Router.push('/login')
 }
-
-
-
