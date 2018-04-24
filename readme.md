@@ -953,7 +953,7 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/layout-component">Using `_app.js` for layout</a></li></ul>
+  <ul><li><a href="./examples/with-app-layout">Using `_app.js` for layout</a></li></ul>
   <ul><li><a href="./examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
 </details></p>
 
