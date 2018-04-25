@@ -45,4 +45,4 @@ now
 ```
 
 ## The idea behind the example
-This example is based on the great work of [with-redux](https://github.com/zeit/next.js/tree/v3-beta/examples/with-redux) example with the addition of [reselect](https://github.com/reactjs/reselect) and [recompose](https://github.com/acdlite/recompose)
+This example is based on the great work of [with-redux](https://github.com/zeit/next.js/blob/master/examples/with-redux/) example with the addition of [reselect](https://github.com/reactjs/reselect) and [recompose](https://github.com/acdlite/recompose)
