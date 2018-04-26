@@ -48,7 +48,7 @@ function babelConfig (dir, {isServer, dev}) {
       console.log(`> Using external babel configuration`)
       console.log(`> Location: "${externalBabelConfig.babelrc}"`)
     }
-    // By default babel-loader will look for babelrc, so no need to set it to true
+    mainBabelOptions.babelrc = true
   } else {
     mainBabelOptions.babelrc = false
   }
