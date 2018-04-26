@@ -1,7 +1,7 @@
 {
   "name": "with-reasonml",
   "sources": ["components", "pages"],
-  "bs-dependencies": ["reason-react"],
+  "bs-dependencies": ["reason-react", "bs-next"],
   "reason": { "react-jsx": 2 },
   "package-specs": ["commonjs"],
   "bsc-flags": [
