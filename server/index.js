@@ -156,7 +156,7 @@ export default class Server {
       '/_next/webpack/chunks/:name': async (req, res, params) => {
         // Cache aggressively in production
         if (!this.dev) {
-          res.setHeader('Cache-Control', 'max-age=31536000, immutable')
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
         }
         const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
@@ -429,7 +429,7 @@ export default class Server {
       return false
     }
 
-    res.setHeader('Cache-Control', 'max-age=31536000, immutable')
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     return true
   }
 
