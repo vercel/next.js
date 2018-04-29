@@ -6,7 +6,11 @@ let make = (_children) => {
   ...component,
   render: (_self) =>
     <div>
-      <a href="/" style=styles> (ReasonReact.stringToElement("Home")) </a>
-      <a href="/about" style=styles> (ReasonReact.stringToElement("About")) </a>
+      <Next.Link href="/">
+        <a style=styles> (ReasonReact.stringToElement("Home")) </a>
+      </Next.Link>
+      <Next.Link href="/about">
+        <a style=styles> (ReasonReact.stringToElement("About")) </a>
+      </Next.Link>
     </div>
 };

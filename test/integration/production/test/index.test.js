@@ -65,12 +65,32 @@ describe('Production Usage', () => {
     it('should navigate via client side', async () => {
       const browser = await webdriver(appPort, '/')
       const text = await browser
-          .elementByCss('a').click()
-          .waitForElementByCss('.about-page')
-          .elementByCss('div').text()
+        .elementByCss('a').click()
+        .waitForElementByCss('.about-page')
+        .elementByCss('div').text()
 
       expect(text).toBe('About Page')
       browser.close()
+    })
+  })
+
+  describe('Runtime errors', () => {
+    it('should render a server side error on the client side', async () => {
+      const browser = await webdriver(appPort, '/error-in-ssr-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      // this makes sure we don't leak the actual error to the client side in production
+      expect(text).toMatch(/Internal Server Error\./)
+      const headingText = await browser.elementByCss('h1').text()
+      // This makes sure we render statusCode on the client side correctly
+      expect(headingText).toBe('500')
+    })
+
+    it('should render a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/An unexpected error has occurred\./)
     })
   })
 
@@ -98,8 +118,8 @@ describe('Production Usage', () => {
     it('should reload the page on page script error', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+        .elementByCss('#increase').click().click()
+        .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
       // When we go to the 404 page, it'll do a hard reload.
@@ -120,8 +140,8 @@ describe('Production Usage', () => {
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+        .elementByCss('#increase').click().click()
+        .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
       // Let the browser to prefetch the page and error it on the console.

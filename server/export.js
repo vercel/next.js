@@ -5,10 +5,9 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
-import {PHASE_EXPORT} from '../lib/constants'
+import {PHASE_EXPORT, PAGES_MANIFEST} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
-import { printAndExit } from '../lib/utils'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 
@@ -17,16 +16,25 @@ export default async function (dir, options, configuration) {
   const nextConfig = configuration || getConfig(PHASE_EXPORT, dir)
   const nextDir = join(dir, nextConfig.distDir)
 
-  log(`  using build directory: ${nextDir}`)
+  log(`> using build directory: ${nextDir}`)
 
   if (!existsSync(nextDir)) {
-    console.error(
-      `Build directory ${nextDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
-    )
-    process.exit(1)
+    throw new Error(`Build directory ${nextDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
   }
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
+  const pagesManifest = require(join(nextDir, 'dist', PAGES_MANIFEST))
+
+  const pages = Object.keys(pagesManifest)
+  const defaultPathMap = {}
+
+  for (const page of pages) {
+    // _document and _app are not real pages.
+    if (page === '/_document' || page === '/_app') {
+      continue
+    }
+    defaultPathMap[page] = { page }
+  }
 
   // Initialize the output directory
   const outDir = options.outdir
@@ -42,12 +50,6 @@ export default async function (dir, options, configuration) {
       { expand: true }
     )
   }
-
-  // Copy main.js
-  await cp(
-    join(nextDir, 'main.js'),
-    join(outDir, '_next', buildId, 'main.js')
-  )
 
   // Copy .next/static directory
   if (existsSync(join(nextDir, 'static'))) {
@@ -73,13 +75,13 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the `next.config.js`
   if (typeof nextConfig.exportPathMap !== 'function') {
-    printAndExit(
-      '> Could not find "exportPathMap" function inside "next.config.js"\n' +
-      '> "next export" uses that function to build html pages.'
-    )
+    console.log('> No "exportPathMap" found in "next.config.js". Generating map from "./pages"')
+    nextConfig.exportPathMap = async (defaultMap) => {
+      return defaultMap
+    }
   }
 
-  const exportPathMap = await nextConfig.exportPathMap()
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
   const exportPaths = Object.keys(exportPathMap)
 
   // Start the rendering process
@@ -115,7 +117,7 @@ export default async function (dir, options, configuration) {
   }
 
   for (const path of exportPaths) {
-    log(`  exporting path: ${path}`)
+    log(`> exporting path: ${path}`)
     if (!path.startsWith('/')) {
       throw new Error(`path "${path}" doesn't start with a backslash`)
     }

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
@@ -9,9 +10,9 @@ const Fragment = React.Fragment || function Fragment ({ children }) {
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage()
+    const { html, head, errorHtml, chunks, buildManifest } = renderPage()
     const styles = flush()
-    return { html, head, errorHtml, chunks, styles }
+    return { html, head, errorHtml, chunks, styles, buildManifest }
   }
 
   static childContextTypes = {
@@ -39,32 +40,33 @@ export class Head extends Component {
   }
 
   getChunkPreloadLink (filename) {
-    const { __NEXT_DATA__ } = this.context._documentProps
+    const { __NEXT_DATA__, buildManifest } = this.context._documentProps
     let { assetPrefix, buildId } = __NEXT_DATA__
-    const hash = buildId
 
-    return (
-      <link
+    const files = buildManifest[filename]
+
+    return files.map(file => {
+      return <link
         key={filename}
         rel='preload'
-        href={`${assetPrefix}/_next/${hash}/${filename}`}
+        href={`${assetPrefix}/_next/${file}`}
         as='script'
       />
-    )
+    })
   }
 
   getPreloadMainLinks () {
     const { dev } = this.context._documentProps
     if (dev) {
       return [
-        this.getChunkPreloadLink('manifest.js'),
-        this.getChunkPreloadLink('main.js')
+        ...this.getChunkPreloadLink('manifest.js'),
+        ...this.getChunkPreloadLink('main.js')
       ]
     }
 
     // In the production mode, we have a single asset with all the JS content.
     return [
-      this.getChunkPreloadLink('main.js')
+      ...this.getChunkPreloadLink('main.js')
     ]
   }
 
@@ -89,6 +91,7 @@ export class Head extends Component {
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />}
+      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_app.js`} as='script' />
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
@@ -124,31 +127,32 @@ export class NextScript extends Component {
   }
 
   getChunkScript (filename, additionalProps = {}) {
-    const { __NEXT_DATA__ } = this.context._documentProps
+    const { __NEXT_DATA__, buildManifest } = this.context._documentProps
     let { assetPrefix, buildId } = __NEXT_DATA__
-    const hash = buildId
 
-    return (
+    const files = buildManifest[filename]
+
+    return files.map((file) => (
       <script
         key={filename}
-        src={`${assetPrefix}/_next/${hash}/${filename}`}
+        src={`${assetPrefix}/_next/${file}`}
         {...additionalProps}
       />
-    )
+    ))
   }
 
   getScripts () {
     const { dev } = this.context._documentProps
     if (dev) {
       return [
-        this.getChunkScript('manifest.js'),
-        this.getChunkScript('main.js')
+        ...this.getChunkScript('manifest.js'),
+        ...this.getChunkScript('main.js')
       ]
     }
 
     // In the production mode, we have a single asset with all the JS content.
     // So, we can load the script with async
-    return [this.getChunkScript('main.js', { async: true })]
+    return [...this.getChunkScript('main.js', { async: true })]
   }
 
   getDynamicChunks () {
@@ -201,6 +205,7 @@ export class NextScript extends Component {
         `
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} />}
+      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/${buildId}/page/_app.js`} />
       <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/${buildId}/page/_error.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}

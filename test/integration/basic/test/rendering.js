@@ -15,6 +15,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    test('renders with fragment syntax', async () => {
+      const html = await render('/fragment-syntax')
+      expect(html.includes('My component!')).toBeTruthy()
+    })
+
     test('renders a stateful component', async () => {
       const $ = await get$('/stateful')
       const answer = $('#answer')
@@ -99,16 +104,35 @@ export default function ({ app }, suiteName, render, fetch) {
     test('error-inside-page', async () => {
       const $ = await get$('/error-inside-page')
       expect($('pre').text()).toMatch(/This is an expected error/)
+      // Check if the the source map line is correct
+      expect($('body').text()).toMatch(/pages\/error-inside-page\.js:2:0/)
     })
 
     test('error-in-the-global-scope', async () => {
       const $ = await get$('/error-in-the-global-scope')
       expect($('pre').text()).toMatch(/aa is not defined/)
+      expect($('body').text()).toMatch(/pages\/error-in-the-global-scope\.js:1:0/)
     })
 
     test('asPath', async () => {
       const $ = await get$('/nav/as-path', { aa: 10 })
       expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
+    })
+
+    describe('Url prop', () => {
+      it('should provide pathname, query and asPath', async () => {
+        const $ = await get$('/url-prop')
+        expect($('#pathname').text()).toBe('/url-prop')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop')
+      })
+
+      it('should override props.url, even when getInitialProps returns url as property', async () => {
+        const $ = await get$('/url-prop-override')
+        expect($('#pathname').text()).toBe('/url-prop-override')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop-override')
+      })
     })
 
     describe('404', () => {

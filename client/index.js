@@ -1,9 +1,8 @@
-import { createElement } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
-import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
@@ -67,34 +66,53 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
+let HotAppContainer
 let ErrorDebugComponent
 let Component
+let App
 let stripAnsi = (s) => s
+let applySourcemaps = (e) => e
 
 export const emitter = new EventEmitter()
 
-export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
+export default async ({
+  HotAppContainer: passedHotAppContainer,
+  ErrorDebugComponent: passedDebugComponent,
+  stripAnsi: passedStripAnsi,
+  applySourcemaps: passedApplySourcemaps
+} = {}) => {
   // Wait for all the dynamic chunks to get loaded
   for (const chunkName of chunks) {
     await pageLoader.waitForChunk(chunkName)
   }
 
   stripAnsi = passedStripAnsi || stripAnsi
+  applySourcemaps = passedApplySourcemaps || applySourcemaps
+  HotAppContainer = passedHotAppContainer
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
+  App = await pageLoader.loadPage('/_app')
+
+  let initialErr = err
 
   try {
     Component = await pageLoader.loadPage(page)
-  } catch (err) {
-    console.error(stripAnsi(`${err.message}\n${err.stack}`))
-    Component = ErrorComponent
+
+    if (typeof Component !== 'function') {
+      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    }
+  } catch (error) {
+    // This catches errors like throwing in the top level of a module
+    initialErr = error
   }
 
   router = createRouter(pathname, query, asPath, {
+    initialProps: props,
     pageLoader,
+    App,
     Component,
     ErrorComponent,
-    err
+    err: initialErr
   })
 
   router.subscribe(({ Component, props, hash, err }) => {
@@ -102,14 +120,14 @@ export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: pa
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
+  render({ Component, props, hash, err: initialErr, emitter })
 
   return emitter
 }
 
 export async function render (props) {
   if (props.err) {
-    await renderError(props.err)
+    await renderError(props)
     return
   }
 
@@ -117,46 +135,53 @@ export async function render (props) {
     await doRender(props)
   } catch (err) {
     if (err.abort) return
-    await renderError(err)
+    await renderError({...props, err})
   }
 }
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (error) {
-  const prod = process.env.NODE_ENV === 'production'
-  // We need to unmount the current app component because it's
-  // in the inconsistant state.
-  // Otherwise, we need to face issues when the issue is fixed and
-  // it's get notified via HMR
-  ReactDOM.unmountComponentAtNode(appContainer)
+export async function renderError (props) {
+  const {err} = props
 
-  const errorMessage = `${error.message}\n${error.stack}`
-  console.error(stripAnsi(errorMessage))
-
-  if (prod) {
-    const initProps = { err: error, pathname, query, asPath }
-    const props = await loadGetInitialProps(ErrorComponent, initProps)
-    renderReactElement(createElement(ErrorComponent, props), errorContainer)
-  } else {
-    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
+  // In development we apply sourcemaps to the error
+  if (process.env.NODE_ENV !== 'production') {
+    await applySourcemaps(err)
   }
+
+  const str = stripAnsi(`${err.message}\n${err.stack}${err.info ? `\n\n${err.info.componentStack}` : ''}`)
+  console.error(str)
+
+  if (process.env.NODE_ENV !== 'production') {
+    // We need to unmount the current app component because it's
+    // in the inconsistant state.
+    // Otherwise, we need to face issues when the issue is fixed and
+    // it's get notified via HMR
+    ReactDOM.unmountComponentAtNode(appContainer)
+    renderReactElement(<ErrorDebugComponent error={err} />, errorContainer)
+    return
+  }
+
+  // In production we do a normal render with the `ErrorComponent` as component.
+  // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
+  await doRender({...props, err, Component: ErrorComponent})
 }
 
 async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
+  // Usual getInitialProps fetching is handled in next/router
+  // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
-    // fetch props if ErrorComponent was replaced with a page component by HMR
     const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
+    props = await loadGetInitialProps(App, {Component, router, ctx: {err, pathname, query, asPath}})
   }
 
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, props, hash, err, router, headManager }
+  const appProps = { Component, hash, err, router, headManager, ...props }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
@@ -164,7 +189,15 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  renderReactElement(createElement(App, appProps), appContainer)
+
+  // In development we render react-hot-loader's wrapper component
+  if (HotAppContainer) {
+    renderReactElement(<HotAppContainer errorReporter={ErrorDebugComponent} warnings={false}>
+      <App {...appProps} />
+    </HotAppContainer>, appContainer)
+  } else {
+    renderReactElement(<App {...appProps} />, appContainer)
+  }
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }

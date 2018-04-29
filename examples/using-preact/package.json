@@ -7,7 +7,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "@zeit/next-preact": "0.0.4",
+    "@zeit/next-preact": "0.0.7",
     "next": "latest",
     "preact": "8.2.7",
     "preact-compat": "3.18.0"

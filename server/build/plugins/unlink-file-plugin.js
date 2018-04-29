@@ -1,6 +1,9 @@
 import { join } from 'path'
-import { unlink } from 'mz/fs'
+import promisify from '../../lib/promisify'
+import fs from 'fs'
 import { IS_BUNDLED_PAGE } from '../../utils'
+
+const unlink = promisify(fs.unlink)
 
 export default class UnlinkFilePlugin {
   constructor () {
@@ -10,7 +13,7 @@ export default class UnlinkFilePlugin {
   apply (compiler) {
     compiler.plugin('after-emit', (compilation, callback) => {
       const removed = Object.keys(this.prevAssets)
-      .filter((a) => IS_BUNDLED_PAGE.test(a) && !compilation.assets[a])
+        .filter((a) => IS_BUNDLED_PAGE.test(a) && !compilation.assets[a])
 
       this.prevAssets = compilation.assets
 
@@ -23,7 +26,7 @@ export default class UnlinkFilePlugin {
           throw err
         }
       }))
-      .then(() => callback(), callback)
+        .then(() => callback(), callback)
     })
   }
 }

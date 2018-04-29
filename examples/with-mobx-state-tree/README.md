@@ -4,11 +4,23 @@
 
 ## How to use
 
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+
+```bash
+npx create-next-app --example with-mobx-state-tree with-mobx-state-tree-app
+# or
+yarn create next-app --example with-mobx-state-tree with-mobx-state-tree-app
+```
+
+### Download manually
+
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx
-cd with-mobx
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx-state-tree
+cd with-mobx-state-tree
 ```
 
 Install it and run:
@@ -16,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -23,21 +38,20 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
+
 ## Notes
+
 This example is a mobx port of the [with-redux](https://github.com/zeit/next.js/tree/master/examples/with-redux) example. Decorator support is activated by adding a `.babelrc` file at the root of the project:
 
 ```json
 {
-  "presets": [
-    "next/babel"
-  ],
-  "plugins": [
-    "transform-decorators-legacy"
-  ]
+  "presets": ["next/babel"],
+  "plugins": ["transform-decorators-legacy"]
 }
 ```
 
 ### Rehydrating with server data
+
 After initializing the store (and possibly making changes such as fetching data), `getInitialProps` must stringify the store in order to pass it as props to the client. `mobx-state-tree` comes out of the box with a handy method for doing this called `getSnapshot`. The snapshot is sent to the client as `props.initialState` where the pages's `constructor()` may use it to rehydrate the client store.
 
 ## The idea behind the example

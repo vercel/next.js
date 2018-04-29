@@ -9,9 +9,10 @@ import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
-import App from '../lib/app'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
+import { BUILD_MANIFEST } from '../lib/constants'
+import { applySourcemaps } from './lib/source-map-support'
 
 const logger = console
 
@@ -49,21 +50,33 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
+  await applySourcemaps(err)
+
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
   }
 
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
-
-  let [Component, Document] = await Promise.all([
+  const appPath = join(dir, dist, 'dist', 'bundles', 'pages', '_app')
+  const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
+  let [Component, Document, App] = await Promise.all([
     requirePage(page, {dir, dist}),
-    require(documentPath)
+    require(documentPath),
+    require(appPath)
   ])
+
   Component = Component.default || Component
+
+  if (typeof Component !== 'function') {
+    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+  }
+
+  App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
-  const props = await loadGetInitialProps(Component, ctx)
+  const router = new Router(pathname, query, asPath)
+  const props = await loadGetInitialProps(App, {Component, router, ctx})
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
@@ -71,8 +84,8 @@ async function doRender (req, res, pathname, query, {
   const renderPage = (enhancer = Page => Page) => {
     const app = createElement(App, {
       Component: enhancer(Component),
-      props,
-      router: new Router(pathname, query, asPath)
+      router,
+      ...props
     })
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
@@ -85,7 +98,7 @@ async function doRender (req, res, pathname, query, {
       if (err && dev) {
         errorHtml = render(createElement(ErrorDebug, { error: err }))
       } else if (err) {
-        errorHtml = render(app)
+        html = render(app)
       } else {
         html = render(app)
       }
@@ -94,7 +107,7 @@ async function doRender (req, res, pathname, query, {
     }
     const chunks = loadChunks({ dev, dir, dist, availableChunks })
 
-    return { html, head, errorHtml, chunks }
+    return { html, head, errorHtml, chunks, buildManifest }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -117,6 +130,7 @@ async function doRender (req, res, pathname, query, {
     dev,
     dir,
     staticMarkup,
+    buildManifest,
     ...docProps
   })
 
@@ -127,7 +141,7 @@ export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
 
-  if (error.code === 'ENOENT') {
+  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
     res.end('404 - Not Found')
     return
@@ -198,15 +212,15 @@ function serializeError (dev, err) {
 export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
-    .on('directory', () => {
+      .on('directory', () => {
       // We don't allow directories to be read.
-      const err = new Error('No directory access')
-      err.code = 'ENOENT'
-      reject(err)
-    })
-    .on('error', reject)
-    .pipe(res)
-    .on('finish', resolve)
+        const err = new Error('No directory access')
+        err.code = 'ENOENT'
+        reject(err)
+      })
+      .on('error', reject)
+      .pipe(res)
+      .on('finish', resolve)
   })
 }
 

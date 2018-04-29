@@ -5,14 +5,36 @@ This configuration works with both Next and ActionHero hot reloading of code.
 
 A more detailed example showcasing how to use fetch and web sockets to interact with your API can be found here: https://github.com/actionhero/next-in-actionhero
 
-## To install:
-(assuming you have [node](http://nodejs.org/) and NPM installed)
+## How to use
 
-`npm install`
+### Using `create-next-app`
 
-## To Run:
-`npm start`
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
+```bash
+npx create-next-app --example custom-server-actionhero custom-server-actionhero-app
+# or
+yarn create next-app --example custom-server-actionhero custom-server-actionhero-app
+```
+
+### Download manually
+
+Download the example [or clone the repo](https://github.com/zeit/next.js):
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server-actionhero
+cd custom-server-actionhero
+```
+
+Install it and run:
+
+```bash
+npm install
+npm run start
+# or
+yarn
+yarn start
+```
 
 ## How does this work?
 

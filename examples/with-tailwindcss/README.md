@@ -8,7 +8,7 @@ This is an example of how you can include a global stylesheet in a next.js webap
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-tailwindcss with-tailwindcss-app
@@ -17,15 +17,6 @@ yarn create next-app --example with-tailwindcss with-tailwindcss-app
 ```
 
 ### Download manually
-
-If you like [create-next-app](https://github.com/segmentio/create-next-app) and/or [yarn](https://yarnpkg.com/en/docs/cli/create) simply run:
-
-```bash
-yarn create next-app --example with-tailwindcss my-app
-cd my-app
-```
-
-*Otherwise:*
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
@@ -38,8 +29,13 @@ cd with-tailwindcss
 
 To get this example running you just need to
 
-    yarn install .
-    yarn dev
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
 
 Visit [http://localhost:3000](http://localhost:3000) and try to modify `styles/index.css`.
 
@@ -73,7 +69,8 @@ some webpack loaders. If you are curious about using loaders with next look at t
 [example](https://github.com/zeit/next.js/tree/canary/examples/with-global-stylesheet).
 
 This project shows how you can set it up. Have a look at:
-* pages/_document.js
+
+* pages/\_document.js
 * styles/config/postcss.config.js
 * styles/config/tailwind.config.js
 * styles/index.css

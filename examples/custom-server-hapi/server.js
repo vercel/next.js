@@ -10,37 +10,37 @@ const server = new Hapi.Server({
 })
 
 app
-.prepare()
-.then(async () => {
-  server.route({
-    method: 'GET',
-    path: '/a',
-    handler: pathWrapper(app, '/a')
-  })
+  .prepare()
+  .then(async () => {
+    server.route({
+      method: 'GET',
+      path: '/a',
+      handler: pathWrapper(app, '/a')
+    })
 
-  server.route({
-    method: 'GET',
-    path: '/b',
-    handler: pathWrapper(app, '/b')
-  })
+    server.route({
+      method: 'GET',
+      path: '/b',
+      handler: pathWrapper(app, '/b')
+    })
 
-  server.route({
-    method: 'GET',
-    path: '/_next/{p*}', /* next specific routes */
-    handler: nextHandlerWrapper(app)
-  })
+    server.route({
+      method: 'GET',
+      path: '/_next/{p*}', /* next specific routes */
+      handler: nextHandlerWrapper(app)
+    })
 
-  server.route({
-    method: 'GET',
-    path: '/{p*}', /* catch all route */
-    handler: defaultHandlerWrapper(app)
-  })
+    server.route({
+      method: 'GET',
+      path: '/{p*}', /* catch all route */
+      handler: defaultHandlerWrapper(app)
+    })
 
-  try {
-    await server.start()
-    console.log(`> Ready on http://localhost:${port}`)
-  } catch (error) {
-    console.log('Error starting server')
-    console.log(error)
-  }
-})
+    try {
+      await server.start()
+      console.log(`> Ready on http://localhost:${port}`)
+    } catch (error) {
+      console.log('Error starting server')
+      console.log(error)
+    }
+  })

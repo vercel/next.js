@@ -39,11 +39,10 @@ describe('Production Usage', () => {
 
   describe('File locations', () => {
     it('should build the app within the given `dist` directory', () => {
-      expect(existsSync(join(__dirname, '/../dist/main.js'))).toBeTruthy()
+      expect(existsSync(join(__dirname, '/../dist/BUILD_ID'))).toBeTruthy()
     })
-
     it('should not build the app within the default `.next` directory', () => {
-      expect(existsSync(join(__dirname, '/../.next/main.js'))).toBeFalsy()
+      expect(existsSync(join(__dirname, '/../.next/BUILD_ID'))).toBeFalsy()
     })
   })
 })
