@@ -1,12 +1,10 @@
-FROM node:9-slim AS builder
-WORKDIR /app
-COPY package.json .
-RUN npm install
-COPY . .
-RUN npm run build
+FROM mhart/alpine-node
 
-FROM node:9-alpine
 WORKDIR /app
-COPY --from=builder /app .
+COPY . .
+
+RUN yarn install
+RUN yarn build
+
 EXPOSE 3000
-CMD npm start
+CMD ["yarn", "start"]
