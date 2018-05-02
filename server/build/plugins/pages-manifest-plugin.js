@@ -28,6 +28,10 @@ export default class PagesManifestPlugin {
         pages[`/${pagePath.replace(/\\/g, '/')}`] = name
       }
 
+      if (typeof pages['/index'] !== 'undefined') {
+        pages['/'] = pages['/index']
+      }
+
       compilation.assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages))
       callback()
     })
