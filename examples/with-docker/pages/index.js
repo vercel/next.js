@@ -1,6 +1,6 @@
 import React from 'react'
 import getConfig from 'next/config'
-const { serverRuntimeConfig, publicRuntimeConfig } = getConfig()
+const { publicRuntimeConfig } = getConfig()
 
 const { API_URL } = publicRuntimeConfig
 

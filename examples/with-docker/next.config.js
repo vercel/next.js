@@ -4,6 +4,6 @@ module.exports = {
     mySecret: 'secret'
   },
   publicRuntimeConfig: { // Will be available on both server and client
-    API_URL: process.env.API_URL,
+    API_URL: process.env.API_URL
   }
 }
