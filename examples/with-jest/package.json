@@ -7,6 +7,7 @@
     "react-dom": "16.2.0"
   },
   "devDependencies": {
+    "babel-jest": "^22.4.3",
     "enzyme": "3.2.0",
     "enzyme-adapter-react-16": "1.1.1",
     "jest": "22.0.1",
