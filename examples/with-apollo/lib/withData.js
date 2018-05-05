@@ -2,6 +2,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import Head from 'next/head'
+
 import initApollo from './initApollo'
 
 // Gets the display name of a JSX component for dev tools
@@ -14,6 +15,7 @@ export default ComposedComponent => {
     static displayName = `WithData(${getComponentDisplayName(
       ComposedComponent
     )})`
+
     static propTypes = {
       serverState: PropTypes.object.isRequired
     }
@@ -30,14 +32,14 @@ export default ComposedComponent => {
 
       // Run all GraphQL queries in the component tree
       // and extract the resulting data
-      const apollo = initApollo()
+      const apollo = initApollo(undefined)
       try {
         // create the url prop which is passed to every page
         const url = {
           query: ctx.query,
           asPath: ctx.asPath,
-          pathname: ctx.pathname,
-        };
+          pathname: ctx.pathname
+        }
 
         // Run all GraphQL queries
         await getDataFromTree(

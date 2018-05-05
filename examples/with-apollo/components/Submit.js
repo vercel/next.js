@@ -1,5 +1,5 @@
 import gql from 'graphql-tag'
-import { graphql, Mutation } from 'react-apollo'
+import { Mutation } from 'react-apollo'
 
 import { allPosts, allPostsQueryVars } from './PostList'
 
@@ -40,7 +40,7 @@ export default () => (
 
           const form = event.currentTarget
 
-          const formData = new FormData(form)
+          const formData = new window.FormData(form)
           createPost({
             variables: {
               title: formData.get('title'),

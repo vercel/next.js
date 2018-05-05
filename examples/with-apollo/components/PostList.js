@@ -1,7 +1,6 @@
 import gql from 'graphql-tag'
 import { Query } from 'react-apollo'
 
-import ErrorMessage from './ErrorMessage'
 import PostUpvoter from './PostUpvoter'
 
 export const allPosts = gql`
@@ -27,7 +26,19 @@ export default () => (
   <Query query={allPosts} variables={allPostsQueryVars}>
     {({ data: { allPosts, _allPostsMeta }, error, fetchMore, loading }) => {
       if (error) {
-        return <ErrorMessage message="Error loading posts." />
+        return (
+          <aside>
+            Error loading posts.
+            <style jsx>{`
+              aside {
+                padding: 1.5em;
+                font-size: 14px;
+                color: white;
+                background-color: red;
+              }
+            `}</style>
+          </aside>
+        )
       }
 
       if (loading) {
