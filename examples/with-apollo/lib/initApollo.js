@@ -25,7 +25,7 @@ export default function initApollo(initialState) {
   }
 
   // Reuse client on the client-side
-  if (!apolloClient) {
+  if (apolloClient === null) {
     apolloClient = create(initialState)
   }
 
