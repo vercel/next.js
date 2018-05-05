@@ -98,6 +98,41 @@ export default (context, render) => {
 
         browser.close()
       })
+
+      // Added because of a regression in react-hot-loader, see issues: #4246 #4273
+      // Also: https://github.com/zeit/styled-jsx/issues/425
+      it('should update styles correctly', async () => {
+        const browser = await webdriver(context.appPort, '/hmr/style')
+        const pTag = await browser.elementByCss('.hmr-style-page p')
+        const initialFontSize = await pTag.getComputedCss('font-size')
+
+        expect(initialFontSize).toBe('100px')
+
+        const pagePath = join(__dirname, '../', 'pages', 'hmr', 'style.js')
+
+        const originalContent = readFileSync(pagePath, 'utf8')
+        const editedContent = originalContent.replace('100px', '200px')
+
+        // Change the page
+        writeFileSync(pagePath, editedContent, 'utf8')
+
+        // wait for 5 seconds
+        await waitFor(5000)
+
+        try {
+          // Check whether the this page has reloaded or not.
+          const editedPTag = await browser.elementByCss('.hmr-style-page p')
+          const editedFontSize = await editedPTag.getComputedCss('font-size')
+
+          expect(editedFontSize).toBe('200px')
+        } finally {
+          // Finally is used so that we revert the content back to the original regardless of the test outcome
+          // restore the about page content.
+          writeFileSync(pagePath, originalContent, 'utf8')
+        }
+
+        browser.close()
+      })
     })
   })
 }
