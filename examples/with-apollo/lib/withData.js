@@ -57,7 +57,7 @@ export default ComposedComponent => {
         // http://dev.apollodata.com/react/api-queries.html#graphql-query-data-error
       }
 
-      if (!process.browser) {
+      if (process.browser === undefined) {
         // getDataFromTree does not call componentWillUnmount
         // head side effect therefore need to be cleared manually
         Head.rewind()
