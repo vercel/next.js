@@ -21,6 +21,7 @@ import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
+import isAsyncSupported from './lib/is-async-supported'
 
 const access = promisify(fs.access)
 
@@ -113,7 +114,7 @@ export default class Server {
   }
 
   async prepare () {
-    if (this.dev && process.stdout.isTTY) {
+    if (this.dev && process.stdout.isTTY && isAsyncSupported()) {
       try {
         const checkForUpdate = require('update-check')
         const update = await checkForUpdate(pkg, {
