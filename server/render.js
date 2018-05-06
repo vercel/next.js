@@ -139,7 +139,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-store, must-revalidate')
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
 
   if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
