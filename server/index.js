@@ -21,6 +21,7 @@ import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
+import isAsyncSupported from './lib/is-async-supported'
 
 const access = promisify(fs.access)
 
@@ -113,14 +114,18 @@ export default class Server {
   }
 
   async prepare () {
-    if (this.dev && process.stdout.isTTY) {
-      const checkForUpdate = require('update-check')
-      const update = await checkForUpdate(pkg, {
-        distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
-      })
-      if (update) {
-        // bgRed from chalk
-        console.log(`\u001B[41mUPDATE AVAILABLE\u001B[49m The latest version of \`next\` is ${update.latest}`)
+    if (this.dev && process.stdout.isTTY && isAsyncSupported()) {
+      try {
+        const checkForUpdate = require('update-check')
+        const update = await checkForUpdate(pkg, {
+          distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
+        })
+        if (update) {
+          // bgRed from chalk
+          console.log(`\u001B[41mUPDATE AVAILABLE\u001B[49m The latest version of \`next\` is ${update.latest}`)
+        }
+      } catch (err) {
+        console.error('Error checking updates', err)
       }
     }
 
