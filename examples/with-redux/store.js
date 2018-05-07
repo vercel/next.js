@@ -39,6 +39,6 @@ export const addCount = () => dispatch => {
   return dispatch({ type: actionTypes.ADD })
 }
 
-export const initStore = (initialState = exampleInitialState) => {
+export function initializeStore (initialState = exampleInitialState) {
   return createStore(reducer, initialState, composeWithDevTools(applyMiddleware(thunkMiddleware)))
 }

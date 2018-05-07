@@ -1,15 +1,16 @@
 import React from 'react'
 import { bindActionCreators } from 'redux'
-import { initStore, startClock, addCount, serverRenderClock } from '../store'
-import withRedux from '../utils/withRedux'
+import {connect} from 'react-redux'
+import { startClock, addCount, serverRenderClock } from '../store'
 import Page from '../components/Page'
 
 class Counter extends React.Component {
-  static getInitialProps ({ store, isServer }) {
-    store.dispatch(serverRenderClock(isServer))
-    store.dispatch(addCount())
+  static getInitialProps ({ reduxStore, req }) {
+    const isServer = !!req
+    reduxStore.dispatch(serverRenderClock(isServer))
+    reduxStore.dispatch(addCount())
 
-    return { isServer }
+    return {}
   }
 
   componentDidMount () {
@@ -22,7 +23,7 @@ class Counter extends React.Component {
 
   render () {
     return (
-      <Page title='Index Page' linkTo='/other' />
+      <Page title='Index Page' />
     )
   }
 }
@@ -34,4 +35,4 @@ const mapDispatchToProps = (dispatch) => {
   }
 }
 
-export default withRedux(initStore, null, mapDispatchToProps)(Counter)
+export default connect(null, mapDispatchToProps)(Counter)
