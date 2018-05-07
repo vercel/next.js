@@ -9,6 +9,7 @@ function PostList ({
   data: { loading, error, allPosts, _allPostsMeta },
   loadMorePosts
 }) {
+  console.log('RENDERED POSTLIST')
   if (error) return <ErrorMessage message='Error loading posts.' />
   if (allPosts && allPosts.length) {
     const areMorePosts = allPosts.length < _allPostsMeta.count
@@ -102,23 +103,26 @@ export default graphql(allPosts, {
   options: {
     variables: allPostsQueryVars
   },
-  props: ({ data }) => ({
-    data,
-    loadMorePosts: () => {
-      return data.fetchMore({
-        variables: {
-          skip: data.allPosts.length
-        },
-        updateQuery: (previousResult, { fetchMoreResult }) => {
-          if (!fetchMoreResult) {
-            return previousResult
+  props: ({ data }) => {
+    console.log('DATA', data)
+    return ({
+      data,
+      loadMorePosts: () => {
+        return data.fetchMore({
+          variables: {
+            skip: data.allPosts.length
+          },
+          updateQuery: (previousResult, { fetchMoreResult }) => {
+            if (!fetchMoreResult) {
+              return previousResult
+            }
+            return Object.assign({}, previousResult, {
+              // Append the new posts results to the old one
+              allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
+            })
           }
-          return Object.assign({}, previousResult, {
-            // Append the new posts results to the old one
-            allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
-          })
-        }
-      })
-    }
-  })
+        })
+      }
+    })
+  }
 })(PostList)

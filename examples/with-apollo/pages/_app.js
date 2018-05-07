@@ -1,23 +1,10 @@
 import App, {Container} from 'next/app'
 import React from 'react'
-import PropTypes from 'prop-types'
 import { ApolloProvider, getDataFromTree } from 'react-apollo'
 import Head from 'next/head'
 import initApollo from '../lib/initApollo'
 
 export default class MyApp extends App {
-  static childContextTypes = {
-    ...App.childContextTypes,
-    apollo: PropTypes.object
-  }
-
-  getChildContext () {
-    return {
-      ...super.getChildContext(),
-      apollo: this.apollo
-    }
-  }
-
   static async getInitialProps ({ Component, router, ctx }) {
     let pageProps = {}
 
@@ -35,7 +22,13 @@ export default class MyApp extends App {
     try {
       // Run all GraphQL queries
       await getDataFromTree(
-        <MyApp Component={Component} router={router} pageProps={pageProps} serverState={serverState} />
+        <MyApp
+          Component={Component}
+          router={router}
+          pageProps={pageProps}
+          serverState={serverState}
+          client={apollo}
+        />
       )
     } catch (error) {
       // Prevent Apollo Client GraphQL errors from crashing SSR.
@@ -61,7 +54,9 @@ export default class MyApp extends App {
 
   constructor (props) {
     super(props)
-    this.apollo = initApollo(props.serverState.apollo.data)
+    // `getDataFromTree` renders the component first, the client is passed off as a property.
+    // After that rendering is done using Next's normal rendering pipeline
+    this.apollo = props.client || initApollo(props.serverState.apollo.data)
   }
 
   render () {
