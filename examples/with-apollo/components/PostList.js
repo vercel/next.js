@@ -9,7 +9,6 @@ function PostList ({
   data: { loading, error, allPosts, _allPostsMeta },
   loadMorePosts
 }) {
-  console.log('RENDERED POSTLIST')
   if (error) return <ErrorMessage message='Error loading posts.' />
   if (allPosts && allPosts.length) {
     const areMorePosts = allPosts.length < _allPostsMeta.count
@@ -104,7 +103,6 @@ export default graphql(allPosts, {
     variables: allPostsQueryVars
   },
   props: ({ data }) => {
-    console.log('DATA', data)
     return ({
       data,
       loadMorePosts: () => {
