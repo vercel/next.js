@@ -82,7 +82,7 @@ async function doRender (req, res, pathname, query, {
   if (isResSent(res)) return
 
   const renderPage = (enhancer = Page => Page) => {
-    const app = createElement(App, {
+    const app = createElement(enhancer(App), {
       Component: enhancer(Component),
       router,
       ...props
