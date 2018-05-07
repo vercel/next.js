@@ -5,7 +5,10 @@ import Counter from './counter'
 
 function Examples ({ lastUpdate, light }) {
   return (
-    <>'     '<Clock lastUpdate={lastUpdate} light={light} />'     '<Counter />'   '</>
+    <div>
+      <Clock lastUpdate={lastUpdate} light={light} />
+      <Counter />
+    </div>
   )
 }
 

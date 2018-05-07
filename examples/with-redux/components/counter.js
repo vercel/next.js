@@ -11,7 +11,10 @@ class AddCount extends Component {
   render () {
     const { count } = this.props
     return (
-      <>'       '<h1>AddCount: <span>{count}</span></h1>'       '<button onClick={this.add}>Add To Count</button>'     '</>
+      <div>
+        <h1>AddCount: <span>{count}</span></h1>
+        <button onClick={this.add}>Add To Count</button>
+      </div>
     )
   }
 }
