@@ -14,7 +14,7 @@
   "devDependencies": {
     "@types/next": "^2.4.7",
     "@types/react": "^16.0.36",
-    "@zeit/next-typescript": "0.0.11",
+    "@zeit/next-typescript": "0.1.1",
     "typescript": "^2.7.1"
   }
 }
