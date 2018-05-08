@@ -1,7 +1,7 @@
 {
   "name": "with-pkg",
   "version": "1.0.0",
-  "main": "index.js",
+  "bin": "index.js",
   "author": "Sergio Daniel Xalambrí <sergiodxa@gmail.com>",
   "license": "MIT",
   "scripts": {
@@ -10,7 +10,7 @@
     "prestart": "npm run build",
     "start": "NODE_ENV=production node server.js",
     "predist": "npm run build",
-    "dist": "pkg index.js --out-dir dist"
+    "dist": "pkg . --out-dir dist"
   },
   "dependencies": {
     "next": "latest",
@@ -22,8 +22,7 @@
   },
   "pkg": {
     "assets": [
-      ".next",
-      "pages"
+      ".next/**/*"
     ],
     "scripts": [
       ".next/dist/**/*.js"
