@@ -21,7 +21,7 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-pkg
 ```
 
-Install it and run:
+Install it and run pkg:
 
 ```bash
 npm install
@@ -29,7 +29,7 @@ yarn run build
 yarn run dist
 ```
 
-Run the binary file:
+Execute the binary file:
 
 ```bash
 PORT=4000 ./dist/with-pkg-macos
