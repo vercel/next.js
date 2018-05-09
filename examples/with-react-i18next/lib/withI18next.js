@@ -11,7 +11,7 @@ export const withI18next = (namespaces = ['common']) => ComposedComponent => {
       ? await ComposedComponent.getInitialProps(ctx)
       : {}
 
-    const i18nInitialProps = ctx.req && !process.browser 
+    const i18nInitialProps = ctx.req 
       ? getInitialProps(ctx.req, namespaces)
       : await loadNamespaces({
           components: [{ props: { namespaces } }],
