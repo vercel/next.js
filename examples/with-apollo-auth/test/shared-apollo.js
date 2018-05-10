@@ -10,7 +10,7 @@ const test = require('ava')
  *   reset the state, leaving all the logged in user data there :(
  * - So, we have to have a shared module. BUT; next's code splitting means the
  *   bundle for each page will include its own copy of the module, _unless it's
- *   inlcuded in every page_.
+ *   included in every page_.
  *   - https://github.com/zeit/next.js/issues/659#issuecomment-271824223
  *   - https://github.com/zeit/next.js/issues/1635#issuecomment-292236785
  * - Therefore, this test ensures that every page includes that module, and
