@@ -64,3 +64,13 @@ The clock, under `components/Clock.js`, has access to the state using the `conne
 The second example, under `components/AddCount.js`, shows a simple add counter function with a class component implementing a common redux pattern of mapping state and props. Again, the first render is happening in the server and instead of starting the count at 0, it will dispatch an action in redux that starts the count at 1. This continues to highlight how each navigation triggers a server render first and then a client render second, when you navigate between pages.
 
 For simplicity and readability, Reducers, Actions, and Store creators are all in the same file: `store.js`
+
+## What changed with immutable-redux-wrapper
+
+Immutability can bring increased performance to your app, and leads to simpler programming and debugging, as data that never changes is easier to reason about than data that is free to be changed arbitrarily throughout your app.
+
+In fact, Redux requires your state to be immutable. You do not have to use Immutable.JS as regular JavaScript, when written correctly, is perfectly capable of providing immutability on its own. However, guaranteeing immutability with JavaScript is difficult, and it can be easy to mutate an object accidentally, causing both bugs in your app that are extremely difficult to locate. For this reason, using an immutable update library such as Immutable.JS can significantly improve the reliability of your app and make your app's development much easier.
+
+[Read more](https://redux.js.org/faq/immutable-data#what-approaches-are-there-for-handling-data-immutability-do-i-have-to-use-immutable-js) about the importance of immutability in Redux here.
+
+This example wraps the exiting with-redux-wrapper example in Immutable.JS and displays how to pass immutable data from state to components.
