@@ -61,7 +61,9 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildId: this.buildId,
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist),
-      generateEtags
+      generateEtags,
+      documentPath: this.nextConfig.documentPath,
+      appComponentPath: this.nextConfig.appComponentPath
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

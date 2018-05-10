@@ -964,7 +964,7 @@ Next.js uses the `App` component to initialize pages. You can override it and co
 - Custom error handling using `componentDidCatch`
 - Inject additional data into pages (for example by processing GraphQL queries)
 
-To override, create the `./pages/_app.js` file and override the App class as shown below:
+To override, create a component extending `App` and export it from a `./pages/_app.js` file or provide an `appComponentPath` config setting.
 
 ```js
 import App, {Container} from 'next/app'
@@ -1002,7 +1002,7 @@ export default class MyApp extends App {
 - Is used to change the initial server side rendered document markup
 - Commonly used to implement server side rendering for css-in-js libraries like [styled-components](./examples/with-styled-components), [glamorous](./examples/with-glamorous) or [emotion](with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
-Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
+Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file exporting a component that extends the `Document` class. You can put that file in `./pages/_document.js` or provide an explicit file path via the `documentPath` config setting.
 
 ```jsx
 // _document is only rendered on the server side and not on the client side

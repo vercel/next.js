@@ -46,7 +46,9 @@ async function doRender (req, res, pathname, query, {
   dir = process.cwd(),
   dev = false,
   staticMarkup = false,
-  nextExport = false
+  nextExport = false,
+  documentPath: documentPathFromConfig,
+  appComponentPath: appPathFromConfig
 } = {}) {
   page = page || pathname
 
@@ -56,8 +58,10 @@ async function doRender (req, res, pathname, query, {
     await ensurePage(page, { dir, hotReloader })
   }
 
-  const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
-  const appPath = join(dir, dist, 'dist', 'bundles', 'pages', '_app')
+  const documentPath = documentPathFromConfig ||
+    join(dir, dist, 'dist', 'bundles', 'pages', '_document')
+  const appPath = appPathFromConfig ||
+    join(dir, dist, 'dist', 'bundles', 'pages', '_app')
   const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
   let [Component, Document, App] = await Promise.all([
     requirePage(page, {dir, dist}),
