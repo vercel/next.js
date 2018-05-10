@@ -1,7 +1,7 @@
 import { createStore, applyMiddleware } from 'redux'
 import { composeWithDevTools } from 'redux-devtools-extension'
 import thunkMiddleware from 'redux-thunk'
-import { fromJS } from 'immutable';
+import { fromJS } from 'immutable'
 
 const exampleInitialState = fromJS({
   lastUpdate: 0,
@@ -20,15 +20,15 @@ export const reducer = (state = exampleInitialState, action) => {
     case actionTypes.TICK:
       return state.merge({
         lastUpdate: action.ts,
-        light: !!action.light,
-      });
+        light: !!action.light
+      })
 
     case actionTypes.ADD:
       return state.merge({
-        count: state.get('count') + 1,
-      });
+        count: state.get('count') + 1
+      })
 
-      default: return state
+    default: return state
   }
 }
 

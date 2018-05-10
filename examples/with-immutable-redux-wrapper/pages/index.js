@@ -2,8 +2,7 @@ import React from 'react'
 import { bindActionCreators } from 'redux'
 import { startClock, addCount, serverRenderClock } from '../store'
 import Page from '../components/Page'
-import { connect } from 'react-redux';
-import { isImmutable } from 'immutable';
+import { connect } from 'react-redux'
 
 class Counter extends React.Component {
   static getInitialProps ({ store, isServer }) {
@@ -35,4 +34,4 @@ const mapDispatchToProps = (dispatch) => {
   }
 }
 
-export default connect(null, mapDispatchToProps)(Counter);
+export default connect(null, mapDispatchToProps)(Counter)
