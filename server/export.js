@@ -81,9 +81,6 @@ export default async function (dir, options, configuration) {
     }
   }
 
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
-  const exportPaths = Object.keys(exportPathMap)
-
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -115,6 +112,9 @@ export default async function (dir, options, configuration) {
   global.__NEXT_DATA__ = {
     nextExport: true
   }
+
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
+  const exportPaths = Object.keys(exportPathMap)
 
   for (const path of exportPaths) {
     log(`> exporting path: ${path}`)
