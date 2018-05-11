@@ -63,4 +63,14 @@ describe('Router', () => {
       expect(Object.keys(pageLoader.loaded)).toEqual(routes)
     })
   })
+
+  describe('.urlIsNew()', () => {
+    it('should handle undefined starting query parameters', () => {
+      const pageLoader = new PageLoader()
+      const router = new Router('/', undefined, '/', { pageLoader })
+      // This function will call shallowEqual with the query below and the undefined value set in
+      // the constructor.
+      router.urlIsNew('/', { queryVariable: '1' })
+    })
+  })
 })
