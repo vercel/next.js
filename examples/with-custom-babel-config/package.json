@@ -16,6 +16,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "babel-preset-stage-0": "^6.16.0"
+    "@babel/preset-stage-0": "^7.0.0-beta.46"
   }
 }
