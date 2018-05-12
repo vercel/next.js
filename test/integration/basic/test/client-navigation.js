@@ -40,8 +40,8 @@ export default (context, render) => {
         const urlResult = await browser.elementByCss('#url-result').text()
         const previousUrlResult = await browser.elementByCss('#previous-url-result').text()
 
-        expect(urlResult).toBe(`{"query":{"added":"yes"},"pathname":"/nav/url-prop-change","asPath":"/nav/url-prop-change?added=yes"}`)
-        expect(previousUrlResult).toBe(`{"query":{},"pathname":"/nav/url-prop-change","asPath":"/nav/url-prop-change"}`)
+        expect(JSON.parse(urlResult)).toMatchObject({'query': {'added': 'yes'}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes'})
+        expect(JSON.parse(previousUrlResult)).toMatchObject({'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change'})
 
         browser.close()
       })
