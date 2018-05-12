@@ -33,6 +33,20 @@ export default (context, render) => {
       })
     })
 
+    describe('With url property', () => {
+      it('Should keep immutable pathname, asPath and query', async () => {
+        const browser = await webdriver(context.appPort, '/nav/url-prop-change')
+        await browser.elementByCss('#add-query').click()
+        const urlResult = await browser.elementByCss('#url-result').text()
+        const previousUrlResult = await browser.elementByCss('#previous-url-result').text()
+
+        expect(urlResult).toBe(`{"query":{"added":"yes"},"pathname":"/nav/url-prop-change","asPath":"/nav/url-prop-change?added=yes"}`)
+        expect(previousUrlResult).toBe(`{"query":{},"pathname":"/nav/url-prop-change","asPath":"/nav/url-prop-change"}`)
+
+        browser.close()
+      })
+    })
+
     describe('with <a/> tag inside the <Link />', () => {
       it('should navigate the page', async () => {
         const browser = await webdriver(context.appPort, '/nav/about')
