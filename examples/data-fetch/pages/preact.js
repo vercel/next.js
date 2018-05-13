@@ -1,9 +1,8 @@
-
 import React from 'react'
 import Link from 'next/link'
 import 'isomorphic-unfetch'
 
-export default class MyPage extends React.Component {
+export default class Preact extends React.Component {
   static async getInitialProps () {
     // eslint-disable-next-line no-undef
     const res = await fetch('https://api.github.com/repos/developit/preact')
