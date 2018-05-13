@@ -1,4 +1,6 @@
 {
+  "name": "with-docker",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,5 +10,6 @@
     "next": "latest",
     "react": "16.2.0",
     "react-dom": "16.2.0"
-  }
+  },
+  "license": "ISC"
 }
