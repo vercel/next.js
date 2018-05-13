@@ -4,7 +4,7 @@ const LRUCache = require('lru-cache')
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dir: '.', dev })
+const app = next({ dev })
 const handle = app.getRequestHandler()
 
 // This is where we cache our rendered HTML pages
