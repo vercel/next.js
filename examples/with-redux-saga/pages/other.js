@@ -1,13 +1,14 @@
 import React from 'react'
-
+import {connect} from 'react-redux'
 import {increment, startClock, tickClock} from '../actions'
-import {withReduxSaga} from '../store'
 import Page from '../components/page'
 
 class Counter extends React.Component {
-  static async getInitialProps ({store, isServer}) {
+  static async getInitialProps (props) {
+    const { store, isServer } = props.ctx
     store.dispatch(tickClock(isServer))
     store.dispatch(increment())
+    return { isServer }
   }
 
   componentDidMount () {
@@ -19,4 +20,4 @@ class Counter extends React.Component {
   }
 }
 
-export default withReduxSaga(Counter)
+export default connect()(Counter)

@@ -10,14 +10,14 @@
   "dependencies": {
     "es6-promise": "4.1.1",
     "isomorphic-unfetch": "2.0.0",
-    "next": "latest",
-    "next-redux-saga": "1.0.1",
-    "next-redux-wrapper": "1.2.0",
+    "next": "6.0.1",
+    "next-redux-saga": "3.0.0-beta.1",
+    "next-redux-wrapper": "2.0.0-beta.6",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
-    "react-redux": "5.0.5",
-    "redux": "3.7.2",
-    "redux-saga": "0.15.4"
+    "react-redux": "5.0.7",
+    "redux": "4.0.0",
+    "redux-saga": "0.16.0"
   },
   "devDependencies": {
     "redux-devtools-extension": "2.13.2"
