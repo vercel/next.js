@@ -1,6 +1,6 @@
 import {Component} from 'react'
 import Link from 'next/link'
-import fetch from 'isomorphic-fetch'
+import fetch from 'isomorphic-unfetch'
 
 export default class extends Component {
   static async getInitialProps ({ req, query }) {
