@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "autoprefixer": "7.1.5",
-    "babel-plugin-module-resolver": "^2.7.1",
+    "babel-plugin-module-resolver": "^3.1.1",
     "babel-plugin-wrap-in-js": "^1.1.0",
     "glob": "^7.1.2",
     "next": "latest",
