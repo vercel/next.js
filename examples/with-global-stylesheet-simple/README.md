@@ -69,7 +69,7 @@ Check out the [with-global-stylesheet](../with-global-stylesheet) example.
 }
 ```
 
-* Install any CSS library using `npm` or `yarn`. In this example, I installed [`tachyons`](http://tachyons.io/).
+* Install any CSS library using `npm` or `yarn`. In this example, I installed [`tachyons`](https://tachyons.io/).
 * Import the CSS file. Here, I'm importing a CSS file located at `node_modules/tachyons/css/tachyons.min.css`.
 
 ```js
