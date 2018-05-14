@@ -1,0 +1,9 @@
+---
+name: Request to be added to the showcase on nextjs.org
+about: Apply for your project to be added to nextjs.org
+
+---
+
+- Name of company:
+- Url:
+- Testimonial about Next.js (optional):
