@@ -1,12 +1,12 @@
-import path, { sep } from 'path'
+import path, {sep} from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
 import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import { loadPartialConfig, createConfigItem } from '@babel/core'
-import { getPages } from './webpack/utils'
+import {loadPartialConfig, createConfigItem} from '@babel/core'
+import {getPages} from './webpack/utils'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
@@ -14,28 +14,23 @@ import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
 
-const presetItem = createConfigItem(require('./babel/preset'), {
-  type: 'preset'
-})
-const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {
-  type: 'plugin'
-})
-const reactJsxSourceItem = createConfigItem(
-  require('@babel/plugin-transform-react-jsx-source'),
-  { type: 'plugin' }
-)
+const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
+const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
+const reactJsxSourceItem = createConfigItem(require('@babel/plugin-transform-react-jsx-source'), {type: 'plugin'})
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 const nextPagesDir = path.join(nextDir, 'pages')
-const defaultPages = ['_error.js', '_document.js', '_app.js']
-const interpolateNames = new Map(
-  defaultPages.map(p => {
-    return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
-  })
-)
+const defaultPages = [
+  '_error.js',
+  '_document.js',
+  '_app.js'
+]
+const interpolateNames = new Map(defaultPages.map((p) => {
+  return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
+}))
 
-function babelConfig (dir, { isServer, dev }) {
+function babelConfig (dir, {isServer, dev}) {
   const mainBabelOptions = {
     cacheDirectory: true,
     presets: [],
@@ -100,11 +95,8 @@ function externalsConfig (dir, isServer) {
   return externals
 }
 
-export default (async function getBaseWebpackConfig (
-  dir,
-  { dev = false, isServer = false, buildId, config }
-) {
-  const babelLoaderOptions = babelConfig(dir, { dev, isServer })
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
+  const babelLoaderOptions = babelConfig(dir, {dev, isServer})
 
   const defaultLoaders = {
     babel: {
@@ -116,39 +108,17 @@ export default (async function getBaseWebpackConfig (
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
-    .filter(p => !!p)
+    .filter((p) => !!p)
 
-  const pagesEntries = await getPages(dir, {
-    dev,
-    isServer,
-    pageExtensions: config.pageExtensions.join('|')
-  })
+  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
-  const clientEntries = !isServer
-    ? {
-      'main.js': [
-        dev &&
-          !isServer &&
-          path.join(
-            __dirname,
-            '..',
-            '..',
-            'client',
-            'webpack-hot-middleware-client'
-          ),
-        dev &&
-          !isServer &&
-          path.join(
-            __dirname,
-            '..',
-            '..',
-            'client',
-            'on-demand-entries-client'
-          ),
-        require.resolve(`../../client/next${dev ? '-dev' : ''}`)
-      ].filter(Boolean)
-    }
-    : {}
+  const clientEntries = !isServer ? {
+    'main.js': [
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
+      require.resolve(`../../client/next${dev ? '-dev' : ''}`)
+    ].filter(Boolean)
+  } : {}
 
   let webpackConfig = {
     devtool: dev ? 'cheap-module-source-map' : false,
@@ -190,12 +160,8 @@ export default (async function getBaseWebpackConfig (
         // (But it didn't increase the overall build size)
         // Here we are doing an exact match with '$'
         // So, you can still require nested modules like `react-dom/server`
-        react$: dev
-          ? 'react/cjs/react.development.js'
-          : 'react/cjs/react.production.min.js',
-        'react-dom$': dev
-          ? 'react-dom/cjs/react-dom.development.js'
-          : 'react-dom/cjs/react-dom.production.min.js'
+        react$: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
+        'react-dom$': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
       }
     },
     resolveLoader: {
@@ -208,15 +174,17 @@ export default (async function getBaseWebpackConfig (
     },
     module: {
       rules: [
-        dev &&
-          !isServer && {
-            test: /\.(js|jsx)$/,
-            loader: 'hot-self-accept-loader',
-            include: [path.join(dir, 'pages'), nextPagesDir],
-            options: {
-              extensions: /\.(js|jsx)$/
-            }
-          },
+        dev && !isServer && {
+          test: /\.(js|jsx)$/,
+          loader: 'hot-self-accept-loader',
+          include: [
+            path.join(dir, 'pages'),
+            nextPagesDir
+          ],
+          options: {
+            extensions: /\.(js|jsx)$/
+          }
+        },
         {
           test: /\.(js|jsx)$/,
           include: [dir],
@@ -233,68 +201,62 @@ export default (async function getBaseWebpackConfig (
       dev && !isServer && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      dev &&
-        new webpack.LoaderOptionsPlugin({
-          options: {
-            context: dir,
-            customInterpolateName (url, name, opts) {
-              return interpolateNames.get(this.resourcePath) || url
-            }
+      dev && new webpack.LoaderOptionsPlugin({
+        options: {
+          context: dir,
+          customInterpolateName (url, name, opts) {
+            return interpolateNames.get(this.resourcePath) || url
           }
-        }),
-      dev &&
-        new WriteFilePlugin({
-          exitOnErrors: false,
-          log: false,
-          // required not to cache removed files
-          useHashIndex: false
-        }),
+        }
+      }),
+      dev && new WriteFilePlugin({
+        exitOnErrors: false,
+        log: false,
+        // required not to cache removed files
+        useHashIndex: false
+      }),
       !dev && new webpack.IgnorePlugin(/react-hot-loader/),
-      !isServer &&
-        !dev &&
-        new UglifyJSPlugin({
-          exclude: /react\.js/,
-          parallel: true,
-          sourceMap: false,
-          uglifyOptions: {
-            compress: {
-              arrows: false,
-              booleans: false,
-              collapse_vars: false,
-              comparisons: false,
-              computed_props: false,
-              hoist_funs: false,
-              hoist_props: false,
-              hoist_vars: false,
-              if_return: false,
-              inline: false,
-              join_vars: false,
-              keep_infinity: true,
-              loops: false,
-              negate_iife: false,
-              properties: false,
-              reduce_funcs: false,
-              reduce_vars: false,
-              sequences: false,
-              side_effects: false,
-              switches: false,
-              top_retain: false,
-              toplevel: false,
-              typeofs: false,
-              unused: false,
-              conditionals: true,
-              dead_code: true,
-              evaluate: true
-            },
-            mangle: {
-              safari10: true
-            }
+      !isServer && !dev && new UglifyJSPlugin({
+        exclude: /react\.js/,
+        parallel: true,
+        sourceMap: false,
+        uglifyOptions: {
+          compress: {
+            arrows: false,
+            booleans: false,
+            collapse_vars: false,
+            comparisons: false,
+            computed_props: false,
+            hoist_funs: false,
+            hoist_props: false,
+            hoist_vars: false,
+            if_return: false,
+            inline: false,
+            join_vars: false,
+            keep_infinity: true,
+            loops: false,
+            negate_iife: false,
+            properties: false,
+            reduce_funcs: false,
+            reduce_vars: false,
+            sequences: false,
+            side_effects: false,
+            switches: false,
+            top_retain: false,
+            toplevel: false,
+            typeofs: false,
+            unused: false,
+            conditionals: true,
+            dead_code: true,
+            evaluate: true
+          },
+          mangle: {
+            safari10: true
           }
-        }),
+        }
+      }),
       new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(
-          dev ? 'development' : 'production'
-        )
+        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),
@@ -304,71 +266,48 @@ export default (async function getBaseWebpackConfig (
       isServer && new NextJsSsrImportPlugin(),
       // In dev mode, we don't move anything to the commons bundle.
       // In production we move common modules into the existing main.js bundle
-      !isServer &&
-        new webpack.optimize.CommonsChunkPlugin({
-          name: 'main.js',
-          filename: dev
-            ? 'static/commons/main.js'
-            : 'static/commons/main-[chunkhash].js',
-          minChunks (module, count) {
-            // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
-            if (
-              module.resource &&
-              module.resource.includes(`${sep}react-dom${sep}`) &&
-              count >= 0
-            ) {
-              return true
-            }
-
-            if (
-              module.resource &&
-              module.resource.includes(`${sep}react${sep}`) &&
-              count >= 0
-            ) {
-              return true
-            }
-
-            // In the dev we use on-demand-entries.
-            // So, it makes no sense to use commonChunks based on the minChunks count.
-            // Instead, we move all the code in node_modules into each of the pages.
-            if (dev) {
-              return false
-            }
-
-            // commons
-            // If there are one or two pages, only move modules to common if they are
-            // used in all of the pages. Otherwise, move modules used in at-least
-            // 1/2 of the total pages into commons.
-            if (totalPages <= 2) {
-              return count >= totalPages
-            }
-            return count >= totalPages * 0.5
-            // commons end
+      !isServer && new webpack.optimize.CommonsChunkPlugin({
+        name: 'main.js',
+        filename: dev ? 'static/commons/main.js' : 'static/commons/main-[chunkhash].js',
+        minChunks (module, count) {
+          // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
+          if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
+            return true
           }
-        }),
+
+          if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
+            return true
+          }
+
+          // In the dev we use on-demand-entries.
+          // So, it makes no sense to use commonChunks based on the minChunks count.
+          // Instead, we move all the code in node_modules into each of the pages.
+          if (dev) {
+            return false
+          }
+
+          // commons
+          // If there are one or two pages, only move modules to common if they are
+          // used in all of the pages. Otherwise, move modules used in at-least
+          // 1/2 of the total pages into commons.
+          if (totalPages <= 2) {
+            return count >= totalPages
+          }
+          return count >= totalPages * 0.5
+          // commons end
+        }
+      }),
       // We use a manifest file in development to speed up HMR
-      dev &&
-        !isServer &&
-        new webpack.optimize.CommonsChunkPlugin({
-          name: 'manifest.js',
-          filename: dev
-            ? 'static/commons/manifest.js'
-            : 'static/commons/manifest-[chunkhash].js'
-        })
+      dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
+        name: 'manifest.js',
+        filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js'
+      })
     ].filter(Boolean)
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, {
-      dir,
-      dev,
-      isServer,
-      buildId,
-      config,
-      defaultLoaders,
-      totalPages
-    })
+    webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders, totalPages})
   }
 
   return webpackConfig
-})
+}
