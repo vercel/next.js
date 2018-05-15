@@ -1,0 +1,33 @@
+html {
+  height: 100%
+}
+
+body {
+  margin: 0;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  box-shadow: rgba(0, 0, 0, 0.8) 0 5px 10px;
+  background-color: white;
+
+  img {
+    margin-right: 1em;
+  }
+}
+
+#main {
+  margin: 1em;
+}
+
+footer {
+  position: fixed;
+  bottom: 0;
+  border-top: 1px solid silver;
+  width: 100%;
+
+  a {
+    margin: 0.5em;
+  }
+}

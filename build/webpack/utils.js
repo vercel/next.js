@@ -5,35 +5,45 @@ import {CLIENT_STATIC_FILES_PATH} from '../../lib/constants'
 
 const glob = promisify(globModule)
 
-export async function getPages (dir, {nextPagesDir, dev, buildId, isServer, pageExtensions}) {
-  const pageFiles = await getPagePaths(dir, {dev, isServer, pageExtensions})
+export async function getPages (dir, {nextPagesDir, dev, buildId, isServer, pageExtensions, rootPaths}) {
+  const pagePathsByRoot = await getPagePaths(dir, {dev, isServer, pageExtensions, rootPaths})
 
-  return getPageEntries(pageFiles, {nextPagesDir, buildId, isServer, pageExtensions})
+  return getMultiRootPageEntries(pagePathsByRoot, {nextPagesDir, buildId, isServer, pageExtensions})
 }
 
-export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
-  let pages
+export async function getPagePaths (dir, {dev, isServer, pageExtensions, rootPaths}) {
+  // In development we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
+  // _document also has to be in the client compiler in development because we want to detect HMR changes and reload the client.
+  // In production get all pages from the pages directory.
+  const filePattern = dev
+    ? (
+      isServer
+        ? `pages/+(_document|_app|_error).+(${pageExtensions})`
+        : `pages/+(_app|_error).+(${pageExtensions})`
+    )
+    : (
+      isServer
+        ? `pages/**/*.+(${pageExtensions})`
+        : `pages/**/!(_document)*.+(${pageExtensions})`
+    )
 
-  if (dev) {
-    // In development we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
-    pages = await glob(isServer ? `pages/+(_document|_app|_error).+(${pageExtensions})` : `pages/+(_app|_error).+(${pageExtensions})`, { cwd: dir })
-  } else {
-    // In production get all pages from the pages directory
-    pages = await glob(isServer ? `pages/**/*.+(${pageExtensions})` : `pages/**/!(_document)*.+(${pageExtensions})`, { cwd: dir })
-  }
-
-  return pages
+  return Promise.all(rootPaths.map(async root => {
+    const pages = await glob(`${root}/${filePattern}`, { cwd: dir })
+    return { root, pages }
+  }))
 }
 
 // Convert page path into single entry
-export function createEntry (filePath, {buildId = '', name, pageExtensions} = {}) {
+export function createEntry (filePath, {buildId = '', name, pageExtensions, root = '.'} = {}) {
   const parsedPath = path.parse(filePath)
-  let entryName = name || filePath
+  const relativePath = path.relative(root, filePath)
+  const parsedRelativePath = path.parse(relativePath)
+  let entryName = name || relativePath
 
   // This makes sure we compile `pages/blog/index.js` to `pages/blog.js`.
   // Excludes `pages/index.js` from this rule since we do want `/` to route to `pages/index.js`
-  if (parsedPath.dir !== 'pages' && parsedPath.name === 'index') {
-    entryName = `${parsedPath.dir}.js`
+  if (parsedRelativePath.dir !== 'pages' && parsedRelativePath.name === 'index') {
+    entryName = `${parsedRelativePath.dir}.js`
   }
 
   // Makes sure supported extensions are stripped off. The outputted file should always be `.js`
@@ -48,12 +58,20 @@ export function createEntry (filePath, {buildId = '', name, pageExtensions} = {}
 }
 
 // Convert page paths into entries
-export function getPageEntries (pagePaths, {nextPagesDir, buildId, isServer = false, pageExtensions} = {}) {
+export function getPageEntries (pagePaths, opts) {
+  return getMultiRootPageEntries([{ root: '.', pages: pagePaths }], opts)
+}
+
+function getMultiRootPageEntries (pagePathsByRoot, {nextPagesDir, buildId, isServer = false, pageExtensions} = {}) {
   const entries = {}
 
-  for (const filePath of pagePaths) {
-    const entry = createEntry(filePath, {pageExtensions, buildId})
-    entries[entry.name] = entry.files
+  for (const { root, pages } of pagePathsByRoot) {
+    for (const filePath of pages) {
+      const entry = createEntry(filePath, {pageExtensions, root, buildId})
+      if (!(entry.name in entries)) {
+        entries[entry.name] = entry.files
+      }
+    }
   }
 
   const appPagePath = path.join(nextPagesDir, '_app.js')

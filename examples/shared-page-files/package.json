@@ -1,0 +1,18 @@
+{
+  "name": "shared-page-files",
+  "version": "1.0.0",
+  "description": "[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/shared-page-files) # Example app using shared page files",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@zeit/next-sass": "0.2.0",
+    "less": "3.0.4",
+    "node-sass": "4.9.0",
+    "react": "^16.3.2",
+    "react-dom": "^16.3.2"
+  }
+}

@@ -22,6 +22,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   dev,
   reload,
   pageExtensions,
+  rootPaths,
   maxInactiveAge = 1000 * 60,
   pagesBufferLength = 2
 }) {
@@ -154,17 +155,20 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
       }
 
       const extensions = pageExtensions.join('|')
-      const paths = await glob(`pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${extensions})`, {cwd: dir})
-
-      if (paths.length === 0) {
+      const searchResults = await Promise.all(rootPaths.map(async root => {
+        const paths = await glob(`${root}/pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${extensions})`, {cwd: dir})
+        return { root, path: paths[0] }
+      }))
+      const { root, path } = searchResults.find(({ path }) => path) || {}
+      if (!path) {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const relativePathToPage = paths[0]
+      const relativePathToPage = path
 
       const pathname = join(dir, relativePathToPage)
 
-      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions})
+      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions, root})
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]

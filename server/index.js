@@ -142,11 +142,29 @@ export default class Server {
 
       // It's very important keep this route's param optional.
       // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
+      // Otherwise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      '/_next/:path*': async (req, res, params) => {
+        const p = join(__dirname, '..', 'client', ...(params.path || []))
+        await this.serveStatic(req, res, p)
+      },
+
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, separated by '/')
+      // Otherwise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
       '/static/:path*': async (req, res, params) => {
-        const p = join(this.dir, 'static', ...(params.path || []))
-        await this.serveStatic(req, res, p)
+        const rootPaths = this.nextConfig.rootPaths
+        let filePath = null
+        for (let root of rootPaths) {
+          filePath = join(this.dir, root, 'static', ...(params.path || []))
+          try {
+            await access(filePath, (fs.constants || fs).R_OK)
+            break
+          } catch (err) {
+          }
+        }
+        return this.serveStatic(req, res, filePath)
       }
     }
 
@@ -329,10 +347,12 @@ export default class Server {
   }
 
   isServeableUrl (path) {
+    const rootPaths = this.nextConfig.rootPaths
     const resolved = resolve(path)
+
     if (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0
+      rootPaths.every(root => resolved.indexOf(join(this.dir, root, 'static') + sep) !== 0)
     ) {
       // Seems like the user is trying to traverse the filesystem.
       return false

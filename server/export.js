@@ -13,6 +13,7 @@ export default async function (dir, options, configuration) {
   dir = resolve(dir)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const distDir = join(dir, nextConfig.distDir)
+  const rootPaths = nextConfig.rootPaths
 
   log(`> using build directory: ${distDir}`)
 
@@ -39,14 +40,20 @@ export default async function (dir, options, configuration) {
   await del(join(outDir, '*'))
   await mkdirp(join(outDir, '_next', buildId))
 
-  // Copy static directory
-  if (existsSync(join(dir, 'static'))) {
-    log('  copying "static" directory')
-    await cp(
-      join(dir, 'static'),
-      join(outDir, 'static'),
-      { expand: true }
-    )
+  // Copy static directories. Perform in reverse order so earlier entries in
+  // rootPaths with the same name take priority
+  const staticDestDir = join(outDir, 'static')
+  for (let i = rootPaths.length - 1; i >= 0; i--) {
+    const root = rootPaths[i]
+    const sourceDir = resolve(dir, root, './static')
+    if (existsSync(sourceDir)) {
+      log('  copying "static" directory')
+      await cp(
+        sourceDir,
+        staticDestDir,
+        { expand: true }
+      )
+    }
   }
 
   // Copy .next/static directory

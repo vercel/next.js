@@ -17,7 +17,8 @@ export type NextConfig = {|
   useFileSystemPublicRoutes: boolean,
   generateBuildId: () => string,
   generateEtags: boolean,
-  pageExtensions: Array<string>
+  pageExtensions: Array<string>,
+  rootPaths: Array<string>
 |}
 
 const defaultConfig: NextConfig = {
@@ -30,7 +31,8 @@ const defaultConfig: NextConfig = {
   useFileSystemPublicRoutes: true,
   generateBuildId: () => uuid.v4(),
   generateEtags: true,
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['jsx', 'js'],
+  rootPaths: ['.']
 }
 
 type PhaseFunction = (phase: string, options: {defaultConfig: NextConfig}) => NextConfig

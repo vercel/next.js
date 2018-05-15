@@ -1388,6 +1388,18 @@ export default () => <div>
 </div>
 ```
 
+### Shared application components
+
+By default, Next.js only looks for files like the pages directory relative to the root of your application. If you have shared pages, documents, or static files, you can specify additional root paths:
+
+```js
+module.exports = {
+  rootPaths: ['.', './node_modules/@someorg/shared-next-files']
+}
+```
+
+Paths at the beginning of the array take priority over later entries. So if in this example both `shared-next-files` and the local directory contain a `pages/_document.js` file, the local one takes priority. See [the shared page files example](./examples/shared-page-files) for a demonstration.
+
 ### CDN support with Asset Prefix
 
 To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
