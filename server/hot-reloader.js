@@ -179,14 +179,26 @@ export default class HotReloader {
           this.send('reload', route)
         }
 
+        let changedPageRoutes = []
+
         for (const [n, hash] of chunkHashes) {
           if (!this.prevChunkHashes.has(n)) continue
           if (this.prevChunkHashes.get(n) === hash) continue
 
           const route = toRoute(relative(rootDir, n))
 
+          changedPageRoutes.push(route)
+        }
+
+        // This means `/_app` is most likely included in the list.
+        // We filter it out because `/_app` will be re-rendered with the page
+        if (changedPageRoutes.length > 1) {
+          changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app')
+        }
+
+        for (const changedPageRoute of changedPageRoutes) {
           // notify change to recover from runtime errors
-          this.send('change', route)
+          this.send('change', changedPageRoute)
         }
       }
 
@@ -277,6 +289,10 @@ export default class HotReloader {
   }
 
   async ensurePage (page) {
+    // Make sure we don't re-build or dispose prebuilt pages
+    if (page === '/_error' || page === '/_document' || page === '/_app') {
+      return
+    }
     await this.onDemandEntries.ensurePage(page)
   }
 }
