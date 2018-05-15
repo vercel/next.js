@@ -9,18 +9,31 @@ const exampleInitialState = {
 }
 
 export const actionTypes = {
-  ADD: 'ADD',
-  TICK: 'TICK'
+  TICK: 'TICK',
+  INCREMENT: 'INCREMENT',
+  DECREMENT: 'DECREMENT',
+  RESET: 'RESET'
 }
 
 // REDUCERS
 export const reducer = (state = exampleInitialState, action) => {
   switch (action.type) {
     case actionTypes.TICK:
-      return Object.assign({}, state, { lastUpdate: action.ts, light: !!action.light })
-    case actionTypes.ADD:
+      return Object.assign({}, state, {
+        lastUpdate: action.ts,
+        light: !!action.light
+      })
+    case actionTypes.INCREMENT:
       return Object.assign({}, state, {
         count: state.count + 1
+      })
+    case actionTypes.DECREMENT:
+      return Object.assign({}, state, {
+        count: state.count - 1
+      })
+    case actionTypes.RESET:
+      return Object.assign({}, state, {
+        count: exampleInitialState.count
       })
     default: return state
   }
@@ -38,8 +51,16 @@ export const startClock = dispatch => {
   }, 1000)
 }
 
-export const addCount = () => dispatch => {
-  return dispatch({ type: actionTypes.ADD })
+export const incrementCount = () => dispatch => {
+  return dispatch({ type: actionTypes.INCREMENT })
+}
+
+export const decrementCount = () => dispatch => {
+  return dispatch({ type: actionTypes.DECREMENT })
+}
+
+export const resetCount = () => dispatch => {
+  return dispatch({ type: actionTypes.RESET })
 }
 
 export function initializeStore (initialState = exampleInitialState) {
