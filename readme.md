@@ -1580,12 +1580,6 @@ Yes! Here's an [example](./examples/with-redux)
 </details>
 
 <details>
-<summary>Why aren't routes I have for my static export accessible in the development server?</summary>
-
-This is a known issue with the architecture of Next.js. Until a solution is built into the framework, take a look at [this example solution](https://github.com/zeit/next.js/wiki/Centralizing-Routing) to centralize your routing.
-</details>
-
-<details>
 <summary>Can I use Next with my favorite Javascript library or toolkit?</summary>
 
 Since our first release we've had **many** example contributions, you can check them out in the [examples](./examples) directory
