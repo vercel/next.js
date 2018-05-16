@@ -1,20 +1,14 @@
 import React from 'react'
 import cookie from 'cookie'
-import { withApollo, compose } from 'react-apollo'
-
-import withData from '../lib/withData'
+import { withApollo } from 'react-apollo'
 import redirect from '../lib/redirect'
-import checkLoggedIn from '../lib/checkLoggedIn'
 
 class Index extends React.Component {
-  static async getInitialProps (context, apolloClient) {
-    const { loggedInUser } = await checkLoggedIn(context, apolloClient)
-
+  static async getInitialProps (context, loggedInUser) {
     if (!loggedInUser.user) {
       // If not signed in, send them somewhere more useful
       redirect(context, '/signin')
     }
-
     return { loggedInUser }
   }
 
@@ -32,18 +26,14 @@ class Index extends React.Component {
   }
 
   render () {
-    return (
+    const { loggedInUser: { user } } = this.props
+    return user ? (
       <div>
-        Hello {this.props.loggedInUser.user.name}!<br />
+        Hello {user.name}!<br />
         <button onClick={this.signout}>Sign out</button>
       </div>
-    )
+    ) : null
   }
-};
+}
 
-export default compose(
-  // withData gives us server-side graphql queries before rendering
-  withData,
-  // withApollo exposes `this.props.client` used when logging out
-  withApollo
-)(Index)
+export default withApollo(Index)
