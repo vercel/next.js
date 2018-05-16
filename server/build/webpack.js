@@ -292,7 +292,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             : null
           )
 
-          if (inAppBundle) {
+          if (inAppBundle && chunks.length > 1) {
             return true
           }
 
