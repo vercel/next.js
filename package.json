@@ -9,20 +9,20 @@
   "homepage": "https://github.com/zeit/next.js",
   "files": [
     "dist",
+    "app.js",
+    "asset.js",
     "babel.js",
     "client.js",
-    "link.js",
+    "config.js",
+    "constants.js",
     "css.js",
-    "head.js",
     "document.js",
     "dynamic.js",
-    "prefetch.js",
-    "router.js",
-    "asset.js",
     "error.js",
-    "constants.js",
-    "config.js",
-    "app.js"
+    "head.js",
+    "link.js",
+    "prefetch.js",
+    "router.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
