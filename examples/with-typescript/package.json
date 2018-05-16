@@ -1,5 +1,5 @@
 {
-  "name": "with-typescript-plugin",
+  "name": "with-typescript",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -15,5 +15,6 @@
   "devDependencies": {
     "@types/next": "^2.4.7",
     "@types/react": "^16.0.36"
-  }
+  },
+  "license": "ISC"
 }
