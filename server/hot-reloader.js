@@ -193,7 +193,7 @@ export default class HotReloader {
         // This means `/_app` is most likely included in the list.
         // We filter it out because `/_app` will be re-rendered with the page
         if (changedPageRoutes.length > 1) {
-          changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app')
+          changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app' && route !== '/_document')
         }
 
         for (const changedPageRoute of changedPageRoutes) {
