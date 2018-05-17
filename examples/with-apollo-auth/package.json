@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "test": "NODE_ENV=test ava"
+    "start": "next start"
   },
   "dependencies": {
     "apollo-boost": "^0.1.4",
@@ -20,16 +19,5 @@
     "react": "^16.2.0",
     "react-apollo": "^2.1.1",
     "react-dom": "^16.2.0"
-  },
-  "devDependencies": {
-    "ava": "^0.19.1",
-    "clear-require": "^2.0.0",
-    "glob": "^7.1.2"
-  },
-  "ava": {
-    "require": [
-      "babel-register"
-    ],
-    "babel": "inherit"
   }
 }
