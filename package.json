@@ -65,7 +65,7 @@
     "@babel/template": "7.0.0-beta.42",
     "ansi-html": "0.0.7",
     "babel-core": "7.0.0-bridge.0",
-    "babel-loader": "8.0.0-beta.2",
+    "babel-loader": "8.0.0-beta.3",
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.13",
     "case-sensitive-paths-webpack-plugin": "2.1.1",
