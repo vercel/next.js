@@ -23,11 +23,13 @@ module.exports = babelLoader.custom(babel => {
     },
     config (cfg, {customOptions: {isServer, dev}}) {
       const options = Object.assign({}, cfg.options)
-      if (cfg.babelrc) {
-        if (!configs.has(cfg.babelrc)) {
-          configs.add(cfg.babelrc)
-          console.log(`> Using external babel configuration`)
-          console.log(`> Location: "${cfg.babelrc}"`)
+      if (cfg.hasFilesystemConfig()) {
+        for (const file of [cfg.babelrc, cfg.config]) {
+          if (file && !configs.has(file)) {
+            configs.add(file)
+            console.log(`> Using external babel configuration`)
+            console.log(`> Location: "${file}"`)
+          }
         }
       } else {
         // Add our default preset if the no "babelrc" found.
