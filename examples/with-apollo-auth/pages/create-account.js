@@ -21,12 +21,12 @@ export default class CreateAccount extends React.Component {
 
   render () {
     return (
-      <div>
+      <React.Fragment>
         {/* RegisterBox handles all register logic. */}
-        <RegisterBox client={this.props.client} />
+        <RegisterBox />
         <hr />
         Already have an account? <Link prefetch href='/signin'><a>Sign in</a></Link>
-      </div>
+      </React.Fragment>
     )
   }
 };
