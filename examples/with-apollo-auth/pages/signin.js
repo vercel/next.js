@@ -1,16 +1,14 @@
 import React from 'react'
-import { compose } from 'react-apollo'
 import Link from 'next/link'
 
-import withData from '../lib/withData'
 import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
 
 import SigninBox from '../components/SigninBox'
 
-class Signin extends React.Component {
-  static async getInitialProps (context, apolloClient) {
-    const { loggedInUser } = await checkLoggedIn(context, apolloClient)
+export default class Signin extends React.Component {
+  static async getInitialProps (context) {
+    const { loggedInUser } = await checkLoggedIn(context.apolloClient)
 
     if (loggedInUser.user) {
       // Already signed in? No need to continue.
@@ -32,8 +30,3 @@ class Signin extends React.Component {
     )
   }
 };
-
-export default compose( // TODO: Maybe remove the usage of compose?
-  // withData gives us server-side graphql queries before rendering
-  withData
-)(Signin)
