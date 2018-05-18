@@ -85,16 +85,20 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { page, pathname, buildId, assetPrefix, strictHTML } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />}
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_app.js`} as='script' />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />
-      {this.getPreloadDynamicChunks()}
-      {this.getPreloadMainLinks()}
+
+      { !strictHTML ? ([
+        (page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' />),
+        <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_app.js`} as='script' />,
+        <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' />,
+        this.getPreloadDynamicChunks(),
+        this.getPreloadMainLinks()
+      ]) : null }
+
       {styles || null}
       {this.props.children}
     </head>
