@@ -15,7 +15,7 @@
   "dependencies": {
     "firebase-admin": "5.12.1",
     "firebase-functions": "1.0.2",
-    "next": "6.0.3",
+    "next": "latest",
     "react": "16.3.2",
     "react-dom": "16.3.2"
   },
