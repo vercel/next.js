@@ -40,7 +40,4 @@ now
 
 ## The idea behind the example
 
-[material-ui](https://github.com/mui-org/material-ui) is being rewritten from scratch on the [v1-beta branch](https://material-ui-1dab0.firebaseapp.com/).
-This example shows how you use it with Next.js.
-
-:warning: The source code [is hosted](https://github.com/mui-org/material-ui/tree/v1-beta/examples/nextjs) on the Material-UI repository.
+This example features how you use [material-ui](https://github.com/callemall/material-ui) (Material components that implement Google's Material Design) with Next.js.
