@@ -5,13 +5,13 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
+import stripAnsi from 'strip-ansi'
 import resolve from './resolve'
 import getConfig from './config'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
-import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
 import xssFilters from 'xss-filters'
 
@@ -104,9 +104,7 @@ async function doRender (req, res, pathname, query, {
     let errorHtml = ''
 
     try {
-      if (err && dev) {
-        errorHtml = render(createElement(ErrorDebug, { error: err }))
-      } else if (err) {
+      if (err) {
         errorHtml = render(app)
       } else {
         html = render(app)
@@ -209,7 +207,7 @@ export function sendJSON (res, obj, method) {
 
 function errorToJSON (err) {
   const { name, message, stack } = err
-  const json = { name, message, stack }
+  const json = { name, message: stripAnsi(message), stack: stripAnsi(stack) }
 
   if (err.module) {
     // rawRequest contains the filename of the module which has the error.

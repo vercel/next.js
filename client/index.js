@@ -48,21 +48,17 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
-let ErrorDebugComponent
 let Component
-let stripAnsi = (s) => s
 
 export const emitter = new EventEmitter()
 
-export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
-  stripAnsi = passedStripAnsi || stripAnsi
-  ErrorDebugComponent = passedDebugComponent
+export default async () => {
   ErrorComponent = await pageLoader.loadPage('/_error')
 
   try {
     Component = await pageLoader.loadPage(pathname)
   } catch (err) {
-    console.error(stripAnsi(`${err.message}\n${err.stack}`))
+    console.error(err)
     Component = ErrorComponent
   }
 
@@ -104,23 +100,19 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (error) {
-  const prod = process.env.NODE_ENV === 'production'
   // We need to unmount the current app component because it's
   // in the inconsistant state.
   // Otherwise, we need to face issues when the issue is fixed and
   // it's get notified via HMR
   ReactDOM.unmountComponentAtNode(appContainer)
 
-  const errorMessage = `${error.message}\n${error.stack}`
-  console.error(stripAnsi(errorMessage))
+  console.error(error)
 
-  if (prod) {
-    const initProps = { err: error, pathname, query, asPath }
-    const props = await loadGetInitialProps(ErrorComponent, initProps)
-    renderReactElement(createElement(ErrorComponent, props), errorContainer)
-  } else {
-    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
-  }
+  const initProps = { err: error, pathname, query, asPath }
+  const props = await loadGetInitialProps(ErrorComponent, initProps)
+  renderReactElement(createElement(ErrorComponent, props), errorContainer)
+
+  appContainer.innerHTML = ''
 }
 
 async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
@@ -143,6 +135,8 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
+  errorContainer.innerHTML = ''
+
   renderReactElement(createElement(App, appProps), appContainer)
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
