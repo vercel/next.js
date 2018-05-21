@@ -79,17 +79,40 @@ export default async () => {
   return emitter
 }
 
-export async function render (props) {
+export async function render ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
   // There are some errors we should ignore.
   // Next.js rendering logic knows how to handle them.
   // These are specially 404 errors
-  if (props.err && !props.err.ignore) {
-    await renderError(props.err)
+  if (err && !err.ignore) {
+    await renderError(err)
     return
   }
 
   try {
-    await doRender(props)
+    if (!props && Component &&
+    Component !== ErrorComponent &&
+    lastAppProps.Component === ErrorComponent) {
+    // fetch props if ErrorComponent was replaced with a page component by HMR
+      const { pathname, query, asPath } = router
+      props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
+    }
+
+    Component = Component || lastAppProps.Component
+    props = props || lastAppProps.props
+
+    const appProps = { Component, props, hash, err, router, headManager }
+    // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
+    lastAppProps = appProps
+
+    emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
+
+    // We need to clear any existing runtime error messages
+    ReactDOM.unmountComponentAtNode(errorContainer)
+    errorContainer.innerHTML = ''
+
+    renderReactElement(createElement(App, appProps), appContainer)
+
+    emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
   } catch (err) {
     if (err.abort) return
     await renderError(err)
@@ -113,33 +136,6 @@ export async function renderError (error) {
   renderReactElement(createElement(ErrorComponent, props), errorContainer)
 
   appContainer.innerHTML = ''
-}
-
-async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
-  if (!props && Component &&
-    Component !== ErrorComponent &&
-    lastAppProps.Component === ErrorComponent) {
-    // fetch props if ErrorComponent was replaced with a page component by HMR
-    const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
-  }
-
-  Component = Component || lastAppProps.Component
-  props = props || lastAppProps.props
-
-  const appProps = { Component, props, hash, err, router, headManager }
-  // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
-  lastAppProps = appProps
-
-  emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
-
-  // We need to clear any existing runtime error messages
-  ReactDOM.unmountComponentAtNode(errorContainer)
-  errorContainer.innerHTML = ''
-
-  renderReactElement(createElement(App, appProps), appContainer)
-
-  emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
 
 let isInitialRender = true
