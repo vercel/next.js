@@ -13,8 +13,6 @@ import {
 import Router from './router'
 import { getAvailableChunks } from './utils'
 import getConfig from './config'
-// We need to go up one more level since we are in the `dist` directory
-import pkg from '../../package'
 
 const internalPrefixes = [
   /^\/_next\//,
@@ -240,9 +238,6 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    if (this.config.poweredByHeader) {
-      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
-    }
     const html = await this.renderToHTML(req, res, pathname, query)
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
