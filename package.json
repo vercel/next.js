@@ -91,7 +91,7 @@
     "react-hot-loader": "4.2.0",
     "recursive-copy": "2.0.9",
     "send": "0.16.2",
-    "source-map-support": "0.5.4",
+    "source-map-support": "^0.5.6",
     "strip-ansi": "4.0.0",
     "touch": "3.1.0",
     "unfetch": "3.0.0",
