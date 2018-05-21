@@ -11,7 +11,6 @@
   },
   "functions": {
     "source": "dist/functions",
-    "predeploy":
-      "npm run build-funcs && npm run build-app && npm run copy-deps && npm run install-deps"
+    "predeploy": "npm run build-funcs && npm run build-app && npm run copy-deps"
   }
 }
