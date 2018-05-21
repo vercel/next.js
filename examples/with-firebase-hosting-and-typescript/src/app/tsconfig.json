@@ -1,7 +1,6 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "outDir": "build/dist",
     "target": "esnext",
     "module": "esnext",
     "allowJs": false,
@@ -16,6 +15,7 @@
     "preserveConstEnums": true,
     "skipLibCheck": true,
     "sourceMap": true,
+    "noEmit": true,
     "lib": [
       "es6",
       "dom",

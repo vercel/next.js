@@ -10,6 +10,8 @@
     "build-app": "next build \"src/app\"",
     "build-public": "cpx \"src/public/**/*.*\" \"dist/public\" -C",
     "build-functions": "tsc --project src/functions",
+    "lint-app": "tslint --project src/app",
+    "typecheck-app": "tsc --project src/app",
     "lint-functions": "tslint --project src/functions",
     "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\"",
     "install-deps": "cd \"dist/functions\" && npm i"
@@ -30,6 +32,7 @@
     "prettier": "1.12.1",
     "rimraf": "2.6.2",
     "tslint": "^5.8.0",
+    "tslint-react": "3.6.0",
     "typescript": "^2.5.3"
   }
 }
