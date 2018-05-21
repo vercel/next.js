@@ -48,7 +48,6 @@ async function doRender (req, res, pathname, query, {
   dir = process.cwd(),
   dev = false,
   staticMarkup = false,
-  nextExport = false,
   overloadCheck = () => false
 } = {}) {
   pathname = pathname.replace(/\/index/, '') || '/index'
@@ -132,7 +131,6 @@ async function doRender (req, res, pathname, query, {
       buildId,
       buildStats,
       assetPrefix,
-      nextExport,
       err: (err) ? serializeError(dev, err) : null
     },
     dev,

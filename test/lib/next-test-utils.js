@@ -9,12 +9,10 @@ import fkill from 'fkill'
 
 import server from '../../dist/server/next'
 import build from '../../dist/server/build'
-import _export from '../../dist/server/export'
 import _pkg from '../../package.json'
 
 export const nextServer = server
 export const nextBuild = build
-export const nextExport = _export
 export const pkg = _pkg
 
 export function renderViaAPI (app, pathname, query) {

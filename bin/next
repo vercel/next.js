@@ -22,7 +22,6 @@ const commands = new Set([
   'init',
   'build',
   'start',
-  'export',
   defaultCommand
 ])
 
