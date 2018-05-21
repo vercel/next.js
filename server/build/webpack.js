@@ -186,10 +186,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       join(dir, 'pages'),
       nextPagesDir
     ]
-  }, {
-    test: /\.js(\?[^?]*)?$/,
-    loader: 'react-hot-loader/webpack',
-    exclude: /node_modules/
   }] : [])
     .concat([{
       test: /\.json$/,

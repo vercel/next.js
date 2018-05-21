@@ -20,6 +20,7 @@ module.exports = (context, opts = {}) => ({
     require.resolve('babel-preset-react')
   ],
   plugins: [
+    require.resolve('react-hot-loader/babel'),
     require.resolve('babel-plugin-react-require'),
     require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
