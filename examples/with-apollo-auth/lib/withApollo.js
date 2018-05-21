@@ -8,9 +8,7 @@ import initApollo from './initApollo'
 
 function parseCookies(req, options = {}) {
   return cookie.parse(
-    req && req.headers.cookie
-      ? req.headers.cookie
-      : document.cookie,
+    req ? req.headers.cookie || '' : document.cookie,
     options
   )
 }
