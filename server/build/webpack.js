@@ -134,7 +134,10 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       plugins.push(new FriendlyErrorsWebpackPlugin())
     }
   } else {
-    plugins.push(new webpack.IgnorePlugin(/react-hot-loader/))
+    plugins.push(new webpack.NormalModuleReplacementPlugin(
+      /react-hot-loader/,
+      require.resolve('../../client/hot-module-loader.stub')
+    ))
     plugins.push(
       new CombineAssetsPlugin({
         input: ['manifest.js', 'pages/_error.js', 'commons.js', 'main.js'],
