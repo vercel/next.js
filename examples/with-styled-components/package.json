@@ -8,10 +8,10 @@
   },
   "dependencies": {
     "babel-plugin-styled-components": "^1.1.5",
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "styled-components": "^2.1.0"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "styled-components": "^3.2.6"
   },
   "license": "ISC"
 }
