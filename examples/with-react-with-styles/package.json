@@ -7,12 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "aphrodite": "^1.2.5",
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "react-with-styles": "^2.2.0",
-    "react-with-styles-interface-aphrodite": "^3.1.1"
+    "aphrodite": "^2.2.1",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "react-with-styles": "^3.2.0",
+    "react-with-styles-interface-aphrodite": "^5.0.0"
   },
   "license": "MIT"
 }
