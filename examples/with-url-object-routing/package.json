@@ -7,9 +7,9 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "6.0.3",
     "path-match": "1.2.4",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   }
 }
