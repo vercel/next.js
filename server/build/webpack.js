@@ -5,7 +5,6 @@ import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import {loadPartialConfig, createConfigItem} from '@babel/core'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
@@ -13,10 +12,6 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
-
-const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
-const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
-const reactJsxSourceItem = createConfigItem(require('@babel/plugin-transform-react-jsx-source'), {type: 'plugin'})
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -29,37 +24,6 @@ const defaultPages = [
 const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
 }))
-
-function babelConfig (dir, {isServer, dev}) {
-  const mainBabelOptions = {
-    cacheDirectory: true,
-    presets: [],
-    plugins: [
-      dev && !isServer && hotLoaderItem,
-      dev && reactJsxSourceItem
-    ].filter(Boolean)
-  }
-
-  const filename = path.join(dir, 'filename.js')
-  const externalBabelConfig = loadPartialConfig({ babelrc: true, filename })
-  if (externalBabelConfig && externalBabelConfig.babelrc) {
-    // Log it out once
-    if (!isServer) {
-      console.log(`> Using external babel configuration`)
-      console.log(`> Location: "${externalBabelConfig.babelrc}"`)
-    }
-    mainBabelOptions.babelrc = true
-  } else {
-    mainBabelOptions.babelrc = false
-  }
-
-  // Add our default preset if the no "babelrc" found.
-  if (!mainBabelOptions.babelrc) {
-    mainBabelOptions.presets.push(presetItem)
-  }
-
-  return mainBabelOptions
-}
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -96,12 +60,10 @@ function externalsConfig (dir, isServer) {
 }
 
 export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
-  const babelLoaderOptions = babelConfig(dir, {dev, isServer})
-
   const defaultLoaders = {
     babel: {
-      loader: 'babel-loader',
-      options: babelLoaderOptions
+      loader: 'next-babel-loader',
+      options: {dev, isServer}
     }
   }
 
