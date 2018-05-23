@@ -5,9 +5,9 @@
     "start": "NODE_ENV=production node server/index.js"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "devDependencies": {
     "nodemon": "^1.12.1"
