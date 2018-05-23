@@ -8,14 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "author": "Kent C. Dodds <kent@doddsfamily.us> (http://kentcdodds.com/)",
   "license": "MIT",
   "devDependencies": {
-    "babel-macros": "^0.5.1",
+    "babel-macros": "^2.0.0",
     "babel-preset-react": "^6.24.1",
     "preval.macro": "^1.0.1"
   }
