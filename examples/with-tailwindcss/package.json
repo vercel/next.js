@@ -9,15 +9,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "devDependencies": {
-    "autoprefixer": "^7.1.6",
+    "autoprefixer": "^8.5.0",
     "cssnano": "^3.10.0",
-    "postcss-cli": "^4.1.1",
+    "postcss-cli": "^5.0.0",
     "postcss-easy-import": "^3.0.0",
-    "tailwindcss": "^0.2.2"
+    "tailwindcss": "^0.5.3"
   }
 }
