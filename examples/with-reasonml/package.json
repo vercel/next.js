@@ -8,16 +8,16 @@
   },
   "license": "ISC",
   "dependencies": {
-    "babel-plugin-bucklescript": "^0.2.4",
-    "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1",
-    "reason-react": "^0.3.0",
-    "bs-next": "^2.0.0"
+    "babel-plugin-bucklescript": "^0.4.0",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "reason-react": "^0.4.1",
+    "bs-next": "^3.0.0"
   },
   "devDependencies": {
-    "bs-platform": "^2.1.0",
+    "bs-platform": "^3.1.3",
     "concurrently": "^3.5.1",
-    "webpack": "^3.8.1"
+    "webpack": "^4.8.3"
   }
 }
