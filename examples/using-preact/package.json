@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@zeit/next-preact": "0.0.7",
-    "next": "latest",
-    "preact": "8.2.7",
+    "next": "6.0.3",
+    "preact": "8.2.9",
     "preact-compat": "3.18.0"
   },
   "license": "ISC"
