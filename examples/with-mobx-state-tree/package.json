@@ -7,12 +7,12 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "mobx": "3.3.1",
-    "mobx-react": "^4.0.4",
-    "mobx-state-tree": "1.0.1",
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "mobx": "^4.3.0",
+    "mobx-react": "^5.1.2",
+    "mobx-state-tree": "2.0.5",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "license": "ISC",
   "devDependencies": {
