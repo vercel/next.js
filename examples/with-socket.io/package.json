@@ -2,13 +2,13 @@
   "name": "with-socket.io",
   "version": "1.0.0",
   "dependencies": {
-    "express": "^4.15.2",
+    "express": "4.16.3",
     "isomorphic-unfetch": "^2.0.0",
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "socket.io": "^1.7.3",
-    "socket.io-client": "^1.7.3"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "socket.io": "^2.1.1",
+    "socket.io-client": "^2.1.1"
   },
   "scripts": {
     "dev": "node server.js",
