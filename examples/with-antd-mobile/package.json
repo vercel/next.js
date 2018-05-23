@@ -2,13 +2,13 @@
   "name": "with-antd-mobile",
   "version": "1.1.0",
   "dependencies": {
-    "antd-mobile": "1.4.0",
+    "antd-mobile": "2.1.9",
     "babel-plugin-import": "^1.2.1",
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
     "require-hacker": "^3.0.0",
-    "svg-sprite-loader": "0.3.1"
+    "svg-sprite-loader": "3.7.3"
   },
   "scripts": {
     "dev": "next",
