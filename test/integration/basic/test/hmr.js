@@ -3,8 +3,9 @@ import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync, renameSync } from 'fs'
 import { join } from 'path'
 import { waitFor, check } from 'next-test-utils'
+import cheerio from 'cheerio'
 
-export default (context, render) => {
+export default (context, renderViaHTTP) => {
   describe('Hot Module Reloading', () => {
     describe('delete a page and add it back', () => {
       it('should load the page properly', async () => {
@@ -164,9 +165,71 @@ export default (context, render) => {
           // Finally is used so that we revert the content back to the original regardless of the test outcome
           // restore the about page content.
           writeFileSync(pagePath, originalContent, 'utf8')
+          browser.close()
         }
+      })
 
-        browser.close()
+      // Added because of a regression in react-hot-loader, see issues: #4246 #4273
+      // Also: https://github.com/zeit/styled-jsx/issues/425
+      it('should update styles in a dynamic component correctly', async () => {
+        let browser = null
+        let secondBrowser = null
+        const pagePath = join(__dirname, '../', 'components', 'hmr', 'dynamic.js')
+        const originalContent = readFileSync(pagePath, 'utf8')
+        try {
+          browser = await webdriver(context.appPort, '/hmr/style-dynamic-component')
+          const div = await browser.elementByCss('#dynamic-component')
+          const initialClientClassName = await div.getAttribute('class')
+          const initialFontSize = await div.getComputedCss('font-size')
+
+          expect(initialFontSize).toBe('100px')
+
+          const initialHtml = await renderViaHTTP('/hmr/style-dynamic-component')
+          expect(initialHtml.includes('100px')).toBeTruthy()
+
+          const $initialHtml = cheerio.load(initialHtml)
+          const initialServerClassName = $initialHtml('#dynamic-component').attr('class')
+
+          expect(initialClientClassName === initialServerClassName).toBeTruthy()
+
+          const editedContent = originalContent.replace('100px', '200px')
+
+          // Change the page
+          writeFileSync(pagePath, editedContent, 'utf8')
+
+          // wait for 5 seconds
+          await waitFor(5000)
+
+          secondBrowser = await webdriver(context.appPort, '/hmr/style-dynamic-component')
+          // Check whether the this page has reloaded or not.
+          const editedDiv = await secondBrowser.elementByCss('#dynamic-component')
+          const editedClientClassName = await editedDiv.getAttribute('class')
+          const editedFontSize = await editedDiv.getComputedCss('font-size')
+          const browserHtml = await secondBrowser.elementByCss('html').getAttribute('innerHTML')
+
+          expect(editedFontSize).toBe('200px')
+          expect(browserHtml.includes('font-size:200px;')).toBe(true)
+          expect(browserHtml.includes('font-size:100px;')).toBe(false)
+
+          const editedHtml = await renderViaHTTP('/hmr/style-dynamic-component')
+          expect(editedHtml.includes('200px')).toBeTruthy()
+          const $editedHtml = cheerio.load(editedHtml)
+          const editedServerClassName = $editedHtml('#dynamic-component').attr('class')
+
+          expect(editedClientClassName === editedServerClassName).toBe(true)
+        } finally {
+          // Finally is used so that we revert the content back to the original regardless of the test outcome
+          // restore the about page content.
+          writeFileSync(pagePath, originalContent, 'utf8')
+
+          if (browser) {
+            browser.close()
+          }
+
+          if (secondBrowser) {
+            secondBrowser.close()
+          }
+        }
       })
     })
   })
