@@ -9,18 +9,18 @@
   "author": "Davide Bertola <dade@dadeb.it>",
   "license": "ISC",
   "dependencies": {
-    "autoprefixer": "7.1.5",
+    "autoprefixer": "8.5.0",
     "babel-plugin-module-resolver": "^3.1.1",
     "babel-plugin-wrap-in-js": "^1.1.0",
     "glob": "^7.1.2",
-    "next": "latest",
-    "node-sass": "^4.4.0",
-    "normalize.css": "^7.0.0",
+    "next": "6.0.3",
+    "node-sass": "4.9.0",
+    "normalize.css": "^8.0.0",
     "postcss-easy-import": "^3.0.0",
     "postcss-loader": "^2.0.7",
     "raw-loader": "^0.5.1",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "sass-loader": "^6.0.6"
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "sass-loader": "^7.0.1"
   }
 }
