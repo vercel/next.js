@@ -8,14 +8,14 @@
   },
   "dependencies": {
     "body-parser": "^1.17.1",
-    "express": "^4.14.0",
+    "express": "4.16.3",
     "express-session": "^1.15.2",
-    "firebase": "^4.9.1",
+    "firebase": "^5.0.3",
     "firebase-admin": "^5.8.2",
     "isomorphic-unfetch": "2.0.0",
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
     "session-file-store": "^1.0.0"
   }
 }
