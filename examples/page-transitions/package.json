@@ -8,12 +8,12 @@
   },
   "dependencies": {
     "compression": "^1.7.0",
-    "express": "^4.15.3",
-    "next": "latest",
+    "express": "4.16.3",
+    "next": "6.0.3",
     "next-routes": "^1.0.40",
     "raf": "^3.3.2",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "license": "ISC"
 }
