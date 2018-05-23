@@ -3,17 +3,17 @@
   "version": "1.0.0",
   "dependencies": {
     "babel-core": "7.0.0-bridge.0",
-    "babel-jest": "22.4.3",
-    "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "babel-jest": "22.4.4",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "devDependencies": {
-    "enzyme": "3.2.0",
+    "enzyme": "3.3.0",
     "enzyme-adapter-react-16": "1.1.1",
-    "jest": "22.0.1",
+    "jest": "22.4.4",
     "react-addons-test-utils": "15.6.2",
-    "react-test-renderer": "16.2.0"
+    "react-test-renderer": "16.3.2"
   },
   "scripts": {
     "test": "NODE_ENV=test jest",
