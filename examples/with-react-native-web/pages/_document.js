@@ -10,6 +10,8 @@ let index = 0
 const normalizeNextElements = `
   body > div:first-child,
   #__next {
+    display: flex;
+    flex-direction: column;
     height: 100%;
   }
 `
