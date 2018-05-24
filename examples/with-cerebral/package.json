@@ -11,10 +11,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@cerebral/react": "^2.1.0",
-    "cerebral": "^3.1.0",
-    "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "@cerebral/react": "^3.2.2",
+    "cerebral": "^4.2.2",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   }
 }

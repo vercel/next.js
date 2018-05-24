@@ -5,9 +5,9 @@
     "start": "next"
   },
   "dependencies": {
-    "babel-plugin-transform-assets": "^0.2.0",
-    "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "babel-plugin-transform-assets": "^1.0.1",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   }
 }

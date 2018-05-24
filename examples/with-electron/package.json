@@ -21,8 +21,8 @@
     "electron": "^2.0.0",
     "electron-builder": "^20.13.4",
     "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1"
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "dependencies": {
     "electron-is-dev": "0.3.0",

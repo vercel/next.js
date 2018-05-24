@@ -7,10 +7,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "next-page-transitions": "1.0.0-alpha.2"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "next-page-transitions": "1.0.0-alpha.3"
   },
   "license": "ISC"
 }

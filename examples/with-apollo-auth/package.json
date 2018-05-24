@@ -14,10 +14,10 @@
     "cookie": "^0.3.1",
     "graphql": "^0.13.2",
     "isomorphic-unfetch": "^2.0.0",
-    "next": "latest",
-    "prop-types": "^15.6.1",
-    "react": "^16.3.2",
-    "react-apollo": "^2.1.4",
-    "react-dom": "^16.3.2"
+    "next": "6.0.3",
+    "prop-types": "15.6.1",
+    "react": "16.3.2",
+    "react-apollo": "2.1.4",
+    "react-dom": "16.3.2"
   }
 }

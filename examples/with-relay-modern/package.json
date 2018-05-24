@@ -13,18 +13,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dotenv": "^4.0.0",
+    "dotenv": "^5.0.1",
     "dotenv-webpack": "^1.5.4",
     "isomorphic-unfetch": "^2.0.0",
-    "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
     "react-relay": "^1.5.0"
   },
   "devDependencies": {
     "babel-plugin-relay": "^1.4.1",
     "graphcool": "^1.2.1",
-    "graphql-cli": "^1.0.0-beta.4",
+    "graphql-cli": "^2.16.0",
     "relay-compiler": "^1.5.0"
   }
 }

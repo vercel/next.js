@@ -7,12 +7,12 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "express": "^4.15.2",
-    "next": "latest",
+    "express": "4.16.3",
+    "next": "6.0.3",
     "next-url-prettifier": "^1.0.2",
-    "prop-types": "^15.5.6",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "prop-types": "15.6.1",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "license": "ISC"
 }

@@ -7,13 +7,13 @@
   },
   "dependencies": {
     "css-loader": "^0.28.1",
-    "prop-types": "^15.5.10",
+    "prop-types": "15.6.1",
     "qs": "^6.4.0",
-    "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
     "react-instantsearch": "beta",
     "react-instantsearch-theme-algolia": "beta",
-    "style-loader": "^0.17.0"
+    "style-loader": "^0.21.0"
   }
 }

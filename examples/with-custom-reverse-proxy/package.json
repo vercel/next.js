@@ -2,17 +2,17 @@
   "name": "with-custom-reverse-proxy",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.15.3",
-    "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "express": "4.16.3",
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "devDependencies": {
     "babel-preset-latest": "^6.24.1",
     "babel-preset-stage-0": "^6.24.1",
     "babel-register": "^6.24.1",
-    "cross-env": "^5.0.1",
-    "http-proxy-middleware": "^0.17.4"
+    "cross-env": "5.1.6",
+    "http-proxy-middleware": "^0.18.0"
   },
   "scripts": {
     "dev": "cross-env NODE_ENV=development PORT=3000 node server.js",

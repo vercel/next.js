@@ -6,9 +6,9 @@
     "start": "next start -p 5000"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "next": "6.0.3",
+    "react": "16.3.2",
+    "react-dom": "16.3.2"
   },
   "license": "ISC"
 }
