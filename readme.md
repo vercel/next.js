@@ -1307,6 +1307,32 @@ Here's an example `.babelrc` file:
 }
 ```
 
+The `next/babel` preset includes everything needed to transpile React applications. This includes:
+
+- preset-env
+- preset-react
+- plugin-proposal-class-properties
+- plugin-proposal-object-rest-spread
+- plugin-transform-runtime
+- styled-jsx
+
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+
+```json
+{
+  "presets": [
+    ["next/babel", {
+      "preset-env": {},
+      "transform-runtime": {},
+      "styled-jsx": {}
+    }]
+  ],
+  "plugins": []
+}
+```
+
+The `modules` option on `"preset-env"` should be kept to `false` otherwise webpack code splitting is disabled.
+
 #### Exposing configuration to the server / client side
 
 The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
