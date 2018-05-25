@@ -2,19 +2,22 @@
   "scripts": {
     "dev": "nodemon server/index.ts",
     "build": "next build && tsc --project tsconfig.server.json",
-    "start": "NODE_ENV=production node production-server/index.js"
+    "start": "NODE_ENV=production node .next/production-server/index.js"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "@babel/core": "^7.0.0-beta.48",
     "@zeit/next-typescript": "0.1.1",
-    "typescript": "^2.7.1"
+    "babel-loader": "^7.1.4",
+    "next": "latest",
+    "react": "^16.4.0",
+    "react-dom": "^16.4.0",
+    "typescript": "latest",
+    "typescript-babel-jest": "^1.0.5"
   },
   "devDependencies": {
-    "@types/next": "^2.4.7",
+    "@types/next": "^2.4.11",
     "@types/react": "^16.0.36",
-    "nodemon": "^1.12.1",
+    "nodemon": "^1.17.5",
     "ts-node": "^4.1.0"
   }
 }
