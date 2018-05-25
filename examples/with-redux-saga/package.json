@@ -1,7 +1,7 @@
 {
   "name": "with-redux-saga",
   "version": "1.0.0",
-  "license": "MIT",
+  "license": "ISC",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,7 +10,7 @@
   "dependencies": {
     "es6-promise": "4.1.1",
     "isomorphic-unfetch": "2.0.0",
-    "next": "6.0.1",
+    "next": "latest",
     "next-redux-saga": "3.0.0-beta.1",
     "next-redux-wrapper": "2.0.0-beta.6",
     "react": "^16.0.0",

@@ -17,7 +17,7 @@
     "@types/next": "^2.4.8",
     "@types/react": "^16.0.41",
     "@types/react-dom": "^16.0.4",
-    "@zeit/next-typescript": "^0.0.11",
+    "@zeit/next-typescript": "1.0.1",
     "enzyme": "^3.3.0",
     "enzyme-adapter-react-16": "^1.1.1",
     "jest": "^22.4.3",
