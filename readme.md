@@ -720,6 +720,29 @@ export default ({ url }) =>
   </div>
 ```
 
+The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+
+```jsx
+import React from 'react'
+import Router from 'next/router'
+
+export default class MyLink extends React.Component {
+  componentDidMount() {
+    Router.prefetch('/dynamic')
+  }
+  
+  render() {
+    return (
+       <div>
+        <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+          A route transition will happen after 100ms
+        </a>
+      </div>   
+    )
+  }
+}
+```
+
 ### Custom server and routing
 
 <p><details>
