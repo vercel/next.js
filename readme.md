@@ -1363,6 +1363,32 @@ export default () => <div>
 </div>
 ```
 
+#### Configuring Babel env preset
+
+Next.js uses the env preset under the hood, and you can passover all the parameters to the next.js without duplicating the env preset in your `babel.rc`.
+The `next/babel` preset has a second parameter, `preset-env`, which allows custimization of the env preset. 
+
+```json
+{
+  "presets": [[
+    "next/babel", {
+      "preset-env": {
+        "targets": {
+          "safari": 9,
+          "chrome": 50,
+          "firefox": 51,
+          "edge": 14,
+          "ie": 11,
+          "ios": 10,
+          "android": "4.4.4"
+        }
+      }
+  }]],
+}
+```
+
+More details on the custimization options of the preset can be found in the offical env preset documentation [here](https://babeljs.io/docs/plugins/preset-env/)
+
 ### CDN support with Asset Prefix
 
 To set up a CDN, you can set up the `assetPrefix` setting and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
