@@ -169,6 +169,7 @@ export default (context, render) => {
           .elementByCss('#on-click-link').click()
           .elementByCss('p').text()
 
+        // counts (one click + onClick handler)
         expect(countAfterClicked).toBe('COUNT: 2')
         browser.close()
       })
@@ -183,7 +184,7 @@ export default (context, render) => {
           .elementByCss('#on-click-link').click()
           .elementByCss('p').text()
 
-        // counts (page change + two clicks)
+        // counts (page change + two clicks + onClick handler)
         expect(countAfterClicked).toBe('COUNT: 6')
 
         // Since we replace the state, back button would simply go us back to /nav
