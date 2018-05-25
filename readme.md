@@ -118,7 +118,7 @@ So far, we get:
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages`
-- Static file serving. `./static/` is mapped to `/static/`
+- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
 
 To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
 
@@ -207,6 +207,8 @@ Create a folder called `static` in your project root directory. From your code y
 ```jsx
 export default () => <img src="/static/my-image.png" alt="my image" />
 ```
+
+_Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
 
 ### Populating `<head>`
 
