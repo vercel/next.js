@@ -159,6 +159,42 @@ export default (context, render) => {
       })
     })
 
+    describe('with onClick action', () => {
+      it('should reload the page and perform additional action', async () => {
+        const browser = await webdriver(context.appPort, '/nav/on-click')
+        const defaultCount = await browser.elementByCss('p').text()
+        expect(defaultCount).toBe('COUNT: 0')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link').click()
+          .elementByCss('p').text()
+
+        expect(countAfterClicked).toBe('COUNT: 2')
+        browser.close()
+      })
+
+      it('should always replace the state and perform additional action', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link').click()
+          .waitForElementByCss('#on-click-page')
+          .elementByCss('#on-click-link').click()
+          .elementByCss('#on-click-link').click()
+          .elementByCss('p').text()
+
+        // counts (page change + two clicks)
+        expect(countAfterClicked).toBe('COUNT: 6')
+
+        // Since we replace the state, back button would simply go us back to /nav
+        await browser
+          .back()
+          .waitForElementByCss('.nav-home')
+
+        browser.close()
+      })
+    })
+
     describe('with hash changes', () => {
       describe('when hash change via Link', () => {
         it('should not run getInitialProps', async () => {
