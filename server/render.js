@@ -219,6 +219,9 @@ function errorToJSON (err) {
 }
 
 function serializeError (dev, err) {
+  if (err.status) {
+    return { name: err.name, message: err.message, status: err.status }
+  }
   if (dev) {
     return errorToJSON(err)
   }
