@@ -10,6 +10,8 @@ let index = 0
 const normalizeNextElements = `
   body > div:first-child,
   #__next {
+    display: flex;
+    flex-direction: column;
     height: 100%;
   }
 `
@@ -34,6 +36,7 @@ export default class MyDocument extends Document {
       <html style={{ height: '100%', width: '100%' }}>
         <Head>
           <title>react-native-web</title>
+          <meta name='viewport' content='width=device-width, initial-scale=1' />
         </Head>
         <body style={{ height: '100%', width: '100%', overflowY: 'scroll' }}>
           <Main />

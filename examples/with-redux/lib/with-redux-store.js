@@ -22,7 +22,7 @@ export default (App) => {
   return class Redux extends React.Component {
     static async getInitialProps (appContext) {
       const reduxStore = getOrCreateStore()
-    
+
       // Provide the store to getInitialProps of pages
       appContext.ctx.reduxStore = reduxStore
 
@@ -46,4 +46,4 @@ export default (App) => {
       return <App {...this.props} reduxStore={this.reduxStore} />
     }
   }
-} 
+}

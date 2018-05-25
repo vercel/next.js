@@ -12,7 +12,7 @@ const SIGN_IN = gql`
 `
 
 // TODO: Find a better name for component.
-const SigninBox = (props) => {
+const SigninBox = ({ client }) => {
   let email, password
 
   return (
@@ -23,7 +23,7 @@ const SigninBox = (props) => {
       })
       // Force a reload of all the current queries now that the user is
       // logged in
-      props.client.resetStore().then(() => {
+      client.cache.reset().then(() => {
         redirect({}, '/')
       })
     }} onError={(error) => {
@@ -31,24 +31,24 @@ const SigninBox = (props) => {
       console.log(error)
     }}>
       {(signinUser, { data, error }) => (
-        <div>
-          <form onSubmit={e => {
-            e.preventDefault()
-            e.stopPropagation()
+        <form onSubmit={e => {
+          e.preventDefault()
+          e.stopPropagation()
 
-            signinUser({ variables: {
+          signinUser({
+            variables: {
               email: email.value,
               password: password.value
-            }})
+            }
+          })
 
-            email.value = password.value = ''
-          }}>
-            { error && <p>No user found with that information.</p> }
-            <input name='email' placeholder='Email' ref={node => { email = node }} /><br />
-            <input name='password' placeholder='Password' ref={node => { password = node }} type='password' /><br />
-            <button>Sign in</button>
-          </form>
-        </div>
+          email.value = password.value = ''
+        }}>
+          {error && <p>No user found with that information.</p>}
+          <input name='email' placeholder='Email' ref={node => { email = node }} /><br />
+          <input name='password' placeholder='Password' ref={node => { password = node }} type='password' /><br />
+          <button>Sign in</button>
+        </form>
       )}
     </Mutation>
   )

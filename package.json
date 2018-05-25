@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "6.0.1-canary.2",
+  "version": "6.0.4-canary.0",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -9,20 +9,20 @@
   "homepage": "https://github.com/zeit/next.js",
   "files": [
     "dist",
+    "app.js",
+    "asset.js",
     "babel.js",
     "client.js",
-    "link.js",
+    "config.js",
+    "constants.js",
     "css.js",
-    "head.js",
     "document.js",
     "dynamic.js",
-    "prefetch.js",
-    "router.js",
-    "asset.js",
     "error.js",
-    "constants.js",
-    "config.js",
-    "app.js"
+    "head.js",
+    "link.js",
+    "prefetch.js",
+    "router.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -65,7 +65,7 @@
     "@babel/template": "7.0.0-beta.42",
     "ansi-html": "0.0.7",
     "babel-core": "7.0.0-bridge.0",
-    "babel-loader": "8.0.0-beta.2",
+    "babel-loader": "8.0.0-beta.3",
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.13",
     "case-sensitive-paths-webpack-plugin": "2.1.1",
