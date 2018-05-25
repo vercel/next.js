@@ -1,5 +1,6 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
+import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   pkg,
@@ -50,6 +51,31 @@ describe('Production Usage', () => {
       const headers = { 'If-None-Match': etag }
       const res2 = await fetch(url, { headers })
       expect(res2.status).toBe(304)
+    })
+
+    it('should set Cache-Control header', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require('../.next/build-manifest.json')
+      const url = `http://localhost:${appPort}/_next/`
+
+      const resources = []
+
+      // test a regular page
+      resources.push(`${url}${buildId}/page/index.js`)
+
+      // test dynamic chunk
+      const chunkKey = Object.keys(buildManifest).find((x) => x.includes('chunks/'))
+      resources.push(url + 'webpack/' + buildManifest[chunkKey])
+
+      // test main.js
+      const mainJsKey = Object.keys(buildManifest).find((x) => x === 'main.js')
+      resources.push(url + buildManifest[mainJsKey])
+
+      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+
+      responses.forEach((res) => {
+        expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+      })
     })
 
     it('should block special pages', async () => {

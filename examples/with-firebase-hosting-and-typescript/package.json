@@ -1,0 +1,38 @@
+{
+  "name": "with-firebase-hosting",
+  "version": "1.0.0",
+  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
+  "scripts": {
+    "dev": "next src/app",
+    "serve": "NODE_ENV=production firebase serve --only functions,hosting",
+    "deploy": "firebase deploy",
+    "clean": "rimraf \"dist/functions\" && rimraf \"dist/public\"",
+    "build-app": "next build \"src/app\"",
+    "build-public": "cpx \"src/public/**/*.*\" \"dist/public\" -C",
+    "build-functions": "tsc --project src/functions",
+    "lint-app": "tslint --project src/app",
+    "typecheck-app": "tsc --project src/app",
+    "lint-functions": "tslint --project src/functions",
+    "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\"",
+    "install-deps": "cd \"dist/functions\" && npm i"
+  },
+  "dependencies": {
+    "@zeit/next-typescript": "^1.0.0",
+    "firebase-admin": "~5.12.1",
+    "firebase-functions": "^1.0.1",
+    "next": "^6.0.3",
+    "react": "^16.3.2",
+    "react-dom": "^16.3.2"
+  },
+  "devDependencies": {
+    "@types/next": "^2.4.10",
+    "@types/react": "^16.3.14",
+    "cpx": "1.5.0",
+    "firebase-tools": "3.18.4",
+    "prettier": "1.12.1",
+    "rimraf": "2.6.2",
+    "tslint": "^5.8.0",
+    "tslint-react": "3.6.0",
+    "typescript": "^2.5.3"
+  }
+}

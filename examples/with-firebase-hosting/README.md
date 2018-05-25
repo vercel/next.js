@@ -2,7 +2,7 @@
 
 ## How to use
 
-### Using `create-next-app`
+**Using `create-next-app`**
 
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
@@ -12,7 +12,8 @@ npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
-### Download manually
+<details>
+<summary><b>Download manually</b></summary>
 
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
@@ -21,15 +22,21 @@ curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 
 cd with-firebase-hosting
 ```
 
-Set up firebase:
+</details>
+
+<details>
+<summary><b>Set up firebase</b></summary>
 
 * install Firebase Tools: `npm i -g firebase-tools`
 * create a project through the [firebase web console](https://console.firebase.google.com/)
-* grab the projects ID from the web consoles URL: https://console.firebase.google.com/project/<projectId>
+* grab the projects ID from the web consoles URL: `https://console.firebase.google.com/project/<projectId>`
 * update the `.firebaserc` default project ID to the newly created project
 * login to the Firebase CLI tool with `firebase login`
 
-#### Install project:
+</details>
+
+<details>
+<summary><b>Install Project</b></summary>
 
 ```bash
 npm install
@@ -59,6 +66,8 @@ npm run deploy
 npm run clean
 ```
 
+</details>
+
 ## The idea behind the example
 
 The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
@@ -71,4 +80,25 @@ If you're having issues, feel free to tag @jthegedus in the [issue you create on
 
 * The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 * `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks run most of the npm scripts when `npm run deploy` runs `firebase deploy`. The only scripts you should need are `dev`, `clean` and `deploy`.
+* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks run most of the npm scripts when `npm run deploy` runs `firebase deploy`. The only scripts you should need are `clean`, `dev`, `serve` and `deploy`.
+
+### Customization
+
+Next App and Next Server development are separated into two different folders:
+
+* app - `src/app/`
+* server - `src/functions/`
+
+If you wish to modify any configuration of the Next App, you should only modify the contents of `src/app`.
+
+For instance, the `.babelrc` in `src/functions` is used only to compile the Firebase Cloud Functions code, which is our the Next Server code. If you wish to customize the `.babelrc` for the Next App compilation, then you should create one at `src/app/.babelrc` and follow the [customization guide](https://github.com/zeit/next.js#customizing-babel-config).
+
+### _app.js
+
+If using `_app.js` you may receive the following error on your deployed Cloud Function:
+
+```
+{ Error: Cannot find module '@babel/runtime/regenerator'...
+```
+
+Despite next.js having `@babel/runtime` as a dependency, you must install it as a dependency directly in this project.
