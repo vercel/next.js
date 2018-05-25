@@ -334,6 +334,24 @@ export default class Server {
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
 
+  async renderStatic (req, res, pathname, query, parsedUrl) {
+    if (this.isInternalUrl(req)) {
+      return this.handleRequest(req, res, parsedUrl)
+    }
+
+    if (blockedPages[pathname]) {
+      return await this.render404(req, res, parsedUrl)
+    }
+
+    if (this.config.poweredByHeader) {
+      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
+    }
+
+    const opts = {...this.renderOpts, staticMarkup: true}
+    const html = await this.renderToHTMLStatic(req, res, pathname, query)
+    return sendHTML(req, res, html, req.method, opts)
+  }
+
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
       const compilationErr = await this.getCompilationError()
@@ -353,6 +371,30 @@ export default class Server {
       } else {
         const {applySourcemaps} = require('./lib/source-map-support')
         await applySourcemaps(err)
+        if (!this.quiet) console.error(err)
+        res.statusCode = 500
+        return this.renderErrorToHTML(err, req, res, pathname, query)
+      }
+    }
+  }
+
+  async renderToHTMLStatic (req, res, pathname, query) {
+    if (this.dev) {
+      const compilationErr = await this.getCompilationError()
+      if (compilationErr) {
+        res.statusCode = 500
+        return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
+      }
+    }
+
+    try {
+      const opts = {...this.renderOpts, staticMarkup: true}
+      return await renderToHTML(req, res, pathname, query, opts)
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        res.statusCode = 404
+        return this.renderErrorToHTML(null, req, res, pathname, query)
+      } else {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
