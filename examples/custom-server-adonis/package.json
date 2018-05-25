@@ -1,0 +1,28 @@
+{
+  "name": "custom-server-adonis",
+  "version": "1.0.0",
+  "adonis-version": "4.1.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next  build ./resources",
+    "start": "cross-env NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "@adonisjs/ace": "^5.0.1",
+    "@adonisjs/auth": "^3.0.5",
+    "@adonisjs/bodyparser": "^2.0.2",
+    "@adonisjs/cors": "^1.0.5",
+    "@adonisjs/fold": "^4.0.8",
+    "@adonisjs/framework": "^5.0.6",
+    "@adonisjs/ignitor": "^2.0.6",
+    "@adonisjs/lucid": "^5.0.3",
+    "adonis-nextjs": "^1.0.3",
+    "next": "^5.1.0",
+    "react": "^16.3.1",
+    "react-dom": "^16.3.1"
+  },
+  "devDependencies": {},
+  "autoload": {
+    "App": "./app"
+  }
+}
