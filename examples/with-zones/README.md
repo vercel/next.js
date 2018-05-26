@@ -31,7 +31,7 @@ npm install
 yarn
 ```
 
-## The idead behind this example
+## The idea behind this example
 
 With Next.js you can use multiple apps as a single app using it's multi-zones feature.
 This is an example showing how to use it.
