@@ -499,43 +499,6 @@ componentWillReceiveProps(nextProps) {
 > ```
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
 
-#### Using a Higher Order Component
-
-<p><details>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="./examples/using-with-router">Using the `withRouter` utility</a></li>
-  </ul>
-</details></p>
-
-If you want to access the `router` object inside any component in your app, you can use the `withRouter` Higher-Order Component. Here's how to use it:
-
-```jsx
-import { withRouter } from 'next/router'
-
-const ActiveLink = ({ children, router, href }) => {
-  const style = {
-    marginRight: 10,
-    color: router.pathname === href? 'red' : 'black'
-  }
-
-  const handleClick = (e) => {
-    e.preventDefault()
-    router.push(href)
-  }
-
-  return (
-    <a href={href} onClick={handleClick} style={style}>
-      {children}
-    </a>
-  )
-}
-
-export default withRouter(ActiveLink)
-```
-
-The above `router` object comes with an API similar to [`next/router`](#imperatively).
-
 ### Prefetching Pages
 
 (This is a production only feature)
