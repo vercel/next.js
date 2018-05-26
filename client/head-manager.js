@@ -30,7 +30,9 @@ export default class HeadManager {
       tags[h.type] = components
     })
 
-    this.updateTitle(tags.title ? tags.title[0] : null)
+    if (tags.title && tags.title[0]) {
+      this.updateTitle(tags.title[0])
+    }
 
     const types = ['meta', 'base', 'link', 'style', 'script']
     types.forEach((type) => {

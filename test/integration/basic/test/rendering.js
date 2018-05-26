@@ -26,6 +26,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(answer.text()).toBe('The answer is 42')
     })
 
+    test('header helper renders title from document', async () => {
+      const html = await (render('/head-without-title'))
+      expect(html).toContain('<title>Default document title</title>')
+    })
+
     test('header helper renders header information', async () => {
       const html = await (render('/head'))
       expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
