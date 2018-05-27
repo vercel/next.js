@@ -4,7 +4,8 @@ module.exports = {
   setupFiles: ['<rootDir>/jest.setup.js'],
   globals: {
     'ts-jest': {
-      'useBabelrc': true
+      // 'useBabelrc': true,
+      "tsConfigFile": "tsconfig.jest.json"
     }
   },
   testRegex: TEST_REGEX,

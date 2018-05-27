@@ -2,13 +2,13 @@
   "name": "with-jest-typescript",
   "version": "1.0.0",
   "scripts": {
-    "test": "NODE_ENV=test jest",
+    "test": "jest",
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "next": "^5.0.0",
+    "next": "^6.0.3",
     "react": "^16.2.0",
     "react-dom": "^16.2.0"
   },
@@ -20,10 +20,17 @@
     "@zeit/next-typescript": "1.0.1",
     "enzyme": "^3.3.0",
     "enzyme-adapter-react-16": "^1.1.1",
-    "jest": "^22.4.3",
+    "jest": "^23.0.1",
     "react-addons-test-utils": "^15.6.2",
     "react-test-renderer": "^16.2.0",
     "ts-jest": "^22.4.2",
     "typescript": "^2.7.2"
+  },
+  "jest": {
+    "globals": {
+      "ts-jest": {
+        "useBabelrc": true
+      }
+    }
   }
 }
