@@ -17,6 +17,9 @@ export default class OnClick extends Component {
         <Link href='/nav/on-click'>
           <a id='on-click-link' onClick={() => ++count}>Self Reload</a>
         </Link>
+        <Link href='/nav/on-click'>
+          <a id='on-click-link-prevent-default' onClick={(e) => { e.preventDefault(); ++count }}>Self Reload</a>
+        </Link>
         <p>COUNT: {this.props.count}</p>
       </div>
     )

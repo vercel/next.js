@@ -160,7 +160,7 @@ export default (context, render) => {
     })
 
     describe('with onClick action', () => {
-      it.skip('should reload the page and perform additional action', async () => {
+      it('should reload the page and perform additional action', async () => {
         const browser = await webdriver(context.appPort, '/nav/on-click')
         const defaultCount = await browser.elementByCss('p').text()
         expect(defaultCount).toBe('COUNT: 0')
@@ -171,6 +171,27 @@ export default (context, render) => {
 
         // counts (one click + onClick handler)
         expect(countAfterClicked).toBe('COUNT: 2')
+        browser.close()
+      })
+
+      it('should not reload if default was prevented', async () => {
+        const browser = await webdriver(context.appPort, '/nav/on-click')
+        const defaultCount = await browser.elementByCss('p').text()
+        expect(defaultCount).toBe('COUNT: 0')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link-prevent-default').click()
+          .elementByCss('p').text()
+
+        // counter is increased but there was no reload
+        expect(countAfterClicked).toBe('COUNT: 0')
+
+        const countAfterClickedAndReloaded = await browser
+          .elementByCss('#on-click-link').click() // +2
+          .elementByCss('p').text()
+
+        // counts (onClick handler, no reload)
+        expect(countAfterClickedAndReloaded).toBe('COUNT: 3')
         browser.close()
       })
 
