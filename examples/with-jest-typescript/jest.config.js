@@ -5,7 +5,7 @@ module.exports = {
   globals: {
     'ts-jest': {
       // 'useBabelrc': true,
-      "tsConfigFile": "tsconfig.jest.json"
+      'tsConfigFile': 'tsconfig.jest.json'
     }
   },
   testRegex: TEST_REGEX,
