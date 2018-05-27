@@ -198,6 +198,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new webpack.NamedModulesPlugin(),
+      dev && new webpack.NamedChunksPlugin(),
       dev && !isServer && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
