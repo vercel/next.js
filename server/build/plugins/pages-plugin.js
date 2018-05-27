@@ -1,4 +1,5 @@
 import { ConcatSource } from 'webpack-sources'
+import { isImportChunk } from './dynamic-chunks-plugin'
 import {
   IS_BUNDLED_PAGE,
   MATCH_ROUTE_NAME
@@ -26,14 +27,19 @@ class PageChunkTemplatePlugin {
       routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
       const source = new ConcatSource()
+      const chunks = chunk.chunks.map(c => (
+        c.name && isImportChunk.test(c.name)
+          ? { id: c.id, src: `${c.name}.js` } : null
+      )).filter(Boolean)
 
-      source.add(`__NEXT_REGISTER_PAGE('${routeName}', function() {
-          var comp =
+      source.add(`
+        __NEXT_REGISTER_PAGE('${routeName}', function() {
+          var comp = 
       `)
       source.add(modules)
       source.add(`
           return { page: comp.default }
-        })
+        }, ${JSON.stringify(chunks)})
       `)
 
       return source

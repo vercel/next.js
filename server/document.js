@@ -142,9 +142,13 @@ export class NextScript extends Component {
   }
 
   getScripts () {
-    const { dev } = this.context._documentProps
+    const { dev, webpackManifest } = this.context._documentProps
+    
     if (dev) {
       return [
+        <script dangerouslySetInnerHTML={{
+          __html: `window.webpackManifest = ${JSON.stringify(webpackManifest)}`
+        }} key='webpackManifest' />,
         ...this.getChunkScript('manifest.js'),
         ...this.getChunkScript('main.js')
       ]

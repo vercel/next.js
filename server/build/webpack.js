@@ -12,6 +12,7 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
+import ChunkManifestPlugin from 'chunk-manifest-webpack-plugin'
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -258,6 +259,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           return count >= totalPages * 0.5
           // commons end
         }
+      }),
+      // Load chunk manifest to HTML document so dynamic chunks can be added
+      dev && !isServer && new ChunkManifestPlugin({
+        inlineManifest: false,
+        manifestVariable: 'webpackManifest',
+        filename: 'static/commons/manifest.json'
       }),
       // We use a manifest file in development to speed up HMR
       dev && !isServer && new webpack.optimize.CommonsChunkPlugin({

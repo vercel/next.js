@@ -59,6 +59,14 @@ async function doRender (req, res, pathname, query, {
   const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
   const appPath = join(dir, dist, 'dist', 'bundles', 'pages', '_app')
   const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
+  let webpackManifest
+
+  if (buildManifest['manifest.js']) {
+    webpackManifest = require(join(dir, dist, 'static', 'commons', 'manifest.json'))
+    buildManifest['manifest.js'] = buildManifest['manifest.js']
+      .filter(c => c.indexOf('manifest.json') < 0)
+  }
+
   let [Component, Document, App] = await Promise.all([
     requirePage(page, {dir, dist}),
     require(documentPath),
@@ -130,6 +138,7 @@ async function doRender (req, res, pathname, query, {
     dev,
     dir,
     staticMarkup,
+    webpackManifest,
     buildManifest,
     ...docProps
   })
