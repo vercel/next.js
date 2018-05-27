@@ -32,7 +32,7 @@ const buildImport = (args) => (template(`
           } catch(error) {
             reject(error)
           }
-        }, 'chunks/${args.name}.js');
+        }, reject, 'chunks/${args.name}.js');
       })
   )
 `))
