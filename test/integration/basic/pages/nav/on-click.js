@@ -13,9 +13,9 @@ export default class OnClick extends Component {
 
   render () {
     return (
-      <div id='self-reload-page'>
+      <div id='on-click-page'>
         <Link href='/nav/on-click'>
-          <a id='self-reload-link' onClick={() => ++count}>Self Reload</a>
+          <a id='on-click-link' onClick={() => ++count}>Self Reload</a>
         </Link>
         <p>COUNT: {this.props.count}</p>
       </div>
