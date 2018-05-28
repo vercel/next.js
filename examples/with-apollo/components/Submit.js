@@ -46,7 +46,6 @@ export default () => (
         })
 
         form.reset()
-
       }}>
         <h1>New Post</h1>
         <input placeholder='title' name='title' type='text' required />

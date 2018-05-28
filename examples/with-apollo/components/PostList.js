@@ -63,25 +63,25 @@ export default () => (
             </ul>
             {areMorePosts ? (
               <button onClick={() => {
-                  fetchMore({
-                    variables: {
-                      skip: allPosts.length
-                    },
-                    updateQuery: (previousResult, { fetchMoreResult }) => {
-                      if (!fetchMoreResult) {
-                        return previousResult
-                      }
-
-                      return {
-                        ...previousResult,
-                        allPosts: [
-                          ...previousResult.allPosts,
-                          ...fetchMoreResult.allPosts
-                        ]
-                      }
+                fetchMore({
+                  variables: {
+                    skip: allPosts.length
+                  },
+                  updateQuery: (previousResult, { fetchMoreResult }) => {
+                    if (!fetchMoreResult) {
+                      return previousResult
                     }
-                  })
-                }}>
+
+                    return {
+                      ...previousResult,
+                      allPosts: [
+                        ...previousResult.allPosts,
+                        ...fetchMoreResult.allPosts
+                      ]
+                    }
+                  }
+                })
+              }}>
                 { loading ? 'Loading...' : 'Show More' }
               </button>
             ) : null}

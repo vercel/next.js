@@ -22,10 +22,10 @@ export default ({ id, votes }) => (
       }
     }}
   >
-  {upvote => (
-    <button onClick={() => {upvote()}}>
-      {votes}
-      <style jsx>{`
+    {upvote => (
+      <button onClick={() => { upvote() }}>
+        {votes}
+        <style jsx>{`
         button {
           background-color: transparent;
           border: 1px solid #e4e4e4;
@@ -45,7 +45,7 @@ export default ({ id, votes }) => (
           width: 0;
         }
       `}</style>
-    </button>
-  )}
+      </button>
+    )}
   </Mutation>
 )
