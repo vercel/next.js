@@ -161,7 +161,7 @@ export default class Server {
       '/_next/webpack/chunks/:name': async (req, res, params) => {
         // Cache aggressively in production
         if (!this.dev) {
-          res.setHeader('Cache-Control', 'max-age=31536000, immutable')
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
         }
         const p = join(this.dir, this.dist, 'chunks', params.name)
         await this.serveStatic(req, res, p)
@@ -227,8 +227,12 @@ export default class Server {
       '/_next/static/:path*': async (req, res, params) => {
         // The commons folder holds commonschunk files
         // In development they don't have a hash, and shouldn't be cached by the browser.
-        if (this.dev && params.path[0] === 'commons') {
-          res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        if (params.path[0] === 'commons') {
+          if (this.dev) {
+            res.setHeader('Cache-Control', 'no-store, must-revalidate')
+          } else {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+          }
         }
         const p = join(this.dir, this.dist, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
@@ -260,9 +264,9 @@ export default class Server {
         console.log('Defining routes from exportPathMap')
         const exportPathMap = await this.nextConfig.exportPathMap({}) // In development we can't give a default path mapping
         for (const path in exportPathMap) {
-          const options = exportPathMap[path]
+          const {page, query = {}} = exportPathMap[path]
           routes[path] = async (req, res, params, parsedUrl) => {
-            await this.render(req, res, options.page, options.query, parsedUrl)
+            await this.render(req, res, page, query, parsedUrl)
           }
         }
       }
@@ -434,7 +438,7 @@ export default class Server {
       return false
     }
 
-    res.setHeader('Cache-Control', 'max-age=31536000, immutable')
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     return true
   }
 

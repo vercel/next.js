@@ -118,7 +118,7 @@ So far, we get:
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages`
-- Static file serving. `./static/` is mapped to `/static/`
+- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
 
 To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
 
@@ -207,6 +207,8 @@ Create a folder called `static` in your project root directory. From your code y
 ```jsx
 export default () => <img src="/static/my-image.png" alt="my image" />
 ```
+
+_Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
 
 ### Populating `<head>`
 
@@ -553,6 +555,8 @@ Here's a list of supported events:
 - `onRouteChangeComplete(url)` - Fires when a route changed completely
 - `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
 - `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onHashChangeStart(url)` - Fires when the hash will change but not the page
+- `onHashChangeComplete(url)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
@@ -716,6 +720,29 @@ export default ({ url }) =>
     {// but we can prefetch it!
     Router.prefetch('/dynamic')}
   </div>
+```
+
+The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+
+```jsx
+import React from 'react'
+import Router from 'next/router'
+
+export default class MyLink extends React.Component {
+  componentDidMount() {
+    Router.prefetch('/dynamic')
+  }
+  
+  render() {
+    return (
+       <div>
+        <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+          A route transition will happen after 100ms
+        </a>
+      </div>   
+    )
+  }
+}
 ```
 
 ### Custom server and routing
@@ -1282,6 +1309,32 @@ Here's an example `.babelrc` file:
 }
 ```
 
+The `next/babel` preset includes everything needed to transpile React applications. This includes:
+
+- preset-env
+- preset-react
+- plugin-proposal-class-properties
+- plugin-proposal-object-rest-spread
+- plugin-transform-runtime
+- styled-jsx
+
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+
+```json
+{
+  "presets": [
+    ["next/babel", {
+      "preset-env": {},
+      "transform-runtime": {},
+      "styled-jsx": {}
+    }]
+  ],
+  "plugins": []
+}
+```
+
+The `modules` option on `"preset-env"` should be kept to `false` otherwise webpack code splitting is disabled.
+
 #### Exposing configuration to the server / client side
 
 The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
@@ -1577,12 +1630,6 @@ Yes! Here's an example with [Apollo](./examples/with-apollo).
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
-</details>
-
-<details>
-<summary>Why aren't routes I have for my static export accessible in the development server?</summary>
-
-This is a known issue with the architecture of Next.js. Until a solution is built into the framework, take a look at [this example solution](https://github.com/zeit/next.js/wiki/Centralizing-Routing) to centralize your routing.
 </details>
 
 <details>
