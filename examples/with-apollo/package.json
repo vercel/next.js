@@ -12,9 +12,9 @@
     "isomorphic-unfetch": "2.0.0",
     "next": "latest",
     "prop-types": "15.6.1",
-    "react": "16.2.0",
-    "react-apollo": "2.1.0",
-    "react-dom": "16.2.0"
+    "react": "16.4.0",
+    "react-apollo": "2.1.4",
+    "react-dom": "16.4.0"
   },
   "author": "",
   "license": "ISC"
