@@ -19,10 +19,7 @@ export default async function (dir, options, configuration) {
   log(`> using build directory: ${nextDir}`)
 
   if (!existsSync(nextDir)) {
-    console.error(
-      `Build directory ${nextDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
-    )
-    process.exit(1)
+    throw new Error(`Build directory ${nextDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
   }
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
@@ -32,7 +29,8 @@ export default async function (dir, options, configuration) {
   const defaultPathMap = {}
 
   for (const page of pages) {
-    if (page === '/_document') {
+    // _document and _app are not real pages.
+    if (page === '/_document' || page === '/_app') {
       continue
     }
     defaultPathMap[page] = { page }
@@ -52,12 +50,6 @@ export default async function (dir, options, configuration) {
       { expand: true }
     )
   }
-
-  // Copy main.js
-  await cp(
-    join(nextDir, 'main.js'),
-    join(outDir, '_next', buildId, 'main.js')
-  )
 
   // Copy .next/static directory
   if (existsSync(join(nextDir, 'static'))) {
@@ -88,9 +80,6 @@ export default async function (dir, options, configuration) {
       return defaultMap
     }
   }
-
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
-  const exportPaths = Object.keys(exportPathMap)
 
   // Start the rendering process
   const renderOpts = {
@@ -123,6 +112,9 @@ export default async function (dir, options, configuration) {
   global.__NEXT_DATA__ = {
     nextExport: true
   }
+
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
+  const exportPaths = Object.keys(exportPathMap)
 
   for (const path of exportPaths) {
     log(`> exporting path: ${path}`)

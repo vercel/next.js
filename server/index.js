@@ -1,11 +1,9 @@
 /* eslint-disable import/first, no-return-await */
-require('@zeit/source-map-support').install()
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
-import updateNotifier from '@zeit/check-updates'
 import promisify from './lib/promisify'
 import {
   renderToHTML,
@@ -23,11 +21,13 @@ import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
+import isAsyncSupported from './lib/is-async-supported'
 
 const access = promisify(fs.access)
 
 const blockedPages = {
   '/_document': true,
+  '/_app': true,
   '/_error': true
 }
 
@@ -43,10 +43,6 @@ export default class Server {
     this.dist = this.nextConfig.distDir
 
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
-
-    if (dev) {
-      updateNotifier(pkg, 'next')
-    }
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -118,6 +114,21 @@ export default class Server {
   }
 
   async prepare () {
+    if (this.dev && process.stdout.isTTY && isAsyncSupported()) {
+      try {
+        const checkForUpdate = require('update-check')
+        const update = await checkForUpdate(pkg, {
+          distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
+        })
+        if (update) {
+          // bgRed from chalk
+          console.log(`\u001B[41mUPDATE AVAILABLE\u001B[49m The latest version of \`next\` is ${update.latest}`)
+        }
+      } catch (err) {
+        console.error('Error checking updates', err)
+      }
+    }
+
     await this.defineRoutes()
     if (this.hotReloader) {
       await this.hotReloader.start()
@@ -162,57 +173,6 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/manifest.js': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildId(params.buildId, res)
-        const p = join(this.dir, this.dist, 'manifest.js')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/manifest.js.map': async (req, res, params) => {
-        if (!this.dev) return this.send404(res)
-
-        this.handleBuildId(params.buildId, res)
-        const p = join(this.dir, this.dist, 'manifest.js.map')
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/main.js': async (req, res, params) => {
-        if (this.dev) {
-          this.handleBuildId(params.buildId, res)
-          const p = join(this.dir, this.dist, 'main.js')
-          await this.serveStatic(req, res, p)
-        } else {
-          const buildId = params.buildId
-          if (!this.handleBuildId(buildId, res)) {
-            const error = new Error('INVALID_BUILD_ID')
-            const customFields = { buildIdMismatched: true }
-
-            return await renderScriptError(req, res, '/_error', error, customFields, this.renderOpts)
-          }
-
-          const p = join(this.dir, this.dist, 'main.js')
-          await this.serveStatic(req, res, p)
-        }
-      },
-
-      '/_next/:buildId/main.js.map': async (req, res, params) => {
-        if (this.dev) {
-          this.handleBuildId(params.buildId, res)
-          const p = join(this.dir, this.dist, 'main.js.map')
-          await this.serveStatic(req, res, p)
-        } else {
-          const buildId = params.buildId
-          if (!this.handleBuildId(buildId, res)) {
-            return await this.render404(req, res)
-          }
-
-          const p = join(this.dir, this.dist, 'main.js.map')
-          await this.serveStatic(req, res, p)
-        }
-      },
-
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
@@ -229,20 +189,6 @@ export default class Server {
         await serveStatic(req, res, path)
       },
 
-      // This is very similar to the following route.
-      // But for this one, the page already built when the Next.js process starts.
-      // There's no need to build it in on-demand manner and check for other things.
-      // So, it's clean to have a seperate route for this.
-      '/_next/:buildId/page/_error.js': async (req, res, params) => {
-        if (!this.handleBuildId(params.buildId, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          return await renderScriptError(req, res, '/_error', error)
-        }
-
-        const p = join(this.dir, `${this.dist}/bundles/pages/_error.js`)
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/:buildId/page/:path*.js': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
@@ -252,7 +198,7 @@ export default class Server {
           return await renderScriptError(req, res, page, error)
         }
 
-        if (this.dev) {
+        if (this.dev && page !== '/_error' && page !== '/_app') {
           try {
             await this.hotReloader.ensurePage(page)
           } catch (error) {
@@ -279,6 +225,11 @@ export default class Server {
       },
 
       '/_next/static/:path*': async (req, res, params) => {
+        // The commons folder holds commonschunk files
+        // In development they don't have a hash, and shouldn't be cached by the browser.
+        if (this.dev && params.path[0] === 'commons') {
+          res.setHeader('Cache-Control', 'no-store, must-revalidate')
+        }
         const p = join(this.dir, this.dist, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
@@ -396,6 +347,8 @@ export default class Server {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
+        const {applySourcemaps} = require('./lib/source-map-support')
+        await applySourcemaps(err)
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)

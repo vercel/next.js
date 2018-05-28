@@ -1,6 +1,7 @@
 /* global describe, it, expect */
 
 import webdriver from 'next-webdriver'
+import {waitFor} from 'next-test-utils'
 
 export default (context, render) => {
   describe('Client Navigation', () => {
@@ -28,6 +29,20 @@ export default (context, render) => {
           .elementByCss('#counter').text()
 
         expect(counterText).toBe('Counter: 1')
+        browser.close()
+      })
+    })
+
+    describe('With url property', () => {
+      it('Should keep immutable pathname, asPath and query', async () => {
+        const browser = await webdriver(context.appPort, '/nav/url-prop-change')
+        await browser.elementByCss('#add-query').click()
+        const urlResult = await browser.elementByCss('#url-result').text()
+        const previousUrlResult = await browser.elementByCss('#previous-url-result').text()
+
+        expect(JSON.parse(urlResult)).toMatchObject({'query': {'added': 'yes'}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes'})
+        expect(JSON.parse(previousUrlResult)).toMatchObject({'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change'})
+
         browser.close()
       })
     })
@@ -451,6 +466,24 @@ export default (context, render) => {
           expect(asPath).toBe('/nav/as-path-using-router')
           browser.close()
         })
+      })
+    })
+
+    describe('runtime errors', () => {
+      it('should show ErrorDebug when a client side error is thrown inside a component', async () => {
+        const browser = await webdriver(context.appPort, '/error-inside-browser-page')
+        await waitFor(2000)
+        const text = await browser.elementByCss('body').text()
+        expect(text).toMatch(/An Expected error occured/)
+        expect(text).toMatch(/pages\/error-inside-browser-page\.js:5:0/)
+      })
+
+      it('should show ErrorDebug when a client side error is thrown outside a component', async () => {
+        const browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
+        await waitFor(2000)
+        const text = await browser.elementByCss('body').text()
+        expect(text).toMatch(/An Expected error occured/)
+        expect(text).toMatch(/pages\/error-in-the-browser-global-scope\.js:2:0/)
       })
     })
 

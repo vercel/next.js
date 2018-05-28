@@ -40,6 +40,8 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/custom-extension'),
       renderViaHTTP(context.appPort, '/styled-jsx'),
       renderViaHTTP(context.appPort, '/with-cdm'),
+      renderViaHTTP(context.appPort, '/url-prop'),
+      renderViaHTTP(context.appPort, '/url-prop-override'),
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
@@ -50,10 +52,12 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/redirect'),
       renderViaHTTP(context.appPort, '/nav/as-path'),
       renderViaHTTP(context.appPort, '/nav/as-path-using-router'),
+      renderViaHTTP(context.appPort, '/nav/url-prop-change'),
 
       renderViaHTTP(context.appPort, '/nested-cdm/index'),
 
       renderViaHTTP(context.appPort, '/hmr/about'),
+      renderViaHTTP(context.appPort, '/hmr/style'),
       renderViaHTTP(context.appPort, '/hmr/contact'),
       renderViaHTTP(context.appPort, '/hmr/counter')
     ])

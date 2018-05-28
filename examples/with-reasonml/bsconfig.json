@@ -1,9 +1,13 @@
 {
   "name": "with-reasonml",
   "sources": ["components", "pages"],
-  "bs-dependencies": ["reason-react"],
+  "bs-dependencies": ["reason-react", "bs-next"],
   "reason": { "react-jsx": 2 },
-  "package-specs": ["commonjs"],
+  "package-specs": {
+    "module": "commonjs",
+    "in-source": true
+  },
+  "suffix": ".bs.js",
   "bsc-flags": [
     "-bs-super-errors"
   ],

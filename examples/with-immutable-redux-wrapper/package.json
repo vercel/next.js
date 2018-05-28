@@ -1,0 +1,21 @@
+{
+  "name": "with-redux-wrapper",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "immutable": "4.0.0-rc.9",
+    "next": "^6.0.0",
+    "next-redux-wrapper": "2.0.0-beta.6",
+    "react": "^16.3.2",
+    "react-dom": "^16.3.2",
+    "react-redux": "^5.0.1",
+    "redux": "^3.6.0",
+    "redux-devtools-extension": "^2.13.2",
+    "redux-thunk": "^2.1.0"
+  },
+  "license": "ISC"
+}

@@ -12,16 +12,19 @@ import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
 import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
+import BuildManifestPlugin from './plugins/build-manifest-plugin'
 
 const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
 const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
+const reactJsxSourceItem = createConfigItem(require('@babel/plugin-transform-react-jsx-source'), {type: 'plugin'})
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 const nextPagesDir = path.join(nextDir, 'pages')
 const defaultPages = [
   '_error.js',
-  '_document.js'
+  '_document.js',
+  '_app.js'
 ]
 const interpolateNames = new Map(defaultPages.map((p) => {
   return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
@@ -32,7 +35,8 @@ function babelConfig (dir, {isServer, dev}) {
     cacheDirectory: true,
     presets: [],
     plugins: [
-      dev && !isServer && hotLoaderItem
+      dev && !isServer && hotLoaderItem,
+      dev && reactJsxSourceItem
     ].filter(Boolean)
   }
 
@@ -44,7 +48,7 @@ function babelConfig (dir, {isServer, dev}) {
       console.log(`> Using external babel configuration`)
       console.log(`> Location: "${externalBabelConfig.babelrc}"`)
     }
-    // By default babel-loader will look for babelrc, so no need to set it to true
+    mainBabelOptions.babelrc = true
   } else {
     mainBabelOptions.babelrc = false
   }
@@ -70,11 +74,12 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
-      // Webpack itself has to be compiled because it doesn't always use module relative paths
+      // Default pages have to be transpiled
       if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
         return callback()
       }
 
+      // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/)) {
         return callback()
       }
@@ -116,7 +121,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   } : {}
 
   let webpackConfig = {
-    devtool: dev ? 'source-map' : false,
+    devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
@@ -136,14 +141,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
       chunkFilename: '[name]-[chunkhash].js',
-      strictModuleExceptionHandling: true,
-      devtoolModuleFilenameTemplate (info) {
-        if (dev) {
-          return '[absolute-resource-path]'
-        }
-
-        return `${info.absoluteResourcePath.replace(dir, '.').replace(nextDir, './node_modules/next')}`
-      }
+      strictModuleExceptionHandling: true
     },
     performance: { hints: false },
     resolve: {
@@ -259,6 +257,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),
+      !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin(),
@@ -266,7 +265,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       // In production we move common modules into the existing main.js bundle
       !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'main.js',
-        filename: 'main.js',
+        filename: dev ? 'static/commons/main.js' : 'static/commons/main-[chunkhash].js',
         minChunks (module, count) {
           // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
           if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
@@ -297,8 +296,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }),
       // We use a manifest file in development to speed up HMR
       dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
-        name: 'manifest',
-        filename: 'manifest.js'
+        name: 'manifest.js',
+        filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js'
       })
     ].filter(Boolean)
   }
