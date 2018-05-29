@@ -168,7 +168,7 @@ export default class HotReloader {
         const removed = diff(this.prevChunkNames, chunkNames)
         const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
 
-        // reload all failed chunks to replace the templace to the error ones,
+        // reload  all failed chunks to replace the templace to the error ones,
         // and to update error content
         const failed = failedChunkNames
 
@@ -192,7 +192,7 @@ export default class HotReloader {
 
         // This means `/_app` is most likely included in the list.
         // We filter it out because `/_app` will be re-rendered with the page
-        if (changedPageRoutes.length > 1) {
+        if (added.size !== 0 || changedPageRoutes.length > 1) {
           changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app' && route !== '/_document')
         }
 
