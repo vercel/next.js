@@ -115,12 +115,12 @@ export default async ({
     err: initialErr
   })
 
-  router.subscribe(({ Component, props, hash, err }) => {
-    render({ Component, props, err, hash, emitter })
+  router.subscribe(({ App, Component, props, hash, err }) => {
+    render({ App, Component, props, err, hash, emitter })
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err: initialErr, emitter })
+  render({ App, Component, props, hash, err: initialErr, emitter })
 
   return emitter
 }
@@ -168,7 +168,7 @@ export async function renderError (props) {
   await doRender({...props, err, Component: ErrorComponent})
 }
 
-async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
+async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
