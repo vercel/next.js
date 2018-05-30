@@ -8,12 +8,11 @@ type ComponentDidCatchInfo = {
 
 export type Info = null | ComponentDidCatchInfo
 
-export type RuntimeError = {
-  ...Error,
-  module: ?{
+export type RuntimeError = Error & {|
+  module: ?{|
     rawRequest: string
-  }
-}
+  |}
+|}
 
 export type ErrorReporterProps = {|error: RuntimeError, info: Info|}
 type ErrorReporterComponent = React.ComponentType<ErrorReporterProps>
