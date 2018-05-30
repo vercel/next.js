@@ -4,9 +4,9 @@ import {applySourcemaps} from './source-map-support'
 import ErrorDebug, {styles} from '../lib/error-debug'
 import type {RuntimeError, ErrorReporterProps} from './error-boundary'
 
-type State = {
+type State = {|
   mappedError: null | RuntimeError
-}
+|}
 
 // This component is only used in development, sourcemaps are applied on the fly because componentDidCatch is not async
 class DevErrorOverlay extends React.Component<ErrorReporterProps, State> {
@@ -20,7 +20,9 @@ class DevErrorOverlay extends React.Component<ErrorReporterProps, State> {
     // Since componentDidMount doesn't handle errors we use then/catch here
     applySourcemaps(error).then(() => {
       this.setState({mappedError: error})
-    }).catch(console.error)
+    }).catch((caughtError) => {
+      this.setState({mappedError: caughtError})
+    })
   }
 
   render () {

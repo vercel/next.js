@@ -15,19 +15,19 @@ export type RuntimeError = {
   }
 }
 
-export type ErrorReporterProps = {error: RuntimeError, info: Info}
+export type ErrorReporterProps = {|error: RuntimeError, info: Info|}
 type ErrorReporterComponent = React.ComponentType<ErrorReporterProps>
 
-type Props = {
+type Props = {|
   ErrorReporter: null | ErrorReporterComponent,
   onError: (error: RuntimeError, info: ComponentDidCatchInfo) => void,
   children: React.ComponentType<*>
-}
+|}
 
-type State = {
+type State = {|
   error: null | RuntimeError,
   info: Info
-}
+|}
 
 class ErrorBoundary extends React.Component<Props, State> {
   state = {
