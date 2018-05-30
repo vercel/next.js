@@ -1,40 +1,13 @@
 import stripAnsi from 'strip-ansi'
-import React from 'react'
-import {polyfill} from 'react-lifecycles-compat'
 import initNext, * as next from './'
-import {ClientDebug} from '../lib/error-debug'
+import DevErrorOverlay from './dev-error-overlay'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 import {applySourcemaps} from './source-map-support'
 
 window.next = next
 
-class DevAppContainer extends React.Component {
-  state = {
-    error: null
-  }
-  static getDerivedStateFromProps () {
-    return {
-      error: null
-    }
-  }
-  componentDidCatch (error) {
-    this.setState({ error })
-  }
-  render () {
-    const {error} = this.state
-    if (error) {
-      return <ClientDebug error={error} />
-    }
-
-    return React.Children.only(this.props.children)
-  }
-}
-
-// Makes sure we can use React 16.3 lifecycles and still support older versions of React.
-polyfill(DevAppContainer)
-
-initNext({ DevAppContainer, ErrorDebugComponent: ClientDebug, applySourcemaps, stripAnsi })
+initNext({ DevErrorOverlay, applySourcemaps, stripAnsi })
   .then((emitter) => {
     initOnDemandEntries()
     initWebpackHMR()
