@@ -190,7 +190,7 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
 
   let onError = null
 
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV !== 'development') {
     onError = async (error, errorInfo) => {
       try {
         await renderError({App, err: error, errorInfo})
