@@ -2,7 +2,6 @@ import babelLoader from 'babel-loader'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../babel/preset'), {type: 'preset'})
-  const hotLoaderItem = babel.createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
   const reactJsxSourceItem = babel.createConfigItem(require('@babel/plugin-transform-react-jsx-source'), {type: 'plugin'})
 
   const configs = new Set()
@@ -38,7 +37,6 @@ module.exports = babelLoader.custom(babel => {
 
       options.plugins = [
         ...options.plugins,
-        dev && !isServer && hotLoaderItem,
         dev && reactJsxSourceItem
       ].filter(Boolean)
 

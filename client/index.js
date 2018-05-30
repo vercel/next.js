@@ -66,7 +66,7 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
-let HotAppContainer
+let DevAppContainer
 let ErrorDebugComponent
 let Component
 let App
@@ -76,7 +76,7 @@ let applySourcemaps = (e) => e
 export const emitter = new EventEmitter()
 
 export default async ({
-  HotAppContainer: passedHotAppContainer,
+  DevAppContainer: passedDevAppContainer,
   ErrorDebugComponent: passedDebugComponent,
   stripAnsi: passedStripAnsi,
   applySourcemaps: passedApplySourcemaps
@@ -88,7 +88,7 @@ export default async ({
 
   stripAnsi = passedStripAnsi || stripAnsi
   applySourcemaps = passedApplySourcemaps || applySourcemaps
-  HotAppContainer = passedHotAppContainer
+  DevAppContainer = passedDevAppContainer
   ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
@@ -190,11 +190,11 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
 
-  // In development we render react-hot-loader's wrapper component
-  if (HotAppContainer) {
-    renderReactElement(<HotAppContainer errorReporter={ErrorDebugComponent} warnings={false}>
+  // In development we render a wrapper component that catches runtime errors.
+  if (DevAppContainer) {
+    renderReactElement(<DevAppContainer errorReporter={ErrorDebugComponent}>
       <App {...appProps} />
-    </HotAppContainer>, appContainer)
+    </DevAppContainer>, appContainer)
   } else {
     renderReactElement(<App {...appProps} />, appContainer)
   }

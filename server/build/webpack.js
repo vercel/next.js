@@ -177,7 +177,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         // required not to cache removed files
         useHashIndex: false
       }),
-      !dev && new webpack.IgnorePlugin(/react-hot-loader/),
       !isServer && !dev && new UglifyJSPlugin({
         exclude: /react\.js/,
         parallel: true,
