@@ -127,6 +127,7 @@
     "cross-env": "5.0.5",
     "express": "4.15.5",
     "fkill": "5.1.0",
+    "flow-bin": "0.73.0",
     "get-port": "3.2.0",
     "husky": "0.14.3",
     "jest-cli": "21.2.0",

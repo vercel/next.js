@@ -6,19 +6,26 @@ type ComponentDidCatchInfo = {
   componentStack: string
 }
 
-type Info = null | ComponentDidCatchInfo
+export type Info = null | ComponentDidCatchInfo
 
-export type ErrorReporterProps = {error: Error, info: Info}
+export type RuntimeError = {
+  ...Error,
+  module: ?{
+    rawRequest: string
+  }
+}
+
+export type ErrorReporterProps = {error: RuntimeError, info: Info}
 type ErrorReporterComponent = React.ComponentType<ErrorReporterProps>
 
 type Props = {
   ErrorReporter: null | ErrorReporterComponent,
-  onError: (error: Error, info: ComponentDidCatchInfo) => void,
+  onError: (error: RuntimeError, info: ComponentDidCatchInfo) => void,
   children: React.ComponentType<*>
 }
 
 type State = {
-  error: null | Error,
+  error: null | RuntimeError,
   info: Info
 }
 
@@ -33,7 +40,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       info: null
     }
   }
-  componentDidCatch (error: Error, info: ComponentDidCatchInfo) {
+  componentDidCatch (error: RuntimeError, info: ComponentDidCatchInfo) {
     const {onError} = this.props
 
     // onError is provided in production
