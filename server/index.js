@@ -131,13 +131,6 @@ export default class Server {
         const page = `/${paths.join('/')}`
         const filename = `pages/${page.replace(/\.js$/, '')}.js`
 
-        if (!this.handleBuildHash(filename, params.hash, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          const customFields = { buildIdMismatched: true }
-
-          return renderScriptError(req, res, page, error, customFields, this.renderOpts)
-        }
-
         if (this.dev && page !== '/_error.js') {
           try {
             await this.hotReloader.ensurePage(page)
@@ -171,13 +164,6 @@ export default class Server {
       // See more: https://github.com/zeit/next.js/issues/2617
       '/_next/:hash/:name*': async (req, res, params) => {
         const name = params.name.join('/')
-        if (!this.handleBuildHash(name, params.hash, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          const customFields = { buildIdMismatched: true }
-
-          return renderScriptError(req, res, name, error, customFields, this.renderOpts)
-        }
-
         const p = join(this.dir, this.dist, 'bundles', name)
         await this.serveStatic(req, res, p)
       }
@@ -193,6 +179,8 @@ export default class Server {
   async run (req, res, parsedUrl) {
     if (this.hotReloader) {
       await this.hotReloader.run(req, res)
+    } else {
+      throw new Error(`Don't use this in prod...`)
     }
 
     const fn = this.router.match(req, res, parsedUrl)
@@ -243,20 +231,5 @@ export default class Server {
 
     // Return the very first error we found.
     return Array.from(errors.values())[0][0]
-  }
-
-  handleBuildHash (filename, hash, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    if (hash !== this.renderOpts.buildId &&
-        hash !== (this.buildStats[filename] || {}).hash) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'max-age=365000000, immutable')
-    return true
   }
 }
