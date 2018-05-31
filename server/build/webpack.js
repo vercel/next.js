@@ -12,6 +12,7 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
+import {SERVER_DIRECTORY} from '../../lib/constants'
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
@@ -98,7 +99,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }
     },
     output: {
-      path: path.join(dir, config.distDir, isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
+      path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
