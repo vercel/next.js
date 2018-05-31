@@ -11,7 +11,7 @@ import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
-import { BUILD_MANIFEST } from '../lib/constants'
+import { BUILD_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
 import { applySourcemaps } from './lib/source-map-support'
 
 const logger = console
@@ -56,8 +56,8 @@ async function doRender (req, res, pathname, query, {
     await ensurePage(page, { dir, hotReloader })
   }
 
-  const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
-  const appPath = join(dir, dist, 'dist', 'bundles', 'pages', '_app')
+  const documentPath = join(dir, dist, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
+  const appPath = join(dir, dist, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
   const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
   let [Component, Document, App] = await Promise.all([
     requirePage(page, {dir, dist}),

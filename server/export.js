@@ -5,7 +5,7 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
-import {PHASE_EXPORT, PAGES_MANIFEST} from '../lib/constants'
+import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { setAssetPrefix } from '../lib/asset'
@@ -23,7 +23,7 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
-  const pagesManifest = require(join(nextDir, 'dist', PAGES_MANIFEST))
+  const pagesManifest = require(join(nextDir, SERVER_DIRECTORY, PAGES_MANIFEST))
 
   const pages = Object.keys(pagesManifest)
   const defaultPathMap = {}
