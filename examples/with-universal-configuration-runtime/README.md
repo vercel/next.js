@@ -27,10 +27,10 @@ Install it and run:
 
 ```bash
 npm install
-API_URL='https://example.com' npm run dev
+npm run dev
 # or
 yarn
-API_URL='https://example.com' yarn dev
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -42,3 +42,4 @@ now
 ## The idea behind the example
 
 This example show how to set custom environment variables for your application at runtime
+For a solution which sets the environment at build time, see [here](https://github.com/zeit/next.js/tree/canary/examples/with-universal-configuration-build-time).

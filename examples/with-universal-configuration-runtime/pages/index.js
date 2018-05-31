@@ -1,17 +1,19 @@
 import React from 'react'
-import env from '../lib/env'
+import getConfig from 'next/config'
 
-const {API_URL} = env
+// Holds serverRuntimeConfig and publicRuntimeConfig from next.config.js nothing else.
+const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 
 export default class extends React.Component {
   static async getInitialProps () {
-    // fetch(`${API_URL}/some-path`)
+    console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
+    console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
     return {}
   }
 
   render () {
     return <div>
-            The API_URL is {API_URL}
+      The API_URL is {publicRuntimeConfig.apiUrl}
     </div>
   }
 }
