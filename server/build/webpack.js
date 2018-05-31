@@ -17,14 +17,6 @@ import {SERVER_DIRECTORY} from '../../lib/constants'
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 const nextPagesDir = path.join(nextDir, 'pages')
-const defaultPages = [
-  '_error.js',
-  '_document.js',
-  '_app.js'
-]
-const interpolateNames = new Map(defaultPages.map((p) => {
-  return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
-}))
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -164,14 +156,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && !isServer && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      dev && new webpack.LoaderOptionsPlugin({
-        options: {
-          context: dir,
-          customInterpolateName (url, name, opts) {
-            return interpolateNames.get(this.resourcePath) || url
-          }
-        }
-      }),
       dev && new WriteFilePlugin({
         exitOnErrors: false,
         log: false,
