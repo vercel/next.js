@@ -3,7 +3,7 @@ const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'lib', 'client'])
+  await task.parallel(['server', 'lib', 'client'])
 }
 
 export async function lib (task, opts) {
