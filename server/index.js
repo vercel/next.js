@@ -4,12 +4,14 @@ import fs from 'fs'
 import send from 'send'
 
 import Boom from 'boom'
-import { renderScriptError } from './render'
 import Router from './router'
 import { getAvailableChunks } from './utils'
 import getConfig from './config'
+import { serializeError } from './render'
 
 function serveStatic (req, res, path) {
+  res.setHeader('Cache-Control', 'no-store, must-revalidate')
+
   return new Promise((resolve, reject) => {
     send(req, path)
       .on('directory', () => {
@@ -22,6 +24,40 @@ function serveStatic (req, res, path) {
       .pipe(res)
       .on('finish', resolve)
   })
+}
+
+async function renderScriptError (req, res, page, error, customFields, { dev }) {
+  page = page.replace(/(\/index)?\.js/, '') || '/'
+
+  // Asks CDNs and others to not to cache the errored page
+  res.setHeader('Cache-Control', 'no-store, must-revalidate')
+  // prevent XSS attacks by filtering the page before printing it.
+  page = JSON.stringyf(page)
+  res.setHeader('Content-Type', 'text/javascript')
+
+  if (error.code === 'ENOENT') {
+    res.end(`
+      window.__NEXT_REGISTER_PAGE(${page}, function() {
+        var error = new Error('Page does not exist: ${page}')
+        error.statusCode = 404
+
+        return { error: error }
+      })
+    `)
+    return
+  }
+
+  const errorJson = {
+    ...serializeError(dev, error),
+    ...customFields
+  }
+
+  res.end(`
+    window.__NEXT_REGISTER_PAGE('${page}', function() {
+      var error = ${JSON.stringify(errorJson)}
+      return { error: error }
+    })
+  `)
 }
 
 export default class Server {

@@ -10,7 +10,6 @@ import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import { flushChunks } from '../lib/dynamic'
-import xssFilters from 'xss-filters'
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
@@ -125,40 +124,6 @@ async function doRender (req, res, pathname, query, {
   })
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export async function renderScriptError (req, res, page, error, customFields, { dev }) {
-  page = page.replace(/(\/index)?\.js/, '') || '/'
-
-  // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  // prevent XSS attacks by filtering the page before printing it.
-  page = xssFilters.uriInSingleQuotedAttr(page)
-  res.setHeader('Content-Type', 'text/javascript')
-
-  if (error.code === 'ENOENT') {
-    res.end(`
-      window.__NEXT_REGISTER_PAGE('${page}', function() {
-        var error = new Error('Page does not exist: ${page}')
-        error.statusCode = 404
-
-        return { error: error }
-      })
-    `)
-    return
-  }
-
-  const errorJson = {
-    ...serializeError(dev, error),
-    ...customFields
-  }
-
-  res.end(`
-    window.__NEXT_REGISTER_PAGE('${page}', function() {
-      var error = ${JSON.stringify(errorJson)}
-      return { error: error }
-    })
-  `)
 }
 
 function errorToJSON (err) {
