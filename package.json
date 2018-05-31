@@ -20,9 +20,6 @@
     "router.js",
     "error.js"
   ],
-  "bin": {
-    "next": "./dist/bin/next"
-  },
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
@@ -32,7 +29,7 @@
     "pretest": "npm run lint",
     "test": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
-    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
+    "lint": "standard 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
     "precommit": "lint-staged"
   },
@@ -44,8 +41,7 @@
     ]
   },
   "lint-staged": {
-    "*.js": "standard",
-    "bin/*": "standard"
+    "*.js": "standard"
   },
   "dependencies": {
     "ansi-html": "0.0.7",
@@ -67,7 +63,6 @@
     "babel-runtime": "6.26.0",
     "babel-template": "6.26.0",
     "case-sensitive-paths-webpack-plugin": "2.1.2",
-    "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "etag": "1.8.1",
     "fresh": "0.5.2",
@@ -80,18 +75,15 @@
     "json-loader": "0.5.7",
     "loader-utils": "1.1.0",
     "md5-file": "3.2.3",
-    "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
     "mz": "2.7.0",
     "path-match": "1.2.4",
-    "pkg-up": "2.0.0",
     "prop-types": "15.6.1",
     "querystring": "0.2.0",
     "react-hot-loader": "4.2.0",
     "recursive-copy": "2.0.9",
     "send": "0.16.2",
-    "source-map-support": "^0.5.6",
     "strip-ansi": "4.0.0",
     "touch": "3.1.0",
     "unfetch": "3.0.0",

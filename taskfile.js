@@ -6,11 +6,6 @@ export async function compile (task) {
   await task.parallel(['bin', 'server', 'lib', 'client'])
 }
 
-export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').babel().target('dist/bin', {mode: '0755'})
-  notify('Compiled binaries')
-}
-
 export async function lib (task, opts) {
   await task.source(opts.src || 'lib/**/*.js').babel().target('dist/lib')
   notify('Compiled lib files')
@@ -36,7 +31,6 @@ export async function build (task) {
 
 export default async function (task) {
   await task.start('build')
-  await task.watch('bin/*', 'bin')
   await task.watch('pages/**/*.js', 'copy')
   await task.watch('server/**/*.js', 'server')
   await task.watch('client/**/*.js', 'client')
