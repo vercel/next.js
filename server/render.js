@@ -139,7 +139,10 @@ function errorToJSON (err) {
   return json
 }
 
-function serializeError (dev, err) {
+export function serializeError (dev, err) {
+  if (err.output && err.output.payload) {
+    return err.output.payload
+  }
   if (err.status) {
     return { name: err.name, message: err.message, status: err.status }
   }
