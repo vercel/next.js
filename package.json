@@ -62,10 +62,9 @@
     "babel-preset-react": "6.24.1",
     "babel-runtime": "6.26.0",
     "babel-template": "6.26.0",
+    "boom": "7.2.0",
     "case-sensitive-paths-webpack-plugin": "2.1.2",
     "del": "3.0.0",
-    "etag": "1.8.1",
-    "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.6.1",
     "glob": "7.1.2",
     "glob-promise": "3.4.0",
@@ -93,8 +92,7 @@
     "webpack": "3.6.0",
     "webpack-dev-middleware": "1.12.0",
     "webpack-hot-middleware": "2.21.2",
-    "write-file-webpack-plugin": "4.2.0",
-    "xss-filters": "1.2.7"
+    "write-file-webpack-plugin": "4.2.0"
   },
   "devDependencies": {
     "@taskr/babel": "1.1.0",
