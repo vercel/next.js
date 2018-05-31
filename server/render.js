@@ -2,9 +2,6 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import send from 'send'
-import generateETag from 'etag'
-import fresh from 'fresh'
 import stripAnsi from 'strip-ansi'
 import resolve from './resolve'
 import getConfig from './config'
@@ -15,18 +12,8 @@ import App from '../lib/app'
 import { flushChunks } from '../lib/dynamic'
 import xssFilters from 'xss-filters'
 
-export async function render (req, res, pathname, query, opts) {
-  const html = await renderToHTML(req, res, pathname, query, opts)
-  sendHTML(req, res, html, req.method, opts)
-}
-
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
-}
-
-export async function renderError (err, req, res, pathname, query, opts) {
-  const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(req, res, html, req.method, opts)
 }
 
 export function renderBackpressureToHTML (req, res, pathname, query, opts = {}) {
@@ -174,37 +161,6 @@ export async function renderScriptError (req, res, page, error, customFields, { 
   `)
 }
 
-export function sendHTML (req, res, html, method, { dev }) {
-  if (res.finished) return
-  const etag = generateETag(html)
-
-  if (fresh(req.headers, { etag })) {
-    res.statusCode = 304
-    res.end()
-    return
-  }
-
-  if (dev) {
-    // In dev, we should not cache pages for any reason.
-    // That's why we do this.
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  }
-
-  res.setHeader('ETag', etag)
-  res.setHeader('Content-Type', 'text/html')
-  res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(method === 'HEAD' ? null : html)
-}
-
-export function sendJSON (res, obj, method) {
-  if (res.finished) return
-
-  const json = JSON.stringify(obj)
-  res.setHeader('Content-Type', 'application/json')
-  res.setHeader('Content-Length', Buffer.byteLength(json))
-  res.end(method === 'HEAD' ? null : json)
-}
-
 function errorToJSON (err) {
   const { name, message, stack } = err
   const json = { name, message: stripAnsi(message), stack: stripAnsi(stack) }
@@ -227,21 +183,6 @@ function serializeError (dev, err) {
   }
 
   return { message: '500 - Internal Server Error.' }
-}
-
-export function serveStatic (req, res, path) {
-  return new Promise((resolve, reject) => {
-    send(req, path)
-      .on('directory', () => {
-      // We don't allow directories to be read.
-        const err = new Error('No directory access')
-        err.code = 'ENOENT'
-        reject(err)
-      })
-      .on('error', reject)
-      .pipe(res)
-      .on('finish', resolve)
-  })
 }
 
 async function ensurePage (page, { dir, hotReloader }) {
