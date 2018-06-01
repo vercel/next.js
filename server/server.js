@@ -33,6 +33,21 @@ type UrlParseResult = {
   href: string;
 }
 
+type ParsedUrl = {
+  protocol?: string;
+  slashes?: boolean;
+  auth?: string;
+  host?: string;
+  port?: string;
+  hostname?: string;
+  hash?: string;
+  search?: string;
+  query: any; // null | string | Object
+  pathname: string;
+  path: string;
+  href: string;
+}
+
 type Envelope = {
   statusCode: number,
   content?: string,
@@ -78,6 +93,20 @@ async function sendEnvelope (req: IncomingMessage, res: ServerResponse, {statusC
   }
 
   res.end(content)
+}
+
+function normalizeUrl (req: IncomingMessage, parsedUrl?: UrlParseResult): ParsedUrl {
+  // Parse url if parsedUrl not provided
+  if (!parsedUrl || typeof parsedUrl !== 'object') {
+    parsedUrl = parseUrl(req.url, true)
+  }
+
+  // Parse the querystring ourselves if the user doesn't handle querystring parsing
+  if (typeof parsedUrl.query === 'string') {
+    parsedUrl.query = parseQuerystring(parsedUrl.query)
+  }
+
+  return {...parsedUrl}
 }
 
 export default class Server {
@@ -138,9 +167,9 @@ export default class Server {
 
   async defineRoutes (): Promise<void> {
     const {useFileSystemPublicRoutes} = this.nextConfig
-    const routes = {
+    const routes: {[string]: (req: IncomingMessage, res: ServerResponse, params: *, parsedUrl: ParsedUrl) => Promise<Envelope>} = {
       // This is the dynamic imports bundle path
-      '/_next/webpack/chunks/:name': async (req: IncomingMessage, res: ServerResponse, params: {name: string}): Envelope => {
+      '/_next/webpack/chunks/:name': async (req: IncomingMessage, res: ServerResponse, params: {name: string}): Promise<Envelope> => {
         const filePath = join(this.distDir, 'chunks', params.name)
         return this.serveStatic(req, res, filePath)
       },
@@ -150,21 +179,21 @@ export default class Server {
         return this.serveStatic(req, res, filePath)
       },
       // Serves the source maps for specific page bundles
-      '/_next/:buildId/page/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Envelope => {
+      '/_next/:buildId/page/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
         const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js.map`)
         return this.serveStatic(req, res, filePath)
       },
       // Serves the page bundles
-      '/_next/:buildId/page/:path*.js': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Envelope => {
+      '/_next/:buildId/page/:path*.js': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
         const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js`)
         return this.serveStatic(req, res, filePath)
       },
       // Serves the .next/static files
-      '/_next/static/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Envelope => {
+      '/_next/static/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
         const filePath = join(this.distDir, 'static', ...(params.path || []))
         return this.serveStatic(req, res, filePath)
       },
@@ -172,17 +201,24 @@ export default class Server {
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      '/static/:path*': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Envelope => {
-        const filePath = join(this.dir, 'static', ...(params.path || []))
+      '/static/:path*': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
+        const filePath = join(this.distDir, 'static', ...(params.path || []))
         return this.serveStatic(req, res, filePath)
       }
     }
 
     if (useFileSystemPublicRoutes) {
-      routes['/:path*'] = async (req, res, params, parsedUrl) => {
+      routes['/:path*'] = async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}, parsedUrl: ParsedUrl) => {
         const { pathname, query } = parsedUrl
         return this.render(req, res, pathname, query, parsedUrl)
       }
+    }
+  }
+
+  async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: {[string]: *}, parsedUrl: ParsedUrl): Promise<Envelope> {
+    return {
+      statusCode: 404,
+      content: STATUS_CODES[404]
     }
   }
 
@@ -191,19 +227,10 @@ export default class Server {
   }
 
   async handleRequest (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlParseResult): Promise<void> {
-    // Parse url if parsedUrl not provided
-    if (!parsedUrl || typeof parsedUrl !== 'object') {
-      parsedUrl = parseUrl(req.url, true)
-    }
+    const url = normalizeUrl(req, parsedUrl)
 
-    // Parse the querystring ourselves if the user doesn't handle querystring parsing
-    if (typeof parsedUrl.query === 'string') {
-      parsedUrl.query = parseQuerystring(parsedUrl.query)
-    }
-
-    res.statusCode = 200
     try {
-      await this.run(req, res, parsedUrl)
+      await this.run(req, res, url)
     } catch (err) {
       this.log(() => console.error(err))
       res.statusCode = 500
@@ -215,7 +242,7 @@ export default class Server {
     return this.handleRequest.bind(this)
   }
 
-  async runEnvelope (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlParseResult): Promise<Envelope> {
+  async runEnvelope (req: IncomingMessage, res: ServerResponse, parsedUrl: ParsedUrl): Promise<Envelope> {
     // Next.js only implements GET and HEAD requests. Anything else is a 501
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return {
@@ -230,7 +257,7 @@ export default class Server {
     }
   }
 
-  async run (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlParseResult): Promise<void> {
+  async run (req: IncomingMessage, res: ServerResponse, parsedUrl: ParsedUrl): Promise<void> {
     const envelope = await this.runEnvelope(req, res, parsedUrl)
     await sendEnvelope(req, res, envelope)
   }
