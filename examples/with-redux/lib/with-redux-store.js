@@ -1,5 +1,5 @@
-import App, {Container} from 'next/app'
-import {Provider} from 'react-redux'
+import React from 'react'
+import App from 'next/app'
 import {initializeStore} from '../store'
 
 const isServer = typeof window === 'undefined'
