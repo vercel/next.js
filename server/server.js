@@ -11,14 +11,14 @@ import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constant
 import getConfig from './config'
 import * as asset from '../lib/asset' // can be deprecated
 
-type ServerConstructor = {
+type ServerConstructor = {|
   dir?: string,
   dev?: boolean,
   quiet?: boolean,
   conf?: NextConfig
-}
+|}
 
-type UrlParseResult = {
+type UrlParseResult = {|
   protocol?: string;
   slashes?: boolean;
   auth?: string;
@@ -31,9 +31,9 @@ type UrlParseResult = {
   pathname?: string;
   path?: string;
   href: string;
-}
+|}
 
-type ParsedUrl = {
+type ParsedUrl = {|
   protocol?: string;
   slashes?: boolean;
   auth?: string;
@@ -46,14 +46,14 @@ type ParsedUrl = {
   pathname: string;
   path: string;
   href: string;
-}
+|}
 
-type Envelope = {
+type Envelope = {|
   statusCode: number,
   content?: string,
-  headers?: {[key: string]: string},
+  headers?: {|[key: string]: string|},
   filePath?: string
-}
+|}
 
 async function serveFilePath (req: IncomingMessage, res: ServerResponse, filePath: string) {
   return new Promise((resolve, reject) => {
@@ -76,7 +76,7 @@ async function sendEnvelope (req: IncomingMessage, res: ServerResponse, {statusC
   res.statusCode = statusCode
 
   if (headers) {
-    for (const header of Object.keys(headers)) {
+    for (const header in headers) {
       res.setHeader(header, headers[header])
     }
   }
@@ -96,14 +96,17 @@ async function sendEnvelope (req: IncomingMessage, res: ServerResponse, {statusC
 }
 
 function normalizeUrl (req: IncomingMessage, parsedUrl?: UrlParseResult): ParsedUrl {
+  if (parsedUrl && typeof parsedUrl === 'object' && typeof parsedUrl.query === 'object') {
+    return {...parsedUrl}
+  }
   // Parse url if parsedUrl not provided
   if (!parsedUrl || typeof parsedUrl !== 'object') {
-    parsedUrl = parseUrl(req.url, true)
+    return {...parseUrl(req.url, true)}
   }
 
   // Parse the querystring ourselves if the user doesn't handle querystring parsing
   if (typeof parsedUrl.query === 'string') {
-    parsedUrl.query = parseQuerystring(parsedUrl.query)
+    return {...parsedUrl, query: parseQuerystring(parsedUrl.query)}
   }
 
   return {...parsedUrl}
@@ -169,31 +172,31 @@ export default class Server {
     const {useFileSystemPublicRoutes} = this.nextConfig
     const routes: {[string]: (req: IncomingMessage, res: ServerResponse, params: *, parsedUrl: ParsedUrl) => Promise<Envelope>} = {
       // This is the dynamic imports bundle path
-      '/_next/webpack/chunks/:name': async (req: IncomingMessage, res: ServerResponse, params: {name: string}): Promise<Envelope> => {
+      '/_next/webpack/chunks/:name': async (req: IncomingMessage, res: ServerResponse, params: {|name: string|}): Promise<Envelope> => {
         const filePath = join(this.distDir, 'chunks', params.name)
         return this.serveStatic(req, res, filePath)
       },
       // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req: IncomingMessage, res: ServerResponse, params: {id: string}) => {
+      '/_next/webpack/:id': async (req: IncomingMessage, res: ServerResponse, params: {|id: string|}) => {
         const filePath = join(this.distDir, 'chunks', params.id)
         return this.serveStatic(req, res, filePath)
       },
       // Serves the source maps for specific page bundles
-      '/_next/:buildId/page/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
+      '/_next/:buildId/page/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
         const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js.map`)
         return this.serveStatic(req, res, filePath)
       },
       // Serves the page bundles
-      '/_next/:buildId/page/:path*.js': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
+      '/_next/:buildId/page/:path*.js': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
         const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js`)
         return this.serveStatic(req, res, filePath)
       },
       // Serves the .next/static files
-      '/_next/static/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
+      '/_next/static/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
         const filePath = join(this.distDir, 'static', ...(params.path || []))
         return this.serveStatic(req, res, filePath)
       },
@@ -201,21 +204,21 @@ export default class Server {
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      '/static/:path*': async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}): Promise<Envelope> => {
+      '/static/:path*': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
         const filePath = join(this.distDir, 'static', ...(params.path || []))
         return this.serveStatic(req, res, filePath)
       }
     }
 
     if (useFileSystemPublicRoutes) {
-      routes['/:path*'] = async (req: IncomingMessage, res: ServerResponse, params: {path: [string]}, parsedUrl: ParsedUrl) => {
+      routes['/:path*'] = async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}, parsedUrl: ParsedUrl) => {
         const { pathname, query } = parsedUrl
         return this.render(req, res, pathname, query, parsedUrl)
       }
     }
   }
 
-  async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: {[string]: *}, parsedUrl: ParsedUrl): Promise<Envelope> {
+  async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: {|[string]: *|}, parsedUrl: ParsedUrl): Promise<Envelope> {
     return {
       statusCode: 404,
       content: STATUS_CODES[404]
