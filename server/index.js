@@ -152,11 +152,6 @@ export default class Server {
 
   async defineRoutes () {
     const routes = {
-      '/_next-prefetcher.js': async (req, res, params) => {
-        const p = join(__dirname, '../client/next-prefetcher-bundle.js')
-        await this.serveStatic(req, res, p)
-      },
-
       // This is to support, webpack dynamic imports in production.
       '/_next/webpack/chunks/:name': async (req, res, params) => {
         // Cache aggressively in production
