@@ -6,7 +6,7 @@ type WebpackConfig = *
 
 type WebpackDevMiddlewareConfig = *
 
-export type NextConfig = {
+export type NextConfig = {|
   webpack: null | (webpackConfig: WebpackConfig, {dir: string, dev: boolean, isServer: boolean, buildId: string, config: NextConfig, defaultLoaders: {}, totalPages: number}) => WebpackConfig,
   webpackDevMiddleware: null | (WebpackDevMiddlewareConfig: WebpackDevMiddlewareConfig) => WebpackDevMiddlewareConfig,
   poweredByHeader: boolean,
@@ -17,7 +17,7 @@ export type NextConfig = {
   generateBuildId: () => string,
   generateEtags: boolean,
   pageExtensions: Array<string>
-}
+|}
 
 const defaultConfig: NextConfig = {
   webpack: null,
@@ -56,6 +56,6 @@ export default function getConfig (phase: string, dir: string, customConfig?: Ne
   return withDefaults(userConfig)
 }
 
-function withDefaults (config: {} | NextConfig) {
-  return Object.assign({}, defaultConfig, config)
+function withDefaults (config: {} | NextConfig): NextConfig {
+  return {...defaultConfig, ...config}
 }
