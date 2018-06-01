@@ -2,9 +2,24 @@
 import findUp from 'find-up'
 import uuid from 'uuid'
 
-const cache = new Map()
+type WebpackConfig = *
 
-const defaultConfig = {
+type WebpackDevMiddlewareConfig = *
+
+export type NextConfig = {
+  webpack: null | (webpackConfig: WebpackConfig, {dir: string, dev: boolean, isServer: boolean, buildId: string, config: NextConfig, defaultLoaders: {}, totalPages: number}) => WebpackConfig,
+  webpackDevMiddleware: null | (WebpackDevMiddlewareConfig: WebpackDevMiddlewareConfig) => WebpackDevMiddlewareConfig,
+  poweredByHeader: boolean,
+  distDir: string,
+  assetPrefix: string,
+  configOrigin: string,
+  useFileSystemPublicRoutes: boolean,
+  generateBuildId: () => string,
+  generateEtags: boolean,
+  pageExtensions: Array<string>
+}
+
+const defaultConfig: NextConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   poweredByHeader: true,
@@ -17,14 +32,7 @@ const defaultConfig = {
   pageExtensions: ['jsx', 'js']
 }
 
-export default function getConfig (phase: string, dir: string, customConfig?: ?Object) {
-  if (!cache.has(dir)) {
-    cache.set(dir, loadConfig(phase, dir, customConfig))
-  }
-  return cache.get(dir)
-}
-
-export function loadConfig (phase: string, dir: string, customConfig?: ?Object) {
+export default function getConfig (phase: string, dir: string, customConfig?: NextConfig): NextConfig {
   if (customConfig && typeof customConfig === 'object') {
     customConfig.configOrigin = 'server'
     return withDefaults(customConfig)
@@ -48,6 +56,6 @@ export function loadConfig (phase: string, dir: string, customConfig?: ?Object) 
   return withDefaults(userConfig)
 }
 
-function withDefaults (config: Object) {
+function withDefaults (config: {} | NextConfig) {
   return Object.assign({}, defaultConfig, config)
 }
