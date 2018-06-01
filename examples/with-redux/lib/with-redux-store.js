@@ -1,5 +1,4 @@
 import React from 'react'
-import App from 'next/app'
 import {initializeStore} from '../store'
 
 const isServer = typeof window === 'undefined'
