@@ -62,8 +62,14 @@ async function serveFilePath (req: IncomingMessage, res: ServerResponse, filePat
         // We don't allow directories to be read.
         resolve(false)
       })
-      .on('error', () => {
-        resolve(false)
+      .on('error', (err) => {
+        // If the file is not found we mark it as not serveable
+        if (err.code === 'ENOENT') {
+          resolve(false)
+          return
+        }
+        // If the error was anything else we throw
+        reject(err)
       })
       .pipe(res)
       .on('finish', () => {
