@@ -5,7 +5,7 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import getConfig from './config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST} from '../lib/constants'
+import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { setAssetPrefix } from '../lib/asset'
@@ -73,9 +73,9 @@ export default async function (dir, options, configuration) {
 
   await copyPages(nextDir, outDir, buildId)
 
-  // Get the exportPathMap from the `next.config.js`
+  // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log('> No "exportPathMap" found in "next.config.js". Generating map from "./pages"')
+    console.log(`> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`)
     nextConfig.exportPathMap = async (defaultMap) => {
       return defaultMap
     }

@@ -1,6 +1,7 @@
 // @flow
 import findUp from 'find-up'
 import uuid from 'uuid'
+import {CONFIG_FILE} from '../lib/constants'
 
 type WebpackConfig = *
 
@@ -32,30 +33,28 @@ const defaultConfig: NextConfig = {
   pageExtensions: ['jsx', 'js']
 }
 
+type PhaseFunction = (phase: string, options: {defaultConfig: NextConfig}) => NextConfig
+
 export default function getConfig (phase: string, dir: string, customConfig?: NextConfig): NextConfig {
-  if (customConfig && typeof customConfig === 'object') {
+  if (customConfig) {
     customConfig.configOrigin = 'server'
-    return withDefaults(customConfig)
+    return {...defaultConfig, ...customConfig}
   }
-  const path: string = findUp.sync('next.config.js', {
+  const path: string = findUp.sync(CONFIG_FILE, {
     cwd: dir
   })
 
-  let userConfig = {}
-
+  // If config file was found
   if (path && path.length) {
     // $FlowFixMe
     const userConfigModule = require(path)
-    userConfig = userConfigModule.default || userConfigModule
-    if (typeof userConfigModule === 'function') {
-      userConfig = userConfigModule(phase, {defaultConfig})
+    const userConfigInitial: NextConfig | PhaseFunction = userConfigModule.default || userConfigModule
+    if (typeof userConfigInitial === 'function') {
+      return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfigInitial(phase, {defaultConfig})}
     }
-    userConfig.configOrigin = 'next.config.js'
+
+    return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfigInitial}
   }
 
-  return withDefaults(userConfig)
-}
-
-function withDefaults (config: {} | NextConfig): NextConfig {
-  return {...defaultConfig, ...config}
+  return defaultConfig
 }
