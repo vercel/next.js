@@ -14,7 +14,8 @@ const defaultConfig = {
   useFileSystemPublicRoutes: true,
   generateBuildId: () => uuid.v4(),
   generateEtags: true,
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['jsx', 'js'],
+  exportTrailingSlashes: true
 }
 
 export default function getConfig (phase: string, dir: string, customConfig?: ?Object) {
