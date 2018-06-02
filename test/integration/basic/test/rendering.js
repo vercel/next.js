@@ -43,6 +43,14 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).not.toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
     })
 
+    test('header helper avoids dedupe of specific tags', async () => {
+      const html = await (render('/head'))
+      expect(html).toContain('<meta property="article:tag" content="tag1" class="next-head"/>')
+      expect(html).toContain('<meta property="article:tag" content="tag2" class="next-head"/>')
+      expect(html).not.toContain('<meta property="dedupe:tag" content="tag3" class="next-head"/>')
+      expect(html).toContain('<meta property="dedupe:tag" content="tag4" class="next-head"/>')
+    })
+
     test('header helper renders Fragment children', async () => {
       const html = await (render('/head'))
       expect(html).toContain('<title class="next-head">Fragment title</title>')
