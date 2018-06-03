@@ -1,3 +1,4 @@
+// @flow
 // We borrow this code from https://github.com/pillarjs/path-match
 // That's because, ^^^ package comes with very old version of path-to-regexp
 // So, it'll give us issues when the app has used a newer version of path-to-regexp
@@ -5,18 +6,26 @@
 var pathToRegexp = require('path-to-regexp')
 var createError = require('http-errors')
 
-module.exports = function (options) {
+export type MatchedPath = *
+
+type PathToRegexpOptions = {
+  sensitive?: boolean,
+  strict?: boolean,
+  end?: boolean
+}
+
+module.exports = function (options: ?PathToRegexpOptions) {
   options = options || {}
 
-  return function (path) {
+  return function (path: string) {
     var keys = []
     var re = pathToRegexp(path, keys, options)
 
-    return function (pathname, params) {
+    return function (pathname: string): MatchedPath {
       var m = re.exec(pathname)
       if (!m) return false
 
-      params = params || {}
+      const params = {}
 
       var key, param
       for (var i = 0; i < keys.length; i++) {

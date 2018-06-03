@@ -2,6 +2,7 @@
 import { join } from 'path'
 import { spawn } from 'cross-spawn'
 import pkg from '../../package.json'
+import {CONFIG_FILE} from '../lib/constants'
 
 if (pkg.peerDependencies) {
   Object.keys(pkg.peerDependencies).forEach(dependency => {
@@ -89,9 +90,9 @@ let proc = startProcess()
 
 if (cmd === 'dev') {
   const {watchFile} = require('fs')
-  watchFile(`${process.cwd()}/next.config.js`, (cur, prev) => {
+  watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur, prev) => {
     if (cur.size > 0 || prev.size > 0) {
-      console.log('\n> Found a change in next.config.js, restarting the server...')
+      console.log(`\n> Found a change in ${CONFIG_FILE}, restarting the server...`)
       // Don't listen to 'close' now since otherwise parent gets killed by listener
       proc.removeAllListeners('close')
       proc.kill()

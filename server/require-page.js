@@ -27,8 +27,8 @@ export function normalizePagePath (page) {
   return page
 }
 
-export function getPagePath (page, {dir, dist}) {
-  const serverBuildPath = join(dir, dist, SERVER_DIRECTORY)
+export function getPagePath (page, {distDir}) {
+  const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
@@ -45,7 +45,14 @@ export function getPagePath (page, {dir, dist}) {
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export default async function requirePage (page, {dir, dist}) {
-  const pagePath = getPagePath(page, {dir, dist})
-  return require(pagePath)
+export default async function requirePage (page, {distDir}) {
+  const pagePath = getPagePath(page, {distDir})
+  const mod = require(pagePath)
+  const Component = mod.default || mod
+
+  if (typeof Component !== 'function') {
+    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+  }
+
+  return Component
 }

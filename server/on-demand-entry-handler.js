@@ -5,7 +5,7 @@ import { parse } from 'url'
 import touch from 'touch'
 import promisify from './lib/promisify'
 import globModule from 'glob'
-import {normalizePagePath, pageNotFoundError} from './require'
+import {normalizePagePath, pageNotFoundError} from './require-page'
 import {createEntry} from './build/webpack/utils'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
 

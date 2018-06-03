@@ -205,7 +205,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
-      isServer && new PagesManifestPlugin(),
+      new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       !isServer && new DynamicChunksPlugin(),

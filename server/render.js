@@ -4,7 +4,7 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requirePage from './require'
+import requirePage from './require-page'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import { getAvailableChunks } from './utils'
@@ -34,6 +34,10 @@ export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
 }
 
+async function render() {
+
+}
+
 async function doRender (req, res, pathname, query, {
   err,
   page,
@@ -48,73 +52,8 @@ async function doRender (req, res, pathname, query, {
   staticMarkup = false,
   nextExport = false
 } = {}) {
-  page = page || pathname
 
-  await applySourcemaps(err)
 
-  if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
-    await ensurePage(page, { dir, hotReloader })
-  }
-
-  const documentPath = join(dir, dist, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
-  const appPath = join(dir, dist, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
-  const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
-  let [Component, Document, App] = await Promise.all([
-    requirePage(page, {dir, dist}),
-    require(documentPath),
-    require(appPath)
-  ])
-
-  Component = Component.default || Component
-
-  if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
-  }
-
-  App = App.default || App
-  Document = Document.default || Document
-  const asPath = req.url
-  const ctx = { err, req, res, pathname, query, asPath }
-  const router = new Router(pathname, query, asPath)
-  const props = await loadGetInitialProps(App, {Component, router, ctx})
-
-  // the response might be finshed on the getinitialprops call
-  if (isResSent(res)) return
-
-  const renderPage = (enhancer = Page => Page) => {
-    const app = createElement(App, {
-      Component: enhancer(Component),
-      router,
-      ...props
-    })
-
-    const render = staticMarkup ? renderToStaticMarkup : renderToString
-
-    let html
-    let head
-    let errorHtml = ''
-
-    try {
-      if (err && dev) {
-        errorHtml = render(createElement(ErrorDebug, { error: err }))
-      } else if (err) {
-        html = render(app)
-      } else {
-        html = render(app)
-      }
-    } finally {
-      head = Head.rewind() || defaultHead()
-    }
-    const chunks = loadChunks({ dev, dir, dist, availableChunks })
-
-    return { html, head, errorHtml, chunks, buildManifest }
-  }
-
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-
-  if (isResSent(res)) return
-
-  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props,
