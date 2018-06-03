@@ -16,12 +16,13 @@ import Router from './router'
 import { getAvailableChunks, isInternalUrl } from './utils'
 import loadConfig from './config'
 import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
-// We need to go up one more level since we are in the `dist` directory
-import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 import isAsyncSupported from './lib/is-async-supported'
+
+// We need to go up one more level since we are in the `dist` directory
+import pkg from '../../package'
 
 const access = promisify(fs.access)
 
