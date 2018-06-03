@@ -1,20 +1,32 @@
 // @flow
 import type {IncomingMessage, ServerResponse} from 'http'
+import type {MatchedPath} from './lib/path-match'
 import type {NextConfig} from './config'
 
 import {STATUS_CODES} from 'http'
+import fs from 'fs'
 import {parse as parseUrl} from 'url'
 import {parse as parseQuerystring} from 'querystring'
 import {resolve, join, sep} from 'path'
 import send from 'send'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
+import { createElement } from 'react'
+import { renderToString, renderToStaticMarkup } from 'react-dom/server'
+import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
+import pathMatch from './lib/path-match'
 import getConfig from './config'
 import * as asset from '../lib/asset' // can be deprecated
+import { Router as NextRouter } from '../lib/router'
+import { loadGetInitialProps, isResSent } from '../lib/utils'
+import requirePage from './require-page'
+import Head, { defaultHead } from '../lib/head'
+
+const route = pathMatch()
 
 type ServerConstructor = {|
   dir?: string,
   dev?: boolean,
   quiet?: boolean,
+  staticMarkup?: boolean,
   conf?: NextConfig
 |}
 
@@ -52,7 +64,13 @@ type Envelope = {|
   statusCode: number,
   content?: string,
   headers?: {|[key: string]: string|},
-  filePath?: string
+  filePath?: string,
+  finished?: boolean
+|}
+
+type Route = {|
+  match: (url: string) => *,
+  execute: (req: IncomingMessage, res: ServerResponse, params: MatchedPath, parsedUrl: ParsedUrl) => Promise<Envelope>
 |}
 
 async function serveFilePath (req: IncomingMessage, res: ServerResponse, filePath: string) {
@@ -78,7 +96,11 @@ async function serveFilePath (req: IncomingMessage, res: ServerResponse, filePat
   })
 }
 
-async function sendEnvelope (req: IncomingMessage, res: ServerResponse, {statusCode, headers, content, filePath}: Envelope): Promise<void> {
+async function sendEnvelope (req: IncomingMessage, res: ServerResponse, {statusCode, headers, content, filePath, finished}: Envelope): Promise<void> {
+  if(finished) {
+    return
+  }
+
   res.statusCode = statusCode
 
   if (headers) {
@@ -118,19 +140,49 @@ function normalizeUrl (req: IncomingMessage, parsedUrl?: UrlParseResult): Parsed
   return {...parsedUrl}
 }
 
+// Used to load _app and _document
+function getComponent(distDir, page) {
+  const componentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', page)
+  const mod = require(componentPath)
+  const Component = mod.default || mod
+  if (!Component.prototype || !Component.prototype.isReactComponent) {
+    throw new Error(`pages${page}.js is not exporting a React element`)
+  }
+
+  return Component
+}
+
 export default class Server {
   nextConfig: NextConfig
   distDir: string
   staticDir: string
   dev: boolean
   quiet: boolean
-  constructor ({ dir = '.', dev = false, quiet = false, conf }: ServerConstructor = {}) {
+  routes: Array<Route>
+  buildManifest: *
+  DocumentComponent: *
+  AppComponent: *
+  staticMarkup: boolean
+  buildId: string
+  constructor ({ dir = '.', dev = false, quiet = false, staticMarkup = false, conf }: ServerConstructor = {}) {
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
 
     this.nextConfig = getConfig(phase, dir, conf)
     this.distDir = join(dir, this.nextConfig.distDir)
     this.staticDir = join(dir, 'static')
     this.dev = dev
+    this.staticMarkup = staticMarkup
+    this.buildId = this.readBuildId()
+    this.buildManifest = require(join(this.distDir, BUILD_MANIFEST))
+    // Preload Document and App since they're not dynamic
+    this.DocumentComponent = getComponent(this.distDir, '/_document')
+    this.AppComponent = getComponent(this.distDir, '/_app')
+  }
+
+  readBuildId () {
+    const buildIdPath = join(this.distDir, 'BUILD_ID')
+    const buildId = fs.readFileSync(buildIdPath, 'utf8')
+    return buildId.trim()
   }
 
   setAssetPrefix (prefix: string): void {
@@ -176,58 +228,199 @@ export default class Server {
 
   async defineRoutes (): Promise<void> {
     const {useFileSystemPublicRoutes} = this.nextConfig
-    const routes: {[string]: (req: IncomingMessage, res: ServerResponse, params: *, parsedUrl: ParsedUrl) => Promise<Envelope>} = {
-      // This is the dynamic imports bundle path
-      '/_next/webpack/chunks/:name': async (req: IncomingMessage, res: ServerResponse, params: {|name: string|}): Promise<Envelope> => {
-        const filePath = join(this.distDir, 'chunks', params.name)
-        return this.serveStatic(req, res, filePath)
+    const routes: Array<Route> = [
+      {
+        // This is the dynamic imports bundle path        
+        match: route('/_next/webpack/chunks/:name'),
+        execute: async (req, res, params: {name: string}) => {
+          const filePath = join(this.distDir, 'chunks', params.name)
+          return this.serveStatic(req, res, filePath)
+        }
       },
-      // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req: IncomingMessage, res: ServerResponse, params: {|id: string|}) => {
-        const filePath = join(this.distDir, 'chunks', params.id)
-        return this.serveStatic(req, res, filePath)
+      {
+        // This is to support, webpack dynamic import support with HMR        
+        match: route('/_next/webpack/:id'),
+        execute: async (req, res, params: {id: string}) => {
+          const filePath = join(this.distDir, 'chunks', params.id)
+          return this.serveStatic(req, res, filePath)
+        }
       },
-      // Serves the source maps for specific page bundles
-      '/_next/:buildId/page/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-        const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js.map`)
-        return this.serveStatic(req, res, filePath)
+      {
+        // Serves the source maps for specific page bundles        
+        match: route('/_next/:buildId/page/:path*.js.map'),
+        execute: async (req, res, params: {path: string[]}) => {
+          const paths = params.path || ['']
+          const page = `/${paths.join('/')}`
+          const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js.map`)
+          return this.serveStatic(req, res, filePath)
+        }        
       },
-      // Serves the page bundles
-      '/_next/:buildId/page/:path*.js': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-        const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js`)
-        return this.serveStatic(req, res, filePath)
+      {
+        // Serves the page client side javascript        
+        match: route('/_next/:buildId/page/:path*.js'),
+        execute: async(req, res, params: {path: string[]}) => {
+          const paths = params.path || ['']
+          const page = `/${paths.join('/')}`
+          const filePath = join(this.distDir, 'bundles', 'pages', `${page}.js`)
+          return this.serveStatic(req, res, filePath)
+        }
       },
-      // Serves the .next/static files
-      '/_next/static/:path*.js.map': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
-        const filePath = join(this.distDir, 'static', ...(params.path || []))
-        return this.serveStatic(req, res, filePath)
+      {
+        // Serves the .next/static files
+        match: route('/_next/static/:path*'),
+        execute: async (req, res, params: {path: string[]}) => {
+          const filePath = join(this.distDir, 'static', ...(params.path || []))
+          return this.serveStatic(req, res, filePath)
+        }        
       },
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      '/static/:path*': async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}): Promise<Envelope> => {
-        const filePath = join(this.distDir, 'static', ...(params.path || []))
-        return this.serveStatic(req, res, filePath)
+      {
+        // It's very important keep this route's param optional.
+        // (but it should support as many as params, seperated by '/')
+        // Othewise this will lead to a pretty simple DOS attack.
+        // See more: https://github.com/zeit/next.js/issues/2617
+        // Serves the /static files      
+        match: route('/static/:path*'),
+        execute: async (req, res, params: {path: string[]}) => {
+          const filePath = join(this.staticDir, ...(params.path || []))
+          return this.serveStatic(req, res, filePath)
+        }
+      }
+    ]
+
+    if (useFileSystemPublicRoutes) {
+      // This is the route that renders all pages
+      routes.push({
+        // It's very important keep this route's param optional.
+        // (but it should support as many as params, seperated by '/')
+        // Othewise this will lead to a pretty simple DOS attack.
+        // See more: https://github.com/zeit/next.js/issues/2617
+        // Serves the /static files      
+        match: route('/:path*'),
+        execute: async (req, res, params, parsedUrl) => {
+          const { pathname, query } = parsedUrl
+          return this.render(req, res, pathname, query, parsedUrl)
+        }
+      })
+    }
+
+    this.routes = routes
+  }
+
+  async match(req: IncomingMessage, res: ServerResponse, parsedUrl: ParsedUrl): Promise<(() => Promise<Envelope>) | false> {
+    const {pathname} = parsedUrl
+
+    if(!this.routes) {
+      throw new Error('No routes defined')
+    }
+
+    for(const route of this.routes) {
+      const params = route.match(pathname)
+      if(params) {
+        return async (): Promise<Envelope> => {
+          return route.execute(req, res, params, parsedUrl)
+        }
       }
     }
 
-    if (useFileSystemPublicRoutes) {
-      routes['/:path*'] = async (req: IncomingMessage, res: ServerResponse, params: {|path: [string]|}, parsedUrl: ParsedUrl) => {
-        const { pathname, query } = parsedUrl
-        return this.render(req, res, pathname, query, parsedUrl)
-      }
-    }
+    return false
   }
 
   async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: {|[string]: *|}, parsedUrl: ParsedUrl): Promise<Envelope> {
+    // Block internal pages that shouldn't be rendered directly
+    if (BLOCKED_PAGES.indexOf(pathname) !== -1) {
+      return {
+        statusCode: 404,
+        content: STATUS_CODES[404]
+      }
+    }
+
+    const dev = this.dev
+    const App = this.AppComponent
+    const Document = this.DocumentComponent
+    const buildManifest = this.buildManifest
+    const staticMarkup = this.staticMarkup
+    const buildId = this.buildId
+    const assetPrefix = this.nextConfig.assetPrefix
+    let runtimeConfig
+    const nextExport = false
+    let err
+    const PageComponent = await requirePage(pathname, {distDir: this.distDir})
+
+    const asPath = req.url
+    const router = new NextRouter(pathname, query, asPath)    
+    // const ctx = { err, req, res, pathname, query, asPath }
+    const pageContext = { req, res, pathname, query, asPath }
+    const appContext = {Component: PageComponent, router, ctx: pageContext}
+    const props = await loadGetInitialProps(App, appContext)
+
+    // the response might be finished by the user using getInitialProps
+    if (isResSent(res)) {
+      return {
+        finished: true
+      }
+    }
+
+    const renderPage = (enhancer = Page => Page) => {
+      const app = createElement(App, {
+        Component: enhancer(PageComponent),
+        router,
+        ...props
+      })
+
+      const render = staticMarkup ? renderToStaticMarkup : renderToString
+
+      let html
+      let head
+      let errorHtml = ''
+
+      try {
+        html = render(app)
+      } finally {
+        head = Head.rewind() || defaultHead()
+      }
+      // const chunks = loadChunks({ dev, dir, dist, availableChunks })
+      const chunks = {
+        names: [],
+        filenames: []
+      }
+
+      return { html, head, errorHtml, chunks, buildManifest }
+    }
+
+    const documentContext = { ...pageContext, renderPage }
+    const documentProps = await loadGetInitialProps(Document, documentContext)
+
+    // the response might be finished by the user using getInitialProps
+    if (isResSent(res)) {
+      return {
+        finished: true
+      }
+    }
+
+    const documentElement = createElement(Document, {
+      __NEXT_DATA__: {
+        props,
+        page: pathname, // the rendered page
+        pathname, // the requested path
+        query,
+        buildId,
+        assetPrefix,
+        runtimeConfig,
+        nextExport,
+        err: (err) ? serializeError(dev, err) : null
+      },
+      dev,
+      staticMarkup,
+      buildManifest,
+      ...documentProps
+    })
+    
+    // Since the document is not rehydrated on the client side we render to static markup
+    const documentHTML = '<!DOCTYPE html>' + renderToStaticMarkup(documentElement)
+
     return {
-      statusCode: 404,
-      content: STATUS_CODES[404]
+      statusCode: 200,
+      content: documentHTML
     }
   }
 
@@ -260,9 +453,16 @@ export default class Server {
       }
     }
 
+    const fn = await this.match(req, res, parsedUrl)
+
+    if(fn) {
+      const envelope = await fn()
+      return envelope
+    }
+
     return {
       statusCode: 404,
-      content: '404'
+      content: STATUS_CODES[404]
     }
   }
 

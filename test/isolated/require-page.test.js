@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import {SERVER_DIRECTORY} from 'next/constants'
-import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
+import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require-page'
 
 const sep = '/'
 const pathToBundles = join(__dirname, '_resolvedata', SERVER_DIRECTORY, 'bundles', 'pages')
