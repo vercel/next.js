@@ -4,8 +4,8 @@ import { readdirSync, existsSync } from 'fs'
 export const IS_BUNDLED_PAGE = /^bundles[/\\]pages.*\.js$/
 export const MATCH_ROUTE_NAME = /^bundles[/\\]pages[/\\](.*)\.js$/
 
-export function getAvailableChunks (dir, dist) {
-  const chunksDir = join(dir, dist, 'chunks')
+export function getAvailableChunks (distDir) {
+  const chunksDir = join(distDir, 'chunks')
   if (!existsSync(chunksDir)) return {}
 
   const chunksMap = {}

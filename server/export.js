@@ -5,7 +5,7 @@ import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import loadConfig from './config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE} from '../lib/constants'
+import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE} from '../lib/constants'
 import { renderToHTML } from './render'
 import { getAvailableChunks } from './utils'
 import { setAssetPrefix } from '../lib/asset'
@@ -14,16 +14,16 @@ import * as envConfig from '../lib/runtime-config'
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
-  const nextDir = join(dir, nextConfig.distDir)
+  const distDir = join(dir, nextConfig.distDir)
 
-  log(`> using build directory: ${nextDir}`)
+  log(`> using build directory: ${distDir}`)
 
-  if (!existsSync(nextDir)) {
-    throw new Error(`Build directory ${nextDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
+  if (!existsSync(distDir)) {
+    throw new Error(`Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
   }
 
-  const buildId = readFileSync(join(nextDir, 'BUILD_ID'), 'utf8')
-  const pagesManifest = require(join(nextDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+  const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
+  const pagesManifest = require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
 
   const pages = Object.keys(pagesManifest)
   const defaultPathMap = {}
@@ -52,26 +52,26 @@ export default async function (dir, options, configuration) {
   }
 
   // Copy .next/static directory
-  if (existsSync(join(nextDir, 'static'))) {
+  if (existsSync(join(distDir, 'static'))) {
     log('  copying "static build" directory')
     await cp(
-      join(nextDir, 'static'),
+      join(distDir, 'static'),
       join(outDir, '_next', 'static')
     )
   }
 
   // Copy dynamic import chunks
-  if (existsSync(join(nextDir, 'chunks'))) {
+  if (existsSync(join(distDir, 'chunks'))) {
     log('  copying dynamic import chunks')
 
     await mkdirp(join(outDir, '_next', 'webpack'))
     await cp(
-      join(nextDir, 'chunks'),
+      join(distDir, 'chunks'),
       join(outDir, '_next', 'webpack', 'chunks')
     )
   }
 
-  await copyPages(nextDir, outDir, buildId)
+  await copyPages(distDir, outDir, buildId)
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
@@ -84,14 +84,14 @@ export default async function (dir, options, configuration) {
   // Start the rendering process
   const renderOpts = {
     dir,
-    dist: nextConfig.distDir,
     buildId,
     nextExport: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
+    distDir,
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    availableChunks: getAvailableChunks(dir, nextConfig.distDir)
+    availableChunks: getAvailableChunks(distDir)
   }
 
   const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
@@ -152,10 +152,10 @@ export default async function (dir, options, configuration) {
   }
 }
 
-function copyPages (nextDir, outDir, buildId) {
+function copyPages (distDir, outDir, buildId) {
   // TODO: do some proper error handling
   return new Promise((resolve, reject) => {
-    const nextBundlesDir = join(nextDir, 'bundles', 'pages')
+    const nextBundlesDir = join(distDir, 'bundles', 'pages')
     const walker = walk.walk(nextBundlesDir, { followLinks: false })
 
     walker.on('file', (root, stat, next) => {
