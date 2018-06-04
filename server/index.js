@@ -14,14 +14,15 @@ import {
 } from './render'
 import Router from './router'
 import { getAvailableChunks, isInternalUrl } from './utils'
-import getConfig from './config'
+import loadConfig from './config'
 import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
-// We need to go up one more level since we are in the `dist` directory
-import pkg from '../../package'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 import isAsyncSupported from './lib/is-async-supported'
+
+// We need to go up one more level since we are in the `dist` directory
+import pkg from '../../package'
 
 const access = promisify(fs.access)
 
@@ -39,7 +40,7 @@ export default class Server {
     this.router = new Router()
     this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
-    this.nextConfig = getConfig(phase, this.dir, conf)
+    this.nextConfig = loadConfig(phase, this.dir, conf)
     this.dist = this.nextConfig.distDir
 
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
