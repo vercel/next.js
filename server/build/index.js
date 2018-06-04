@@ -2,7 +2,7 @@ import { join } from 'path'
 import promisify from '../lib/promisify'
 import fs from 'fs'
 import webpack from 'webpack'
-import getConfig from '../config'
+import loadConfig from '../config'
 import { PHASE_PRODUCTION_BUILD } from '../../lib/constants'
 import getBaseWebpackConfig from './webpack'
 
@@ -10,7 +10,7 @@ const access = promisify(fs.access)
 const writeFile = promisify(fs.writeFile)
 
 export default async function build (dir, conf = null) {
-  const config = getConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = await config.generateBuildId() // defaults to a uuid
 
   try {
