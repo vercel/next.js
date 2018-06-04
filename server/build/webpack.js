@@ -107,16 +107,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         ...nodePathList // Support for NODE_PATH environment variable
       ],
       alias: {
-        next: nextDir,
-        // React already does something similar to this.
-        // But if the user has react-devtools, it'll throw an error showing that
-        // we haven't done dead code elimination (via uglifyjs).
-        // We purposly do not uglify React code to save the build time.
-        // (But it didn't increase the overall build size)
-        // Here we are doing an exact match with '$'
-        // So, you can still require nested modules like `react-dom/server`
-        react$: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
-        'react-dom$': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
+        next: nextDir
       }
     },
     resolveLoader: {
@@ -163,39 +154,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         useHashIndex: false
       }),
       !isServer && !dev && new UglifyJSPlugin({
-        exclude: /react\.js/,
         parallel: true,
         sourceMap: false,
         uglifyOptions: {
-          compress: {
-            arrows: false,
-            booleans: false,
-            collapse_vars: false,
-            comparisons: false,
-            computed_props: false,
-            hoist_funs: false,
-            hoist_props: false,
-            hoist_vars: false,
-            if_return: false,
-            inline: false,
-            join_vars: false,
-            keep_infinity: true,
-            loops: false,
-            negate_iife: false,
-            properties: false,
-            reduce_funcs: false,
-            reduce_vars: false,
-            sequences: false,
-            side_effects: false,
-            switches: false,
-            top_retain: false,
-            toplevel: false,
-            typeofs: false,
-            unused: false,
-            conditionals: true,
-            dead_code: true,
-            evaluate: true
-          },
           mangle: {
             safari10: true
           }
