@@ -84,11 +84,10 @@ export default async function (dir, options, configuration) {
   // Start the rendering process
   const renderOpts = {
     dir,
-    dist: nextConfig.distDir,
     buildId,
     nextExport: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
-    distDir: distDir,
+    distDir,
     dev: false,
     staticMarkup: false,
     hotReloader: null,
