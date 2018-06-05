@@ -7,22 +7,22 @@ import withReduxSaga from 'next-redux-saga'
 import createStore from '../store'
 
 class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
+  static async getInitialProps ({ Component, router, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
       pageProps = await Component.getInitialProps({ ctx })
     }
 
-    return { pageProps }
+    return { pageProps, router }
   }
 
   render () {
-    const { Component, pageProps, store } = this.props
+    const { Component, pageProps, router, store } = this.props
     return (
       <Container>
         <Provider store={store}>
-          <Component {...pageProps} />
+          <Component {...pageProps} url={router} />
         </Provider>
       </Container>
     )
