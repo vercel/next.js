@@ -372,10 +372,6 @@ Client-side routing behaves exactly like the browser:
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `asPath` - `String` of the actual path (including the query) shows in the browser
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
-
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
 
