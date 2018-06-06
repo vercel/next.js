@@ -42,8 +42,8 @@ async function doRender (req, res, pathname, query, {
   assetPrefix,
   runtimeConfig,
   availableChunks,
-  dist,
-  dir = process.cwd(),
+  distDir,
+  dir,
   dev = false,
   staticMarkup = false,
   nextExport = false
@@ -56,11 +56,11 @@ async function doRender (req, res, pathname, query, {
     await ensurePage(page, { dir, hotReloader })
   }
 
-  const documentPath = join(dir, dist, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
-  const appPath = join(dir, dist, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
-  const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
+  const documentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
+  const buildManifest = require(join(distDir, BUILD_MANIFEST))
   let [Component, Document, App] = await Promise.all([
-    requirePage(page, {dir, dist}),
+    requirePage(page, {distDir}),
     require(documentPath),
     require(appPath)
   ])
@@ -105,7 +105,7 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = loadChunks({ dev, dir, dist, availableChunks })
+    const chunks = loadChunks({ dev, distDir, availableChunks })
 
     return { html, head, errorHtml, chunks, buildManifest }
   }
@@ -230,7 +230,7 @@ async function ensurePage (page, { dir, hotReloader }) {
   await hotReloader.ensurePage(page)
 }
 
-function loadChunks ({ dev, dir, dist, availableChunks }) {
+function loadChunks ({ dev, distDir, availableChunks }) {
   const flushedChunks = flushChunks()
   const response = {
     names: [],
@@ -238,7 +238,7 @@ function loadChunks ({ dev, dir, dist, availableChunks }) {
   }
 
   if (dev) {
-    availableChunks = getAvailableChunks(dir, dist)
+    availableChunks = getAvailableChunks(distDir)
   }
 
   for (var chunk of flushedChunks) {

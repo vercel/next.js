@@ -5,7 +5,8 @@ import {SERVER_DIRECTORY} from 'next/constants'
 import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
 
 const sep = '/'
-const pathToBundles = join(__dirname, '_resolvedata', SERVER_DIRECTORY, 'bundles', 'pages')
+const distDir = join(__dirname, '_resolvedata')
+const pathToBundles = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages')
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
@@ -41,39 +42,39 @@ describe('normalizePagePath', () => {
 
 describe('getPagePath', () => {
   it('Should append /index to the / page', () => {
-    const pagePath = getPagePath('/', {dir: __dirname, dist: '_resolvedata'})
+    const pagePath = getPagePath('/', {distDir})
     expect(pagePath).toBe(join(pathToBundles, `${sep}index.js`))
   })
 
   it('Should prepend / when a page does not have it', () => {
-    const pagePath = getPagePath('_error', {dir: __dirname, dist: '_resolvedata'})
+    const pagePath = getPagePath('_error', {distDir})
     expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
   })
 
   it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', {dir: __dirname, dist: '_resolvedata'})).toThrow()
+    expect(() => getPagePath('/../../package.json', {distDir})).toThrow()
   })
 })
 
 describe('requirePage', () => {
   it('Should require /index.js when using /', async () => {
-    const page = await requirePage('/', {dir: __dirname, dist: '_resolvedata'})
+    const page = await requirePage('/', {distDir})
     expect(page.test).toBe('hello')
   })
 
   it('Should require /index.js when using /index', async () => {
-    const page = await requirePage('/index', {dir: __dirname, dist: '_resolvedata'})
+    const page = await requirePage('/index', {distDir})
     expect(page.test).toBe('hello')
   })
 
   it('Should require /world.js when using /world', async () => {
-    const page = await requirePage('/world', {dir: __dirname, dist: '_resolvedata'})
+    const page = await requirePage('/world', {distDir})
     expect(page.test).toBe('world')
   })
 
   it('Should throw when using /../../test.js', async () => {
     try {
-      await requirePage('/../../test', {dir: __dirname, dist: '_resolvedata'})
+      await requirePage('/../../test', {distDir})
     } catch (err) {
       expect(err.code).toBe('ENOENT')
     }
@@ -81,7 +82,7 @@ describe('requirePage', () => {
 
   it('Should throw when using non existent pages like /non-existent.js', async () => {
     try {
-      await requirePage('/non-existent', {dir: __dirname, dist: '_resolvedata'})
+      await requirePage('/non-existent', {distDir})
     } catch (err) {
       expect(err.code).toBe('ENOENT')
     }
@@ -89,7 +90,7 @@ describe('requirePage', () => {
 
   it('Should bubble up errors in the child component', async () => {
     try {
-      await requirePage('/non-existent-child', {dir: __dirname, dist: '_resolvedata'})
+      await requirePage('/non-existent-child', {distDir})
     } catch (err) {
       expect(err.code).toBe('MODULE_NOT_FOUND')
     }
