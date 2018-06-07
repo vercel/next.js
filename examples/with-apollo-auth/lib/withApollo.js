@@ -24,7 +24,6 @@ export default App => {
 
     static async getInitialProps(ctx) {
       const { Component, router, ctx: { req, res } } = ctx
-      const apolloState = {}
       const apollo = initApollo({}, {
         getToken: () => parseCookies(req).token
       })
@@ -51,7 +50,6 @@ export default App => {
             {...appProps}
             Component={Component}
             router={router}
-            apolloState={apolloState}
             apolloClient={apollo}
           />
         )
@@ -69,7 +67,7 @@ export default App => {
       }
 
       // Extract query data from the Apollo's store
-      apolloState.data = apollo.cache.extract()
+      const apolloState = { data: apollo.cache.extract() }
 
       return {
         ...appProps,
