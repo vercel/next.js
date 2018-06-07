@@ -193,6 +193,19 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return false
           }
 
+          // Check if the module is used in the _app.js bundle
+          // Because _app.js is used on every page we don't want to
+          // duplicate them in other bundles.
+          const chunks = module.getChunks()
+          const inAppBundle = chunks.some(chunk => chunk.entryModule
+            ? chunk.entryModule.name === 'bundles/pages/_app.js'
+            : null
+          )
+
+          if (inAppBundle && chunks.length > 1) {
+            return true
+          }
+
           // commons
           // If there are one or two pages, only move modules to common if they are
           // used in all of the pages. Otherwise, move modules used in at-least
