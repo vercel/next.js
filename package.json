@@ -88,7 +88,6 @@
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
-    "react-hot-loader": "4.1.3",
     "react-lifecycles-compat": "3.0.4",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
