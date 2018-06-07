@@ -42,9 +42,9 @@ export function addCorsSupport (req, res) {
   }
 
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
-  res.setHeader('Access-Control-Request-Method', req.headers.origin)
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
-  res.setHeader('Access-Control-Allow-Headers', req.headers.origin)
+  // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
+  res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'])
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200)
