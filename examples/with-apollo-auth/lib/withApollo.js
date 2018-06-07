@@ -24,6 +24,13 @@ export default App => {
 
     static async getInitialProps(ctx) {
       const { Component, router, ctx: { req, res } } = ctx
+
+      if (res && res.finished) {
+        // When redirecting, the response is finished.
+        // No point in continuing to render
+        return {}
+      }
+
       const apolloState = {}
       const apollo = initApollo({}, {
         getToken: () => parseCookies(req).token
@@ -34,12 +41,6 @@ export default App => {
       let appProps = {}
       if (App.getInitialProps) {
         appProps = await App.getInitialProps(ctx)
-      }
-
-      if (res && res.finished) {
-        // When redirecting, the response is finished.
-        // No point in continuing to render
-        return {}
       }
 
       // Run all graphql queries in the component tree
