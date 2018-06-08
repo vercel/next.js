@@ -6,6 +6,7 @@ import { dirname, resolve, sep } from 'path'
 import Crypto from 'crypto'
 
 const TYPE_IMPORT = 'Import'
+const TYPE_TEMPLATE_LITERAL = 'TemplateLiteral'
 
 /*
  Added "typeof require.resolveWeak !== 'function'" check instead of
@@ -63,7 +64,7 @@ export default () => ({
 
   visitor: {
     CallExpression (path, state) {
-      if (path.node.callee.type === TYPE_IMPORT) {
+      if (path.node.callee.type === TYPE_IMPORT && path.node.arguments[0].type !== TYPE_TEMPLATE_LITERAL) {
         const moduleName = path.node.arguments[0].value
         const sourceFilename = state.file.opts.filename
 
