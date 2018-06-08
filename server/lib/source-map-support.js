@@ -28,7 +28,7 @@ async function rewriteTraceLine (trace: string): Promise<string> {
 
   // Load these on demand.
   const fs = require('fs')
-  const promisify = require('./promisify')
+  const promisify = require('../../lib/promisify')
 
   const readFile = promisify(fs.readFile)
   const access = promisify(fs.access)
