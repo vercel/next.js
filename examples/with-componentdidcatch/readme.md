@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to catch errors caught by `componentDidCatch` in React's client side.
+This example shows how to catch errors caught by `componentDidCatch` in React's **client** side.

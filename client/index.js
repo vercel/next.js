@@ -7,6 +7,7 @@ import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
+import ErrorBoundary from './error-boundary'
 
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
@@ -66,8 +67,7 @@ const errorContainer = document.getElementById('__next-error')
 let lastAppProps
 export let router
 export let ErrorComponent
-let HotAppContainer
-let ErrorDebugComponent
+let DevErrorOverlay
 let Component
 let App
 let stripAnsi = (s) => s
@@ -76,8 +76,7 @@ let applySourcemaps = (e) => e
 export const emitter = new EventEmitter()
 
 export default async ({
-  HotAppContainer: passedHotAppContainer,
-  ErrorDebugComponent: passedDebugComponent,
+  DevErrorOverlay: passedDevErrorOverlay,
   stripAnsi: passedStripAnsi,
   applySourcemaps: passedApplySourcemaps
 } = {}) => {
@@ -88,8 +87,7 @@ export default async ({
 
   stripAnsi = passedStripAnsi || stripAnsi
   applySourcemaps = passedApplySourcemaps || applySourcemaps
-  HotAppContainer = passedHotAppContainer
-  ErrorDebugComponent = passedDebugComponent
+  DevErrorOverlay = passedDevErrorOverlay
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
 
@@ -115,12 +113,12 @@ export default async ({
     err: initialErr
   })
 
-  router.subscribe(({ Component, props, hash, err }) => {
-    render({ Component, props, err, hash, emitter })
+  router.subscribe(({ App, Component, props, hash, err }) => {
+    render({ App, Component, props, err, hash, emitter })
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err: initialErr, emitter })
+  render({ App, Component, props, hash, err: initialErr, emitter })
 
   return emitter
 }
@@ -143,14 +141,14 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (props) {
-  const {err} = props
+  const {err, errorInfo} = props
 
   // In development we apply sourcemaps to the error
   if (process.env.NODE_ENV !== 'production') {
     await applySourcemaps(err)
   }
 
-  const str = stripAnsi(`${err.message}\n${err.stack}${err.info ? `\n\n${err.info.componentStack}` : ''}`)
+  const str = stripAnsi(`${err.message}\n${err.stack}${errorInfo ? `\n\n${errorInfo.componentStack}` : ''}`)
   console.error(str)
 
   if (process.env.NODE_ENV !== 'production') {
@@ -159,7 +157,7 @@ export async function renderError (props) {
     // Otherwise, we need to face issues when the issue is fixed and
     // it's get notified via HMR
     ReactDOM.unmountComponentAtNode(appContainer)
-    renderReactElement(<ErrorDebugComponent error={err} />, errorContainer)
+    renderReactElement(<DevErrorOverlay error={err} />, errorContainer)
     return
   }
 
@@ -168,7 +166,7 @@ export async function renderError (props) {
   await doRender({...props, err, Component: ErrorComponent})
 }
 
-async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
+async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
@@ -190,14 +188,24 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
 
-  // In development we render react-hot-loader's wrapper component
-  if (HotAppContainer) {
-    renderReactElement(<HotAppContainer errorReporter={ErrorDebugComponent} warnings={false}>
-      <App {...appProps} />
-    </HotAppContainer>, appContainer)
-  } else {
-    renderReactElement(<App {...appProps} />, appContainer)
+  let onError = null
+
+  if (process.env.NODE_ENV !== 'development') {
+    onError = async (error, errorInfo) => {
+      try {
+        await renderError({App, err: error, errorInfo})
+      } catch (err) {
+        console.error('Error while rendering error page: ', err)
+      }
+    }
   }
+
+  // In development we render a wrapper component that catches runtime errors.
+  renderReactElement((
+    <ErrorBoundary ErrorReporter={DevErrorOverlay} onError={onError}>
+      <App {...appProps} />
+    </ErrorBoundary>
+  ), appContainer)
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
