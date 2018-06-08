@@ -7,9 +7,9 @@ import webpack from 'webpack'
 import getBaseWebpackConfig from './build/webpack'
 import UUID from 'uuid'
 import {
-  IS_BUNDLED_PAGE,
   addCorsSupport
 } from './utils'
+import {IS_BUNDLED_PAGE} from '../lib/constants'
 
 export default class HotReloader {
   constructor (dir, { quiet, config } = {}) {

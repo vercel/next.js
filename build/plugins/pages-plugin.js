@@ -2,7 +2,7 @@ import { ConcatSource } from 'webpack-sources'
 import {
   IS_BUNDLED_PAGE,
   MATCH_ROUTE_NAME
-} from '../../utils'
+} from '../../lib/constants'
 
 class PageChunkTemplatePlugin {
   apply (chunkTemplate) {

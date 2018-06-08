@@ -1,7 +1,7 @@
 import { join } from 'path'
 import promisify from '../../lib/promisify'
 import fs from 'fs'
-import { IS_BUNDLED_PAGE } from '../../utils'
+import { IS_BUNDLED_PAGE } from '../../lib/constants'
 
 const unlink = promisify(fs.unlink)
 

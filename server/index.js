@@ -4,7 +4,7 @@ import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
-import promisify from './lib/promisify'
+import promisify from '../lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
