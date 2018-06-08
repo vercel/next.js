@@ -4,7 +4,7 @@ import WebpackHotMiddleware from 'webpack-hot-middleware'
 import del from 'del'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
-import getBaseWebpackConfig from './build/webpack'
+import getBaseWebpackConfig from '../build/webpack'
 import UUID from 'uuid'
 import {
   addCorsSupport
