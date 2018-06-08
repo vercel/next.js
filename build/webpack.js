@@ -66,7 +66,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const pagesEntries = await getPages(dir, {nextPagesDir, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     'main.js': [

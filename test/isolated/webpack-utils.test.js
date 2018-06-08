@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 
-import {normalize} from 'path'
+import {normalize, join} from 'path'
 import {getPageEntries, createEntry} from '../../dist/build/webpack/utils'
 
 describe('createEntry', () => {
@@ -48,33 +48,35 @@ describe('createEntry', () => {
 })
 
 describe('getPageEntries', () => {
+  const nextPagesDir = join(__dirname, '..', '..', 'dist', 'pages')
+
   it('Should return paths', () => {
     const pagePaths = ['pages/index.js']
-    const pageEntries = getPageEntries(pagePaths)
+    const pageEntries = getPageEntries(pagePaths, {nextPagesDir})
     expect(pageEntries[normalize('bundles/pages/index.js')][0]).toBe('./pages/index.js')
   })
 
   it('Should include default _error', () => {
     const pagePaths = ['pages/index.js']
-    const pageEntries = getPageEntries(pagePaths)
+    const pageEntries = getPageEntries(pagePaths, {nextPagesDir})
     expect(pageEntries[normalize('bundles/pages/_error.js')][0]).toMatch(/dist[/\\]pages[/\\]_error\.js/)
   })
 
   it('Should not include default _error when _error.js is inside the pages directory', () => {
     const pagePaths = ['pages/index.js', 'pages/_error.js']
-    const pageEntries = getPageEntries(pagePaths)
+    const pageEntries = getPageEntries(pagePaths, {nextPagesDir})
     expect(pageEntries[normalize('bundles/pages/_error.js')][0]).toBe('./pages/_error.js')
   })
 
   it('Should include default _document when isServer is true', () => {
     const pagePaths = ['pages/index.js']
-    const pageEntries = getPageEntries(pagePaths, {isServer: true})
+    const pageEntries = getPageEntries(pagePaths, {nextPagesDir, isServer: true})
     expect(pageEntries[normalize('bundles/pages/_document.js')][0]).toMatch(/dist[/\\]pages[/\\]_document\.js/)
   })
 
   it('Should not include default _document when _document.js is inside the pages directory', () => {
     const pagePaths = ['pages/index.js', 'pages/_document.js']
-    const pageEntries = getPageEntries(pagePaths, {isServer: true})
+    const pageEntries = getPageEntries(pagePaths, {nextPagesDir, isServer: true})
     expect(pageEntries[normalize('bundles/pages/_document.js')][0]).toBe('./pages/_document.js')
   })
 })
