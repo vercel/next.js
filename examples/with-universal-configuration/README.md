@@ -11,7 +11,7 @@ Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [
 ```bash
 npx create-next-app --example with-universal-configuration with-universal-configuration-app
 # or
-yarn create next-app --example with-universal-configuration with-universal-configuration-app
+yarn create-next-app --example with-universal-configuration with-universal-configuration-app
 ```
 
 ### Download manually
