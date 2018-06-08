@@ -1,7 +1,7 @@
 /* global describe, it, expect */
 
 import {normalize} from 'path'
-import {getPageEntries, createEntry} from '../../dist/server/build/webpack/utils'
+import {getPageEntries, createEntry} from '../../dist/build/webpack/utils'
 
 describe('createEntry', () => {
   it('Should turn a path into a page entry', () => {
