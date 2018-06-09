@@ -12,12 +12,7 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
-import {SERVER_DIRECTORY} from '../lib/constants'
-
-const nextDir = path.join(__dirname, '..')
-const nextModuleDir = path.join(nextDir, '..')
-const nextNodeModulesDir = path.join(nextModuleDir, 'node_modules')
-const nextPagesDir = path.join(nextModuleDir, 'pages')
+import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, DEFAULT_PAGES_DIR} from '../lib/constants'
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -66,13 +61,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const pagesEntries = await getPages(dir, {nextPagesDir, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     'main.js': [
-      dev && !isServer && path.join(nextDir, 'client', 'webpack-hot-middleware-client'),
-      dev && !isServer && path.join(nextDir, 'client', 'on-demand-entries-client'),
-      path.join(nextDir, 'client', `next${dev ? '-dev' : ''}`)
+      dev && !isServer && path.join(__dirname, '..', 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(__dirname, '..', 'client', 'on-demand-entries-client'),
+      require.resolve(`../client/next${dev ? '-dev' : ''}`)
     ].filter(Boolean)
   } : {}
 
@@ -103,17 +98,17 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     resolve: {
       extensions: ['.js', '.jsx', '.json'],
       modules: [
-        nextNodeModulesDir,
+        NEXT_PROJECT_ROOT_NODE_MODULES,
         'node_modules',
         ...nodePathList // Support for NODE_PATH environment variable
       ],
       alias: {
-        next: nextModuleDir
+        next: NEXT_PROJECT_ROOT
       }
     },
     resolveLoader: {
       modules: [
-        nextNodeModulesDir,
+        NEXT_PROJECT_ROOT_NODE_MODULES,
         'node_modules',
         path.join(__dirname, 'loaders'),
         ...nodePathList // Support for NODE_PATH environment variable
@@ -126,7 +121,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           loader: 'hot-self-accept-loader',
           include: [
             path.join(dir, 'pages'),
-            nextPagesDir
+            DEFAULT_PAGES_DIR
           ],
           options: {
             extensions: /\.(js|jsx)$/
