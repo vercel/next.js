@@ -202,7 +202,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return true
           }
 
-          // commons
           // If there are one or two pages, only move modules to common if they are
           // used in all of the pages. Otherwise, move modules used in at-least
           // 1/2 of the total pages into commons.
@@ -210,7 +209,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return count >= totalPages
           }
           return count >= totalPages * 0.5
-          // commons end
         }
       }),
       // We use a manifest file in development to speed up HMR
