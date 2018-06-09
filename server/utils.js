@@ -1,6 +1,10 @@
 import { join } from 'path'
 import { readdirSync, existsSync } from 'fs'
 
+export function getChunkNameFromFilename (filename) {
+  return filename.replace(/-[^-]*$/, '')
+}
+
 export function getAvailableChunks (distDir) {
   const chunksDir = join(distDir, 'chunks')
   if (!existsSync(chunksDir)) return {}
@@ -10,7 +14,7 @@ export function getAvailableChunks (distDir) {
 
   chunkFiles.forEach(filename => {
     if (/\.js$/.test(filename)) {
-      const chunkName = filename.replace(/-[^-]*/, '')
+      const chunkName = getChunkNameFromFilename(filename)
       chunksMap[chunkName] = filename
     }
   })
