@@ -54,7 +54,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       loader: 'next-babel-loader',
       options: {dev, isServer}
     },
-    selfAccept: {
+    hotSelfAccept: {
       loader: 'hot-self-accept-loader',
       options: {
         include: [
@@ -128,8 +128,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       rules: [
         dev && !isServer && {
           test: /\.(js|jsx)$/,
-          include: defaultLoaders.selfAccept.include,
-          use: defaultLoaders.selfAccept
+          include: defaultLoaders.hotSelfAccept.include,
+          use: defaultLoaders.hotSelfAccept
         },
         {
           test: /\.(js|jsx)$/,
