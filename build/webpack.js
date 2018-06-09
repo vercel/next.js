@@ -53,6 +53,16 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     babel: {
       loader: 'next-babel-loader',
       options: {dev, isServer}
+    },
+    selfAccept: {
+      loader: 'hot-self-accept-loader',
+      options: {
+        include: [
+          path.join(dir, 'pages'),
+          DEFAULT_PAGES_DIR
+        ],
+        extensions: /\.(js|jsx)$/
+      }
     }
   }
 
@@ -118,14 +128,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       rules: [
         dev && !isServer && {
           test: /\.(js|jsx)$/,
-          loader: 'hot-self-accept-loader',
-          include: [
-            path.join(dir, 'pages'),
-            DEFAULT_PAGES_DIR
-          ],
-          options: {
-            extensions: /\.(js|jsx)$/
-          }
+          include: defaultLoaders.selfAccept.include,
+          use: defaultLoaders.selfAccept
         },
         {
           test: /\.(js|jsx)$/,
