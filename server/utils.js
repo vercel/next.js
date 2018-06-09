@@ -4,6 +4,10 @@ import { readdirSync, existsSync } from 'fs'
 export const IS_BUNDLED_PAGE = /^bundles[/\\]pages.*\.js$/
 export const MATCH_ROUTE_NAME = /^bundles[/\\]pages[/\\](.*)\.js$/
 
+export function getChunkNameFromFilename (filename) {
+  return filename.replace(/-[^-]*$/, '')
+}
+
 export function getAvailableChunks (distDir) {
   const chunksDir = join(distDir, 'chunks')
   if (!existsSync(chunksDir)) return {}
@@ -13,7 +17,7 @@ export function getAvailableChunks (distDir) {
 
   chunkFiles.forEach(filename => {
     if (/\.js$/.test(filename)) {
-      const chunkName = filename.replace(/-[^-]*/, '')
+      const chunkName = getChunkNameFromFilename(filename)
       chunksMap[chunkName] = filename
     }
   })
