@@ -20,6 +20,9 @@
     "router.js",
     "error.js"
   ],
+  "bin": {
+    "next-build": "./dist/bin/next-build"
+  },
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
@@ -29,7 +32,7 @@
     "pretest": "npm run lint",
     "test": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
-    "lint": "standard 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
+    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
     "precommit": "lint-staged"
   },
@@ -41,7 +44,8 @@
     ]
   },
   "lint-staged": {
-    "*.js": "standard"
+    "*.js": "standard",
+    "bin/*": "standard"
   },
   "dependencies": {
     "ansi-html": "0.0.7",
@@ -74,10 +78,12 @@
     "json-loader": "0.5.7",
     "loader-utils": "1.1.0",
     "md5-file": "3.2.3",
+    "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "mv": "2.1.1",
     "mz": "2.7.0",
     "path-match": "1.2.4",
+    "pkg-up": "2.0.0",
     "prop-types": "15.6.1",
     "querystring": "0.2.0",
     "react-hot-loader": "4.2.0",
