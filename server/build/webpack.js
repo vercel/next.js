@@ -5,7 +5,6 @@ import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import {loadPartialConfig, createConfigItem} from '@babel/core'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './plugins/pages-plugin'
 import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
@@ -13,51 +12,11 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
-
-const presetItem = createConfigItem(require('./babel/preset'), {type: 'preset'})
-const hotLoaderItem = createConfigItem(require('react-hot-loader/babel'), {type: 'plugin'})
+import {SERVER_DIRECTORY} from '../../lib/constants'
 
 const nextDir = path.join(__dirname, '..', '..', '..')
 const nextNodeModulesDir = path.join(nextDir, 'node_modules')
 const nextPagesDir = path.join(nextDir, 'pages')
-const defaultPages = [
-  '_error.js',
-  '_document.js',
-  '_app.js'
-]
-const interpolateNames = new Map(defaultPages.map((p) => {
-  return [path.join(nextPagesDir, p), `dist/bundles/pages/${p}`]
-}))
-
-function babelConfig (dir, {isServer, dev}) {
-  const mainBabelOptions = {
-    cacheDirectory: true,
-    presets: [],
-    plugins: [
-      dev && !isServer && hotLoaderItem
-    ].filter(Boolean)
-  }
-
-  const filename = path.join(dir, 'filename.js')
-  const externalBabelConfig = loadPartialConfig({ babelrc: true, filename })
-  if (externalBabelConfig && externalBabelConfig.babelrc) {
-    // Log it out once
-    if (!isServer) {
-      console.log(`> Using external babel configuration`)
-      console.log(`> Location: "${externalBabelConfig.babelrc}"`)
-    }
-    // By default babel-loader will look for babelrc, so no need to set it to true
-  } else {
-    mainBabelOptions.babelrc = false
-  }
-
-  // Add our default preset if the no "babelrc" found.
-  if (!mainBabelOptions.babelrc) {
-    mainBabelOptions.presets.push(presetItem)
-  }
-
-  return mainBabelOptions
-}
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -94,12 +53,10 @@ function externalsConfig (dir, isServer) {
 }
 
 export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
-  const babelLoaderOptions = babelConfig(dir, {dev, isServer})
-
   const defaultLoaders = {
     babel: {
-      loader: 'babel-loader',
-      options: babelLoaderOptions
+      loader: 'next-babel-loader',
+      options: {dev, isServer}
     }
   }
 
@@ -119,7 +76,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   } : {}
 
   let webpackConfig = {
-    devtool: dev ? 'source-map' : false,
+    devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
@@ -134,19 +91,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }
     },
     output: {
-      path: path.join(dir, config.distDir, isServer ? 'dist' : ''), // server compilation goes to `.next/dist`
+      path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name]-[chunkhash].js',
-      strictModuleExceptionHandling: true,
-      devtoolModuleFilenameTemplate (info) {
-        if (dev) {
-          return info.absoluteResourcePath
-        }
-
-        return `${info.absoluteResourcePath.replace(dir, '.').replace(nextDir, './node_modules/next')}`
-      }
+      chunkFilename: dev ? '[name].js' : '[name]-[chunkhash].js',
+      strictModuleExceptionHandling: true
     },
     performance: { hints: false },
     resolve: {
@@ -157,16 +107,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         ...nodePathList // Support for NODE_PATH environment variable
       ],
       alias: {
-        next: nextDir,
-        // React already does something similar to this.
-        // But if the user has react-devtools, it'll throw an error showing that
-        // we haven't done dead code elimination (via uglifyjs).
-        // We purposly do not uglify React code to save the build time.
-        // (But it didn't increase the overall build size)
-        // Here we are doing an exact match with '$'
-        // So, you can still require nested modules like `react-dom/server`
-        react$: dev ? 'react/cjs/react.development.js' : 'react/cjs/react.production.min.js',
-        'react-dom$': dev ? 'react-dom/cjs/react-dom.development.js' : 'react-dom/cjs/react-dom.production.min.js'
+        next: nextDir
       }
     },
     resolveLoader: {
@@ -206,54 +147,18 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && !isServer && new webpack.HotModuleReplacementPlugin(), // Hot module replacement
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      dev && new webpack.LoaderOptionsPlugin({
-        options: {
-          context: dir,
-          customInterpolateName (url, name, opts) {
-            return interpolateNames.get(this.resourcePath) || url
-          }
-        }
-      }),
       dev && new WriteFilePlugin({
         exitOnErrors: false,
         log: false,
         // required not to cache removed files
         useHashIndex: false
       }),
-      !dev && new webpack.IgnorePlugin(/react-hot-loader/),
       !isServer && !dev && new UglifyJSPlugin({
-        exclude: /react\.js/,
         parallel: true,
         sourceMap: false,
         uglifyOptions: {
-          compress: {
-            arrows: false,
-            booleans: false,
-            collapse_vars: false,
-            comparisons: false,
-            computed_props: false,
-            hoist_funs: false,
-            hoist_props: false,
-            hoist_vars: false,
-            if_return: false,
-            inline: false,
-            join_vars: false,
-            keep_infinity: true,
-            loops: false,
-            negate_iife: false,
-            properties: false,
-            reduce_funcs: false,
-            reduce_vars: false,
-            sequences: false,
-            side_effects: false,
-            switches: false,
-            top_retain: false,
-            toplevel: false,
-            typeofs: false,
-            unused: false,
-            conditionals: true,
-            dead_code: true,
-            evaluate: true
+          mangle: {
+            safari10: true
           }
         }
       }),
@@ -286,6 +191,19 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           // Instead, we move all the code in node_modules into each of the pages.
           if (dev) {
             return false
+          }
+
+          // Check if the module is used in the _app.js bundle
+          // Because _app.js is used on every page we don't want to
+          // duplicate them in other bundles.
+          const chunks = module.getChunks()
+          const inAppBundle = chunks.some(chunk => chunk.entryModule
+            ? chunk.entryModule.name === 'bundles/pages/_app.js'
+            : null
+          )
+
+          if (inAppBundle && chunks.length > 1) {
+            return true
           }
 
           // commons

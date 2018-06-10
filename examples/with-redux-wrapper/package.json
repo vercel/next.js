@@ -1,6 +1,6 @@
 {
   "name": "with-redux-wrapper",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "next": "latest",
-    "next-redux-wrapper": "^1.0.0",
-    "react": "^16.0.0",
-    "redux-devtools-extension": "^2.13.2",
-    "react-dom": "^16.0.0",
-    "react-redux": "^5.0.1",
-    "redux": "^3.6.0",
-    "redux-thunk": "^2.1.0"
+    "next-redux-wrapper": "latest",
+    "react": "16.3.2",
+    "react-dom": "16.3.2",
+    "react-redux": "5.0.7",
+    "redux": "4.0.0",
+    "redux-devtools-extension": "2.13.2",
+    "redux-thunk": "2.2.0"
   },
   "license": "ISC"
 }

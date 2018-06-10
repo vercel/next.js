@@ -23,17 +23,6 @@ function styledJsxOptions (opts) {
   return opts
 }
 
-const envPlugins = {
-  'development': [
-    require('@babel/plugin-transform-react-jsx-source')
-  ],
-  'production': [
-    require('babel-plugin-transform-react-remove-prop-types')
-  ]
-}
-
-const plugins = envPlugins[process.env.NODE_ENV] || envPlugins['development']
-
 module.exports = (context, opts = {}) => ({
   presets: [
     [require('@babel/preset-env'), {
@@ -53,6 +42,6 @@ module.exports = (context, opts = {}) => ({
       regenerator: true
     }],
     [require('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
-    ...plugins
-  ]
+    process.env.NODE_ENV === 'production' && require('babel-plugin-transform-react-remove-prop-types')
+  ].filter(Boolean)
 })

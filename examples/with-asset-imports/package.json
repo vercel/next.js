@@ -1,4 +1,6 @@
 {
+  "name": "with-asset-import",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -7,7 +9,8 @@
   "dependencies": {
     "babel-plugin-transform-assets-import-to-string": "^1.0.1",
     "next": "latest",
-    "react": "^15.6.1",
-    "react-dom": "^15.6.1"
-  }
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC"
 }

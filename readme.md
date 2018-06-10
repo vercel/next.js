@@ -8,7 +8,7 @@
 
 Next.js is a minimalistic framework for server-rendered React applications.
 
-**Visit [learnnextjs.com](https://learnnextjs.com) to get started with Next.js.**
+**Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
 
 ---
 
@@ -118,7 +118,7 @@ So far, we get:
 - Automatic transpilation and bundling (with webpack and babel)
 - Hot code reloading
 - Server rendering and indexing of `./pages`
-- Static file serving. `./static/` is mapped to `/static/`
+- Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
 
 To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
 
@@ -207,6 +207,8 @@ Create a folder called `static` in your project root directory. From your code y
 ```jsx
 export default () => <img src="/static/my-image.png" alt="my image" />
 ```
+
+_Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
 
 ### Populating `<head>`
 
@@ -365,15 +367,11 @@ Client-side routing behaves exactly like the browser:
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
 3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
 
-Each top-level component receives a `url` property with the following API:
+**Deprecated, use [withRouter](https://github.com/zeit/next.js#using-a-higher-order-component) instead** - Each top-level component receives a `url` property with the following API:
 
 - `pathname` - `String` of the current path excluding the query string
 - `query` - `Object` with the parsed query string. Defaults to `{}`
 - `asPath` - `String` of the actual path (including the query) shows in the browser
-- `push(url, as=url)` - performs a `pushState` call with the given url
-- `replace(url, as=url)` - performs a `replaceState` call with the given url
-
-The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
 
@@ -525,7 +523,7 @@ The second `as` parameter for `push` and `replace` is an optional _decoration_ o
 _Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an url.
+You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
 
 ```jsx
 import Router from 'next/router'
@@ -542,7 +540,7 @@ export default () =>
   </div>
 ```
 
-This uses of the same exact parameters as in the `<Link>` component.
+This uses the same exact parameters as in the `<Link>` component.
 
 ##### Router Events
 
@@ -553,6 +551,8 @@ Here's a list of supported events:
 - `onRouteChangeComplete(url)` - Fires when a route changed completely
 - `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
 - `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
+- `onHashChangeStart(url)` - Fires when the hash will change but not the page
+- `onHashChangeComplete(url)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
@@ -716,6 +716,29 @@ export default ({ url }) =>
     {// but we can prefetch it!
     Router.prefetch('/dynamic')}
   </div>
+```
+
+The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
+
+```jsx
+import React from 'react'
+import Router from 'next/router'
+
+export default class MyLink extends React.Component {
+  componentDidMount() {
+    Router.prefetch('/dynamic')
+  }
+  
+  render() {
+    return (
+       <div>
+        <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+          A route transition will happen after 100ms
+        </a>
+      </div>   
+    )
+  }
+}
 ```
 
 ### Custom server and routing
@@ -953,8 +976,8 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 
 <p><details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/layout-component">Using `_app.js` for layout</a></li></ul>
-  <ul><li><a href="./examples/componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
+  <ul><li><a href="./examples/with-app-layout">Using `_app.js` for layout</a></li></ul>
+  <ul><li><a href="./examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
 </details></p>
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
@@ -979,36 +1002,6 @@ export default class MyApp extends App {
     }
 
     return {pageProps}
-  }
-
-  render () {
-    const {Component, pageProps} = this.props
-    return <Container>
-      <Component {...pageProps} />
-    </Container>
-  }
-}
-```
-
-When using state inside app the `hasError` property has to be defined:
-
-```js
-import App, {Container} from 'next/app'
-import React from 'react'
-
-export default class MyApp extends App {
-  static async getInitialProps ({ Component, router, ctx }) {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return {pageProps}
-  }
-
-  state = {
-    hasError: null
   }
 
   render () {
@@ -1158,7 +1151,7 @@ Phases can be imported from `next/constants`:
 
 ```js
 const {PHASE_DEVELOPMENT_SERVER} = require('next/constants')
-module.exports = (phase, {defaultConfig}){
+module.exports = (phase, {defaultConfig}) => {
   if(phase === PHASE_DEVELOPMENT_SERVER) {
     return {
       /* development only config options here */
@@ -1312,6 +1305,32 @@ Here's an example `.babelrc` file:
 }
 ```
 
+The `next/babel` preset includes everything needed to transpile React applications. This includes:
+
+- preset-env
+- preset-react
+- plugin-proposal-class-properties
+- plugin-proposal-object-rest-spread
+- plugin-transform-runtime
+- styled-jsx
+
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+
+```json
+{
+  "presets": [
+    ["next/babel", {
+      "preset-env": {},
+      "transform-runtime": {},
+      "styled-jsx": {}
+    }]
+  ],
+  "plugins": []
+}
+```
+
+The `modules` option on `"preset-env"` should be kept to `false` otherwise webpack code splitting is disabled.
+
 #### Exposing configuration to the server / client side
 
 The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
@@ -1396,16 +1415,35 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
   <ul><li><a href="./examples/with-static-export">Static export</a></li></ul>
 </details></p>
 
-This is a way to run your Next.js app as a standalone static app without any Node.js server. The export app supports almost every feature of Next.js including dynamic urls, prefetching, preloading and dynamic imports.
+`next export` is a way to run your Next.js app as a standalone static app without the need for a Node.js server.
+The exported app supports almost every feature of Next.js, including dynamic urls, prefetching, preloading and dynamic imports.
+
+The way `next export` works is by pre-rendering all pages possible to HTML. It does so based on a mapping of `pathname` key to page object. This mapping is called the `exportPathMap`.
+
+The page object has 2 values:
+
+- `page` - `String` the page inside the `pages` directory to render
+- `query` - `Object` the `query` object passed to `getInitialProps` when pre-rendering. Defaults to `{}`
+
 
 ### Usage
 
-Simply develop your app as you normally do with Next.js. Then create a custom Next.js [config](https://github.com/zeit/next.js#custom-configuration) as shown below:
+Simply develop your app as you normally do with Next.js. Then run:
+
+```
+next build
+next export
+```
+
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. 
+
+If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
+This function is asynchronous and gets the default `exportPathMap` as a parameter.
 
 ```js
 // next.config.js
 module.exports = {
-  exportPathMap: function(defaultPathMap) {
+  exportPathMap: async function (defaultPathMap) {
     return {
       '/': { page: '/' },
       '/about': { page: '/about' },
@@ -1420,8 +1458,6 @@ module.exports = {
 
 > Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
 
-In that, you specify what are the pages you need to export as static HTML.
-
 Then simply run these commands:
 
 ```sh
@@ -1434,7 +1470,8 @@ For that you may need to add a NPM script to `package.json` like this:
 ```json
 {
   "scripts": {
-    "build": "next build && next export"
+    "build": "next build",
+    "export": "npm run build && next export"
   }
 }
 ```
@@ -1442,16 +1479,16 @@ For that you may need to add a NPM script to `package.json` like this:
 And run it at once with:
 
 ```sh
-npm run build
+npm run export
 ```
 
-Then you've a static version of your app in the “out" directory.
+Then you have a static version of your app in the `out` directory.
 
 > You can also customize the output directory. For that run `next export -h` for the help.
 
-Now you can deploy that directory to any static hosting service. Note that there is an additional step for deploying to GitHub Pages, [documented here](https://github.com/zeit/next.js/wiki/Deploying-a-Next.js-app-into-GitHub-Pages).
+Now you can deploy the `out` directory to any static hosting service. Note that there is an additional step for deploying to GitHub Pages, [documented here](https://github.com/zeit/next.js/wiki/Deploying-a-Next.js-app-into-GitHub-Pages).
 
-For an example, simply visit the “out” directory and run following command to deploy your app to [ZEIT now](https://zeit.co/now).
+For an example, simply visit the `out` directory and run following command to deploy your app to [ZEIT Now](https://zeit.co/now).
 
 ```sh
 now
@@ -1459,11 +1496,11 @@ now
 
 ### Limitation
 
-With next export, we build HTML version of your app when you run the command `next export`. In that time, we'll run the `getInitialProps` functions of your pages.
+With `next export`, we build a HTML version of your app. At export time we will run `getInitialProps` of your pages.
 
-So, you could only use `pathname`, `query` and `asPath` fields of the `context` object passed to `getInitialProps`. You can't use `req` or `res` fields.
+The `req` and `res` fields of the `context` object passed to `getInitialProps` are not available as there is no server running.
 
-> Basically, you won't be able to render HTML content dynamically as we pre-build HTML files. If you need that, you need run your app with `next start`.
+> You won't be able to render HTML dynamically when static exporting, as we pre-build the HTML files. If you want to do dynamic rendering use `next start` or the custom server API
 
 ## Multi Zones
 
@@ -1607,12 +1644,6 @@ Yes! Here's an example with [Apollo](./examples/with-apollo).
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](./examples/with-redux)
-</details>
-
-<details>
-<summary>Why aren't routes I have for my static export accessible in the development server?</summary>
-
-This is a known issue with the architecture of Next.js. Until a solution is built into the framework, take a look at [this example solution](https://github.com/zeit/next.js/wiki/Centralizing-Routing) to centralize your routing.
 </details>
 
 <details>

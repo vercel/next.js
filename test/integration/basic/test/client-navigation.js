@@ -1,6 +1,7 @@
 /* global describe, it, expect */
 
 import webdriver from 'next-webdriver'
+import {waitFor} from 'next-test-utils'
 
 export default (context, render) => {
   describe('Client Navigation', () => {
@@ -28,6 +29,20 @@ export default (context, render) => {
           .elementByCss('#counter').text()
 
         expect(counterText).toBe('Counter: 1')
+        browser.close()
+      })
+    })
+
+    describe('With url property', () => {
+      it('Should keep immutable pathname, asPath and query', async () => {
+        const browser = await webdriver(context.appPort, '/nav/url-prop-change')
+        await browser.elementByCss('#add-query').click()
+        const urlResult = await browser.elementByCss('#url-result').text()
+        const previousUrlResult = await browser.elementByCss('#previous-url-result').text()
+
+        expect(JSON.parse(urlResult)).toMatchObject({'query': {'added': 'yes'}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes'})
+        expect(JSON.parse(previousUrlResult)).toMatchObject({'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change'})
+
         browser.close()
       })
     })
@@ -134,6 +149,64 @@ export default (context, render) => {
 
         // counts (page change + two clicks)
         expect(countAfterClicked).toBe('COUNT: 3')
+
+        // Since we replace the state, back button would simply go us back to /nav
+        await browser
+          .back()
+          .waitForElementByCss('.nav-home')
+
+        browser.close()
+      })
+    })
+
+    describe('with onClick action', () => {
+      it('should reload the page and perform additional action', async () => {
+        const browser = await webdriver(context.appPort, '/nav/on-click')
+        const defaultCount = await browser.elementByCss('p').text()
+        expect(defaultCount).toBe('COUNT: 0')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link').click()
+          .elementByCss('p').text()
+
+        // counts (one click + onClick handler)
+        expect(countAfterClicked).toBe('COUNT: 2')
+        browser.close()
+      })
+
+      it('should not reload if default was prevented', async () => {
+        const browser = await webdriver(context.appPort, '/nav/on-click')
+        const defaultCount = await browser.elementByCss('p').text()
+        expect(defaultCount).toBe('COUNT: 0')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link-prevent-default').click()
+          .elementByCss('p').text()
+
+        // counter is increased but there was no reload
+        expect(countAfterClicked).toBe('COUNT: 0')
+
+        const countAfterClickedAndReloaded = await browser
+          .elementByCss('#on-click-link').click() // +2
+          .elementByCss('p').text()
+
+        // counts (onClick handler, no reload)
+        expect(countAfterClickedAndReloaded).toBe('COUNT: 3')
+        browser.close()
+      })
+
+      it('should always replace the state and perform additional action', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link').click() // 1
+          .waitForElementByCss('#on-click-page')
+          .elementByCss('#on-click-link').click() // 3
+          .elementByCss('#on-click-link').click() // 5
+          .elementByCss('p').text()
+
+        // counts (page change + two clicks + onClick handler)
+        expect(countAfterClicked).toBe('COUNT: 5')
 
         // Since we replace the state, back button would simply go us back to /nav
         await browser
@@ -451,6 +524,24 @@ export default (context, render) => {
           expect(asPath).toBe('/nav/as-path-using-router')
           browser.close()
         })
+      })
+    })
+
+    describe('runtime errors', () => {
+      it('should show ErrorDebug when a client side error is thrown inside a component', async () => {
+        const browser = await webdriver(context.appPort, '/error-inside-browser-page')
+        await waitFor(2000)
+        const text = await browser.elementByCss('body').text()
+        expect(text).toMatch(/An Expected error occured/)
+        expect(text).toMatch(/pages\/error-inside-browser-page\.js:5:0/)
+      })
+
+      it('should show ErrorDebug when a client side error is thrown outside a component', async () => {
+        const browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
+        await waitFor(2000)
+        const text = await browser.elementByCss('body').text()
+        expect(text).toMatch(/An Expected error occured/)
+        expect(text).toMatch(/pages\/error-in-the-browser-global-scope\.js:2:0/)
       })
     })
 

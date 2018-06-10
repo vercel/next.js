@@ -11,7 +11,8 @@ import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
-import { BUILD_MANIFEST } from '../lib/constants'
+import { BUILD_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
+import { applySourcemaps } from './lib/source-map-support'
 
 const logger = console
 
@@ -41,23 +42,25 @@ async function doRender (req, res, pathname, query, {
   assetPrefix,
   runtimeConfig,
   availableChunks,
-  dist,
-  dir = process.cwd(),
+  distDir,
+  dir,
   dev = false,
   staticMarkup = false,
   nextExport = false
 } = {}) {
   page = page || pathname
 
+  await applySourcemaps(err)
+
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
   }
 
-  const documentPath = join(dir, dist, 'dist', 'bundles', 'pages', '_document')
-  const appPath = join(dir, dist, 'dist', 'bundles', 'pages', '_app')
-  const buildManifest = require(join(dir, dist, BUILD_MANIFEST))
+  const documentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
+  const buildManifest = require(join(distDir, BUILD_MANIFEST))
   let [Component, Document, App] = await Promise.all([
-    requirePage(page, {dir, dist}),
+    requirePage(page, {distDir}),
     require(documentPath),
     require(appPath)
   ])
@@ -95,14 +98,14 @@ async function doRender (req, res, pathname, query, {
       if (err && dev) {
         errorHtml = render(createElement(ErrorDebug, { error: err }))
       } else if (err) {
-        errorHtml = render(app)
+        html = render(app)
       } else {
         html = render(app)
       }
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = loadChunks({ dev, dir, dist, availableChunks })
+    const chunks = loadChunks({ dev, distDir, availableChunks })
 
     return { html, head, errorHtml, chunks, buildManifest }
   }
@@ -136,7 +139,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-store, must-revalidate')
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
 
   if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
@@ -227,7 +230,7 @@ async function ensurePage (page, { dir, hotReloader }) {
   await hotReloader.ensurePage(page)
 }
 
-function loadChunks ({ dev, dir, dist, availableChunks }) {
+function loadChunks ({ dev, distDir, availableChunks }) {
   const flushedChunks = flushChunks()
   const response = {
     names: [],
@@ -235,7 +238,7 @@ function loadChunks ({ dev, dir, dist, availableChunks }) {
   }
 
   if (dev) {
-    availableChunks = getAvailableChunks(dir, dist)
+    availableChunks = getAvailableChunks(distDir)
   }
 
   for (var chunk of flushedChunks) {

@@ -2,16 +2,17 @@ import { join } from 'path'
 import promisify from '../lib/promisify'
 import fs from 'fs'
 import webpack from 'webpack'
-import getConfig from '../config'
-import { PHASE_PRODUCTION_BUILD } from '../../lib/constants'
+import loadConfig from '../config'
+import { PHASE_PRODUCTION_BUILD, BUILD_ID_FILE } from '../../lib/constants'
 import getBaseWebpackConfig from './webpack'
 
 const access = promisify(fs.access)
 const writeFile = promisify(fs.writeFile)
 
 export default async function build (dir, conf = null) {
-  const config = getConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = await config.generateBuildId() // defaults to a uuid
+  const distDir = join(dir, config.distDir)
 
   try {
     await access(dir, (fs.constants || fs).W_OK)
@@ -28,7 +29,7 @@ export default async function build (dir, conf = null) {
 
     await runCompiler(configs)
 
-    await writeBuildId(dir, buildId, config)
+    await writeBuildId(distDir, buildId)
   } catch (err) {
     console.error(`> Failed to build`)
     throw err
@@ -55,7 +56,7 @@ function runCompiler (compiler) {
   })
 }
 
-async function writeBuildId (dir, buildId, config) {
-  const buildIdPath = join(dir, config.distDir, 'BUILD_ID')
+async function writeBuildId (distDir, buildId) {
+  const buildIdPath = join(distDir, BUILD_ID_FILE)
   await writeFile(buildIdPath, buildId, 'utf8')
 }
