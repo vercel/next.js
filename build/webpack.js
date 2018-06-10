@@ -12,7 +12,7 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
-import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, DEFAULT_PAGES_DIR} from '../lib/constants'
+import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -58,8 +58,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       loader: 'hot-self-accept-loader',
       options: {
         include: [
-          path.join(dir, 'pages'),
-          DEFAULT_PAGES_DIR
+          path.join(dir, 'pages')
         ],
         extensions: /\.(js|jsx)$/
       }
@@ -75,9 +74,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     'main.js': [
-      dev && !isServer && path.join(__dirname, '..', 'client', 'webpack-hot-middleware-client'),
-      dev && !isServer && path.join(__dirname, '..', 'client', 'on-demand-entries-client'),
-      require.resolve(`../client/next${dev ? '-dev' : ''}`)
+      dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'on-demand-entries-client'),
+      path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : {}
 
