@@ -1,0 +1,22 @@
+{
+  "name": "with-ant-design-less",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@zeit/next-less": "0.3.0",
+    "antd": "^3.5.4",
+    "babel-plugin-import": "^1.7.0",
+    "less": "3.0.4",
+    "next": "latest",
+    "react": "^16.4.0",
+    "react-dom": "^16.4.0"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "babel-plugin-transform-decorators-legacy": "^1.3.5"
+  }
+}
