@@ -159,6 +159,64 @@ export default (context, render) => {
       })
     })
 
+    describe('with onClick action', () => {
+      it('should reload the page and perform additional action', async () => {
+        const browser = await webdriver(context.appPort, '/nav/on-click')
+        const defaultCount = await browser.elementByCss('p').text()
+        expect(defaultCount).toBe('COUNT: 0')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link').click()
+          .elementByCss('p').text()
+
+        // counts (one click + onClick handler)
+        expect(countAfterClicked).toBe('COUNT: 2')
+        browser.close()
+      })
+
+      it('should not reload if default was prevented', async () => {
+        const browser = await webdriver(context.appPort, '/nav/on-click')
+        const defaultCount = await browser.elementByCss('p').text()
+        expect(defaultCount).toBe('COUNT: 0')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link-prevent-default').click()
+          .elementByCss('p').text()
+
+        // counter is increased but there was no reload
+        expect(countAfterClicked).toBe('COUNT: 0')
+
+        const countAfterClickedAndReloaded = await browser
+          .elementByCss('#on-click-link').click() // +2
+          .elementByCss('p').text()
+
+        // counts (onClick handler, no reload)
+        expect(countAfterClickedAndReloaded).toBe('COUNT: 3')
+        browser.close()
+      })
+
+      it('should always replace the state and perform additional action', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        const countAfterClicked = await browser
+          .elementByCss('#on-click-link').click() // 1
+          .waitForElementByCss('#on-click-page')
+          .elementByCss('#on-click-link').click() // 3
+          .elementByCss('#on-click-link').click() // 5
+          .elementByCss('p').text()
+
+        // counts (page change + two clicks + onClick handler)
+        expect(countAfterClicked).toBe('COUNT: 5')
+
+        // Since we replace the state, back button would simply go us back to /nav
+        await browser
+          .back()
+          .waitForElementByCss('.nav-home')
+
+        browser.close()
+      })
+    })
+
     describe('with hash changes', () => {
       describe('when hash change via Link', () => {
         it('should not run getInitialProps', async () => {

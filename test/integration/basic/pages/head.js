@@ -10,6 +10,12 @@ export default () => <div>
 
     <meta content='my meta' />
 
+    {/* allow duplicates for specific tags */}
+    <meta property='article:tag' content='tag1' key='tag1key' />
+    <meta property='article:tag' content='tag2' key='tag2key' />
+    <meta property='dedupe:tag' content='tag3' key='tag3key' />
+    <meta property='dedupe:tag' content='tag4' key='tag4key' />
+
     <React.Fragment>
       <title>Fragment title</title>
       <meta content='meta fragment' />

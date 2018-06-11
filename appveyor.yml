@@ -7,7 +7,7 @@ install:
   # Install Google Chrome for e2e testing
   - choco install --ignore-checksums googlechrome
   # Get the latest stable version of Node.js or io.js
-  - ps: Install-Product node $env:nodejs_version
+  - ps: Install-Product node $env:nodejs_version x64
   # install modules
   - npm install
 

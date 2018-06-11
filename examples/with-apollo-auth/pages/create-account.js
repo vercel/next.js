@@ -1,16 +1,14 @@
 import React from 'react'
-import { compose } from 'react-apollo'
 import Link from 'next/link'
 
-import withData from '../lib/withData'
 import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
 
 import RegisterBox from '../components/RegisterBox'
 
-class CreateAccount extends React.Component {
-  static async getInitialProps (context, apolloClient) {
-    const { loggedInUser } = await checkLoggedIn(context, apolloClient)
+export default class CreateAccount extends React.Component {
+  static async getInitialProps (context) {
+    const { loggedInUser } = await checkLoggedIn(context.apolloClient)
 
     if (loggedInUser.user) {
       // Already signed in? No need to continue.
@@ -23,17 +21,12 @@ class CreateAccount extends React.Component {
 
   render () {
     return (
-      <div>
+      <React.Fragment>
         {/* RegisterBox handles all register logic. */}
-        <RegisterBox client={this.props.client} />
+        <RegisterBox />
         <hr />
         Already have an account? <Link prefetch href='/signin'><a>Sign in</a></Link>
-      </div>
+      </React.Fragment>
     )
   }
 };
-
-export default compose( // TODO: Maybe remove the usage of compose?
-  // withData gives us server-side graphql queries before rendering
-  withData
-)(CreateAccount)
