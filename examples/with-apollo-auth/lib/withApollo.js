@@ -17,14 +17,11 @@ export default App => {
   return class WithData extends React.Component {
     static displayName = `WithData(${App.displayName})`
     static propTypes = {
-      apolloState: PropTypes.shape({
-        data: PropTypes.object.isRequired
-      }).isRequired
+      apolloState: PropTypes.object.isRequired
     }
 
     static async getInitialProps(ctx) {
       const { Component, router, ctx: { req, res } } = ctx
-      const apolloState = {}
       const apollo = initApollo({}, {
         getToken: () => parseCookies(req).token
       })
@@ -51,7 +48,6 @@ export default App => {
             {...appProps}
             Component={Component}
             router={router}
-            apolloState={apolloState}
             apolloClient={apollo}
           />
         )
@@ -69,7 +65,7 @@ export default App => {
       }
 
       // Extract query data from the Apollo's store
-      apolloState.data = apollo.cache.extract()
+      const apolloState = apollo.cache.extract()
 
       return {
         ...appProps,
@@ -81,11 +77,9 @@ export default App => {
       super(props)
       // `getDataFromTree` renders the component first, the client is passed off as a property.
       // After that rendering is done using Next's normal rendering pipeline
-      this.apolloClient =
-        props.apolloClient ||
-        initApollo(props.apolloState.data, {
-          getToken: () => parseCookies().token
-        })
+      this.apolloClient = initApollo(props.apolloState, {
+        getToken: () => parseCookies().token
+      })
     }
 
     render() {
