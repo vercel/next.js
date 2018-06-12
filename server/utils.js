@@ -4,8 +4,12 @@ import { readdirSync, existsSync } from 'fs'
 export const IS_BUNDLED_PAGE = /^bundles[/\\]pages.*\.js$/
 export const MATCH_ROUTE_NAME = /^bundles[/\\]pages[/\\](.*)\.js$/
 
-export function getAvailableChunks (dir, dist) {
-  const chunksDir = join(dir, dist, 'chunks')
+export function getChunkNameFromFilename (filename) {
+  return filename.replace(/-[^-]*$/, '')
+}
+
+export function getAvailableChunks (distDir) {
+  const chunksDir = join(distDir, 'chunks')
   if (!existsSync(chunksDir)) return {}
 
   const chunksMap = {}
@@ -13,7 +17,7 @@ export function getAvailableChunks (dir, dist) {
 
   chunkFiles.forEach(filename => {
     if (/\.js$/.test(filename)) {
-      const chunkName = filename.replace(/-.*/, '')
+      const chunkName = getChunkNameFromFilename(filename)
       chunksMap[chunkName] = filename
     }
   })
@@ -42,9 +46,9 @@ export function addCorsSupport (req, res) {
   }
 
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
-  res.setHeader('Access-Control-Request-Method', req.headers.origin)
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
-  res.setHeader('Access-Control-Allow-Headers', req.headers.origin)
+  // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
+  res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'])
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200)
