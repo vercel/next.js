@@ -28,8 +28,8 @@ export default (App) => {
       appContext.ctx.reduxStore = reduxStore
 
       let appProps = {}
-      if (App.getInitialProps) {
-        appProps = await App.getInitialProps(appContext)
+      if (typeof App.getInitialProps === 'function') {
+        appProps = await App.getInitialProps.call(App, appContext)
       }
 
       return {
