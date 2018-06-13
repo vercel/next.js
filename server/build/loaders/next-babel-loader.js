@@ -24,7 +24,8 @@ module.exports = babelLoader.custom(babel => {
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
-          if (file && !configs.has(file)) {
+          // We only log for client compilation otherwise there will be double output
+          if (file && !isServer && !configs.has(file)) {
             configs.add(file)
             console.log(`> Using external babel configuration`)
             console.log(`> Location: "${file}"`)
