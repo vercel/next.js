@@ -35,7 +35,7 @@ export default class Server {
     this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
     this.nextConfig = loadConfig(phase, this.dir, conf)
-    this.distDir = join(dir, this.nextConfig.distDir)
+    this.distDir = join(this.dir, this.nextConfig.distDir)
 
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
 
