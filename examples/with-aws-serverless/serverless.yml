@@ -1,0 +1,51 @@
+service: nextjs-aws-serverless
+
+package:
+  exclude:
+    - pages/**
+    - tests/**
+    - node_modules/.cache/**
+    - .cache
+    - package.json
+    - package-lock.json
+    - "**.test.js"
+    - "__snapshots__/"
+  include:
+    - .next/**
+
+plugins:
+  - serverless-offline
+  - serverless-apigw-binary
+
+custom:
+  serverless-offline:
+    port: 8000
+    dontPrintOutput: true
+  apigwBinary:
+    types:
+      - '*/*'
+
+provider:
+  name: aws
+  runtime: nodejs10.2
+  memorySize: 256
+  timeout: 15
+  environment:
+    NODE_ENV: production
+
+functions:
+  nextJsRootApp:
+    handler: lambda.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+  nextJsAnyApp:
+    handler: lambda.handler
+    events:
+      - http:
+          path: /{any+}
+          method: ANY
+
+resources:
+  Description: Next.js testing in AWS lambda

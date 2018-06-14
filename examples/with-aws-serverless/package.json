@@ -1,0 +1,37 @@
+{
+  "name": "react-i18next-nextjs-example",
+  "version": "1.0.0",
+  "description": "next.js hosted on AWS lambda",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node app.local.js",
+    "offline": "next build && serverless offline start",
+    "build": "next build",
+    "start": "next start",
+    "export": "next build && next export -o public",
+    "package": "serverless package",
+    "deploy": "next build && npm run package && serverless deploy --verbose"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "4.16.2",
+    "i18next": "10.4.1",
+    "i18next-browser-languagedetector": "2.1.0",
+    "i18next-express-middleware": "1.0.10",
+    "i18next-node-fs-backend": "1.0.0",
+    "i18next-xhr-backend": "1.5.1",
+    "next": "5.0.0",
+    "react": "16.2.0",
+    "react-dom": "16.2.0",
+    "react-i18next": "7.3.6",
+    "serverless": "^1.27.3",
+    "serverless-apigw-binary": "^0.4.4",
+    "serverless-http": "^1.5.5"
+  },
+  "devDependencies": {
+    "babel-plugin-transform-decorators-legacy": "^1.3.5",
+    "serverless-offline": "^3.25.4",
+    "sw-precache-webpack-plugin": "^0.11.5"
+  }
+}

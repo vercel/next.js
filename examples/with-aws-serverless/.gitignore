@@ -1,0 +1,4 @@
+node_modules/
+yarn-error.log
+.serverless/
+.next/
