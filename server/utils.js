@@ -3,7 +3,7 @@ import { readdirSync, existsSync } from 'fs'
 
 export function getChunkNameFromFilename (filename, dev) {
   if (dev) {
-    return filename.replace(/.[^.]*$/, '')
+    return filename.replace(/\.[^.]*$/, '')
   }
   return filename.replace(/-[^-]*$/, '')
 }
