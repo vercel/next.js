@@ -2,7 +2,7 @@
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import parseArgs from 'minimist'
-import build from '../server/build'
+import build from '../build'
 import { printAndExit } from '../lib/utils'
 
 const argv = parseArgs(process.argv.slice(2), {

@@ -1235,29 +1235,6 @@ module.exports = {
   <ul><li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li></ul>
 </details></p>
 
-In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
-
-```js
-// This file is not going through babel transformation.
-// So, we write it in vanilla JS
-// (But you could use ES2015 features supported by your Node.js version)
-
-module.exports = {
-  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
-    // Perform customizations to webpack config
-
-    // Important: return the modified config
-    return config
-  },
-  webpackDevMiddleware: config => {
-    // Perform customizations to webpack dev middleware config
-
-    // Important: return the modified config
-    return config
-  }
-}
-```
-
 Some commonly asked for features are available as modules:
 
 - [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
@@ -1282,6 +1259,57 @@ module.exports = withTypescript(withSass({
 }))
 ```
 
+In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
+
+```js
+// next.config.js is not transformed by Babel. So you can only use javascript features supported by your version of Node.js.
+
+module.exports = {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
+    // Perform customizations to webpack config
+    // Important: return the modified config
+    return config
+  },
+  webpackDevMiddleware: config => {
+    // Perform customizations to webpack dev middleware config
+    // Important: return the modified config
+    return config
+  }
+}
+```
+
+The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+
+- `buildId` - `String` the build id used as a unique identifier between builds
+- `dev` - `Boolean` shows if the compilation is done in development mode
+- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client size compilation (`false`).
+- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
+  - `babel` - `Object` the `babel-loader` configuration for Next.js.
+  - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
+
+Example usage of `defaultLoaders.babel`: 
+
+```js
+// Example next.config.js for adding a loader that depends on babel-loader
+// This source was taken from the @zeit/next-mdx plugin source: 
+// https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
+module.exports = {
+  webpack: (config, {}) => {
+    config.module.rules.push({
+      test: /\.mdx/,
+      use: [
+        options.defaultLoaders.babel,
+        {
+          loader: '@mdx-js/loader',
+          options: pluginOptions.options
+        }
+      ]
+    })
+
+    return config
+  }
+}
+```
 
 ### Customizing babel config
 

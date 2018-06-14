@@ -4,12 +4,10 @@ import globModule from 'glob'
 
 const glob = promisify(globModule)
 
-const nextPagesDir = path.join(__dirname, '..', '..', '..', 'pages')
-
-export async function getPages (dir, {dev, isServer, pageExtensions}) {
+export async function getPages (dir, {nextPagesDir, dev, isServer, pageExtensions}) {
   const pageFiles = await getPagePaths(dir, {dev, isServer, pageExtensions})
 
-  return getPageEntries(pageFiles, {isServer, pageExtensions})
+  return getPageEntries(pageFiles, {nextPagesDir, isServer, pageExtensions})
 }
 
 export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
@@ -50,7 +48,7 @@ export function createEntry (filePath, {name, pageExtensions} = {}) {
 }
 
 // Convert page paths into entries
-export function getPageEntries (pagePaths, {isServer = false, pageExtensions} = {}) {
+export function getPageEntries (pagePaths, {nextPagesDir, isServer = false, pageExtensions} = {}) {
   const entries = {}
 
   for (const filePath of pagePaths) {

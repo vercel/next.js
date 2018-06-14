@@ -3,11 +3,11 @@ import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
 import touch from 'touch'
-import promisify from './lib/promisify'
+import promisify from '../lib/promisify'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
-import {createEntry} from './build/webpack/utils'
-import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
+import {createEntry} from '../build/webpack/utils'
+import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from '../lib/constants'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -63,7 +63,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
           if (!hasNoModuleFoundError) return false
 
           // The page itself is missing. So this is a failed page.
-          if (IS_BUNDLED_PAGE.test(e.module.name)) return true
+          if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
 
           // No dependencies means this is a top level page.
           // So this is a failed page.
@@ -72,7 +72,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
         .map(e => e.module.chunks)
         .reduce((a, b) => [...a, ...b], [])
         .map(c => {
-          const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
+          const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
           return normalizePage(`/${pageName}`)
         })
 
