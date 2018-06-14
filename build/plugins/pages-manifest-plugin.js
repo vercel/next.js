@@ -1,6 +1,6 @@
 // @flow
 import { RawSource } from 'webpack-sources'
-import {PAGES_MANIFEST, MATCH_ROUTE_NAME} from '../../lib/constants'
+import {PAGES_MANIFEST, ROUTE_NAME_REGEX} from '../../lib/constants'
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/dist/bundles/pages/index.js` when doing SSR
@@ -12,7 +12,7 @@ export default class PagesManifestPlugin {
       const pages = {}
 
       for (const entry of entries) {
-        const result = MATCH_ROUTE_NAME.exec(entry.name)
+        const result = ROUTE_NAME_REGEX.exec(entry.name)
         if (!result) {
           continue
         }
