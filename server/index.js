@@ -54,7 +54,7 @@ export default class Server {
       distDir: this.distDir,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.distDir),
+      availableChunks: dev ? {} : getAvailableChunks(this.distDir, dev),
       generateEtags
     }
 

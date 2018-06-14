@@ -238,7 +238,7 @@ function loadChunks ({ dev, distDir, availableChunks }) {
   }
 
   if (dev) {
-    availableChunks = getAvailableChunks(distDir)
+    availableChunks = getAvailableChunks(distDir, dev)
   }
 
   for (var chunk of flushedChunks) {
