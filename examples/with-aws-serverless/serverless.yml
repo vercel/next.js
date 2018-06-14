@@ -27,7 +27,7 @@ custom:
 
 provider:
   name: aws
-  runtime: nodejs10.2
+  runtime: nodejs6.10
   memorySize: 256
   timeout: 15
   environment:
