@@ -163,7 +163,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         }
       }),
       new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+        'process.env.NEXT_EXPORT_TRAILING_SLASHES': config.exportTrailingSlashes
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),
