@@ -1296,7 +1296,7 @@ Example usage of `defaultLoaders.babel`:
 module.exports = {
   webpack: (config, {}) => {
     config.module.rules.push({
-      test: extension,
+      test: /\.mdx/,
       use: [
         options.defaultLoaders.babel,
         {
