@@ -1490,7 +1490,7 @@ module.exports = {
 }
 ```
 
-> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content.
+> Note that if the path ends with a directory, it will be exported as `/dir-name/index.html`, but if it ends with an extension, it will be exported as the specified filename, e.g. `/readme.md` above. If you use a file extension other than `.html`, you may need to set the `Content-Type` header to `text/html` when serving this content. Links to directory pages (`dir-name/index.html`) will contain a trailing slash (`dir-name/`) unless you set `exportTrailingSlashes: false` in `next.config.js`.
 
 Then simply run these commands:
 
