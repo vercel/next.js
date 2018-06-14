@@ -2,10 +2,10 @@
 import { relative } from 'path'
 import loaderUtils from 'loader-utils'
 
-type Options = {
+type Options = {|
   extensions: RegExp,
   include: Array<string>
-}
+|}
 
 module.exports = function (content: string, sourceMap: any) {
   this.cacheable()
