@@ -6,7 +6,7 @@ export const MATCH_ROUTE_NAME = /^bundles[/\\]pages[/\\](.*)\.js$/
 
 export function getChunkNameFromFilename (filename, dev) {
   if (dev) {
-    return filename.replace(/.[^.]*$/, '')
+    return filename.replace(/\.[^.]*$/, '')
   }
   return filename.replace(/-[^-]*$/, '')
 }
