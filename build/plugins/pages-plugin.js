@@ -1,17 +1,17 @@
 import { ConcatSource } from 'webpack-sources'
 import {
-  IS_BUNDLED_PAGE,
-  MATCH_ROUTE_NAME
-} from '../../utils'
+  IS_BUNDLED_PAGE_REGEX,
+  ROUTE_NAME_REGEX
+} from '../../lib/constants'
 
 class PageChunkTemplatePlugin {
   apply (chunkTemplate) {
     chunkTemplate.plugin('render', function (modules, chunk) {
-      if (!IS_BUNDLED_PAGE.test(chunk.name)) {
+      if (!IS_BUNDLED_PAGE_REGEX.test(chunk.name)) {
         return modules
       }
 
-      let routeName = MATCH_ROUTE_NAME.exec(chunk.name)[1]
+      let routeName = ROUTE_NAME_REGEX.exec(chunk.name)[1]
 
       // We need to convert \ into / when we are in windows
       // to get the proper route name

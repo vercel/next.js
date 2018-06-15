@@ -4,12 +4,12 @@ import WebpackHotMiddleware from 'webpack-hot-middleware'
 import del from 'del'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
-import getBaseWebpackConfig from './build/webpack'
+import getBaseWebpackConfig from '../build/webpack'
 import UUID from 'uuid'
 import {
-  IS_BUNDLED_PAGE,
   addCorsSupport
 } from './utils'
+import {IS_BUNDLED_PAGE_REGEX} from '../lib/constants'
 
 export default class HotReloader {
   constructor (dir, { quiet, config } = {}) {
@@ -145,7 +145,7 @@ export default class HotReloader {
       const chunkNames = new Set(
         compilation.chunks
           .map((c) => c.name)
-          .filter(name => IS_BUNDLED_PAGE.test(name))
+          .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
       )
 
       const failedChunkNames = new Set(compilation.errors
@@ -157,7 +157,7 @@ export default class HotReloader {
 
       const chunkHashes = new Map(
         compilation.chunks
-          .filter(c => IS_BUNDLED_PAGE.test(c.name))
+          .filter(c => IS_BUNDLED_PAGE_REGEX.test(c.name))
           .map((c) => [c.name, c.hash])
       )
 
