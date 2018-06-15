@@ -12,11 +12,7 @@ import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesManifestPlugin from './plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './plugins/build-manifest-plugin'
-import {SERVER_DIRECTORY} from '../../lib/constants'
-
-const nextDir = path.join(__dirname, '..', '..', '..')
-const nextNodeModulesDir = path.join(nextDir, 'node_modules')
-const nextPagesDir = path.join(nextDir, 'pages')
+import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -57,6 +53,15 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     babel: {
       loader: 'next-babel-loader',
       options: {dev, isServer}
+    },
+    hotSelfAccept: {
+      loader: 'hot-self-accept-loader',
+      options: {
+        include: [
+          path.join(dir, 'pages')
+        ],
+        extensions: /\.(js|jsx)$/
+      }
     }
   }
 
@@ -65,13 +70,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const pagesEntries = await getPages(dir, {dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     'main.js': [
-      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client'),
-      dev && !isServer && path.join(__dirname, '..', '..', 'client', 'on-demand-entries-client'),
-      require.resolve(`../../client/next${dev ? '-dev' : ''}`)
+      dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'webpack-hot-middleware-client'),
+      dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'on-demand-entries-client'),
+      path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : {}
 
@@ -102,17 +107,17 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     resolve: {
       extensions: ['.js', '.jsx', '.json'],
       modules: [
-        nextNodeModulesDir,
+        NEXT_PROJECT_ROOT_NODE_MODULES,
         'node_modules',
         ...nodePathList // Support for NODE_PATH environment variable
       ],
       alias: {
-        next: nextDir
+        next: NEXT_PROJECT_ROOT
       }
     },
     resolveLoader: {
       modules: [
-        nextNodeModulesDir,
+        NEXT_PROJECT_ROOT_NODE_MODULES,
         'node_modules',
         path.join(__dirname, 'loaders'),
         ...nodePathList // Support for NODE_PATH environment variable
@@ -122,14 +127,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       rules: [
         dev && !isServer && {
           test: /\.(js|jsx)$/,
-          loader: 'hot-self-accept-loader',
-          include: [
-            path.join(dir, 'pages'),
-            nextPagesDir
-          ],
-          options: {
-            extensions: /\.(js|jsx)$/
-          }
+          include: defaultLoaders.hotSelfAccept.options.include,
+          use: defaultLoaders.hotSelfAccept
         },
         {
           test: /\.(js|jsx)$/,
@@ -206,7 +205,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return true
           }
 
-          // commons
           // If there are one or two pages, only move modules to common if they are
           // used in all of the pages. Otherwise, move modules used in at-least
           // 1/2 of the total pages into commons.
@@ -214,7 +212,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             return count >= totalPages
           }
           return count >= totalPages * 0.5
-          // commons end
         }
       }),
       // We use a manifest file in development to speed up HMR

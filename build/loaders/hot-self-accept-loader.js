@@ -1,11 +1,17 @@
-import { resolve, relative } from 'path'
+// @flow
+import { relative } from 'path'
 import loaderUtils from 'loader-utils'
 
-module.exports = function (content, sourceMap) {
+type Options = {|
+  extensions: RegExp,
+  include: Array<string>
+|}
+
+module.exports = function (content: string, sourceMap: any) {
   this.cacheable()
 
-  const options = loaderUtils.getOptions(this)
-  const route = getRoute(this, options)
+  const options: Options = loaderUtils.getOptions(this)
+  const route = getRoute(this.resourcePath, options)
 
   // Webpack has a built in system to prevent default from colliding, giving it a random letter per export.
   // We can safely check if Component is undefined since all other pages imported into the entrypoint don't have __webpack_exports__.default
@@ -30,16 +36,19 @@ module.exports = function (content, sourceMap) {
   `, sourceMap)
 }
 
-const nextPagesDir = resolve(__dirname, '..', '..', '..', 'pages')
-
-function getRoute (loaderContext, options) {
-  const pagesDir = resolve(loaderContext.options.context, 'pages')
-  const { resourcePath } = loaderContext
-  const dir = [pagesDir, nextPagesDir]
-    .find((d) => resourcePath.indexOf(d) === 0)
-
+function getRoute (resourcePath: string, options: Options) {
   if (!options.extensions) {
     throw new Error('extensions is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
+  }
+
+  if (!options.include) {
+    throw new Error('include option is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
+  }
+
+  const dir = options.include.find((d) => resourcePath.indexOf(d) === 0)
+
+  if (!dir) {
+    throw new Error(`'hot-self-accept-loader' was called on a file that isn't a page.`)
   }
 
   const path = relative(dir, resourcePath).replace(options.extensions, '.js')

@@ -1,6 +1,6 @@
 // @flow
 import { RawSource } from 'webpack-sources'
-import {BUILD_MANIFEST} from '../../../lib/constants'
+import {BUILD_MANIFEST} from '../../lib/constants'
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
