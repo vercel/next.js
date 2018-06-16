@@ -11,6 +11,14 @@ module.exports = function (content: string, sourceMap: any) {
   this.cacheable()
 
   const options: Options = loaderUtils.getOptions(this)
+  if (!options.extensions) {
+    throw new Error('extensions is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
+  }
+
+  if (!options.include) {
+    throw new Error('include option is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
+  }
+
   const route = getRoute(this.resourcePath, options)
 
   // Webpack has a built in system to prevent default from colliding, giving it a random letter per export.
@@ -37,14 +45,6 @@ module.exports = function (content: string, sourceMap: any) {
 }
 
 function getRoute (resourcePath: string, options: Options) {
-  if (!options.extensions) {
-    throw new Error('extensions is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
-  }
-
-  if (!options.include) {
-    throw new Error('include option is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
-  }
-
   const dir = options.include.find((d) => resourcePath.indexOf(d) === 0)
 
   if (!dir) {
