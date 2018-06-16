@@ -1,8 +1,9 @@
+// @flow
 import { ConcatSource } from 'webpack-sources'
 import {
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX
-} from '../../lib/constants'
+} from '../../../lib/constants'
 
 class PageChunkTemplatePlugin {
   apply (chunkTemplate) {
@@ -42,7 +43,7 @@ class PageChunkTemplatePlugin {
 }
 
 export default class PagesPlugin {
-  apply (compiler) {
+  apply (compiler: any) {
     compiler.plugin('compilation', (compilation) => {
       compilation.chunkTemplate.apply(new PageChunkTemplatePlugin())
     })
