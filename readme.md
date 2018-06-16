@@ -1342,7 +1342,7 @@ The `next/babel` preset includes everything needed to transpile React applicatio
 - plugin-transform-runtime
 - styled-jsx
 
-These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset:
 
 ```json
 {
@@ -1350,7 +1350,8 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
     ["next/babel", {
       "preset-env": {},
       "transform-runtime": {},
-      "styled-jsx": {}
+      "styled-jsx": {},
+      "class-properties": {}
     }]
   ],
   "plugins": []
