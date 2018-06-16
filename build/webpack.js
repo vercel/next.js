@@ -1,3 +1,5 @@
+// @flow
+import type {NextConfig} from '../server/config'
 import path, {sep} from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
@@ -6,12 +8,12 @@ import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import {getPages} from './webpack/utils'
-import PagesPlugin from './plugins/pages-plugin'
-import NextJsSsrImportPlugin from './plugins/nextjs-ssr-import'
-import DynamicChunksPlugin from './plugins/dynamic-chunks-plugin'
-import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import PagesManifestPlugin from './plugins/pages-manifest-plugin'
-import BuildManifestPlugin from './plugins/build-manifest-plugin'
+import PagesPlugin from './webpack/plugins/pages-plugin'
+import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
+import DynamicChunksPlugin from './webpack/plugins/dynamic-chunks-plugin'
+import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
+import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
+import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 
 function externalsConfig (dir, isServer) {
@@ -48,7 +50,14 @@ function externalsConfig (dir, isServer) {
   return externals
 }
 
-export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config}) {
+type BaseConfigContext = {|
+  dev: boolean,
+  isServer: boolean,
+  buildId: string,
+  config: NextConfig
+|}
+
+export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config}: BaseConfigContext) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -121,7 +130,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       modules: [
         NEXT_PROJECT_ROOT_NODE_MODULES,
         'node_modules',
-        path.join(__dirname, 'loaders'),
+        path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         ...nodePathList // Support for NODE_PATH environment variable
       ]
     },
