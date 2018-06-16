@@ -60,7 +60,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         include: [
           path.join(dir, 'pages')
         ],
-        extensions: /\.(js|jsx)$/
+        // All pages are javascript files. So we apply hot-self-accept-loader here to facilitate hot reloading of pages.
+        // This makes sure plugins just have to implement `pageExtensions` instead of also implementing the loader
+        extensions: new RegExp(`\\.+(${config.pageExtensions.join('|')})$`)
       }
     }
   }
