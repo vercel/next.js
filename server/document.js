@@ -45,6 +45,11 @@ export class Head extends Component {
 
     const files = buildManifest[filename]
 
+    if(!files) {
+      console.warn(`Files for file ${filename} not found`)
+      return []
+    }
+
     return files.map(file => {
       return <link
         key={filename}
@@ -131,6 +136,11 @@ export class NextScript extends Component {
     let { assetPrefix, buildId } = __NEXT_DATA__
 
     const files = buildManifest[filename]
+
+    if(!files) {
+      console.warn(`Files for file ${filename} not found`)
+      return []
+    }
 
     return files.map((file) => (
       <script
