@@ -210,9 +210,10 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
+    // We don’t watch .next/ and node_modules for changes
     const ignored = [
-      '**/.*',
-      'node_modules'
+      /\.next\//,
+      /node_modules/
     ]
 
     let webpackDevMiddlewareConfig = {
