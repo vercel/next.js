@@ -4,7 +4,7 @@ import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
-import promisify from './lib/promisify'
+import promisify from '../lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -35,7 +35,7 @@ export default class Server {
     this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
     this.nextConfig = loadConfig(phase, this.dir, conf)
-    this.distDir = join(dir, this.nextConfig.distDir)
+    this.distDir = join(this.dir, this.nextConfig.distDir)
 
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
 
@@ -54,7 +54,7 @@ export default class Server {
       distDir: this.distDir,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.distDir),
+      availableChunks: dev ? {} : getAvailableChunks(this.distDir, dev),
       generateEtags
     }
 
