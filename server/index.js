@@ -32,7 +32,7 @@ async function renderScriptError (req, res, page, error, customFields, { dev }) 
   // Asks CDNs and others to not to cache the errored page
   res.setHeader('Cache-Control', 'no-store, must-revalidate')
   // prevent XSS attacks by filtering the page before printing it.
-  page = JSON.stringyf(page)
+  page = JSON.stringify(page)
   res.setHeader('Content-Type', 'text/javascript')
 
   if (error.code === 'ENOENT') {
