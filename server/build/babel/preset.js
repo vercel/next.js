@@ -20,8 +20,7 @@ module.exports = (context, opts = {}) => ({
         browsers: ['ie >= 11', 'edge >= 16', 'safari >= 9', 'chrome >= 64', 'firefox >= 60']
       } : { node: 'current' },
       exclude: ['transform-es2015-typeof-symbol'],
-      useBuiltIns: true,
-      debug: true
+      useBuiltIns: true
     }],
     require.resolve('babel-preset-react')
   ],
