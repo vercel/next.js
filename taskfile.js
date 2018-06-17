@@ -41,7 +41,7 @@ const babelNodeConfig = {
 }
 
 export async function compile (task) {
-  await task.series(['bin', 'server', 'browserPages', 'browserLib', 'nodePages', 'nodeLib', 'client'])
+  await task.serial(['bin', 'server', 'browserPages', 'browserLib', 'nodePages', 'nodeLib', 'client'])
 }
 
 export async function bin (task, opts) {
