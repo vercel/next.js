@@ -42,7 +42,7 @@ async function doRender (req, res, pathname, query, {
   await ensurePage(page, { dir, hotReloader })
 
   const dist = getConfig(dir).distDir
-  const nodeDistDir = join(dir, dist, 'dist')
+  const nodeDistDir = join(dir, dist, 'server')
 
   const pageDir = join(nodeDistDir, 'pages')
 

@@ -7,13 +7,22 @@ import webpack from './webpack'
 import replaceCurrentBuild from './replace'
 import md5File from 'md5-file/promise'
 
+import { build as buildServer } from './babel'
+
 export default async function build (dir, conf = null) {
   const buildId = uuid.v4()
   const buildDir = join(tmpdir(), uuid.v4())
   const compiler = await webpack(dir, { buildId, buildDir, conf })
 
   try {
-    const stats = await runCompiler(compiler)
+    const [stats] = await Promise.all([
+      runCompiler(compiler),
+      await buildServer([`${dir}/pages`], {
+        base: dir,
+        outDir: join(buildDir, '.next', 'server')
+      })
+    ])
+
     await writeBuildStats(buildDir, stats)
     await writeBuildId(buildDir, buildId)
   } catch (err) {

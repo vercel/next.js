@@ -6,9 +6,8 @@ import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
 import UUID from 'uuid'
-import {
-  IS_BUNDLED_PAGE
-} from './utils'
+import { IS_BUNDLED_PAGE } from './utils'
+import { watch } from './build/babel'
 
 export default class HotReloader {
   constructor (dir, { quiet, conf } = {}) {
@@ -20,7 +19,6 @@ export default class HotReloader {
     this.initialized = false
     this.stats = null
     this.compilationErrors = null
-    this.prevAssets = null
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
@@ -45,12 +43,27 @@ export default class HotReloader {
   }
 
   async start () {
-    const [compiler] = await Promise.all([
+    const [webpackCompiler] = await Promise.all([
       webpack(this.dir, { buildId: this.buildId, dev: true, quiet: this.quiet }),
       clean(this.dir)
     ])
+    const babelCompiler = {
+      setEntry: (name, pathname) => {
+        watch([pathname], {
+          base: this.dir,
+          outDir: join(this.dir, '.next', 'server')
+        }, (msg) => {
+          if (msg.cmd === 'file-built') {
+            deleteCache(msg.dest)
+            msg.parents.forEach(deleteCache)
+          }
+        })
+      }
+    }
+    await babelCompiler.setEntry('_error', `${this.dir}/pages/_error.js`)
+    await babelCompiler.setEntry('_document', `${this.dir}/pages/_document.js`)
 
-    const buildTools = await this.prepareBuildTools(compiler)
+    const buildTools = await this.prepareBuildTools(webpackCompiler, babelCompiler)
     this.assignBuildTools(buildTools)
 
     this.stats = await this.waitUntilValid()
@@ -96,26 +109,8 @@ export default class HotReloader {
     ]
   }
 
-  async prepareBuildTools (compiler) {
-    compiler.plugin('after-emit', (compilation, callback) => {
-      const { assets } = compilation
-
-      if (this.prevAssets) {
-        for (const f of Object.keys(assets)) {
-          deleteCache(assets[f].existsAt)
-        }
-        for (const f of Object.keys(this.prevAssets)) {
-          if (!assets[f]) {
-            deleteCache(this.prevAssets[f].existsAt)
-          }
-        }
-      }
-      this.prevAssets = assets
-
-      callback()
-    })
-
-    compiler.plugin('done', (stats) => {
+  async prepareBuildTools (webpackCompiler, babelCompiler) {
+    webpackCompiler.plugin('done', (stats) => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
@@ -191,14 +186,14 @@ export default class HotReloader {
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
     }
 
-    const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
+    const webpackDevMiddleware = WebpackDevMiddleware(webpackCompiler, webpackDevMiddlewareConfig)
 
-    const webpackHotMiddleware = WebpackHotMiddleware(compiler, {
+    const webpackHotMiddleware = WebpackHotMiddleware(webpackCompiler, {
       path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
     })
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, webpackCompiler, babelCompiler, {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
@@ -255,6 +250,7 @@ export default class HotReloader {
 }
 
 function deleteCache (path) {
+  console.log('purge', path)
   delete require.cache[path]
 }
 

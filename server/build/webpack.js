@@ -8,31 +8,27 @@ import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
-import * as babelCore from 'babel-core'
 import findBabelConfig from './babel/find-config'
-import rootModuleRelativePath from './root-module-relative-path'
 
-const documentPage = join('pages', '_document.js')
 const defaultPages = [
-  '_error.js',
-  '_document.js'
+  '_error.js'
 ]
-const nextPagesDir = join(__dirname, '..', '..', 'pages')
+const nextPagesDir = join(__dirname, '..', '..', '..', 'pages')
+const nextLibDir = join(__dirname, '..', '..', '..', 'lib')
+const nextClientDir = join(__dirname, '..', '..', '..', 'client')
 const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
 const interpolateNames = new Map(defaultPages.map((p) => {
   return [join(nextPagesDir, p), `../dist/pages/${p}`]
 }))
 
-const relativeResolve = rootModuleRelativePath(require)
-
 export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
-    join(__dirname, '..', '..', 'client', 'webpack-hot-middleware-client')
+    require.resolve('../../../client/webpack-hot-middleware-client')
   ] : []
   const mainJS = dev
-    ? require.resolve('../../client/next-dev') : require.resolve('../../client/next')
+    ? require.resolve('../../../client/next-dev') : require.resolve('../../../client/next')
 
   let totalPages
 
@@ -46,11 +42,11 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     }
 
     const pages = await glob('pages/**/*.js', { cwd: dir })
-    const devPages = pages.filter((p) => p === 'pages/_document.js' || p === 'pages/_error.js')
+    const devPages = pages.filter((p) => p === 'pages/_error.js')
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
-    const entryPages = dev ? devPages : pages
+    const entryPages = dev ? devPages : pages.filter((p) => p !== 'pages/_document.js' && !/\.test\.js/.test(p))
     for (const p of entryPages) {
       entries[p.replace(/^(pages\/.*)\/index.js$/, '$1.js')] = [`./${p}?entry`]
     }
@@ -62,7 +58,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       }
     }
 
-    totalPages = pages.filter((p) => p !== documentPage).length
+    totalPages = pages.length
 
     return entries
   }
@@ -136,7 +132,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   } else {
     plugins.push(new webpack.NormalModuleReplacementPlugin(
       /react-hot-loader/,
-      require.resolve('../../client/hot-module-loader.stub')
+      require.resolve('../../../client/hot-module-loader.stub')
     ))
     plugins.push(
       new CombineAssetsPlugin({
@@ -187,89 +183,18 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       nextPagesDir
     ]
   }] : [])
-    .concat([{
-      test: /\.json$/,
-      loader: 'json-loader'
-    }, {
-      test: /\.(js|json)(\?[^?]*)?$/,
-      loader: 'emit-file-loader',
-      include: [dir, nextPagesDir],
-      exclude (str) {
-        return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-      },
-      options: {
-        name: '../dist/[path][name].[ext]',
-        // By default, our babel config does not transpile ES2015 module syntax because
-        // webpack knows how to handle them. (That's how it can do tree-shaking)
-        // But Node.js doesn't know how to handle them. So, we have to transpile them here.
-        transform ({ content, sourceMap, interpolatedName }) {
-        // Only handle .js files
-          if (!(/\.js$/.test(interpolatedName))) {
-            return { content, sourceMap }
-          }
-
-          const transpiled = babelCore.transform(content, {
-            babelrc: false,
-            sourceMaps: dev ? 'both' : false,
-            // Here we need to resolve all modules to the absolute paths.
-            // Earlier we did it with the babel-preset.
-            // But since we don't transpile ES2015 in the preset this is not resolving.
-            // That's why we need to do it here.
-            // See more: https://github.com/zeit/next.js/issues/951
-            plugins: [
-              [require.resolve('babel-plugin-transform-es2015-modules-commonjs')],
-              [
-                require.resolve('babel-plugin-module-resolver'),
-                {
-                  alias: {
-                    'babel-runtime': relativeResolve('babel-runtime/package'),
-                    'next/link': relativeResolve('../../lib/link'),
-                    'next/dynamic': relativeResolve('../../lib/dynamic'),
-                    'next/same-loop-promise': relativeResolve('../../lib/same-loop-promise'),
-                    'next/head': relativeResolve('../../lib/head'),
-                    'next/document': relativeResolve('../../server/document'),
-                    'next/router': relativeResolve('../../lib/router'),
-                    'next/error': relativeResolve('../../lib/error')
-                  }
-                }
-              ]
-            ],
-            inputSourceMap: sourceMap
-          })
-
-          // Strip ?entry to map back to filesystem and work with iTerm, etc.
-          let { map } = transpiled
-          let output = transpiled.code
-
-          if (map) {
-            let nodeMap = Object.assign({}, map)
-            nodeMap.sources = nodeMap.sources.map((source) => source.replace(/\?entry/, ''))
-            delete nodeMap.sourcesContent
-
-            // Output explicit inline source map that source-map-support can pickup via requireHook mode.
-            // Since these are not formal chunks, the devtool infrastructure in webpack does not output
-            // a source map for these files.
-            const sourceMapUrl = Buffer.from(JSON.stringify(nodeMap), 'utf-8').toString('base64')
-            output = `${output}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,${sourceMapUrl}`
-          }
-
-          return {
-            content: output,
-            sourceMap: transpiled.map
-          }
-        }
-      }
-    }, {
+    .concat([nextPagesDir, nextClientDir, nextLibDir].map(dir => ({
       loader: 'babel-loader',
-      include: nextPagesDir,
-      exclude (str) {
-        return /node_modules/.test(str) && str.indexOf(nextPagesDir) !== 0
-      },
+      include: dir,
       options: {
         babelrc: false,
         cacheDirectory: true,
         presets: [require.resolve('./babel/preset')]
       }
+    })))
+    .concat([{
+      test: /\.json$/,
+      loader: 'json-loader'
     }, {
       test: /\.js(\?[^?]*)?$/,
       loader: 'babel-loader',
@@ -284,6 +209,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     context: dir,
     entry,
     output: {
+      pathinfo: true,
       path: buildDir ? join(buildDir, '.next', 'bundles') : join(dir, config.distDir, 'bundles'),
       filename: '[name]',
       libraryTarget: 'commonjs2',

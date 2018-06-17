@@ -9,7 +9,7 @@ const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
-export default function onDemandEntryHandler (devMiddleware, compiler, {
+export default function onDemandEntryHandler (devMiddleware, webpackCompiler, babelCompiler, {
   dir,
   dev,
   reload,
@@ -24,7 +24,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
   let stopped = false
   let reloadCallbacks = new EventEmitter()
 
-  compiler.plugin('make', function (compilation, done) {
+  webpackCompiler.plugin('make', function (compilation, done) {
     invalidator.startBuilding()
 
     const allEntries = Object.keys(entries).map((page) => {
@@ -38,7 +38,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
       .catch(done)
   })
 
-  compiler.plugin('done', function (stats) {
+  webpackCompiler.plugin('done', function (stats) {
     const { compilation } = stats
     const hardFailedPages = compilation.errors
       .filter(e => {
@@ -143,6 +143,7 @@ export default function onDemandEntryHandler (devMiddleware, compiler, {
 
         console.log(`> Building page: ${page}`)
 
+        babelCompiler.setEntry(name, pathname)
         entries[page] = { name, entry, pathname, status: ADDED }
         doneCallbacks.on(page, processCallback)
 
