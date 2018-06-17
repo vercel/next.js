@@ -10,7 +10,9 @@
   "files": [
     "dist",
     "babel.js",
-    "client.js",
+    "client",
+    "lib",
+    "pages",
     "link.js",
     "css.js",
     "head.js",
