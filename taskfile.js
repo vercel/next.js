@@ -41,7 +41,7 @@ const babelNodeConfig = {
 }
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'pages', 'lib', 'client'])
+  await task.series(['bin', 'server', 'browserPages', 'browserLib', 'nodePages', 'nodeLib', 'client'])
 }
 
 export async function bin (task, opts) {
@@ -49,16 +49,22 @@ export async function bin (task, opts) {
   notify('Compiled binaries')
 }
 
-export async function lib (task, opts) {
+export async function browserLib (task, opts) {
   await task.source('lib/**/*.js').babel(babelBrowserConfig).target('browser/lib')
+  notify('Compiled browser lib files')
+}
+export async function nodeLib (task, opts) {
   await task.source('lib/**/*.js').babel(babelNodeConfig).target('node/lib')
-  notify('Compiled lib files')
+  notify('Compiled node lib files')
 }
 
-export async function pages (task, opts) {
-  await task.source('pages/**/*.js').babel(babelNodeConfig).target('node/pages')
+export async function browserPages (task, opts) {
   await task.source('pages/_error.js').babel(babelBrowserConfig).target('browser/pages')
-  notify('Compiled pages files')
+  notify('Compiled browser pages files')
+}
+export async function nodePages (task, opts) {
+  await task.source('pages/**/*.js').babel(babelNodeConfig).target('node/pages')
+  notify('Compiled node pages files')
 }
 
 export async function server (task, opts) {
@@ -78,10 +84,12 @@ export async function build (task) {
 export default async function (task) {
   await task.start('build')
   await task.watch('bin/*', 'bin')
-  await task.watch('pages/**/*.js', 'pages')
+  await task.watch('pages/**/*.js', 'nodePages')
+  await task.watch('pages/**/*.js', 'browserPages')
   await task.watch('server/**/*.js', 'server')
   await task.watch('client/**/*.js', 'client')
-  await task.watch('lib/**/*.js', 'lib')
+  await task.watch('lib/**/*.js', 'nodeLib')
+  await task.watch('lib/**/*.js', 'browserLib')
 }
 
 export async function release (task) {
