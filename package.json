@@ -2,17 +2,15 @@
   "name": "@kpdecker/next",
   "version": "6.0.1",
   "description": "Minimalistic framework for server-rendered React applications",
-  "main": "./dist/server/next.js",
+  "main": "./node/server/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
   "bugs": "https://github.com/zeit/next.js/issues",
   "homepage": "https://github.com/zeit/next.js",
   "files": [
-    "dist",
+    "node",
+    "browser",
     "babel.js",
-    "client",
-    "lib",
-    "pages",
     "link.js",
     "css.js",
     "head.js",
@@ -23,7 +21,7 @@
     "error.js"
   ],
   "bin": {
-    "next-build": "./dist/bin/next-build"
+    "next-build": "./node/bin/next-build"
   },
   "scripts": {
     "build": "taskr",

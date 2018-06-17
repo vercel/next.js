@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/error')
+module.exports = require('./node/lib/error')

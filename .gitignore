@@ -1,5 +1,6 @@
 # build output
-dist
+node
+browser
 .next
 
 # dependencies
@@ -16,3 +17,4 @@ coverage
 # test output
 test/**/out
 .DS_Store
+.vscode/settings.json

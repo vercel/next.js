@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/same-loop-promise')
+module.exports = require('./node/lib/same-loop-promise')

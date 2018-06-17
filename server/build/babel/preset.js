@@ -38,13 +38,14 @@ module.exports = (context, opts = {}) => ({
       require.resolve('babel-plugin-module-resolver'),
       {
         alias: {
-          'next/link': isServer ? '@kpdecker/next/link' : '@kpdecker/next/lib/link',
-          'next/dynamic': isServer ? '@kpdecker/next/dynamic' : '@kpdecker/next/lib/dynamic',
-          'next/head': isServer ? '@kpdecker/next/head' : '@kpdecker/next/lib/head',
-          'next/document': isServer ? '@kpdecker/next/document' : '@kpdecker/next/server/document',
-          'next/same-loop-promise': isServer ? '@kpdecker/next/same-loop-promise' : '@kpdecker/next/lib/same-loop-promise',
-          'next/router': isServer ? '@kpdecker/next/router' : '@kpdecker/next/lib/router',
-          'next/error': isServer ? '@kpdecker/next/error' : '@kpdecker/next/lib/error'
+          'next/client': isServer ? undefined : '@kpdecker/next/browser/client',
+          'next/link': isServer ? '@kpdecker/next/node/lib/link' : '@kpdecker/next/browser/lib/link',
+          'next/dynamic': isServer ? '@kpdecker/next/node/lib/dynamic' : '@kpdecker/next/browser/lib/dynamic',
+          'next/head': isServer ? '@kpdecker/next/node/lib/head' : '@kpdecker/next/browser/lib/head',
+          'next/document': isServer ? '@kpdecker/next/node/server/document' : undefined,
+          'next/same-loop-promise': isServer ? '@kpdecker/next/node/lib/same-loop-promise' : '@kpdecker/next/browser/lib/same-loop-promise',
+          'next/router': isServer ? '@kpdecker/next/node/lib/router' : '@kpdecker/next/browser/lib/router',
+          'next/error': isServer ? '@kpdecker/next/node/lib/error' : '@kpdecker/next/browser/lib/error'
         }
       }
     ]

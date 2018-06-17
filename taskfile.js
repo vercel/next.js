@@ -2,6 +2,17 @@ const notifier = require('node-notifier')
 const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
 
+const babelBrowserConfig = {
+  'presets': [
+    'env',
+    'react'
+  ],
+  'plugins': [
+    'transform-object-rest-spread',
+    'transform-class-properties',
+    'transform-runtime'
+  ]
+}
 const babelNodeConfig = {
   babelrc: false,
   presets: [
@@ -20,27 +31,29 @@ export async function compile (task) {
 }
 
 export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').babel(babelNodeConfig).target('dist/bin', {mode: '0755'})
+  await task.source('bin/*').babel(babelNodeConfig).target('node/bin', {mode: '0755'})
   notify('Compiled binaries')
 }
 
 export async function lib (task, opts) {
-  await task.source(opts.src || 'lib/**/*.js').babel(babelNodeConfig).target('dist/lib')
+  await task.source('lib/**/*.js').babel(babelBrowserConfig).target('browser/lib')
+  await task.source('lib/**/*.js').babel(babelNodeConfig).target('node/lib')
   notify('Compiled lib files')
 }
 
 export async function pages (task, opts) {
-  await task.source(opts.src || 'pages/**/*.js').babel(babelNodeConfig).target('dist/pages')
+  await task.source('pages/**/*.js').babel(babelNodeConfig).target('node/pages')
+  await task.source('pages/_error.js').babel(babelBrowserConfig).target('browser/pages')
   notify('Compiled pages files')
 }
 
 export async function server (task, opts) {
-  await task.source(opts.src || 'server/**/*.js').babel(babelNodeConfig).target('dist/server')
+  await task.source('server/**/*.js').babel(babelNodeConfig).target('node/server')
   notify('Compiled server files')
 }
 
 export async function client (task, opts) {
-  await task.source(opts.src || 'client/**/*.js').babel(babelNodeConfig).target('dist/client')
+  await task.source('client/**/*.js').babel(babelBrowserConfig).target('browser/client')
   notify('Compiled client files')
 }
 
@@ -58,7 +71,7 @@ export default async function (task) {
 }
 
 export async function release (task) {
-  await task.clear('dist').start('build')
+  await task.clear('node').clear('browser').start('build')
 }
 
 // We run following task inside a NPM script chain and it runs chromedriver

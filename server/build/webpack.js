@@ -13,22 +13,17 @@ import findBabelConfig from './babel/find-config'
 const defaultPages = [
   '_error.js'
 ]
-const nextPagesDir = join(__dirname, '..', '..', '..', 'pages')
-const nextLibDir = join(__dirname, '..', '..', '..', 'lib')
-const nextClientDir = join(__dirname, '..', '..', '..', 'client')
-const nextNodeModulesDir = join(__dirname, '..', '..', '..', 'node_modules')
-const interpolateNames = new Map(defaultPages.map((p) => {
-  return [join(nextPagesDir, p), `../dist/pages/${p}`]
-}))
+const nextPagesDir = join(__dirname, '../../../browser/pages')
+const nextNodeModulesDir = join(__dirname, '../../../node_modules')
 
 export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, buildDir, conf = null } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
-    require.resolve('../../../client/webpack-hot-middleware-client')
+    require.resolve('../../../browser/client/webpack-hot-middleware-client')
   ] : []
   const mainJS = dev
-    ? require.resolve('../../../client/next-dev') : require.resolve('../../../client/next')
+    ? require.resolve('../../../browser/client/next-dev') : require.resolve('../../../browser/client/next')
 
   let totalPages
 
@@ -65,14 +60,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
 
   const plugins = [
     new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
-    new webpack.LoaderOptionsPlugin({
-      options: {
-        context: dir,
-        customInterpolateName (url, name, opts) {
-          return interpolateNames.get(this.resourcePath) || url
-        }
-      }
-    }),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
@@ -132,7 +119,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   } else {
     plugins.push(new webpack.NormalModuleReplacementPlugin(
       /react-hot-loader/,
-      require.resolve('../../../client/hot-module-loader.stub')
+      require.resolve('../../../browser/client/hot-module-loader.stub')
     ))
     plugins.push(
       new CombineAssetsPlugin({
@@ -183,15 +170,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       nextPagesDir
     ]
   }] : [])
-    .concat([nextPagesDir, nextClientDir, nextLibDir].map(dir => ({
-      loader: 'babel-loader',
-      include: dir,
-      options: {
-        babelrc: false,
-        cacheDirectory: true,
-        presets: [require.resolve('./babel/preset')]
-      }
-    })))
     .concat([{
       test: /\.json$/,
       loader: 'json-loader'

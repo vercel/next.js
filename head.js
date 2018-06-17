@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/head')
+module.exports = require('./node/lib/head')
