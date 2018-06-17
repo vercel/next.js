@@ -201,7 +201,10 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
         nextNodeModulesDir,
         'node_modules',
         ...nodePathList
-      ]
+      ],
+      alias: {
+        'object-assign': 'core-js/fn/object/assign'
+      }
     },
     resolveLoader: {
       modules: [
