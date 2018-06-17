@@ -15,8 +15,13 @@ module.exports = (context, opts = {}) => ({
   presets: [
     [require.resolve('babel-preset-env'), {
       modules: false,
-      targets: isServer ? { node: 'current' } : { ie: 11 },
-      ...opts['preset-env']
+      loose: true,
+      targets: !isServer ? {
+        browsers: ['ie >= 11', 'edge >= 16', 'safari >= 9', 'chrome >= 64', 'firefox >= 60']
+      } : { node: 'current' },
+      exclude: ['transform-es2015-typeof-symbol'],
+      useBuiltIns: true,
+      debug: true
     }],
     require.resolve('babel-preset-react')
   ],
@@ -26,7 +31,11 @@ module.exports = (context, opts = {}) => ({
     require.resolve('./plugins/handle-import'),
     require.resolve('babel-plugin-transform-object-rest-spread'),
     require.resolve('babel-plugin-transform-class-properties'),
-    [require.resolve('babel-plugin-transform-runtime'), opts['transform-runtime'] || {}],
+
+    [require.resolve('babel-plugin-transform-runtime'), {
+      helpers: true,
+      polyfill: false
+    }],
 
     [require.resolve('babel-plugin-transform-define'), {
       'typeof window': isServer ? 'undefined' : 'object'

@@ -129,7 +129,8 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       new webpack.optimize.UglifyJsPlugin({
         exclude: ['manifest.js', 'commons.js', 'main.js', 'pages/_error.js'],
         compress: { warnings: false },
-        sourceMap: false
+        sourceMap: false,
+        extractComments: true
       })
     )
     plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
@@ -187,7 +188,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     context: dir,
     entry,
     output: {
-      pathinfo: true,
+      pathinfo: !!dev,
       path: buildDir ? join(buildDir, '.next', 'bundles') : join(dir, config.distDir, 'bundles'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
