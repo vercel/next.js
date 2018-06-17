@@ -3,14 +3,28 @@ const childProcess = require('child_process')
 const isWindows = /^win/.test(process.platform)
 
 const babelBrowserConfig = {
+  babelrc: false,
   'presets': [
-    'env',
+    ['env', {
+      modules: false,
+      loose: true,
+      targets: {
+        browsers: ['ie >= 11', 'edge >= 16', 'safari >= 9', 'chrome >= 64', 'firefox >= 60']
+      },
+      exclude: ['transform-es2015-typeof-symbol', 'transform-es2015-function-name'],
+      useBuiltIns: true,
+      debug: true
+    }],
     'react'
   ],
   'plugins': [
     'transform-object-rest-spread',
     'transform-class-properties',
-    'transform-runtime'
+    'transform-react-remove-prop-types',
+    ['transform-runtime', {
+      helpers: true,
+      polyfill: false
+    }]
   ]
 }
 const babelNodeConfig = {
