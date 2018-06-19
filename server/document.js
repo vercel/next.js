@@ -96,7 +96,7 @@ export class Head extends Component {
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {styles || null}
-      {(this.props.children && this.props.children.length ? this.props.children : [this.props.children]).filter(_ => _).map((child) => {
+      {(React.Children.toArray(this.props.children)).map((child) => {
         if (child.type === 'title') {
           console.warn('Warning: <title> shouldn\'t be used in _document.js. https://err.sh/next.js/no-document-title.md')
         }
