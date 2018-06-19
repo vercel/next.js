@@ -83,10 +83,28 @@ export class Head extends Component {
     ))
   }
 
+  /***
+   * We have to warn if user is trying to use
+   * <title> within _document.js file.
+   * Instead they should use _app.js
+   * For more info, please reefer to https://err.sh/next.js/no-document-title.md
+   * and https://github.com/zeit/next.js/issues/4596#issuecomment-397562956
+   * @returns {Promise<void>}
+   */
+  async warnIfTitleExist () {
+
+    if (await childrenContain(this.props.children, 'title')) {
+      console.warn('Warning: <title> shouldn\'t be used in _document.js. https://err.sh/next.js/no-document-title.md')
+    }
+
+  }
+
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
+
+    this.warnIfTitleExist()
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
@@ -219,4 +237,15 @@ function getPagePathname (pathname) {
   }
 
   return `${pathname}.js`
+}
+
+/**
+ * Children contain function accepts React.Children and key to check against.
+ * Children could be either object or array of children objects
+ * @param children:object|array
+ * @param key:string
+ * @returns {Promise<boolean>}
+ */
+export async function childrenContain (children, key) {
+  return !!((children && children.length ? children : [children]).filter(_ => _).find(_ => _.type === key))
 }
