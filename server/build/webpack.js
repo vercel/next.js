@@ -204,7 +204,8 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
         ...nodePathList
       ],
       alias: {
-        'object-assign': 'core-js/fn/object/assign'
+        'object-assign': 'core-js/fn/object/assign',
+        'strip-ansi': require.resolve('../../../browser/client/strip-ansi.stub')
       }
     },
     resolveLoader: {
