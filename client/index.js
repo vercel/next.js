@@ -1,3 +1,6 @@
+// Fucking IE11
+import 'core-js/es6/promise'
+
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
@@ -6,15 +9,6 @@ import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
-
-// Polyfill Promise globally
-// This is needed because Webpack2's dynamic loading(common chunks) code
-// depends on Promise.
-// So, we need to polyfill it.
-// See: https://github.com/webpack/webpack/issues/4254
-if (!window.Promise) {
-  window.Promise = Promise
-}
 
 const {
   __NEXT_DATA__: {
