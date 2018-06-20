@@ -64,14 +64,15 @@ export class Head extends Component {
     const { dev } = this.context._documentProps
     if (dev) {
       return [
-        ...this.getChunkPreloadLink('manifest.js'),
-        ...this.getChunkPreloadLink('main.js')
+        ...this.getChunkPreloadLink('manifest'),
+        ...this.getChunkPreloadLink('static/commons/main')
       ]
     }
 
     // In the production mode, we have a single asset with all the JS content.
     return [
-      ...this.getChunkPreloadLink('main.js')
+      ...this.getChunkPreloadLink('manifest'),
+      ...this.getChunkPreloadLink('static/commons/main')
     ]
   }
 
@@ -155,14 +156,17 @@ export class NextScript extends Component {
     const { dev } = this.context._documentProps
     if (dev) {
       return [
-        ...this.getChunkScript('manifest.js'),
-        ...this.getChunkScript('main.js')
+        ...this.getChunkScript('manifest'),
+        ...this.getChunkScript('static/commons/main')
       ]
     }
 
     // In the production mode, we have a single asset with all the JS content.
     // So, we can load the script with async
-    return [...this.getChunkScript('main.js', { async: true })]
+    return [
+      ...this.getChunkScript('manifest', { async: true }),
+      ...this.getChunkScript('static/commons/main', { async: true })
+    ]
   }
 
   getDynamicChunks () {

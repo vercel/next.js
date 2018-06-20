@@ -9,6 +9,8 @@ import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
 
+console.log('EXECUTED')
+
 // Polyfill Promise globally
 // This is needed because Webpack2's dynamic loading(common chunks) code
 // depends on Promise.
@@ -56,7 +58,6 @@ window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
   pageLoader.registerChunk(chunkName, fn)
 })
 delete window.__NEXT_LOADED_CHUNKS__
-
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
