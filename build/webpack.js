@@ -18,7 +18,8 @@ import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEX
 let WebpackBar
 
 // WebpackBar uses Object.values, as we still support Node 6 we can't apply it in the case when it's not available.
-if (typeof Object.values !== 'undefined') {
+// We read from `global` as otherwise Babel will transform this method.
+if (typeof global.Object.values !== 'undefined') {
   WebpackBar = require('webpackbar')
 }
 
