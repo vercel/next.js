@@ -947,6 +947,10 @@ ajv-keywords@^2.1.0:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/ajv-keywords/-/ajv-keywords-2.1.1.tgz#617997fc5f60576894c435f940d819e135b80762"
 
+ajv-keywords@^3.0.0:
+  version "3.2.0"
+  resolved "https://registry.yarnpkg.com/ajv-keywords/-/ajv-keywords-3.2.0.tgz#e86b819c602cf8821ad637413698f1dec021847a"
+
 ajv-keywords@^3.1.0:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/ajv-keywords/-/ajv-keywords-3.1.0.tgz#ac2b27939c543e95d2c06e7f7f5c27be4aa543be"
@@ -959,6 +963,15 @@ ajv@^5.0.0, ajv@^5.1.0, ajv@^5.2.3, ajv@^5.3.0:
     fast-deep-equal "^1.0.0"
     fast-json-stable-stringify "^2.0.0"
     json-schema-traverse "^0.3.0"
+
+ajv@^6.0.1:
+  version "6.5.1"
+  resolved "https://registry.yarnpkg.com/ajv/-/ajv-6.5.1.tgz#88ebc1263c7133937d108b80c5572e64e1d9322d"
+  dependencies:
+    fast-deep-equal "^2.0.1"
+    fast-json-stable-stringify "^2.0.0"
+    json-schema-traverse "^0.4.1"
+    uri-js "^4.2.1"
 
 ajv@^6.1.0:
   version "6.4.0"
@@ -1910,7 +1923,7 @@ cli-cursor@^1.0.2:
   dependencies:
     restore-cursor "^1.0.1"
 
-cli-cursor@^2.1.0:
+cli-cursor@^2.0.0, cli-cursor@^2.1.0:
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/cli-cursor/-/cli-cursor-2.1.0.tgz#b35dac376479facc3e94747d41d0d0f5238ffcb5"
   dependencies:
@@ -2071,6 +2084,15 @@ concat-stream@^1.5.0, concat-stream@^1.6.0:
     inherits "^2.0.3"
     readable-stream "^2.2.2"
     typedarray "^0.0.6"
+
+consola@^1.2.0:
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/consola/-/consola-1.4.1.tgz#4b1c6259c8db23f51e7cfb68cd383ec5ee298f0e"
+  dependencies:
+    chalk "^2.3.2"
+    figures "^2.0.0"
+    lodash "^4.17.5"
+    std-env "^1.1.0"
 
 console-browserify@^1.1.0:
   version "1.1.0"
@@ -3083,6 +3105,10 @@ fast-deep-equal@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/fast-deep-equal/-/fast-deep-equal-1.1.0.tgz#c053477817c86b51daa853c81e059b733d023614"
 
+fast-deep-equal@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/fast-deep-equal/-/fast-deep-equal-2.0.1.tgz#7b05218ddf9667bf7f370bf7fdb2cb15fdd0aa49"
+
 fast-json-stable-stringify@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/fast-json-stable-stringify/-/fast-json-stable-stringify-2.0.0.tgz#d5142c0caee6b1189f87d3a76111064f86c8bbf2"
@@ -3867,7 +3893,7 @@ is-callable@^1.1.1, is-callable@^1.1.3:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/is-callable/-/is-callable-1.1.3.tgz#86eb75392805ddc33af71c92a0eedf74ee7604b2"
 
-is-ci@^1.0.10:
+is-ci@^1.0.10, is-ci@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/is-ci/-/is-ci-1.1.0.tgz#247e4162e7860cebbdaf30b774d6b0ac7dcfe7a5"
   dependencies:
@@ -4000,6 +4026,10 @@ is-number@^3.0.0:
 is-number@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/is-number/-/is-number-4.0.0.tgz#0026e37f5454d73e356dfe6564699867c6a7f0ff"
+
+is-number@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/is-number/-/is-number-5.0.0.tgz#c393bc471e65de1a10a6abcb20efeb12d2b88166"
 
 is-obj@^1.0.1:
   version "1.0.1"
@@ -4507,6 +4537,10 @@ json-schema-traverse@^0.3.0:
   version "0.3.1"
   resolved "https://registry.yarnpkg.com/json-schema-traverse/-/json-schema-traverse-0.3.1.tgz#349a6d44c53a51de89b40805c5d5e59b417d3340"
 
+json-schema-traverse@^0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz#69f6a87d9513ab8bb8fe63bdb0979c448e684660"
+
 json-schema@0.2.3:
   version "0.2.3"
   resolved "https://registry.yarnpkg.com/json-schema/-/json-schema-0.2.3.tgz#b480c892e59a2f05954ce727bd3f2a4e882f9e13"
@@ -4822,6 +4856,14 @@ log-update@^1.0.2:
   dependencies:
     ansi-escapes "^1.0.0"
     cli-cursor "^1.0.2"
+
+log-update@^2.3.0:
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/log-update/-/log-update-2.3.0.tgz#88328fd7d1ce7938b29283746f0b1bc126b24708"
+  dependencies:
+    ansi-escapes "^3.0.0"
+    cli-cursor "^2.0.0"
+    wrap-ansi "^3.0.1"
 
 long@^3.2.0:
   version "3.2.0"
@@ -5148,6 +5190,10 @@ nanomatch@^1.2.9:
     regex-not "^1.0.0"
     snapdragon "^0.8.1"
     to-regex "^3.0.1"
+
+nanoseconds@^1.0.0:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/nanoseconds/-/nanoseconds-1.0.1.tgz#596efc62110766be1ede671fedd861f5562318d3"
 
 natural-compare@^1.4.0:
   version "1.4.0"
@@ -6018,6 +6064,13 @@ pretty-format@^21.2.1:
   dependencies:
     ansi-regex "^3.0.0"
     ansi-styles "^3.2.0"
+
+pretty-time@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/pretty-time/-/pretty-time-1.0.0.tgz#544784adecaa2cd7d045ff8a8f1d4791c8e06e23"
+  dependencies:
+    is-number "^5.0.0"
+    nanoseconds "^1.0.0"
 
 private@^0.1.6, private@^0.1.7:
   version "0.1.8"
@@ -6953,6 +7006,12 @@ statuses@~1.3.1:
   version "1.3.1"
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-1.3.1.tgz#faf51b9eb74aaef3b3acf4ad5f61abf24cb7b93e"
 
+std-env@^1.1.0, std-env@^1.3.0:
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/std-env/-/std-env-1.3.0.tgz#8ce754a401a61f1ac49c8eb55f2a8c0c63d54954"
+  dependencies:
+    is-ci "^1.1.0"
+
 stream-browserify@^2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/stream-browserify/-/stream-browserify-2.0.1.tgz#66266ee5f9bdb9940a4e4514cafb43bb71e5c9db"
@@ -7136,6 +7195,17 @@ table@4.0.2:
   dependencies:
     ajv "^5.2.3"
     ajv-keywords "^2.1.0"
+    chalk "^2.1.0"
+    lodash "^4.17.4"
+    slice-ansi "1.0.0"
+    string-width "^2.1.1"
+
+table@^4.0.3:
+  version "4.0.3"
+  resolved "https://registry.yarnpkg.com/table/-/table-4.0.3.tgz#00b5e2b602f1794b9acaf9ca908a76386a7813bc"
+  dependencies:
+    ajv "^6.0.1"
+    ajv-keywords "^3.0.0"
     chalk "^2.1.0"
     lodash "^4.17.4"
     slice-ansi "1.0.0"
@@ -7354,7 +7424,7 @@ uglify-to-browserify@~1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/uglify-to-browserify/-/uglify-to-browserify-1.0.2.tgz#6e0924d6bda6b5afe349e39a6d632850a0f882b7"
 
-uglifyjs-webpack-plugin@1.2.5, uglifyjs-webpack-plugin@^1.2.4:
+uglifyjs-webpack-plugin@^1.2.4:
   version "1.2.5"
   resolved "https://registry.yarnpkg.com/uglifyjs-webpack-plugin/-/uglifyjs-webpack-plugin-1.2.5.tgz#2ef8387c8f1a903ec5e44fa36f9f3cbdcea67641"
   dependencies:
@@ -7457,6 +7527,12 @@ update-check@1.5.2:
 uri-js@^3.0.2:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/uri-js/-/uri-js-3.0.2.tgz#f90b858507f81dea4dcfbb3c4c3dbfa2b557faaa"
+  dependencies:
+    punycode "^2.1.0"
+
+uri-js@^4.2.1:
+  version "4.2.2"
+  resolved "https://registry.yarnpkg.com/uri-js/-/uri-js-4.2.2.tgz#94c540e1ff772956e2299507c010aea6c8838eb0"
   dependencies:
     punycode "^2.1.0"
 
@@ -7647,6 +7723,21 @@ webpack@4.12.0:
     watchpack "^1.5.0"
     webpack-sources "^1.0.1"
 
+webpackbar@2.6.1:
+  version "2.6.1"
+  resolved "https://registry.yarnpkg.com/webpackbar/-/webpackbar-2.6.1.tgz#d1aff0665c43635ff35672be2f2463d1176bdb6f"
+  dependencies:
+    chalk "^2.3.2"
+    consola "^1.2.0"
+    figures "^2.0.0"
+    loader-utils "^1.1.0"
+    lodash "^4.17.5"
+    log-update "^2.3.0"
+    pretty-time "^1.0.0"
+    schema-utils "^0.4.5"
+    std-env "^1.3.0"
+    table "^4.0.3"
+
 whatwg-encoding@^1.0.1:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/whatwg-encoding/-/whatwg-encoding-1.0.3.tgz#57c235bc8657e914d24e1a397d3c82daee0a6ba3"
@@ -7712,6 +7803,13 @@ wrap-ansi@^2.0.0:
   dependencies:
     string-width "^1.0.1"
     strip-ansi "^3.0.1"
+
+wrap-ansi@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/wrap-ansi/-/wrap-ansi-3.0.1.tgz#288a04d87eda5c286e060dfe8f135ce8d007f8ba"
+  dependencies:
+    string-width "^2.1.1"
+    strip-ansi "^4.0.0"
 
 wrappy@1:
   version "1.0.2"

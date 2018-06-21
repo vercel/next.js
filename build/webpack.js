@@ -6,6 +6,7 @@ import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
+import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -181,6 +182,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      new WebpackBar({
+        name: isServer ? 'server' : 'client'
+      }),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
