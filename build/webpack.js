@@ -140,10 +140,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     },
     output: {
       path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
-      filename: isServer ? '[name].js' : '[name]',
+      filename: '[name].js',
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: dev ? '[name].js' : '[name]-[chunkhash].js',
+      chunkFilename: '[name].js',
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
