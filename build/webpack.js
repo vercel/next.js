@@ -3,7 +3,6 @@ import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
-import UglifyJSPlugin from 'uglifyjs-webpack-plugin'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
@@ -194,15 +193,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         log: false,
         // required not to cache removed files
         useHashIndex: false
-      }),
-      !isServer && !dev && new UglifyJSPlugin({
-        parallel: true,
-        sourceMap: false,
-        uglifyOptions: {
-          mangle: {
-            safari10: true
-          }
-        }
       }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
