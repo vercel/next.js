@@ -182,7 +182,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
-      new WebpackBar({
+      typeof Object.values !== 'undefined' && new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
