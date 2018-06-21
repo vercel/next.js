@@ -6,7 +6,6 @@ import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -15,6 +14,13 @@ import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
+
+let WebpackBar
+
+// WebpackBar uses Object.values, as we still support Node 6 we can't apply it in the case when it's not available.
+if (typeof Object.values !== 'undefined') {
+  WebpackBar = require('webpackbar')
+}
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -182,8 +188,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
-      // WebpackBar uses Object.values, as we still support Node 6 we can't apply it in the case when it's not available.
-      typeof Object.values !== 'undefined' && new WebpackBar({
+      WebpackBar && new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
