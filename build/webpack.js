@@ -182,6 +182,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      // WebpackBar uses Object.values, as we still support Node 6 we can't apply it in the case when it's not available.
       typeof Object.values !== 'undefined' && new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),
