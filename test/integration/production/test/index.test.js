@@ -68,7 +68,7 @@ describe('Production Usage', () => {
       resources.push(url + 'webpack/' + buildManifest[chunkKey])
 
       // test main.js
-      const mainJsKey = Object.keys(buildManifest).find((x) => x === 'main.js')
+      const mainJsKey = Object.keys(buildManifest).find((x) => x === 'static/commons/main')
       resources.push(url + buildManifest[mainJsKey])
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
