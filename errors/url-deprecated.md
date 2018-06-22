@@ -2,11 +2,18 @@
 
 #### Why This Error Occurred
 
-In version prior to 6.x `url` got magically injected into every page component, since this is confusing and can now be added by the user using a custom `_app.js` we have deprecated this feature. To be removed in Next.js 7.0
+In versions prior to 6.x the `url` property got magically injected into every `Page` component (every page inside the `pages` directory).
+
+The reason this is going away is that we want to make things very predictable and explicit. Having a magical url property coming out of nowhere doesn't aid that goal.
 
 #### Possible Ways to Fix It
 
-The easiest way to get the same values that `url` had is to use `withRouter`:
+https://github.com/zeit/next-codemod#url-to-withrouter
+
+Since Next 5 we provide a way to explicitly inject the Next.js router object into pages and all their decending components.
+The `router` property that is injected will hold the same values as `url`, like `pathname`, `asPath`, and `query`.
+
+Here's an example of using `withRouter`:
 
 ```js
 import { withRouter } from 'next/router'
@@ -21,3 +28,7 @@ class Page extends React.Component {
 
 export default withRouter(Page)
 ```
+
+We provide a codemod (a code to code transformation) to automatically change the `url` property usages to `withRouter`.
+
+You can find this codemod and instructions on how to run it here: https://github.com/zeit/next-codemod#url-to-withrouter
