@@ -6,6 +6,8 @@ In versions prior to 6.x the `url` property got magically injected into every `P
 
 The reason this is going away is that we want to make things very predictable and explicit. Having a magical url property coming out of nowhere doesn't aid that goal.
 
+*Note:* In some cases using React Dev Tools may trigger this warning even if you do not reference `url` anywhere in your code. Try temporarily disabling the extension and see if the warning persists.
+
 #### Possible Ways to Fix It
 
 https://github.com/zeit/next-codemod#url-to-withrouter
