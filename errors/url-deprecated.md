@@ -29,6 +29,6 @@ class Page extends React.Component {
 export default withRouter(Page)
 ```
 
-We provide a codemod (a code to code transformation) to automatically change the `url` property usages to using `withRouter` automatically.
+We provide a codemod (a code to code transformation) to automatically change the `url` property usages to `withRouter`.
 
 You can find this codemod and instructions on how to run it here: https://github.com/zeit/next-codemod#url-to-withrouter
