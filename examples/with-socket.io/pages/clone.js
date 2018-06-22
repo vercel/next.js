@@ -31,7 +31,7 @@ class ChatTwo extends Component {
       this.setState({ subscribed: true })
     }
   }
-  componentDidMount() {
+  componentDidMount () {
     this.subscribe()
   }
 
@@ -39,7 +39,7 @@ class ChatTwo extends Component {
     this.subscribe()
   }
 
-  static getDerivedStateFromProps(props, state) {
+  static getDerivedStateFromProps (props, state) {
     if (props.socket && !state.subscribe) return { subscribe: true }
     return null
   }
@@ -87,9 +87,9 @@ class ChatTwo extends Component {
     return (
       <main>
         <div>
-          <Link href="/"><a>{`Chat One ${ this.state.newMessage > 0 ? `( ${this.state.newMessage} new message )` : ''}`}</a></Link>
+          <Link href={'/'}><a>{`Chat One ${this.state.newMessage > 0 ? `( ${this.state.newMessage} new message )` : ''}`}</a></Link>
           <br />
-          <Link href="/clone"><a>{'Chat Two'}</a></Link>
+          <Link href={'/clone'}><a>{'Chat Two'}</a></Link>
           <ul>
             {this.state.messages.map(message =>
               <li key={message.id}>{message.value}</li>

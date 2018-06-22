@@ -3,7 +3,7 @@ import React from 'react'
 import io from 'socket.io-client'
 
 class MyApp extends App {
-  static async getInitialProps({ Component, ctx }) {
+  static async getInitialProps ({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -15,7 +15,7 @@ class MyApp extends App {
   state = {
     socket: null
   }
-  componentDidMount() {
+  componentDidMount () {
     // connect to WS server and listen event
     const socket = io()
     this.setState({ socket })
