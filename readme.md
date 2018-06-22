@@ -88,9 +88,6 @@ Install it:
 npm install --save next react react-dom
 ```
 
-> Next.js only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
-> We had to drop React 15 support due to the way React 16 works and how we use it.
-
 and add a script to your package.json like this:
 
 ```json
