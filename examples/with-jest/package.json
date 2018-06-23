@@ -2,13 +2,13 @@
   "name": "with-jest",
   "version": "1.0.0",
   "dependencies": {
-    "babel-core": "7.0.0-bridge.0",
-    "babel-jest": "22.4.3",
     "next": "latest",
     "react": "16.2.0",
     "react-dom": "16.2.0"
   },
   "devDependencies": {
+    "babel-core": "7.0.0-bridge.0",
+    "babel-jest": "22.4.3",
     "enzyme": "3.2.0",
     "enzyme-adapter-react-16": "1.1.1",
     "jest": "22.0.1",
