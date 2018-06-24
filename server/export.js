@@ -139,8 +139,11 @@ export default async function (dir, options, configuration) {
 
     await mkdirp(baseDir)
 
-    const html = await render(req, res, page, query, renderOpts)
-    writeFileSync(filepath, html, 'utf8')
+    const content = await render(req, res, page, query, renderOpts)
+    if (typeof content !== 'string') {
+      throw new Error(`render must return a string`)
+    }
+    writeFileSync(filepath, content, 'utf8')
   }
 
   // Add an empty line to the console for the better readability.
