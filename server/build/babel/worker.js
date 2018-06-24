@@ -74,15 +74,12 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
   const dest = Path.join(options.outDir, relative)
 
   if (building[dest]) {
-    if (requestor !== rootFile) {
-      building[dest].add(requestor)
-    }
+    building[dest].add(requestor)
+    building[requestor].forEach((a) => building[dest].add(a))
     return 0
   }
   building[dest] = building[filenameOrDir] = new Set(building[requestor])
-  if (requestor !== rootFile) {
-    building[dest].add(requestor)
-  }
+  building[dest].add(requestor)
 
   const stat = FS.statSync(filenameOrDir)
 

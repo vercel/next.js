@@ -250,7 +250,6 @@ export default class HotReloader {
 }
 
 function deleteCache (path) {
-  console.log('purge', path)
   delete require.cache[path]
 }
 
