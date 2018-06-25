@@ -37,8 +37,6 @@ export default class Server {
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
 
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
-
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
     const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
@@ -48,6 +46,7 @@ export default class Server {
       process.exit(1)
     }
     this.buildId = !dev ? this.readBuildId() : '-'
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig, buildId: this.buildId }) : null
     this.renderOpts = {
       dev,
       staticMarkup,
