@@ -544,7 +544,7 @@ This uses the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `onRouteChangeStart(url)` - Fires when a route starts to change
+- `onRouteChangeStart(url, oldUrl)` - Fires when a route starts to change
 - `onRouteChangeComplete(url)` - Fires when a route changed completely
 - `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
 - `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
@@ -556,7 +556,8 @@ Here's a list of supported events:
 Here's how to properly listen to the router event `onRouteChangeStart`:
 
 ```js
-Router.onRouteChangeStart = url => {
+Router.onRouteChangeStart = (url, oldUrl) => {
+  console.log('App is changing from: ', oldUrl)
   console.log('App is changing to: ', url)
 }
 ```

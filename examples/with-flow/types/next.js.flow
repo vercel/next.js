@@ -29,7 +29,7 @@ declare module "next/router" {
     route: string;
     pathname: string;
     query: Object;
-    onRouteChangeStart: ?((url: string) => void);
+    onRouteChangeStart: ?((url: string, oldUrl: string) => void);
     onRouteChangeComplete: ?((url: string) => void);
     onRouteChangeError: ?((err: Error & {cancelled: boolean}, url: string) => void);
     push(url: string, as: ?string): Promise<boolean>;
