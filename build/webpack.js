@@ -193,6 +193,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         name: isServer ? 'server' : 'client'
       }),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
+      dev && !isServer && new webpack.HotModuleReplacementPlugin(),
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new UnlinkFilePlugin(),

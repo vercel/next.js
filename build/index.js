@@ -42,16 +42,17 @@ function runCompiler (compiler) {
     webpackCompiler.run((err, stats) => {
       if (err) return reject(err)
 
-      const jsonStats = stats.toJson()
+      // const jsonStats = stats.toJson()
 
-      if (jsonStats.errors.length > 0) {
-        const error = new Error(jsonStats.errors[0])
-        error.errors = jsonStats.errors
-        error.warnings = jsonStats.warnings
-        return reject(error)
-      }
+      // if (jsonStats.errors.length > 0) {
+      //   const error = new Error(jsonStats.errors[0])
+      //   error.errors = jsonStats.errors
+      //   error.warnings = jsonStats.warnings
+      //   return reject(error)
+      // }
 
-      resolve(jsonStats)
+      // resolve(jsonStats)
+      resolve()
     })
   })
 }
