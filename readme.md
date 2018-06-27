@@ -88,9 +88,6 @@ Install it:
 npm install --save next react react-dom
 ```
 
-> Next.js only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
-> We had to drop React 15 support due to the way React 16 works and how we use it.
-
 and add a script to your package.json like this:
 
 ```json
@@ -1235,29 +1232,6 @@ module.exports = {
   <ul><li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li></ul>
 </details></p>
 
-In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
-
-```js
-// This file is not going through babel transformation.
-// So, we write it in vanilla JS
-// (But you could use ES2015 features supported by your Node.js version)
-
-module.exports = {
-  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
-    // Perform customizations to webpack config
-
-    // Important: return the modified config
-    return config
-  },
-  webpackDevMiddleware: config => {
-    // Perform customizations to webpack dev middleware config
-
-    // Important: return the modified config
-    return config
-  }
-}
-```
-
 Some commonly asked for features are available as modules:
 
 - [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
@@ -1282,6 +1256,57 @@ module.exports = withTypescript(withSass({
 }))
 ```
 
+In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
+
+```js
+// next.config.js is not transformed by Babel. So you can only use javascript features supported by your version of Node.js.
+
+module.exports = {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
+    // Perform customizations to webpack config
+    // Important: return the modified config
+    return config
+  },
+  webpackDevMiddleware: config => {
+    // Perform customizations to webpack dev middleware config
+    // Important: return the modified config
+    return config
+  }
+}
+```
+
+The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+
+- `buildId` - `String` the build id used as a unique identifier between builds
+- `dev` - `Boolean` shows if the compilation is done in development mode
+- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client size compilation (`false`).
+- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
+  - `babel` - `Object` the `babel-loader` configuration for Next.js.
+  - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
+
+Example usage of `defaultLoaders.babel`: 
+
+```js
+// Example next.config.js for adding a loader that depends on babel-loader
+// This source was taken from the @zeit/next-mdx plugin source: 
+// https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
+module.exports = {
+  webpack: (config, {}) => {
+    config.module.rules.push({
+      test: /\.mdx/,
+      use: [
+        options.defaultLoaders.babel,
+        {
+          loader: '@mdx-js/loader',
+          options: pluginOptions.options
+        }
+      ]
+    })
+
+    return config
+  }
+}
+```
 
 ### Customizing babel config
 
@@ -1314,7 +1339,7 @@ The `next/babel` preset includes everything needed to transpile React applicatio
 - plugin-transform-runtime
 - styled-jsx
 
-These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset:
 
 ```json
 {
@@ -1322,7 +1347,8 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
     ["next/babel", {
       "preset-env": {},
       "transform-runtime": {},
-      "styled-jsx": {}
+      "styled-jsx": {},
+      "class-properties": {}
     }]
   ],
   "plugins": []
@@ -1407,6 +1433,12 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
+
+## Browser support
+
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html) without polyfills. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+
+The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
 ## Static HTML export
 
@@ -1549,6 +1581,7 @@ For the production deployment, you can use the [path alias](https://zeit.co/docs
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 - [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
+- [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
 
 ## FAQ
 
@@ -1672,7 +1705,7 @@ Please see our [contributing.md](./contributing.md)
 ## Authors
 
 - Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – [ZEIT](https://zeit.co)
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens)) – [ZEIT](https://zeit.co)
+- Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens)) – [ZEIT](https://zeit.co)
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – [ZEIT](https://zeit.co)
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)

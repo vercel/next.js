@@ -2,10 +2,10 @@ import { Component } from 'react'
 import Link from 'next/link'
 import fetch from 'isomorphic-unfetch'
 
-class ChatOne extends Component {
+class ChatTwo extends Component {
   // fetch old messages data from the server
   static async getInitialProps ({ req }) {
-    const response = await fetch('http://localhost:3000/messages/chat1')
+    const response = await fetch('http://localhost:3000/messages/chat2')
     const messages = await response.json()
     return { messages }
   }
@@ -26,8 +26,8 @@ class ChatOne extends Component {
   subscribe = () => {
     if (this.state.subscribe && !this.state.subscribed) {
       // connect to WS server and listen event
-      this.props.socket.on('message.chat1', this.handleMessage)
-      this.props.socket.on('message.chat2', this.handleOtherMessage)
+      this.props.socket.on('message.chat2', this.handleMessage)
+      this.props.socket.on('message.chat1', this.handleOtherMessage)
       this.setState({ subscribed: true })
     }
   }
@@ -46,8 +46,8 @@ class ChatOne extends Component {
 
   // close socket connection
   componentWillUnmount () {
-    this.props.socket.off('message.chat1', this.handleMessage)
-    this.props.socket.off('message.chat2', this.handleOtherMessage)
+    this.props.socket.off('message.chat1', this.handleOtherMessage)
+    this.props.socket.off('message.chat2', this.handleMessage)
   }
 
   // add messages from server to the state
@@ -74,7 +74,7 @@ class ChatOne extends Component {
     }
 
     // send object to WS server
-    this.props.socket.emit('message.chat1', message)
+    this.props.socket.emit('message.chat2', message)
 
     // add it to state and clean current input value
     this.setState(state => ({
@@ -87,9 +87,9 @@ class ChatOne extends Component {
     return (
       <main>
         <div>
-          <Link href={'/'}><a>{'Chat One'}</a></Link>
+          <Link href={'/'}><a>{`Chat One ${this.state.newMessage > 0 ? `( ${this.state.newMessage} new message )` : ''}`}</a></Link>
           <br />
-          <Link href={'/clone'}><a>{`Chat Two ${this.state.newMessage > 0 ? `( ${this.state.newMessage} new message )` : ''}`}</a></Link>
+          <Link href={'/clone'}><a>{'Chat Two'}</a></Link>
           <ul>
             {this.state.messages.map(message =>
               <li key={message.id}>{message.value}</li>
@@ -110,4 +110,4 @@ class ChatOne extends Component {
   }
 }
 
-export default ChatOne
+export default ChatTwo

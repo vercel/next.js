@@ -1,4 +1,6 @@
 {
+  "name": "with-unstated",
+  "version": "1.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -6,10 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1"
-  },
-  "devDependencies": {
-    "babel-plugin-module-resolver": "^3.1.1"
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1",
+    "unstated": "^2.1.1"
   }
 }
