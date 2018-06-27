@@ -1,5 +1,5 @@
 {
-  "name": "with-markdown",
+  "name": "with-unstated",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -7,10 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "markdown-in-js": "^1.1.4",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
-  },
-  "license": "ISC"
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1",
+    "unstated": "^2.1.1"
+  }
 }
