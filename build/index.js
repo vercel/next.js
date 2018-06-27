@@ -42,7 +42,7 @@ function runCompiler (compiler) {
     webpackCompiler.run((err, stats) => {
       if (err) return reject(err)
 
-      const jsonStats = stats.toJson()
+      const jsonStats = stats.toJson('errors-only')
 
       if (jsonStats.errors.length > 0) {
         const error = new Error(jsonStats.errors[0])
