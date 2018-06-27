@@ -260,7 +260,7 @@ export default class Server {
               .filter(key => query[key] === undefined)
               .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
 
-            const mergedQuery = Object.assign({}, urlQuery, query)
+            const mergedQuery = {...urlQuery, ...query}
 
             await this.render(req, res, page, mergedQuery, parsedUrl)
           }
