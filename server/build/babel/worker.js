@@ -152,7 +152,7 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
       filename,
       dest,
       locals,
-      parents: Array.from(building[filename])
+      parents: Object.keys(building)
     })
 
     return locals + 1
