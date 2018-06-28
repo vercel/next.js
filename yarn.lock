@@ -349,6 +349,12 @@
   dependencies:
     "@babel/helper-plugin-utils" "7.0.0-beta.42"
 
+"@babel/plugin-syntax-typescript@7.0.0-beta.42":
+  version "7.0.0-beta.42"
+  resolved "https://registry.yarnpkg.com/@babel/plugin-syntax-typescript/-/plugin-syntax-typescript-7.0.0-beta.42.tgz#ffc42945ca15e5ab369de6b9f5d9324499c623cf"
+  dependencies:
+    "@babel/helper-plugin-utils" "7.0.0-beta.42"
+
 "@babel/plugin-transform-arrow-functions@7.0.0-beta.42":
   version "7.0.0-beta.42"
   resolved "https://registry.yarnpkg.com/@babel/plugin-transform-arrow-functions/-/plugin-transform-arrow-functions-7.0.0-beta.42.tgz#b918eb8760c38d6503a1a9858fa073786b60ab2b"
@@ -571,6 +577,13 @@
   dependencies:
     "@babel/helper-plugin-utils" "7.0.0-beta.42"
 
+"@babel/plugin-transform-typescript@7.0.0-beta.42":
+  version "7.0.0-beta.42"
+  resolved "https://registry.yarnpkg.com/@babel/plugin-transform-typescript/-/plugin-transform-typescript-7.0.0-beta.42.tgz#e3a2d46014fd26e0729fd574b521fca4eb21144f"
+  dependencies:
+    "@babel/helper-plugin-utils" "7.0.0-beta.42"
+    "@babel/plugin-syntax-typescript" "7.0.0-beta.42"
+
 "@babel/plugin-transform-unicode-regex@7.0.0-beta.42":
   version "7.0.0-beta.42"
   resolved "https://registry.yarnpkg.com/@babel/plugin-transform-unicode-regex/-/plugin-transform-unicode-regex-7.0.0-beta.42.tgz#1e7bdcf678d9a9066d06e6d334ab41ca11ca00ad"
@@ -640,6 +653,13 @@
     "@babel/plugin-transform-react-jsx" "7.0.0-beta.42"
     "@babel/plugin-transform-react-jsx-self" "7.0.0-beta.42"
     "@babel/plugin-transform-react-jsx-source" "7.0.0-beta.42"
+
+"@babel/preset-typescript@7.0.0-beta.42":
+  version "7.0.0-beta.42"
+  resolved "https://registry.yarnpkg.com/@babel/preset-typescript/-/preset-typescript-7.0.0-beta.42.tgz#adb91d387a6eee7b45918de544d6c8fa122c2564"
+  dependencies:
+    "@babel/helper-plugin-utils" "7.0.0-beta.42"
+    "@babel/plugin-transform-typescript" "7.0.0-beta.42"
 
 "@babel/runtime@7.0.0-beta.42":
   version "7.0.0-beta.42"
@@ -750,6 +770,12 @@
     ignore-loader "^0.1.2"
     postcss-loader "^2.0.10"
     style-loader "^0.19.1"
+
+"@zeit/next-typescript@1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@zeit/next-typescript/-/next-typescript-1.1.0.tgz#57a45c85c336fee8d71c1bd966195565016932b2"
+  dependencies:
+    "@babel/preset-typescript" "7.0.0-beta.42"
 
 abab@^1.0.3:
   version "1.0.4"

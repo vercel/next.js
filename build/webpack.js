@@ -137,7 +137,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     module: {
       rules: [
         dev && !isServer && {
-          test: /\.(js|jsx)$/,
+          test: defaultLoaders.hotSelfAccept.options.extensions,
           include: defaultLoaders.hotSelfAccept.options.include,
           use: defaultLoaders.hotSelfAccept
         },
