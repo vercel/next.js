@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "6.0.4-canary.3",
+  "version": "6.1.0-canary.0",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -38,7 +38,7 @@
     "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "flow": "flow check",
-    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'test/**/*.js'",
+    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'build/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
     "precommit": "lint-staged"
   },
@@ -98,7 +98,7 @@
     "touch": "3.1.0",
     "uglifyjs-webpack-plugin": "1.1.6",
     "unfetch": "3.0.0",
-    "update-check": "1.4.0",
+    "update-check": "1.5.2",
     "url": "0.11.0",
     "uuid": "3.1.0",
     "walk": "2.3.9",
@@ -115,6 +115,7 @@
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "@zeit/next-css": "0.0.7",
+    "@zeit/next-typescript": "1.1.0",
     "babel-eslint": "8.2.2",
     "babel-jest": "21.2.0",
     "babel-plugin-istanbul": "4.1.5",

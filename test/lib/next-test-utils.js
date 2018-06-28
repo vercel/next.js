@@ -9,7 +9,7 @@ import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import fkill from 'fkill'
 
 import server from '../../dist/server/next'
-import build from '../../dist/server/build'
+import build from '../../dist/build'
 import _export from '../../dist/server/export'
 import _pkg from '../../package.json'
 
@@ -113,7 +113,7 @@ export async function startApp (app) {
   return server
 }
 
-export async function stopApp (app) {
+export async function stopApp (server) {
   if (server.__app) {
     await server.__app.close()
   }

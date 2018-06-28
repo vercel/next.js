@@ -9,14 +9,14 @@ export default class MyDocument extends Document {
   render () {
     return (
       <html>
-        <Head>
+        <Head nonce='test-nonce'>
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
         <body className='custom_class'>
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
-          <NextScript />
+          <NextScript nonce='test-nonce' />
         </body>
       </html>
     )

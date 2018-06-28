@@ -88,6 +88,15 @@ const startProcess = () => {
 
 let proc = startProcess()
 
+const wrapper = () => {
+  if (proc) {
+    proc.kill()
+  }
+}
+process.on('SIGINT', wrapper)
+process.on('SIGTERM', wrapper)
+process.on('exit', wrapper)
+
 if (cmd === 'dev') {
   const {watchFile} = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur, prev) => {

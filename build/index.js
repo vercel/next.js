@@ -2,8 +2,8 @@ import { join } from 'path'
 import promisify from '../lib/promisify'
 import fs from 'fs'
 import webpack from 'webpack'
-import loadConfig from '../config'
-import { PHASE_PRODUCTION_BUILD, BUILD_ID_FILE } from '../../lib/constants'
+import loadConfig from '../server/config'
+import { PHASE_PRODUCTION_BUILD, BUILD_ID_FILE } from '../lib/constants'
 import getBaseWebpackConfig from './webpack'
 
 const access = promisify(fs.access)
@@ -42,7 +42,7 @@ function runCompiler (compiler) {
     webpackCompiler.run((err, stats) => {
       if (err) return reject(err)
 
-      const jsonStats = stats.toJson()
+      const jsonStats = stats.toJson('errors-only')
 
       if (jsonStats.errors.length > 0) {
         const error = new Error(jsonStats.errors[0])

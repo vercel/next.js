@@ -91,7 +91,7 @@ export default async function (dir, options, configuration) {
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    availableChunks: getAvailableChunks(distDir)
+    availableChunks: getAvailableChunks(distDir, false)
   }
 
   const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
