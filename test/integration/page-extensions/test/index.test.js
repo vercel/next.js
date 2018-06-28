@@ -17,7 +17,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('Page Extensions', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort, true)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
