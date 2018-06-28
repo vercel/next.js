@@ -28,5 +28,10 @@ export default function ({ app }, suiteName, render, fetch) {
       const $ = await get$('/next-config')
       expect($('#server-and-client').text() === '/static')
     })
+
+    test('renders the build id in development mode', async () => {
+      const $ = await get$('/build-id')
+      expect($('#buildId').text() === '-')
+    })
   })
 }
