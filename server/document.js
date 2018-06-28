@@ -160,10 +160,17 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    const { chunks, dynamicImports, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
     return (
       <Fragment>
+        {dynamicImports.map((bundle) => {
+          return <script
+            async
+            key={bundle.file}
+            src={`${assetPrefix}/_next/webpack/chunks/${bundle.file}`}
+          />
+        })}
         {chunks.filenames.map((chunk) => (
           <script
             async

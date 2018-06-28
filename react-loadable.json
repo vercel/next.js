@@ -1,0 +1,3550 @@
+{
+  "../../components/hello1": [
+    {
+      "id": "./components/hello1.js",
+      "name": "./components/hello1.js",
+      "file": "0.js",
+      "publicPath": "0.js"
+    },
+    {
+      "id": "./components/hello1.js",
+      "name": "./components/hello1.js",
+      "file": "0.js.map",
+      "publicPath": "0.js.map"
+    }
+  ],
+  "core-js/library/fn/symbol": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/symbol/index.js",
+      "name": "../../../node_modules/core-js/library/fn/symbol/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/symbol/index.js",
+      "name": "../../../node_modules/core-js/library/fn/symbol/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "undefined": [
+    {
+      "id": 0,
+      "name": null,
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": 1,
+      "name": null,
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": 2,
+      "name": null,
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": 3,
+      "name": null,
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": 0,
+      "name": null,
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    },
+    {
+      "id": 1,
+      "name": null,
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    },
+    {
+      "id": 2,
+      "name": null,
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    },
+    {
+      "id": 3,
+      "name": null,
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "object-assign": [
+    {
+      "id": "../../../node_modules/object-assign/index.js",
+      "name": "../../../node_modules/object-assign/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/object-assign/index.js",
+      "name": "../../../node_modules/object-assign/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/invariant": [
+    {
+      "id": "../../../node_modules/fbjs/lib/invariant.js",
+      "name": "../../../node_modules/fbjs/lib/invariant.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/invariant.js",
+      "name": "../../../node_modules/fbjs/lib/invariant.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/emptyObject": [
+    {
+      "id": "../../../node_modules/fbjs/lib/emptyObject.js",
+      "name": "../../../node_modules/fbjs/lib/emptyObject.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/emptyObject.js",
+      "name": "../../../node_modules/fbjs/lib/emptyObject.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/warning": [
+    {
+      "id": "../../../node_modules/fbjs/lib/warning.js",
+      "name": "../../../node_modules/fbjs/lib/warning.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/warning.js",
+      "name": "../../../node_modules/fbjs/lib/warning.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/emptyFunction": [
+    {
+      "id": "../../../node_modules/fbjs/lib/emptyFunction.js",
+      "name": "../../../node_modules/fbjs/lib/emptyFunction.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/emptyFunction.js",
+      "name": "../../../node_modules/fbjs/lib/emptyFunction.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "prop-types/checkPropTypes": [
+    {
+      "id": "../../../node_modules/prop-types/checkPropTypes.js",
+      "name": "../../../node_modules/prop-types/checkPropTypes.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/prop-types/checkPropTypes.js",
+      "name": "../../../node_modules/prop-types/checkPropTypes.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/ReactPropTypesSecret": [
+    {
+      "id": "../../../node_modules/prop-types/lib/ReactPropTypesSecret.js",
+      "name": "../../../node_modules/prop-types/lib/ReactPropTypesSecret.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/prop-types/lib/ReactPropTypesSecret.js",
+      "name": "../../../node_modules/prop-types/lib/ReactPropTypesSecret.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "react-loadable": [
+    {
+      "id": "../../../node_modules/react-loadable/lib/index.js",
+      "name": "../../../node_modules/react-loadable/lib/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/react-loadable/lib/index.js",
+      "name": "../../../node_modules/react-loadable/lib/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "prop-types": [
+    {
+      "id": "../../../node_modules/prop-types/index.js",
+      "name": "../../../node_modules/prop-types/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/prop-types/index.js",
+      "name": "../../../node_modules/prop-types/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./factoryWithTypeCheckers": [
+    {
+      "id": "../../../node_modules/prop-types/factoryWithTypeCheckers.js",
+      "name": "../../../node_modules/prop-types/factoryWithTypeCheckers.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/prop-types/factoryWithTypeCheckers.js",
+      "name": "../../../node_modules/prop-types/factoryWithTypeCheckers.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "/Users/timneutkens/projects/next.js/dist/client/webpack-hot-middleware-client": [
+    {
+      "id": "../../../dist/client/webpack-hot-middleware-client.js",
+      "name": "../../../dist/client/webpack-hot-middleware-client.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/webpack-hot-middleware-client.js",
+      "name": "../../../dist/client/webpack-hot-middleware-client.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/interopRequireDefault": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/interopRequireDefault.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/interopRequireDefault.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/interopRequireDefault.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/interopRequireDefault.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/toConsumableArray": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/toConsumableArray.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/toConsumableArray.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/toConsumableArray.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/toConsumableArray.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./arrayWithoutHoles": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/arrayWithoutHoles.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/arrayWithoutHoles.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/arrayWithoutHoles.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/arrayWithoutHoles.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./iterableToArray": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/iterableToArray.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/iterableToArray.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/iterableToArray.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/iterableToArray.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/array/from": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/array/from.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/array/from.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/array/from.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/array/from.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/array/from": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/array/from.js",
+      "name": "../../../node_modules/core-js/library/fn/array/from.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/array/from.js",
+      "name": "../../../node_modules/core-js/library/fn/array/from.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es6.string.iterator": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.string.iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.string.iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.string.iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.string.iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_string-at": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_string-at.js",
+      "name": "../../../node_modules/core-js/library/modules/_string-at.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_string-at.js",
+      "name": "../../../node_modules/core-js/library/modules/_string-at.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_to-integer": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-integer.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-integer.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-integer.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-integer.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_defined": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_defined.js",
+      "name": "../../../node_modules/core-js/library/modules/_defined.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_defined.js",
+      "name": "../../../node_modules/core-js/library/modules/_defined.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iter-define": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-define.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-define.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-define.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-define.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_library": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_library.js",
+      "name": "../../../node_modules/core-js/library/modules/_library.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_library.js",
+      "name": "../../../node_modules/core-js/library/modules/_library.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_export": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_export.js",
+      "name": "../../../node_modules/core-js/library/modules/_export.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_export.js",
+      "name": "../../../node_modules/core-js/library/modules/_export.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_global": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_global.js",
+      "name": "../../../node_modules/core-js/library/modules/_global.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_global.js",
+      "name": "../../../node_modules/core-js/library/modules/_global.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/_core": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_core.js",
+      "name": "../../../node_modules/core-js/library/modules/_core.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_core.js",
+      "name": "../../../node_modules/core-js/library/modules/_core.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_ctx": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_ctx.js",
+      "name": "../../../node_modules/core-js/library/modules/_ctx.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_ctx.js",
+      "name": "../../../node_modules/core-js/library/modules/_ctx.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_a-function": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_a-function.js",
+      "name": "../../../node_modules/core-js/library/modules/_a-function.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_a-function.js",
+      "name": "../../../node_modules/core-js/library/modules/_a-function.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_hide": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_hide.js",
+      "name": "../../../node_modules/core-js/library/modules/_hide.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_hide.js",
+      "name": "../../../node_modules/core-js/library/modules/_hide.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-dp": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-dp.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-dp.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-dp.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-dp.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_an-object": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_an-object.js",
+      "name": "../../../node_modules/core-js/library/modules/_an-object.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_an-object.js",
+      "name": "../../../node_modules/core-js/library/modules/_an-object.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_is-object": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_is-object.js",
+      "name": "../../../node_modules/core-js/library/modules/_is-object.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_is-object.js",
+      "name": "../../../node_modules/core-js/library/modules/_is-object.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_ie8-dom-define": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_ie8-dom-define.js",
+      "name": "../../../node_modules/core-js/library/modules/_ie8-dom-define.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_ie8-dom-define.js",
+      "name": "../../../node_modules/core-js/library/modules/_ie8-dom-define.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_descriptors": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_descriptors.js",
+      "name": "../../../node_modules/core-js/library/modules/_descriptors.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_descriptors.js",
+      "name": "../../../node_modules/core-js/library/modules/_descriptors.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_fails": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_fails.js",
+      "name": "../../../node_modules/core-js/library/modules/_fails.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_fails.js",
+      "name": "../../../node_modules/core-js/library/modules/_fails.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_dom-create": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_dom-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_dom-create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_dom-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_dom-create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_to-primitive": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-primitive.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-primitive.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-primitive.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-primitive.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_property-desc": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_property-desc.js",
+      "name": "../../../node_modules/core-js/library/modules/_property-desc.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_property-desc.js",
+      "name": "../../../node_modules/core-js/library/modules/_property-desc.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_has": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_has.js",
+      "name": "../../../node_modules/core-js/library/modules/_has.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_has.js",
+      "name": "../../../node_modules/core-js/library/modules/_has.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_redefine": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_redefine.js",
+      "name": "../../../node_modules/core-js/library/modules/_redefine.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_redefine.js",
+      "name": "../../../node_modules/core-js/library/modules/_redefine.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iterators": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iterators.js",
+      "name": "../../../node_modules/core-js/library/modules/_iterators.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iterators.js",
+      "name": "../../../node_modules/core-js/library/modules/_iterators.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iter-create": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-create": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-dps": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-dps.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-dps.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-dps.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-dps.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-keys": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-keys.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-keys.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-keys.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-keys.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-keys-internal": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-keys-internal.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-keys-internal.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-keys-internal.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-keys-internal.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_to-iobject": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-iobject.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-iobject.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-iobject.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-iobject.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iobject": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iobject.js",
+      "name": "../../../node_modules/core-js/library/modules/_iobject.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iobject.js",
+      "name": "../../../node_modules/core-js/library/modules/_iobject.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_cof": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_cof.js",
+      "name": "../../../node_modules/core-js/library/modules/_cof.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_cof.js",
+      "name": "../../../node_modules/core-js/library/modules/_cof.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_array-includes": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-includes.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-includes.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-includes.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-includes.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_to-length": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-length.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-length.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-length.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-length.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_to-absolute-index": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-absolute-index.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-absolute-index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-absolute-index.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-absolute-index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_shared-key": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_shared-key.js",
+      "name": "../../../node_modules/core-js/library/modules/_shared-key.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_shared-key.js",
+      "name": "../../../node_modules/core-js/library/modules/_shared-key.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_shared": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_shared.js",
+      "name": "../../../node_modules/core-js/library/modules/_shared.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_shared.js",
+      "name": "../../../node_modules/core-js/library/modules/_shared.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_uid": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_uid.js",
+      "name": "../../../node_modules/core-js/library/modules/_uid.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_uid.js",
+      "name": "../../../node_modules/core-js/library/modules/_uid.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_enum-bug-keys": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_enum-bug-keys.js",
+      "name": "../../../node_modules/core-js/library/modules/_enum-bug-keys.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_enum-bug-keys.js",
+      "name": "../../../node_modules/core-js/library/modules/_enum-bug-keys.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_html": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_html.js",
+      "name": "../../../node_modules/core-js/library/modules/_html.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_html.js",
+      "name": "../../../node_modules/core-js/library/modules/_html.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_set-to-string-tag": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-to-string-tag.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-to-string-tag.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-to-string-tag.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-to-string-tag.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_wks": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_wks.js",
+      "name": "../../../node_modules/core-js/library/modules/_wks.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_wks.js",
+      "name": "../../../node_modules/core-js/library/modules/_wks.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-gpo": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gpo.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gpo.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gpo.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gpo.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_to-object": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-object.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-object.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_to-object.js",
+      "name": "../../../node_modules/core-js/library/modules/_to-object.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.array.from": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.array.from.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.array.from.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.array.from.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.array.from.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iter-call": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-call.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-call.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-call.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-call.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_is-array-iter": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_is-array-iter.js",
+      "name": "../../../node_modules/core-js/library/modules/_is-array-iter.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_is-array-iter.js",
+      "name": "../../../node_modules/core-js/library/modules/_is-array-iter.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_create-property": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_create-property.js",
+      "name": "../../../node_modules/core-js/library/modules/_create-property.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_create-property.js",
+      "name": "../../../node_modules/core-js/library/modules/_create-property.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./core.get-iterator-method": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/core.get-iterator-method.js",
+      "name": "../../../node_modules/core-js/library/modules/core.get-iterator-method.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/core.get-iterator-method.js",
+      "name": "../../../node_modules/core-js/library/modules/core.get-iterator-method.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_classof": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_classof.js",
+      "name": "../../../node_modules/core-js/library/modules/_classof.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_classof.js",
+      "name": "../../../node_modules/core-js/library/modules/_classof.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iter-detect": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-detect.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-detect.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-detect.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-detect.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/is-iterable": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/is-iterable.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/is-iterable.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/is-iterable.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/is-iterable.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/is-iterable": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/is-iterable.js",
+      "name": "../../../node_modules/core-js/library/fn/is-iterable.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/is-iterable.js",
+      "name": "../../../node_modules/core-js/library/fn/is-iterable.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/web.dom.iterable": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/web.dom.iterable.js",
+      "name": "../../../node_modules/core-js/library/modules/web.dom.iterable.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/web.dom.iterable.js",
+      "name": "../../../node_modules/core-js/library/modules/web.dom.iterable.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./es6.array.iterator": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.array.iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.array.iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.array.iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.array.iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_add-to-unscopables": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_add-to-unscopables.js",
+      "name": "../../../node_modules/core-js/library/modules/_add-to-unscopables.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_add-to-unscopables.js",
+      "name": "../../../node_modules/core-js/library/modules/_add-to-unscopables.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_iter-step": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-step.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-step.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_iter-step.js",
+      "name": "../../../node_modules/core-js/library/modules/_iter-step.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/core.is-iterable": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/core.is-iterable.js",
+      "name": "../../../node_modules/core-js/library/modules/core.is-iterable.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/core.is-iterable.js",
+      "name": "../../../node_modules/core-js/library/modules/core.is-iterable.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./nonIterableSpread": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/nonIterableSpread.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/nonIterableSpread.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/nonIterableSpread.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/nonIterableSpread.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/object/keys": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/keys.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/keys.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/keys.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/keys.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/keys": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/keys.js",
+      "name": "../../../node_modules/core-js/library/fn/object/keys.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/keys.js",
+      "name": "../../../node_modules/core-js/library/fn/object/keys.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.keys": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.keys.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.keys.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.keys.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.keys.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-sap": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-sap.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-sap.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-sap.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-sap.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "event-source-polyfill": [
+    {
+      "id": "../../../node_modules/event-source-polyfill/src/eventsource.js",
+      "name": "../../../node_modules/event-source-polyfill/src/eventsource.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/event-source-polyfill/src/eventsource.js",
+      "name": "../../../node_modules/event-source-polyfill/src/eventsource.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "webpack-hot-middleware/client?autoConnect=false&overlay=false&reload=true": [
+    {
+      "id": "../../../node_modules/webpack-hot-middleware/client.js?autoConnect=false&overlay=false&reload=true",
+      "name": "../../../node_modules/webpack-hot-middleware/client.js?autoConnect=false&overlay=false&reload=true",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/webpack-hot-middleware/client.js?autoConnect=false&overlay=false&reload=true",
+      "name": "../../../node_modules/webpack-hot-middleware/client.js?autoConnect=false&overlay=false&reload=true",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./../webpack/buildin/module.js": [
+    {
+      "id": "../../../node_modules/webpack/buildin/module.js",
+      "name": "../../../node_modules/webpack/buildin/module.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/webpack/buildin/module.js",
+      "name": "../../../node_modules/webpack/buildin/module.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "querystring": [
+    {
+      "id": "../../../node_modules/querystring-es3/index.js",
+      "name": "../../../node_modules/querystring-es3/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/querystring-es3/index.js",
+      "name": "../../../node_modules/querystring-es3/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./decode": [
+    {
+      "id": "../../../node_modules/querystring-es3/decode.js",
+      "name": "../../../node_modules/querystring-es3/decode.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/querystring-es3/decode.js",
+      "name": "../../../node_modules/querystring-es3/decode.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./encode": [
+    {
+      "id": "../../../node_modules/querystring-es3/encode.js",
+      "name": "../../../node_modules/querystring-es3/encode.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/querystring-es3/encode.js",
+      "name": "../../../node_modules/querystring-es3/encode.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "strip-ansi": [
+    {
+      "id": "../../../node_modules/strip-ansi/index.js",
+      "name": "../../../node_modules/strip-ansi/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/strip-ansi/index.js",
+      "name": "../../../node_modules/strip-ansi/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "ansi-regex": [
+    {
+      "id": "../../../node_modules/ansi-regex/index.js",
+      "name": "../../../node_modules/ansi-regex/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/ansi-regex/index.js",
+      "name": "../../../node_modules/ansi-regex/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./client-overlay": [
+    {
+      "id": "../../../node_modules/webpack-hot-middleware/client-overlay.js",
+      "name": "../../../node_modules/webpack-hot-middleware/client-overlay.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/webpack-hot-middleware/client-overlay.js",
+      "name": "../../../node_modules/webpack-hot-middleware/client-overlay.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "ansi-html": [
+    {
+      "id": "../../../node_modules/ansi-html/index.js",
+      "name": "../../../node_modules/ansi-html/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/ansi-html/index.js",
+      "name": "../../../node_modules/ansi-html/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "html-entities": [
+    {
+      "id": "../../../node_modules/html-entities/index.js",
+      "name": "../../../node_modules/html-entities/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/html-entities/index.js",
+      "name": "../../../node_modules/html-entities/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/xml-entities.js": [
+    {
+      "id": "../../../node_modules/html-entities/lib/xml-entities.js",
+      "name": "../../../node_modules/html-entities/lib/xml-entities.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/html-entities/lib/xml-entities.js",
+      "name": "../../../node_modules/html-entities/lib/xml-entities.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/html4-entities.js": [
+    {
+      "id": "../../../node_modules/html-entities/lib/html4-entities.js",
+      "name": "../../../node_modules/html-entities/lib/html4-entities.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/html-entities/lib/html4-entities.js",
+      "name": "../../../node_modules/html-entities/lib/html4-entities.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/html5-entities.js": [
+    {
+      "id": "../../../node_modules/html-entities/lib/html5-entities.js",
+      "name": "../../../node_modules/html-entities/lib/html5-entities.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/html-entities/lib/html5-entities.js",
+      "name": "../../../node_modules/html-entities/lib/html5-entities.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./process-update": [
+    {
+      "id": "../../../node_modules/webpack-hot-middleware/process-update.js",
+      "name": "../../../node_modules/webpack-hot-middleware/process-update.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/webpack-hot-middleware/process-update.js",
+      "name": "../../../node_modules/webpack-hot-middleware/process-update.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../lib/router": [
+    {
+      "id": "../../../dist/lib/router/index.js",
+      "name": "../../../dist/lib/router/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/router/index.js",
+      "name": "../../../dist/lib/router/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/objectSpread": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/objectSpread.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/objectSpread.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/objectSpread.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/objectSpread.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/object/get-own-property-descriptor": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-descriptor.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-descriptor.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-descriptor.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-descriptor.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/get-own-property-descriptor": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/get-own-property-descriptor.js",
+      "name": "../../../node_modules/core-js/library/fn/object/get-own-property-descriptor.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/get-own-property-descriptor.js",
+      "name": "../../../node_modules/core-js/library/fn/object/get-own-property-descriptor.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.get-own-property-descriptor": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.get-own-property-descriptor.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.get-own-property-descriptor.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.get-own-property-descriptor.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.get-own-property-descriptor.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-gopd": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gopd.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gopd.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gopd.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gopd.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-pie": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-pie.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-pie.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-pie.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-pie.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/object/get-own-property-symbols": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-symbols.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-symbols.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-symbols.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/get-own-property-symbols.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/get-own-property-symbols": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/get-own-property-symbols.js",
+      "name": "../../../node_modules/core-js/library/fn/object/get-own-property-symbols.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/get-own-property-symbols.js",
+      "name": "../../../node_modules/core-js/library/fn/object/get-own-property-symbols.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.symbol": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.symbol.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.symbol.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.symbol.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.symbol.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_meta": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_meta.js",
+      "name": "../../../node_modules/core-js/library/modules/_meta.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_meta.js",
+      "name": "../../../node_modules/core-js/library/modules/_meta.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/_wks-ext": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_wks-ext.js",
+      "name": "../../../node_modules/core-js/library/modules/_wks-ext.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_wks-ext.js",
+      "name": "../../../node_modules/core-js/library/modules/_wks-ext.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_wks-define": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_wks-define.js",
+      "name": "../../../node_modules/core-js/library/modules/_wks-define.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_wks-define.js",
+      "name": "../../../node_modules/core-js/library/modules/_wks-define.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_enum-keys": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_enum-keys.js",
+      "name": "../../../node_modules/core-js/library/modules/_enum-keys.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_enum-keys.js",
+      "name": "../../../node_modules/core-js/library/modules/_enum-keys.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-gops": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gops.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gops.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gops.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gops.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_is-array": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_is-array.js",
+      "name": "../../../node_modules/core-js/library/modules/_is-array.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_is-array.js",
+      "name": "../../../node_modules/core-js/library/modules/_is-array.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-gopn-ext": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gopn-ext.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gopn-ext.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gopn-ext.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gopn-ext.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-gopn": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gopn.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gopn.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-gopn.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-gopn.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./defineProperty": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/defineProperty.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/defineProperty.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/defineProperty.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/defineProperty.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/object/define-property": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/define-property.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/define-property.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/define-property.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/define-property.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/define-property": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/define-property.js",
+      "name": "../../../node_modules/core-js/library/fn/object/define-property.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/define-property.js",
+      "name": "../../../node_modules/core-js/library/fn/object/define-property.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.define-property": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.define-property.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.define-property.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.define-property.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.define-property.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/typeof": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/typeof.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/typeof.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/typeof.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/typeof.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/symbol/iterator": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/symbol/iterator.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/symbol/iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/symbol/iterator.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/symbol/iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/symbol/iterator": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/symbol/iterator.js",
+      "name": "../../../node_modules/core-js/library/fn/symbol/iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/symbol/iterator.js",
+      "name": "../../../node_modules/core-js/library/fn/symbol/iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/symbol": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/symbol.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/symbol.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/symbol.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/symbol.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./pages/dynamic/ssr.js": [
+    {
+      "id": "./pages/dynamic/ssr.js",
+      "name": "./pages/dynamic/ssr.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "./pages/dynamic/ssr.js",
+      "name": "./pages/dynamic/ssr.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es6.object.to-string": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.to-string.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.to-string.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.to-string.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.to-string.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es7.symbol.async-iterator": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.symbol.async-iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.symbol.async-iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.symbol.async-iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.symbol.async-iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es7.symbol.observable": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.symbol.observable.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.symbol.observable.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.symbol.observable.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.symbol.observable.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/slicedToArray": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/slicedToArray.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/slicedToArray.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/slicedToArray.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/slicedToArray.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./arrayWithHoles": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/arrayWithHoles.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/arrayWithHoles.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/arrayWithHoles.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/arrayWithHoles.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./iterableToArrayLimit": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/iterableToArrayLimit.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/iterableToArrayLimit.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/iterableToArrayLimit.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/iterableToArrayLimit.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/get-iterator": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/get-iterator.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/get-iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/get-iterator.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/get-iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/get-iterator": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/get-iterator.js",
+      "name": "../../../node_modules/core-js/library/fn/get-iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/get-iterator.js",
+      "name": "../../../node_modules/core-js/library/fn/get-iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/core.get-iterator": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/core.get-iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/core.get-iterator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/core.get-iterator.js",
+      "name": "../../../node_modules/core-js/library/modules/core.get-iterator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./nonIterableRest": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/nonIterableRest.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/nonIterableRest.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/nonIterableRest.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/nonIterableRest.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./router": [
+    {
+      "id": "../../../dist/lib/router/router.js",
+      "name": "../../../dist/lib/router/router.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/router/router.js",
+      "name": "../../../dist/lib/router/router.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/regenerator": [
+    {
+      "id": "../../../node_modules/@babel/runtime/regenerator/index.js",
+      "name": "../../../node_modules/@babel/runtime/regenerator/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/regenerator/index.js",
+      "name": "../../../node_modules/@babel/runtime/regenerator/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "regenerator-runtime": [
+    {
+      "id": "../../../node_modules/regenerator-runtime/runtime-module.js",
+      "name": "../../../node_modules/regenerator-runtime/runtime-module.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/regenerator-runtime/runtime-module.js",
+      "name": "../../../node_modules/regenerator-runtime/runtime-module.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./runtime": [
+    {
+      "id": "../../../node_modules/regenerator-runtime/runtime.js",
+      "name": "../../../node_modules/regenerator-runtime/runtime.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/regenerator-runtime/runtime.js",
+      "name": "../../../node_modules/regenerator-runtime/runtime.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/asyncToGenerator": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/asyncToGenerator.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/asyncToGenerator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/asyncToGenerator.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/asyncToGenerator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/promise": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/promise.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/promise.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/promise.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/promise.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/promise": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/promise.js",
+      "name": "../../../node_modules/core-js/library/fn/promise.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/promise.js",
+      "name": "../../../node_modules/core-js/library/fn/promise.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es6.promise": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.promise.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.promise.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.promise.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.promise.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_an-instance": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_an-instance.js",
+      "name": "../../../node_modules/core-js/library/modules/_an-instance.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_an-instance.js",
+      "name": "../../../node_modules/core-js/library/modules/_an-instance.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_for-of": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_for-of.js",
+      "name": "../../../node_modules/core-js/library/modules/_for-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_for-of.js",
+      "name": "../../../node_modules/core-js/library/modules/_for-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_species-constructor": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_species-constructor.js",
+      "name": "../../../node_modules/core-js/library/modules/_species-constructor.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_species-constructor.js",
+      "name": "../../../node_modules/core-js/library/modules/_species-constructor.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_task": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_task.js",
+      "name": "../../../node_modules/core-js/library/modules/_task.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_task.js",
+      "name": "../../../node_modules/core-js/library/modules/_task.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_invoke": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_invoke.js",
+      "name": "../../../node_modules/core-js/library/modules/_invoke.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_invoke.js",
+      "name": "../../../node_modules/core-js/library/modules/_invoke.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_microtask": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_microtask.js",
+      "name": "../../../node_modules/core-js/library/modules/_microtask.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_microtask.js",
+      "name": "../../../node_modules/core-js/library/modules/_microtask.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_new-promise-capability": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_new-promise-capability.js",
+      "name": "../../../node_modules/core-js/library/modules/_new-promise-capability.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_new-promise-capability.js",
+      "name": "../../../node_modules/core-js/library/modules/_new-promise-capability.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_perform": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_perform.js",
+      "name": "../../../node_modules/core-js/library/modules/_perform.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_perform.js",
+      "name": "../../../node_modules/core-js/library/modules/_perform.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_promise-resolve": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_promise-resolve.js",
+      "name": "../../../node_modules/core-js/library/modules/_promise-resolve.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_promise-resolve.js",
+      "name": "../../../node_modules/core-js/library/modules/_promise-resolve.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_redefine-all": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_redefine-all.js",
+      "name": "../../../node_modules/core-js/library/modules/_redefine-all.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_redefine-all.js",
+      "name": "../../../node_modules/core-js/library/modules/_redefine-all.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_set-species": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-species.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-species.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-species.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-species.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es7.promise.finally": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.promise.finally.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.promise.finally.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.promise.finally.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.promise.finally.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es7.promise.try": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.promise.try.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.promise.try.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.promise.try.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.promise.try.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/set": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/set.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/set.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/set.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/set.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/set": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/set.js",
+      "name": "../../../node_modules/core-js/library/fn/set.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/set.js",
+      "name": "../../../node_modules/core-js/library/fn/set.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es6.set": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.set.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.set.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.set.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.set.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_collection-strong": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_collection-strong.js",
+      "name": "../../../node_modules/core-js/library/modules/_collection-strong.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_collection-strong.js",
+      "name": "../../../node_modules/core-js/library/modules/_collection-strong.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_validate-collection": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_validate-collection.js",
+      "name": "../../../node_modules/core-js/library/modules/_validate-collection.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_validate-collection.js",
+      "name": "../../../node_modules/core-js/library/modules/_validate-collection.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_collection": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_collection.js",
+      "name": "../../../node_modules/core-js/library/modules/_collection.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_collection.js",
+      "name": "../../../node_modules/core-js/library/modules/_collection.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_array-methods": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-methods.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-methods.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-methods.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-methods.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_array-species-create": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-species-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-species-create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-species-create.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-species-create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_array-species-constructor": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-species-constructor.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-species-constructor.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-species-constructor.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-species-constructor.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es7.set.to-json": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.set.to-json.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.set.to-json.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.set.to-json.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.set.to-json.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_collection-to-json": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_collection-to-json.js",
+      "name": "../../../node_modules/core-js/library/modules/_collection-to-json.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_collection-to-json.js",
+      "name": "../../../node_modules/core-js/library/modules/_collection-to-json.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_array-from-iterable": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-from-iterable.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-from-iterable.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_array-from-iterable.js",
+      "name": "../../../node_modules/core-js/library/modules/_array-from-iterable.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es7.set.of": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.set.of.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.set.of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.set.of.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.set.of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_set-collection-of": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-collection-of.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-collection-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-collection-of.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-collection-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../modules/es7.set.from": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.set.from.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.set.from.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es7.set.from.js",
+      "name": "../../../node_modules/core-js/library/modules/es7.set.from.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_set-collection-from": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-collection-from.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-collection-from.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-collection-from.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-collection-from.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/classCallCheck": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/classCallCheck.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/classCallCheck.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/classCallCheck.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/classCallCheck.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/createClass": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/createClass.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/createClass.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/createClass.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/createClass.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "url": [
+    {
+      "id": "../../../node_modules/url/url.js",
+      "name": "../../../node_modules/url/url.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/url/url.js",
+      "name": "../../../node_modules/url/url.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "punycode": [
+    {
+      "id": "../../../node_modules/punycode/punycode.js",
+      "name": "../../../node_modules/punycode/punycode.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/punycode/punycode.js",
+      "name": "../../../node_modules/punycode/punycode.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./../webpack/buildin/global.js": [
+    {
+      "id": "../../../node_modules/webpack/buildin/global.js",
+      "name": "../../../node_modules/webpack/buildin/global.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/webpack/buildin/global.js",
+      "name": "../../../node_modules/webpack/buildin/global.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./util": [
+    {
+      "id": "../../../node_modules/url/util.js",
+      "name": "../../../node_modules/url/util.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/util.js",
+      "name": "../../../node_modules/source-map/lib/util.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/url/util.js",
+      "name": "../../../node_modules/url/util.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/util.js",
+      "name": "../../../node_modules/source-map/lib/util.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../lib/EventEmitter": [
+    {
+      "id": "../../../dist/lib/EventEmitter.js",
+      "name": "../../../dist/lib/EventEmitter.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/EventEmitter.js",
+      "name": "../../../dist/lib/EventEmitter.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../shallow-equals": [
+    {
+      "id": "../../../dist/lib/shallow-equals.js",
+      "name": "../../../dist/lib/shallow-equals.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/shallow-equals.js",
+      "name": "../../../dist/lib/shallow-equals.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../p-queue": [
+    {
+      "id": "../../../dist/lib/p-queue.js",
+      "name": "../../../dist/lib/p-queue.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/p-queue.js",
+      "name": "../../../dist/lib/p-queue.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/object/assign": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/assign.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/assign.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/assign.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/assign.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/assign": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/assign.js",
+      "name": "../../../node_modules/core-js/library/fn/object/assign.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/assign.js",
+      "name": "../../../node_modules/core-js/library/fn/object/assign.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.assign": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.assign.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.assign.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.assign.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.assign.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_object-assign": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-assign.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-assign.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_object-assign.js",
+      "name": "../../../node_modules/core-js/library/modules/_object-assign.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../utils": [
+    {
+      "id": "../../../dist/lib/utils.js",
+      "name": "../../../dist/lib/utils.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/utils.js",
+      "name": "../../../dist/lib/utils.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./../../node_modules/process/browser.js": [
+    {
+      "id": "../../../node_modules/process/browser.js",
+      "name": "../../../node_modules/process/browser.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/process/browser.js",
+      "name": "../../../node_modules/process/browser.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./with-router": [
+    {
+      "id": "../../../dist/lib/router/with-router.js",
+      "name": "../../../dist/lib/router/with-router.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/router/with-router.js",
+      "name": "../../../dist/lib/router/with-router.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/interopRequireWildcard": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/interopRequireWildcard.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/interopRequireWildcard.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/interopRequireWildcard.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/interopRequireWildcard.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/core-js/object/get-prototype-of": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/get-prototype-of.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/get-prototype-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/get-prototype-of.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/get-prototype-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/get-prototype-of": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/get-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/fn/object/get-prototype-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/get-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/fn/object/get-prototype-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.get-prototype-of": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.get-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.get-prototype-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.get-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.get-prototype-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/possibleConstructorReturn": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/possibleConstructorReturn.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/possibleConstructorReturn.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/possibleConstructorReturn.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/possibleConstructorReturn.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/assertThisInitialized": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/assertThisInitialized.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/assertThisInitialized.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/assertThisInitialized.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/assertThisInitialized.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/inherits": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/inherits.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/inherits.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/inherits.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/inherits.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/object/set-prototype-of": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/set-prototype-of.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/set-prototype-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/set-prototype-of.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/set-prototype-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/set-prototype-of": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/set-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/fn/object/set-prototype-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/set-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/fn/object/set-prototype-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.set-prototype-of": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.set-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.set-prototype-of.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.set-prototype-of.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.set-prototype-of.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./_set-proto": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-proto.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-proto.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/_set-proto.js",
+      "name": "../../../node_modules/core-js/library/modules/_set-proto.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../core-js/object/create": [
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/create.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/core-js/object/create.js",
+      "name": "../../../node_modules/@babel/runtime/core-js/object/create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "core-js/library/fn/object/create": [
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/create.js",
+      "name": "../../../node_modules/core-js/library/fn/object/create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/fn/object/create.js",
+      "name": "../../../node_modules/core-js/library/fn/object/create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../../modules/es6.object.create": [
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.create.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.create.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/core-js/library/modules/es6.object.create.js",
+      "name": "../../../node_modules/core-js/library/modules/es6.object.create.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "hoist-non-react-statics": [
+    {
+      "id": "../../../node_modules/hoist-non-react-statics/index.js",
+      "name": "../../../node_modules/hoist-non-react-statics/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/hoist-non-react-statics/index.js",
+      "name": "../../../node_modules/hoist-non-react-statics/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "/Users/timneutkens/projects/next.js/dist/client/on-demand-entries-client": [
+    {
+      "id": "../../../dist/client/on-demand-entries-client.js",
+      "name": "../../../dist/client/on-demand-entries-client.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/on-demand-entries-client.js",
+      "name": "../../../dist/client/on-demand-entries-client.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "unfetch": [
+    {
+      "id": "../../../node_modules/unfetch/dist/unfetch.es.js",
+      "name": "../../../node_modules/unfetch/dist/unfetch.es.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/unfetch/dist/unfetch.es.js",
+      "name": "../../../node_modules/unfetch/dist/unfetch.es.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "/Users/timneutkens/projects/next.js/dist/client/next-dev": [
+    {
+      "id": "../../../dist/client/next-dev.js",
+      "name": "../../../dist/client/next-dev.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/next-dev.js",
+      "name": "../../../dist/client/next-dev.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./": [
+    {
+      "id": "../../../dist/client/index.js",
+      "name": "../../../dist/client/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/index.js",
+      "name": "../../../dist/client/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "react-dom": [
+    {
+      "id": "../../../node_modules/react-dom/index.js",
+      "name": "../../../node_modules/react-dom/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/react-dom/index.js",
+      "name": "../../../node_modules/react-dom/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./cjs/react-dom.development.js": [
+    {
+      "id": "../../../node_modules/react-dom/cjs/react-dom.development.js",
+      "name": "../../../node_modules/react-dom/cjs/react-dom.development.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/react-dom/cjs/react-dom.development.js",
+      "name": "../../../node_modules/react-dom/cjs/react-dom.development.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/ExecutionEnvironment": [
+    {
+      "id": "../../../node_modules/fbjs/lib/ExecutionEnvironment.js",
+      "name": "../../../node_modules/fbjs/lib/ExecutionEnvironment.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/ExecutionEnvironment.js",
+      "name": "../../../node_modules/fbjs/lib/ExecutionEnvironment.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/getActiveElement": [
+    {
+      "id": "../../../node_modules/fbjs/lib/getActiveElement.js",
+      "name": "../../../node_modules/fbjs/lib/getActiveElement.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/getActiveElement.js",
+      "name": "../../../node_modules/fbjs/lib/getActiveElement.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/shallowEqual": [
+    {
+      "id": "../../../node_modules/fbjs/lib/shallowEqual.js",
+      "name": "../../../node_modules/fbjs/lib/shallowEqual.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/shallowEqual.js",
+      "name": "../../../node_modules/fbjs/lib/shallowEqual.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/containsNode": [
+    {
+      "id": "../../../node_modules/fbjs/lib/containsNode.js",
+      "name": "../../../node_modules/fbjs/lib/containsNode.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/containsNode.js",
+      "name": "../../../node_modules/fbjs/lib/containsNode.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./isTextNode": [
+    {
+      "id": "../../../node_modules/fbjs/lib/isTextNode.js",
+      "name": "../../../node_modules/fbjs/lib/isTextNode.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/isTextNode.js",
+      "name": "../../../node_modules/fbjs/lib/isTextNode.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./isNode": [
+    {
+      "id": "../../../node_modules/fbjs/lib/isNode.js",
+      "name": "../../../node_modules/fbjs/lib/isNode.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/isNode.js",
+      "name": "../../../node_modules/fbjs/lib/isNode.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/hyphenateStyleName": [
+    {
+      "id": "../../../node_modules/fbjs/lib/hyphenateStyleName.js",
+      "name": "../../../node_modules/fbjs/lib/hyphenateStyleName.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/hyphenateStyleName.js",
+      "name": "../../../node_modules/fbjs/lib/hyphenateStyleName.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./hyphenate": [
+    {
+      "id": "../../../node_modules/fbjs/lib/hyphenate.js",
+      "name": "../../../node_modules/fbjs/lib/hyphenate.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/hyphenate.js",
+      "name": "../../../node_modules/fbjs/lib/hyphenate.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "fbjs/lib/camelizeStyleName": [
+    {
+      "id": "../../../node_modules/fbjs/lib/camelizeStyleName.js",
+      "name": "../../../node_modules/fbjs/lib/camelizeStyleName.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/camelizeStyleName.js",
+      "name": "../../../node_modules/fbjs/lib/camelizeStyleName.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./camelize": [
+    {
+      "id": "../../../node_modules/fbjs/lib/camelize.js",
+      "name": "../../../node_modules/fbjs/lib/camelize.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/fbjs/lib/camelize.js",
+      "name": "../../../node_modules/fbjs/lib/camelize.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./head-manager": [
+    {
+      "id": "../../../dist/client/head-manager.js",
+      "name": "../../../dist/client/head-manager.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/head-manager.js",
+      "name": "../../../dist/client/head-manager.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../lib/page-loader": [
+    {
+      "id": "../../../dist/lib/page-loader.js",
+      "name": "../../../dist/lib/page-loader.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/page-loader.js",
+      "name": "../../../dist/lib/page-loader.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../lib/asset": [
+    {
+      "id": "../../../dist/lib/asset.js",
+      "name": "../../../dist/lib/asset.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/asset.js",
+      "name": "../../../dist/lib/asset.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../lib/runtime-config": [
+    {
+      "id": "../../../dist/lib/runtime-config.js",
+      "name": "../../../dist/lib/runtime-config.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/runtime-config.js",
+      "name": "../../../dist/lib/runtime-config.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./error-boundary": [
+    {
+      "id": "../../../dist/client/error-boundary.js",
+      "name": "../../../dist/client/error-boundary.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/error-boundary.js",
+      "name": "../../../dist/client/error-boundary.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "react-lifecycles-compat": [
+    {
+      "id": "../../../node_modules/react-lifecycles-compat/react-lifecycles-compat.es.js",
+      "name": "../../../node_modules/react-lifecycles-compat/react-lifecycles-compat.es.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/react-lifecycles-compat/react-lifecycles-compat.es.js",
+      "name": "../../../node_modules/react-lifecycles-compat/react-lifecycles-compat.es.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./dev-error-overlay": [
+    {
+      "id": "../../../dist/client/dev-error-overlay.js",
+      "name": "../../../dist/client/dev-error-overlay.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/dev-error-overlay.js",
+      "name": "../../../dist/client/dev-error-overlay.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./source-map-support": [
+    {
+      "id": "../../../dist/client/source-map-support.js",
+      "name": "../../../dist/client/source-map-support.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/client/source-map-support.js",
+      "name": "../../../dist/client/source-map-support.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "source-map": [
+    {
+      "id": "../../../node_modules/source-map/source-map.js",
+      "name": "../../../node_modules/source-map/source-map.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/source-map.js",
+      "name": "../../../node_modules/source-map/source-map.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/source-map-generator": [
+    {
+      "id": "../../../node_modules/source-map/lib/source-map-generator.js",
+      "name": "../../../node_modules/source-map/lib/source-map-generator.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/source-map-generator.js",
+      "name": "../../../node_modules/source-map/lib/source-map-generator.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./base64-vlq": [
+    {
+      "id": "../../../node_modules/source-map/lib/base64-vlq.js",
+      "name": "../../../node_modules/source-map/lib/base64-vlq.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/base64-vlq.js",
+      "name": "../../../node_modules/source-map/lib/base64-vlq.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./base64": [
+    {
+      "id": "../../../node_modules/source-map/lib/base64.js",
+      "name": "../../../node_modules/source-map/lib/base64.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/base64.js",
+      "name": "../../../node_modules/source-map/lib/base64.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./array-set": [
+    {
+      "id": "../../../node_modules/source-map/lib/array-set.js",
+      "name": "../../../node_modules/source-map/lib/array-set.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/array-set.js",
+      "name": "../../../node_modules/source-map/lib/array-set.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./mapping-list": [
+    {
+      "id": "../../../node_modules/source-map/lib/mapping-list.js",
+      "name": "../../../node_modules/source-map/lib/mapping-list.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/mapping-list.js",
+      "name": "../../../node_modules/source-map/lib/mapping-list.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/source-map-consumer": [
+    {
+      "id": "../../../node_modules/source-map/lib/source-map-consumer.js",
+      "name": "../../../node_modules/source-map/lib/source-map-consumer.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/source-map-consumer.js",
+      "name": "../../../node_modules/source-map/lib/source-map-consumer.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./binary-search": [
+    {
+      "id": "../../../node_modules/source-map/lib/binary-search.js",
+      "name": "../../../node_modules/source-map/lib/binary-search.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/binary-search.js",
+      "name": "../../../node_modules/source-map/lib/binary-search.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./quick-sort": [
+    {
+      "id": "../../../node_modules/source-map/lib/quick-sort.js",
+      "name": "../../../node_modules/source-map/lib/quick-sort.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/quick-sort.js",
+      "name": "../../../node_modules/source-map/lib/quick-sort.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./lib/source-node": [
+    {
+      "id": "../../../node_modules/source-map/lib/source-node.js",
+      "name": "../../../node_modules/source-map/lib/source-node.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/source-map/lib/source-node.js",
+      "name": "../../../node_modules/source-map/lib/source-node.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "../lib/error-debug": [
+    {
+      "id": "../../../dist/lib/error-debug.js",
+      "name": "../../../dist/lib/error-debug.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/error-debug.js",
+      "name": "../../../dist/lib/error-debug.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./head": [
+    {
+      "id": "../../../dist/lib/head.js",
+      "name": "../../../dist/lib/head.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/head.js",
+      "name": "../../../dist/lib/head.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./side-effect": [
+    {
+      "id": "../../../dist/lib/side-effect.js",
+      "name": "../../../dist/lib/side-effect.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/side-effect.js",
+      "name": "../../../dist/lib/side-effect.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "react": [
+    {
+      "id": "../../../node_modules/react/index.js",
+      "name": "../../../node_modules/react/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/react/index.js",
+      "name": "../../../node_modules/react/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "/Users/timneutkens/projects/next.js/dist/pages/_app.js": [
+    {
+      "id": "../../../dist/pages/_app.js",
+      "name": "../../../dist/pages/_app.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/pages/_app.js",
+      "name": "../../../dist/pages/_app.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "next/app": [
+    {
+      "id": "../../../app.js",
+      "name": "../../../app.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../app.js",
+      "name": "../../../app.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./dist/lib/app": [
+    {
+      "id": "../../../dist/lib/app.js",
+      "name": "../../../dist/lib/app.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/app.js",
+      "name": "../../../dist/lib/app.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "@babel/runtime/helpers/extends": [
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/extends.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/extends.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/@babel/runtime/helpers/extends.js",
+      "name": "../../../node_modules/@babel/runtime/helpers/extends.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./cjs/react.development.js": [
+    {
+      "id": "../../../node_modules/react/cjs/react.development.js",
+      "name": "../../../node_modules/react/cjs/react.development.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/react/cjs/react.development.js",
+      "name": "../../../node_modules/react/cjs/react.development.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "/Users/timneutkens/projects/next.js/dist/pages/_error.js": [
+    {
+      "id": "../../../dist/pages/_error.js",
+      "name": "../../../dist/pages/_error.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/pages/_error.js",
+      "name": "../../../dist/pages/_error.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "next/error": [
+    {
+      "id": "../../../error.js",
+      "name": "../../../error.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../error.js",
+      "name": "../../../error.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "./dist/lib/error": [
+    {
+      "id": "../../../dist/lib/error.js",
+      "name": "../../../dist/lib/error.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../dist/lib/error.js",
+      "name": "../../../dist/lib/error.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ],
+  "http-status": [
+    {
+      "id": "../../../node_modules/http-status/lib/index.js",
+      "name": "../../../node_modules/http-status/lib/index.js",
+      "file": "static/commons/manifest.js",
+      "publicPath": "static/commons/manifest.js"
+    },
+    {
+      "id": "../../../node_modules/http-status/lib/index.js",
+      "name": "../../../node_modules/http-status/lib/index.js",
+      "file": "static/commons/manifest.js.map",
+      "publicPath": "static/commons/manifest.js.map"
+    }
+  ]
+}

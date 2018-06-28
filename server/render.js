@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { createElement } from 'react'
+import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
@@ -11,8 +11,10 @@ import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import { flushChunks } from '../lib/dynamic'
-import { BUILD_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
+import Loadable from 'react-loadable'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
 import { applySourcemaps } from './lib/source-map-support'
+import { getBundles } from 'react-loadable/webpack'
 
 const logger = console
 
@@ -58,12 +60,15 @@ async function doRender (req, res, pathname, query, {
 
   const documentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
-  const buildManifest = require(join(distDir, BUILD_MANIFEST))
-  let [Component, Document, App] = await Promise.all([
+  let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
+    require(join(distDir, BUILD_MANIFEST)),
+    require(join(distDir, REACT_LOADABLE_MANIFEST)),
     requirePage(page, {distDir}),
     require(documentPath),
     require(appPath)
   ])
+
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   Component = Component.default || Component
 
@@ -81,12 +86,16 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
 
+  let reactLoadableModules = []
+
   const renderPage = (enhancer = Page => Page) => {
-    const app = createElement(App, {
-      Component: enhancer(Component),
-      router,
-      ...props
-    })
+    const app = <Loadable.Capture report={moduleName => reactLoadableModules.push(moduleName)}>
+      <App {...{
+        Component: enhancer(Component),
+        router,
+        ...props
+      }} />
+    </Loadable.Capture>
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
@@ -96,7 +105,7 @@ async function doRender (req, res, pathname, query, {
 
     try {
       if (err && dev) {
-        errorHtml = render(createElement(ErrorDebug, { error: err }))
+        errorHtml = render(<ErrorDebug error={err} />)
       } else if (err) {
         html = render(app)
       } else {
@@ -111,11 +120,12 @@ async function doRender (req, res, pathname, query, {
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const dynamicImports = getBundles(reactLoadableManifest, reactLoadableModules)
 
   if (isResSent(res)) return
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
-  const doc = createElement(Document, {
+  const doc = <Document {...{
     __NEXT_DATA__: {
       props,
       page, // the rendered page
@@ -131,8 +141,9 @@ async function doRender (req, res, pathname, query, {
     dir,
     staticMarkup,
     buildManifest,
+    dynamicImports,
     ...docProps
-  })
+  }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }

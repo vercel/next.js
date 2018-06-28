@@ -13,7 +13,8 @@ import DynamicChunksPlugin from './webpack/plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
+import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
+import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST} from '../lib/constants'
 
 let WebpackBar
 
@@ -189,6 +190,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      !isServer && new ReactLoadablePlugin({
+        filename: REACT_LOADABLE_MANIFEST
+      }),
       WebpackBar && new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),

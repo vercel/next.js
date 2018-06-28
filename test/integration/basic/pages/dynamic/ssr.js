@@ -1,5 +1,10 @@
-import dynamic from 'next/dynamic'
+import Loadable from 'react-loadable'
 
-const Hello = dynamic(import('../../components/hello1'))
+const Hello = Loadable({
+  loader: () => import('../../components/hello1'),
+  loading () {
+    return <div>Loading...</div>
+  }
+})
 
 export default Hello
