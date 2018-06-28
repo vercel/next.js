@@ -207,8 +207,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           // Because _app.js is used on every page we don't want to
           // duplicate them in other bundles.
           const chunks = module.getChunks()
+          const appBundlePath = path.normalize('bundles/pages/_app.js')
           const inAppBundle = chunks.some(chunk => chunk.entryModule
-            ? chunk.entryModule.name === 'bundles/pages/_app.js'
+            ? chunk.entryModule.name === appBundlePath
             : null
           )
 
