@@ -33,7 +33,6 @@ module.exports = (context, opts = {}) => ({
   ],
   plugins: [
     require('babel-plugin-react-require'),
-    // require('./plugins/handle-import'),
     require('@babel/plugin-syntax-dynamic-import'),
     require('react-loadable/babel'),
     require('@babel/plugin-proposal-class-properties'),

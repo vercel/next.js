@@ -7,10 +7,8 @@ import fresh from 'fresh'
 import requirePage from './require'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
-import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
-import { flushChunks } from '../lib/dynamic'
 import Loadable from 'react-loadable'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
 import { applySourcemaps } from './lib/source-map-support'
@@ -43,7 +41,6 @@ async function doRender (req, res, pathname, query, {
   hotReloader,
   assetPrefix,
   runtimeConfig,
-  availableChunks,
   distDir,
   dir,
   dev = false,
@@ -114,9 +111,8 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = loadChunks({ dev, distDir, availableChunks })
 
-    return { html, head, errorHtml, chunks, buildManifest }
+    return { html, head, errorHtml, buildManifest }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -239,26 +235,4 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (page === '/_error') return
 
   await hotReloader.ensurePage(page)
-}
-
-function loadChunks ({ dev, distDir, availableChunks }) {
-  const flushedChunks = flushChunks()
-  const response = {
-    names: [],
-    filenames: []
-  }
-
-  if (dev) {
-    availableChunks = getAvailableChunks(distDir, dev)
-  }
-
-  for (var chunk of flushedChunks) {
-    const filename = availableChunks[chunk]
-    if (filename) {
-      response.names.push(chunk)
-      response.filenames.push(filename)
-    }
-  }
-
-  return response
 }

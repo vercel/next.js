@@ -10,9 +10,9 @@ const Fragment = React.Fragment || function Fragment ({ children }) {
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml, chunks, buildManifest } = renderPage()
+    const { html, head, errorHtml, buildManifest } = renderPage()
     const styles = flush()
-    return { html, head, errorHtml, chunks, styles, buildManifest }
+    return { html, head, errorHtml, styles, buildManifest }
   }
 
   static childContextTypes = {
@@ -77,25 +77,15 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { chunks, dynamicImports, __NEXT_DATA__ } = this.context._documentProps
+    const { dynamicImports, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
-    return [
-      ...dynamicImports.map((bundle) => {
-        return <script
-          async
-          key={bundle.file}
-          src={`${assetPrefix}/_next/webpack/${bundle.file}`}
-        />
-      }),
-      ...chunks.filenames.map((chunk) => (
-      <link
-        key={chunk}
-        rel='preload'
-        href={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
-        as='script'
+    return dynamicImports.map((bundle) => {
+      return <script
+        async
+        key={bundle.file}
+        src={`${assetPrefix}/_next/webpack/${bundle.file}`}
       />
-    ))
-    ]
+    })
   }
 
   render () {
@@ -169,34 +159,21 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { chunks, dynamicImports, __NEXT_DATA__ } = this.context._documentProps
+    const { dynamicImports, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
-    return (
-      <Fragment>
-        {dynamicImports.map((bundle) => {
-          return <script
-            async
-            key={bundle.file}
-            src={`${assetPrefix}/_next/webpack/${bundle.file}`}
-          />
-        })}
-        {chunks.filenames.map((chunk) => (
-          <script
-            async
-            key={chunk}
-            src={`${assetPrefix}/_next/webpack/chunks/${chunk}`}
-          />
-        ))}
-      </Fragment>
-    )
+    return dynamicImports.map((bundle) => {
+      return <script
+        async
+        key={bundle.file}
+        src={`${assetPrefix}/_next/webpack/${bundle.file}`}
+      />
+    })
   }
 
   render () {
-    const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
+    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
-
-    __NEXT_DATA__.chunks = chunks.names
 
     return <Fragment>
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
@@ -204,14 +181,9 @@ export class NextScript extends Component {
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
           module={}
           __NEXT_LOADED_PAGES__ = []
-          __NEXT_LOADED_CHUNKS__ = []
 
           __NEXT_REGISTER_PAGE = function (route, fn) {
             __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }
-
-          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
-            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
           }
 
           ${page === '_error' && `

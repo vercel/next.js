@@ -13,7 +13,7 @@ import {
   renderScriptError
 } from './render'
 import Router from './router'
-import { getAvailableChunks, isInternalUrl } from './utils'
+import { isInternalUrl } from './utils'
 import loadConfig from './config'
 import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE} from '../lib/constants'
 import * as asset from '../lib/asset'
@@ -54,7 +54,6 @@ export default class Server {
       distDir: this.distDir,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.distDir, dev),
       generateEtags
     }
 

@@ -13,16 +13,7 @@ export default class NextJsSsrImportPlugin {
         // Make sure even in windows, the path looks like in unix
         // Node.js require system will convert it accordingly
         const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(/\\/g, '/')
-        let updatedCode = code.replace('require("./"', `require("${relativePathToBaseDirNormalized}/"`)
-
-        // // Replace a promise equivalent which runs in the same loop
-        // // If we didn't do this webpack's module loading process block us from
-        // // doing SSR for chunks
-        // updatedCode = updatedCode.replace(
-        //   'return Promise.resolve();',
-        //   `return require('next/dynamic').SameLoopPromise.resolve();`
-        // )
-        return updatedCode
+        return code.replace('require("./"', `require("${relativePathToBaseDirNormalized}/"`)
       })
     })
   }

@@ -7,7 +7,6 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import loadConfig from './config'
 import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE} from '../lib/constants'
 import { renderToHTML } from './render'
-import { getAvailableChunks } from './utils'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 
@@ -90,8 +89,7 @@ export default async function (dir, options, configuration) {
     distDir,
     dev: false,
     staticMarkup: false,
-    hotReloader: null,
-    availableChunks: getAvailableChunks(distDir, false)
+    hotReloader: null
   }
 
   const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig

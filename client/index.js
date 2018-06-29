@@ -13,7 +13,7 @@ import Loadable from 'react-loadable'
 console.log('EXECUTED')
 
 // Polyfill Promise globally
-// This is needed because Webpack2's dynamic loading(common chunks) code
+// This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
 // So, we need to polyfill it.
 // See: https://github.com/webpack/webpack/issues/4254
@@ -29,7 +29,6 @@ const {
     pathname,
     query,
     buildId,
-    chunks,
     assetPrefix,
     runtimeConfig
   },
@@ -54,13 +53,7 @@ window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })
 delete window.__NEXT_LOADED_PAGES__
-
-window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
-  pageLoader.registerChunk(chunkName, fn)
-})
-delete window.__NEXT_LOADED_CHUNKS__
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
-window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
@@ -82,11 +75,6 @@ export default async ({
   stripAnsi: passedStripAnsi,
   applySourcemaps: passedApplySourcemaps
 } = {}) => {
-  // Wait for all the dynamic chunks to get loaded
-  for (const chunkName of chunks) {
-    await pageLoader.waitForChunk(chunkName)
-  }
-
   stripAnsi = passedStripAnsi || stripAnsi
   applySourcemaps = passedApplySourcemaps || applySourcemaps
   DevErrorOverlay = passedDevErrorOverlay
