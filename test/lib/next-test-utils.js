@@ -113,7 +113,7 @@ export async function startApp (app) {
   return server
 }
 
-export async function stopApp (app) {
+export async function stopApp (server) {
   if (server.__app) {
     await server.__app.close()
   }

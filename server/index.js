@@ -254,7 +254,15 @@ export default class Server {
         for (const path in exportPathMap) {
           const {page, query = {}} = exportPathMap[path]
           routes[path] = async (req, res, params, parsedUrl) => {
-            await this.render(req, res, page, query, parsedUrl)
+            const { query: urlQuery } = parsedUrl
+
+            Object.keys(urlQuery)
+              .filter(key => query[key] === undefined)
+              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
+
+            const mergedQuery = {...urlQuery, ...query}
+
+            await this.render(req, res, page, mergedQuery, parsedUrl)
           }
         }
       }
