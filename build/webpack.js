@@ -9,10 +9,10 @@ import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
-import DynamicChunksPlugin from './webpack/plugins/dynamic-chunks-plugin'
 import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST} from '../lib/constants'
 
@@ -151,7 +151,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       filename: '[name].js',
       libraryTarget: 'commonjs2',
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name].js',
+      chunkFilename: isServer ? '[name].js' : 'chunks/[name].js',
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
@@ -190,6 +190,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
@@ -215,7 +216,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
-      !isServer && new DynamicChunksPlugin(),
+      // !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin()
       // In dev mode, we don't move anything to the commons bundle.
       // In production we move common modules into the existing main.js bundle

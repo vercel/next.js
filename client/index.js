@@ -8,6 +8,7 @@ import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
+import Loadable from 'react-loadable'
 
 console.log('EXECUTED')
 
@@ -104,6 +105,8 @@ export default async ({
     // This catches errors like throwing in the top level of a module
     initialErr = error
   }
+
+  await Loadable.preloadReady()
 
   router = createRouter(pathname, query, asPath, {
     initialProps: props,

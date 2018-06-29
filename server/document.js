@@ -77,9 +77,17 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { chunks, __NEXT_DATA__ } = this.context._documentProps
+    const { chunks, dynamicImports, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
-    return chunks.filenames.map((chunk) => (
+    return [
+      ...dynamicImports.map((bundle) => {
+        return <script
+          async
+          key={bundle.file}
+          src={`${assetPrefix}/_next/webpack/${bundle.file}`}
+        />
+      }),
+      ...chunks.filenames.map((chunk) => (
       <link
         key={chunk}
         rel='preload'
@@ -87,6 +95,7 @@ export class Head extends Component {
         as='script'
       />
     ))
+    ]
   }
 
   render () {
@@ -168,7 +177,7 @@ export class NextScript extends Component {
           return <script
             async
             key={bundle.file}
-            src={`${assetPrefix}/_next/webpack/chunks/${bundle.file}`}
+            src={`${assetPrefix}/_next/webpack/${bundle.file}`}
           />
         })}
         {chunks.filenames.map((chunk) => (
