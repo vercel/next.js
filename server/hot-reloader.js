@@ -5,14 +5,14 @@ import del from 'del'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack'
-import UUID from 'uuid'
 import {
   addCorsSupport
 } from './utils'
 import {IS_BUNDLED_PAGE_REGEX} from '../lib/constants'
 
 export default class HotReloader {
-  constructor (dir, { quiet, config } = {}) {
+  constructor (dir, { quiet, config, buildId } = {}) {
+    this.buildId = buildId
     this.dir = dir
     this.quiet = quiet
     this.middlewares = []
@@ -25,11 +25,6 @@ export default class HotReloader {
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
-    // Here buildId could be any value.
-    // Our router accepts any value in the dev mode.
-    // But for the webpack-compiler and for the webpack-dev-server
-    // it should be the same value.
-    this.buildId = UUID.v4()
 
     this.config = config
   }
@@ -62,8 +57,8 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
     ])
 
     const compiler = webpack(configs)

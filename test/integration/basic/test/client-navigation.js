@@ -230,6 +230,31 @@ export default (context, render) => {
 
           browser.close()
         })
+
+        it('should scroll to the specified position', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+            // Scrolls to item 400 on the page
+            const scrollPosition = await browser
+              .elementByCss('#scroll-to-item-400').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPosition).toBe(7258)
+
+            // Scrolls back to top when scrolling to `#` with no value.
+            const scrollPositionAfterEmptyHash = await browser
+              .elementByCss('#via-empty-hash').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
       })
 
       describe('when hash change via A tag', () => {

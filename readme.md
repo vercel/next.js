@@ -88,9 +88,6 @@ Install it:
 npm install --save next react react-dom
 ```
 
-> Next.js only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
-> We had to drop React 15 support due to the way React 16 works and how we use it.
-
 and add a script to your package.json like this:
 
 ```json
@@ -1342,7 +1339,7 @@ The `next/babel` preset includes everything needed to transpile React applicatio
 - plugin-transform-runtime
 - styled-jsx
 
-These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset:
 
 ```json
 {
@@ -1350,7 +1347,8 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
     ["next/babel", {
       "preset-env": {},
       "transform-runtime": {},
-      "styled-jsx": {}
+      "styled-jsx": {},
+      "class-properties": {}
     }]
   ],
   "plugins": []
@@ -1583,6 +1581,7 @@ For the production deployment, you can use the [path alias](https://zeit.co/docs
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 - [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
+- [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
 
 ## FAQ
 
@@ -1706,7 +1705,7 @@ Please see our [contributing.md](./contributing.md)
 ## Authors
 
 - Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – [ZEIT](https://zeit.co)
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens)) – [ZEIT](https://zeit.co)
+- Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens)) – [ZEIT](https://zeit.co)
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – [ZEIT](https://zeit.co)
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
