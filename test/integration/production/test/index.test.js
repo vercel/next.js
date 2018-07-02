@@ -15,6 +15,7 @@ import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
 import security from './security'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -55,7 +56,8 @@ describe('Production Usage', () => {
 
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
-      const buildManifest = require('../.next/build-manifest.json')
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
       const url = `http://localhost:${appPort}/_next/`
 
       const resources = []
@@ -64,12 +66,10 @@ describe('Production Usage', () => {
       resources.push(`${url}${buildId}/page/index.js`)
 
       // test dynamic chunk
-      const chunkKey = Object.keys(buildManifest).find((x) => x.includes('chunks/'))
-      resources.push(url + 'webpack/' + buildManifest[chunkKey])
+      resources.push(url + 'webpack/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js
-      const mainJsKey = Object.keys(buildManifest).find((x) => x === 'static/commons/main')
-      resources.push(url + buildManifest[mainJsKey])
+      resources.push(url + buildManifest['static/commons/main'][0])
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
