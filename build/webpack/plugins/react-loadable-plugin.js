@@ -10,6 +10,9 @@ function buildManifest (compiler, compilation) {
       chunk.forEachModule(module => {
         let id = module.id
         let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
+        if (file.match(/\.map$/) || !file.match(/^chunks\//)) {
+          return
+        }
         let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
 
         let currentModule = module
@@ -50,11 +53,4 @@ class ReactLoadablePlugin {
   }
 }
 
-function getBundles (manifest, moduleIds) {
-  return moduleIds.reduce((bundles, moduleId) => {
-    return bundles.concat(manifest[moduleId])
-  }, [])
-}
-
 exports.ReactLoadablePlugin = ReactLoadablePlugin
-exports.getBundles = getBundles

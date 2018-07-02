@@ -12,7 +12,17 @@ import ErrorDebug from '../lib/error-debug'
 import Loadable from 'react-loadable'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
 import { applySourcemaps } from './lib/source-map-support'
-import { getBundles } from 'react-loadable/webpack'
+
+// Based on https://github.com/jamiebuilds/react-loadable/pull/132
+function getBundles (manifest, moduleIds) {
+  return moduleIds.reduce((bundles, moduleId) => {
+    if (typeof manifest[moduleId] === 'undefined') {
+      return bundles
+    }
+
+    return bundles.concat(manifest[moduleId])
+  }, [])
+}
 
 const logger = console
 
