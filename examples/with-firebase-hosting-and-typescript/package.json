@@ -17,7 +17,7 @@
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.0.1",
+    "@zeit/next-typescript": "1.1.0",
     "firebase-admin": "~5.12.1",
     "firebase-functions": "^1.0.1",
     "next": "^6.0.3",
