@@ -94,7 +94,7 @@
     "send": "0.16.1",
     "source-map": "0.5.7",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "2.2.6",
+    "styled-jsx": "2.2.7",
     "touch": "3.1.0",
     "uglifyjs-webpack-plugin": "1.1.6",
     "unfetch": "3.0.0",
