@@ -213,8 +213,7 @@ export default class HotReloader {
     let webpackDevMiddlewareConfig = {
       publicPath: `/_next/webpack/`,
       noInfo: true,
-      quiet: true,
-      clientLogLevel: 'warning',
+      logLevel: 'silent',
       watchOptions: { ignored }
     }
 
