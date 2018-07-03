@@ -2,7 +2,6 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
-import touch from 'touch'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
@@ -27,7 +26,6 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
   const invalidator = new Invalidator(devMiddleware)
-  let touchedAPage = false
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
@@ -80,17 +78,6 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
       Object.keys(entries).forEach((page) => {
         const entryInfo = entries[page]
         if (entryInfo.status !== BUILDING) return
-
-        // With this, we are triggering a filesystem based watch trigger
-        // It'll memorize some timestamp related info related to common files used
-        // in the page
-        // That'll reduce the page building time significantly.
-        if (!touchedAPage) {
-          setTimeout(() => {
-            touch.sync(entryInfo.pathname)
-          }, 1000)
-          touchedAPage = true
-        }
 
         entryInfo.status = BUILT
         entries[page].lastActiveTime = Date.now()
