@@ -544,37 +544,39 @@ This uses the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `onRouteChangeStart(url)` - Fires when a route starts to change
-- `onRouteChangeComplete(url)` - Fires when a route changed completely
-- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
-- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
-- `onHashChangeStart(url)` - Fires when the hash will change but not the page
-- `onHashChangeComplete(url)` - Fires when the hash has changed but not the page
+- `routeChangeStart(url)` - Fires when a route starts to change
+- `routeChangeComplete(url)` - Fires when a route changed completely
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `beforeHistoryChange(url)` - Fires just before changing the browser's history
+- `hashChangeStart(url)` - Fires when the hash will change but not the page
+- `hashChangeComplete(url)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `onRouteChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
-Router.onRouteChangeStart = url => {
+const handleRouteChange = url => {
   console.log('App is changing to: ', url)
 }
+
+Router.events.on('routeChangeStart', handleRouteChange)
 ```
 
-If you no longer want to listen to that event, you can simply unset the event listener like this:
+If you no longer want to listen to that event, you can unsubscribe with the `off` method:
 
 ```js
-Router.onRouteChangeStart = null
+Router.events.off('routeChangeStart', handleRouteChange)
 ```
 
 If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contain a `cancelled` property set to `true`.
 
 ```js
-Router.onRouteChangeError = (err, url) => {
+Router.events.on('routeChangeError', (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
-}
+})
 ```
 
 ##### Shallow Routing
