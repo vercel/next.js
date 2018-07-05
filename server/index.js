@@ -192,7 +192,7 @@ export default class Server {
             return await renderScriptError(req, res, page, error)
           }
 
-          const compilationErr = await this.getCompilationError()
+          const compilationErr = await this.getCompilationError(page)
           if (compilationErr) {
             return await renderScriptError(req, res, page, compilationErr)
           }
@@ -331,7 +331,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError()
+      const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
@@ -362,7 +362,7 @@ export default class Server {
 
   async renderErrorToHTML (err, req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError()
+      const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
         res.statusCode = 500
         return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
@@ -437,10 +437,10 @@ export default class Server {
     return true
   }
 
-  async getCompilationError () {
+  async getCompilationError (page) {
     if (!this.hotReloader) return
 
-    const errors = await this.hotReloader.getCompilationErrors()
+    const errors = await this.hotReloader.getCompilationErrors(page)
     if (errors.length === 0) return
 
     // Return the very first error we found.

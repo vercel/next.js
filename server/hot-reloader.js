@@ -2,13 +2,13 @@ import { join, relative, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import del from 'del'
-import onDemandEntryHandler from './on-demand-entry-handler'
+import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack'
 import {
   addCorsSupport
 } from './utils'
-import {IS_BUNDLED_PAGE_REGEX} from '../lib/constants'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX} from '../lib/constants'
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule (issuer) {
@@ -17,6 +17,32 @@ function findEntryModule (issuer) {
   }
 
   return issuer
+}
+
+function erroredPages (compilation, options = {enhanceName: (name) => name}) {
+  const failedPages = {}
+  for (const error of compilation.errors) {
+    const entryModule = findEntryModule(error.origin)
+    const {name} = entryModule
+    if (!name) {
+      continue
+    }
+
+    // Only pages have to be reloaded
+    if (!IS_BUNDLED_PAGE_REGEX.test(name)) {
+      continue
+    }
+
+    const enhancedName = options.enhanceName(name)
+
+    if (!failedPages[enhancedName]) {
+      failedPages[enhancedName] = []
+    }
+
+    failedPages[enhancedName].push(error)
+  }
+
+  return failedPages
 }
 
 export default class HotReloader {
@@ -152,20 +178,7 @@ export default class HotReloader {
           .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
       )
 
-      const failedChunkNames = new Set()
-      for (const error of compilation.errors) {
-        const {name} = findEntryModule(error.origin)
-        if (!name) {
-          continue
-        }
-
-        // Only pages have to be reloaded
-        if (!IS_BUNDLED_PAGE_REGEX.test(name)) {
-          continue
-        }
-
-        failedChunkNames.add(name)
-      }
+      const failedChunkNames = new Set(Object.keys(erroredPages(compilation)))
 
       const chunkHashes = new Map(
         compilation.chunks
@@ -269,11 +282,25 @@ export default class HotReloader {
     })
   }
 
-  async getCompilationErrors () {
+  async getCompilationErrors (page) {
+    const normalizedPage = normalizePage(page)
     // When we are reloading, we need to wait until it's reloaded properly.
     await this.onDemandEntries.waitUntilReloaded()
 
     if (this.stats.hasErrors()) {
+      const {compilation} = this.stats
+      const failedPages = erroredPages(compilation, {
+        enhanceName (name) {
+          return '/' + ROUTE_NAME_REGEX.exec(name)[1]
+        }
+      })
+
+      // If there is an error related to the requesting page we display it instead of the first error
+      if (failedPages[normalizedPage] && failedPages[normalizedPage].length > 0) {
+        return failedPages[normalizedPage]
+      }
+
+      // If none were found we still have to show the other errors
       return this.stats.compilation.errors
     }
 
