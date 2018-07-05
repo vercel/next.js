@@ -256,26 +256,11 @@ export default class HotReloader {
     // When we are reloading, we need to wait until it's reloaded properly.
     await this.onDemandEntries.waitUntilReloaded()
 
-    if (!this.compilationErrors) {
-      this.compilationErrors = new Map()
-
-      if (this.stats.hasErrors()) {
-        const { compiler, errors } = this.stats.compilation
-
-        for (const err of errors) {
-          for (const r of err.module.reasons) {
-            for (const c of r.module.chunks) {
-              // get the path of the bundle file
-              const path = join(compiler.outputPath, c.name)
-              const errors = this.compilationErrors.get(path) || []
-              this.compilationErrors.set(path, errors.concat([err]))
-            }
-          }
-        }
-      }
+    if (this.stats.hasErrors()) {
+      return this.stats.compilation.errors
     }
 
-    return this.compilationErrors
+    return []
   }
 
   send (action, ...args) {

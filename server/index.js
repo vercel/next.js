@@ -441,10 +441,10 @@ export default class Server {
     if (!this.hotReloader) return
 
     const errors = await this.hotReloader.getCompilationErrors()
-    if (!errors.size) return
+    if (errors.length === 0) return
 
     // Return the very first error we found.
-    return Array.from(errors.values())[0][0]
+    return errors[0]
   }
 
   send404 (res) {
