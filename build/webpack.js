@@ -197,10 +197,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       WebpackBar && new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),
+      dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
       dev && !isServer && new webpack.HotModuleReplacementPlugin(),
       dev && new webpack.NoEmitOnErrorsPlugin(),
-      dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       dev && new WriteFilePlugin({
