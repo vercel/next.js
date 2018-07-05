@@ -64,8 +64,14 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
   let relative = Path.relative(base, filenameOrDir)
 
   const ext = Path.extname(relative)
-  if ((ext && !['.js', '.jsx'].includes(ext)) || /__tests__|node_modules/.test(relative)) {
+
+  if ((ext && !['.js', '.jsx', '.json'].includes(ext)) || /__tests__|node_modules/.test(relative)) {
     return 0
+  }
+
+  if (ext === '.json') {
+    outputFileSync(Path.join(options.outDir, relative), FS.readFileSync(filenameOrDir))
+    return 1
   }
 
   // remove extension and then append back on .js
