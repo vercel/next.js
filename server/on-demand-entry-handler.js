@@ -33,7 +33,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   const currentBuilders = new Set()
 
   compilers.forEach(compiler => {
-    compiler.plugin('make', function (compilation, done) {
+    compiler.hooks.make.tapAsync('NextJsOnDemandEntries', function (compilation, done) {
       invalidator.startBuilding()
       currentBuilders.add(compiler.name)
 
@@ -48,7 +48,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
         .catch(done)
     })
 
-    compiler.plugin('done', function (stats) {
+    compiler.hooks.done.tap('NextJsOnDemandEntries', function (stats) {
       // Wait until all the compilers mark the build as done.
       currentBuilders.delete(compiler.name)
       if (currentBuilders.size !== 0) return
