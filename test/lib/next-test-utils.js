@@ -155,7 +155,7 @@ export async function check (contentFn, regex) {
     }
     console.error('TIMED OUT CHECK: ', regex)
     throw new Error('TIMED OUT')
-  }, 1000 * 60)
+  }, 1000 * 30)
   while (!found) {
     try {
       const newContent = await contentFn()

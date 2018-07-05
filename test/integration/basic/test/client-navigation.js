@@ -468,7 +468,7 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should work with dir/ page ', async () => {
+      it('should work with dir/ page', async () => {
         const browser = await webdriver(context.appPort, '/nested-cdm')
         const text = await browser.elementByCss('p').text()
 

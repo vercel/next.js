@@ -277,7 +277,10 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
 function normalizePage (page) {
-  return page.replace(/\/index$/, '/')
+  if (page === '/index' || page === '/') {
+    return '/'
+  }
+  return page.replace(/\/index$/, '')
 }
 
 function sendJson (res, payload) {
