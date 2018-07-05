@@ -10,6 +10,15 @@ import {
 } from './utils'
 import {IS_BUNDLED_PAGE_REGEX} from '../lib/constants'
 
+// Recursively look up the issuer till it ends up at the root
+function findEntryModule (issuer) {
+  if (issuer.issuer) {
+    return findEntryModule(issuer.issuer)
+  }
+
+  return issuer
+}
+
 export default class HotReloader {
   constructor (dir, { quiet, config, buildId } = {}) {
     this.buildId = buildId
@@ -135,7 +144,7 @@ export default class HotReloader {
       })
     })
 
-    compiler.compilers[0].plugin('done', (stats) => {
+    compiler.compilers[0].hooks.done.tap('NextJsHotReloader', (stats) => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
@@ -143,12 +152,20 @@ export default class HotReloader {
           .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
       )
 
-      const failedChunkNames = new Set(compilation.errors
-        .map((e) => e.module.reasons)
-        .reduce((a, b) => a.concat(b), [])
-        .map((r) => r.module.chunks)
-        .reduce((a, b) => a.concat(b), [])
-        .map((c) => c.name))
+      const failedChunkNames = new Set()
+      for (const error of compilation.errors) {
+        const {name} = findEntryModule(error.origin)
+        if (!name) {
+          continue
+        }
+
+        // Only pages have to be reloaded
+        if (!IS_BUNDLED_PAGE_REGEX.test(name)) {
+          continue
+        }
+
+        failedChunkNames.add(name)
+      }
 
       const chunkHashes = new Map(
         compilation.chunks
