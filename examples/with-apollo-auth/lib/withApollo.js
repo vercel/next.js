@@ -20,18 +20,18 @@ export default App => {
       apolloState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps(context) {
-      const { Component, router, ctx: { req, res } } = context
+    static async getInitialProps(ctx) {
+      const { Component, router, ctx: { req, res } } = ctx
       const token = parseCookies(req).token
       const apollo = initApollo({}, {
         getToken: () => token
       })
 
-      context.ctx.apolloClient = apollo
+      ctx.ctx.apolloClient = apollo
 
       let appProps = {}
       if (App.getInitialProps) {
-        appProps = await App.getInitialProps(context)
+        appProps = await App.getInitialProps(ctx)
       }
 
       if (res && res.finished) {
