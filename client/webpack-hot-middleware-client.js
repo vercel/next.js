@@ -42,6 +42,11 @@ export default () => {
       Router.reload(route)
     },
 
+    // If there was an error previously we have to re-render the current route.
+    errorResolved () {
+      Router.reload(Router.route)
+    },
+
     change (route) {
       // If the App component changes we have to reload the current route
       if (route === '/_app') {
