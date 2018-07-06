@@ -6,96 +6,120 @@ import { check, File, waitFor } from 'next-test-utils'
 export default (context, render) => {
   describe('Error Recovery', () => {
     it('should detect syntax errors and recover', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/about')
-      const text = await browser
-        .elementByCss('p').text()
-      expect(text).toBe('This is the about page.')
-
+      let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('</div>', 'div')
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser
+          .elementByCss('p').text()
+        expect(text).toBe('This is the about page.')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Unterminated JSX contents/
-      )
+        aboutPage.replace('</div>', 'div')
 
-      aboutPage.restore()
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Unterminated JSX contents/
+        )
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This is the about page/
-      )
+        aboutPage.restore()
 
-      browser.close()
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the about page/
+        )
+      } finally {
+        aboutPage.restore()
+
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should not show the default HMR error overlay', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/about')
-      const text = await browser
-        .elementByCss('p').text()
-      expect(text).toBe('This is the about page.')
-
+      let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('</div>', 'div')
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser
+          .elementByCss('p').text()
+        expect(text).toBe('This is the about page.')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Unterminated JSX contents/
-      )
+        aboutPage.replace('</div>', 'div')
 
-      await waitFor(2000)
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Unterminated JSX contents/
+        )
 
-      // Check for the error overlay
-      const bodyHtml = await browser.elementByCss('body').getAttribute('innerHTML')
-      expect(bodyHtml.includes('webpack-hot-middleware-clientOverlay')).toBeFalsy()
+        await waitFor(2000)
 
-      aboutPage.restore()
-      browser.close()
+        // Check for the error overlay
+        const bodyHtml = await browser.elementByCss('body').getAttribute('innerHTML')
+        expect(bodyHtml.includes('webpack-hot-middleware-clientOverlay')).toBeFalsy()
+      } finally {
+        aboutPage.restore()
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should show the error on all pages', async () => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('</div>', 'div')
+      let browser
+      try {
+        aboutPage.replace('</div>', 'div')
 
-      const browser = await webdriver(context.appPort, '/hmr/contact')
+        browser = await webdriver(context.appPort, '/hmr/contact')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Unterminated JSX contents/
-      )
+        await check(
+          () => browser.elementByCss('body').text(),
+          /Unterminated JSX contents/
+        )
 
-      aboutPage.restore()
+        aboutPage.restore()
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This is the contact page/
-      )
-
-      browser.close()
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the contact page/
+        )
+      } finally {
+        aboutPage.restore()
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should detect runtime errors on the module scope', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/about')
-      const text = await browser
-        .elementByCss('p').text()
-      expect(text).toBe('This is the about page.')
-
+      let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('export', 'aa=20;\nexport')
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser
+          .elementByCss('p').text()
+        expect(text).toBe('This is the about page.')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /aa is not defined/
-      )
+        aboutPage.replace('export', 'aa=20;\nexport')
 
-      aboutPage.restore()
+        await check(
+          () => browser.elementByCss('body').text(),
+          /aa is not defined/
+        )
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This is the about page/
-      )
+        aboutPage.restore()
 
-      browser.close()
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the about page/
+        )
+      } finally {
+        aboutPage.restore()
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should recover from errors in the render function', async () => {
