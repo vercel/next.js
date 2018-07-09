@@ -199,10 +199,6 @@ export default class HotReloader {
 
         const rootDir = join('bundles', 'pages')
 
-        if (succeeded.size > 0) {
-          this.send('errorResolved')
-        }
-
         for (const n of new Set([...added, ...removed, ...failed])) {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)

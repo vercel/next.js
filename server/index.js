@@ -229,15 +229,6 @@ export default class Server {
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      '/_next/:path*': async (req, res, params) => {
-        const p = join(__dirname, '..', 'client', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      },
-
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
       '/static/:path*': async (req, res, params) => {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
@@ -264,6 +255,23 @@ export default class Server {
             await this.render(req, res, page, mergedQuery, parsedUrl)
           }
         }
+      }
+
+      // In development we expose all compiled files for react-error-overlay's line show feature
+      if (this.dev) {
+        routes['/_next/development/:path*'] = async (req, res, params) => {
+          const p = join(this.distDir, ...(params.path || []))
+          await this.serveStatic(req, res, p)
+        }
+      }
+
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, seperated by '/')
+      // Othewise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      routes['/_next/:path*'] = async (req, res, params) => {
+        const p = join(__dirname, '..', 'client', ...(params.path || []))
+        await this.serveStatic(req, res, p)
       }
 
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
@@ -347,7 +355,7 @@ export default class Server {
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
         const {applySourcemaps} = require('./lib/source-map-support')
-        await applySourcemaps(err)
+        // await applySourcemaps(err)
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)

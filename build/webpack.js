@@ -123,7 +123,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     'static/commons/main': [
-      dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'webpack-hot-middleware-client'),
       dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'on-demand-entries-client'),
       path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
@@ -150,7 +149,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
       filename: '[name].js',
       libraryTarget: 'commonjs2',
-      // This saves chunks with the name given via require.ensure()
+      // This saves chunks with the name given via `import()`
       chunkFilename: isServer ? '[name].js' : 'chunks/[name].js',
       strictModuleExceptionHandling: true
     },

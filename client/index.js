@@ -60,24 +60,19 @@ const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
+let webpackHMR
 export let router
 export let ErrorComponent
-let DevErrorOverlay
 let Component
 let App
 let stripAnsi = (s) => s
-let applySourcemaps = (e) => e
 
 export const emitter = new EventEmitter()
 
 export default async ({
-  DevErrorOverlay: passedDevErrorOverlay,
-  stripAnsi: passedStripAnsi,
-  applySourcemaps: passedApplySourcemaps
+  webpackHMR: passedWebpackHMR
 } = {}) => {
-  stripAnsi = passedStripAnsi || stripAnsi
-  applySourcemaps = passedApplySourcemaps || applySourcemaps
-  DevErrorOverlay = passedDevErrorOverlay
+  webpackHMR = passedWebpackHMR
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
 
@@ -124,7 +119,6 @@ export async function render (props) {
   try {
     await doRender(props)
   } catch (err) {
-    if (err.abort) return
     await renderError({...props, err})
   }
 }
@@ -135,23 +129,27 @@ export async function render (props) {
 export async function renderError (props) {
   const {err, errorInfo} = props
 
+  if (process.env.NODE_ENV !== 'production') {
+    throw webpackHMR.prepareError(err)
+  }
+
   // In development we apply sourcemaps to the error
-  if (process.env.NODE_ENV !== 'production') {
-    await applySourcemaps(err)
-  }
+  // if (process.env.NODE_ENV !== 'production') {
+  //   await applySourcemaps(err)
+  // }
 
-  const str = stripAnsi(`${err.message}\n${err.stack}${errorInfo ? `\n\n${errorInfo.componentStack}` : ''}`)
-  console.error(str)
+  // const str = stripAnsi(`${err.message}\n${err.stack}${errorInfo ? `\n\n${errorInfo.componentStack}` : ''}`)
+  // console.error(str)
 
-  if (process.env.NODE_ENV !== 'production') {
-    // We need to unmount the current app component because it's
-    // in the inconsistant state.
-    // Otherwise, we need to face issues when the issue is fixed and
-    // it's get notified via HMR
-    ReactDOM.unmountComponentAtNode(appContainer)
-    renderReactElement(<DevErrorOverlay error={err} />, errorContainer)
-    return
-  }
+  // if (process.env.NODE_ENV !== 'production') {
+  //   // We need to unmount the current app component because it's
+  //   // in the inconsistant state.
+  //   // Otherwise, we need to face issues when the issue is fixed and
+  //   // it's get notified via HMR
+  //   ReactDOM.unmountComponentAtNode(appContainer)
+  //   renderReactElement(<DevErrorOverlay error={err} />, errorContainer)
+  //   return
+  // }
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
@@ -180,24 +178,26 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
 
-  let onError = null
-
-  if (process.env.NODE_ENV !== 'development') {
-    onError = async (error, errorInfo) => {
+  // // In development runtime errors are caught by react-error-overlay.
+  if (process.env.NODE_ENV === 'development') {
+    renderReactElement((
+      <App {...appProps} />
+    ), appContainer)
+  } else {
+    // In production we catch runtime errors using componentDidCatch which will trigger renderError.
+    const onError = async (error, errorInfo) => {
       try {
         await renderError({App, err: error, errorInfo})
       } catch (err) {
         console.error('Error while rendering error page: ', err)
       }
     }
+    renderReactElement((
+      <ErrorBoundary onError={onError}>
+        <App {...appProps} />
+      </ErrorBoundary>
+    ), appContainer)
   }
-
-  // In development we render a wrapper component that catches runtime errors.
-  renderReactElement((
-    <ErrorBoundary ErrorReporter={DevErrorOverlay} onError={onError}>
-      <App {...appProps} />
-    </ErrorBoundary>
-  ), appContainer)
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }

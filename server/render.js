@@ -59,7 +59,7 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
-  await applySourcemaps(err)
+  // await applySourcemaps(err)
 
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
@@ -133,6 +133,7 @@ async function doRender (req, res, pathname, query, {
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
     __NEXT_DATA__: {
+      distDir: dev ? distDir : undefined,
       props,
       page, // the rendered page
       pathname, // the requested path

@@ -1,16 +1,14 @@
 import stripAnsi from 'strip-ansi'
 import initNext, * as next from './'
-import DevErrorOverlay from './dev-error-overlay'
+// import DevErrorOverlay from './dev-error-overlay'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
-import {applySourcemaps} from './source-map-support'
+const webpackHMR = initWebpackHMR()
 
 window.next = next
-
-initNext({ DevErrorOverlay, applySourcemaps, stripAnsi })
+initNext({ webpackHMR })
   .then((emitter) => {
     initOnDemandEntries()
-    initWebpackHMR()
 
     let lastScroll
 
@@ -35,5 +33,5 @@ initNext({ DevErrorOverlay, applySourcemaps, stripAnsi })
     })
   })
   .catch((err) => {
-    console.error(stripAnsi(`${err.message}\n${err.stack}`))
+    console.error('Error was not caught')
   })
