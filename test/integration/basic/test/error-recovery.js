@@ -3,6 +3,11 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor } from 'next-test-utils'
 
+// react-error-overlay uses an iframe so we have to read the contents from the frame
+function getReactErrorOverlayContent(browser) {
+  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+}
+
 export default (context, render) => {
   describe('Error Recovery', () => {
     it('should detect syntax errors and recover', async () => {
@@ -16,10 +21,9 @@ export default (context, render) => {
 
         aboutPage.replace('</div>', 'div')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Unterminated JSX contents/
-        )
+        await waitFor(3000)
+
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/Unterminated JSX contents/)
 
         aboutPage.restore()
 
@@ -47,10 +51,9 @@ export default (context, render) => {
 
         aboutPage.replace('</div>', 'div')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Unterminated JSX contents/
-        )
+        await waitFor(3000)
+
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/Unterminated JSX contents/)
 
         await waitFor(2000)
 
@@ -73,10 +76,9 @@ export default (context, render) => {
 
         browser = await webdriver(context.appPort, '/hmr/contact')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Unterminated JSX contents/
-        )
+        await waitFor(3000)
+
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/Unterminated JSX contents/)
 
         aboutPage.restore()
 
@@ -103,10 +105,9 @@ export default (context, render) => {
 
         aboutPage.replace('export', 'aa=20;\nexport')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /aa is not defined/
-        )
+        await waitFor(3000)
+
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/aa is not defined/)
 
         aboutPage.restore()
 
@@ -131,10 +132,9 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /an-expected-error/
-      )
+      await waitFor(3000)
+
+      expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error/)
 
       aboutPage.restore()
 
@@ -155,10 +155,9 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /The default export is not a React Component/
-      )
+      await waitFor(3000)
+    
+      expect(await getReactErrorOverlayContent(browser)).toMatch(/The default export is not a React Component/)
 
       aboutPage.restore()
 

@@ -66,6 +66,7 @@ export default function connect (options) {
   }
 
   getEventSourceWrapper(options).addMessageListener((event) => {
+    // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
     }
