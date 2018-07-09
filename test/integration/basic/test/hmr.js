@@ -51,7 +51,7 @@ export default (context, renderViaHTTP) => {
       it('should detect the changes and display it', async () => {
         let browser
         try {
-          const browser = await webdriver(context.appPort, '/hmr/about')
+          browser = await webdriver(context.appPort, '/hmr/about')
           const text = await browser
             .elementByCss('p').text()
           expect(text).toBe('This is the about page.')
@@ -86,7 +86,7 @@ export default (context, renderViaHTTP) => {
       it('should not reload unrelated pages', async () => {
         let browser
         try {
-          const browser = await webdriver(context.appPort, '/hmr/counter')
+          browser = await webdriver(context.appPort, '/hmr/counter')
           const text = await browser
             .elementByCss('button').click()
             .elementByCss('button').click()

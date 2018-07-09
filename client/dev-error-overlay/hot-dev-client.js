@@ -216,6 +216,10 @@ function processMessage (e) {
         handleAvailableHash(obj.hash)
       }
       if (obj.errors.length > 0) {
+        // When there is a compilation error coming from SSR we have to reload the page on next successful compile
+        if(obj.action === 'sync') {
+          hadRuntimeError = true
+        }
         handleErrors(obj.errors)
         break
       }
