@@ -65,7 +65,6 @@ export let router
 export let ErrorComponent
 let Component
 let App
-let stripAnsi = (s) => s
 
 export const emitter = new EventEmitter()
 
@@ -127,29 +126,11 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (props) {
-  const {err, errorInfo} = props
+  const {err} = props
 
   if (process.env.NODE_ENV !== 'production') {
     throw webpackHMR.prepareError(err)
   }
-
-  // In development we apply sourcemaps to the error
-  // if (process.env.NODE_ENV !== 'production') {
-  //   await applySourcemaps(err)
-  // }
-
-  // const str = stripAnsi(`${err.message}\n${err.stack}${errorInfo ? `\n\n${errorInfo.componentStack}` : ''}`)
-  // console.error(str)
-
-  // if (process.env.NODE_ENV !== 'production') {
-  //   // We need to unmount the current app component because it's
-  //   // in the inconsistant state.
-  //   // Otherwise, we need to face issues when the issue is fixed and
-  //   // it's get notified via HMR
-  //   ReactDOM.unmountComponentAtNode(appContainer)
-  //   renderReactElement(<DevErrorOverlay error={err} />, errorContainer)
-  //   return
-  // }
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context

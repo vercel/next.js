@@ -1,4 +1,3 @@
-import stripAnsi from 'strip-ansi'
 import initNext, * as next from './'
 // import DevErrorOverlay from './dev-error-overlay'
 import initOnDemandEntries from './on-demand-entries-client'
@@ -31,7 +30,6 @@ initNext({ webpackHMR })
         lastScroll = null
       }
     })
-  })
-  .catch((err) => {
-    console.error('Error was not caught')
+  }).catch((err) => {
+    console.error('Error was not caught', err)
   })

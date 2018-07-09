@@ -12,7 +12,7 @@ type Props = {|
 |}
 
 class ErrorBoundary extends React.Component<Props> {
-  componentDidCatch (error: RuntimeError, info: ComponentDidCatchInfo) {
+  componentDidCatch (error: Error, info: ComponentDidCatchInfo) {
     const {onError} = this.props
 
     // onError is provided in production

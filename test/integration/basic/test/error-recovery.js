@@ -4,7 +4,7 @@ import { join } from 'path'
 import { check, File, waitFor } from 'next-test-utils'
 
 // react-error-overlay uses an iframe so we have to read the contents from the frame
-function getReactErrorOverlayContent(browser) {
+function getReactErrorOverlayContent (browser) {
   return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
 }
 
@@ -156,7 +156,7 @@ export default (context, render) => {
       aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
 
       await waitFor(3000)
-    
+
       expect(await getReactErrorOverlayContent(browser)).toMatch(/The default export is not a React Component/)
 
       aboutPage.restore()

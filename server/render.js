@@ -11,7 +11,6 @@ import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import Loadable from 'react-loadable'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
-import { applySourcemaps } from './lib/source-map-support'
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
 function getBundles (manifest, moduleIds) {
@@ -58,8 +57,6 @@ async function doRender (req, res, pathname, query, {
   nextExport = false
 } = {}) {
   page = page || pathname
-
-  // await applySourcemaps(err)
 
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })

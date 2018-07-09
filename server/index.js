@@ -19,7 +19,6 @@ import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
-import isAsyncSupported from './lib/is-async-supported'
 
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
@@ -339,8 +338,6 @@ export default class Server {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
-        const {applySourcemaps} = require('./lib/source-map-support')
-        // await applySourcemaps(err)
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)

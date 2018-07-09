@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 /**
  * Copyright (c) 2015-present, Facebook, Inc.
  *
@@ -213,12 +214,12 @@ function processMessage (e) {
     }
     case 'built':
     case 'sync': {
-      if(obj.hash) {
+      if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
       if (obj.errors.length > 0) {
         // When there is a compilation error coming from SSR we have to reload the page on next successful compile
-        if(obj.action === 'sync') {
+        if (obj.action === 'sync') {
           hadRuntimeError = true
         }
         handleErrors(obj.errors)
@@ -230,6 +231,7 @@ function processMessage (e) {
         break
       }
       handleSuccess()
+      break
     }
     // var applyUpdate = true
     // if (obj.errors.length > 0) {
