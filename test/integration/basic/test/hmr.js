@@ -21,11 +21,12 @@ export default (context, renderViaHTTP) => {
           // Rename the file to mimic a deleted page
           renameSync(contactPagePath, newContactPagePath)
 
-          // wait until the 404 page comes
-          await check(
-            () => browser.elementByCss('body').text(),
-            /(This page could not be found|ENOENT)/
-          )
+          await waitFor(1500)
+
+          // Check react-error-overlay
+          expect(
+            await browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+          ).toMatch(/(This page could not be found|ENOENT)/)
 
           // Rename the file back to the original filename
           renameSync(newContactPagePath, contactPagePath)
