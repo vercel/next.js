@@ -88,28 +88,6 @@ export default function connect (options) {
   }
 }
 
-// Connect to WebpackDevServer via a socket.
-// var connection = new SockJS(
-//   url.format({
-//     protocol: window.location.protocol,
-//     hostname: window.location.hostname,
-//     port: window.location.port,
-//     // Hardcoded in WebpackDevServer
-//     pathname: '/sockjs-node',
-//   })
-// );
-
-// Unlike WebpackDevServer client, we won't try to reconnect
-// to avoid spamming the console. Disconnect usually happens
-// when developer stops the server.
-// connection.onclose = function() {
-//   if (typeof console !== 'undefined' && typeof console.info === 'function') {
-//     console.info(
-//       'The development server has disconnected.\nRefresh the page if necessary.'
-//     );
-//   }
-// };
-
 // Remember some state related to hot module replacement.
 var isFirstCompilation = true
 var mostRecentCompilationHash = null
