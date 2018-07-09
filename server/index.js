@@ -106,21 +106,6 @@ export default class Server {
   }
 
   async prepare () {
-    if (this.dev && process.stdout.isTTY && isAsyncSupported()) {
-      try {
-        const checkForUpdate = require('update-check')
-        const update = await checkForUpdate(pkg, {
-          distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
-        })
-        if (update) {
-          // bgRed from chalk
-          console.log(`\u001B[41mUPDATE AVAILABLE\u001B[49m The latest version of \`next\` is ${update.latest}`)
-        }
-      } catch (err) {
-        console.error('Error checking updates', err)
-      }
-    }
-
     await this.defineRoutes()
     if (this.hotReloader) {
       await this.hotReloader.start()

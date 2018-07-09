@@ -6325,7 +6325,7 @@ raw-body@2.3.2:
     iconv-lite "0.4.19"
     unpipe "1.0.0"
 
-rc@^1.0.1, rc@^1.1.6, rc@^1.1.7:
+rc@^1.1.7:
   version "1.2.6"
   resolved "https://registry.yarnpkg.com/rc/-/rc-1.2.6.tgz#eb18989c6d4f4f162c399f79ddd29f3835568092"
   dependencies:
@@ -6497,19 +6497,6 @@ regexpu-core@^4.1.3:
     regjsparser "^0.2.1"
     unicode-match-property-ecmascript "^1.0.3"
     unicode-match-property-value-ecmascript "^1.0.1"
-
-registry-auth-token@3.3.2:
-  version "3.3.2"
-  resolved "https://registry.yarnpkg.com/registry-auth-token/-/registry-auth-token-3.3.2.tgz#851fd49038eecb586911115af845260eec983f20"
-  dependencies:
-    rc "^1.1.6"
-    safe-buffer "^5.0.1"
-
-registry-url@3.1.0:
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/registry-url/-/registry-url-3.1.0.tgz#3d4ef870f73dde1d77f0cf9a381432444e174942"
-  dependencies:
-    rc "^1.0.1"
 
 regjsgen@^0.2.0:
   version "0.2.0"
@@ -7601,13 +7588,6 @@ unset-value@^1.0.0:
 upath@^1.0.0:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/upath/-/upath-1.0.4.tgz#ee2321ba0a786c50973db043a50b7bcba822361d"
-
-update-check@1.5.2:
-  version "1.5.2"
-  resolved "https://registry.yarnpkg.com/update-check/-/update-check-1.5.2.tgz#2fe09f725c543440b3d7dabe8971f2d5caaedc28"
-  dependencies:
-    registry-auth-token "3.3.2"
-    registry-url "3.1.0"
 
 uri-js@^3.0.2:
   version "3.0.2"
