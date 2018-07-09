@@ -200,11 +200,7 @@ function handleAvailableHash (hash) {
 
 // Handle messages from the server.
 function processMessage (e) {
-  var obj = JSON.parse(e.data)
-  // We don't process server updates
-  if (obj.name !== 'client') {
-    return
-  }
+  const obj = JSON.parse(e.data)
   console.log('EVENT', obj)
   switch (obj.action) {
     case 'building': {
@@ -216,6 +212,9 @@ function processMessage (e) {
     }
     case 'built':
     case 'sync': {
+      if(obj.hash) {
+        handleAvailableHash(obj.hash)
+      }
       if (obj.errors.length > 0) {
         handleErrors(obj.errors)
         break
