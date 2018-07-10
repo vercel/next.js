@@ -31,20 +31,8 @@ const {
 // It implements webpack-hot-middleware's EventSource events instead of webpack-dev-server's websocket.
 // https://github.com/facebook/create-react-app/blob/25184c4e91ebabd16fe1cde3d8630830e4a36a01/packages/react-dev-utils/webpackHotDevClient.js
 
-// ErrorOverlay.setEditorHandler(function editorHandler(errorLocation) {
-//   // Keep this sync with errorOverlayMiddleware.js
-//   fetch(
-//     launchEditorEndpoint +
-//       '?fileName=' +
-//       window.encodeURIComponent(errorLocation.fileName) +
-//       '&lineNumber=' +
-//       window.encodeURIComponent(errorLocation.lineNumber || 1) +
-//       '&colNumber=' +
-//       window.encodeURIComponent(errorLocation.colNumber || 1)
-//   );
-// });
-
-var hadRuntimeError = false
+let hadRuntimeError = false
+let customHmrEventHandler
 export default function connect (options) {
   // We need to keep track of if there has been a runtime error.
   // Essentially, we cannot guarantee application state was not corrupted by the
@@ -79,6 +67,9 @@ export default function connect (options) {
   })
 
   return {
+    subscribeToHmrEvent (handler) {
+      customHmrEventHandler = handler
+    },
     prepareError (err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
       // Should be removed once the fix lands
@@ -236,54 +227,15 @@ function processMessage (e) {
       handleSuccess()
       break
     }
-    // var applyUpdate = true
-    // if (obj.errors.length > 0) {
-    //   if (reporter) reporter.problems('errors', obj)
-    //   applyUpdate = false
-    // } else if (obj.warnings.length > 0) {
-    //   if (reporter) {
-    //     var overlayShown = reporter.problems('warnings', obj)
-    //     applyUpdate = overlayShown
-    //   }
-    // } else {
-    //   if (reporter) {
-    //     reporter.cleanProblemsCache()
-    //     reporter.success()
-    //   }
-    // }
-    // if (applyUpdate) {
-    //   processUpdate(obj.hash, obj.modules, options)
-    // }
-    // break
     default: {
+      if (customHmrEventHandler) {
+        customHmrEventHandler(obj)
+        break
+      }
       break
     }
-      // if (customHandler) {
-      //   customHandler(obj)
-      // }
   }
-  // switch (message.type) {
-  //   case 'hash':
-  //     handleAvailableHash(message.data);
-  //     break;
-  //   case 'still-ok':
-  //   case 'ok':
-  //     handleSuccess();
-  //     break;
-  //   case 'content-changed':
-  //     // Triggered when a file from `contentBase` changed.
-  //     window.location.reload();
-  //     break;
-  //   case 'warnings':
-  //     handleWarnings(message.data);
-  //     break;
-  //   case 'errors':
-  //     handleErrors(message.data);
-  //     break;
-  //   default:
-  //   // Do nothing.
-  // }
-};
+}
 
 // Is there a newer version of this code available?
 function isUpdateAvailable () {
