@@ -62,7 +62,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [Configuring the build ID](#configuring-the-build-id)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
-    - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
@@ -1359,9 +1359,9 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
 
 The `modules` option on `"preset-env"` should be kept to `false` otherwise webpack code splitting is disabled.
 
-#### Exposing configuration to the server / client side
+### Exposing configuration to the server / client side
 
-The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
+The `next/config` module gives your app access to runtime configuration stored in your `next.config.js`. Place any server-only runtime config under a `serverRuntimeConfig` property and anything accessible to both client and server-side code under `publicRuntimeConfig`.
 
 ```js
 // next.config.js
