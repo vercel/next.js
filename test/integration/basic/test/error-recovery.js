@@ -157,7 +157,7 @@ export default (context, render) => {
 
       await waitFor(3000)
 
-      expect(await getReactErrorOverlayContent(browser)).toMatch(/The default export is not a React Component/)
+      expect(await browser.elementByCss('body').text()).toMatch(/The default export is not a React Component/)
 
       aboutPage.restore()
 
@@ -197,10 +197,9 @@ export default (context, render) => {
       const browser = await webdriver(context.appPort, '/hmr')
       await browser.elementByCss('#error-in-gip-link').click()
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /an-expected-error-in-gip/
-      )
+      await waitFor(1500)
+
+      expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
 
       const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
       erroredPage.replace('throw error', 'return {}')
@@ -217,10 +216,9 @@ export default (context, render) => {
     it('should recover after an error reported via SSR', async () => {
       const browser = await webdriver(context.appPort, '/hmr/error-in-gip')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /an-expected-error-in-gip/
-      )
+      await waitFor(1500)
+
+      expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
 
       const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
       erroredPage.replace('throw error', 'return {}')

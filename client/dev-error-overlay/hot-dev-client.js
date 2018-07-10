@@ -80,6 +80,9 @@ export default function connect (options) {
 
   return {
     prepareError (err) {
+      // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
+      // Should be removed once the fix lands
+      hadRuntimeError = true
       // react-error-overlay expects a type of `Error`
       const error = new Error(err.message)
       error.name = err.name
