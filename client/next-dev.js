@@ -1,5 +1,4 @@
 import initNext, * as next from './'
-// import DevErrorOverlay from './dev-error-overlay'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 const webpackHMR = initWebpackHMR()
