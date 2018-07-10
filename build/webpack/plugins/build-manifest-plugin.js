@@ -6,7 +6,7 @@ import {BUILD_MANIFEST} from '../../../lib/constants'
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   apply (compiler: any) {
-    compiler.plugin('emit', (compilation, callback) => {
+    compiler.hooks.emit.tapAsync('NextJsBuildManifest', (compilation, callback) => {
       const {chunks} = compilation
       const assetMap = {pages: {}, css: []}
 

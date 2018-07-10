@@ -4,8 +4,8 @@ import { join, resolve, relative, dirname } from 'path'
 // to work with Next.js SSR
 export default class NextJsSsrImportPlugin {
   apply (compiler) {
-    compiler.plugin('compilation', (compilation) => {
-      compilation.mainTemplate.plugin('require-ensure', (code, chunk) => {
+    compiler.hooks.compilation.tap('NextJsSSRImport', (compilation) => {
+      compilation.mainTemplate.hooks.requireEnsure.tap('NextJsSSRImport', (code, chunk) => {
         // Update to load chunks from our custom chunks directory
         const outputPath = resolve('/')
         const pagePath = join('/', dirname(chunk.name))
