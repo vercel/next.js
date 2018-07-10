@@ -1,12 +1,7 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, File, waitFor } from 'next-test-utils'
-
-// react-error-overlay uses an iframe so we have to read the contents from the frame
-function getReactErrorOverlayContent (browser) {
-  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
-}
+import { check, File, waitFor, getReactErrorOverlayContent } from 'next-test-utils'
 
 export default (context, render) => {
   describe('Error Recovery', () => {

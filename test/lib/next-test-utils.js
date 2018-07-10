@@ -194,3 +194,8 @@ export class File {
     this.write(this.originalContent)
   }
 }
+
+// react-error-overlay uses an iframe so we have to read the contents from the frame
+export function getReactErrorOverlayContent (browser) {
+  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+}
