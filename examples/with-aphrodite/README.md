@@ -16,7 +16,7 @@ yarn create next-app --example with-aphrodite with-aphrodite-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example [or clone and install the repo](https://github.com/zeit/next.js):
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-aphrodite
