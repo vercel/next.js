@@ -3,7 +3,10 @@ import Document, { Head, Main, NextScript } from 'next/document'
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
     const initialProps = await Document.getInitialProps(ctx)
-    return { ...initialProps, customProperty: 'Hello Document' }
+
+    const { html: renderPageHtml } = ctx.renderPage(Component => (props) => <div>RENDERED<Component {...props} /></div>)
+
+    return { ...initialProps, customProperty: 'Hello Document', renderPageHtml }
   }
 
   render () {
@@ -14,6 +17,7 @@ export default class MyDocument extends Document {
         </Head>
         <body className='custom_class'>
           <p id='custom-property'>{this.props.customProperty}</p>
+          <p id='render-page-html'>{this.props.renderPageHtml}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
           <NextScript nonce='test-nonce' />

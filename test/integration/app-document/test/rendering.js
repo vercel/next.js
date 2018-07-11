@@ -34,6 +34,12 @@ export default function ({ app }, suiteName, render, fetch) {
         })
         expect(noncesAdded).toBe(true)
       })
+
+      test('It renders ctx.renderPage correctly', async () => {
+        const $ = await get$('/')
+        const nonce = 'RENDERED'
+        expect($('#render-page-html').text().includes(nonce)).toBe(true)
+      })
     })
 
     describe('_app', () => {
