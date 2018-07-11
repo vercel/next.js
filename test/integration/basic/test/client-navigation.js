@@ -58,6 +58,18 @@ export default (context, render) => {
         expect(text).toBe('This is the home.')
         browser.close()
       })
+
+      it('should not navigate if the <a/> tag has a target', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        const counterText = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#target-link').click()
+          .elementByCss('#counter').text()
+
+        expect(counterText).toBe('Counter: 1')
+        browser.close()
+      })
     })
 
     describe('with unexpected <a/> nested tag', () => {
