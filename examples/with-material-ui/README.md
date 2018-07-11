@@ -15,7 +15,7 @@ yarn create next-app --example with-material-ui with-material-ui-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/mui-org/material-ui):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/mui-org/material-ui/tar.gz/master | tar -xz --strip=2  material-ui-master/examples/nextjs
