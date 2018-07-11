@@ -6,7 +6,7 @@ import { fork } from 'child_process'
 import walk from 'walk'
 import { resolve, join, sep } from 'path'
 import { existsSync, readFileSync } from 'fs'
-import loadConfig from './config'
+import loadConfig from '../server/config'
 import {
   PHASE_EXPORT,
   SERVER_DIRECTORY,
@@ -14,7 +14,7 @@ import {
   CONFIG_FILE,
   BUILD_ID_FILE
 } from '../lib/constants'
-import { getAvailableChunks } from './utils'
+import { getAvailableChunks } from '../server/utils'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 
@@ -145,7 +145,7 @@ export default async function (dir, options, configuration) {
     chunks.map(
       chunk =>
         new Promise((resolve, reject) => {
-          const worker = fork(require.resolve('./export-worker'), [], {
+          const worker = fork(require.resolve('./worker'), [], {
             env: process.env
           })
           worker.send({

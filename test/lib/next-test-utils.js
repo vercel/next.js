@@ -10,7 +10,7 @@ import fkill from 'fkill'
 
 import server from '../../dist/server/next'
 import build from '../../dist/build'
-import _export from '../../dist/server/export'
+import _export from '../../dist/export'
 import _pkg from '../../package.json'
 
 export const nextServer = server

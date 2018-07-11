@@ -1,8 +1,8 @@
 const { extname, join, dirname, sep } = require('path')
 const mkdirp = require('mkdirp-then')
-const { renderToHTML } = require('./render')
+const { renderToHTML } = require('../server/render')
 const { writeFile } = require('fs')
-const promiseLimit = require('promise-limit')
+const Sema = require('async-sema')
 
 process.on(
   'message',
@@ -13,9 +13,10 @@ process.on(
     renderOpts,
     concurrency
   }) => {
-    const limit = promiseLimit(concurrency)
+    const sema = new Sema(concurrency, { capacity: exportPaths.length })
     try {
       const work = async path => {
+        await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
         const req = { url: path }
         const res = {}
@@ -41,10 +42,10 @@ process.on(
             err => (err ? reject(err) : resolve())
           )
         )
-        // progress.tick();
         process.send({ type: 'progress' })
+        sema.release()
       }
-      await limit.map(exportPaths, work)
+      await Promise.all(exportPaths.map(work))
       process.send({ type: 'done' })
     } catch (err) {
       console.error(err)

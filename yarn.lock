@@ -1076,6 +1076,12 @@ async-each@^1.0.0:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/async-each/-/async-each-1.0.1.tgz#19d386a1d9edc6e7c1c85d388aedbcc56d33602d"
 
+async-sema@2.1.1:
+  version "2.1.1"
+  resolved "https://registry.npmjs.org/async-sema/-/async-sema-2.1.1.tgz#875e38dc896e737a01cb65598dd696707dd8d0dd"
+  dependencies:
+    double-ended-queue "2.1.0-0"
+
 async@2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/async/-/async-2.0.1.tgz#b709cc0280a9c36f09f4536be823c838a9049e25"
@@ -2472,6 +2478,10 @@ domutils@^1.5.1:
   dependencies:
     dom-serializer "0"
     domelementtype "1"
+
+double-ended-queue@2.1.0-0:
+  version "2.1.0-0"
+  resolved "https://registry.npmjs.org/double-ended-queue/-/double-ended-queue-2.1.0-0.tgz#103d3527fd31528f40188130c841efdd78264e5c"
 
 duplexify@^3.4.2, duplexify@^3.5.3:
   version "3.5.4"
@@ -5982,10 +5992,6 @@ progress@2.0.0, progress@^2.0.0:
 promise-inflight@^1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/promise-inflight/-/promise-inflight-1.0.1.tgz#98472870bf228132fcbdd868129bad12c3c029e3"
-
-promise-limit@2.6.0:
-  version "2.6.0"
-  resolved "https://registry.npmjs.org/promise-limit/-/promise-limit-2.6.0.tgz#cb6959fcfdd0ee6ec694ec58b2b3b856ca52ffed"
 
 promise@^7.0.1, promise@^7.1.1:
   version "7.3.1"
