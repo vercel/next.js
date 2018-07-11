@@ -1370,7 +1370,8 @@ module.exports = {
     mySecret: 'secret'
   },
   publicRuntimeConfig: { // Will be available on both server and client
-    staticFolder: '/static'
+    staticFolder: '/static',
+    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```
