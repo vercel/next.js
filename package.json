@@ -138,6 +138,8 @@
     "node-fetch": "1.7.3",
     "node-notifier": "5.1.2",
     "nyc": "11.2.1",
+    "progress": "2.0.0",
+    "promise-limit": "2.6.0",
     "react": "16.4.0",
     "react-dom": "16.4.0",
     "rimraf": "2.6.2",

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
+import { cpus } from 'os'
 import parseArgs from 'minimist'
 import exportApp from '../server/export'
 import { printAndExit } from '../lib/utils'
@@ -9,7 +10,9 @@ const argv = parseArgs(process.argv.slice(2), {
   alias: {
     h: 'help',
     s: 'silent',
-    o: 'outdir'
+    o: 'outdir',
+    c: 'concurrency',
+    t: 'threads'
   },
   boolean: ['h'],
   default: {
@@ -31,6 +34,8 @@ if (argv.help) {
 
     Options
       -h - list this help
+      -t - set the number of concurrent threads (defaults to number of CPU cores)
+      -c - set the limit of concurrent writers in each thread (defaults to 10)
       -o - set the output dir (defaults to 'out')
       -s - do not print any messages to console
   `)
@@ -54,6 +59,8 @@ if (!existsSync(join(dir, 'pages'))) {
 
 const options = {
   silent: argv.silent,
+  threads: argv.threads || Math.max(cpus().length, 1),
+  concurrency: argv.concurrency || 10,
   outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
 }
 

@@ -1,12 +1,19 @@
 import del from 'del'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
+import Progress from 'progress'
+import { fork } from 'child_process'
 import walk from 'walk'
-import { extname, resolve, join, dirname, sep } from 'path'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { resolve, join, sep } from 'path'
+import { existsSync, readFileSync } from 'fs'
 import loadConfig from './config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE} from '../lib/constants'
-import { renderToHTML } from './render'
+import {
+  PHASE_EXPORT,
+  SERVER_DIRECTORY,
+  PAGES_MANIFEST,
+  CONFIG_FILE,
+  BUILD_ID_FILE
+} from '../lib/constants'
 import { getAvailableChunks } from './utils'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
@@ -19,11 +26,17 @@ export default async function (dir, options, configuration) {
   log(`> using build directory: ${distDir}`)
 
   if (!existsSync(distDir)) {
-    throw new Error(`Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
+    throw new Error(
+      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest = require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+  const pagesManifest = require(join(
+    distDir,
+    SERVER_DIRECTORY,
+    PAGES_MANIFEST
+  ))
 
   const pages = Object.keys(pagesManifest)
   const defaultPathMap = {}
@@ -44,20 +57,13 @@ export default async function (dir, options, configuration) {
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')
-    await cp(
-      join(dir, 'static'),
-      join(outDir, 'static'),
-      { expand: true }
-    )
+    await cp(join(dir, 'static'), join(outDir, 'static'), { expand: true })
   }
 
   // Copy .next/static directory
   if (existsSync(join(distDir, 'static'))) {
     log('  copying "static build" directory')
-    await cp(
-      join(distDir, 'static'),
-      join(outDir, '_next', 'static')
-    )
+    await cp(join(distDir, 'static'), join(outDir, '_next', 'static'))
   }
 
   // Copy dynamic import chunks
@@ -75,8 +81,10 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log(`> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`)
-    nextConfig.exportPathMap = async (defaultMap) => {
+    console.log(
+      `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+    )
+    nextConfig.exportPathMap = async defaultMap => {
       return defaultMap
     }
   }
@@ -94,7 +102,7 @@ export default async function (dir, options, configuration) {
     availableChunks: getAvailableChunks(distDir, false)
   }
 
-  const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
+  const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (publicRuntimeConfig) {
     renderOpts.runtimeConfig = publicRuntimeConfig
@@ -116,32 +124,49 @@ export default async function (dir, options, configuration) {
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
   const exportPaths = Object.keys(exportPathMap)
 
-  for (const path of exportPaths) {
-    log(`> exporting path: ${path}`)
-    if (!path.startsWith('/')) {
-      throw new Error(`path "${path}" doesn't start with a backslash`)
+  const progress = new Progress(
+    `[:bar] :current/:total :percent :rate/s :etas `,
+    {
+      total: exportPaths.length
     }
+  )
 
-    const { page, query = {} } = exportPathMap[path]
-    const req = { url: path }
-    const res = {}
-
-    let htmlFilename = `${path}${sep}index.html`
-    if (extname(path) !== '') {
-      // If the path has an extension, use that as the filename instead
-      htmlFilename = path
-    } else if (path === '/') {
-      // If the path is the root, just use index.html
-      htmlFilename = 'index.html'
+  const chunks = exportPaths.reduce((result, route, i) => {
+    const worker = i % options.threads
+    if (!result[worker]) {
+      result[worker] = { paths: [], pathMap: {} }
     }
-    const baseDir = join(outDir, dirname(htmlFilename))
-    const htmlFilepath = join(outDir, htmlFilename)
+    result[worker].pathMap[route] = exportPathMap[route]
+    result[worker].paths.push(route)
+    return result
+  }, [])
 
-    await mkdirp(baseDir)
-
-    const html = await renderToHTML(req, res, page, query, renderOpts)
-    writeFileSync(htmlFilepath, html, 'utf8')
-  }
+  await Promise.all(
+    chunks.map(
+      chunk =>
+        new Promise((resolve, reject) => {
+          const worker = fork(require.resolve('./export-worker'), [], {
+            env: process.env
+          })
+          worker.send({
+            exportPaths: chunk.paths,
+            exportPathMap: chunk.pathMap,
+            outDir,
+            renderOpts,
+            concurrency: options.concurrency
+          })
+          worker.on('message', ({ type, payload }) => {
+            if (type === 'progress') {
+              progress.tick()
+            } else if (type === 'error') {
+              reject(payload)
+            } else if (type === 'done') {
+              resolve()
+            }
+          })
+        })
+    )
+  ).catch(err => console.log(err))
 
   // Add an empty line to the console for the better readability.
   log('')
@@ -174,8 +199,17 @@ function copyPages (distDir, outDir, buildId) {
       if (relativeFilePath === `${sep}index.js`) {
         destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
       } else if (/index\.js$/.test(filename)) {
-        const newRelativeFilePath = relativeFilePath.replace(`${sep}index.js`, '.js')
-        destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
+        const newRelativeFilePath = relativeFilePath.replace(
+          `${sep}index.js`,
+          '.js'
+        )
+        destFilePath = join(
+          outDir,
+          '_next',
+          buildId,
+          'page',
+          newRelativeFilePath
+        )
       } else {
         destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
       }
