@@ -1,4 +1,5 @@
 import del from 'del'
+import { cpus } from 'os'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
 import Progress from 'progress'
@@ -20,6 +21,8 @@ import * as envConfig from '../lib/runtime-config'
 
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
+  const concurrency = options.concurrency || 10
+  const threads = options.threads || Math.max(cpus().length, 1)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const distDir = join(dir, nextConfig.distDir)
 
@@ -132,7 +135,7 @@ export default async function (dir, options, configuration) {
   )
 
   const chunks = exportPaths.reduce((result, route, i) => {
-    const worker = i % options.threads
+    const worker = i % threads
     if (!result[worker]) {
       result[worker] = { paths: [], pathMap: {} }
     }
@@ -153,7 +156,7 @@ export default async function (dir, options, configuration) {
             exportPathMap: chunk.pathMap,
             outDir,
             renderOpts,
-            concurrency: options.concurrency
+            concurrency
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress') {
