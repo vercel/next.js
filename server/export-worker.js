@@ -45,6 +45,7 @@ process.on(
         process.send({ type: 'progress' })
       }
       await limit.map(exportPaths, work)
+      process.send({ type: 'done' })
     } catch (err) {
       console.error(err)
       process.send({ type: 'error', payload: err })
