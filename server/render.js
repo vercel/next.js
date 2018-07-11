@@ -86,8 +86,7 @@ async function doRender (req, res, pathname, query, {
     let EnhancedComponent = Component
     if (typeof options === 'function') {
       EnhancedComponent = options(Component)
-    }
-    if (typeof options === 'object') {
+    } else if (typeof options === 'object') {
       if (options.enhanceApp) {
         EnhancedApp = options.enhanceApp(App)
       }
