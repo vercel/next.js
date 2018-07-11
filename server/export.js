@@ -166,7 +166,7 @@ export default async function (dir, options, configuration) {
           })
         })
     )
-  ).catch(err => console.log(err))
+  )
 
   // Add an empty line to the console for the better readability.
   log('')
