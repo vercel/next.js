@@ -2,11 +2,17 @@ import Document, { Head, Main, NextScript } from 'next/document'
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
-    const initialProps = await Document.getInitialProps(ctx)
+    let options
 
-    const { html: renderPageHtml } = ctx.renderPage(Component => (props) => <div>RENDERED<Component {...props} /></div>)
+    const enhanceComponent = Component => (props) => <div><span id='render-page-html'>RENDERED</span><Component {...props} /></div>
+    if (ctx.query.withEnhancer) {
+      options = enhanceComponent
+    } else if (ctx.query.withEnhanceComponent) {
+      options = { enhanceComponent: Component => (props) => <div><span id='render-page-html'>RENDERED</span><Component {...props} /></div> }
+    }
+    const result = ctx.renderPage(options)
 
-    return { ...initialProps, customProperty: 'Hello Document', renderPageHtml }
+    return { ...result, customProperty: 'Hello Document' }
   }
 
   render () {
@@ -17,7 +23,6 @@ export default class MyDocument extends Document {
         </Head>
         <body className='custom_class'>
           <p id='custom-property'>{this.props.customProperty}</p>
-          <p id='render-page-html'>{this.props.renderPageHtml}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
           <NextScript nonce='test-nonce' />

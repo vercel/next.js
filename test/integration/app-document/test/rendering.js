@@ -35,9 +35,16 @@ export default function ({ app }, suiteName, render, fetch) {
         expect(noncesAdded).toBe(true)
       })
 
-      test('It renders ctx.renderPage correctly', async () => {
-        const $ = await get$('/')
+      test('It renders ctx.renderPage with enhancer correctly', async () => {
+        const $ = await get$('/?withEnhancer=true')
         const nonce = 'RENDERED'
+        expect($('#render-page-html').text().includes(nonce)).toBe(true)
+      })
+
+      test('It renders ctx.renderPage with enhanceComponent correctly', async () => {
+        const $ = await get$('/?withEnhanceComponent=true')
+        const nonce = 'RENDERED'
+        console.log('woop', $('#render-page-html').text())
         expect($('#render-page-html').text().includes(nonce)).toBe(true)
       })
     })
