@@ -84,6 +84,8 @@ async function doRender (req, res, pathname, query, {
   const renderPage = (options = Page => Page) => {
     let EnhancedApp = App
     let EnhancedComponent = Component
+
+    // For backwards compatibility
     if (typeof options === 'function') {
       EnhancedComponent = options(Component)
     } else if (typeof options === 'object') {
