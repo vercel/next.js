@@ -141,7 +141,7 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (props) {
-  const {err, errorInfo} = props
+  const {App, err, errorInfo} = props
 
   // In development we apply sourcemaps to the error
   if (process.env.NODE_ENV !== 'production') {
@@ -162,8 +162,13 @@ export async function renderError (props) {
   }
 
   // In production we do a normal render with the `ErrorComponent` as component.
-  // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
-  await doRender({...props, err, Component: ErrorComponent})
+  // If we've gotten here upon initial render, we can use the props from the server.
+  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const initProps = props.props
+    ? props.props
+    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname, query, asPath}})
+
+  await doRender({...props, err, Component: ErrorComponent, props: initProps})
 }
 
 async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
