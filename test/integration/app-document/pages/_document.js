@@ -8,7 +8,7 @@ export default class MyDocument extends Document {
     if (ctx.query.withEnhancer) {
       options = enhanceComponent
     } else if (ctx.query.withEnhanceComponent) {
-      options = { enhanceComponent: Component => (props) => <div><span id='render-page-html'>RENDERED</span><Component {...props} /></div> }
+      options = { enhanceComponent }
     }
     const result = ctx.renderPage(options)
 

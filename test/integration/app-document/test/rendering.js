@@ -44,7 +44,6 @@ export default function ({ app }, suiteName, render, fetch) {
       test('It renders ctx.renderPage with enhanceComponent correctly', async () => {
         const $ = await get$('/?withEnhanceComponent=true')
         const nonce = 'RENDERED'
-        console.log('woop', $('#render-page-html').text())
         expect($('#render-page-html').text().includes(nonce)).toBe(true)
       })
     })
