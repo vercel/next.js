@@ -1,6 +1,6 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time)
 
-# With universal configuration
+# With universal configuration on build time
 
 ## How to use
 
@@ -9,9 +9,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-universal-configuration with-universal-configuration-app
+npx create-next-app --example with-universal-configuration-build-time with-universal-configuration-build-time-app
 # or
-yarn create next-app --example with-universal-configuration with-universal-configuration-app
+yarn create next-app --example with-universal-configuration-build-time with-universal-configuration-build-time-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example with-universal-configuration with-universal-confi
 Download the example [or clone the repo](https://github.com/zeit/next.js):
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-universal-configuration
-cd with-universal-configuration
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-universal-configuration-build-time
+cd with-universal-configuration-build-time
 ```
 
 Install it and run:
@@ -46,4 +46,4 @@ This example show how to set custom environment variables for your application b
 ## Caveats
 
 - Because a babel plugin is used the output is cached in `node_modules/.cache` by `babel-loader`. When modifying the configuration you will have to manually clear this cache to make changes visible. Alternately, you may skip caching for `babel-loader` as shown [here](https://github.com/zeit/next.js/issues/1103#issuecomment-279529809).
-- This example sets the environment configuration at build time, meaning the same build might not be used in e.g. both staging and production. For a solution which sets the environment at runtime, see [here](https://github.com/zeit/next.js/issues/1488#issuecomment-289108931). 
+- This example sets the environment configuration at build time, meaning the same build might not be used in e.g. both staging and production. For a solution which sets the environment at runtime, see [here](https://github.com/zeit/next.js/tree/canary/examples/with-universal-configuration-runtime). 
