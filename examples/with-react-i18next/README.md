@@ -16,7 +16,7 @@ yarn create next-app --example with-react-i18next with-react-i18next-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-i18next

@@ -15,7 +15,7 @@ yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 <details>
 <summary><b>Download manually</b></summary>
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-hosting

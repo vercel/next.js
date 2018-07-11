@@ -14,7 +14,7 @@ yarn create next-app --example with-jest-typescript with-jest-typescript-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-jest-typescript
