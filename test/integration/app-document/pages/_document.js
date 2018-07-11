@@ -4,12 +4,21 @@ export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
     let options
 
-    const enhanceComponent = Component => (props) => <div><span id='render-page-html'>RENDERED</span><Component {...props} /></div>
+    const enhanceComponent = Component => (props) => <div><span id='render-page-enhance-component'>RENDERED</span><Component {...props} /></div>
+    const enhanceApp = Component => (props) => <div><span id='render-page-enhance-app'>RENDERED</span><Component {...props} /></div>
+
     if (ctx.query.withEnhancer) {
       options = enhanceComponent
-    } else if (ctx.query.withEnhanceComponent) {
-      options = { enhanceComponent }
+    } else if (ctx.query.withEnhanceComponent || ctx.query.withEnhanceApp) {
+      options = {}
+      if (ctx.query.withEnhanceComponent) {
+        options.enhanceComponent = enhanceComponent
+      }
+      if (ctx.query.withEnhanceApp) {
+        options.enhanceApp = enhanceApp
+      }
     }
+
     const result = ctx.renderPage(options)
 
     return { ...result, customProperty: 'Hello Document' }
