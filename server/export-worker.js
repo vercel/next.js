@@ -11,9 +11,9 @@ process.on(
     exportPathMap,
     outDir,
     renderOpts,
-    cuncurrency
+    concurrency
   }) => {
-    const limit = promiseLimit(cuncurrency)
+    const limit = promiseLimit(concurrency)
     try {
       const work = async path => {
         const { page, query = {} } = exportPathMap[path]
