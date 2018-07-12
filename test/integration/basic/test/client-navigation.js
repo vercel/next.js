@@ -86,16 +86,24 @@ export default (context, render) => {
 
     describe('with empty getInitialProps()', () => {
       it('should render an error', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-        const preText = await browser
-          .elementByCss('#empty-props').click()
-          .waitForElementByCss('pre')
-          .elementByCss('pre').text()
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+          await browser.elementByCss('#empty-props').click()
 
-        const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-        expect(preText.includes(expectedErrorMessage)).toBeTruthy()
+          await waitFor(3000)
 
-        browser.close()
+          expect(await getReactErrorOverlayContent(browser)).toMatch(
+            /should resolve to an object\. But found "null" instead\./
+          )
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+
+        // const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
+        // expect(preText.includes(expectedErrorMessage)).toBeTruthy()
       })
     })
 
