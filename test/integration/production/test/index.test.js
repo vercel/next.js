@@ -118,6 +118,13 @@ describe('Production Usage', () => {
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
     })
+
+    it('should call getInitialProps on _error page during a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render-status-code')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/This page could not be found\./)
+    })
   })
 
   describe('Misc', () => {

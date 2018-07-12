@@ -126,15 +126,20 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (props) {
-  const {err} = props
+  const {App, err} = props
 
   if (process.env.NODE_ENV !== 'production') {
     throw webpackHMR.prepareError(err)
   }
 
   // In production we do a normal render with the `ErrorComponent` as component.
-  // `App` will handle the calling of `getInitialProps`, which will include the `err` on the context
-  await doRender({...props, err, Component: ErrorComponent})
+  // If we've gotten here upon initial render, we can use the props from the server.
+  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const initProps = props.props
+    ? props.props
+    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname, query, asPath}})
+
+  await doRender({...props, err, Component: ErrorComponent, props: initProps})
 }
 
 async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
@@ -166,9 +171,9 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
-    const onError = async (error, errorInfo) => {
+    const onError = async (error) => {
       try {
-        await renderError({App, err: error, errorInfo})
+        await renderError({App, err: error})
       } catch (err) {
         console.error('Error while rendering error page: ', err)
       }
