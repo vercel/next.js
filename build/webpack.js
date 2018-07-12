@@ -6,6 +6,7 @@ import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
+import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -15,14 +16,6 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST} from '../lib/constants'
-
-let WebpackBar
-
-// WebpackBar uses Object.values, as we still support Node 6 we can't apply it in the case when it's not available.
-// We read from `global` as otherwise Babel will transform this method.
-if (typeof global.Object.values !== 'undefined') {
-  WebpackBar = require('webpackbar')
-}
 
 function externalsConfig (dir, isServer) {
   const externals = []
@@ -193,7 +186,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      WebpackBar && new WebpackBar({
+      new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
