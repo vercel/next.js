@@ -8,7 +8,7 @@ function buildManifest (compiler, compilation) {
 
   compilation.chunks.forEach(chunk => {
     chunk.files.forEach(file => {
-      chunk.forEachModule(module => {
+      for(const module of chunk.modulesIterable) {
         let id = module.id
         let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
         // If it doesn't end in `.js` Next.js can't handle it right now.
@@ -26,7 +26,7 @@ function buildManifest (compiler, compilation) {
         }
 
         manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
-      })
+      }
     })
   })
 
