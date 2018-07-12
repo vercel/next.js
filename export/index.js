@@ -155,7 +155,7 @@ export default async function (dir, options, configuration) {
             concurrency
           })
           worker.on('message', ({ type, payload }) => {
-            if (type === 'progress' && !options.silent) {
+            if (type === 'progress' && progress) {
               progress.tick()
             } else if (type === 'error') {
               reject(payload)
