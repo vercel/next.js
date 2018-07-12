@@ -193,16 +193,14 @@ export class NextScript extends Component {
 
           __NEXT_REGISTER_PAGE = function (route, fn) {
             __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }
+          }${page === '_error' ? `
 
-          ${page === '_error' && `
           __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
             var error = new Error('Page does not exist: ${htmlescape(pathname)}')
             error.statusCode = 404
 
             return { error: error }
-          })
-          `}
+          })`: ''}
         `
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} nonce={this.props.nonce} />}
