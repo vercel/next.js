@@ -2,6 +2,7 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
+import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
@@ -13,6 +14,7 @@ const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
 const glob = promisify(globModule)
+const access = promisify(fs.access)
 
 export default function onDemandEntryHandler (devMiddleware, compilers, {
   dir,
@@ -37,8 +39,19 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
       invalidator.startBuilding()
       currentBuilders.add(compiler.name)
 
-      const allEntries = Object.keys(entries).map((page) => {
+      const allEntries = Object.keys(entries).map(async (page) => {
         const { name, entry } = entries[page]
+        const files = Array.isArray(entry) ? entry : [entry]
+        // Is just one item. But it's passed as an array.
+        for (const file of files) {
+          try {
+            await access(join(dir, file), (fs.constants || fs).W_OK)
+          } catch (err) {
+            console.warn('Page was removed', page)
+            delete entries[page]
+            return
+          }
+        }
         entries[page].status = BUILDING
         return addEntry(compilation, compiler.context, name, entry)
       })
