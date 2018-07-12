@@ -84,6 +84,7 @@ async function doRender (req, res, pathname, query, {
   const renderPage = (enhancer = Page => Page) => {
     const app = createElement(App, {
       Component: enhancer(Component),
+      buildId,
       router,
       ...props
     })
