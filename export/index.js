@@ -2,11 +2,11 @@ import del from 'del'
 import { cpus } from 'os'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
-import Progress from 'progress'
 import { fork } from 'child_process'
 import walk from 'walk'
 import { resolve, join, sep } from 'path'
 import { existsSync, readFileSync } from 'fs'
+import createProgress from './progress'
 import loadConfig from '../server/config'
 import {
   PHASE_EXPORT,
@@ -84,7 +84,7 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log(
+    log(
       `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
     )
     nextConfig.exportPathMap = async defaultMap => {
@@ -124,15 +124,11 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
+  log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
   const exportPaths = Object.keys(exportPathMap)
 
-  const progress = new Progress(
-    `[:bar] :current/:total :percent :rate/s :etas `,
-    {
-      total: exportPaths.length
-    }
-  )
+  const progress = !options.silent && createProgress(exportPaths.length)
 
   const chunks = exportPaths.reduce((result, route, i) => {
     const worker = i % threads
@@ -159,7 +155,7 @@ export default async function (dir, options, configuration) {
             concurrency
           })
           worker.on('message', ({ type, payload }) => {
-            if (type === 'progress') {
+            if (type === 'progress' && !options.silent) {
               progress.tick()
             } else if (type === 'error') {
               reject(payload)
