@@ -1,10 +1,3 @@
-export function getChunkNameFromFilename (filename, dev) {
-  if (dev) {
-    return filename.replace(/\.[^.]*$/, '')
-  }
-  return filename.replace(/-[^-]*$/, '')
-}
-
 const internalPrefixes = [
   /^\/_next\//,
   /^\/static\//
