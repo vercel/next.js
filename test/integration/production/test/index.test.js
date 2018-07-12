@@ -69,7 +69,7 @@ describe('Production Usage', () => {
       resources.push(url + 'webpack/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js
-      resources.push(url + buildManifest['static/commons/main'][0])
+      resources.push(url + buildManifest['static/commons/main.js'][0])
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 

@@ -70,14 +70,14 @@ export class Head extends Component {
     if (dev) {
       return [
         ...this.getChunkPreloadLink('manifest'),
-        ...this.getChunkPreloadLink('static/commons/main')
+        ...this.getChunkPreloadLink('static/commons/main.js')
       ]
     }
 
     // In the production mode, we have a single asset with all the JS content.
     return [
       ...this.getChunkPreloadLink('manifest'),
-      ...this.getChunkPreloadLink('static/commons/main')
+      ...this.getChunkPreloadLink('static/commons/main.js')
     ]
   }
 
@@ -162,7 +162,7 @@ export class NextScript extends Component {
   getScripts () {
     return [
       ...this.getChunkScript('manifest', { async: true }),
-      ...this.getChunkScript('static/commons/main', { async: true })
+      ...this.getChunkScript('static/commons/main.js', { async: true })
     ]
   }
 
