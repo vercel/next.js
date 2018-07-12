@@ -215,7 +215,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
-      // !isServer && new DynamicChunksPlugin(),
       isServer && new NextJsSsrImportPlugin()
       // In dev mode, we don't move anything to the commons bundle.
       // In production we move common modules into the existing main.js bundle
