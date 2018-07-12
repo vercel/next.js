@@ -60,6 +60,7 @@ export default class HotReloader {
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
+    this.serverPrevDocumentHash = null
 
     this.config = config
   }
@@ -168,6 +169,39 @@ export default class HotReloader {
 
         callback()
       })
+    })
+
+    compiler.compilers[1].hooks.done.tap('NextjsHotReloader', (stats) => {
+      if (!this.initialized) {
+        return
+      }
+
+      const {compilation} = stats
+
+      // We only watch `_document` for changes on the server compilation
+      // the rest of the files will be triggered by the client compilation
+      const documentChunk = compilation.chunks.find(c => c.name === 'bundles/pages/_document')
+      // If the document chunk can't be found we do nothing
+      if (!documentChunk) {
+        console.warn('_document.js chunk not found')
+        return
+      }
+
+      // Initial value
+      if (this.serverPrevDocumentHash === null) {
+        this.serverPrevDocumentHash = documentChunk.hash
+        return
+      }
+
+      // If _document.js didn't change we don't trigger a reload
+      if (documentChunk.hash === this.serverPrevDocumentHash) {
+        return
+      }
+
+      // Notify reload to reload the page, as _document.js was changed (different hash)
+      this.send('reload', '/_document')
+
+      this.serverPrevDocumentHash = documentChunk.hash
     })
 
     compiler.compilers[0].hooks.done.tap('NextJsHotReloader', (stats) => {

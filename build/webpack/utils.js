@@ -28,8 +28,7 @@ type GetPagePathsContext = {|
 export async function getPagePaths (dir: string, {dev, isServer, pageExtensions}: GetPagePathsContext) {
   if (dev) {
     // In development we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
-    // _document also has to be in the client compiler in development because we want to detect HMR changes and reload the client
-    return glob(`pages/+(_document|_app|_error).+(${pageExtensions})`, { cwd: dir })
+    return glob(isServer ? `pages/+(_document|_app|_error).+(${pageExtensions})` : `pages/+(_app|_error).+(${pageExtensions})`, { cwd: dir })
   }
 
   // In production get all pages from the pages directory

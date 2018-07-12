@@ -44,12 +44,6 @@ const handlers = {
       return
     }
 
-    // Since _document is server only we need to reload the full page when it changes.
-    if (route === '/_document') {
-      window.location.reload()
-      return
-    }
-
     const { err, Component } = Router.components[route] || {}
 
     if (err) {
