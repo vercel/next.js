@@ -101,9 +101,6 @@ export default (context, render) => {
             browser.close()
           }
         }
-
-        // const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-        // expect(preText.includes(expectedErrorMessage)).toBeTruthy()
       })
     })
 
