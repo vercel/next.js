@@ -228,24 +228,37 @@ export default (context, render) => {
     })
 
     it('should recover from 404 after a page has been added', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/new-page')
+      let browser
+      let newPage
+      try {
+        browser = await webdriver(context.appPort, '/hmr/new-page')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This page could not be found/
-      )
+        expect(await browser.elementByCss('body').text()).toMatch(/This page could not be found/)
 
-      // Add the page
-      const newPage = new File(join(__dirname, '../', 'pages', 'hmr', 'new-page.js'))
-      newPage.write('export default () => (<div>the-new-page</div>)')
+        // Add the page
+        newPage = new File(join(__dirname, '../', 'pages', 'hmr', 'new-page.js'))
+        newPage.write('export default () => (<div id="new-page">the-new-page</div>)')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /the-new-page/
-      )
+        await check(
+          () => {
+            if (!browser.hasElementById('new-page')) {
+              throw new Error('waiting')
+            }
 
-      newPage.delete()
-      browser.close()
+            return browser.elementByCss('body').text()
+          },
+          /the-new-page/
+        )
+
+        // expect(await browser.elementByCss('body').text()).toMatch(/the-new-page/)
+      } finally {
+        if (newPage) {
+          newPage.delete()
+        }
+        if (browser) {
+          browser.close()
+        }
+      }
     })
   })
 }
