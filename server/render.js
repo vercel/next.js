@@ -81,12 +81,23 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
 
-  const renderPage = (enhancer = Page => Page) => {
-    const app = createElement(App, {
-      Component: enhancer(Component),
-      router,
-      ...props
-    })
+  const renderPage = (options = Page => Page) => {
+    let EnhancedApp = App
+    let EnhancedComponent = Component
+
+    // For backwards compatibility
+    if (typeof options === 'function') {
+      EnhancedComponent = options(Component)
+    } else if (typeof options === 'object') {
+      if (options.enhanceApp) {
+        EnhancedApp = options.enhanceApp(App)
+      }
+      if (options.enhanceComponent) {
+        EnhancedComponent = options.enhanceComponent(Component)
+      }
+    }
+
+    const app = createElement(EnhancedApp, { Component: EnhancedComponent, router, ...props })
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
