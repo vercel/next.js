@@ -91,11 +91,25 @@ async function doRender (req, res, pathname, query, {
   if (isResSent(res)) return
 
   let reactLoadableModules = []
+  const renderPage = (options = Page => Page) => {
+    let EnhancedApp = App
+    let EnhancedComponent = Component
 
-  const renderPage = (enhancer = Page => Page) => {
+    // For backwards compatibility
+    if (typeof options === 'function') {
+      EnhancedComponent = options(Component)
+    } else if (typeof options === 'object') {
+      if (options.enhanceApp) {
+        EnhancedApp = options.enhanceApp(App)
+      }
+      if (options.enhanceComponent) {
+        EnhancedComponent = options.enhanceComponent(Component)
+      }
+    }
+
     const app = <Loadable.Capture report={moduleName => reactLoadableModules.push(moduleName)}>
-      <App {...{
-        Component: enhancer(Component),
+      <EnhancedApp {...{
+        Component: EnhancedComponent,
         router,
         ...props
       }} />

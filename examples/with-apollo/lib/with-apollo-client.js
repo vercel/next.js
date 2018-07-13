@@ -13,8 +13,6 @@ export default (App) => {
         appProps = await App.getInitialProps(ctx)
       }
 
-      const apolloState = {}
-
       // Run all GraphQL queries in the component tree
       // and extract the resulting data
       const apollo = initApollo()
@@ -26,7 +24,6 @@ export default (App) => {
               {...appProps}
               Component={Component}
               router={router}
-              apolloState={apolloState}
               apolloClient={apollo}
             />
           )
@@ -40,12 +37,10 @@ export default (App) => {
         // getDataFromTree does not call componentWillUnmount
         // head side effect therefore need to be cleared manually
         Head.rewind()
-
-        // Extract query data from the Apollo store
-        apolloState.data = apollo.cache.extract()
-      } else {
-        apolloState.data = {}
       }
+
+      // Extract query data from the Apollo store
+      const apolloState = apollo.cache.extract()
 
       return {
         ...appProps,
@@ -55,7 +50,7 @@ export default (App) => {
 
     constructor (props) {
       super(props)
-      this.apolloClient = initApollo(props.apolloState.data)
+      this.apolloClient = initApollo(props.apolloState)
     }
 
     render () {
