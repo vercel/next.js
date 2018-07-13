@@ -68,6 +68,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
       chunks: 'all',
       cacheGroups: {
         default: false,
+        vendors: false,
         commons: {
           reuseExistingChunk: true,
           name: 'manifest',
