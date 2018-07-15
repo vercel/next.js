@@ -243,7 +243,7 @@ export default (context, render) => {
           browser.close()
         })
 
-        it('should scroll to the specified position', async () => {
+        it('should scroll to the specified position on the same page', async () => {
           let browser
           try {
             browser = await webdriver(context.appPort, '/nav/hash-changes')
@@ -261,6 +261,25 @@ export default (context, render) => {
               .eval('window.pageYOffset')
 
             expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
+        it('should scroll to the specified position to a new page', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav')
+
+            // Scrolls to item 400 on the page
+            await browser
+              .elementByCss('#scroll-to-hash').click()
+              .waitForElementByCss('#hash-changes-page')
+
+            const scrollPosition = await browser.eval('window.pageYOffset')
+            expect(scrollPosition).toBe(7258)
           } finally {
             if (browser) {
               browser.close()
