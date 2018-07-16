@@ -59,27 +59,23 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     }
   }
 
-  return {
+  const config: any = {
     runtimeChunk: {
       name: 'static/commons/manifest.js'
     },
     splitChunks: {
-      minSize: 0,
-      chunks: 'all',
       cacheGroups: {
         default: false,
         vendors: false
-        // commons: {
-        //   reuseExistingChunk: true,
-        //   name: 'commons',
-        //   filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js',
-        //   chunks: 'initial',
-        //   minChunks: 1,
-        //   enforce: true
-        // }
       }
     }
   }
+
+  if (dev) {
+    return config
+  }
+
+  return config
 }
 
 type BaseConfigContext = {|
