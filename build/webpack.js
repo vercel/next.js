@@ -61,22 +61,22 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
 
   return {
     runtimeChunk: {
-      name: 'manifest'
+      name: 'static/commons/manifest.js'
     },
     splitChunks: {
       minSize: 0,
       chunks: 'all',
       cacheGroups: {
         default: false,
-        vendors: false,
-        commons: {
-          reuseExistingChunk: true,
-          name: 'manifest',
-          filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js',
-          chunks: 'initial',
-          minChunks: 1,
-          enforce: true
-        }
+        vendors: false
+        // commons: {
+        //   reuseExistingChunk: true,
+        //   name: 'commons',
+        //   filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js',
+        //   chunks: 'initial',
+        //   minChunks: 1,
+        //   enforce: true
+        // }
       }
     }
   }
