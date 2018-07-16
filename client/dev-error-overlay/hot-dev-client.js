@@ -100,9 +100,7 @@ function clearOutdatedErrors () {
 
 // Successful compilation.
 function handleSuccess () {
-  clearOutdatedErrors()
-
-  var isHotUpdate = !isFirstCompilation
+  const isHotUpdate = !isFirstCompilation
   isFirstCompilation = false
   hasCompileErrors = false
 
@@ -120,44 +118,23 @@ function handleSuccess () {
 function handleWarnings (warnings) {
   clearOutdatedErrors()
 
-  var isHotUpdate = !isFirstCompilation
-  isFirstCompilation = false
-  hasCompileErrors = false
+  // Print warnings to the console.
+  const formatted = formatWebpackMessages({
+    warnings: warnings,
+    errors: []
+  })
 
-  function printWarnings () {
-    // Print warnings to the console.
-    var formatted = formatWebpackMessages({
-      warnings: warnings,
-      errors: []
-    })
-
-    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
-      for (var i = 0; i < formatted.warnings.length; i++) {
-        if (i === 5) {
-          console.warn(
-            'There were more warnings in other files.\n' +
-              'You can find a complete log in the terminal.'
-          )
-          break
-        }
-        console.warn(stripAnsi(formatted.warnings[i]))
+  if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+    for (let i = 0; i < formatted.warnings.length; i++) {
+      if (i === 5) {
+        console.warn(
+          'There were more warnings in other files.\n' +
+            'You can find a complete log in the terminal.'
+        )
+        break
       }
+      console.warn(stripAnsi(formatted.warnings[i]))
     }
-  }
-
-  // Attempt to apply hot updates or reload.
-  if (isHotUpdate) {
-    tryApplyUpdates(function onSuccessfulHotUpdate () {
-      // Only print warnings if we aren't refreshing the page.
-      // Otherwise they'll disappear right away anyway.
-      printWarnings()
-      // Only dismiss it when we're sure it's a hot update.
-      // Otherwise it would flicker right before the reload.
-      ErrorOverlay.dismissBuildError()
-    })
-  } else {
-    // Print initial warnings immediately.
-    printWarnings()
   }
 }
 
@@ -183,9 +160,6 @@ function handleErrors (errors) {
       console.error(stripAnsi(formatted.errors[i]))
     }
   }
-
-  // Do not attempt to reload now.
-  // We will reload on next success instead.
 }
 
 // There is a newer version of the code available.
@@ -208,9 +182,17 @@ function processMessage (e) {
     }
     case 'built':
     case 'sync': {
+      clearOutdatedErrors()
+
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
+
+      if (obj.warnings.length > 0) {
+        handleWarnings(obj.warnings)
+        break
+      }
+
       if (obj.errors.length > 0) {
         // When there is a compilation error coming from SSR we have to reload the page on next successful compile
         if (obj.action === 'sync') {
@@ -220,10 +202,6 @@ function processMessage (e) {
         break
       }
 
-      if (obj.warnings.length > 0) {
-        handleWarnings(obj.warnings)
-        break
-      }
       handleSuccess()
       break
     }
