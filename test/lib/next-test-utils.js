@@ -199,6 +199,27 @@ export class File {
 }
 
 // react-error-overlay uses an iframe so we have to read the contents from the frame
-export function getReactErrorOverlayContent (browser) {
+export async function getReactErrorOverlayContent (browser) {
+  let found = false
+  setTimeout(() => {
+    if (found) {
+      return
+    }
+    console.error('TIMED OUT CHECK FOR IFRAME')
+    throw new Error('TIMED OUT CHECK FOR IFRAME')
+  }, 1000 * 30)
+  while (!found) {
+    try {
+      const hasIframe = await browser.hasElementByCssSelector('iframe')
+      if (!hasIframe) {
+        throw new Error('Waiting for iframe')
+      }
+
+      found = true
+      return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+    } catch (ex) {
+      await waitFor(1000)
+    }
+  }
   return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
 }
