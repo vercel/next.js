@@ -61,16 +61,8 @@ export class Head extends Component {
   }
 
   getPreloadMainLinks () {
-    const { dev } = this.context._documentProps
-    if (dev) {
-      return [
-        ...this.getChunkPreloadLink('manifest.js'),
-        ...this.getChunkPreloadLink('main.js')
-      ]
-    }
-
-    // In the production mode, we have a single asset with all the JS content.
     return [
+      ...this.getChunkPreloadLink('manifest.js'),
       ...this.getChunkPreloadLink('main.js')
     ]
   }

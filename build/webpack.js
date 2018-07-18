@@ -227,7 +227,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         }
       }),
       // We use a manifest file in development to speed up HMR
-      dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
+      !isServer && new webpack.optimize.CommonsChunkPlugin({
         name: 'manifest.js',
         filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js'
       })
