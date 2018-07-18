@@ -1,4 +1,4 @@
-import { join, relative, sep } from 'path'
+import { join, relative, sep, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import del from 'del'
@@ -180,7 +180,7 @@ export default class HotReloader {
 
       // We only watch `_document` for changes on the server compilation
       // the rest of the files will be triggered by the client compilation
-      const documentChunk = compilation.chunks.find(c => c.name === 'bundles/pages/_document.js')
+      const documentChunk = compilation.chunks.find(c => c.name === normalize('bundles/pages/_document.js'))
       // If the document chunk can't be found we do nothing
       if (!documentChunk) {
         console.warn('_document.js chunk not found')
