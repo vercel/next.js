@@ -13,8 +13,6 @@ export function rewriteStacktrace (e: any, distDir: string): void {
   })
 
   e.stack = result.join('\n')
-  // This is to make sure we don't apply the sourcemaps twice on the same object
-  e.sourceMapsApplied = true
 }
 
 function rewriteTraceLine (trace: string, distDir: string): string {
@@ -22,6 +20,8 @@ function rewriteTraceLine (trace: string, distDir: string): string {
   if (m == null) {
     return trace
   }
-  trace = trace.replace(distDir, '/_next/development')
+  const filename = m[1]
+  const filenameLink = filename.replace(distDir, '/_next/development').replace(/\\/g, '/')
+  trace = trace.replace(filename, filenameLink)
   return trace
 }
