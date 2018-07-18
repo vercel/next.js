@@ -28,6 +28,7 @@ describe('Basic Features', () => {
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(context.appPort, '/async-props'),
+      renderViaHTTP(context.appPort, '/default-head'),
       renderViaHTTP(context.appPort, '/empty-get-initial-props'),
       renderViaHTTP(context.appPort, '/error'),
       renderViaHTTP(context.appPort, '/finish-response'),
