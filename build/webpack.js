@@ -112,8 +112,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
+    // Backwards compatibility
+    'main.js': [],
     'static/commons/main.js': [
-      dev && !isServer && path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'on-demand-entries-client'),
       path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : {}
@@ -261,6 +262,24 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
 
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders, totalPages})
+  }
+
+  // Backwards compat for `main.js` entry key
+  const originalEntry = webpackConfig.entry
+  webpackConfig.entry = async () => {
+    const entry: any = {...await originalEntry()}
+
+    // Server compilation doesn't have main.js
+    if (typeof entry['main.js'] !== 'undefined') {
+      entry['static/commons/main.js'] = [
+        ...entry['main.js'],
+        ...entry['static/commons/main.js']
+      ]
+
+      delete entry['main.js']
+    }
+
+    return entry
   }
 
   return webpackConfig
