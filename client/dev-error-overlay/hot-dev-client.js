@@ -171,7 +171,6 @@ function handleAvailableHash (hash) {
 // Handle messages from the server.
 function processMessage (e) {
   const obj = JSON.parse(e.data)
-  console.log('EVENT', obj)
   switch (obj.action) {
     case 'building': {
       console.log(

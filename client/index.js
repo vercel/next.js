@@ -164,7 +164,7 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
 
-  // // In development runtime errors are caught by react-error-overlay.
+  // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
       <App {...appProps} />

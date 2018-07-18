@@ -74,7 +74,6 @@ export default () => {
   const devClient = connect(options)
 
   devClient.subscribeToHmrEvent((obj) => {
-    console.log('CUSTOM EVENT', obj)
     const fn = handlers[obj.action]
     if (fn) {
       const data = obj.data || []
