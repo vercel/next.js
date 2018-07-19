@@ -12,7 +12,7 @@ function buildManifest (compiler, compilation) {
         let id = module.id
         let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
         // If it doesn't end in `.js` Next.js can't handle it right now.
-        if (!file.match(/\.js$/) || !file.match(/^chunks\//)) {
+        if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
           return
         }
         let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)

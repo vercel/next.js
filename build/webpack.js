@@ -140,8 +140,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
       filename: '[name]',
       libraryTarget: 'commonjs2',
+      hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
+      hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? '[name].js' : 'chunks/[name].js',
+      chunkFilename: isServer ? '[name].js' : 'static/chunks/[name].js',
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },

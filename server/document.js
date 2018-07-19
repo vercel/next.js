@@ -88,7 +88,7 @@ export class Head extends Component {
       return <script
         async
         key={bundle.file}
-        src={`${assetPrefix}/_next/webpack/${bundle.file}`}
+        src={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
         nonce={this.props.nonce}
       />
@@ -173,7 +173,7 @@ export class NextScript extends Component {
       return <script
         async
         key={bundle.file}
-        src={`${assetPrefix}/_next/webpack/${bundle.file}`}
+        src={`${assetPrefix}/_next/${bundle.file}`}
             nonce={this.props.nonce}
       />
     })

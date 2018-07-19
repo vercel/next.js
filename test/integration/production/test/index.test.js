@@ -66,7 +66,7 @@ describe('Production Usage', () => {
       resources.push(`${url}${buildId}/page/index.js`)
 
       // test dynamic chunk
-      resources.push(url + 'webpack/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js
       resources.push(url + buildManifest['static/commons/main.js'][0])
@@ -74,7 +74,12 @@ describe('Production Usage', () => {
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
       responses.forEach((res) => {
-        expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
       })
     })
 

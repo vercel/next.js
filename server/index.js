@@ -128,22 +128,6 @@ export default class Server {
 
   async defineRoutes () {
     const routes = {
-      // This is to support, webpack dynamic imports in production.
-      '/_next/webpack/chunks/:name': async (req, res, params) => {
-        // Cache aggressively in production
-        if (!this.dev) {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-        }
-        const p = join(this.distDir, 'chunks', params.name)
-        await this.serveStatic(req, res, p)
-      },
-
-      // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req, res, params) => {
-        const p = join(this.distDir, 'chunks', params.id)
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
@@ -197,8 +181,9 @@ export default class Server {
 
       '/_next/static/:path*': async (req, res, params) => {
         // The commons folder holds commonschunk files
+        // The chunks folder holds dynamic entries
         // In development they don't have a hash, and shouldn't be cached by the browser.
-        if (params.path[0] === 'commons') {
+        if (params.path[0] === 'commons' || params.path[0] === 'chunks') {
           if (this.dev) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {
