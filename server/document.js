@@ -66,24 +66,24 @@ export class Head extends Component {
   }
 
   getPreloadMainLinks () {
-    const { dev } = this.context._documentProps
-    if (dev) {
-      return [
-        ...this.getChunkPreloadLink('static/commons/manifest.js'),
-        ...this.getChunkPreloadLink('static/commons/main.js')
-      ]
+    const { __NEXT_DATA__: {assetPrefix}, files } = this.context._documentProps
+    if(!files || files.length === 0) {
+      return null
     }
-
-    // In the production mode, we have a single asset with all the JS content.
-    return [
-      ...this.getChunkPreloadLink('static/commons/manifest.js'),
-      ...this.getChunkPreloadLink('static/commons/main.js')
-    ]
+  
+    return files.map((file) => (
+      <link
+        key={file}
+        nonce={this.props.nonce}
+        rel='preload'
+        href={`${assetPrefix}/_next/${file}`}
+        as='script'
+      />
+    ))
   }
 
   getPreloadDynamicChunks () {
-    const { dynamicImports, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix } = __NEXT_DATA__
+    const { dynamicImports, __NEXT_DATA__: {assetPrefix} } = this.context._documentProps
     return dynamicImports.map((bundle) => {
       return <script
         async
@@ -138,37 +138,24 @@ export class NextScript extends Component {
     _documentProps: PropTypes.any
   }
 
-  getChunkScript (filename, additionalProps = {}) {
-    const { __NEXT_DATA__, buildManifest } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
-
-    const files = buildManifest[filename]
-
-    if(!files) {
-      console.warn(`Files for file ${filename} not found`)
-      return []
+  getScripts () {
+    const { __NEXT_DATA__: {assetPrefix}, files } = this.context._documentProps
+    if(!files || files.length === 0) {
+      return null
     }
-
+  
     return files.map((file) => (
       <script
-        key={filename}
+        key={file}
         src={`${assetPrefix}/_next/${file}`}
         nonce={this.props.nonce}
-        {...additionalProps}
+        async
       />
     ))
   }
 
-  getScripts () {
-    return [
-      ...this.getChunkScript('static/commons/manifest.js', { async: true }),
-      ...this.getChunkScript('static/commons/main.js', { async: true })
-    ]
-  }
-
   getDynamicChunks () {
-    const { dynamicImports, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix } = __NEXT_DATA__
+    const { dynamicImports, __NEXT_DATA__: {assetPrefix} } = this.context._documentProps
     return dynamicImports.map((bundle) => {
       return <script
         async

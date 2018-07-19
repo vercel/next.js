@@ -4,7 +4,7 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requirePage from './require'
+import requirePage, {normalizePagePath} from './require'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
@@ -86,6 +86,7 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const files = [...new Set([...buildManifest.pages[normalizePagePath(page)], ...buildManifest.pages[normalizePagePath('/_app')]])]
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
@@ -159,6 +160,7 @@ async function doRender (req, res, pathname, query, {
     dir,
     staticMarkup,
     buildManifest,
+    files,
     dynamicImports,
     ...docProps
   }} />
