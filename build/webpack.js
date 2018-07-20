@@ -55,7 +55,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
       splitChunks: false,
-      minimizer: []
+      minimize: false
     }
   }
 
@@ -63,19 +63,28 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     runtimeChunk: {
       name: 'static/commons/manifest.js'
     },
-    splitChunks: {
-      cacheGroups: {
-        default: false,
-        vendors: false
-      }
-    }
+    splitChunks: false
   }
 
   if (dev) {
     return config
   }
 
-  return config
+  return {
+    ...config,
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        default: false,
+        vendors: false,
+        commons: {
+          name: 'commons',
+          chunks: 'all',
+          minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+        }
+      }
+    }
+  }
 }
 
 type BaseConfigContext = {|
@@ -143,7 +152,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? '[name].js' : 'static/chunks/[name].js',
+      chunkFilename: isServer ? `${dev ? '[name]' : '[chunkhash]'}.js` : `static/chunks/${dev ? '[name]' : '[chunkhash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },

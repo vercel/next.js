@@ -86,7 +86,13 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
-  const files = [...new Set([...buildManifest.pages[normalizePagePath(page)], ...buildManifest.pages[normalizePagePath('/_app')]])]
+  const files = [
+    ...new Set([
+      ...buildManifest.pages[normalizePagePath(page)],
+      ...buildManifest.pages[normalizePagePath('/_app')],
+      ...buildManifest.pages[normalizePagePath('/_error')]
+    ])
+  ]
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
