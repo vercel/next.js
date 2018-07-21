@@ -34,10 +34,13 @@ export default class NextJsSsrImportPlugin {
             tapInfo.fn = (source, chunk) => {
               const pagePath = join(outputPath, dirname(chunk.name))
               const relativePathToBaseDir = relative(pagePath, join(outputPath, SSR_MODULE_CACHE_FILENAME))
+              // Make sure even in windows, the path looks like in unix
+              // Node.js require system will convert it accordingly
+              const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(/\\/g, '/')
               return webpack.Template.asString([
                 source,
                 '// The module cache',
-                `var installedModules = require('${relativePathToBaseDir}');`
+                `var installedModules = require('${relativePathToBaseDirNormalized}');`
               ])
             }
           }
