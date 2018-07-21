@@ -10,6 +10,7 @@ import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
+import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -17,6 +18,9 @@ import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST} from '../lib/constants'
 
+// The externals config makes sure that
+// on the server side when modules are
+// in node_modules they don't get compiled by webpack
 function externalsConfig (dir, isServer) {
   const externals = []
 
@@ -54,6 +58,7 @@ function externalsConfig (dir, isServer) {
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
+      // runtimeChunk: 'single',
       splitChunks: false,
       minimize: false
     }
@@ -121,6 +126,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
+  const outputPath = path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : '')
   const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
@@ -149,7 +155,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }
     },
     output: {
-      path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
+      path: outputPath,
       filename: ({chunk}) => {
         // Use `[name]-[chunkhash].js` in production
         if (!dev && (chunk.name === 'static/commons/main.js' || chunk.name === 'static/commons/runtime.js')) {
@@ -227,7 +233,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
-      isServer && new NextJsSsrImportPlugin()
+      isServer && new NextJsSsrImportPlugin(),
+      isServer && new NextJsSSRModuleCachePlugin({outputPath})
     ].filter(Boolean)
   }
 

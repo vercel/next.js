@@ -88,5 +88,13 @@ export default (context, render) => {
       expect(switchedRandomNumer).toBe(randomNumber)
       browser.close()
     })
+
+    it('It should share module state with pages', async () => {
+      const browser = await webdriver(context.appPort, '/shared')
+
+      const text = await browser.elementByCss('#currentstate').text()
+      expect(text).toBe('UPDATED CLIENT')
+      browser.close()
+    })
   })
 }
