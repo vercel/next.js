@@ -1,9 +1,5 @@
-/**
- * Copyright (c) 2015-present, Facebook, Inc.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
+// This file is based on https://github.com/facebook/create-react-app/blob/v1.1.4/packages/react-dev-utils/formatWebpackMessages.js
+// It's been edited to remove chalk
 
 'use strict'
 
