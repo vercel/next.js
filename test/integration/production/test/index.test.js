@@ -115,6 +115,7 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
+      browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -122,6 +123,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
+      browser.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
@@ -129,6 +131,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
+      browser.close()
     })
   })
 
