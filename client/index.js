@@ -10,8 +10,6 @@ import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'react-loadable'
 
-console.log('EXECUTED')
-
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
@@ -71,7 +69,10 @@ export const emitter = new EventEmitter()
 export default async ({
   webpackHMR: passedWebpackHMR
 } = {}) => {
-  webpackHMR = passedWebpackHMR
+  // This makes sure this specific line is removed in production
+  if (process.env.NODE_ENV === 'development') {
+    webpackHMR = passedWebpackHMR
+  }
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
 
