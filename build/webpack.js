@@ -70,6 +70,9 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     return config
   }
 
+  // Only enabled in production
+  // This logic will create a commons bundle
+  // with modules that are used in 50% of all pages
   return {
     ...config,
     splitChunks: {
@@ -197,6 +200,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
@@ -224,56 +228,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       isServer && new NextJsSsrImportPlugin()
-      // In dev mode, we don't move anything to the commons bundle.
-      // In production we move common modules into the existing main.js bundle
-      // !isServer && new webpack.optimize.CommonsChunkPlugin({
-      //   name: 'main.js',
-      //   filename: dev ? 'static/commons/main.js' : 'static/commons/main-[chunkhash].js',
-      //   minChunks (module, count) {
-      //     // React and React DOM are used everywhere in Next.js. So they should always be common. Even in development mode, to speed up compilation.
-      //     if (module.resource && module.resource.includes(`${sep}react-dom${sep}`) && count >= 0) {
-      //       return true
-      //     }
-
-      //     if (module.resource && module.resource.includes(`${sep}react${sep}`) && count >= 0) {
-      //       return true
-      //     }
-
-      //     // In the dev we use on-demand-entries.
-      //     // So, it makes no sense to use commonChunks based on the minChunks count.
-      //     // Instead, we move all the code in node_modules into each of the pages.
-      //     if (dev) {
-      //       return false
-      //     }
-
-      //     // Check if the module is used in the _app.js bundle
-      //     // Because _app.js is used on every page we don't want to
-      //     // duplicate them in other bundles.
-      //     const chunks = module.getChunks()
-      // const appBundlePath = path.normalize('bundles/pages/_app.js')
-      // const inAppBundle = chunks.some(chunk => chunk.entryModule
-      //   ? chunk.entryModule.name === appBundlePath
-      //   : null
-      // )
-
-      //     if (inAppBundle && chunks.length > 1) {
-      //       return true
-      //     }
-
-      //     // If there are one or two pages, only move modules to common if they are
-      //     // used in all of the pages. Otherwise, move modules used in at-least
-      //     // 1/2 of the total pages into commons.
-      //     if (totalPages <= 2) {
-      //       return count >= totalPages
-      //     }
-      //     return count >= totalPages * 0.5
-      //   }
-      // }),
-      // // We use a manifest file in development to speed up HMR
-      // dev && !isServer && new webpack.optimize.CommonsChunkPlugin({
-      //   name: 'manifest.js',
-      //   filename: dev ? 'static/commons/manifest.js' : 'static/commons/manifest-[chunkhash].js'
-      // })
     ].filter(Boolean)
   }
 
