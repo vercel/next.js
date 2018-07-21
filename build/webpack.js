@@ -61,7 +61,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
 
   const config: any = {
     runtimeChunk: {
-      name: 'static/commons/manifest.js'
+      name: 'static/commons/runtime.js'
     },
     splitChunks: false
   }
@@ -147,7 +147,13 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     },
     output: {
       path: path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : ''),
-      filename: '[name]',
+      filename: ({chunk}) => {
+        // Use `[name]-[chunkhash].js` in production
+        if (!dev && (chunk.name === 'static/commons/main.js' || chunk.name === 'static/commons/runtime.js')) {
+          return chunk.name.replace(/\.js$/, '-' + chunk.renderedHash + '.js')
+        }
+        return '[name]'
+      },
       libraryTarget: 'commonjs2',
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
