@@ -11,7 +11,7 @@ export default class BuildManifestPlugin {
       const assetMap = {pages: {}, css: []}
 
       const mainJsChunk = chunks.find((c) => c.name === 'static/commons/main.js')
-      const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files : []
+      const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []
 
       // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
       for (const [, entrypoint] of compilation.entrypoints.entries()) {
