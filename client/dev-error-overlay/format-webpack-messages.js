@@ -14,7 +14,6 @@
 // This is quite hacky and hopefully won't be needed when Webpack fixes this.
 // https://github.com/webpack/webpack/issues/2878
 
-var chalk = require('chalk')
 var friendlySyntaxErrorLabel = 'Syntax error:'
 
 function isLikelyASyntaxError (message) {
@@ -100,8 +99,6 @@ function formatMessage (message, isError) {
       "$1 '$4' does not contain an export named '$3'."
     )
   }
-
-  lines[0] = chalk.inverse(lines[0])
 
   // Reassemble the message.
   message = lines.join('\n')
