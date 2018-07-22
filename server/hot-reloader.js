@@ -152,7 +152,7 @@ export default class HotReloader {
   async prepareBuildTools (compiler) {
     // This flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
     compiler.compilers.forEach((singleCompiler) => {
-      singleCompiler.hooks.afterEmit.tapAsync('NextJsHotReloader', (compilation, callback) => {
+      singleCompiler.hooks.afterEmit.tapAsync('NextJsHotReloaderClearRequireCache', (compilation, callback) => {
         const { assets } = compilation
 
         if (this.prevAssets) {
@@ -171,7 +171,7 @@ export default class HotReloader {
       })
     })
 
-    compiler.compilers[1].hooks.done.tap('NextjsHotReloader', (stats) => {
+    compiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       if (!this.initialized) {
         return
       }
@@ -204,7 +204,7 @@ export default class HotReloader {
       this.serverPrevDocumentHash = documentChunk.hash
     })
 
-    compiler.compilers[0].hooks.done.tap('NextJsHotReloader', (stats) => {
+    compiler.compilers[0].hooks.done.tap('NextjsHotReloaderForClient', (stats) => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
