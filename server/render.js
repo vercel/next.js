@@ -216,15 +216,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   res.end(method === 'HEAD' ? null : html)
 }
 
-export function sendJSON (res, obj, method) {
-  if (isResSent(res)) return
-
-  const json = JSON.stringify(obj)
-  res.setHeader('Content-Type', 'application/json')
-  res.setHeader('Content-Length', Buffer.byteLength(json))
-  res.end(method === 'HEAD' ? null : json)
-}
-
 function errorToJSON (err) {
   const { name, message, stack } = err
   const json = { name, message, stack }
