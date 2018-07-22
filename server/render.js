@@ -151,16 +151,17 @@ async function doRender (req, res, pathname, query, {
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
     __NEXT_DATA__: {
+      // Used in development to replace paths for react-error-overlay
       distDir: dev ? distDir : undefined,
-      props,
-      page, // the rendered page
-      pathname, // the requested path
-      query,
-      buildId,
-      assetPrefix,
-      runtimeConfig,
-      nextExport,
-      err: (err) ? serializeError(dev, err) : undefined
+      props, // The result of getInitialProps
+      page, // The rendered page
+      pathname, // The requested path
+      query, // querystring parsed / passed by the user
+      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      assetPrefix, // assetPrefix is applied to all of Next.js's internal assets
+      runtimeConfig, // runtimeConfig if provided, otherwise not sent in the resulting HTML
+      nextExport, // If this is a page exported by `next export`
+      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise not sent in the resulting HTML
     },
     dev,
     dir,
