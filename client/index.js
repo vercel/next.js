@@ -27,7 +27,7 @@ const {
     pathname,
     query,
     buildId,
-    assetPrefix,
+    assetPrefix = '',
     runtimeConfig
   },
   location
