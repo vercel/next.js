@@ -54,7 +54,7 @@ async function doRender (req, res, pathname, query, {
   dir,
   dev = false,
   staticMarkup = false,
-  nextExport = false
+  nextExport
 } = {}) {
   page = page || pathname
 

@@ -63,6 +63,16 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).toContain('<div>World</div>')
     })
 
+    it('should render the page without `err` property', async () => {
+      const html = await render('/')
+      expect(html).not.toContain('"err"')
+    })
+
+    it('should render the page without `nextExport` property', async () => {
+      const html = await render('/')
+      expect(html).not.toContain('"nextExport"')
+    })
+
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
       const styleId = $('#blue-box').attr('class')
