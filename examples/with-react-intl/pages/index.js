@@ -1,7 +1,6 @@
 import React from 'react'
-import {FormattedMessage, FormattedNumber, defineMessages} from 'react-intl'
+import {FormattedMessage, FormattedNumber, defineMessages, injectIntl} from 'react-intl'
 import Head from 'next/head'
-import pageWithIntl from '../components/PageWithIntl'
 import Layout from '../components/Layout'
 
 const {description} = defineMessages({
@@ -11,7 +10,7 @@ const {description} = defineMessages({
   }
 })
 
-export default pageWithIntl(({intl}) => (
+export default injectIntl(({intl}) => (
   <Layout>
     <Head>
       <meta name='description' content={intl.formatMessage(description)} />

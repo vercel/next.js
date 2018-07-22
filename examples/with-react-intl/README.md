@@ -46,7 +46,7 @@ This example app shows how to integrate [React Intl][] with Next.
 
 - Server-side language negotiation
 - React Intl locale data loading via `pages/_document.js` customization
-- React Intl integration at Next page level via `pageWithIntl()` HOC
+- React Intl integration with [custom App](https://github.com/zeit/next.js#custom-app) component
 - `<IntlProvider>` creation with `locale`, `messages`, and `initialNow` props
 - Default message extraction via `babel-plugin-react-intl` integration
 - Translation management via build script and customized Next server
