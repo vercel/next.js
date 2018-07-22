@@ -160,7 +160,7 @@ async function doRender (req, res, pathname, query, {
       assetPrefix,
       runtimeConfig,
       nextExport,
-      err: (err) ? serializeError(dev, err) : null
+      err: (err) ? serializeError(dev, err) : undefined
     },
     dev,
     dir,
