@@ -11,6 +11,7 @@ import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
+import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
 import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -217,6 +218,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
+      // Even though require.cache is server only we have to clear assets from both compilations
+      // This is because the client compilation generates the build manifest that's used on the server side
+      dev && new NextJsRequireCacheHotReloader(),
       dev && !isServer && new webpack.HotModuleReplacementPlugin(),
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),

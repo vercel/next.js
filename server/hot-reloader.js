@@ -150,27 +150,6 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (compiler) {
-    // This flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-    compiler.compilers.forEach((singleCompiler) => {
-      singleCompiler.hooks.afterEmit.tapAsync('NextJsHotReloaderClearRequireCache', (compilation, callback) => {
-        const { assets } = compilation
-
-        if (this.prevAssets) {
-          for (const f of Object.keys(assets)) {
-            deleteCache(assets[f].existsAt)
-          }
-          for (const f of Object.keys(this.prevAssets)) {
-            if (!assets[f]) {
-              deleteCache(this.prevAssets[f].existsAt)
-            }
-          }
-        }
-        this.prevAssets = assets
-
-        callback()
-      })
-    })
-
     compiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       if (!this.initialized) {
         return
@@ -352,10 +331,6 @@ export default class HotReloader {
     }
     await this.onDemandEntries.ensurePage(page)
   }
-}
-
-function deleteCache (path) {
-  delete require.cache[path]
 }
 
 function diff (a, b) {
