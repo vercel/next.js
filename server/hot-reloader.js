@@ -49,14 +49,12 @@ export default class HotReloader {
   constructor (dir, { quiet, config, buildId } = {}) {
     this.buildId = buildId
     this.dir = dir
-    this.quiet = quiet
     this.middlewares = []
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
     this.compilationErrors = null
-    this.prevAssets = null
     this.prevChunkNames = null
     this.prevFailedChunkNames = null
     this.prevChunkHashes = null
@@ -97,9 +95,9 @@ export default class HotReloader {
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
     ])
 
-    const compiler = webpack(configs)
+    const multiCompiler = webpack(configs)
 
-    const buildTools = await this.prepareBuildTools(compiler)
+    const buildTools = await this.prepareBuildTools(multiCompiler)
     this.assignBuildTools(buildTools)
 
     this.stats = (await this.waitUntilValid()).stats[0]
@@ -149,8 +147,9 @@ export default class HotReloader {
     ]
   }
 
-  async prepareBuildTools (compiler) {
-    compiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
+  async prepareBuildTools (multiCompiler) {
+    // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
+    multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       if (!this.initialized) {
         return
       }
@@ -183,7 +182,7 @@ export default class HotReloader {
       this.serverPrevDocumentHash = documentChunk.hash
     })
 
-    compiler.compilers[0].hooks.done.tap('NextjsHotReloaderForClient', (stats) => {
+    multiCompiler.compilers[0].hooks.done.tap('NextjsHotReloaderForClient', (stats) => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
@@ -265,15 +264,15 @@ export default class HotReloader {
       webpackDevMiddlewareConfig = this.config.webpackDevMiddleware(webpackDevMiddlewareConfig)
     }
 
-    const webpackDevMiddleware = WebpackDevMiddleware(compiler, webpackDevMiddlewareConfig)
+    const webpackDevMiddleware = WebpackDevMiddleware(multiCompiler, webpackDevMiddlewareConfig)
 
-    const webpackHotMiddleware = WebpackHotMiddleware(compiler.compilers[0], {
+    const webpackHotMiddleware = WebpackHotMiddleware(multiCompiler.compilers[0], {
       path: '/_next/webpack-hmr',
       log: false,
       heartbeat: 2500
     })
 
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, compiler.compilers, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler.compilers, {
       dir: this.dir,
       dev: true,
       reload: this.reload.bind(this),
