@@ -169,6 +169,7 @@ async function doRender (req, res, pathname, query, {
     buildManifest,
     files,
     dynamicImports,
+    assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
     ...docProps
   }} />
 

@@ -2,12 +2,6 @@ import 'event-source-polyfill'
 import connect from './dev-error-overlay/hot-dev-client'
 import Router from '../lib/router'
 
-const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
-} = window
-
 const handlers = {
   reload (route) {
     if (route === '/_error') {
@@ -66,7 +60,7 @@ const handlers = {
   }
 }
 
-export default () => {
+export default ({assetPrefix}) => {
   const options = {
     path: `${assetPrefix}/_next/webpack-hmr`
   }

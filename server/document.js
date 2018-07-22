@@ -43,30 +43,8 @@ export class Head extends Component {
     nonce: PropTypes.string
   }
 
-  getChunkPreloadLink (filename) {
-    const { __NEXT_DATA__, buildManifest } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
-
-    const files = buildManifest[filename]
-
-    if(!files) {
-      console.warn(`Files for file ${filename} not found`)
-      return []
-    }
-
-    return files.map(file => {
-      return <link
-        key={filename}
-        nonce={this.props.nonce}
-        rel='preload'
-        href={`${assetPrefix}/_next/${file}`}
-        as='script'
-      />
-    })
-  }
-
   getPreloadMainLinks () {
-    const { __NEXT_DATA__: {assetPrefix}, files } = this.context._documentProps
+    const { assetPrefix, files } = this.context._documentProps
     if(!files || files.length === 0) {
       return null
     }
@@ -83,7 +61,7 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { dynamicImports, __NEXT_DATA__: {assetPrefix} } = this.context._documentProps
+    const { dynamicImports, assetPrefix } = this.context._documentProps
     return dynamicImports.map((bundle) => {
       return <script
         async
@@ -96,8 +74,8 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
@@ -139,7 +117,7 @@ export class NextScript extends Component {
   }
 
   getScripts () {
-    const { __NEXT_DATA__: {assetPrefix}, files } = this.context._documentProps
+    const { assetPrefix, files } = this.context._documentProps
     if(!files || files.length === 0) {
       return null
     }
@@ -155,7 +133,7 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { dynamicImports, __NEXT_DATA__: {assetPrefix} } = this.context._documentProps
+    const { dynamicImports, assetPrefix } = this.context._documentProps
     return dynamicImports.map((bundle) => {
       return <script
         async
@@ -167,8 +145,8 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
-    const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { staticMarkup, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>

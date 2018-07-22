@@ -1,12 +1,20 @@
 import initNext, * as next from './'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
-const webpackHMR = initWebpackHMR()
+
+const {
+  __NEXT_DATA__: {
+    assetPrefix
+  }
+} = window
+
+const prefix = assetPrefix || ''
+const webpackHMR = initWebpackHMR({assetPrefix: prefix})
 
 window.next = next
 initNext({ webpackHMR })
   .then((emitter) => {
-    initOnDemandEntries()
+    initOnDemandEntries({assetPrefix: prefix})
 
     let lastScroll
 
