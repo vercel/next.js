@@ -12,11 +12,11 @@ const { description } = defineMessages({
 })
 
 class Index extends Component {
-  static getInitialProps() {
+  static getInitialProps () {
     // Do something
   }
 
-  render() {
+  render () {
     const { intl } = this.props
 
     return (
