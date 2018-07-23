@@ -30,6 +30,7 @@ export default class MyApp extends App {
   render () {
     const { Component, pageProps, locale, messages } = this.props
     const now = Date.now()
+
     return (
       <Container>
         <IntlProvider locale={locale} messages={messages} initialNow={now}>

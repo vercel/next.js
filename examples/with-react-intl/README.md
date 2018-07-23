@@ -50,6 +50,7 @@ This example app shows how to integrate [React Intl][] with Next.
 - `<IntlProvider>` creation with `locale`, `messages`, and `initialNow` props
 - Default message extraction via `babel-plugin-react-intl` integration
 - Translation management via build script and customized Next server
+- withIntl HOC for pages because injectIntl do not hoist static methods.
 
 ### Translation Management
 
