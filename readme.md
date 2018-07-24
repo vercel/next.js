@@ -1391,18 +1391,7 @@ export default () => <div>
 
 ### Starting a dev server on alternative IP
 
-To start the dev server using a hostname different from the defualt `localhost` you can use the provided `--hostname or -H` option with `next dev`.
-
-```bash
-next dev <dir> -H <hostname>
-next dev <dir> -H 127.0.0.1
-```
-
-This will start the TCP server listenting for connections on the provided host.
-
-If hostname is omitted, the server will accept connections on the unspecified IPv6 address ( :: ) when IPv6 is available, or the unspecified IPv4 address (0.0.0.0) otherwise.
-
-Note: While allowed, listening to 0.0.0.0 is considered a bad practice and it may pose as a security vulnerability.
+To start the development server using a different default hostname you can use `--hostname hostname_here` or `-H hostname_here` option with next dev. This will start a TCP server listening for connections on the provided host.
 
 ### CDN support with Asset Prefix
 
