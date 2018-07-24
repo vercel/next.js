@@ -7,7 +7,7 @@ import {PAGES_MANIFEST, ROUTE_NAME_REGEX} from '../../../lib/constants'
 // It's also used by next export to provide defaultPathMap
 export default class PagesManifestPlugin {
   apply (compiler: any) {
-    compiler.plugin('emit', (compilation, callback) => {
+    compiler.hooks.emit.tapAsync('NextJsPagesManifest', (compilation, callback) => {
       const {entries} = compilation
       const pages = {}
 

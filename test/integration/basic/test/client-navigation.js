@@ -1,7 +1,7 @@
 /* global describe, it, expect */
 
 import webdriver from 'next-webdriver'
-import {waitFor} from 'next-test-utils'
+import {waitFor, getReactErrorOverlayContent} from 'next-test-utils'
 
 export default (context, render) => {
   describe('Client Navigation', () => {
@@ -98,16 +98,21 @@ export default (context, render) => {
 
     describe('with empty getInitialProps()', () => {
       it('should render an error', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-        const preText = await browser
-          .elementByCss('#empty-props').click()
-          .waitForElementByCss('pre')
-          .elementByCss('pre').text()
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+          await browser.elementByCss('#empty-props').click()
 
-        const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-        expect(preText.includes(expectedErrorMessage)).toBeTruthy()
+          await waitFor(3000)
 
-        browser.close()
+          expect(await getReactErrorOverlayContent(browser)).toMatch(
+            /should resolve to an object\. But found "null" instead\./
+          )
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
 
@@ -480,7 +485,7 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should work with dir/ page ', async () => {
+      it('should work with dir/ page', async () => {
         const browser = await webdriver(context.appPort, '/nested-cdm')
         const text = await browser.elementByCss('p').text()
 
@@ -566,19 +571,33 @@ export default (context, render) => {
 
     describe('runtime errors', () => {
       it('should show ErrorDebug when a client side error is thrown inside a component', async () => {
-        const browser = await webdriver(context.appPort, '/error-inside-browser-page')
-        await waitFor(2000)
-        const text = await browser.elementByCss('body').text()
-        expect(text).toMatch(/An Expected error occured/)
-        expect(text).toMatch(/pages\/error-inside-browser-page\.js:5:0/)
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/error-inside-browser-page')
+          await waitFor(3000)
+          const text = await getReactErrorOverlayContent(browser)
+          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
 
       it('should show ErrorDebug when a client side error is thrown outside a component', async () => {
-        const browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
-        await waitFor(2000)
-        const text = await browser.elementByCss('body').text()
-        expect(text).toMatch(/An Expected error occured/)
-        expect(text).toMatch(/pages\/error-in-the-browser-global-scope\.js:2:0/)
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
+          await waitFor(3000)
+          const text = await getReactErrorOverlayContent(browser)
+          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
 

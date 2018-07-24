@@ -3,20 +3,14 @@
 import Router from '../lib/router'
 import fetch from 'unfetch'
 
-const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
-} = window
-
-export default () => {
+export default ({assetPrefix}) => {
   Router.ready(() => {
     Router.router.events.on('routeChangeComplete', ping)
   })
 
   async function ping () {
     try {
-      const url = `${assetPrefix}/_next/on-demand-entries-ping?page=${Router.pathname}`
+      const url = `${assetPrefix || ''}/_next/on-demand-entries-ping?page=${Router.pathname}`
       const res = await fetch(url, {
         credentials: 'omit'
       })

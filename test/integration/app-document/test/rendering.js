@@ -66,6 +66,13 @@ export default function ({ app }, suiteName, render, fetch) {
         const $ = await get$('/')
         expect($('hello-app').text() === 'Hello App')
       })
+
+      // For example react context uses shared module state
+      // Also known as singleton modules
+      test('It should share module state with pages', async () => {
+        const $ = await get$('/shared')
+        expect($('#currentstate').text() === 'UPDATED')
+      })
     })
   })
 }

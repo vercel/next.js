@@ -948,13 +948,11 @@ export default () =>
 import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
-  modules: props => {
+  modules: () => {
     const components = {
       Hello1: import('../components/hello1'),
       Hello2: import('../components/hello2')
     }
-
-    // Add remove components based on props
 
     return components
   },

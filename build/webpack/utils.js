@@ -15,8 +15,7 @@ export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
 
   if (dev) {
     // In development we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
-    // _document also has to be in the client compiler in development because we want to detect HMR changes and reload the client
-    pages = await glob(`pages/+(_document|_app|_error).+(${pageExtensions})`, { cwd: dir })
+    pages = await glob(isServer ? `pages/+(_document|_app|_error).+(${pageExtensions})` : `pages/+(_app|_error).+(${pageExtensions})`, { cwd: dir })
   } else {
     // In production get all pages from the pages directory
     pages = await glob(isServer ? `pages/**/*.+(${pageExtensions})` : `pages/**/!(_document)*.+(${pageExtensions})`, { cwd: dir })

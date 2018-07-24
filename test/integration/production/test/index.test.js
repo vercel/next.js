@@ -15,6 +15,7 @@ import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
 import security from './security'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -55,7 +56,8 @@ describe('Production Usage', () => {
 
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
-      const buildManifest = require('../.next/build-manifest.json')
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
       const url = `http://localhost:${appPort}/_next/`
 
       const resources = []
@@ -64,17 +66,20 @@ describe('Production Usage', () => {
       resources.push(`${url}${buildId}/page/index.js`)
 
       // test dynamic chunk
-      const chunkKey = Object.keys(buildManifest).find((x) => x.includes('chunks/'))
-      resources.push(url + 'webpack/' + buildManifest[chunkKey])
+      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js
-      const mainJsKey = Object.keys(buildManifest).find((x) => x === 'main.js')
-      resources.push(url + buildManifest[mainJsKey])
+      resources.push(url + buildManifest['static/commons/main.js'][0])
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
       responses.forEach((res) => {
-        expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
       })
     })
 
@@ -110,6 +115,7 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
+      browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -117,6 +123,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
+      browser.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
@@ -124,6 +131,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
+      browser.close()
     })
   })
 

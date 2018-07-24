@@ -1,18 +1,27 @@
 import { join } from 'path'
-import { createElement } from 'react'
+import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requirePage from './require'
+import requirePage, {normalizePagePath} from './require'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
-import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
-import { flushChunks } from '../lib/dynamic'
-import { BUILD_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
-import { applySourcemaps } from './lib/source-map-support'
+import Loadable from 'react-loadable'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
+
+// Based on https://github.com/jamiebuilds/react-loadable/pull/132
+function getBundles (manifest, moduleIds) {
+  return moduleIds.reduce((bundles, moduleId) => {
+    if (typeof manifest[moduleId] === 'undefined') {
+      return bundles
+    }
+
+    return bundles.concat(manifest[moduleId])
+  }, [])
+}
 
 const logger = console
 
@@ -41,16 +50,13 @@ async function doRender (req, res, pathname, query, {
   hotReloader,
   assetPrefix,
   runtimeConfig,
-  availableChunks,
   distDir,
   dir,
   dev = false,
   staticMarkup = false,
-  nextExport = false
+  nextExport
 } = {}) {
   page = page || pathname
-
-  await applySourcemaps(err)
 
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
@@ -58,12 +64,15 @@ async function doRender (req, res, pathname, query, {
 
   const documentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
-  const buildManifest = require(join(distDir, BUILD_MANIFEST))
-  let [Component, Document, App] = await Promise.all([
+  let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
+    require(join(distDir, BUILD_MANIFEST)),
+    require(join(distDir, REACT_LOADABLE_MANIFEST)),
     requirePage(page, {distDir}),
     require(documentPath),
     require(appPath)
   ])
+
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   Component = Component.default || Component
 
@@ -77,10 +86,18 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const files = [
+    ...new Set([
+      ...buildManifest.pages[normalizePagePath(page)],
+      ...buildManifest.pages[normalizePagePath('/_app')],
+      ...buildManifest.pages[normalizePagePath('/_error')]
+    ])
+  ]
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
 
+  let reactLoadableModules = []
   const renderPage = (options = Page => Page) => {
     let EnhancedApp = App
     let EnhancedComponent = Component
@@ -97,7 +114,13 @@ async function doRender (req, res, pathname, query, {
       }
     }
 
-    const app = createElement(EnhancedApp, { Component: EnhancedComponent, router, ...props })
+    const app = <Loadable.Capture report={moduleName => reactLoadableModules.push(moduleName)}>
+      <EnhancedApp {...{
+        Component: EnhancedComponent,
+        router,
+        ...props
+      }} />
+    </Loadable.Capture>
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
@@ -107,7 +130,7 @@ async function doRender (req, res, pathname, query, {
 
     try {
       if (err && dev) {
-        errorHtml = render(createElement(ErrorDebug, { error: err }))
+        errorHtml = render(<ErrorDebug error={err} />)
       } else if (err) {
         html = render(app)
       } else {
@@ -116,34 +139,39 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = loadChunks({ dev, distDir, availableChunks })
 
-    return { html, head, errorHtml, chunks, buildManifest }
+    return { html, head, errorHtml, buildManifest }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const dynamicImports = getBundles(reactLoadableManifest, reactLoadableModules)
 
   if (isResSent(res)) return
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
-  const doc = createElement(Document, {
+  const doc = <Document {...{
     __NEXT_DATA__: {
-      props,
-      page, // the rendered page
-      pathname, // the requested path
-      query,
-      buildId,
-      assetPrefix,
-      runtimeConfig,
-      nextExport,
-      err: (err) ? serializeError(dev, err) : null
+      // Used in development to replace paths for react-error-overlay
+      distDir: dev ? distDir : undefined,
+      props, // The result of getInitialProps
+      page, // The rendered page
+      pathname, // The requested path
+      query, // querystring parsed / passed by the user
+      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+      nextExport, // If this is a page exported by `next export`
+      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
     },
     dev,
     dir,
     staticMarkup,
     buildManifest,
+    files,
+    dynamicImports,
+    assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
     ...docProps
-  })
+  }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
@@ -190,15 +218,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   res.end(method === 'HEAD' ? null : html)
 }
 
-export function sendJSON (res, obj, method) {
-  if (isResSent(res)) return
-
-  const json = JSON.stringify(obj)
-  res.setHeader('Content-Type', 'application/json')
-  res.setHeader('Content-Length', Buffer.byteLength(json))
-  res.end(method === 'HEAD' ? null : json)
-}
-
 function errorToJSON (err) {
   const { name, message, stack } = err
   const json = { name, message, stack }
@@ -239,26 +258,4 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (page === '/_error') return
 
   await hotReloader.ensurePage(page)
-}
-
-function loadChunks ({ dev, distDir, availableChunks }) {
-  const flushedChunks = flushChunks()
-  const response = {
-    names: [],
-    filenames: []
-  }
-
-  if (dev) {
-    availableChunks = getAvailableChunks(distDir, dev)
-  }
-
-  for (var chunk of flushedChunks) {
-    const filename = availableChunks[chunk]
-    if (filename) {
-      response.names.push(chunk)
-      response.filenames.push(filename)
-    }
-  }
-
-  return response
 }
