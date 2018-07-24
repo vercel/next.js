@@ -6,7 +6,7 @@ import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '..
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
-const pathToBundles = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages')
+const pathToBundles = join(distDir, SERVER_DIRECTORY, 'static', 'development', 'pages')
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {

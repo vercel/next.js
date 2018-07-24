@@ -13,7 +13,7 @@ import Loadable from 'react-loadable'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
-function getBundles (manifest, moduleIds) {
+function getDynamicImportBundles (manifest, moduleIds) {
   return moduleIds.reduce((bundles, moduleId) => {
     if (typeof manifest[moduleId] === 'undefined') {
       return bundles
@@ -62,8 +62,8 @@ async function doRender (req, res, pathname, query, {
     await ensurePage(page, { dir, hotReloader })
   }
 
-  const documentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
+  const documentPath = join(distDir, SERVER_DIRECTORY, 'static', buildId, 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, 'static', buildId, 'pages', '_app')
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
@@ -144,7 +144,7 @@ async function doRender (req, res, pathname, query, {
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = getBundles(reactLoadableManifest, reactLoadableModules)
+  const dynamicImports = getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)
 
   if (isResSent(res)) return
 

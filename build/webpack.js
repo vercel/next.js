@@ -128,7 +128,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     .filter((p) => !!p)
 
   const outputPath = path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : '')
-  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     // Backwards compatibility

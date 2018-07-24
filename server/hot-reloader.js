@@ -8,7 +8,12 @@ import getBaseWebpackConfig from '../build/webpack'
 import {
   addCorsSupport
 } from './utils'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX} from '../lib/constants'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from '../lib/constants'
+import pathMatch from './lib/path-match'
+import {renderScriptError} from './render'
+
+const route = pathMatch()
+const matchNextPageBundleRequest = route('/_next/static/:buildId/pages/:path*.js(.map)?')
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule (issuer) {
@@ -46,7 +51,7 @@ function erroredPages (compilation, options = {enhanceName: (name) => name}) {
 }
 
 export default class HotReloader {
-  constructor (dir, { quiet, config, buildId } = {}) {
+  constructor (dir, { config, buildId } = {}) {
     this.buildId = buildId
     this.dir = dir
     this.middlewares = []
@@ -63,7 +68,7 @@ export default class HotReloader {
     this.config = config
   }
 
-  async run (req, res) {
+  async run (req, res, parsedUrl) {
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
@@ -73,6 +78,38 @@ export default class HotReloader {
       return
     }
 
+    const handlePageBundleRequest = async (req, res, parsedUrl) => {
+      const {pathname} = parsedUrl
+      const params = matchNextPageBundleRequest(pathname)
+      if (!params) {
+        return {}
+      }
+
+      if (params.buildId !== this.buildId) {
+        return
+      }
+
+      const page = `/${params.path.join('/')}`
+      if (BLOCKED_PAGES.indexOf(page) === -1) {
+        try {
+          await this.ensurePage(page)
+        } catch (error) {
+          await renderScriptError(req, res, page, error)
+          return {finished: true}
+        }
+
+        const errors = await this.getCompilationErrors(page)
+        if (errors.length > 0) {
+          await renderScriptError(req, res, page, errors[0])
+          return {finished: true}
+        }
+      }
+
+      return {}
+    }
+
+    const {finished} = await handlePageBundleRequest(req, res, parsedUrl)
+
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
         fn(req, res, (err) => {
@@ -81,6 +118,8 @@ export default class HotReloader {
         })
       })
     }
+
+    return {finished}
   }
 
   async clean () {
@@ -121,8 +160,8 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
     ])
 
     const compiler = webpack(configs)
@@ -158,7 +197,7 @@ export default class HotReloader {
 
       // We only watch `_document` for changes on the server compilation
       // the rest of the files will be triggered by the client compilation
-      const documentChunk = compilation.chunks.find(c => c.name === normalize('bundles/pages/_document.js'))
+      const documentChunk = compilation.chunks.find(c => c.name === normalize(`static/${this.buildId}/pages/_document.js`))
       // If the document chunk can't be found we do nothing
       if (!documentChunk) {
         console.warn('_document.js chunk not found')
@@ -209,7 +248,7 @@ export default class HotReloader {
         // and to update error content
         const failed = failedChunkNames
 
-        const rootDir = join('bundles', 'pages')
+        const rootDir = join('static', this.buildId, 'pages')
 
         for (const n of new Set([...added, ...succeeded, ...removed, ...failed])) {
           const route = toRoute(relative(rootDir, n))
@@ -274,6 +313,7 @@ export default class HotReloader {
 
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler.compilers, {
       dir: this.dir,
+      buildId: this.buildId,
       dev: true,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
