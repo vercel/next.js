@@ -8,7 +8,7 @@ import getBaseWebpackConfig from '../build/webpack'
 import {
   addCorsSupport
 } from './utils'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from '../lib/constants'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
 import pathMatch from './lib/path-match'
 import {renderScriptError} from './render'
 
@@ -248,7 +248,7 @@ export default class HotReloader {
         // and to update error content
         const failed = failedChunkNames
 
-        const rootDir = join('static', this.buildId, 'pages')
+        const rootDir = join(CLIENT_STATIC_FILES_PATH, this.buildId, 'pages')
 
         for (const n of new Set([...added, ...succeeded, ...removed, ...failed])) {
           const route = toRoute(relative(rootDir, n))

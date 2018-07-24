@@ -1,6 +1,7 @@
 import path from 'path'
 import promisify from '../../lib/promisify'
 import globModule from 'glob'
+import {CLIENT_STATIC_FILES_PATH} from '../../lib/constants'
 
 const glob = promisify(globModule)
 
@@ -41,7 +42,7 @@ export function createEntry (filePath, {buildId = '', name, pageExtensions} = {}
   }
 
   return {
-    name: path.join('static', buildId, entryName),
+    name: path.join(CLIENT_STATIC_FILES_PATH, buildId, entryName),
     files: [parsedPath.root ? filePath : `./${filePath}`] // The entry always has to be an array.
   }
 }

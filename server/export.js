@@ -4,7 +4,7 @@ import mkdirp from 'mkdirp-then'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import loadConfig from './config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE} from '../lib/constants'
+import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
 import { renderToHTML } from './render'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
@@ -50,11 +50,11 @@ export default async function (dir, options, configuration) {
   }
 
   // Copy .next/static directory
-  if (existsSync(join(distDir, 'static'))) {
+  if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
     log('  copying "static build" directory')
     await cp(
-      join(distDir, 'static'),
-      join(outDir, '_next', 'static')
+      join(distDir, CLIENT_STATIC_FILES_PATH),
+      join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
     )
   }
 

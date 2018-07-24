@@ -13,7 +13,7 @@ import {
 import Router from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE} from '../lib/constants'
+import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
@@ -136,7 +136,7 @@ export default class Server {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
           }
         }
-        const p = join(this.distDir, 'static', ...(params.path || []))
+        const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
