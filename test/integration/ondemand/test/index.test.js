@@ -30,7 +30,7 @@ describe('On Demand Entries', () => {
   })
 
   it('should compile pages for JSON page requests', async () => {
-    const pageContent = await renderViaHTTP(context.appPort, '/_next/-/page/about.js')
+    const pageContent = await renderViaHTTP(context.appPort, '/_next/static/development/pages/about.js')
     expect(pageContent.includes('About Page')).toBeTruthy()
   })
 
