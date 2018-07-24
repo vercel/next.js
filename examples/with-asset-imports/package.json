@@ -7,8 +7,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "babel-plugin-transform-assets-import-to-string": "^1.0.1",
     "next": "latest",
+    "next-images": "0.10.5",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
   },
