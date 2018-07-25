@@ -78,6 +78,10 @@ export default class HotReloader {
       return
     }
 
+    // When a request comes in that is a page bundle, e.g. /_next/static/<buildid>/pages/index.js
+    // we have to compile the page using on-demand-entries, this middleware will handle doing that
+    // by adding the page to on-demand-entries, waiting till it's done
+    // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (req, res, parsedUrl) => {
       const {pathname} = parsedUrl
       const params = matchNextPageBundleRequest(pathname)
