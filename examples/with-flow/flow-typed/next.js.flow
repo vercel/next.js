@@ -1,4 +1,4 @@
-/* @flow */
+// @flow
 
 declare module "next" {
   declare type NextApp = {
