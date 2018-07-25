@@ -17,6 +17,7 @@ const glob = promisify(globModule)
 const access = promisify(fs.access)
 
 export default function onDemandEntryHandler (devMiddleware, compilers, {
+  buildId,
   dir,
   dev,
   reload,
@@ -163,7 +164,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
 
       const pathname = join(dir, relativePathToPage)
 
-      const {name, files} = createEntry(relativePathToPage, {pageExtensions: extensions})
+      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions})
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]

@@ -63,7 +63,7 @@ describe('Production Usage', () => {
       const resources = []
 
       // test a regular page
-      resources.push(`${url}${buildId}/page/index.js`)
+      resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
       resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
