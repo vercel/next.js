@@ -1,11 +1,10 @@
 import del from 'del'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
-import walk from 'walk'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import loadConfig from './config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE} from '../lib/constants'
+import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
 import { renderToHTML } from './render'
 import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
@@ -51,11 +50,11 @@ export default async function (dir, options, configuration) {
   }
 
   // Copy .next/static directory
-  if (existsSync(join(distDir, 'static'))) {
+  if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
     log('  copying "static build" directory')
     await cp(
-      join(distDir, 'static'),
-      join(outDir, '_next', 'static')
+      join(distDir, CLIENT_STATIC_FILES_PATH),
+      join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
     )
   }
 
@@ -69,8 +68,6 @@ export default async function (dir, options, configuration) {
       join(outDir, '_next', 'webpack', 'chunks')
     )
   }
-
-  await copyPages(distDir, outDir, buildId)
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
@@ -148,41 +145,4 @@ export default async function (dir, options, configuration) {
     if (options.silent) return
     console.log(message)
   }
-}
-
-function copyPages (distDir, outDir, buildId) {
-  // TODO: do some proper error handling
-  return new Promise((resolve, reject) => {
-    const nextBundlesDir = join(distDir, 'bundles', 'pages')
-    const walker = walk.walk(nextBundlesDir, { followLinks: false })
-
-    walker.on('file', (root, stat, next) => {
-      const filename = stat.name
-      const fullFilePath = `${root}${sep}${filename}`
-      const relativeFilePath = fullFilePath.replace(nextBundlesDir, '')
-
-      // We should not expose this page to the client side since
-      // it has no use in the client side.
-      if (relativeFilePath === `${sep}_document.js`) {
-        next()
-        return
-      }
-
-      let destFilePath = null
-      if (relativeFilePath === `${sep}index.js`) {
-        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
-      } else if (/index\.js$/.test(filename)) {
-        const newRelativeFilePath = relativeFilePath.replace(`${sep}index.js`, '.js')
-        destFilePath = join(outDir, '_next', buildId, 'page', newRelativeFilePath)
-      } else {
-        destFilePath = join(outDir, '_next', buildId, 'page', relativeFilePath)
-      }
-
-      cp(fullFilePath, destFilePath)
-        .then(next)
-        .catch(reject)
-    })
-
-    walker.on('end', resolve)
-  })
 }

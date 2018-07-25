@@ -4,26 +4,22 @@ import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
-import promisify from '../lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
   sendHTML,
-  serveStatic,
-  renderScriptError
+  serveStatic
 } from './render'
 import Router from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE} from '../lib/constants'
+import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
-
-const access = promisify(fs.access)
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
@@ -44,8 +40,8 @@ export default class Server {
       console.error(`> Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
     }
-    this.buildId = !dev ? this.readBuildId() : '-'
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig, buildId: this.buildId }) : null
+    this.buildId = this.readBuildId(dev)
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId }) : null
     this.renderOpts = {
       dev,
       staticMarkup,
@@ -128,69 +124,19 @@ export default class Server {
 
   async defineRoutes () {
     const routes = {
-      '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-
-        if (this.dev) {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (err) {
-            await this.render404(req, res)
-          }
-        }
-
-        const path = join(this.distDir, 'bundles', 'pages', `${page}.js.map`)
-        await serveStatic(req, res, path)
-      },
-
-      '/_next/:buildId/page/:path*.js': async (req, res, params) => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-
-        if (!this.handleBuildId(params.buildId, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          return await renderScriptError(req, res, page, error)
-        }
-
-        if (this.dev && page !== '/_error' && page !== '/_app') {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (error) {
-            return await renderScriptError(req, res, page, error)
-          }
-
-          const compilationErr = await this.getCompilationError(page)
-          if (compilationErr) {
-            return await renderScriptError(req, res, page, compilationErr)
-          }
-        }
-
-        const p = join(this.distDir, 'bundles', 'pages', `${page}.js`)
-
-        // [production] If the page is not exists, we need to send a proper Next.js style 404
-        // Otherwise, it'll affect the multi-zones feature.
-        try {
-          await access(p, (fs.constants || fs).R_OK)
-        } catch (err) {
-          return await renderScriptError(req, res, page, { code: 'ENOENT' })
-        }
-
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/static/:path*': async (req, res, params) => {
         // The commons folder holds commonschunk files
         // The chunks folder holds dynamic entries
+        // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
         // In development they don't have a hash, and shouldn't be cached by the browser.
-        if (params.path[0] === 'commons' || params.path[0] === 'chunks') {
+        if (params.path[0] === 'commons' || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
           if (this.dev) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
           }
         }
-        const p = join(this.distDir, 'static', ...(params.path || []))
+        const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
@@ -269,7 +215,10 @@ export default class Server {
 
   async run (req, res, parsedUrl) {
     if (this.hotReloader) {
-      await this.hotReloader.run(req, res)
+      const {finished} = await this.hotReloader.run(req, res, parsedUrl)
+      if (finished) {
+        return
+      }
     }
 
     const fn = this.router.match(req, res, parsedUrl)
@@ -392,7 +341,10 @@ export default class Server {
     return true
   }
 
-  readBuildId () {
+  readBuildId (dev) {
+    if (dev) {
+      return 'development'
+    }
     const buildIdPath = join(this.distDir, BUILD_ID_FILE)
     const buildId = fs.readFileSync(buildIdPath, 'utf8')
     return buildId.trim()

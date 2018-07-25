@@ -1,12 +1,12 @@
 /* global describe, it, expect */
 
 import { join } from 'path'
-import {SERVER_DIRECTORY} from 'next/constants'
+import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH} from 'next/constants'
 import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
-const pathToBundles = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages')
+const pathToBundles = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, 'development', 'pages')
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {

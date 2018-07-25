@@ -33,7 +33,7 @@ function buildManifest (compiler, compilation) {
   return manifest
 }
 
-class ReactLoadablePlugin {
+export class ReactLoadablePlugin {
   constructor (opts = {}) {
     this.filename = opts.filename
   }
@@ -54,5 +54,3 @@ class ReactLoadablePlugin {
     })
   }
 }
-
-exports.ReactLoadablePlugin = ReactLoadablePlugin

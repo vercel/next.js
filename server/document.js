@@ -80,9 +80,9 @@ export class Head extends Component {
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' nonce={this.props.nonce} />}
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_app.js`} as='script' nonce={this.props.nonce} />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' nonce={this.props.nonce} />
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} />
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {styles || null}
@@ -168,9 +168,9 @@ export class NextScript extends Component {
           })`: ''}
         `
       }} />}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} nonce={this.props.nonce} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/${buildId}/page/_app.js`} nonce={this.props.nonce} />
-      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/${buildId}/page/_error.js`} nonce={this.props.nonce} />
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
+      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
+      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>

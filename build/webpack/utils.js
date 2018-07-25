@@ -1,13 +1,14 @@
 import path from 'path'
 import promisify from '../../lib/promisify'
 import globModule from 'glob'
+import {CLIENT_STATIC_FILES_PATH} from '../../lib/constants'
 
 const glob = promisify(globModule)
 
-export async function getPages (dir, {nextPagesDir, dev, isServer, pageExtensions}) {
+export async function getPages (dir, {nextPagesDir, dev, buildId, isServer, pageExtensions}) {
   const pageFiles = await getPagePaths(dir, {dev, isServer, pageExtensions})
 
-  return getPageEntries(pageFiles, {nextPagesDir, isServer, pageExtensions})
+  return getPageEntries(pageFiles, {nextPagesDir, buildId, isServer, pageExtensions})
 }
 
 export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
@@ -25,7 +26,7 @@ export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
 }
 
 // Convert page path into single entry
-export function createEntry (filePath, {name, pageExtensions} = {}) {
+export function createEntry (filePath, {buildId = '', name, pageExtensions} = {}) {
   const parsedPath = path.parse(filePath)
   let entryName = name || filePath
 
@@ -41,35 +42,35 @@ export function createEntry (filePath, {name, pageExtensions} = {}) {
   }
 
   return {
-    name: path.join('bundles', entryName),
+    name: path.join(CLIENT_STATIC_FILES_PATH, buildId, entryName),
     files: [parsedPath.root ? filePath : `./${filePath}`] // The entry always has to be an array.
   }
 }
 
 // Convert page paths into entries
-export function getPageEntries (pagePaths, {nextPagesDir, isServer = false, pageExtensions} = {}) {
+export function getPageEntries (pagePaths, {nextPagesDir, buildId, isServer = false, pageExtensions} = {}) {
   const entries = {}
 
   for (const filePath of pagePaths) {
-    const entry = createEntry(filePath, {pageExtensions})
+    const entry = createEntry(filePath, {pageExtensions, buildId})
     entries[entry.name] = entry.files
   }
 
   const appPagePath = path.join(nextPagesDir, '_app.js')
-  const appPageEntry = createEntry(appPagePath, {name: 'pages/_app.js'}) // default app.js
+  const appPageEntry = createEntry(appPagePath, {buildId, name: 'pages/_app.js'}) // default app.js
   if (!entries[appPageEntry.name]) {
     entries[appPageEntry.name] = appPageEntry.files
   }
 
   const errorPagePath = path.join(nextPagesDir, '_error.js')
-  const errorPageEntry = createEntry(errorPagePath, {name: 'pages/_error.js'}) // default error.js
+  const errorPageEntry = createEntry(errorPagePath, {buildId, name: 'pages/_error.js'}) // default error.js
   if (!entries[errorPageEntry.name]) {
     entries[errorPageEntry.name] = errorPageEntry.files
   }
 
   if (isServer) {
     const documentPagePath = path.join(nextPagesDir, '_document.js')
-    const documentPageEntry = createEntry(documentPagePath, {name: 'pages/_document.js'}) // default _document.js
+    const documentPageEntry = createEntry(documentPagePath, {buildId, name: 'pages/_document.js'}) // default _document.js
     if (!entries[documentPageEntry.name]) {
       entries[documentPageEntry.name] = documentPageEntry.files
     }
