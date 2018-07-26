@@ -2,6 +2,12 @@ import initNext, * as next from './'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
+// Temporary workaround for the issue described here:
+// https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
+// The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
+// The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
+import('./noop')
+
 const {
   __NEXT_DATA__: {
     assetPrefix

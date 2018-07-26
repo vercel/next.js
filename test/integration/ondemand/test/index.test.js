@@ -1,6 +1,7 @@
 /* global jasmine, describe, beforeAll, afterAll, it, expect */
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
+import webdriver from 'next-webdriver'
 import {
   renderViaHTTP,
   findPort,
@@ -55,6 +56,23 @@ describe('On Demand Entries', () => {
       expect(existsSync(aboutPagePath)).toBeTruthy()
       expect(existsSync(thirdPagePath)).toBeTruthy()
       if (!existsSync(indexPagePath)) return
+    }
+  })
+
+  it('should navigate to pages with dynamic imports', async () => {
+    let browser
+    try {
+      browser = await webdriver(context.appPort, '/nav')
+      const text = await browser
+        .elementByCss('#to-dynamic').click()
+        .waitForElementByCss('.dynamic-page')
+        .elementByCss('p').text()
+
+      expect(text).toBe('Hello')
+    } finally {
+      if (browser) {
+        browser.close()
+      }
     }
   })
 })
