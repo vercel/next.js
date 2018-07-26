@@ -6,11 +6,9 @@
         "source": "**/**",
         "function": "next"
       }
-    ],
-    "predeploy": "npm run build-public"
+    ]
   },
   "functions": {
-    "source": "dist/functions",
-    "predeploy": "npm run build-funcs && npm run build-app && npm run copy-deps"
+    "source": "dist/functions"
   }
 }

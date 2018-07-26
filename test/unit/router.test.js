@@ -1,5 +1,5 @@
 /* global describe, it, expect */
-import Router from '../../dist/lib/router/router'
+import Router from 'next/dist/lib/router/router'
 
 class PageLoader {
   constructor (options = {}) {

@@ -4,27 +4,22 @@ import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
-import promisify from './lib/promisify'
 import {
   renderToHTML,
   renderErrorToHTML,
   sendHTML,
-  serveStatic,
-  renderScriptError
+  serveStatic
 } from './render'
 import Router from './router'
-import { getAvailableChunks, isInternalUrl } from './utils'
+import { isInternalUrl } from './utils'
 import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE} from '../lib/constants'
+import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
-import isAsyncSupported from './lib/is-async-supported'
 
 // We need to go up one more level since we are in the `dist` directory
 import pkg from '../../package'
-
-const access = promisify(fs.access)
 
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
@@ -35,9 +30,7 @@ export default class Server {
     this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
     this.nextConfig = loadConfig(phase, this.dir, conf)
-    this.distDir = join(dir, this.nextConfig.distDir)
-
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, config: this.nextConfig }) : null
+    this.distDir = join(this.dir, this.nextConfig.distDir)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -47,14 +40,14 @@ export default class Server {
       console.error(`> Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
     }
-    this.buildId = !dev ? this.readBuildId() : '-'
+    this.buildId = this.readBuildId(dev)
+    this.hotReloader = dev ? this.getHotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId }) : null
     this.renderOpts = {
       dev,
       staticMarkup,
       distDir: this.distDir,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      availableChunks: dev ? {} : getAvailableChunks(this.distDir),
       generateEtags
     }
 
@@ -108,21 +101,6 @@ export default class Server {
   }
 
   async prepare () {
-    if (this.dev && process.stdout.isTTY && isAsyncSupported()) {
-      try {
-        const checkForUpdate = require('update-check')
-        const update = await checkForUpdate(pkg, {
-          distTag: pkg.version.includes('canary') ? 'canary' : 'latest'
-        })
-        if (update) {
-          // bgRed from chalk
-          console.log(`\u001B[41mUPDATE AVAILABLE\u001B[49m The latest version of \`next\` is ${update.latest}`)
-        }
-      } catch (err) {
-        console.error('Error checking updates', err)
-      }
-    }
-
     await this.defineRoutes()
     if (this.hotReloader) {
       await this.hotReloader.start()
@@ -146,93 +124,19 @@ export default class Server {
 
   async defineRoutes () {
     const routes = {
-      // This is to support, webpack dynamic imports in production.
-      '/_next/webpack/chunks/:name': async (req, res, params) => {
-        // Cache aggressively in production
-        if (!this.dev) {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-        }
-        const p = join(this.distDir, 'chunks', params.name)
-        await this.serveStatic(req, res, p)
-      },
-
-      // This is to support, webpack dynamic import support with HMR
-      '/_next/webpack/:id': async (req, res, params) => {
-        const p = join(this.distDir, 'chunks', params.id)
-        await this.serveStatic(req, res, p)
-      },
-
-      '/_next/:buildId/page/:path*.js.map': async (req, res, params) => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-
-        if (this.dev) {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (err) {
-            await this.render404(req, res)
-          }
-        }
-
-        const path = join(this.distDir, 'bundles', 'pages', `${page}.js.map`)
-        await serveStatic(req, res, path)
-      },
-
-      '/_next/:buildId/page/:path*.js': async (req, res, params) => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-
-        if (!this.handleBuildId(params.buildId, res)) {
-          const error = new Error('INVALID_BUILD_ID')
-          return await renderScriptError(req, res, page, error)
-        }
-
-        if (this.dev && page !== '/_error' && page !== '/_app') {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (error) {
-            return await renderScriptError(req, res, page, error)
-          }
-
-          const compilationErr = await this.getCompilationError()
-          if (compilationErr) {
-            return await renderScriptError(req, res, page, compilationErr)
-          }
-        }
-
-        const p = join(this.distDir, 'bundles', 'pages', `${page}.js`)
-
-        // [production] If the page is not exists, we need to send a proper Next.js style 404
-        // Otherwise, it'll affect the multi-zones feature.
-        try {
-          await access(p, (fs.constants || fs).R_OK)
-        } catch (err) {
-          return await renderScriptError(req, res, page, { code: 'ENOENT' })
-        }
-
-        await this.serveStatic(req, res, p)
-      },
-
       '/_next/static/:path*': async (req, res, params) => {
         // The commons folder holds commonschunk files
+        // The chunks folder holds dynamic entries
+        // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
         // In development they don't have a hash, and shouldn't be cached by the browser.
-        if (params.path[0] === 'commons') {
+        if (params.path[0] === 'commons' || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
           if (this.dev) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {
             res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
           }
         }
-        const p = join(this.distDir, 'static', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      },
-
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      '/_next/:path*': async (req, res, params) => {
-        const p = join(__dirname, '..', 'client', ...(params.path || []))
+        const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
 
@@ -255,9 +159,34 @@ export default class Server {
         for (const path in exportPathMap) {
           const {page, query = {}} = exportPathMap[path]
           routes[path] = async (req, res, params, parsedUrl) => {
-            await this.render(req, res, page, query, parsedUrl)
+            const { query: urlQuery } = parsedUrl
+
+            Object.keys(urlQuery)
+              .filter(key => query[key] === undefined)
+              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
+
+            const mergedQuery = {...urlQuery, ...query}
+
+            await this.render(req, res, page, mergedQuery, parsedUrl)
           }
         }
+      }
+
+      // In development we expose all compiled files for react-error-overlay's line show feature
+      if (this.dev) {
+        routes['/_next/development/:path*'] = async (req, res, params) => {
+          const p = join(this.distDir, ...(params.path || []))
+          await this.serveStatic(req, res, p)
+        }
+      }
+
+      // It's very important keep this route's param optional.
+      // (but it should support as many as params, seperated by '/')
+      // Othewise this will lead to a pretty simple DOS attack.
+      // See more: https://github.com/zeit/next.js/issues/2617
+      routes['/_next/:path*'] = async (req, res, params) => {
+        const p = join(__dirname, '..', 'client', ...(params.path || []))
+        await this.serveStatic(req, res, p)
       }
 
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
@@ -286,7 +215,10 @@ export default class Server {
 
   async run (req, res, parsedUrl) {
     if (this.hotReloader) {
-      await this.hotReloader.run(req, res)
+      const {finished} = await this.hotReloader.run(req, res, parsedUrl)
+      if (finished) {
+        return
+      }
     }
 
     const fn = this.router.match(req, res, parsedUrl)
@@ -325,7 +257,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError()
+      const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
@@ -340,8 +272,6 @@ export default class Server {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
-        const {applySourcemaps} = require('./lib/source-map-support')
-        await applySourcemaps(err)
         if (!this.quiet) console.error(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
@@ -356,7 +286,7 @@ export default class Server {
 
   async renderErrorToHTML (err, req, res, pathname, query) {
     if (this.dev) {
-      const compilationErr = await this.getCompilationError()
+      const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
         res.statusCode = 500
         return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
@@ -411,7 +341,10 @@ export default class Server {
     return true
   }
 
-  readBuildId () {
+  readBuildId (dev) {
+    if (dev) {
+      return 'development'
+    }
     const buildIdPath = join(this.distDir, BUILD_ID_FILE)
     const buildId = fs.readFileSync(buildIdPath, 'utf8')
     return buildId.trim()
@@ -431,14 +364,14 @@ export default class Server {
     return true
   }
 
-  async getCompilationError () {
+  async getCompilationError (page) {
     if (!this.hotReloader) return
 
-    const errors = await this.hotReloader.getCompilationErrors()
-    if (!errors.size) return
+    const errors = await this.hotReloader.getCompilationErrors(page)
+    if (errors.length === 0) return
 
     // Return the very first error we found.
-    return Array.from(errors.values())[0][0]
+    return errors[0]
   }
 
   send404 (res) {

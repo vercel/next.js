@@ -16,7 +16,7 @@ yarn create next-app --example with-markdown with-markdown-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-markdown
@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic idea behind implementing [markdown-in-js](https://github.com/threepointone/markdown-in-js), a library that allows you to write markdown that transpiles to React components *at build time*.
+This example shows how to integrate an [MDX](https://github.com/mdx-js/mdx) which is a _"JSX in Markdown loader, parser, and renderer for ambitious projects"_.

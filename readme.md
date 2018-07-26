@@ -62,7 +62,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [Configuring the build ID](#configuring-the-build-id)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
-    - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
@@ -87,9 +88,6 @@ Install it:
 ```bash
 npm install --save next react react-dom
 ```
-
-> Next.js only supports [React 16](https://reactjs.org/blog/2017/09/26/react-v16.0.html).<br/>
-> We had to drop React 15 support due to the way React 16 works and how we use it.
 
 and add a script to your package.json like this:
 
@@ -547,37 +545,39 @@ This uses the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `onRouteChangeStart(url)` - Fires when a route starts to change
-- `onRouteChangeComplete(url)` - Fires when a route changed completely
-- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
-- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
-- `onHashChangeStart(url)` - Fires when the hash will change but not the page
-- `onHashChangeComplete(url)` - Fires when the hash has changed but not the page
+- `routeChangeStart(url)` - Fires when a route starts to change
+- `routeChangeComplete(url)` - Fires when a route changed completely
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `beforeHistoryChange(url)` - Fires just before changing the browser's history
+- `hashChangeStart(url)` - Fires when the hash will change but not the page
+- `hashChangeComplete(url)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `onRouteChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
-Router.onRouteChangeStart = url => {
+const handleRouteChange = url => {
   console.log('App is changing to: ', url)
 }
+
+Router.events.on('routeChangeStart', handleRouteChange)
 ```
 
-If you no longer want to listen to that event, you can simply unset the event listener like this:
+If you no longer want to listen to that event, you can unsubscribe with the `off` method:
 
 ```js
-Router.onRouteChangeStart = null
+Router.events.off('routeChangeStart', handleRouteChange)
 ```
 
 If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contain a `cancelled` property set to `true`.
 
 ```js
-Router.onRouteChangeError = (err, url) => {
+Router.events.on('routeChangeError', (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
-}
+})
 ```
 
 ##### Shallow Routing
@@ -849,7 +849,7 @@ const micro = require('micro')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
-const handle = app.getRequestHandler()
+const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
   const server = micro((req, res) => {
@@ -949,13 +949,11 @@ export default () =>
 import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
-  modules: props => {
+  modules: () => {
     const components = {
       Hello1: import('../components/hello1'),
       Hello2: import('../components/hello2')
     }
-
-    // Add remove components based on props
 
     return components
   },
@@ -1235,29 +1233,6 @@ module.exports = {
   <ul><li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li></ul>
 </details></p>
 
-In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
-
-```js
-// This file is not going through babel transformation.
-// So, we write it in vanilla JS
-// (But you could use ES2015 features supported by your Node.js version)
-
-module.exports = {
-  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
-    // Perform customizations to webpack config
-
-    // Important: return the modified config
-    return config
-  },
-  webpackDevMiddleware: config => {
-    // Perform customizations to webpack dev middleware config
-
-    // Important: return the modified config
-    return config
-  }
-}
-```
-
 Some commonly asked for features are available as modules:
 
 - [@zeit/next-css](https://github.com/zeit/next-plugins/tree/master/packages/next-css)
@@ -1282,6 +1257,57 @@ module.exports = withTypescript(withSass({
 }))
 ```
 
+In order to extend our usage of `webpack`, you can define a function that extends its config via `next.config.js`.
+
+```js
+// next.config.js is not transformed by Babel. So you can only use javascript features supported by your version of Node.js.
+
+module.exports = {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
+    // Perform customizations to webpack config
+    // Important: return the modified config
+    return config
+  },
+  webpackDevMiddleware: config => {
+    // Perform customizations to webpack dev middleware config
+    // Important: return the modified config
+    return config
+  }
+}
+```
+
+The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+
+- `buildId` - `String` the build id used as a unique identifier between builds
+- `dev` - `Boolean` shows if the compilation is done in development mode
+- `isServer` - `Boolean` shows if the resulting configuration will be used for server side (`true`), or client size compilation (`false`).
+- `defaultLoaders` - `Object` Holds loader objects Next.js uses internally, so that you can use them in custom configuration
+  - `babel` - `Object` the `babel-loader` configuration for Next.js.
+  - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
+
+Example usage of `defaultLoaders.babel`: 
+
+```js
+// Example next.config.js for adding a loader that depends on babel-loader
+// This source was taken from the @zeit/next-mdx plugin source: 
+// https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
+module.exports = {
+  webpack: (config, {}) => {
+    config.module.rules.push({
+      test: /\.mdx/,
+      use: [
+        options.defaultLoaders.babel,
+        {
+          loader: '@mdx-js/loader',
+          options: pluginOptions.options
+        }
+      ]
+    })
+
+    return config
+  }
+}
+```
 
 ### Customizing babel config
 
@@ -1314,7 +1340,7 @@ The `next/babel` preset includes everything needed to transpile React applicatio
 - plugin-transform-runtime
 - styled-jsx
 
-These presets / plugins **should not** be added to your custom `.babelrc`. Instead you can configure them on the `next/babel` preset:
+These presets / plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset:
 
 ```json
 {
@@ -1322,7 +1348,8 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
     ["next/babel", {
       "preset-env": {},
       "transform-runtime": {},
-      "styled-jsx": {}
+      "styled-jsx": {},
+      "class-properties": {}
     }]
   ],
   "plugins": []
@@ -1331,9 +1358,9 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
 
 The `modules` option on `"preset-env"` should be kept to `false` otherwise webpack code splitting is disabled.
 
-#### Exposing configuration to the server / client side
+### Exposing configuration to the server / client side
 
-The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
+The `next/config` module gives your app access to runtime configuration stored in your `next.config.js`. Place any server-only runtime config under a `serverRuntimeConfig` property and anything accessible to both client and server-side code under `publicRuntimeConfig`.
 
 ```js
 // next.config.js
@@ -1342,7 +1369,8 @@ module.exports = {
     mySecret: 'secret'
   },
   publicRuntimeConfig: { // Will be available on both server and client
-    staticFolder: '/static'
+    staticFolder: '/static',
+    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```
@@ -1360,6 +1388,10 @@ export default () => <div>
   <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
 ```
+
+### Starting the server on alternative hostname
+
+To start the development server using a different default hostname you can use `--hostname hostname_here` or `-H hostname_here` option with next dev. This will start a TCP server listening for connections on the provided host.
 
 ### CDN support with Asset Prefix
 
@@ -1407,6 +1439,12 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
+
+## Browser support
+
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html) without polyfills. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+
+The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
 ## Static HTML export
 
@@ -1549,6 +1587,7 @@ For the production deployment, you can use the [path alias](https://zeit.co/docs
 - [Setting up 301 redirects](https://www.raygesualdo.com/posts/301-redirects-with-nextjs/)
 - [Dealing with SSR and server only modules](https://arunoda.me/blog/ssr-and-server-only-modules)
 - [Building with React-Material-UI-Next-Express-Mongoose-Mongodb](https://github.com/builderbook/builderbook)
+- [Build a SaaS Product with React-Material-UI-Next-MobX-Express-Mongoose-MongoDB-TypeScript](https://github.com/async-labs/saas)
 
 ## FAQ
 
@@ -1672,7 +1711,7 @@ Please see our [contributing.md](./contributing.md)
 ## Authors
 
 - Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – [ZEIT](https://zeit.co)
-- Tim Neutkens ([@timneutkens](https://github.com/timneutkens)) – [ZEIT](https://zeit.co)
+- Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens)) – [ZEIT](https://zeit.co)
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – [ZEIT](https://zeit.co)
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [ZEIT](https://zeit.co)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [ZEIT](https://zeit.co)
