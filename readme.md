@@ -63,6 +63,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
@@ -1387,6 +1388,10 @@ export default () => <div>
   <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
 ```
+
+### Starting the server on alternative hostname
+
+To start the development server using a different default hostname you can use `--hostname hostname_here` or `-H hostname_here` option with next dev. This will start a TCP server listening for connections on the provided host.
 
 ### CDN support with Asset Prefix
 
