@@ -17,7 +17,7 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST} from '../lib/constants'
+import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -67,7 +67,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
 
   const config: any = {
     runtimeChunk: {
-      name: 'static/commons/runtime.js'
+      name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
     },
     splitChunks: false
   }
@@ -133,7 +133,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
-    'static/commons/main.js': [
+    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
       path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : {}
@@ -160,7 +160,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       path: outputPath,
       filename: ({chunk}) => {
         // Use `[name]-[chunkhash].js` in production
-        if (!dev && (chunk.name === 'static/commons/main.js' || chunk.name === 'static/commons/runtime.js')) {
+        if (!dev && (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN || chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)) {
           return chunk.name.replace(/\.js$/, '-' + chunk.renderedHash + '.js')
         }
         return '[name]'
@@ -254,9 +254,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
 
     // Server compilation doesn't have main.js
     if (typeof entry['main.js'] !== 'undefined') {
-      entry['static/commons/main.js'] = [
+      entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
         ...entry['main.js'],
-        ...entry['static/commons/main.js']
+        ...entry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
       ]
 
       delete entry['main.js']
