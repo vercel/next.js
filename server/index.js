@@ -13,7 +13,7 @@ import {
 import Router from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
+import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
@@ -129,7 +129,7 @@ export default class Server {
         // The chunks folder holds dynamic entries
         // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
         // In development they don't have a hash, and shouldn't be cached by the browser.
-        if (params.path[0] === 'commons' || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
+        if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
           if (this.dev) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {

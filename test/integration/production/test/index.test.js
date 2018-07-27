@@ -15,7 +15,7 @@ import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -69,7 +69,7 @@ describe('Production Usage', () => {
       resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js
-      resources.push(url + buildManifest['static/commons/main.js'][0])
+      resources.push(url + buildManifest[CLIENT_STATIC_FILES_RUNTIME_MAIN][0])
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
