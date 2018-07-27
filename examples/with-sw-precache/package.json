@@ -10,5 +10,8 @@
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "sw-precache-webpack-plugin": "^0.11.3"
+  },
+  "devDependencies": {
+    "@babel/preset-stage-0": "^7.0.0-beta.42"
   }
 }
