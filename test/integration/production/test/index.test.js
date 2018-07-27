@@ -1,5 +1,6 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
+import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   pkg,
@@ -14,6 +15,7 @@ import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from '../../basic/test/dynamic'
 import security from './security'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -52,6 +54,35 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should set Cache-Control header', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const url = `http://localhost:${appPort}/_next/`
+
+      const resources = []
+
+      // test a regular page
+      resources.push(`${url}static/${buildId}/pages/index.js`)
+
+      // test dynamic chunk
+      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+
+      // test main.js
+      resources.push(url + buildManifest[CLIENT_STATIC_FILES_RUNTIME_MAIN][0])
+
+      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+
+      responses.forEach((res) => {
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
+      })
+    })
+
     it('should block special pages', async () => {
       const urls = ['/_document', '/_error']
       for (const url of urls) {
@@ -65,11 +96,41 @@ describe('Production Usage', () => {
     it('should navigate via client side', async () => {
       const browser = await webdriver(appPort, '/')
       const text = await browser
-          .elementByCss('a').click()
-          .waitForElementByCss('.about-page')
-          .elementByCss('div').text()
+        .elementByCss('a').click()
+        .waitForElementByCss('.about-page')
+        .elementByCss('div').text()
 
       expect(text).toBe('About Page')
+      browser.close()
+    })
+  })
+
+  describe('Runtime errors', () => {
+    it('should render a server side error on the client side', async () => {
+      const browser = await webdriver(appPort, '/error-in-ssr-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      // this makes sure we don't leak the actual error to the client side in production
+      expect(text).toMatch(/Internal Server Error\./)
+      const headingText = await browser.elementByCss('h1').text()
+      // This makes sure we render statusCode on the client side correctly
+      expect(headingText).toBe('500')
+      browser.close()
+    })
+
+    it('should render a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/An unexpected error has occurred\./)
+      browser.close()
+    })
+
+    it('should call getInitialProps on _error page during a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render-status-code')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/This page could not be found\./)
       browser.close()
     })
   })
@@ -98,8 +159,8 @@ describe('Production Usage', () => {
     it('should reload the page on page script error', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+        .elementByCss('#increase').click().click()
+        .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
       // When we go to the 404 page, it'll do a hard reload.
@@ -120,8 +181,8 @@ describe('Production Usage', () => {
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
-          .elementByCss('#increase').click().click()
-          .elementByCss('#counter').text()
+        .elementByCss('#increase').click().click()
+        .elementByCss('#counter').text()
       expect(counter).toBe('Counter: 2')
 
       // Let the browser to prefetch the page and error it on the console.
@@ -165,8 +226,8 @@ describe('Production Usage', () => {
 
     it('should not set it when poweredByHeader==false', async () => {
       const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.config.poweredByHeader
-      app.config.poweredByHeader = false
+      const originalConfigValue = app.nextConfig.poweredByHeader
+      app.nextConfig.poweredByHeader = false
       const res = {
         getHeader () {
           return false
@@ -180,7 +241,7 @@ describe('Production Usage', () => {
       }
 
       await app.render(req, res, req.url)
-      app.config.poweredByHeader = originalConfigValue
+      app.nextConfig.poweredByHeader = originalConfigValue
     })
   })
 

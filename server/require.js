@@ -1,4 +1,5 @@
-import {join, parse, normalize, sep} from 'path'
+import {join, posix} from 'path'
+import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -17,13 +18,8 @@ export function normalizePagePath (page) {
     page = `/${page}`
   }
 
-  // Windows compatibility
-  if (sep !== '/') {
-    page = page.replace(/\//g, sep)
-  }
-
   // Throw when using ../ etc in the pathname
-  const resolvedPage = normalize(page)
+  const resolvedPage = posix.normalize(page)
   if (page !== resolvedPage) {
     throw new Error('Requested and resolved page mismatch')
   }
@@ -31,8 +27,9 @@ export function normalizePagePath (page) {
   return page
 }
 
-export function getPagePath (page, {dir, dist}) {
-  const pageBundlesPath = join(dir, dist, 'dist', 'bundles', 'pages')
+export function getPagePath (page, {distDir}) {
+  const serverBuildPath = join(distDir, SERVER_DIRECTORY)
+  const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
     page = normalizePagePath(page)
@@ -41,23 +38,14 @@ export function getPagePath (page, {dir, dist}) {
     throw pageNotFoundError(page)
   }
 
-  const pagePath = join(pageBundlesPath, page) // Path to the page that is to be loaded
-
-  // Don't allow wandering outside of the bundles directory
-  const pathDir = parse(pagePath).dir
-  if (pathDir.indexOf(pageBundlesPath) !== 0) {
-    console.error('Resolved page path goes outside of bundles path')
+  if (!pagesManifest[page]) {
     throw pageNotFoundError(page)
   }
 
-  return pagePath
+  return join(serverBuildPath, pagesManifest[page])
 }
 
-export default function requirePage (page, {dir, dist}) {
-  const pagePath = getPagePath(page, {dir, dist})
-  try {
-    return require(pagePath)
-  } catch (err) {
-    throw pageNotFoundError(page)
-  }
+export default async function requirePage (page, {distDir}) {
+  const pagePath = getPagePath(page, {distDir})
+  return require(pagePath)
 }

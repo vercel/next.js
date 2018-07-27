@@ -1,6 +1,8 @@
 export const actionTypes = {
   FAILURE: 'FAILURE',
   INCREMENT: 'INCREMENT',
+  DECREMENT: 'DECREMENT',
+  RESET: 'RESET',
   LOAD_DATA: 'LOAD_DATA',
   LOAD_DATA_SUCCESS: 'LOAD_DATA_SUCCESS',
   START_CLOCK: 'START_CLOCK',
@@ -16,6 +18,14 @@ export function failure (error) {
 
 export function increment () {
   return {type: actionTypes.INCREMENT}
+}
+
+export function decrement () {
+  return {type: actionTypes.DECREMENT}
+}
+
+export function reset () {
+  return {type: actionTypes.RESET}
 }
 
 export function loadData () {

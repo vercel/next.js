@@ -2,17 +2,22 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
-import touch from 'touch'
-import glob from 'glob-promise'
+import fs from 'fs'
+import promisify from '../lib/promisify'
+import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
-import {createEntry} from './build/webpack/utils'
-import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE } from './utils'
+import {createEntry} from '../build/webpack/utils'
+import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from '../lib/constants'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
+const glob = promisify(globModule)
+const access = promisify(fs.access)
+
 export default function onDemandEntryHandler (devMiddleware, compilers, {
+  buildId,
   dir,
   dev,
   reload,
@@ -24,7 +29,6 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
   const invalidator = new Invalidator(devMiddleware)
-  let touchedAPage = false
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
@@ -32,12 +36,23 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   const currentBuilders = new Set()
 
   compilers.forEach(compiler => {
-    compiler.plugin('make', function (compilation, done) {
+    compiler.hooks.make.tapAsync('NextJsOnDemandEntries', function (compilation, done) {
       invalidator.startBuilding()
       currentBuilders.add(compiler.name)
 
-      const allEntries = Object.keys(entries).map((page) => {
+      const allEntries = Object.keys(entries).map(async (page) => {
         const { name, entry } = entries[page]
+        const files = Array.isArray(entry) ? entry : [entry]
+        // Is just one item. But it's passed as an array.
+        for (const file of files) {
+          try {
+            await access(join(dir, file), (fs.constants || fs).W_OK)
+          } catch (err) {
+            console.warn('Page was removed', page)
+            delete entries[page]
+            return
+          }
+        }
         entries[page].status = BUILDING
         return addEntry(compilation, compiler.context, name, entry)
       })
@@ -47,7 +62,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
         .catch(done)
     })
 
-    compiler.plugin('done', function (stats) {
+    compiler.hooks.done.tap('NextJsOnDemandEntries', function (stats) {
       // Wait until all the compilers mark the build as done.
       currentBuilders.delete(compiler.name)
       if (currentBuilders.size !== 0) return
@@ -60,7 +75,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
           if (!hasNoModuleFoundError) return false
 
           // The page itself is missing. So this is a failed page.
-          if (IS_BUNDLED_PAGE.test(e.module.name)) return true
+          if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
 
           // No dependencies means this is a top level page.
           // So this is a failed page.
@@ -69,7 +84,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
         .map(e => e.module.chunks)
         .reduce((a, b) => [...a, ...b], [])
         .map(c => {
-          const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
+          const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
           return normalizePage(`/${pageName}`)
         })
 
@@ -77,17 +92,6 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
       Object.keys(entries).forEach((page) => {
         const entryInfo = entries[page]
         if (entryInfo.status !== BUILDING) return
-
-        // With this, we are triggering a filesystem based watch trigger
-        // It'll memorize some timestamp related info related to common files used
-        // in the page
-        // That'll reduce the page building time significantly.
-        if (!touchedAPage) {
-          setTimeout(() => {
-            touch.sync(entryInfo.pathname)
-          }, 1000)
-          touchedAPage = true
-        }
 
         entryInfo.status = BUILT
         entries[page].lastActiveTime = Date.now()
@@ -160,7 +164,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
 
       const pathname = join(dir, relativePathToPage)
 
-      const {name, files} = createEntry(relativePathToPage, {pageExtensions: extensions})
+      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions})
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
@@ -286,8 +290,11 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
 
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
-function normalizePage (page) {
-  return page.replace(/\/index$/, '/')
+export function normalizePage (page) {
+  if (page === '/index' || page === '/') {
+    return '/'
+  }
+  return page.replace(/\/index$/, '')
 }
 
 function sendJson (res, payload) {

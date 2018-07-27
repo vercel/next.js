@@ -2,9 +2,9 @@
   "name": "with-reasonml",
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next -w\"",
+    "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",
     "build": "bsb -clean-world -make-world && next build",
-    "start": "bsb -clean-world -make-world && next start -w"
+    "start": "next start"
   },
   "license": "ISC",
   "dependencies": {
@@ -12,7 +12,8 @@
     "next": "latest",
     "react": "^16.1.1",
     "react-dom": "^16.1.1",
-    "reason-react": "^0.3.0"
+    "reason-react": "^0.3.0",
+    "bs-next": "^2.0.0"
   },
   "devDependencies": {
     "bs-platform": "^2.1.0",
