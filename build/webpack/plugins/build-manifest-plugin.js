@@ -1,6 +1,6 @@
 // @flow
 import { RawSource } from 'webpack-sources'
-import {BUILD_MANIFEST, ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX} from '../../../lib/constants'
+import {BUILD_MANIFEST, ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../../../lib/constants'
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
@@ -10,7 +10,7 @@ export default class BuildManifestPlugin {
       const {chunks} = compilation
       const assetMap = {pages: {}, css: []}
 
-      const mainJsChunk = chunks.find((c) => c.name === 'static/commons/main.js')
+      const mainJsChunk = chunks.find((c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN)
       const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []
 
       // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value

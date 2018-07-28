@@ -39,8 +39,7 @@ export default function connect (options) {
   ErrorOverlay.startReportingRuntimeErrors({
     onError: function () {
       hadRuntimeError = true
-    },
-    filename: '/_next/static/commons/manifest.js'
+    }
   })
 
   if (module.hot && typeof module.hot.dispose === 'function') {
