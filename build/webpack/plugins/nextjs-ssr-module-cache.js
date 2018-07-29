@@ -34,6 +34,9 @@ export default class NextJsSsrImportPlugin {
           if (tapInfo.name === 'MainTemplate') {
             const originalFn = tapInfo.fn
             tapInfo.fn = (source, chunk) => {
+              // If the chunk is not part of the pages directory we have to keep the original behavior,
+              // otherwise webpack will error out when the file is used before the compilation finishes
+              // this is the case with mini-css-extract-plugin
               if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
                 return originalFn(source, chunk)
               }
