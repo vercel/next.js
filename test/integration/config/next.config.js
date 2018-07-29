@@ -1,7 +1,8 @@
 const withCSS = require('@zeit/next-css')
+const withSass = require('@zeit/next-sass')
 const webpack = require('webpack')
 const path = require('path')
-module.exports = withCSS({
+module.exports = withCSS(withSass({
   onDemandEntries: {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
@@ -32,4 +33,4 @@ module.exports = withCSS({
 
     return config
   }
-})
+}))
