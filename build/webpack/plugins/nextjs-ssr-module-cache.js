@@ -1,6 +1,7 @@
 import webpack from 'webpack'
 import { RawSource } from 'webpack-sources'
 import { join, relative, dirname } from 'path'
+import {IS_BUNDLED_PAGE_REGEX} from '../../../lib/constants'
 
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 
@@ -31,7 +32,11 @@ export default class NextJsSsrImportPlugin {
       compilation.mainTemplate.hooks.localVars.intercept({
         register (tapInfo) {
           if (tapInfo.name === 'MainTemplate') {
+            const originalFn = tapInfo.fn
             tapInfo.fn = (source, chunk) => {
+              if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
+                return originalFn(source, chunk)
+              }
               const pagePath = join(outputPath, dirname(chunk.name))
               const relativePathToBaseDir = relative(pagePath, join(outputPath, SSR_MODULE_CACHE_FILENAME))
               // Make sure even in windows, the path looks like in unix
