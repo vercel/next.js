@@ -8,7 +8,7 @@ export default class BuildManifestPlugin {
   apply (compiler: any) {
     compiler.hooks.emit.tapAsync('NextJsBuildManifest', (compilation, callback) => {
       const {chunks} = compilation
-      const assetMap = {pages: {}, css: []}
+      const assetMap = {pages: {}}
 
       const mainJsChunk = chunks.find((c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN)
       const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []
@@ -35,12 +35,16 @@ export default class BuildManifestPlugin {
           }
 
           for (const file of chunk.files) {
-            // Only `.js` files are added for now. In the future we can also handle other file types.
-            if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file) || !/\.js$/.test(file)) {
+            if (/\.map$/.test(file) || /\.hot-update\.js$/.test(file)) {
               continue
             }
 
-            // These are manually added to _document.js
+            // Only `.js` and `.css` files are added for now. In the future we can also handle other file types.
+            if (!/\.js$/.test(file) && !/\.css$/.test(file)) {
+              continue
+            }
+
+            // The page bundles are manually added to _document.js as they need extra properties
             if (IS_BUNDLED_PAGE_REGEX.exec(file)) {
               continue
             }
@@ -50,35 +54,6 @@ export default class BuildManifestPlugin {
         }
 
         assetMap.pages[`/${pagePath.replace(/\\/g, '/')}`] = [...filesForEntry, ...mainJsFiles]
-      }
-
-      for (const chunk of chunks) {
-        if (!chunk.name || !chunk.files) {
-          continue
-        }
-
-        const files = []
-
-        for (const file of chunk.files) {
-          if (/\.map$/.test(file)) {
-            continue
-          }
-
-          if (/\.hot-update\.js$/.test(file)) {
-            continue
-          }
-
-          if (/\.css$/.exec(file)) {
-            assetMap.css.push(file)
-            continue
-          }
-
-          files.push(file)
-        }
-
-        if (files.length > 0) {
-          assetMap[chunk.name] = files
-        }
       }
 
       if (typeof assetMap.pages['/index'] !== 'undefined') {

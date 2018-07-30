@@ -49,15 +49,41 @@ export class Head extends Component {
       return null
     }
   
-    return files.map((file) => (
-      <link
+    return files.map((file) => {
+      // Only render .js files here
+      if(!/\.js$/.exec(file)) {
+        return null
+      }
+
+      return <link
         key={file}
         nonce={this.props.nonce}
         rel='preload'
         href={`${assetPrefix}/_next/${file}`}
         as='script'
       />
-    ))
+    })
+  }
+
+  getCssLinks () {
+    const { assetPrefix, files } = this.context._documentProps
+    if(!files || files.length === 0) {
+      return null
+    }
+  
+    return files.map((file) => {
+      // Only render .css files here
+      if(!/\.css$/.exec(file)) {
+        return null
+      }
+
+      return <link
+        key={file}
+        nonce={this.props.nonce}
+        rel='stylesheet'
+        href={`${assetPrefix}/_next/${file}`}
+      />
+    })
   }
 
   getPreloadDynamicChunks () {
@@ -85,6 +111,7 @@ export class Head extends Component {
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
+      {this.getCssLinks()}
       {styles || null}
       {this.props.children}
     </head>
@@ -122,14 +149,19 @@ export class NextScript extends Component {
       return null
     }
   
-    return files.map((file) => (
-      <script
+    return files.map((file) => {
+      // Only render .js files here
+      if(!/\.js$/.exec(file)) {
+        return null
+      }
+
+      return <script
         key={file}
         src={`${assetPrefix}/_next/${file}`}
         nonce={this.props.nonce}
         async
       />
-    ))
+    })
   }
 
   getDynamicChunks () {
