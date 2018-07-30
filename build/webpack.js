@@ -41,7 +41,7 @@ function externalsConfig (dir, isServer) {
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if (res.match(/node_modules[/\\]webpack/)) {
+      if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
         return callback()
       }
 
@@ -59,7 +59,6 @@ function externalsConfig (dir, isServer) {
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
-      // runtimeChunk: 'single',
       splitChunks: false,
       minimize: false
     }
@@ -69,7 +68,12 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     runtimeChunk: {
       name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
     },
-    splitChunks: false
+    splitChunks: {
+      cacheGroups: {
+        default: false,
+        vendors: false
+      }
+    }
   }
 
   if (dev) {
@@ -79,21 +83,14 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   // Only enabled in production
   // This logic will create a commons bundle
   // with modules that are used in 50% of all pages
-  return {
-    ...config,
-    splitChunks: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2
-        }
-      }
-    }
+  config.splitChunks.chunks = 'all'
+  config.splitChunks.cacheGroups.commons = {
+    name: 'commons',
+    chunks: 'all',
+    minChunks: totalPages > 2 ? totalPages * 0.5 : 2
   }
+
+  return config
 }
 
 type BaseConfigContext = {|
