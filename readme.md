@@ -10,6 +10,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 **Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
 
+[README in Chinese（中文文档）](readme-cn.md)
+
 ---
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->

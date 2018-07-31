@@ -7,6 +7,8 @@ node_modules
 package-lock.json
 test/node_modules
 
+**/node_modules
+
 # logs & pids
 *.log
 pids
@@ -18,3 +20,4 @@ coverage
 # test output
 test/**/out
 .DS_Store
+.idea
