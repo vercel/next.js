@@ -1,8 +1,26 @@
+// @flow
 import findUp from 'find-up'
+import uuid from 'uuid'
+import {CONFIG_FILE} from '../lib/constants'
 
-const cache = new Map()
+type WebpackConfig = *
 
-const defaultConfig = {
+type WebpackDevMiddlewareConfig = *
+
+export type NextConfig = {|
+  webpack: null | (webpackConfig: WebpackConfig, {dir: string, dev: boolean, isServer: boolean, buildId: string, config: NextConfig, defaultLoaders: {}, totalPages: number}) => WebpackConfig,
+  webpackDevMiddleware: null | (WebpackDevMiddlewareConfig: WebpackDevMiddlewareConfig) => WebpackDevMiddlewareConfig,
+  poweredByHeader: boolean,
+  distDir: string,
+  assetPrefix: string,
+  configOrigin: string,
+  useFileSystemPublicRoutes: boolean,
+  generateBuildId: () => string,
+  generateEtags: boolean,
+  pageExtensions: Array<string>
+|}
+
+const defaultConfig: NextConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   poweredByHeader: true,
@@ -10,40 +28,33 @@ const defaultConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
+  generateBuildId: () => uuid.v4(),
   generateEtags: true,
-  pageExtensions: ['jsx', 'js'] // jsx before js because otherwise regex matching will match js first
+  pageExtensions: ['jsx', 'js']
 }
 
-export default function getConfig (phase, dir, customConfig) {
-  if (!cache.has(dir)) {
-    cache.set(dir, loadConfig(phase, dir, customConfig))
-  }
-  return cache.get(dir)
-}
+type PhaseFunction = (phase: string, options: {defaultConfig: NextConfig}) => NextConfig
 
-export function loadConfig (phase, dir, customConfig) {
-  if (customConfig && typeof customConfig === 'object') {
+export default function loadConfig (phase: string, dir: string, customConfig?: NextConfig): NextConfig {
+  if (customConfig) {
     customConfig.configOrigin = 'server'
-    return withDefaults(customConfig)
+    return {...defaultConfig, ...customConfig}
   }
-  const path = findUp.sync('next.config.js', {
+  const path: string = findUp.sync(CONFIG_FILE, {
     cwd: dir
   })
 
-  let userConfig = {}
-
+  // If config file was found
   if (path && path.length) {
+    // $FlowFixMe
     const userConfigModule = require(path)
-    userConfig = userConfigModule.default || userConfigModule
-    if (typeof userConfigModule === 'function') {
-      userConfig = userConfigModule(phase, {defaultConfig})
+    const userConfigInitial: NextConfig | PhaseFunction = userConfigModule.default || userConfigModule
+    if (typeof userConfigInitial === 'function') {
+      return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfigInitial(phase, {defaultConfig})}
     }
-    userConfig.configOrigin = 'next.config.js'
+
+    return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfigInitial}
   }
 
-  return withDefaults(userConfig)
-}
-
-function withDefaults (config) {
-  return Object.assign({}, defaultConfig, config)
+  return defaultConfig
 }

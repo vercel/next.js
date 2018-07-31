@@ -23,7 +23,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('Basic Features', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort, true)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
@@ -36,9 +36,12 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/link'),
       renderViaHTTP(context.appPort, '/stateful'),
       renderViaHTTP(context.appPort, '/stateless'),
+      renderViaHTTP(context.appPort, '/fragment-syntax'),
       renderViaHTTP(context.appPort, '/custom-extension'),
       renderViaHTTP(context.appPort, '/styled-jsx'),
       renderViaHTTP(context.appPort, '/with-cdm'),
+      renderViaHTTP(context.appPort, '/url-prop'),
+      renderViaHTTP(context.appPort, '/url-prop-override'),
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
@@ -49,10 +52,12 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/nav/redirect'),
       renderViaHTTP(context.appPort, '/nav/as-path'),
       renderViaHTTP(context.appPort, '/nav/as-path-using-router'),
+      renderViaHTTP(context.appPort, '/nav/url-prop-change'),
 
       renderViaHTTP(context.appPort, '/nested-cdm/index'),
 
       renderViaHTTP(context.appPort, '/hmr/about'),
+      renderViaHTTP(context.appPort, '/hmr/style'),
       renderViaHTTP(context.appPort, '/hmr/contact'),
       renderViaHTTP(context.appPort, '/hmr/counter')
     ])

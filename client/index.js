@@ -1,16 +1,17 @@
-import { createElement } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
-import App from '../lib/app'
 import { loadGetInitialProps, getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
+import ErrorBoundary from './error-boundary'
+import Loadable from 'react-loadable'
 
 // Polyfill Promise globally
-// This is needed because Webpack2's dynamic loading(common chunks) code
+// This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
 // So, we need to polyfill it.
 // See: https://github.com/webpack/webpack/issues/4254
@@ -26,18 +27,19 @@ const {
     pathname,
     query,
     buildId,
-    chunks,
     assetPrefix,
     runtimeConfig
   },
   location
 } = window
 
+const prefix = assetPrefix || ''
+
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
+__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/asset with the assetPrefix
-asset.setAssetPrefix(assetPrefix)
+asset.setAssetPrefix(prefix)
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
@@ -46,117 +48,120 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, assetPrefix)
+const pageLoader = new PageLoader(buildId, prefix)
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })
 delete window.__NEXT_LOADED_PAGES__
-
-window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
-  pageLoader.registerChunk(chunkName, fn)
-})
-delete window.__NEXT_LOADED_CHUNKS__
-
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
-window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
+let webpackHMR
 export let router
 export let ErrorComponent
-let ErrorDebugComponent
 let Component
-let stripAnsi = (s) => s
+let App
 
 export const emitter = new EventEmitter()
 
-export default async ({ ErrorDebugComponent: passedDebugComponent, stripAnsi: passedStripAnsi } = {}) => {
-  // Wait for all the dynamic chunks to get loaded
-  for (const chunkName of chunks) {
-    await pageLoader.waitForChunk(chunkName)
+export default async ({
+  webpackHMR: passedWebpackHMR
+} = {}) => {
+  // This makes sure this specific line is removed in production
+  if (process.env.NODE_ENV === 'development') {
+    webpackHMR = passedWebpackHMR
   }
-
-  stripAnsi = passedStripAnsi || stripAnsi
-  ErrorDebugComponent = passedDebugComponent
   ErrorComponent = await pageLoader.loadPage('/_error')
+  App = await pageLoader.loadPage('/_app')
+
+  let initialErr = err
 
   try {
     Component = await pageLoader.loadPage(page)
-  } catch (err) {
-    console.error(stripAnsi(`${err.message}\n${err.stack}`))
-    Component = ErrorComponent
+
+    if (typeof Component !== 'function') {
+      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    }
+  } catch (error) {
+    // This catches errors like throwing in the top level of a module
+    initialErr = error
   }
 
+  await Loadable.preloadReady()
+
   router = createRouter(pathname, query, asPath, {
+    initialProps: props,
     pageLoader,
+    App,
     Component,
     ErrorComponent,
-    err
+    err: initialErr
   })
 
-  router.subscribe(({ Component, props, hash, err }) => {
-    render({ Component, props, err, hash, emitter })
+  router.subscribe(({ App, Component, props, hash, err }) => {
+    render({ App, Component, props, err, hash, emitter })
   })
 
   const hash = location.hash.substring(1)
-  render({ Component, props, hash, err, emitter })
+  render({ App, Component, props, hash, err: initialErr, emitter })
 
   return emitter
 }
 
 export async function render (props) {
   if (props.err) {
-    await renderError(props.err)
+    await renderError(props)
     return
   }
 
   try {
     await doRender(props)
   } catch (err) {
-    if (err.abort) return
-    await renderError(err)
+    await renderError({...props, err})
   }
 }
 
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export async function renderError (error) {
-  const prod = process.env.NODE_ENV === 'production'
-  // We need to unmount the current app component because it's
-  // in the inconsistant state.
-  // Otherwise, we need to face issues when the issue is fixed and
-  // it's get notified via HMR
-  ReactDOM.unmountComponentAtNode(appContainer)
+export async function renderError (props) {
+  const {App, err} = props
 
-  const errorMessage = `${error.message}\n${error.stack}`
-  console.error(stripAnsi(errorMessage))
-
-  if (prod) {
-    const initProps = { err: error, pathname, query, asPath }
-    const props = await loadGetInitialProps(ErrorComponent, initProps)
-    renderReactElement(createElement(ErrorComponent, props), errorContainer)
-  } else {
-    renderReactElement(createElement(ErrorDebugComponent, { error }), errorContainer)
+  if (process.env.NODE_ENV !== 'production') {
+    throw webpackHMR.prepareError(err)
   }
+
+  // Make sure we log the error to the console, otherwise users can't track down issues.
+  console.error(err)
+
+  // In production we do a normal render with the `ErrorComponent` as component.
+  // If we've gotten here upon initial render, we can use the props from the server.
+  // Otherwise, we need to call `getInitialProps` on `App` before mounting.
+  const initProps = props.props
+    ? props.props
+    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname, query, asPath}})
+
+  await doRender({...props, err, Component: ErrorComponent, props: initProps})
 }
 
-async function doRender ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
+async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
+  // Usual getInitialProps fetching is handled in next/router
+  // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
-    // fetch props if ErrorComponent was replaced with a page component by HMR
     const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
+    props = await loadGetInitialProps(App, {Component, router, ctx: {err, pathname, query, asPath}})
   }
 
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, props, hash, err, router, headManager }
+  const appProps = { Component, hash, err, router, headManager, ...props }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
@@ -164,7 +169,27 @@ async function doRender ({ Component, props, hash, err, emitter: emitterProp = e
 
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
-  renderReactElement(createElement(App, appProps), appContainer)
+
+  // In development runtime errors are caught by react-error-overlay.
+  if (process.env.NODE_ENV === 'development') {
+    renderReactElement((
+      <App {...appProps} />
+    ), appContainer)
+  } else {
+    // In production we catch runtime errors using componentDidCatch which will trigger renderError.
+    const onError = async (error) => {
+      try {
+        await renderError({App, err: error})
+      } catch (err) {
+        console.error('Error while rendering error page: ', err)
+      }
+    }
+    renderReactElement((
+      <ErrorBoundary onError={onError}>
+        <App {...appProps} />
+      </ErrorBoundary>
+    ), appContainer)
+  }
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }

@@ -1,8 +1,8 @@
 /* global describe, it, expect */
 
 import {join} from 'path'
-import getConfig, {loadConfig} from '../../dist/server/config'
-import {PHASE_DEVELOPMENT_SERVER} from '../../dist/lib/constants'
+import loadConfig from 'next/dist/server/config'
+import {PHASE_DEVELOPMENT_SERVER} from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -31,11 +31,5 @@ describe('config', () => {
   it('Should not pass the customConfig when it is null', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, null)
     expect(config.webpack).toBe(null)
-  })
-
-  it('Should cache on getConfig', () => {
-    const config = getConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
-    const config2 = getConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig, {extraConfig: true}) // won't add extraConfig because it's cached.
-    expect(config === config2).toBe(true)
   })
 })

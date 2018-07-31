@@ -1,7 +1,22 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-custom-babel-config)
-# Example app using custom babel config
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+# Using a custom Babel config
+
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+
+```bash
+npx create-next-app --example with-custom-babel-config with-custom-babel-config-app
+# or
+yarn create next-app --example with-custom-babel-config with-custom-babel-config-app
+```
+
+### Download manually
+
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-custom-babel-config
@@ -13,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -30,10 +48,3 @@ This example features:
 * It uses '.babelrc' file in the app directory to add above preset.
 
 > Most of the time, when writing a custom `.babelrc` file, you need to add `next/babel` as a preset.
-
-## How to run it
-
-```sh
-npm install
-npm run dev
-```

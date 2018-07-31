@@ -1,17 +1,26 @@
-import stripAnsi from 'strip-ansi'
 import initNext, * as next from './'
-import ErrorDebugComponent from '../lib/error-debug'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
-require('@zeit/source-map-support/browser-source-map-support')
+// Temporary workaround for the issue described here:
+// https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
+// The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
+// The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
+import('./noop')
+
+const {
+  __NEXT_DATA__: {
+    assetPrefix
+  }
+} = window
+
+const prefix = assetPrefix || ''
+const webpackHMR = initWebpackHMR({assetPrefix: prefix})
 
 window.next = next
-
-initNext({ ErrorDebugComponent, stripAnsi })
+initNext({ webpackHMR })
   .then((emitter) => {
-    initOnDemandEntries()
-    initWebpackHMR()
+    initOnDemandEntries({assetPrefix: prefix})
 
     let lastScroll
 
@@ -34,7 +43,6 @@ initNext({ ErrorDebugComponent, stripAnsi })
         lastScroll = null
       }
     })
-  })
-  .catch((err) => {
-    console.error(stripAnsi(`${err.message}\n${err.stack}`))
+  }).catch((err) => {
+    console.error('Error was not caught', err)
   })

@@ -5,7 +5,7 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-react-intl with-react-intl-app
@@ -15,7 +15,7 @@ yarn create next-app --example with-react-intl with-react-intl-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js.git):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-intl
@@ -27,6 +27,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -43,10 +46,11 @@ This example app shows how to integrate [React Intl][] with Next.
 
 - Server-side language negotiation
 - React Intl locale data loading via `pages/_document.js` customization
-- React Intl integration at Next page level via `pageWithIntl()` HOC
+- React Intl integration with [custom App](https://github.com/zeit/next.js#custom-app) component
 - `<IntlProvider>` creation with `locale`, `messages`, and `initialNow` props
 - Default message extraction via `babel-plugin-react-intl` integration
 - Translation management via build script and customized Next server
+- withIntl HOC for pages because injectIntl do not hoist static methods.
 
 ### Translation Management
 

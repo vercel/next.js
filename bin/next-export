@@ -58,7 +58,9 @@ const options = {
 }
 
 exportApp(dir, options)
+  .then(() => {
+    printAndExit('Export successful', 0)
+  })
   .catch((err) => {
-    console.error(err)
-    process.exit(1)
+    printAndExit(err)
   })

@@ -17,7 +17,7 @@ yarn create next-app --example with-higher-order-component with-higher-order-com
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 Install it and run:
 
@@ -26,6 +26,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 **yarn**

@@ -1,1 +1,1 @@
-module.exports = require('./dist/server/build/babel/preset')
+module.exports = require('./dist/build/babel/preset')
