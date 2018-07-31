@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { withRouter } from 'next/router'
+import Router, { withRouter } from 'next/router'
 import Link from 'next/link'
 
 const pages = {
@@ -12,18 +12,38 @@ class HeaderNav extends React.Component {
     super()
 
     this.state = {
-      activeURL: router.asPath
+      activeURL: router.asPath,
+      activeURLTopLevelRouterDeprecatedBehavior: router.asPath,
+      activeURLTopLevelRouter: router.asPath
     }
 
     this.handleRouteChange = this.handleRouteChange.bind(this)
+    this.handleRouteChangeTopLevelRouter = this.handleRouteChangeTopLevelRouter.bind(this)
+    this.handleRouteChangeTopLevelRouterDeprecatedBehavior = this.handleRouteChangeTopLevelRouterDeprecatedBehavior.bind(this)
   }
 
   componentDidMount () {
+    Router.onRouteChangeComplete = this.handleRouteChangeTopLevelRouterDeprecatedBehavior
+    Router.events.on('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
     this.props.router.events.on('routeChangeComplete', this.handleRouteChange)
   }
 
   componentWillUnmount () {
+    Router.onRouteChangeComplete = null
+    Router.events.on('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
     this.props.router.events.off('routeChangeComplete', this.handleRouteChange)
+  }
+
+  handleRouteChangeTopLevelRouterDeprecatedBehavior (url) {
+    this.setState({
+      activeURLTopLevelRouterDeprecatedBehavior: url
+    })
+  }
+
+  handleRouteChangeTopLevelRouter (url) {
+    this.setState({
+      activeURLTopLevelRouter: url
+    })
   }
 
   handleRouteChange (url) {
@@ -38,7 +58,7 @@ class HeaderNav extends React.Component {
         {
           Object.keys(pages).map(url => (
             <Link href={url} key={url} prefetch>
-              <a className={this.state.activeURL === url ? 'active' : ''}>
+              <a className={`${this.state.activeURL === url ? 'active' : ''} ${this.state.activeURLTopLevelRouter === url ? 'active-top-level-router' : ''} ${this.state.activeURLTopLevelRouterDeprecatedBehavior === url ? 'active-top-level-router-deprecated-behavior' : ''}`}>
                 { pages[url] }
               </a>
             </Link>
