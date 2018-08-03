@@ -13,7 +13,12 @@ export default class HeadManager {
     this.updatePromise = null
   }
 
-  updateHead (head) {
+  updateHead (head, isSync = false) {
+    if (isSync) {
+      this.doUpdateHead(head)
+      return
+    }
+
     const promise = this.updatePromise = Promise.resolve().then(() => {
       if (promise !== this.updatePromise) return
 
