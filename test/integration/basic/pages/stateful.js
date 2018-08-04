@@ -8,7 +8,7 @@ export default class Statefull extends Component {
     this.state = { answer: null }
   }
 
-  componentWillMount () {
+  UNSAFE_componentWillMount () {
     this.setState({ answer: 42 })
   }
 

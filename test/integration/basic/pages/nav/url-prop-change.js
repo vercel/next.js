@@ -10,7 +10,7 @@ export default class UrlPropChange extends React.Component {
     }
   }
 
-  componentWillReceiveProps (nextProps) {
+  UNSAFE_componentWillReceiveProps (nextProps) {
     this.setState(() => {
       return {
         previousUrl: this.props.url,
