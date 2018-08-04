@@ -156,9 +156,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     output: {
       path: outputPath,
       filename: ({chunk}) => {
-        // Use `[name]-[chunkhash].js` in production
+        // Use `[name]-[contenthash].js` in production
         if (!dev && (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN || chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)) {
-          return chunk.name.replace(/\.js$/, '-' + chunk.renderedHash + '.js')
+          return chunk.name.replace(/\.js$/, '-' + chunk.contentHash.javascript + '.js')
         }
         return '[name]'
       },
@@ -166,7 +166,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? `${dev ? '[name]' : '[chunkhash]'}.js` : `static/chunks/${dev ? '[name]' : '[chunkhash]'}.js`,
+      chunkFilename: isServer ? `${dev ? '[name]' : '[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[contenthash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
