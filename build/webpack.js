@@ -158,7 +158,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       filename: ({chunk}) => {
         // Use `[name]-[contenthash].js` in production
         if (!dev && (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN || chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)) {
-          return chunk.name.replace(/\.js$/, '-' + chunk.contentHash.javascript + '.js')
+          return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
         return '[name]'
       },
