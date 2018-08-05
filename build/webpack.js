@@ -41,7 +41,7 @@ function externalsConfig (dir, isServer) {
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if (res.match(/node_modules[/\\]webpack/)) {
+      if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
         return callback()
       }
 
@@ -59,7 +59,6 @@ function externalsConfig (dir, isServer) {
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
-      // runtimeChunk: 'single',
       splitChunks: false,
       minimize: false
     }
@@ -69,7 +68,12 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     runtimeChunk: {
       name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
     },
-    splitChunks: false
+    splitChunks: {
+      cacheGroups: {
+        default: false,
+        vendors: false
+      }
+    }
   }
 
   if (dev) {
@@ -79,21 +83,14 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   // Only enabled in production
   // This logic will create a commons bundle
   // with modules that are used in 50% of all pages
-  return {
-    ...config,
-    splitChunks: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2
-        }
-      }
-    }
+  config.splitChunks.chunks = 'all'
+  config.splitChunks.cacheGroups.commons = {
+    name: 'commons',
+    chunks: 'all',
+    minChunks: totalPages > 2 ? totalPages * 0.5 : 2
   }
+
+  return config
 }
 
 type BaseConfigContext = {|
@@ -159,9 +156,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     output: {
       path: outputPath,
       filename: ({chunk}) => {
-        // Use `[name]-[chunkhash].js` in production
+        // Use `[name]-[contenthash].js` in production
         if (!dev && (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN || chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)) {
-          return chunk.name.replace(/\.js$/, '-' + chunk.renderedHash + '.js')
+          return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
         return '[name]'
       },
@@ -169,7 +166,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? `${dev ? '[name]' : '[chunkhash]'}.js` : `static/chunks/${dev ? '[name]' : '[chunkhash]'}.js`,
+      chunkFilename: isServer ? `${dev ? '[name]' : '[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[contenthash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
