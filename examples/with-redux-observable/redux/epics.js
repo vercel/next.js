@@ -11,12 +11,11 @@ export const fetchUserEpic = (action$, state$) =>
     ofType(types.START_FETCHING_CHARACTERS),
     mergeMap(action => {
       return interval(3000).pipe(
-        map(x =>
-          actions.fetchCharacter({
-            isServer: state$.value.isServer
-          })
-        ),
-        takeUntil(action$.ofType(types.STOP_FETCHING_CHARACTERS))
+        map(x => actions.fetchCharacter()),
+        takeUntil(action$.ofType(
+          types.STOP_FETCHING_CHARACTERS,
+          types.FETCH_CHARACTER_FAILURE
+        ))
       )
     })
   )
@@ -31,14 +30,14 @@ export const fetchCharacterEpic = (action$, state$) =>
         map(response =>
           actions.fetchCharacterSuccess(
             response.response,
-            state$.value.isServer
+            action.payload.isServer
           )
         ),
         catchError(error =>
           of(
             actions.fetchCharacterFailure(
               error.xhr.response,
-              state$.value.isServer
+              action.payload.isServer
             )
           )
         )
