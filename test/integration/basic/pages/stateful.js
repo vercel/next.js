@@ -8,8 +8,10 @@ export default class Statefull extends Component {
     this.state = { answer: null }
   }
 
-  componentWillMount () {
-    this.setState({ answer: 42 })
+  static getDerivedStateFromProps (nextProps, prevState) {
+    if (!prevState.answer) {
+      return {answer: 42}
+    }
   }
 
   render () {
