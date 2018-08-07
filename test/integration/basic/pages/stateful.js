@@ -8,6 +8,7 @@ export default class Statefull extends Component {
     this.state = { answer: null }
   }
 
+  // eslint-disable-next-line camelcase
   UNSAFE_componentWillMount () {
     this.setState({ answer: 42 })
   }

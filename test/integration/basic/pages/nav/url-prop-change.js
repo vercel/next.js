@@ -10,6 +10,7 @@ export default class UrlPropChange extends React.Component {
     }
   }
 
+  // eslint-disable-next-line camelcase
   UNSAFE_componentWillReceiveProps (nextProps) {
     this.setState(() => {
       return {
