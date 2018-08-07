@@ -30,9 +30,9 @@ class HeaderNav extends React.Component {
     this.props.router.events.off('routeChangeComplete', this.handleRouteChange)
   }
 
-  handleRouteChangeTopLevelRouterDeprecatedBehavior = url => {
+  handleRouteChange = url => {
     this.setState({
-      activeURLTopLevelRouterDeprecatedBehavior: url
+      activeURL: url
     })
   };
 
@@ -42,9 +42,9 @@ class HeaderNav extends React.Component {
     })
   };
 
-  handleRouteChange = url => {
+  handleRouteChangeTopLevelRouterDeprecatedBehavior = url => {
     this.setState({
-      activeURL: url
+      activeURLTopLevelRouterDeprecatedBehavior: url
     })
   };
 

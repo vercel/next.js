@@ -24,12 +24,12 @@ const HelloBundle = dynamic({
 })
 
 export default class Bundle extends React.Component {
-  static getInitialProps ({ query }) {
-    return { showMore: Boolean(query.showMore) }
-  }
-
   static childContextTypes = {
     data: PropTypes.object 
+  }
+
+  static getInitialProps ({ query }) {
+    return { showMore: Boolean(query.showMore) }
   }
 
   getChildContext () {
