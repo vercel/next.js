@@ -9,14 +9,14 @@ const Fragment = React.Fragment || function Fragment ({ children }) {
 }
 
 export default class Document extends Component {
+  static childContextTypes = {
+    _documentProps: PropTypes.any
+  }
+
   static getInitialProps ({ renderPage }) {
     const { html, head, errorHtml, buildManifest } = renderPage()
     const styles = flush()
     return { html, head, errorHtml, styles, buildManifest }
-  }
-
-  static childContextTypes = {
-    _documentProps: PropTypes.any
   }
 
   getChildContext () {
@@ -41,28 +41,6 @@ export class Head extends Component {
 
   static propTypes = {
     nonce: PropTypes.string
-  }
-
-  getPreloadMainLinks () {
-    const { assetPrefix, files } = this.context._documentProps
-    if(!files || files.length === 0) {
-      return null
-    }
-  
-    return files.map((file) => {
-      // Only render .js files here
-      if(!/\.js$/.exec(file)) {
-        return null
-      }
-
-      return <link
-        key={file}
-        nonce={this.props.nonce}
-        rel='preload'
-        href={`${assetPrefix}/_next/${file}`}
-        as='script'
-      />
-    })
   }
 
   getCssLinks () {
@@ -95,6 +73,28 @@ export class Head extends Component {
         src={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
         nonce={this.props.nonce}
+      />
+    })
+  }
+
+  getPreloadMainLinks () {
+    const { assetPrefix, files } = this.context._documentProps
+    if(!files || files.length === 0) {
+      return null
+    }
+  
+    return files.map((file) => {
+      // Only render .js files here
+      if(!/\.js$/.exec(file)) {
+        return null
+      }
+
+      return <link
+        key={file}
+        nonce={this.props.nonce}
+        rel='preload'
+        href={`${assetPrefix}/_next/${file}`}
+        as='script'
       />
     })
   }
@@ -135,12 +135,24 @@ export class Main extends Component {
 }
 
 export class NextScript extends Component {
+  static contextTypes = {
+    _documentProps: PropTypes.any
+  }
+
   static propTypes = {
     nonce: PropTypes.string
   }
 
-  static contextTypes = {
-    _documentProps: PropTypes.any
+  getDynamicChunks () {
+    const { dynamicImports, assetPrefix } = this.context._documentProps
+    return dynamicImports.map((bundle) => {
+      return <script
+        async
+        key={bundle.file}
+        src={`${assetPrefix}/_next/${bundle.file}`}
+            nonce={this.props.nonce}
+      />
+    })
   }
 
   getScripts () {
@@ -160,18 +172,6 @@ export class NextScript extends Component {
         src={`${assetPrefix}/_next/${file}`}
         nonce={this.props.nonce}
         async
-      />
-    })
-  }
-
-  getDynamicChunks () {
-    const { dynamicImports, assetPrefix } = this.context._documentProps
-    return dynamicImports.map((bundle) => {
-      return <script
-        async
-        key={bundle.file}
-        src={`${assetPrefix}/_next/${bundle.file}`}
-            nonce={this.props.nonce}
       />
     })
   }
