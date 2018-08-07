@@ -30,7 +30,7 @@ describe('withRouter', () => {
 
   afterAll(() => stopApp(server))
 
-  it('allows observation of navigation events', async () => {
+  it('allows observation of navigation events using withRouter', async () => {
     const browser = await webdriver(appPort, '/a')
     await browser.waitForElementByCss('#page-a')
 
@@ -41,6 +41,38 @@ describe('withRouter', () => {
     await browser.waitForElementByCss('#page-b')
 
     activePage = await browser.elementByCss('.active').text()
+    expect(activePage).toBe('Bar')
+
+    browser.close()
+  })
+
+  it('allows observation of navigation events using top level Router', async () => {
+    const browser = await webdriver(appPort, '/a')
+    await browser.waitForElementByCss('#page-a')
+
+    let activePage = await browser.elementByCss('.active-top-level-router').text()
+    expect(activePage).toBe('Foo')
+
+    await browser.elementByCss('button').click()
+    await browser.waitForElementByCss('#page-b')
+
+    activePage = await browser.elementByCss('.active-top-level-router').text()
+    expect(activePage).toBe('Bar')
+
+    browser.close()
+  })
+
+  it('allows observation of navigation events using top level Router deprecated behavior', async () => {
+    const browser = await webdriver(appPort, '/a')
+    await browser.waitForElementByCss('#page-a')
+
+    let activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
+    expect(activePage).toBe('Foo')
+
+    await browser.elementByCss('button').click()
+    await browser.waitForElementByCss('#page-b')
+
+    activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
     expect(activePage).toBe('Bar')
 
     browser.close()

@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "6.1.1-canary.3",
+  "version": "6.1.1-canary.4",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -46,7 +46,11 @@
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**",
-      "**/examples/**/lib/**"
+      "**/examples/**/lib/**",
+      "**/examples/with-ioc/**",
+      "**/examples/with-kea/**",
+      "**/examples/with-mobx/**",
+      "**/examples/with-mobx-state-tree/**"
     ]
   },
   "lint-staged": {
@@ -89,6 +93,7 @@
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
     "react-error-overlay": "4.0.0",
+    "react-lifecycles-compat": "3.0.4",
     "react-loadable": "5.4.0",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
