@@ -83,6 +83,7 @@
     "http-errors": "1.6.2",
     "http-status": "1.0.1",
     "loader-utils": "1.1.0",
+    "memoize-one": "4.0.0",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "path-to-regexp": "2.1.0",
