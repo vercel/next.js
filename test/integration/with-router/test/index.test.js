@@ -77,4 +77,20 @@ describe('withRouter', () => {
 
     browser.close()
   })
+
+  it('fires routeChangeComplete after head update', async () => {
+    const browser = await webdriver(appPort, '/a')
+    await browser.waitForElementByCss('#page-a')
+
+    let title = await browser.elementByCss('.title').text()
+    expect(title).toBe('')
+
+    await browser.elementByCss('button').click()
+    await browser.waitForElementByCss('#page-b')
+
+    title = await browser.elementByCss('.title').text()
+    expect(title).toBe('page-b')
+
+    browser.close()
+  })
 })

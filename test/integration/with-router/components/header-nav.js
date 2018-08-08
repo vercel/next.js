@@ -14,7 +14,8 @@ class HeaderNav extends React.Component {
     this.state = {
       activeURL: router.asPath,
       activeURLTopLevelRouterDeprecatedBehavior: router.asPath,
-      activeURLTopLevelRouter: router.asPath
+      activeURLTopLevelRouter: router.asPath,
+      title: null
     }
   }
 
@@ -32,7 +33,8 @@ class HeaderNav extends React.Component {
 
   handleRouteChange = url => {
     this.setState({
-      activeURL: url
+      activeURL: url,
+      title: window.document.title
     })
   };
 
@@ -60,6 +62,8 @@ class HeaderNav extends React.Component {
             </Link>
           ))
         }
+
+        <div className='title'>{this.state.title}</div>
       </nav>
     )
   }
