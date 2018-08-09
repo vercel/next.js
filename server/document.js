@@ -162,9 +162,42 @@ export class NextScript extends Component {
     return [...this.getChunkScript('main.js', { async: true })]
   }
 
+  static getInlineScriptSource (documentProps) {
+    let { __NEXT_DATA__, chunks } = documentProps
+    __NEXT_DATA__ = Object.assign({
+      chunks: chunks.names
+    }, __NEXT_DATA__);
+    const { page, pathname } = __NEXT_DATA__
+
+    return `
+      __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+      module={}
+      __NEXT_LOADED_PAGES__ = []
+      __NEXT_LOADED_CHUNKS__ = []
+
+      __NEXT_REGISTER_PAGE = function (route, fn) {
+        __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+      }
+
+      __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
+        __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
+      }
+
+      ${page === '_error' && `
+      __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
+        var error = new Error('Page does not exist: ${htmlescape(pathname)}')
+        error.statusCode = 404
+
+        return { error: error }
+      })
+      `}
+    `;
+  }
+
   getDynamicChunks () {
     const { chunks, __NEXT_DATA__ } = this.context._documentProps
     let { assetPrefix } = __NEXT_DATA__
+
     return (
       <Fragment>
         {chunks.filenames.map((chunk) => (
@@ -180,37 +213,13 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, __NEXT_DATA__, chunks } = this.context._documentProps
+    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
-    __NEXT_DATA__.chunks = chunks.names
-
     return <Fragment>
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-          module={}
-          __NEXT_LOADED_PAGES__ = []
-          __NEXT_LOADED_CHUNKS__ = []
-
-          __NEXT_REGISTER_PAGE = function (route, fn) {
-            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }
-
-          __NEXT_REGISTER_CHUNK = function (chunkName, fn) {
-            __NEXT_LOADED_CHUNKS__.push({ chunkName: chunkName, fn: fn })
-          }
-
-          ${page === '_error' && `
-          __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
-            var error = new Error('Page does not exist: ${htmlescape(pathname)}')
-            error.statusCode = 404
-
-            return { error: error }
-          })
-          `}
-        `
+        __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} nonce={this.props.nonce} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/${buildId}/page/_app.js`} nonce={this.props.nonce} />
