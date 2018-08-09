@@ -18,4 +18,4 @@ module.exports = withImages(withSass({
 
     return config
   }
-}));
+}))
