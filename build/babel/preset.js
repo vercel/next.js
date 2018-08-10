@@ -39,7 +39,6 @@ module.exports = (context, opts = {}) => ({
     require('@babel/plugin-proposal-object-rest-spread'),
     [require('@babel/plugin-transform-runtime'), opts['transform-runtime'] || {
       helpers: false,
-      polyfill: false,
       regenerator: true
     }],
     [require('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
