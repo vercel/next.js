@@ -13,7 +13,7 @@ export default class NextJsSsrImportPlugin {
         // Make sure even in windows, the path looks like in unix
         // Node.js require system will convert it accordingly
         const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(/\\/g, '/')
-        return code.replace('require("./"', `require("${relativePathToBaseDirNormalized}/"`)
+        return code.replace('require("./"', `require("${relativePathToBaseDirNormalized}/"`).replace('readFile(join(__dirname', `readFile(join(__dirname, "${relativePathToBaseDirNormalized}"`)
       })
     })
   }
