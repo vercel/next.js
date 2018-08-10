@@ -176,6 +176,28 @@ export class NextScript extends Component {
     })
   }
 
+  static getInlineScriptSource (documentProps) {
+    const { __NEXT_DATA__ } = documentProps
+    const { page, pathname } = __NEXT_DATA__
+
+    return `
+      __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+      module={}
+      __NEXT_LOADED_PAGES__ = []
+
+      __NEXT_REGISTER_PAGE = function (route, fn) {
+        __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
+      }${page === '_error' ? `
+
+      __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
+        var error = new Error('Page does not exist: ${htmlescape(pathname)}')
+        error.statusCode = 404
+
+        return { error: error }
+      })`: ''}
+    `
+  }
+
   render () {
     const { staticMarkup, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
@@ -183,22 +205,7 @@ export class NextScript extends Component {
 
     return <Fragment>
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-          module={}
-          __NEXT_LOADED_PAGES__ = []
-
-          __NEXT_REGISTER_PAGE = function (route, fn) {
-            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }${page === '_error' ? `
-
-          __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
-            var error = new Error('Page does not exist: ${htmlescape(pathname)}')
-            error.statusCode = 404
-
-            return { error: error }
-          })`: ''}
-        `
+        __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
