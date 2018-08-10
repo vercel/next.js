@@ -182,24 +182,19 @@ export class NextScript extends Component {
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>
-      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-          module={}
-          __NEXT_LOADED_PAGES__ = []
-
-          __NEXT_REGISTER_PAGE = function (route, fn) {
-            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }${page === '_error' ? `
-
-          __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
-            var error = new Error('Page does not exist: ${htmlescape(pathname)}')
-            error.statusCode = 404
-
-            return { error: error }
-          })`: ''}
-        `
-      }} />}
+      {staticMarkup ? null : <script
+        id="server-app-state"
+        type="application/json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({ ...__NEXT_DATA__ }).replace(
+            /<\/script>/g,
+            '%3C/script%3E'
+          ),
+        }}
+      />}
+      <script dangerouslySetInnerHTML={{
+          __html: `module = {};`,
+        }} />
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
       <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} />
