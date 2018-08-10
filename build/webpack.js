@@ -17,7 +17,7 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
+import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN, CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP} from '../lib/constants'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -132,6 +132,11 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     'main.js': [],
     [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
       path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
+    ].filter(Boolean),
+
+    'bootstrap.js': [],
+    [CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP]: [
+      path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'bootstrap')
     ].filter(Boolean)
   } : {}
 
@@ -257,6 +262,15 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ]
 
       delete entry['main.js']
+    }
+
+    if (typeof entry['bootstrap.js'] !== 'undefined') {
+      entry[CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP] = [
+        ...entry['bootstrap.js'],
+        ...entry[CLIENT_STATIC_FILES_RUNTIME_BOOTSTRAP]
+      ]
+
+      delete entry['bootstrap.js']
     }
 
     return entry

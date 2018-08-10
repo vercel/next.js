@@ -19,25 +19,20 @@ if (!window.Promise) {
   window.Promise = Promise
 }
 
-const NextData = JSON.parse(
-  document
-    .getElementById('server-app-state')
-    .textContent.replace(/%3C\/script%3E/g, '</script>')
-)
-window.__NEXT_DATA__ = NextData //Backwards compatibility
-
 const {
-  props,
-  err,
-  page,
-  pathname,
-  query,
-  buildId,
-  assetPrefix,
-  runtimeConfig,
-} = NextData
+  __NEXT_DATA__: {
+    props,
+    err,
+    page,
+    pathname,
+    query,
+    buildId,
+    assetPrefix,
+    runtimeConfig
+  },
+  location
+} = window
 
-const { location } = window
 const prefix = assetPrefix || ''
 
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
@@ -54,13 +49,10 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-if (page === '_error') {
-  pageLoader.registerPage(htmlescape(pathname), function() {
-    var error = new Error(`Page does not exist: ${htmlescape(pathname)}`)
-    error.statusCode = 404
-    return { error: error }
-  })
-}
+window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
+  pageLoader.registerPage(route, fn)
+})
+delete window.__NEXT_LOADED_PAGES__
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
 const headManager = new HeadManager()

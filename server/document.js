@@ -1,7 +1,6 @@
 /* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
@@ -106,6 +105,7 @@ export class Head extends Component {
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
+      <link nonce={this.props.nonce} rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} />
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />
@@ -192,9 +192,15 @@ export class NextScript extends Component {
           ),
         }}
       />}
-      <script dangerouslySetInnerHTML={{
-          __html: `module = {};`,
-        }} />
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `module={}`
+        }}
+      />
+      <script
+        src={`${assetPrefix}/_next/static/runtime/bootstrap.js`}
+        nonce={this.props.nonce}
+      />
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
       <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} />
