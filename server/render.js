@@ -15,10 +15,6 @@ export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
 }
 
-export function renderBackpressureToHTML (req, res, pathname, query, opts = {}) {
-  return doRender(req, res, pathname, query, { ...opts, overloadCheck: () => true })
-}
-
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
 }
