@@ -11,7 +11,7 @@ window.__NEXT_REGISTER_PAGE = function (route, fn) {
   window.__NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
 }
 if (NextData.page === '_error') {
-  window.__NEXT_REGISTER_PAGE(htmlescape(NextData.pathname), function() {
+  window.__NEXT_REGISTER_PAGE(htmlescape(NextData.pathname), function () {
     var error = new Error(`Page does not exist: ${htmlescape(NextData.pathname)}`)
     error.statusCode = 404
     return { error: error }
