@@ -53,6 +53,7 @@ export default class extends Component {
           Counter: {counter}
         </div>
         <button id='increase' onClick={() => this.increase()}>Increase</button>
+        <Link href='/nav/hash-changes#item-400'><a id='scroll-to-hash'>Scroll to hash</a></Link>
       </div>
     )
   }
