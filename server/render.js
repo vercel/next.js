@@ -49,7 +49,7 @@ export async function doPageRender (req, res, pathname, query, {
         pathname,
         query,
         props,
-        head: defaultHead(),
+        head: defaultHead,
       }
     }
 
@@ -70,7 +70,7 @@ export async function doPageRender (req, res, pathname, query, {
         html = renderToString(app)
       }
     } finally {
-      head = Head.rewind() || defaultHead()
+      head = Head.rewind() || defaultHead
     }
 
     return {
