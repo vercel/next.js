@@ -1,7 +1,6 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
-import resolvePath from './resolve'
 import touch from 'touch'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE, normalizePageEntryName } from './utils'
 
@@ -121,7 +120,7 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
       page = normalizePage(page)
 
       const pagePath = join(dir, 'pages', page)
-      const pathname = await resolvePath(pagePath)
+      const pathname = require.resolve(pagePath)
       const name = normalizePageEntryName(pathname, dir)
 
       const entry = [`${pathname}?entry`]

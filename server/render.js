@@ -3,7 +3,6 @@ import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import stripAnsi from 'strip-ansi'
-import resolve from './resolve'
 import getConfig from './config'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
@@ -38,18 +37,11 @@ async function doRender (req, res, pathname, query, {
   await ensurePage(page, { dir, hotReloader })
 
   const dist = getConfig(dir).distDir
-  const nodeDistDir = join(dir, dist, 'server')
-
-  const pageDir = join(nodeDistDir, 'pages')
-
-  const [pagePath, documentPath] = await Promise.all([
-    resolve(join(pageDir, page)),
-    resolve(join(pageDir, '_document'))
-  ])
+  const nodeDistDir = join(dir, dist, 'server', 'pages')
 
   let [Component, Document] = [
-    require(pagePath),
-    require(documentPath)
+    require(join(pageDir, page)),
+    require(join(pageDir, '_document'))
   ]
 
   Component = Component.default || Component
