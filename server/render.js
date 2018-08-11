@@ -9,12 +9,12 @@ import App from '../lib/app'
 
 export async function renderToHTML (req, res, pathname, query, opts) {
   const page = await doPageRender(req, res, pathname, query, opts)
-  return doDocRender(page, opts);
+  return doDocRender(page, {}, opts);
 }
 
 export async function renderErrorToHTML (err, req, res, pathname, query, opts) {
   const page = await doPageRender(req, res, pathname, query, { ...opts, err, page: '_error' })
-  return doDocRender(page, opts);
+  return doDocRender(page, {}, opts);
 }
 
 export async function doPageRender (req, res, pathname, query, {
@@ -24,7 +24,6 @@ export async function doPageRender (req, res, pathname, query, {
   dir,
   overloadCheck = () => false,
   enhancer = Page => Page,
-  dev = false,
 }) {
   pathname = pathname.replace(/\/index/, '') || '/index'
   page = page || pathname
@@ -69,7 +68,7 @@ export async function doPageRender (req, res, pathname, query, {
   }
 
   return {
-    err: serializeError(dev, err),
+    err,
     pathname,
     query,
     props,
@@ -80,20 +79,20 @@ export async function doPageRender (req, res, pathname, query, {
 }
 
 
-export async function doDocRender(page, { dev, dir, publicPath }) {
+export async function doDocRender(page, initialProps, { dev, dir, publicPath }) {
   const pageDir = join(dir, '.next', 'server', 'pages')
 
   let Document = require(join(pageDir, '_document'))
   Document = Document.default || Document
 
-  const docProps = await Document.getInitialProps({ renderPage: () => page })
+  const docProps = await Document.getInitialProps({ initialProps, renderPage: () => page })
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props: docProps.props,
       pathname: docProps.pathname,
       query: docProps.query,
       publicPath,
-      err: docProps.err
+      err: serializeError(dev, docProps.err)
     },
     dev,
     ...docProps
