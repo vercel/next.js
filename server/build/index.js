@@ -56,18 +56,6 @@ function runCompiler (compiler) {
 }
 
 async function writeBuildStats (dir, stats) {
-  // Here we can't use hashes in webpack chunks.
-  // That's because the "app.js" is not tied to a chunk.
-  // It's created by merging a few assets. (commons.js and main.js)
-  // So, we need to generate the hash ourself.
-  const assetHashMap = {
-    'app.js': {
-      hash: await md5File(join(dir, '.next', 'bundles', 'app.js'))
-    }
-  }
-  const buildStatsPath = join(dir, '.next', 'build-stats.json')
-  await fs.writeFile(buildStatsPath, JSON.stringify(assetHashMap), 'utf8')
-
   const statsPath = join(dir, '.next', 'webpack-stats.json')
   await fs.writeFile(statsPath, JSON.stringify(stats), 'utf8')
 }

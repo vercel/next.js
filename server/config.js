@@ -4,13 +4,7 @@ import { existsSync } from 'fs'
 const cache = new Map()
 
 const defaultConfig = {
-  webpack: null,
-  webpackDevMiddleware: null,
-  poweredByHeader: true,
-  distDir: '.next',
-  assetPrefix: '',
   configOrigin: 'default',
-  useFileSystemPublicRoutes: true
 }
 
 export default function getConfig (dir, customConfig) {

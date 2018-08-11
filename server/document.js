@@ -33,15 +33,13 @@ export class Head extends Component {
   }
 
   getChunkPreloadLink (filename) {
-    const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
-    const hash = buildStats ? buildStats[filename].hash : buildId
+    let { publicPath } = this.context._documentProps.__NEXT_DATA__
 
     return (
       <link
         key={filename}
         rel='preload'
-        href={`${assetPrefix}/_next/${hash}/${filename}`}
+        href={`${publicPath}${filename}`}
         as='script'
       />
     )
@@ -50,11 +48,7 @@ export class Head extends Component {
   getPreloadMainLinks () {
     const { dev } = this.context._documentProps
     if (dev) {
-      return [
-        this.getChunkPreloadLink('manifest.js'),
-        this.getChunkPreloadLink('commons.js'),
-        this.getChunkPreloadLink('main.js')
-      ]
+      return []
     }
 
     // In the production mode, we have a single asset with all the JS content.
@@ -65,11 +59,11 @@ export class Head extends Component {
 
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, publicPath } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/pages${pagePathname}.js`} as='script' />
+      <link rel='preload' href={`${publicPath}pages${pagePathname}.js`} as='script' />
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}
@@ -109,15 +103,13 @@ export class NextScript extends Component {
   }
 
   getChunkScript (filename, additionalProps = {}) {
-    const { __NEXT_DATA__ } = this.context._documentProps
-    let { buildStats, assetPrefix, buildId } = __NEXT_DATA__
-    const hash = buildStats ? buildStats[filename].hash : buildId
+    let { publicPath } = this.context._documentProps.__NEXT_DATA__
 
     return (
       <script
         key={filename}
         type='text/javascript'
-        src={`${assetPrefix}/_next/${hash}/${filename}`}
+        src={`${publicPath}${filename}`}
         {...additionalProps}
       />
     )
@@ -140,19 +132,19 @@ export class NextScript extends Component {
 
   render () {
     const { __NEXT_DATA__ } = this.context._documentProps
-    const { pathname, buildId, assetPrefix } = __NEXT_DATA__
+    const { pathname, publicPath } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <div>
       <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-          module={}
-          __NEXT_LOADED_PAGES__ = []
-          __NEXT_REGISTER_PAGE = function (route, fn) { __NEXT_LOADED_PAGES__.push({ route: route, fn: fn }) }
+__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
+module={}
+__NEXT_LOADED_PAGES__ = []
+__NEXT_REGISTER_PAGE = function (route, fn) { __NEXT_LOADED_PAGES__.push({ route: route, fn: fn }) }
         `
       }} />
-      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/pages${pagePathname}.js`} />
+      <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${publicPath}pages${pagePathname}.js`} />
       {this.getScripts()}
     </div>
   }

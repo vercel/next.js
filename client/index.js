@@ -16,19 +16,16 @@ const {
     err,
     pathname,
     query,
-    buildId,
-    assetPrefix
+    publicPath
   },
   location
 } = window
 
-if (assetPrefix) {
-  __webpack_public_path__ = `${assetPrefix}/_next/${buildId}/`    // eslint-disable-line
-}
+__webpack_public_path__ = publicPath    // eslint-disable-line
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, assetPrefix)
+const pageLoader = new PageLoader()
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })

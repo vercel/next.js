@@ -3,46 +3,40 @@ import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import stripAnsi from 'strip-ansi'
-import getConfig from './config'
 import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
-export function renderToHTML (req, res, pathname, query, opts) {
-  return doRender(req, res, pathname, query, opts)
+export async function renderToHTML (req, res, pathname, query, opts) {
+  const page = await doPageRender(req, res, pathname, query, opts)
+  return doDocRender(page, opts);
 }
 
-export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  return doRender(req, res, pathname, query, { ...opts, err, page: '_error' })
+export async function renderErrorToHTML (err, req, res, pathname, query, opts) {
+  const page = await doPageRender(req, res, pathname, query, { ...opts, err, page: '_error' })
+  return doDocRender(page, opts);
 }
 
-async function doRender (req, res, pathname, query, {
+export async function doPageRender (req, res, pathname, query, {
   err,
   page,
-  buildId,
-  buildStats,
   hotReloader,
-  assetPrefix,
-  dir = process.cwd(),
+  dir,
+  overloadCheck = () => false,
+  enhancer = Page => Page,
   dev = false,
-  overloadCheck = () => false
-} = {}) {
+}) {
   pathname = pathname.replace(/\/index/, '') || '/index'
   page = page || pathname
 
   await ensurePage(page, { dir, hotReloader })
 
-  const dist = getConfig(dir).distDir
-  const nodeDistDir = join(dir, dist, 'server', 'pages')
+  const pageDir = join(dir, '.next', 'server', 'pages')
 
-  let [Component, Document] = [
-    require(join(pageDir, page)),
-    require(join(pageDir, '_document'))
-  ]
-
+  let Component = require(join(pageDir, page));
   Component = Component.default || Component
-  Document = Document.default || Document
+
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const props = await loadGetInitialProps(Component, ctx)
@@ -50,12 +44,12 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (res.finished) return
 
-  const renderPage = (enhancer = Page => Page) => {
     if (overloadCheck()) {
       return {
-        html: '',
+        pathname,
+        query,
+        props,
         head: defaultHead(),
-        errorHtml: '',
       }
     }
 
@@ -67,7 +61,7 @@ async function doRender (req, res, pathname, query, {
 
     let html
     let head
-    let errorHtml = ''
+    let errorHtml
 
     try {
       if (err) {
@@ -79,22 +73,34 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, errorHtml }
-  }
-
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const doc = createElement(Document, {
-    __NEXT_DATA__: {
-      props,
+    return {
+      err: serializeError(dev, err),
       pathname,
       query,
-      buildId,
-      buildStats,
-      assetPrefix,
-      err: (err) ? serializeError(dev, err) : null
+      props,
+      head,
+      html,
+      errorHtml
+    }
+  }
+
+
+export async function doDocRender(page, { dev, dir, publicPath }) {
+  const pageDir = join(dir, '.next', 'server', 'pages')
+
+  let Document = require(join(pageDir, '_document'))
+  Document = Document.default || Document
+
+  const docProps = await Document.getInitialProps({ renderPage: () => page })
+  const doc = createElement(Document, {
+    __NEXT_DATA__: {
+      props: docProps.props,
+      pathname: docProps.pathname,
+      query: docProps.query,
+      publicPath,
+      err: docProps.err
     },
     dev,
-    dir,
     ...docProps
   })
 
@@ -115,6 +121,9 @@ function errorToJSON (err) {
 }
 
 export function serializeError (dev, err) {
+  if (!err) {
+    return undefined;
+  }
   if (err.output && err.output.payload) {
     return err.output.payload
   }

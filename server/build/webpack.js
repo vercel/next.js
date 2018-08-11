@@ -189,7 +189,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     entry,
     output: {
       pathinfo: !!dev,
-      path: buildDir ? join(buildDir, '.next', 'bundles') : join(dir, config.distDir, 'bundles'),
+      path: join(buildDir || dir, '.next', 'bundles'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: `/_next/${buildId}/`,

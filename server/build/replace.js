@@ -1,10 +1,8 @@
 import mv from 'mv'
 import { join } from 'path'
-import getConfig from '../config'
 
 export default async function replaceCurrentBuild (dir, buildDir) {
-  const dist = getConfig(dir).distDir
-  const _dir = join(dir, dist)
+  const _dir = join(dir, '.next')
   const _buildDir = join(buildDir, '.next')
   const oldDir = join(buildDir, '.next.old')
 
