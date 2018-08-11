@@ -8,7 +8,6 @@ import { Router } from '../lib/router'
 import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
-import { flushChunks } from '../lib/dynamic'
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
@@ -25,7 +24,6 @@ async function doRender (req, res, pathname, query, {
   buildStats,
   hotReloader,
   assetPrefix,
-  availableChunks,
   dir = process.cwd(),
   dev = false,
   overloadCheck = () => false
@@ -53,14 +51,11 @@ async function doRender (req, res, pathname, query, {
   if (res.finished) return
 
   const renderPage = (enhancer = Page => Page) => {
-    const chunks = loadChunks({ dev, dir, dist, availableChunks })
-
     if (overloadCheck()) {
       return {
         html: '',
         head: defaultHead(),
         errorHtml: '',
-        chunks
       }
     }
 
@@ -84,7 +79,7 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, errorHtml, chunks }
+    return { html, head, errorHtml }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -138,19 +133,4 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (page === '_error' || page === '_document') return
 
   await hotReloader.ensurePage(page)
-}
-
-function loadChunks ({ dev, dir, dist, availableChunks }) {
-  const flushedChunks = flushChunks()
-  const validChunks = []
-
-  for (var chunk of flushedChunks) {
-    const filename = join(dir, dist, 'chunks', chunk)
-    const exists = dev ? existsSync(filename) : availableChunks[chunk]
-    if (exists) {
-      validChunks.push(chunk)
-    }
-  }
-
-  return validChunks
 }

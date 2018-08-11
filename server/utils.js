@@ -12,22 +12,6 @@ export function normalizePageEntryName (pathname, dir) {
   return join('pages', relative(pagesDir, pathname).replace(/[/|\\]index\.js$/, '.js'))
 }
 
-export function getAvailableChunks (dir, dist) {
-  const chunksDir = join(dir, dist, 'chunks')
-  if (!existsSync(chunksDir)) return {}
-
-  const chunksMap = {}
-  const chunkFiles = readdirSync(chunksDir)
-
-  chunkFiles.forEach(filename => {
-    if (/\.js$/.test(filename)) {
-      chunksMap[filename] = true
-    }
-  })
-
-  return chunksMap
-}
-
 export function printAndExit (message, code = 1) {
   if (code === 0) {
     console.log(message)

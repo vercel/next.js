@@ -4,8 +4,8 @@ import htmlescape from 'htmlescape'
 
 export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml, chunks } = renderPage()
-    return { html, head, errorHtml, chunks }
+    const { html, head, errorHtml } = renderPage()
+    return { html, head, errorHtml }
   }
 
   static childContextTypes = {
@@ -63,19 +63,6 @@ export class Head extends Component {
     ]
   }
 
-  getPreloadDynamicChunks () {
-    const { chunks, __NEXT_DATA__ } = this.context._documentProps
-    let { assetPrefix, buildId } = __NEXT_DATA__
-    return chunks.map((chunk) => (
-      <link
-        key={chunk}
-        rel='preload'
-        href={`${assetPrefix}/_next/${buildId}/chunks/${chunk}`}
-        as='script'
-      />
-    ))
-  }
-
   render () {
     const { head, styles, __NEXT_DATA__ } = this.context._documentProps
     const { pathname, buildId, assetPrefix } = __NEXT_DATA__
@@ -83,7 +70,6 @@ export class Head extends Component {
 
     return <head {...this.props}>
       <link rel='preload' href={`${assetPrefix}/_next/${buildId}/pages${pagePathname}.js`} as='script' />
-      {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
       {styles || null}

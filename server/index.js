@@ -5,7 +5,6 @@ import send from 'send'
 
 import Boom from 'boom'
 import Router from './router'
-import { getAvailableChunks } from './utils'
 import getConfig from './config'
 import { serializeError } from './render'
 
@@ -81,8 +80,7 @@ export default class Server {
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,
       buildId: this.buildId,
-      assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
-      availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
+      assetPrefix: this.config.assetPrefix.replace(/\/$/, '')
     }
 
     this.defineRoutes()

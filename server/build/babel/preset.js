@@ -48,7 +48,6 @@ module.exports = (context, opts = {}) => ({
         alias: {
           'next/client': isServer ? undefined : '@kpdecker/next/browser/client',
           'next/link': isServer ? '@kpdecker/next/node/lib/link' : '@kpdecker/next/browser/lib/link',
-          'next/dynamic': isServer ? '@kpdecker/next/node/lib/dynamic' : '@kpdecker/next/browser/lib/dynamic',
           'next/head': isServer ? '@kpdecker/next/node/lib/head' : '@kpdecker/next/browser/lib/head',
           'next/document': isServer ? '@kpdecker/next/node/server/document' : undefined,
           'next/same-loop-promise': isServer ? '@kpdecker/next/node/lib/same-loop-promise' : '@kpdecker/next/browser/lib/same-loop-promise',
