@@ -91,10 +91,6 @@ async function doRender (req, res, pathname, query, {
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-
-  if (res.finished) return
-
-  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React element')
   const doc = createElement(Document, {
     __NEXT_DATA__: {
       props,
