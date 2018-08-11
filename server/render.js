@@ -4,7 +4,6 @@ import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import stripAnsi from 'strip-ansi'
 import { Router } from '../lib/router'
-import { loadGetInitialProps } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
@@ -38,11 +37,7 @@ export async function doPageRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   const asPath = req.url
-  const ctx = { err, req, res, pathname, query, asPath }
-  const props = await loadGetInitialProps(Component, ctx)
-
-  // the response might be finshed on the getinitialprops call
-  if (res.finished) return
+    const props = await Component.getInitialProps({ err, req, res, pathname, query, asPath })
 
     if (overloadCheck()) {
       return {

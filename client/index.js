@@ -7,7 +7,7 @@ import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
-import { loadGetInitialProps, getURL } from '../lib/utils'
+import { getURL } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 
 const {
@@ -29,7 +29,6 @@ const pageLoader = new PageLoader()
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })
-delete window.__NEXT_LOADED_PAGES__
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
 const headManager = new HeadManager()
@@ -85,7 +84,7 @@ export async function render ({ Component, props, hash, err, emitter: emitterPro
     lastAppProps.Component === ErrorComponent) {
     // fetch props if ErrorComponent was replaced with a page component by HMR
       const { pathname, query, asPath } = router
-      props = await loadGetInitialProps(Component, { err, pathname, query, asPath })
+      props = await Component.getInitialProps({ err, pathname, query, asPath })
     }
 
     Component = Component || lastAppProps.Component
@@ -122,8 +121,7 @@ export async function renderError (error) {
 
   console.error(error)
 
-  const initProps = { err: error, pathname, query, asPath }
-  const props = await loadGetInitialProps(ErrorComponent, initProps)
+  const props = await ErrorComponent.getInitialProps({ err: error, pathname, query, asPath })
   renderReactElement(createElement(ErrorComponent, props), errorContainer)
 
   appContainer.innerHTML = ''
