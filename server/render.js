@@ -37,47 +37,47 @@ export async function doPageRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   const asPath = req.url
-    const props = await Component.getInitialProps({ err, req, res, pathname, query, asPath })
+  const props = await Component.getInitialProps({ err, req, res, pathname, query, asPath })
 
-    if (overloadCheck()) {
-      return {
-        pathname,
-        query,
-        props,
-        head: defaultHead,
-      }
-    }
-
-    const app = createElement(App, {
-      Component: enhancer(Component),
-      props,
-      router: new Router(pathname, query, asPath)
-    })
-
-    let html
-    let head
-    let errorHtml
-
-    try {
-      if (err) {
-        errorHtml = renderToString(app)
-      } else {
-        html = renderToString(app)
-      }
-    } finally {
-      head = Head.rewind() || defaultHead
-    }
-
+  if (overloadCheck()) {
     return {
-      err: serializeError(dev, err),
       pathname,
       query,
       props,
-      head,
-      html,
-      errorHtml
+      head: defaultHead,
     }
   }
+
+  const app = createElement(App, {
+    Component: enhancer(Component),
+    props,
+    router: new Router(pathname, query, asPath)
+  })
+
+  let html
+  let head
+  let errorHtml
+
+  try {
+    if (err) {
+      errorHtml = renderToString(app)
+    } else {
+      html = renderToString(app)
+    }
+  } finally {
+    head = Head.rewind() || defaultHead
+  }
+
+  return {
+    err: serializeError(dev, err),
+    pathname,
+    query,
+    props,
+    head,
+    html,
+    errorHtml
+  }
+}
 
 
 export async function doDocRender(page, { dev, dir, publicPath }) {
