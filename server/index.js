@@ -61,7 +61,7 @@ async function renderScriptError (req, res, page, error, customFields, { dev }) 
 }
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
+  constructor ({ dir = '.', dev = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
@@ -77,7 +77,6 @@ export default class Server {
     this.buildId = !dev ? this.readBuildId() : '-'
     this.renderOpts = {
       dev,
-      staticMarkup,
       dir: this.dir,
       hotReloader: this.hotReloader,
       buildStats: this.buildStats,

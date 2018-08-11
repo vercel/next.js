@@ -28,7 +28,6 @@ async function doRender (req, res, pathname, query, {
   availableChunks,
   dir = process.cwd(),
   dev = false,
-  staticMarkup = false,
   overloadCheck = () => false
 } = {}) {
   pathname = pathname.replace(/\/index/, '') || '/index'
@@ -71,17 +70,15 @@ async function doRender (req, res, pathname, query, {
       router: new Router(pathname, query, asPath)
     })
 
-    const render = staticMarkup ? renderToStaticMarkup : renderToString
-
     let html
     let head
     let errorHtml = ''
 
     try {
       if (err) {
-        errorHtml = render(app)
+        errorHtml = renderToString(app)
       } else {
-        html = render(app)
+        html = renderToString(app)
       }
     } finally {
       head = Head.rewind() || defaultHead()
@@ -103,7 +100,6 @@ async function doRender (req, res, pathname, query, {
     },
     dev,
     dir,
-    staticMarkup,
     ...docProps
   })
 

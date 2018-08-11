@@ -153,21 +153,21 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, __NEXT_DATA__ } = this.context._documentProps
+    const { __NEXT_DATA__ } = this.context._documentProps
     const { pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <div>
-      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
+      <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
           module={}
           __NEXT_LOADED_PAGES__ = []
           __NEXT_REGISTER_PAGE = function (route, fn) { __NEXT_LOADED_PAGES__.push({ route: route, fn: fn }) }
         `
-      }} />}
+      }} />
       <script async id={`__NEXT_PAGE__${pathname}`} type='text/javascript' src={`${assetPrefix}/_next/${buildId}/pages${pagePathname}.js`} />
-      {staticMarkup ? null : this.getScripts()}
+      {this.getScripts()}
     </div>
   }
 }
