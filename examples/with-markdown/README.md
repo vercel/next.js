@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic idea behind implementing [markdown-in-js](https://github.com/threepointone/markdown-in-js), a library that allows you to write markdown that transpiles to React components *at build time*.
+This example shows how to integrate an [MDX](https://github.com/mdx-js/mdx) which is a _"JSX in Markdown loader, parser, and renderer for ambitious projects"_.

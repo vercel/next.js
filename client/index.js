@@ -8,9 +8,10 @@ import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
+import Loadable from 'react-loadable'
 
 // Polyfill Promise globally
-// This is needed because Webpack2's dynamic loading(common chunks) code
+// This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
 // So, we need to polyfill it.
 // See: https://github.com/webpack/webpack/issues/4254
@@ -26,18 +27,19 @@ const {
     pathname,
     query,
     buildId,
-    chunks,
     assetPrefix,
     runtimeConfig
   },
   location
 } = window
 
+const prefix = assetPrefix || ''
+
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${assetPrefix}/_next/webpack/` //eslint-disable-line
+__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/asset with the assetPrefix
-asset.setAssetPrefix(assetPrefix)
+asset.setAssetPrefix(prefix)
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
@@ -46,48 +48,33 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, assetPrefix)
+const pageLoader = new PageLoader(buildId, prefix)
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })
 delete window.__NEXT_LOADED_PAGES__
-
-window.__NEXT_LOADED_CHUNKS__.forEach(({ chunkName, fn }) => {
-  pageLoader.registerChunk(chunkName, fn)
-})
-delete window.__NEXT_LOADED_CHUNKS__
-
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
-window.__NEXT_REGISTER_CHUNK = pageLoader.registerChunk.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
+let webpackHMR
 export let router
 export let ErrorComponent
-let DevErrorOverlay
 let Component
 let App
-let stripAnsi = (s) => s
-let applySourcemaps = (e) => e
 
 export const emitter = new EventEmitter()
 
 export default async ({
-  DevErrorOverlay: passedDevErrorOverlay,
-  stripAnsi: passedStripAnsi,
-  applySourcemaps: passedApplySourcemaps
+  webpackHMR: passedWebpackHMR
 } = {}) => {
-  // Wait for all the dynamic chunks to get loaded
-  for (const chunkName of chunks) {
-    await pageLoader.waitForChunk(chunkName)
+  // This makes sure this specific line is removed in production
+  if (process.env.NODE_ENV === 'development') {
+    webpackHMR = passedWebpackHMR
   }
-
-  stripAnsi = passedStripAnsi || stripAnsi
-  applySourcemaps = passedApplySourcemaps || applySourcemaps
-  DevErrorOverlay = passedDevErrorOverlay
   ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
 
@@ -103,6 +90,8 @@ export default async ({
     // This catches errors like throwing in the top level of a module
     initialErr = error
   }
+
+  await Loadable.preloadReady()
 
   router = createRouter(pathname, query, asPath, {
     initialProps: props,
@@ -132,7 +121,6 @@ export async function render (props) {
   try {
     await doRender(props)
   } catch (err) {
-    if (err.abort) return
     await renderError({...props, err})
   }
 }
@@ -141,25 +129,14 @@ export async function render (props) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export async function renderError (props) {
-  const {App, err, errorInfo} = props
-
-  // In development we apply sourcemaps to the error
-  if (process.env.NODE_ENV !== 'production') {
-    await applySourcemaps(err)
-  }
-
-  const str = stripAnsi(`${err.message}\n${err.stack}${errorInfo ? `\n\n${errorInfo.componentStack}` : ''}`)
-  console.error(str)
+  const {App, err} = props
 
   if (process.env.NODE_ENV !== 'production') {
-    // We need to unmount the current app component because it's
-    // in the inconsistant state.
-    // Otherwise, we need to face issues when the issue is fixed and
-    // it's get notified via HMR
-    ReactDOM.unmountComponentAtNode(appContainer)
-    renderReactElement(<DevErrorOverlay error={err} />, errorContainer)
-    return
+    throw webpackHMR.prepareError(err)
   }
+
+  // Make sure we log the error to the console, otherwise users can't track down issues.
+  console.error(err)
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
@@ -193,24 +170,26 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
   // We need to clear any existing runtime error messages
   ReactDOM.unmountComponentAtNode(errorContainer)
 
-  let onError = null
-
-  if (process.env.NODE_ENV !== 'development') {
-    onError = async (error, errorInfo) => {
+  // In development runtime errors are caught by react-error-overlay.
+  if (process.env.NODE_ENV === 'development') {
+    renderReactElement((
+      <App {...appProps} />
+    ), appContainer)
+  } else {
+    // In production we catch runtime errors using componentDidCatch which will trigger renderError.
+    const onError = async (error) => {
       try {
-        await renderError({App, err: error, errorInfo})
+        await renderError({App, err: error})
       } catch (err) {
         console.error('Error while rendering error page: ', err)
       }
     }
+    renderReactElement((
+      <ErrorBoundary onError={onError}>
+        <App {...appProps} />
+      </ErrorBoundary>
+    ), appContainer)
   }
-
-  // In development we render a wrapper component that catches runtime errors.
-  renderReactElement((
-    <ErrorBoundary ErrorReporter={DevErrorOverlay} onError={onError}>
-      <App {...appProps} />
-    </ErrorBoundary>
-  ), appContainer)
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }

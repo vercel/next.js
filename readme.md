@@ -63,6 +63,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
@@ -848,7 +849,7 @@ const micro = require('micro')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
-const handle = app.getRequestHandler()
+const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
   const server = micro((req, res) => {
@@ -948,13 +949,11 @@ export default () =>
 import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
-  modules: props => {
+  modules: () => {
     const components = {
       Hello1: import('../components/hello1'),
       Hello2: import('../components/hello2')
     }
-
-    // Add remove components based on props
 
     return components
   },
@@ -1389,6 +1388,10 @@ export default () => <div>
   <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
 ```
+
+### Starting the server on alternative hostname
+
+To start the development server using a different default hostname you can use `--hostname hostname_here` or `-H hostname_here` option with next dev. This will start a TCP server listening for connections on the provided host.
 
 ### CDN support with Asset Prefix
 

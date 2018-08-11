@@ -51,7 +51,7 @@ function runCompiler (compiler) {
         return reject(error)
       }
 
-      resolve(jsonStats)
+      resolve()
     })
   })
 }

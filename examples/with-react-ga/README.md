@@ -41,4 +41,5 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using `<Layout/>` component with NextJs. You can also use an HOC instead of `<Layout/>` component. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.
+This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app) 
+component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.

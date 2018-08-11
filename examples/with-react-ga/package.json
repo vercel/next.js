@@ -10,7 +10,7 @@
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
-    "react-ga": "2.2.0"
+    "react-ga": "2.5.3"
   },
   "author": "",
   "license": "ISC"

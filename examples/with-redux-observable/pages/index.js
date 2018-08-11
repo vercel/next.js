@@ -1,17 +1,18 @@
 import React from 'react'
 import Link from 'next/link'
-import withRedux from 'next-redux-wrapper'
-import initStore from '../redux'
+import { of, Subject } from 'rxjs'
+import { StateObservable } from 'redux-observable'
+import { connect } from 'react-redux'
 import CharacterInfo from '../components/CharacterInfo'
 import { rootEpic } from '../redux/epics'
 import * as actions from '../redux/actions'
-import { of } from 'rxjs/observable/of'
 
 class Counter extends React.Component {
   static async getInitialProps ({ store, isServer }) {
+    const state$ = new StateObservable(new Subject(), store.getState())
     const resultAction = await rootEpic(
       of(actions.fetchCharacter(isServer)),
-      store
+      state$
     ).toPromise() // we need to convert Observable to Promise
     store.dispatch(resultAction)
 
@@ -40,8 +41,7 @@ class Counter extends React.Component {
   }
 }
 
-export default withRedux(
-  initStore,
+export default connect(
   null,
   {
     startFetchingCharacters: actions.startFetchingCharacters,

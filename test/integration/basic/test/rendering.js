@@ -63,6 +63,16 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).toContain('<div>World</div>')
     })
 
+    it('should render the page without `err` property', async () => {
+      const html = await render('/')
+      expect(html).not.toContain('"err"')
+    })
+
+    it('should render the page without `nextExport` property', async () => {
+      const html = await render('/')
+      expect(html).not.toContain('"nextExport"')
+    })
+
     test('renders styled jsx', async () => {
       const $ = await get$('/styled-jsx')
       const styleId = $('#blue-box').attr('class')
@@ -112,14 +122,13 @@ export default function ({ app }, suiteName, render, fetch) {
     test('error-inside-page', async () => {
       const $ = await get$('/error-inside-page')
       expect($('pre').text()).toMatch(/This is an expected error/)
-      // Check if the the source map line is correct
-      expect($('body').text()).toMatch(/pages\/error-inside-page\.js:2:0/)
+      // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('error-in-the-global-scope', async () => {
       const $ = await get$('/error-in-the-global-scope')
       expect($('pre').text()).toMatch(/aa is not defined/)
-      expect($('body').text()).toMatch(/pages\/error-in-the-global-scope\.js:1:0/)
+      // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('asPath', async () => {
