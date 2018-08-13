@@ -602,12 +602,15 @@ Router.push(href, as, { shallow: true })
 
 Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.url` inside the `Component`.
 
-You can watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
+You can watch for URL changes via [`componentDidUpdate`](https://reactjs.org/docs/react-component.html#componentdidupdate) hook as shown below:
 
 ```js
-componentWillReceiveProps(nextProps) {
-  const { pathname, query } = nextProps.url
-  // fetch data based on the new query
+componentDidUpdate(prevProps) {
+  const { query } = this.props.url
+  // verify props have changed to avoid an infinite loop
+  if (query.id !== prevProps.url.query.id) {
+    // fetch data based on the new query
+  }
 }
 ```
 
