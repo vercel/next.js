@@ -365,11 +365,7 @@ Client-side routing behaves exactly like the browser:
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
 3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
 
-**Deprecated, use [withRouter](https://github.com/zeit/next.js#using-a-higher-order-component) instead** - Each top-level component receives a `url` property with the following API:
-
-- `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
-- `asPath` - `String` of the actual path (including the query) shows in the browser
+To inject the `pathname`, `query` or `asPath` in your component, you can use [withRouter](#using-a-higher-order-component).
 
 ##### With URL object
 
