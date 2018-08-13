@@ -518,7 +518,7 @@ Above `Router` object comes with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
+_Note: in order to programmatically change the route without triggering navigation and component-fetching, use [`withRouter`](#using-a-higher-order-component) to inject `props.router` in your component and use `props.router.push` and `props.router.replace` within the component_
 
 ##### With URL object
 You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
@@ -708,9 +708,9 @@ Most prefetching needs are addressed by `<Link />`, but we also expose an impera
 ```jsx
 import Router from 'next/router'
 
-export default ({ url }) =>
+export default () =>
   <div>
-    <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+    <a onClick={() => setTimeout(() => Router.push('/dynamic'), 100)}>
       A route transition will happen after 100ms
     </a>
     {// but we can prefetch it!
@@ -732,7 +732,7 @@ export default class MyLink extends React.Component {
   render() {
     return (
        <div>
-        <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+        <a onClick={() => setTimeout(() => Router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
       </div>   
