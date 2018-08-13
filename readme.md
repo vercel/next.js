@@ -514,8 +514,6 @@ Above `Router` object comes with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-_Note: in order to programmatically change the route without triggering navigation and component-fetching, use [`withRouter`](#using-a-higher-order-component) to inject `props.router` in your component and use `props.router.push` and `props.router.replace` within the component_
-
 ##### With URL object
 You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
 
@@ -702,39 +700,44 @@ export default () =>
 Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
-import Router from 'next/router'
+import { withRouter } from 'next/router'
 
-export default () =>
+export default withRouter(({ router }) =>
   <div>
-    <a onClick={() => setTimeout(() => Router.push('/dynamic'), 100)}>
+    <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
       A route transition will happen after 100ms
     </a>
     {// but we can prefetch it!
-    Router.prefetch('/dynamic')}
+    router.prefetch('/dynamic')}
   </div>
+)
 ```
 
 The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
 
 ```jsx
 import React from 'react'
-import Router from 'next/router'
+import { withRouter } from 'next/router'
 
-export default class MyLink extends React.Component {
+class MyLink extends React.Component {
   componentDidMount() {
-    Router.prefetch('/dynamic')
+    const { router } = this.props
+    router.prefetch('/dynamic')
   }
   
   render() {
+    const { router } = this.props
     return (
        <div>
-        <a onClick={() => setTimeout(() => Router.push('/dynamic'), 100)}>
+        <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
       </div>   
     )
   }
 }
+
+export default withRouter(MyLink)
 ```
 
 ### Custom server and routing
