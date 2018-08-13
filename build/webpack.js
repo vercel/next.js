@@ -18,6 +18,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
+import AutoDllPlugin from 'autodll-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -135,6 +136,18 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     ].filter(Boolean)
   } : {}
 
+  const resolveConfig = {
+    extensions: ['.js', '.jsx', '.json'],
+    modules: [
+      NEXT_PROJECT_ROOT_NODE_MODULES,
+      'node_modules',
+      ...nodePathList // Support for NODE_PATH environment variable
+    ],
+    alias: {
+      next: NEXT_PROJECT_ROOT
+    }
+  }
+
   let webpackConfig = {
     mode: dev ? 'development' : 'production',
     devtool: dev ? 'cheap-module-source-map' : false,
@@ -170,17 +183,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
-    resolve: {
-      extensions: ['.js', '.jsx', '.json'],
-      modules: [
-        NEXT_PROJECT_ROOT_NODE_MODULES,
-        'node_modules',
-        ...nodePathList // Support for NODE_PATH environment variable
-      ],
-      alias: {
-        next: NEXT_PROJECT_ROOT
-      }
-    },
+    resolve: resolveConfig,
     resolveLoader: {
       modules: [
         NEXT_PROJECT_ROOT_NODE_MODULES,
@@ -205,6 +208,21 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      // Precompile react / react-dom for development, speeding up webpack
+      dev && !isServer && new AutoDllPlugin({
+        filename: '[name]_[hash].js',
+        path: './static/dll',
+        context: dir,
+        entry: {
+          dll: [
+            'react',
+            'react-dom'
+          ]
+        },
+        config: {
+          resolve: resolveConfig
+        }
+      }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({

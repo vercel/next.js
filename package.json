@@ -69,6 +69,7 @@
     "@babel/runtime": "7.0.0-rc.1",
     "@babel/template": "7.0.0-rc.1",
     "ansi-html": "0.0.7",
+    "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.0-beta.3",
     "babel-plugin-react-require": "3.0.0",
