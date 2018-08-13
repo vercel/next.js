@@ -8,12 +8,12 @@ const linkStyle = {
   margin: '0 10px 0 0'
 }
 
-Router.onRouteChangeStart = (url) => {
+Router.events.on('routeChangeStart', (url) => {
   console.log(`Loading: ${url}`)
   NProgress.start()
-}
-Router.onRouteChangeComplete = () => NProgress.done()
-Router.onRouteChangeError = () => NProgress.done()
+})
+Router.events.on('routeChangeComplete', () => NProgress.done())
+Router.events.on('routeChangeError', () => NProgress.done())
 
 export default class MyApp extends App {
   static async getInitialProps ({ Component, router, ctx }) {
