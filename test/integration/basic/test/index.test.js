@@ -45,6 +45,7 @@ describe('Basic Features', () => {
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
+      renderViaHTTP(context.appPort, '/nav/on-click'),
       renderViaHTTP(context.appPort, '/nav/querystring'),
       renderViaHTTP(context.appPort, '/nav/self-reload'),
       renderViaHTTP(context.appPort, '/nav/hash-changes'),
