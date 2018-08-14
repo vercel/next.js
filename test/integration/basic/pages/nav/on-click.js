@@ -15,7 +15,7 @@ export default class OnClick extends Component {
     const {count} = this.props
     return (
       <div id='on-click-page'>
-        <Link href={`/nav/on-click?count=${count + 1}`}>
+        <Link href={`/nav/on-click?count=${count + 1}`} replace>
           <a id='on-click-link' onClick={() => this.setState({stateCounter: stateCounter + 1})}>Self Reload</a>
         </Link>
         <Link href='/nav/on-click'>
