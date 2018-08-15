@@ -199,11 +199,12 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>
+      {devFiles ? devFiles.map((file) => <script src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
