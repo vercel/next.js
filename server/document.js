@@ -182,7 +182,7 @@ export class NextScript extends Component {
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>
-      {devFiles ? devFiles.map((file) => <script src={`${assetPrefix}/_next/${file}`} />) : null}
+      {devFiles ? devFiles.map((file) => <script src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: `
           __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
