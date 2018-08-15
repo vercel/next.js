@@ -1,4 +1,5 @@
-import React, { Component } from 'react'
+import React, { Component, Fragment } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 
@@ -36,12 +37,7 @@ export class Head extends Component {
     let { publicPath } = this.context._documentProps.__NEXT_DATA__
 
     return (
-      <link
-        key={filename}
-        rel='preload'
-        href={`${publicPath}${filename}`}
-        as='script'
-      />
+      `<link rel="preload" href="${publicPath}${filename}" as='script' >`
     )
   }
 
@@ -62,13 +58,20 @@ export class Head extends Component {
     const { pathname, publicPath } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
-    return <head {...this.props}>
-      <link rel='preload' href={`${publicPath}pages${pagePathname}.js`} as='script' />
-      {this.getPreloadMainLinks()}
-      {(head || []).map((h, i) => React.cloneElement(h, { key: i }))}
-      {styles || null}
-      {this.props.children}
-    </head>
+    const { children, ...rest} = this.props;
+
+    return <head {...rest} dangerouslySetInnerHTML={{
+      __html: `
+<link rel="preload" href="${publicPath}pages${pagePathname}.js" as="script">
+${this.getPreloadMainLinks()}
+${head || ''}
+${renderToStaticMarkup(
+  <Fragment>
+    {styles || null}
+    {children}
+  </Fragment>
+)}
+    `}} />
   }
 }
 

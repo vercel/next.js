@@ -18,6 +18,7 @@ export async function renderErrorToHTML (err, req, res, pathname, query, opts) {
 }
 
 export async function doPageRender (req, res, pathname, query, {
+  dev,
   err,
   page,
   hotReloader,
@@ -68,11 +69,11 @@ export async function doPageRender (req, res, pathname, query, {
   }
 
   return {
-    err,
+    err: serializeError(dev, err),
     pathname,
     query,
     props,
-    head,
+    head: renderToString(head),
     html,
     errorHtml
   }
@@ -92,7 +93,7 @@ export async function doDocRender(page, initialProps, { dev, dir, publicPath }) 
       pathname: docProps.pathname,
       query: docProps.query,
       publicPath,
-      err: serializeError(dev, docProps.err)
+      err: docProps.err
     },
     dev,
     ...docProps
