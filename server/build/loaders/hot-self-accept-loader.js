@@ -31,13 +31,9 @@ module.exports = function (content, sourceMap) {
   `, sourceMap)
 }
 
-const nextPagesDir = resolve(__dirname, '..', '..', '..', 'pages')
-
 function getRoute (loaderContext) {
   const pagesDir = resolve(loaderContext.options.context, 'pages')
   const { resourcePath } = loaderContext
-  const dir = [pagesDir, nextPagesDir]
-    .find((d) => resourcePath.indexOf(d) === 0)
-  const path = relative(dir, resourcePath)
+  const path = relative(pagesDir, resourcePath)
   return '/' + path.replace(/((^|\/)index)?\.js$/, '')
 }

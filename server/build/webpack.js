@@ -13,7 +13,6 @@ import findBabelConfig from './babel/find-config'
 const defaultPages = [
   '_error.js'
 ]
-const nextPagesDir = join(__dirname, '../../../browser/pages')
 const nextNodeModulesDir = join(__dirname, '../../../node_modules')
 
 export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, buildDir, conf = null } = {}) {
@@ -44,13 +43,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     const entryPages = dev ? devPages : pages.filter((p) => p !== 'pages/_document.js' && !/\.test\.js/.test(p))
     for (const p of entryPages) {
       entries[p.replace(/^(pages\/.*)\/index.js$/, '$1.js')] = [`./${p}?entry`]
-    }
-
-    for (const p of defaultPages) {
-      const entryName = join('pages', p)
-      if (!entries[entryName]) {
-        entries[entryName] = [join(nextPagesDir, p) + '?entry']
-      }
     }
 
     totalPages = pages.length
@@ -167,8 +159,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     test: /\.js(\?[^?]*)?$/,
     loader: 'hot-self-accept-loader',
     include: [
-      join(dir, 'pages'),
-      nextPagesDir
+      join(dir, 'pages')
     ]
   }] : [])
     .concat([{
