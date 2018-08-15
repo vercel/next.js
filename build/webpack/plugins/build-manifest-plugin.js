@@ -8,14 +8,14 @@ export default class BuildManifestPlugin {
   apply (compiler: any) {
     compiler.hooks.emit.tapAsync('NextJsBuildManifest', (compilation, callback) => {
       const {chunks} = compilation
-      const assetMap = {pages: {}}
+      const assetMap = {devFiles: [], pages: {}}
 
       const mainJsChunk = chunks.find((c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN)
       const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []
 
       for (const filePath of Object.keys(compilation.assets)) {
         if (/^static\/dll\//.test(filePath)) {
-          mainJsFiles.push(filePath)
+          assetMap.devFiles.push(filePath)
         }
       }
 
