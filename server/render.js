@@ -44,7 +44,7 @@ export async function doPageRender (req, res, pathname, query, {
       pathname,
       query,
       props,
-      head: defaultHead,
+      head: renderToString(defaultHead),
     }
   }
 
