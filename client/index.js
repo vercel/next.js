@@ -3,7 +3,6 @@ import 'core-js/es6/promise'
 
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
@@ -31,7 +30,6 @@ window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
 })
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
-const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
@@ -90,7 +88,7 @@ export async function render ({ Component, props, hash, err, emitter: emitterPro
     Component = Component || lastAppProps.Component
     props = props || lastAppProps.props
 
-    const appProps = { Component, props, hash, err, router, headManager }
+    const appProps = { Component, props, hash, err, router }
     // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
     lastAppProps = appProps
 
