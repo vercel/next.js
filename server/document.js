@@ -8,6 +8,10 @@ const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
 }
 
+const rootNode = (process.env.ROOT_NODE)
+  ? `-${process.env.ROOT_NODE}`
+  : ''
+
 export default class Document extends Component {
   static childContextTypes = {
     _documentProps: PropTypes.any
@@ -127,8 +131,8 @@ export class Main extends Component {
     const { html, errorHtml } = this.context._documentProps
     return (
       <Fragment>
-        <div id={`__next${process.env.ROOT_NODE}`} dangerouslySetInnerHTML={{ __html: html }} />
-        <div id={`__next-error${process.env.ROOT_NODE}`} dangerouslySetInnerHTML={{ __html: errorHtml }} />
+        <div id={`__next${rootNode}`} dangerouslySetInnerHTML={{ __html: html }} />
+        <div id={`__next-error${rootNode}`} dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </Fragment>
     )
   }
@@ -181,6 +185,7 @@ export class NextScript extends Component {
     const { page, pathname } = __NEXT_DATA__
 
     return `
+      __NEXT_ROOT_NODE__ = ${htmlescape(rootNode)}
       __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
       module={}
       __NEXT_LOADED_PAGES__ = []
