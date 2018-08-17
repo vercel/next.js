@@ -3,21 +3,12 @@
 
 ## How to use
 
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
-
-```bash
-npx create-next-app --example with-material-ui with-material-ui-app
-# or
-yarn create next-app --example with-material-ui with-material-ui-app
-```
-
-### Download manually
+The source code is hosted on the [Material-UI](https://github.com/mui-org/material-ui/tree/master/examples/nextjs) repository.
 
 Download the example:
 
 ```bash
+
 curl https://codeload.github.com/mui-org/material-ui/tar.gz/master | tar -xz --strip=2  material-ui-master/examples/nextjs
 cd nextjs
 ```
@@ -41,5 +32,3 @@ now
 ## The idea behind the example
 
 This example features how you use [material-ui](https://github.com/mui-org/material-ui) (Material components that implement Google's Material Design) with Next.js.
-
-:warning: The source code [is hosted](https://github.com/mui-org/material-ui/tree/master/examples/nextjs) on the Material-UI repository.
