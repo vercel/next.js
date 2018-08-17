@@ -8,7 +8,6 @@ import UnlinkFilePlugin from './plugins/unlink-file-plugin'
 import PagesPlugin from './plugins/pages-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
-import findBabelConfig from './babel/find-config'
 
 const defaultPages = [
   '_error.js'
@@ -135,24 +134,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   const mainBabelOptions = {
     cacheDirectory: true,
     presets: []
-  }
-
-  const externalBabelConfig = findBabelConfig(dir)
-  if (externalBabelConfig) {
-    console.log(`> Using external babel configuration`)
-    console.log(`> Location: "${externalBabelConfig.loc}"`)
-    // It's possible to turn off babelrc support via babelrc itself.
-    // In that case, we should add our default preset.
-    // That's why we need to do this.
-    const { options } = externalBabelConfig
-    mainBabelOptions.babelrc = options.babelrc !== false
-  } else {
-    mainBabelOptions.babelrc = false
-  }
-
-  // Add our default preset if the no "babelrc" found.
-  if (!mainBabelOptions.babelrc) {
-    mainBabelOptions.presets.push(require.resolve('./babel/preset'))
   }
 
   const rules = (dev ? [{
