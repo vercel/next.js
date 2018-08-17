@@ -56,8 +56,8 @@ delete window.__NEXT_LOADED_PAGES__
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
 const headManager = new HeadManager()
-const appContainer = document.getElementById('__next')
-const errorContainer = document.getElementById('__next-error')
+const appContainer = document.getElementById(`__next${process.env.ROOT_NODE}`)
+const errorContainer = document.getElementById(`__next-error${process.env.ROOT_NODE}`)
 
 let lastAppProps
 let webpackHMR

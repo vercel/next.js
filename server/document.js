@@ -127,8 +127,8 @@ export class Main extends Component {
     const { html, errorHtml } = this.context._documentProps
     return (
       <Fragment>
-        <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-        <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
+        <div id={`__next${process.env.ROOT_NODE}`} dangerouslySetInnerHTML={{ __html: html }} />
+        <div id={`__next-error${process.env.ROOT_NODE}`} dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </Fragment>
     )
   }
