@@ -204,7 +204,7 @@ export class NextScript extends Component {
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>
-      {devFiles ? devFiles.map((file) => <script src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
