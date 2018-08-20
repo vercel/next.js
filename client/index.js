@@ -127,10 +127,11 @@ export async function renderError (error) {
 
 let isInitialRender = true
 function renderReactElement (reactEl, domEl) {
-  if (isInitialRender) {
+  if (isInitialRender && domEl.firstChild) {
     ReactDOM.hydrate(reactEl, domEl)
     isInitialRender = false
   } else {
     ReactDOM.render(reactEl, domEl)
+    isInitialRender = false
   }
 }
