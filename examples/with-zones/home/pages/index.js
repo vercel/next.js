@@ -10,6 +10,7 @@ export default () => (
     <p>This is our homepage</p>
     <div><Link href='/blog'><a>Blog</a></Link></div>
     <div><Link href='/about'><a>About us</a></Link></div>
+    <div><Link href='/account'><a>Account</a></Link></div>
     <img width={200} src={asset('/nextjs.png')} />
   </div>
 )
