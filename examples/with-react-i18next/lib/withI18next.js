@@ -11,12 +11,12 @@ export const withI18next = (namespaces = ['common']) => ComposedComponent => {
       ? await ComposedComponent.getInitialProps(ctx)
       : {}
 
-    const i18nInitialProps = ctx.req 
+    const i18nInitialProps = ctx.req
       ? getInitialProps(ctx.req, namespaces)
       : await loadNamespaces({
-          components: [{ props: { namespaces } }],
-          i18n: I18n,
-        });
+        components: [{ props: { namespaces } }],
+        i18n: I18n
+      })
 
     return {
       ...composedInitialProps,

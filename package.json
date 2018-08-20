@@ -46,7 +46,6 @@
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**",
-      "**/examples/**/lib/**",
       "**/examples/with-ioc/**",
       "**/examples/with-kea/**",
       "**/examples/with-mobx/**",
