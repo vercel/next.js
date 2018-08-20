@@ -67,8 +67,8 @@ export class Head extends Component {
   getPreloadDynamicChunks () {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     return dynamicImports.map((bundle) => {
-      return <script
-        async
+      return <link
+        rel='preload'
         key={bundle.file}
         src={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
