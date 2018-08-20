@@ -8,6 +8,9 @@
     "blog": "next blog -p 5000",
     "blog-build": "next build blog",
     "blog-start": "next start blog -p 5000",
+    "account": "next account -p 3000",
+    "account-build": "next build account",
+    "account-start": "next start account -p 3000",
     "proxy": "micro-proxy -r rules-dev.json"
   },
   "dependencies": {
