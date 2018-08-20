@@ -1,6 +1,5 @@
 // @flow
 import findUp from 'find-up'
-import uuid from 'uuid'
 import {CONFIG_FILE} from '../lib/constants'
 
 type WebpackConfig = *
@@ -28,7 +27,10 @@ const defaultConfig: NextConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => uuid.v4(),
+  generateBuildId: () => {
+    const nanoid = require('nanoid')
+    return nanoid()
+  },
   generateEtags: true,
   pageExtensions: ['jsx', 'js']
 }
