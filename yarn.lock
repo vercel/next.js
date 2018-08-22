@@ -1332,10 +1332,6 @@ babel-plugin-transform-react-remove-prop-types@0.4.13:
   version "0.4.13"
   resolved "https://registry.yarnpkg.com/babel-plugin-transform-react-remove-prop-types/-/babel-plugin-transform-react-remove-prop-types-0.4.13.tgz#331cfc05099a808238311d78319c27460d481189"
 
-babel-plugin-transform-remove-strict-mode@0.0.2:
-  version "0.0.2"
-  resolved "https://registry.yarnpkg.com/babel-plugin-transform-remove-strict-mode/-/babel-plugin-transform-remove-strict-mode-0.0.2.tgz#913685aab95439f3a0ed88e588fbd5e997890579"
-
 babel-preset-jest@^21.2.0:
   version "21.2.0"
   resolved "https://registry.yarnpkg.com/babel-preset-jest/-/babel-preset-jest-21.2.0.tgz#ff9d2bce08abd98e8a36d9a8a5189b9173b85638"
