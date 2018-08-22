@@ -122,7 +122,6 @@
     "@zeit/next-typescript": "1.1.0",
     "babel-eslint": "8.2.2",
     "babel-jest": "21.2.0",
-    "babel-plugin-istanbul": "4.1.5",
     "babel-plugin-transform-remove-strict-mode": "0.0.2",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
