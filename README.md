@@ -1444,7 +1444,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html) without polyfills. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
