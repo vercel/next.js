@@ -293,6 +293,33 @@ export default (context, render) => {
           }
         })
 
+        it('should scroll to the specified position on the same page with a name property', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+            // Scrolls to item 400 with name="name-item-400" on the page
+            const scrollPosition = await browser
+              .elementByCss('#scroll-to-name-item-400').click()
+              .eval('window.pageYOffset')
+
+            console.log(scrollPosition)
+
+            expect(scrollPosition).toBe(16258)
+
+            // Scrolls back to top when scrolling to `#` with no value.
+            const scrollPositionAfterEmptyHash = await browser
+              .elementByCss('#via-empty-hash').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
         it('should scroll to the specified position to a new page', async () => {
           let browser
           try {
