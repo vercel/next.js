@@ -120,7 +120,8 @@ export async function renderError (error) {
   console.error(error)
 
   const props = await ErrorComponent.getInitialProps({ err: error, pathname, query, asPath })
-  renderReactElement(createElement(ErrorComponent, props), errorContainer)
+  const appProps = { Component: ErrorComponent, props, err, router }
+  renderReactElement(createElement(App, appProps), errorContainer)
 
   appContainer.innerHTML = ''
 }
