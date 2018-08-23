@@ -8,7 +8,7 @@
     }
   },
   language: "node_js",
-  node_js: ["6"],
+  node_js: ["8"],
   cache: {
     directories: ["node_modules"]
   },
@@ -24,8 +24,7 @@
     email: "leo@zeit.co",
     tag: "canary",
     api_key: {
-      secure:
-        "br9gLncKeLSoL7iOq0PXFeD1Gp3jRI8QMCSNIrGdZg/MuLeuwYPv36kmMgf7aGIfpjFLtU2/eVrOHSB+T5g1nKgOsqmWsfZE1tQYWph0//ookd/sj+IyxIx8nVLbUV/C4ctYOhX/efotRgNn56w5Av5hWc1IQLmW9mSN8ijrQnM+GzRI8QitiofeY2EP3N1eO8vC8E2oGkOsAdcypiX6lFG908zyWt7X2SD+iOsK2eAHjxoAEUdrxE5a8gTDhcTH6qnmtBs9rCeEKbO3JZjEy5dvccxlX3Nd+2GC1rckayk6o5L/zveTilsUx6Auqqbwn1dT5ffQuYsV4RPofs8IMrhnizc8y+OfUcCCpBJ4ia4w7N8FEP56TnRNTFoFBGJL5Y6NfeT0HHAlClxUWMG9pRGWGN+sskODDQ9FEntGZoqwV396ogs+3YhkxbY0AIr84QOctflsFcPtOgr/CoBeOsjbB+o9+Rlsqwlf3u3B7qhtU9eV6KcMfK4x9qW+2cwTllK+gD8S9wILx5BChkfx99g/7u/Rg1PCym64tTsDOBtqTVC2YCqeYYvjmpw4Vl3ofLrFsoNQnbmb6Q5+JSpOcJ/bEj7P/FuZdlU0fNV28tFhElu5caKhSCJz/avUlXG7NeveW1Ee8gjhURC4V/l4ryacyjA2vcDY/4RRkWtHNr4="
+      secure: "MJfpcAJC1IvPL01NiGRLYAAgb7TZz5K0ukM1n+E+QcoF9+L1gn4WcP056ECchuohEFSwvO/ZcTZM5yhpp10cd72RZykeat/YYgRXFyUDkD3up2FHr4hYdcv/tBHCkeUMJZwt1ZNH4xM69Y02KAmpRBWZGKe6qETlZqxUg79Gi1g6W5PdhbsKedTp2tJJzG58nevKsSRP01S97K7kDC5oJNwuO+cbLwtzX5cB6Rd8hGx6lMetWLzSmSS689N0flfm/R9pxY/WjgBBQ0iYZkosb1VO2NhJMnrHtdr/Wfrkvnz8KSO/KD2n7RrOnSzUQBJSNxx35kr7HU4pKreMxEiOnEbOog4HZmWsM0UyRlbYeREfXLBvIjlnYoWCblZdVbdIl4R7NflVBSeK2eDkZQt2iCqP0fHvJ7kyLQx9J2janlr+96dKSudalercfmV9aXtbCeweqim5l4AZywSggpZAvopE6uN6KtFafO0JM760flbQfDVEQWHrHGvZvu05NrzJvZa6CN47rDHbaO6IibMXakogVz+AIuTZ3t/2bynetkericV8MGdOrwb807DLWTdqNKCj2wTmHgDiX8n3FF7VisLS54mKFfuuzzALdWtlBPbwS+bZ0235/35rs2EUidC5eunryWp4Y150xWfCK2swxM9xR0iCE0KSXrsdGDGyrvE="
     },
     skip_cleanup: true,
     on: {

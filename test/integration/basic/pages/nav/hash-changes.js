@@ -24,7 +24,13 @@ export default class SelfReload extends Component {
         <Link href='#'>
           <a id='via-empty-hash'>Via Empty Hash</a>
         </Link>
+        <Link href='#item-400'>
+          <a id='scroll-to-item-400'>Go to item 400</a>
+        </Link>
         <p>COUNT: {this.props.count}</p>
+        {Array.from({length: 500}, (x, i) => i + 1).map(i => {
+          return <div key={`item-${i}`} id={`item-${i}`}>{i}</div>
+        })}
       </div>
     )
   }

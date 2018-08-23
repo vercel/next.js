@@ -1,6 +1,10 @@
 import wd from 'wd'
 
 export default async function (appPort, pathname) {
+  if (typeof appPort === 'undefined') {
+    throw new Error('appPort is undefined')
+  }
+
   const url = `http://localhost:${appPort}${pathname}`
   console.log(`> Start loading browser with url: ${url}`)
 
@@ -33,9 +37,15 @@ function getBrowser (url, timeout) {
       reject(error)
     }, timeout)
 
-    browser.init({browserName: 'chrome'}).get(url, (err) => {
+    browser.init({browserName: 'chrome'}).get(url, err => {
       if (timeouted) {
-        browser.close()
+        try {
+          browser.close(() => {
+            // Ignore errors
+          })
+        } catch (err) {
+          // Ignore
+        }
         return
       }
 

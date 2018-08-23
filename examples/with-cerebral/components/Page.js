@@ -10,24 +10,24 @@ export default connect({
   mounted: signal`clock.mounted`,
   unMounted: signal`clock.unMounted`
 },
-  class Page extends React.Component {
-    componentDidMount () {
-      this.props.mounted()
-    }
-
-    componentWillUnmount () {
-      this.props.unMounted()
-    }
-    render () {
-      return (
-        <div>
-          <h1>{this.props.title}</h1>
-          <Clock lastUpdate={this.props.lastUpdate} light={this.props.light} />
-          <nav>
-            <Link href={this.props.linkTo}><a>Navigate</a></Link>
-          </nav>
-        </div>
-      )
-    }
+class Page extends React.Component {
+  componentDidMount () {
+    this.props.mounted()
   }
+
+  componentWillUnmount () {
+    this.props.unMounted()
+  }
+  render () {
+    return (
+      <div>
+        <h1>{this.props.title}</h1>
+        <Clock lastUpdate={this.props.lastUpdate} light={this.props.light} />
+        <nav>
+          <Link href={this.props.linkTo}><a>Navigate</a></Link>
+        </nav>
+      </div>
+    )
+  }
+}
 )

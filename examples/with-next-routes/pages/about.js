@@ -1,1 +1,5 @@
-export default props => <h1>About foo {props.url.query.foo}</h1>
+import { withRouter } from 'next/router'
+
+const About = ({router}) => <h1>About foo {router.query.foo}</h1>
+
+export default withRouter(About)

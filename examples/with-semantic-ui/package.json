@@ -7,10 +7,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@zeit/next-css": "^0.2.0",
+    "file-loader": "^1.1.11",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
-    "semantic-ui-react": "^0.68.0"
+    "semantic-ui-css": "^2.3.3",
+    "semantic-ui-react": "^0.82.0",
+    "url-loader": "^1.0.1"
   },
   "license": "ISC"
 }
