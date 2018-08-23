@@ -1,8 +1,8 @@
-import { translate, loadNamespaces } from 'react-i18next'
-import { getInitialProps, I18n } from '../i18n'
+import { translate } from 'react-i18next'
+import i18n from '../i18n'
 
 export const withI18next = (namespaces = ['common']) => ComposedComponent => {
-  const Extended = translate(namespaces, { i18n: I18n, wait: process.browser })(
+  const Extended = translate(namespaces, { i18n, wait: process.browser })(
     ComposedComponent
   )
 
@@ -12,11 +12,8 @@ export const withI18next = (namespaces = ['common']) => ComposedComponent => {
       : {}
 
     const i18nInitialProps = ctx.req
-      ? getInitialProps(ctx.req, namespaces)
-      : await loadNamespaces({
-        components: [{ props: { namespaces } }],
-        i18n: I18n
-      })
+      ? i18n.getInitialProps(ctx.req, namespaces)
+      : {}
 
     return {
       ...composedInitialProps,
