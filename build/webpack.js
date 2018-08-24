@@ -137,7 +137,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   } : {}
 
   const resolveConfig = {
-    extensions: ['.js', '.jsx', '.json'],
+    extensions: ['.wasm', '.mjs', '.js', '.jsx', '.json'],
     modules: [
       NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
