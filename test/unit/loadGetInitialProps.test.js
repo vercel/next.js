@@ -7,7 +7,7 @@ describe('loadGetInitialProps', () => {
       getInitialProps () {}
     }
     const rejectPromise = loadGetInitialProps(TestComponent, {})
-    const error = new Error('"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-inital-props-as-an-instance-method for more information.')
+    const error = new Error('"TestComponent.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.')
     return expect(rejectPromise).rejects.toEqual(error)
   })
 
