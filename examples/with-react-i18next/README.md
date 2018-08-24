@@ -16,7 +16,7 @@ yarn create next-app --example with-react-i18next with-react-i18next-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-i18next
@@ -53,30 +53,30 @@ This example app shows how to integrate [react-i18next](https://github.com/i18ne
 
 **Plus:**
 
-* Routing and separating translations into multiple files (lazy load them on client routing)
-* Child components (pure or using translation hoc)
+- Routing and separating translations into multiple files (lazy load them on client routing)
+- Child components (pure or using translation hoc)
 
 ### Features of this example app
 
-* Server-side language negotiation
-* Full control and usage of i18next on express server using [i18next-express-middleware](https://github.com/i18next/i18next-express-middleware) which asserts no async request collisions resulting in wrong language renderings
-* Support for save missing features to get untranslated keys automatically created `locales/{lng}/{namespace}.missing.json` -> never miss to translate a key
-* Proper pass down on translations via initialProps
-* Taking advantage of multiple translation files including lazy loading on client (no need to load all translations upfront)
-* Use express to also serve translations for clientside
-* In contrast to react-intl the translations are visible both during development and in production
+- Server-side language negotiation
+- Full control and usage of i18next on express server using [i18next-express-middleware](https://github.com/i18next/i18next-express-middleware) which asserts no async request collisions resulting in wrong language renderings
+- Support for save missing features to get untranslated keys automatically created `locales/{lng}/{namespace}.missing.json` -> never miss to translate a key
+- Proper pass down on translations via initialProps
+- Taking advantage of multiple translation files including lazy loading on client (no need to load all translations upfront)
+- Use express to also serve translations for clientside
+- In contrast to react-intl the translations are visible both during development and in production
 
 ### learn more
 
-* [next.js](https://github.com/zeit/next.js)
-* [react-i18next repository](https://github.com/i18next/react-i18next)
-* [react-i18next documentation](https://react.i18next.com)
+- [next.js](https://github.com/zeit/next.js)
+- [react-i18next repository](https://github.com/i18next/react-i18next)
+- [react-i18next documentation](https://react.i18next.com)
 
 **Translation features:**
 
-* [i18next repository](https://github.com/i18next/i18next)
-* [i18next documentation](https://www.i18next.com)
+- [i18next repository](https://github.com/i18next/i18next)
+- [i18next documentation](https://www.i18next.com)
 
 **Translation management:**
 
-* [locize](http://locize.com)
+- [locize](http://locize.com)
