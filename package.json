@@ -87,6 +87,7 @@
     "htmlescape": "1.1.1",
     "http-errors": "1.6.2",
     "http-status": "1.0.1",
+    "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
