@@ -37,9 +37,10 @@ module.exports = (context, opts = {}) => ({
     require('./plugins/react-loadable-plugin'),
     [require('@babel/plugin-proposal-class-properties'), opts['class-properties'] || {}],
     require('@babel/plugin-proposal-object-rest-spread'),
-    [require('@babel/plugin-transform-runtime'), opts['transform-runtime'] || {
+    [require('@babel/plugin-transform-runtime'), {
       helpers: false,
-      regenerator: true
+      regenerator: true,
+      ...opts['transform-runtime']
     }],
     [require('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
     process.env.NODE_ENV === 'production' && require('babel-plugin-transform-react-remove-prop-types')
