@@ -35,7 +35,6 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/head'),
       renderViaHTTP(context.appPort, '/json'),
       renderViaHTTP(context.appPort, '/link'),
-      renderViaHTTP(context.appPort, '/stateful'),
       renderViaHTTP(context.appPort, '/stateless'),
       renderViaHTTP(context.appPort, '/fragment-syntax'),
       renderViaHTTP(context.appPort, '/custom-extension'),
