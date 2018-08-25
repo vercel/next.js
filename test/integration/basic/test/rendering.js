@@ -26,6 +26,13 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(answer.text()).toBe('The answer is 42')
     })
 
+    // default-head contains an empty <Head />.
+    test('header renders default charset', async () => {
+      const html = await (render('/default-head'))
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('next-head, but only once.')).toBeTruthy()
+    })
+
     test('header helper renders header information', async () => {
       const html = await (render('/head'))
       expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
