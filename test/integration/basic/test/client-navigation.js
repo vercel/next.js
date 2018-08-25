@@ -695,10 +695,10 @@ export default (context, render) => {
 
     describe('updating head while client routing', () => {
       it('should update <head> during client routing', async () => {
-        const browser = await webdriver(context.appPort, '/head/page1/')
-        expect(await browser.elementByCss('meta').getAttribute('content')).toBe('Page One')
-        await browser.elementByCss('a').click()
-        expect(await browser.elementByCss('meta').getAttribute('content')).toBe('Page Two')
+        const browser = await webdriver(context.appPort, '/page1')
+        expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Page One')
+        await browser.elementByCss('#page2').click().waitForElementByCss('#page1')
+        expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Page Two')
       })
     })
   })

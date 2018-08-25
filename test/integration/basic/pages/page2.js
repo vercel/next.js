@@ -6,8 +6,10 @@ export default (props) => <div>
   <Head>
     <meta
       name='description'
-      content='Page One'
+      content='Page Two'
     />
   </Head>
-  <Link href='/head/page2'>Page 2</Link>
+  <Link href='/page1'>
+    <a id='page1'>Page 1</a>
+  </Link>
 </div>
