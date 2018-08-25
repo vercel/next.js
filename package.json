@@ -96,7 +96,6 @@
     "prop-types": "15.6.0",
     "prop-types-exact": "1.1.1",
     "react-error-overlay": "4.0.0",
-    "react-lifecycles-compat": "3.0.4",
     "react-loadable": "5.4.0",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
