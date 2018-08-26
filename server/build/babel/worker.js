@@ -122,7 +122,7 @@ async function write (filename, dest, base, rootFile, options, onBuilt) {
     const res = await compile(
       filename,
       {
-        sourceFileName: slash(Path.relative(dest + '/..', filename)),
+        sourceFileName: slash(Path.relative(options.base, filename)),
         ...options.babelOptions
       }
     )
