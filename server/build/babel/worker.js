@@ -130,12 +130,14 @@ async function write (filename, dest, base, rootFile, options, onBuilt) {
     if (!res) return 0
 
     const { modules } = res.metadata
+    const fsDeps = modules.imports.concat(
+      modules.exports.specifiers.filter(({kind}) => kind === 'external')
+    )
+      .map(({source}) => source)
+      .filter((source) => /^\./.test(source))
     const locals = (await Promise.all(
-      modules.imports.concat(
-        modules.exports.specifiers.filter(({kind}) => kind === 'external')
-      )
-        .filter(({source}) => /^\./.test(source))
-        .map(({source}) => {
+      fsDeps
+        .map((source) => {
           source = Path.resolve(`${relative}/..`, source)
           if (!Path.extname(source)) {
             try {
