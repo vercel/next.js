@@ -17,14 +17,18 @@ process.env.IS_SERVER = true
 let building = {}
 
 process.on('message', (message) => {
-  handleMessage(message, (msg) => process.send(msg))
+  handleMessage(message)
 })
 
-export async function handleMessage ({cmd, filenames, options}, response) {
+function response (msg) {
+  process.send(msg)
+}
+
+export async function handleMessage ({cmd, filenames, options}) {
   if (cmd === 'watch' || cmd === 'build') {
     let compiledFiles = 0
     for (const filename of filenames) {
-      compiledFiles += await handle(filename, filename, filename, options, response, (filename, dest, base, rootFile) => {
+      compiledFiles += await handle(filename, filename, filename, options, (filename, dest, base, rootFile) => {
         if (cmd === 'watch') {
           const watcher = Chokidar.watch(filename, {
             persistent: true,
@@ -42,8 +46,7 @@ export async function handleMessage ({cmd, filenames, options}, response) {
                 dest,
                 base,
                 rootFile,
-                options,
-                response
+                options
               )
               console.log('rebuild', building[filename])
             })
@@ -59,7 +62,7 @@ export async function handleMessage ({cmd, filenames, options}, response) {
   }
 }
 
-async function handle (filenameOrDir, rootFile, requestor, options, response, onBuilt) {
+async function handle (filenameOrDir, rootFile, requestor, options, onBuilt) {
   const base = options.base || Path.dirname(filenameOrDir)
   let relative = Path.relative(base, filenameOrDir)
 
@@ -98,7 +101,7 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
     await Promise.all(files.map(async (filename) => {
       const src = Path.join(dirname, filename)
 
-      const compiled = await handle(src, rootFile, dirname, options, response, onBuilt)
+      const compiled = await handle(src, rootFile, dirname, options, onBuilt)
       count += compiled
     }))
 
@@ -106,11 +109,11 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
   } else {
     const filename = filenameOrDir
     onBuilt(filename, dest, base, rootFile)
-    return write(filename, dest, base, rootFile, options, response, onBuilt)
+    return write(filename, dest, base, rootFile, options, onBuilt)
   }
 }
 
-async function write (filename, dest, base, rootFile, options, response, onBuilt) {
+async function write (filename, dest, base, rootFile, options, onBuilt) {
   let relative = Path.relative(base, filename)
   // remove extension and then append back on .js
   relative = relative.replace(/\.(\w*?)$/, '') + '.js'
@@ -147,7 +150,7 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
               }
             }
           }
-          return handle(source, rootFile, dest, options, response, onBuilt)
+          return handle(source, rootFile, dest, options, onBuilt)
         })))
       .reduce((a, b) => a + b, 0)
 
