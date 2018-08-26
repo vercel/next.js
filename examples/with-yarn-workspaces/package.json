@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "cd packages/web-app && yarn run dev",
+    "build": "cd packages/web-app && yarn run build",
+    "start": "cd packages/web-app && yarn run start"
+  }
+}
