@@ -1,10 +1,10 @@
 import foo from 'foo'
-import bar from 'bar'
+import Bar from 'bar'
 
 export default () => (
   <div>
     Imported modules from another workspace:
     <pre>{foo}</pre>
-    <pre>{bar}</pre>
+    <Bar />
   </div>
 )
