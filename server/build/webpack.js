@@ -9,9 +9,6 @@ import PagesPlugin from './plugins/pages-plugin'
 import CombineAssetsPlugin from './plugins/combine-assets-plugin'
 import getConfig from '../config'
 
-const defaultPages = [
-  '_error.js'
-]
 const nextNodeModulesDir = join(__dirname, '../../../node_modules')
 
 export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, buildDir, conf = null } = {}) {

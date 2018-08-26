@@ -4,7 +4,7 @@ import { existsSync } from 'fs'
 const cache = new Map()
 
 const defaultConfig = {
-  configOrigin: 'default',
+  configOrigin: 'default'
 }
 
 export default function getConfig (dir, customConfig) {

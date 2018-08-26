@@ -1,5 +1,4 @@
 import { join, relative } from 'path'
-import { readdirSync, existsSync } from 'fs'
 
 export const IS_BUNDLED_PAGE = /^pages.*\.js$/
 export const MATCH_ROUTE_NAME = /^pages[/\\](.*)\.js$/

@@ -58,7 +58,7 @@ export class Head extends Component {
     const { pathname, publicPath } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
-    const { children, ...rest} = this.props;
+    const { children, ...rest} = this.props
 
     return <head {...rest} dangerouslySetInnerHTML={{
       __html: `

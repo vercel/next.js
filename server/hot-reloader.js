@@ -5,7 +5,6 @@ import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from './build/webpack'
 import clean from './build/clean'
 import getConfig from './config'
-import UUID from 'uuid'
 import { IS_BUNDLED_PAGE } from './utils'
 import { watch } from './build/babel'
 

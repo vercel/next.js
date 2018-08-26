@@ -5,7 +5,6 @@ import uuid from 'uuid'
 import del from 'del'
 import webpack from './webpack'
 import replaceCurrentBuild from './replace'
-import md5File from 'md5-file/promise'
 
 import { build as buildServer } from './babel'
 

@@ -1,5 +1,4 @@
 import { join } from 'path'
-import { existsSync } from 'fs'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import stripAnsi from 'strip-ansi'
@@ -9,12 +8,12 @@ import App from '../lib/app'
 
 export async function renderToHTML (req, res, pathname, query, opts) {
   const page = await doPageRender(req, res, pathname, query, opts)
-  return doDocRender(page, {}, opts);
+  return doDocRender(page, {}, opts)
 }
 
 export async function renderErrorToHTML (err, req, res, pathname, query, opts) {
   const page = await doPageRender(req, res, pathname, query, { ...opts, err, page: '_error' })
-  return doDocRender(page, {}, opts);
+  return doDocRender(page, {}, opts)
 }
 
 export async function doPageRender (req, res, pathname, query, {
@@ -24,7 +23,7 @@ export async function doPageRender (req, res, pathname, query, {
   hotReloader,
   dir,
   overloadCheck = () => false,
-  enhancer = Page => Page,
+  enhancer = Page => Page
 }) {
   pathname = pathname.replace(/\/index/, '') || '/index'
   page = page || pathname
@@ -33,7 +32,7 @@ export async function doPageRender (req, res, pathname, query, {
 
   const pageDir = join(dir, '.next', 'server', 'pages')
 
-  let Component = require(join(pageDir, page));
+  let Component = require(join(pageDir, page))
   Component = Component.default || Component
 
   const asPath = req.url
@@ -44,7 +43,7 @@ export async function doPageRender (req, res, pathname, query, {
       pathname,
       query,
       props,
-      head: renderToString(defaultHead),
+      head: renderToString(defaultHead)
     }
   }
 
@@ -79,8 +78,7 @@ export async function doPageRender (req, res, pathname, query, {
   }
 }
 
-
-export async function doDocRender(page, initialProps, { dev, dir, publicPath }) {
+export async function doDocRender (page, initialProps, { dev, dir, publicPath }) {
   const pageDir = join(dir, '.next', 'server', 'pages')
 
   let Document = require(join(pageDir, '_document'))
@@ -117,7 +115,7 @@ function errorToJSON (err) {
 
 export function serializeError (dev, err) {
   if (!err) {
-    return undefined;
+    return undefined
   }
   if (err.output && err.output.payload) {
     return err.output.payload
