@@ -31,6 +31,12 @@ export default async function (dir, options, configuration) {
     if (page === '/_document' || page === '/_app') {
       continue
     }
+
+    if (page === '/_error') {
+      defaultPathMap['404'] = { page }
+      continue
+    }
+
     defaultPathMap[page] = { page }
   }
 
