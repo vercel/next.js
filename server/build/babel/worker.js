@@ -17,7 +17,10 @@ process.env.IS_SERVER = true
 let building = {}
 
 process.on('message', (message) => {
-  handleMessage(message, (msg) => process.send(msg))
+  handleMessage(message, (msg) => process.send({
+    callbackId: message.callbackId,
+    ...msg
+  }))
 })
 
 export async function handleMessage ({cmd, filenames, options}, response) {
@@ -80,12 +83,19 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
   const dest = Path.join(options.outDir, relative)
 
   if (building[dest]) {
-    building[dest].add(requestor)
-    building[requestor].forEach((a) => building[dest].add(a))
+    building[dest].responses.add(response);
+
+    building[dest].parents.add(requestor)
+    building[requestor].parents.forEach((a) => {
+      building[dest].parents.add(a);
+    })
     return 0
   }
-  building[dest] = building[filenameOrDir] = new Set(building[requestor])
-  building[dest].add(requestor)
+  building[dest] = building[filenameOrDir] = {
+    responses: new Set([response]),
+    parents: new Set(building[requestor] && building[requestor].parents)
+  };
+  building[dest].parents.add(requestor)
 
   const stat = FS.statSync(filenameOrDir)
 
@@ -155,17 +165,20 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
 
     outputFileSync(dest, res.code)
 
-    response({
-      cmd: 'file-built',
-      filename,
-      dest,
-      locals,
-      parents: Object.keys(building)
+    building[filename].responses.forEach((response) => {
+      response({
+        cmd: 'file-built',
+        filename,
+        dest,
+        locals,
+        parents: Array.from(building[filename].parents)
+      })
     })
 
     return locals + 1
   } catch (err) {
     response({cmd: 'error', message: err.message, stack: err.stack})
+    return 0
   }
 }
 function compile (filename, babelOptions) {

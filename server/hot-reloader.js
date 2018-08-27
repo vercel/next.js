@@ -3,7 +3,6 @@ import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from './build/webpack'
-import clean from './build/clean'
 import getConfig from './config'
 import { IS_BUNDLED_PAGE } from './utils'
 import { watch } from './build/babel'
@@ -38,8 +37,7 @@ export default class HotReloader {
 
   async start () {
     const [webpackCompiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
-      clean(this.dir)
+      webpack(this.dir, { dev: true, quiet: this.quiet })
     ])
     const babelCompiler = {
       setEntry: (name, pathname) => {
@@ -79,8 +77,7 @@ export default class HotReloader {
     this.stats = null
 
     const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet }),
-      clean(this.dir)
+      webpack(this.dir, { dev: true, quiet: this.quiet })
     ])
 
     const buildTools = await this.prepareBuildTools(compiler)
