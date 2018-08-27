@@ -66,8 +66,8 @@ export class Head extends Component {
   getPreloadDynamicChunks () {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     return dynamicImports.map((bundle) => {
-      return <script
-        async
+      return <link
+        rel='preload'
         key={bundle.file}
         src={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
@@ -177,11 +177,12 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {staticMarkup ? null : <script
         id="server-app-state"
         type="application/json"

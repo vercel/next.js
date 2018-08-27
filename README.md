@@ -2,7 +2,7 @@
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build status](https://ci.appveyor.com/api/projects/status/gqp5hs71l3ebtx1r/branch/master?svg=true)](https://ci.appveyor.com/project/arunoda/next-js/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/g2e75cnkv0k925bc?svg=true)](https://ci.appveyor.com/project/zeit/next-js)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
@@ -365,11 +365,7 @@ Client-side routing behaves exactly like the browser:
 2. If it defines `getInitialProps`, data is fetched. If an error occurs, `_error.js` is rendered
 3. After 1 and 2 complete, `pushState` is performed and the new component is rendered
 
-**Deprecated, use [withRouter](https://github.com/zeit/next.js#using-a-higher-order-component) instead** - Each top-level component receives a `url` property with the following API:
-
-- `pathname` - `String` of the current path excluding the query string
-- `query` - `Object` with the parsed query string. Defaults to `{}`
-- `asPath` - `String` of the actual path (including the query) shows in the browser
+To inject the `pathname`, `query` or `asPath` in your component, you can use [withRouter](#using-a-higher-order-component).
 
 ##### With URL object
 
@@ -518,8 +514,6 @@ Above `Router` object comes with the following API:
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
-_Note: in order to programmatically change the route without triggering navigation and component-fetching, use `props.url.push` and `props.url.replace` within a component_
-
 ##### With URL object
 You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
 
@@ -600,14 +594,17 @@ const as = href
 Router.push(href, as, { shallow: true })
 ```
 
-Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.url` inside the `Component`.
+Now, the URL is updated to `/?counter=10`. You can see the updated URL with `this.props.router.query` inside the `Component` (make sure you are using [`withRouter`](#using-a-higher-order-component) around your `Component` to inject the `router` prop).
 
-You can watch for URL changes via [`componentWillReceiveProps`](https://facebook.github.io/react/docs/react-component.html#componentwillreceiveprops) hook as shown below:
+You can watch for URL changes via [`componentDidUpdate`](https://reactjs.org/docs/react-component.html#componentdidupdate) hook as shown below:
 
 ```js
-componentWillReceiveProps(nextProps) {
-  const { pathname, query } = nextProps.url
-  // fetch data based on the new query
+componentDidUpdate(prevProps) {
+  const { pathname, query } = this.props.router
+  // verify props have changed to avoid an infinite loop
+  if (query.id !== prevProps.router.query.id) {
+    // fetch data based on the new query
+  }
 }
 ```
 
@@ -706,39 +703,44 @@ export default () =>
 Most prefetching needs are addressed by `<Link />`, but we also expose an imperative API for advanced usage:
 
 ```jsx
-import Router from 'next/router'
+import { withRouter } from 'next/router'
 
-export default ({ url }) =>
+export default withRouter(({ router }) =>
   <div>
-    <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+    <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
       A route transition will happen after 100ms
     </a>
     {// but we can prefetch it!
-    Router.prefetch('/dynamic')}
+    router.prefetch('/dynamic')}
   </div>
+)
 ```
 
 The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
 
 ```jsx
 import React from 'react'
-import Router from 'next/router'
+import { withRouter } from 'next/router'
 
-export default class MyLink extends React.Component {
+class MyLink extends React.Component {
   componentDidMount() {
-    Router.prefetch('/dynamic')
+    const { router } = this.props
+    router.prefetch('/dynamic')
   }
   
   render() {
+    const { router } = this.props
     return (
        <div>
-        <a onClick={() => setTimeout(() => url.pushTo('/dynamic'), 100)}>
+        <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
       </div>   
     )
   }
 }
+
+export default withRouter(MyLink)
 ```
 
 ### Custom server and routing
@@ -1442,7 +1444,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html) without polyfills. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
@@ -1636,7 +1638,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See [this](https://github.com/zeit/next.js/blob/master/server/build/webpack.js#L79) and [this](https://github.com/zeit/next.js/issues/26)
+See the  documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](./build/babel/preset.js) for more information.
 
 </details>
 

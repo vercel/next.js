@@ -16,6 +16,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@babel/plugin-proposal-do-expressions": "7.0.0-beta.56"
+    "@babel/plugin-proposal-do-expressions": "7.0.0-rc.1"
   }
 }

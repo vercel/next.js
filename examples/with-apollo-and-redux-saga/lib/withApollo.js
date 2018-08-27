@@ -5,7 +5,7 @@ import Head from 'next/head'
 import initApollo from './initApollo'
 
 // Gets the display name of a JSX component for dev tools
-function getComponentDisplayName(Component) {
+function getComponentDisplayName (Component) {
   return Component.displayName || Component.name || 'Unknown'
 }
 
@@ -18,7 +18,7 @@ export default ComposedComponent => {
       serverState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps(ctx) {
+    static async getInitialProps (ctx) {
       // Initial serverState with apollo (empty)
       let serverState = {
         apollo: {
@@ -76,12 +76,12 @@ export default ComposedComponent => {
       }
     }
 
-    constructor(props) {
+    constructor (props) {
       super(props)
       this.apollo = initApollo(props.serverState.apollo.data)
     }
 
-    render() {
+    render () {
       return (
         <ApolloProvider client={this.apollo}>
           <ComposedComponent {...this.props} />

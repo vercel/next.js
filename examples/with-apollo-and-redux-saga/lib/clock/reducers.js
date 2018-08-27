@@ -5,7 +5,7 @@ export const initialState = {
   light: false
 }
 
-function reducer(state = initialState, action) {
+function reducer (state = initialState, action) {
   switch (action.type) {
     case actionTypes.TICK_CLOCK:
       return {

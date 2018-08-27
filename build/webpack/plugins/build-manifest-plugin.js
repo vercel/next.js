@@ -8,10 +8,17 @@ export default class BuildManifestPlugin {
   apply (compiler: any) {
     compiler.hooks.emit.tapAsync('NextJsBuildManifest', (compilation, callback) => {
       const {chunks} = compilation
-      const assetMap = {pages: {}}
+      const assetMap = {devFiles: [], pages: {}}
 
       const mainJsChunk = chunks.find((c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN)
       const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []
+
+      for (const filePath of Object.keys(compilation.assets)) {
+        const path = filePath.replace(/\\/g, '/')
+        if (/^static\/dll\//.test(path)) {
+          assetMap.devFiles.push(path)
+        }
+      }
 
       // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
       for (const [, entrypoint] of compilation.entrypoints.entries()) {
@@ -27,9 +34,8 @@ export default class BuildManifestPlugin {
         }
 
         const filesForEntry = []
-
         for (const chunk of entrypoint.chunks) {
-          // If there's no name
+          // If there's no name or no files
           if (!chunk.name || !chunk.files) {
             continue
           }

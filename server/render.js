@@ -43,6 +43,18 @@ export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
 }
 
+function getPageFiles (buildManifest, page) {
+  const normalizedPage = normalizePagePath(page)
+  const files = buildManifest.pages[normalizedPage]
+
+  if (!files) {
+    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    return []
+  }
+
+  return files
+}
+
 async function doRender (req, res, pathname, query, {
   err,
   page,
@@ -84,11 +96,12 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...buildManifest.pages[normalizePagePath(page)],
-      ...buildManifest.pages[normalizePagePath('/_app')],
-      ...buildManifest.pages[normalizePagePath('/_error')]
+      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, '/_error')
     ])
   ]
 
@@ -167,6 +180,7 @@ async function doRender (req, res, pathname, query, {
     dir,
     staticMarkup,
     buildManifest,
+    devFiles,
     files,
     dynamicImports,
     assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
