@@ -4,6 +4,7 @@ import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import http, { STATUS_CODES } from 'http'
+import nanoid from 'nanoid'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -83,7 +84,6 @@ export default class Server {
     }
 
     res.statusCode = 200
-    req.cspPolicy = this.nextConfig.cspPolicy
     return this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)
@@ -192,6 +192,10 @@ export default class Server {
 
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
+        req.cspNonce = Buffer.from(nanoid()).toString('base64')
+
+        res.setHeader('Content-Security-Policy', `${this.nextConfig.cspPolicy} style-src 'self' 'nonce-${req.cspNonce}';`)
+
         await this.render(req, res, pathname, query, parsedUrl)
       }
     }

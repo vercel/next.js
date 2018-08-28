@@ -3,7 +3,6 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
-import uuidv4 from 'uuid/v4'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
@@ -14,12 +13,10 @@ export default class Document extends Component {
     _documentProps: PropTypes.any
   }
 
-  static getInitialProps ({ req, res, renderPage }) {
+  static getInitialProps ({ req, renderPage }) {
     const { html, head, errorHtml, buildManifest } = renderPage()
-    const cspNonce = new Buffer(uuidv4()).toString('base64')
+    const cspNonce = req.cspNonce
     const styles = flush(cspNonce)
-    res.setHeader('Content-Security-Policy', `${req.cspPolicy} style-src 'self' 'nonce-${cspNonce}';`)
-    //TODO: Detect if style-src is set
 
     return { html, head, errorHtml, styles, buildManifest, cspNonce }
   }
