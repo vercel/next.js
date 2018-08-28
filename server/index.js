@@ -83,6 +83,7 @@ export default class Server {
     }
 
     res.statusCode = 200
+    req.cspPolicy = this.nextConfig.cspPolicy
     return this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)

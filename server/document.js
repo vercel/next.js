@@ -3,6 +3,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
+import uuidv4 from 'uuid/v4'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
@@ -13,10 +14,14 @@ export default class Document extends Component {
     _documentProps: PropTypes.any
   }
 
-  static getInitialProps ({ renderPage }) {
+  static getInitialProps ({ req, res, renderPage }) {
     const { html, head, errorHtml, buildManifest } = renderPage()
-    const styles = flush()
-    return { html, head, errorHtml, styles, buildManifest }
+    const cspNonce = new Buffer(uuidv4()).toString('base64')
+    const styles = flush(cspNonce)
+    res.setHeader('Content-Security-Policy', `${req.cspPolicy} style-src 'self' 'nonce-${cspNonce}';`)
+    //TODO: Detect if style-src is set
+
+    return { html, head, errorHtml, styles, buildManifest, cspNonce }
   }
 
   getChildContext () {
@@ -93,12 +98,13 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { head, styles, cspNonce, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
+      <meta property="csp-nonce" content={cspNonce}></meta>
       <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' />
