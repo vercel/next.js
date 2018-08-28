@@ -130,6 +130,7 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
       filename,
       {
         sourceFileName: slash(Path.relative(options.base, filename)),
+        sourceMaps: 'inline',
         ...options.babelOptions
       }
     )
