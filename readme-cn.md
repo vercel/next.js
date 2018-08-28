@@ -7,6 +7,7 @@
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
 Next.js 是一个轻巧的React服务端渲染应用框架。
+翻译版本为6.1.1-canary.2。
 
 **可访问 [nextjs.org/learn](https://nextjs.org/learn) 开始学习 Next.js.**
 
