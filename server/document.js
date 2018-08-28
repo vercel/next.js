@@ -182,7 +182,7 @@ export class NextScript extends Component {
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
-    __NEXT_DATA__.pathname = htmlescape(__NEXT_DATA__.pathname);
+    __NEXT_DATA__.cleanPathname = htmlescape(__NEXT_DATA__.pathname);
 
     return <Fragment>
       {staticMarkup ? null : <script
