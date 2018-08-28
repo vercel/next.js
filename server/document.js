@@ -181,8 +181,9 @@ export class NextScript extends Component {
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
+    __NEXT_DATA__.pathname = htmlescape(__NEXT_DATA__.pathname);
+
     return <Fragment>
-      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {staticMarkup ? null : <script
         id="server-app-state"
         type="application/json"
@@ -194,14 +195,10 @@ export class NextScript extends Component {
         }}
       />}
       <script
-        dangerouslySetInnerHTML={{
-          __html: `module={}`
-        }}
-      />
-      <script
         src={`${assetPrefix}/_next/static/runtime/bootstrap.js`}
         nonce={this.props.nonce}
       />
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
       <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} />

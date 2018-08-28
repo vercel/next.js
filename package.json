@@ -75,6 +75,7 @@
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.13",
     "case-sensitive-paths-webpack-plugin": "2.1.2",
+    "copy-webpack-plugin": "4.5.2",
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "etag": "1.8.1",
