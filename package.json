@@ -31,7 +31,7 @@
     "build": "taskr",
     "release": "taskr release",
     "pretestonly": "taskr pretest",
-    "testonly": "cross-env NODE_PATH=test/lib jest integration/app-document/test/index.test.js",
+    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
     "posttestonly": "taskr posttest",
     "testall": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "pretest": "npm run lint && npm run flow",

@@ -28,7 +28,7 @@ export default class MyDocument extends Document {
     return (
       <html>
         <Head>
-          {this.props.withCSP ? <meta httpEquiv='Content-Security-Policy' content="default-src 'self'; style-src 'self' 'unsafe-inline'" /> : null}
+          {this.props.withCSP ? <meta httpEquiv='Content-Security-Policy' content="default-src 'self'; style-src 'self' 'unsafe-inline';" /> : null}
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
         <body className='custom_class'>

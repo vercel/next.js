@@ -4,8 +4,8 @@ import webdriver from 'next-webdriver'
 
 export default (context, render) => {
   describe('With CSP enabled', () => {
-    it('should with CSP', async () => {
-      const browser = await webdriver(context.appPort, '/?withCSP=secure')
+    it('load without violations', async () => {
+      const browser = await webdriver(context.appPort, '/?withCSP=true')
       const errLog = await browser.log('browser')
       expect(errLog.filter((e) => e.source === 'security')).toEqual([])
       browser.close()
