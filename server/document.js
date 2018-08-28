@@ -1,6 +1,7 @@
 /* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
@@ -105,7 +106,7 @@ export class Head extends Component {
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
-      <link nonce={this.props.nonce} rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' nonce={this.props.nonce} />
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} />
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />

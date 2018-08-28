@@ -22,7 +22,6 @@ import AutoDllPlugin from 'autodll-webpack-plugin'
 import CopyWebpackPlugin from 'copy-webpack-plugin'
 
 // The externals config makes sure that
-
 // on the server side when modules are
 // in node_modules they don't get compiled by webpack
 function externalsConfig (dir, isServer) {
