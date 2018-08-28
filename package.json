@@ -42,6 +42,11 @@
     "prepublish": "npm run release",
     "precommit": "lint-staged"
   },
+  "taskr": {
+    "requires": [
+      "./taskfile-babel.js"
+    ]
+  },
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
@@ -57,17 +62,17 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "@babel/core": "7.0.0-rc.1",
-    "@babel/plugin-proposal-class-properties": "7.0.0-rc.1",
-    "@babel/plugin-proposal-object-rest-spread": "7.0.0-rc.1",
-    "@babel/plugin-syntax-dynamic-import": "7.0.0-rc.1",
-    "@babel/plugin-transform-react-jsx-source": "7.0.0-rc.1",
-    "@babel/plugin-transform-runtime": "7.0.0-rc.1",
-    "@babel/preset-env": "7.0.0-rc.1",
-    "@babel/preset-react": "7.0.0-rc.1",
-    "@babel/runtime": "7.0.0-rc.1",
-    "@babel/runtime-corejs2": "7.0.0-rc.1",
-    "@babel/template": "7.0.0-rc.1",
+    "@babel/core": "7.0.0",
+    "@babel/plugin-proposal-class-properties": "7.0.0",
+    "@babel/plugin-proposal-object-rest-spread": "7.0.0",
+    "@babel/plugin-syntax-dynamic-import": "7.0.0",
+    "@babel/plugin-transform-react-jsx-source": "7.0.0",
+    "@babel/plugin-transform-runtime": "7.0.0",
+    "@babel/preset-env": "7.0.0",
+    "@babel/preset-react": "7.0.0",
+    "@babel/runtime": "7.0.0",
+    "@babel/runtime-corejs2": "7.0.0",
+    "@babel/template": "7.0.0",
     "ansi-html": "0.0.7",
     "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
@@ -113,16 +118,15 @@
     "write-file-webpack-plugin": "4.3.2"
   },
   "devDependencies": {
-    "@babel/preset-flow": "7.0.0-rc.1",
-    "@taskr/babel": "1.1.0-next.1",
+    "@babel/preset-flow": "7.0.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "@zeit/next-css": "0.2.1-canary.1",
     "@zeit/next-sass": "0.2.1-canary.1",
     "@zeit/next-typescript": "1.1.0",
-    "babel-eslint": "8.2.2",
-    "babel-jest": "21.2.0",
+    "babel-eslint": "9.0.0",
+    "babel-jest": "23.4.2",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
     "chromedriver": "2.32.3",
@@ -131,6 +135,7 @@
     "cross-env": "5.0.5",
     "express": "4.15.5",
     "fkill": "5.1.0",
+    "flatten": "1.0.2",
     "flow-bin": "0.73.0",
     "get-port": "3.2.0",
     "husky": "0.14.3",
