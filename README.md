@@ -56,6 +56,7 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Reusing the built-in error page](#reusing-the-built-in-error-page)
   - [Custom configuration](#custom-configuration)
     - [Setting a custom build directory](#setting-a-custom-build-directory)
+    - [Content Security Policy](#content-security-policy)
     - [Disabling etag generation](#disabling-etag-generation)
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
@@ -66,8 +67,6 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
-  - [Security Suggestions](#security-suggestions)
-    - [Content Security Policy](#content-security-policy)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Limitation](#limitation)
@@ -1177,6 +1176,19 @@ module.exports = {
 }
 ```
 
+#### Content Security Policy
+
+Next.js supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP). You can set your CSP Poliy in your Next.js configuration.
+
+```js
+// next.config.js
+module.exports = {
+  cspPolicy: "default-src 'self';"
+}
+```
+
+Node: In order to support dynamic styles nodejs uses a `nonce` for `style-src`. This is done automatically. If you use a different CSS-in-JS library, you can use the `cspNonce` document parameter to get the nonce set in the header.
+
 #### Disabling etag generation
 
 You can disable etag generation for HTML pages depending on your cache strategy. If no configuration is specified then Next will generate etags for every page.
@@ -1443,14 +1455,6 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
-
-### Security Suggestions
-
-There are some best practices that Next.js supports that will help secure your site:
-
-#### Content Security Policy
-
-Next.js *mostly* supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP). You can use the following CSP policy to get started: `default-src 'self'; style-src 'self' 'unsafe-inline';`
 
 ## Browser support
 

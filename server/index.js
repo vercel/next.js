@@ -192,9 +192,16 @@ export default class Server {
 
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
+        const policy = this.nextConfig.cspPolicy
         req.cspNonce = Buffer.from(nanoid()).toString('base64')
 
-        res.setHeader('Content-Security-Policy', `${this.nextConfig.cspPolicy} style-src 'self' 'nonce-${req.cspNonce}';`)
+        if (policy) {
+          if (policy.match(/style-src/gi)) {
+            res.setHeader('Content-Security-Policy', policy.replace(/style-src/gi, `style-src 'nonce-${req.cspNonce}'`))
+          } else {
+            res.setHeader('Content-Security-Policy', `style-src 'self' 'nonce-${req.cspNonce}'; ${policy}`)
+          }
+        }
 
         await this.render(req, res, pathname, query, parsedUrl)
       }
