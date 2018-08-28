@@ -66,6 +66,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+  - [Security Suggestions](#security-suggestions)
+    - [Content Security Policy](#content-security-policy)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Limitation](#limitation)
@@ -1441,6 +1443,14 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
+
+### Security Suggestions
+
+There are some best practices that Next.js supports that will help secure your site:
+
+#### Content Security Policy
+
+Next.js *mostly* supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP). You can use the following CSP policy to get started: `default-src 'self'; style-src 'self' 'unsafe-inline';`
 
 ## Browser support
 
