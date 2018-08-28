@@ -70,7 +70,7 @@ export class Head extends Component {
       return <link
         rel='preload'
         key={bundle.file}
-        src={`${assetPrefix}/_next/${bundle.file}`}
+        href={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
         nonce={this.props.nonce}
       />
