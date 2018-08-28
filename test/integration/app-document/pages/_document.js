@@ -21,16 +21,13 @@ export default class MyDocument extends Document {
 
     const result = ctx.renderPage(options)
 
-    return { ...result, customProperty: 'Hello Document', withCSP: ctx.query.withCSP }
+    return { ...result, customProperty: 'Hello Document' }
   }
 
   render () {
     return (
       <html>
-        <Head>
-          {this.props.withCSP ? <meta httpEquiv='Content-Security-Policy' content="default-src 'self'; style-src 'self' 'unsafe-inline';" /> : null}
-          <style>{`body { margin: 0 } /* custom! */`}</style>
-        </Head>
+        <Head />
         <body className='custom_class'>
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
