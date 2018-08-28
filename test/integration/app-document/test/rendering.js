@@ -25,16 +25,6 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('#custom-property').text() === 'Hello Document')
       })
 
-      test('It adds nonces to all scripts and preload links', async () => {
-        const $ = await get$('/')
-        const nonce = 'test-nonce'
-        let noncesAdded = true
-        $('script, link[rel=preload]').each((index, element) => {
-          if ($(element).attr('nonce') !== nonce) noncesAdded = false
-        })
-        expect(noncesAdded).toBe(true)
-      })
-
       test('It renders ctx.renderPage with enhancer correctly', async () => {
         const $ = await get$('/?withEnhancer=true')
         const nonce = 'RENDERED'

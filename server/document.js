@@ -39,10 +39,6 @@ export class Head extends Component {
     _documentProps: PropTypes.any
   }
 
-  static propTypes = {
-    nonce: PropTypes.string
-  }
-
   getCssLinks () {
     const { assetPrefix, files } = this.context._documentProps
     if(!files || files.length === 0) {
@@ -57,7 +53,6 @@ export class Head extends Component {
 
       return <link
         key={file}
-        nonce={this.props.nonce}
         rel='stylesheet'
         href={`${assetPrefix}/_next/${file}`}
       />
@@ -72,7 +67,6 @@ export class Head extends Component {
         key={bundle.file}
         src={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
-        nonce={this.props.nonce}
       />
     })
   }
@@ -91,7 +85,6 @@ export class Head extends Component {
 
       return <link
         key={file}
-        nonce={this.props.nonce}
         rel='preload'
         href={`${assetPrefix}/_next/${file}`}
         as='script'
@@ -106,10 +99,10 @@ export class Head extends Component {
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
-      <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' nonce={this.props.nonce} />
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} />
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />
+      <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' />}
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' />
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
@@ -140,10 +133,6 @@ export class NextScript extends Component {
     _documentProps: PropTypes.any
   }
 
-  static propTypes = {
-    nonce: PropTypes.string
-  }
-
   getDynamicChunks () {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     return dynamicImports.map((bundle) => {
@@ -151,7 +140,6 @@ export class NextScript extends Component {
         async
         key={bundle.file}
         src={`${assetPrefix}/_next/${bundle.file}`}
-            nonce={this.props.nonce}
       />
     })
   }
@@ -171,7 +159,6 @@ export class NextScript extends Component {
       return <script
         key={file}
         src={`${assetPrefix}/_next/${file}`}
-        nonce={this.props.nonce}
         async
       />
     })
@@ -197,12 +184,11 @@ export class NextScript extends Component {
       />}
       <script
         src={`${assetPrefix}/_next/static/runtime/bootstrap.js`}
-        nonce={this.props.nonce}
       />
-      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
-      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} />
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} />) : null}
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} />}
+      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} />
+      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>

@@ -1,11 +1,4 @@
-import crypto from 'crypto'
 import Document, { Head, Main, NextScript } from 'next/document'
-
-const cspHashOf = (text) => {
-  const hash = crypto.createHash('sha256')
-  hash.update(text)
-  return `'sha256-${hash.digest('base64')}'`
-}
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
@@ -32,27 +25,17 @@ export default class MyDocument extends Document {
   }
 
   render () {
-    let csp
-    switch (this.props.withCSP) {
-      case 'hash':
-        csp = `default-src 'self'; script-src 'self' ${cspHashOf(NextScript.getInlineScriptSource(this.props))}; style-src 'self' 'unsafe-inline'`
-        break
-      case 'nonce':
-        csp = `default-src 'self'; script-src 'self' 'nonce-test-nonce'; style-src 'self' 'unsafe-inline'`
-        break
-    }
-
     return (
       <html>
-        <Head nonce='test-nonce'>
-          {csp ? <meta httpEquiv='Content-Security-Policy' content={csp} /> : null}
+        <Head>
+          {this.props.withCSP ? <meta httpEquiv='Content-Security-Policy' content="default-src 'self'; style-src 'self' 'unsafe-inline'" /> : null}
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
         <body className='custom_class'>
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
-          <NextScript nonce='test-nonce' />
+          <NextScript />
         </body>
       </html>
     )
