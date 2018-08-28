@@ -9,7 +9,8 @@ const envPlugins = {
 
 const plugins = envPlugins[process.env.NODE_ENV] || envPlugins['development']
 
-const isServer = !!process.env.IS_SERVER
+const isJest = !!process.env.JEST_WORKER_ID
+const isServer = !!process.env.IS_SERVER || isJest
 
 module.exports = (context, opts = {}) => ({
   presets: [
@@ -37,7 +38,7 @@ module.exports = (context, opts = {}) => ({
     }],
 
     [require.resolve('babel-plugin-transform-define'), {
-      'typeof window': isServer ? 'undefined' : 'object'
+      'typeof window': isServer && !isJest ? 'undefined' : 'object'
     }],
 
     ...plugins,
