@@ -7,7 +7,7 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "fastify": "^0.29.2",
+    "fastify": "1.8.0",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"

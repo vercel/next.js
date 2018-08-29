@@ -38,7 +38,8 @@ export default class extends Component {
         <Link href='/nav/as-path' as='/as/path'><a id='as-path-link' style={linkStyle}>As Path</a></Link>
         <Link href='/nav/as-path'><a id='as-path-link-no-as' style={linkStyle}>As Path (No as)</a></Link>
         <Link href='/nav/as-path-using-router'><a id='as-path-using-router-link' style={linkStyle}>As Path (Using Router)</a></Link>
-        <Link href='/nav/on-click'><a id='on-click-link' style={linkStyle}>A element with onClick</a></Link>
+        <Link href='/nav/on-click?count=1'><a id='on-click-link' style={linkStyle}>A element with onClick</a></Link>
+        <Link href='/nav/about'><a id='target-link' target='_blank'>A element with target</a></Link>
         <button
           onClick={() => this.visitQueryStringPage()}
           style={linkStyle}
@@ -52,6 +53,7 @@ export default class extends Component {
           Counter: {counter}
         </div>
         <button id='increase' onClick={() => this.increase()}>Increase</button>
+        <Link href='/nav/hash-changes#item-400'><a id='scroll-to-hash'>Scroll to hash</a></Link>
       </div>
     )
   }

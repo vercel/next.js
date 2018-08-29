@@ -75,7 +75,7 @@ const startProcess = () => {
         process.exit(137)
       }
       console.log(`got signal ${signal}, exiting`)
-      process.exit(1)
+      process.exit(signal === 'SIGINT' ? 0 : 1)
     }
     process.exit(0)
   })
