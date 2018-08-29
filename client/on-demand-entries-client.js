@@ -12,14 +12,14 @@ export default ({assetPrefix}) => {
     try {
       const url = `${assetPrefix || ''}/_next/on-demand-entries-ping?page=${Router.pathname}`
       const res = await fetch(url, {
-        credentials: 'omit'
+        credentials: 'same-origin'
       })
       const payload = await res.json()
       if (payload.invalid) {
         // Payload can be invalid even if the page is not exists.
         // So, we need to make sure it's exists before reloading.
         const pageRes = await fetch(location.href, {
-          credentials: 'omit'
+          credentials: 'same-origin'
         })
         if (pageRes.status === 200) {
           location.reload()
