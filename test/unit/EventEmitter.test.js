@@ -71,6 +71,30 @@ describe('EventEmitter', () => {
 
       expect(run).toThrow(/The listener already exising in event: sample/)
     })
+
+    it('should support chaining like the nodejs EventEmitter', () => {
+      const emitter = new EventEmitter()
+      let calledA = false
+      let calledB = false
+
+      emitter
+        .on('a', () => { calledA = true })
+        .on('b', () => { calledB = true })
+
+      emitter.emit('a')
+      emitter.emit('b')
+
+      expect(calledA).toEqual(true)
+      expect(calledB).toEqual(true)
+    })
+
+    it('should return an indication on emit if there were listeners', () => {
+      const emitter = new EventEmitter()
+      emitter.on('a', () => { })
+
+      expect(emitter.emit('a')).toEqual(true)
+      expect(emitter.emit('b')).toEqual(false)
+    })
   })
 
   describe('Without a listener', () => {

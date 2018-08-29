@@ -18,6 +18,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
+import AutoDllPlugin from 'autodll-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -41,7 +42,7 @@ function externalsConfig (dir, isServer) {
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if (res.match(/node_modules[/\\]webpack/)) {
+      if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
         return callback()
       }
 
@@ -59,7 +60,6 @@ function externalsConfig (dir, isServer) {
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
-      // runtimeChunk: 'single',
       splitChunks: false,
       minimize: false
     }
@@ -69,7 +69,12 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     runtimeChunk: {
       name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
     },
-    splitChunks: false
+    splitChunks: {
+      cacheGroups: {
+        default: false,
+        vendors: false
+      }
+    }
   }
 
   if (dev) {
@@ -79,21 +84,14 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   // Only enabled in production
   // This logic will create a commons bundle
   // with modules that are used in 50% of all pages
-  return {
-    ...config,
-    splitChunks: {
-      chunks: 'all',
-      cacheGroups: {
-        default: false,
-        vendors: false,
-        commons: {
-          name: 'commons',
-          chunks: 'all',
-          minChunks: totalPages > 2 ? totalPages * 0.5 : 2
-        }
-      }
-    }
+  config.splitChunks.chunks = 'all'
+  config.splitChunks.cacheGroups.commons = {
+    name: 'commons',
+    chunks: 'all',
+    minChunks: totalPages > 2 ? totalPages * 0.5 : 2
   }
+
+  return config
 }
 
 type BaseConfigContext = {|
@@ -138,6 +136,18 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     ].filter(Boolean)
   } : {}
 
+  const resolveConfig = {
+    extensions: ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    modules: [
+      NEXT_PROJECT_ROOT_NODE_MODULES,
+      'node_modules',
+      ...nodePathList // Support for NODE_PATH environment variable
+    ],
+    alias: {
+      next: NEXT_PROJECT_ROOT
+    }
+  }
+
   let webpackConfig = {
     mode: dev ? 'development' : 'production',
     devtool: dev ? 'cheap-module-source-map' : false,
@@ -159,9 +169,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     output: {
       path: outputPath,
       filename: ({chunk}) => {
-        // Use `[name]-[chunkhash].js` in production
+        // Use `[name]-[contenthash].js` in production
         if (!dev && (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN || chunk.name === CLIENT_STATIC_FILES_RUNTIME_WEBPACK)) {
-          return chunk.name.replace(/\.js$/, '-' + chunk.renderedHash + '.js')
+          return chunk.name.replace(/\.js$/, '-[contenthash].js')
         }
         return '[name]'
       },
@@ -169,21 +179,11 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? `${dev ? '[name]' : '[chunkhash]'}.js` : `static/chunks/${dev ? '[name]' : '[chunkhash]'}.js`,
+      chunkFilename: isServer ? `${dev ? '[name]' : '[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[contenthash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
-    resolve: {
-      extensions: ['.js', '.jsx', '.json'],
-      modules: [
-        NEXT_PROJECT_ROOT_NODE_MODULES,
-        'node_modules',
-        ...nodePathList // Support for NODE_PATH environment variable
-      ],
-      alias: {
-        next: NEXT_PROJECT_ROOT
-      }
-    },
+    resolve: resolveConfig,
     resolveLoader: {
       modules: [
         NEXT_PROJECT_ROOT_NODE_MODULES,
@@ -208,6 +208,21 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      // Precompile react / react-dom for development, speeding up webpack
+      dev && !isServer && new AutoDllPlugin({
+        filename: '[name]_[hash].js',
+        path: './static/dll',
+        context: dir,
+        entry: {
+          dll: [
+            'react',
+            'react-dom'
+          ]
+        },
+        config: {
+          resolve: resolveConfig
+        }
+      }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({

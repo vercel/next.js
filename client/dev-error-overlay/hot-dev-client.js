@@ -6,9 +6,9 @@
 import {getEventSourceWrapper} from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
 import * as ErrorOverlay from 'react-error-overlay'
-// import url from 'url'
 import stripAnsi from 'strip-ansi'
 import {rewriteStacktrace} from '../source-map-support'
+import fetch from 'unfetch'
 
 const {
   distDir
@@ -30,6 +30,16 @@ const {
 let hadRuntimeError = false
 let customHmrEventHandler
 export default function connect (options) {
+  // Open stack traces in an editor.
+  ErrorOverlay.setEditorHandler(function editorHandler ({ fileName, lineNumber, colNumber }) {
+    fetch(
+      '/_next/development/open-stack-frame-in-editor' +
+        `?fileName=${window.encodeURIComponent(fileName)}` +
+        `&lineNumber=${lineNumber || 1}` +
+        `&colNumber=${colNumber || 1}`
+    )
+  })
+
   // We need to keep track of if there has been a runtime error.
   // Essentially, we cannot guarantee application state was not corrupted by the
   // runtime error. To prevent confusing behavior, we forcibly reload the entire

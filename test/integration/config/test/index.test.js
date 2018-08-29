@@ -24,8 +24,8 @@ describe('Configuration', () => {
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(context.appPort, '/next-config'),
-      renderViaHTTP(context.appPort, '/build-id')
-      // renderViaHTTP(context.appPort, '/webpack-css')
+      renderViaHTTP(context.appPort, '/build-id'),
+      renderViaHTTP(context.appPort, '/webpack-css')
     ])
   })
   afterAll(() => killApp(context.server))

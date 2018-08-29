@@ -14,7 +14,7 @@ import Loadable from 'react-loadable'
 // This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
 // So, we need to polyfill it.
-// See: https://github.com/webpack/webpack/issues/4254
+// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
   window.Promise = Promise
 }

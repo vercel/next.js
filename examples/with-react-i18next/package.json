@@ -11,15 +11,15 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "4.16.2",
-    "i18next": "10.4.1",
-    "i18next-browser-languagedetector": "2.1.0",
-    "i18next-express-middleware": "1.0.10",
-    "i18next-node-fs-backend": "1.0.0",
+    "express": "4.16.3",
+    "i18next": "11.3.6",
+    "i18next-browser-languagedetector": "2.2.0",
+    "i18next-express-middleware": "1.2.0",
+    "i18next-node-fs-backend": "1.2.1",
     "i18next-xhr-backend": "1.5.1",
-    "next": "5.0.0",
-    "react": "16.2.0",
-    "react-dom": "16.2.0",
-    "react-i18next": "7.3.6"
+    "next": "^6.1.1",
+    "react": "^16.4.1",
+    "react-dom": "^16.4.1",
+    "react-i18next": "7.8.1"
   }
 }

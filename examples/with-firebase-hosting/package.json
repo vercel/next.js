@@ -27,7 +27,7 @@
     "react-dom": "^16.3.2"
   },
   "devDependencies": {
-    "@babel/cli": "^7.0.0-beta.42",
+    "@babel/cli": "^7.0.0-rc.1",
     "cpx": "1.5.0",
     "firebase-tools": "3.18.4",
     "prettier": "1.12.1",

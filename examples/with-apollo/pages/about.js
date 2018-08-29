@@ -7,7 +7,7 @@ export default () => (
     <article>
       <h1>The Idea Behind This Example</h1>
       <p>
-        <a href='http://dev.apollodata.com'>Apollo</a> is a GraphQL client that
+        <a href='https://www.apollographql.com/client/'>Apollo</a> is a GraphQL client that
         allows you to easily query the exact data you need from a GraphQL
         server. In addition to fetching and mutating data, Apollo analyzes your
         queries and their results to construct a client-side cache of your data,
@@ -27,7 +27,7 @@ export default () => (
       <p>
         On initial page load, while on the server and inside getInitialProps, we
         invoke the Apollo method,{' '}
-        <a href='http://dev.apollodata.com/react/server-side-rendering.html#getDataFromTree'>
+        <a href='https://www.apollographql.com/docs/react/features/server-side-rendering.html#getDataFromTree'>
           getDataFromTree
         </a>. This method returns a promise; at the point in which the promise
         resolves, our Apollo Client store is completely initialized.

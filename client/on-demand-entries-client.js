@@ -5,7 +5,7 @@ import fetch from 'unfetch'
 
 export default ({assetPrefix}) => {
   Router.ready(() => {
-    Router.router.events.on('routeChangeComplete', ping)
+    Router.events.on('routeChangeComplete', ping)
   })
 
   async function ping () {
