@@ -16,7 +16,7 @@ yarn create next-app --example with-sentry with-sentry-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 Install it and run:
 

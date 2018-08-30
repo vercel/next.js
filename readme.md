@@ -10,6 +10,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
 
 **Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
 
+[README in Chinese（中文文档）](readme-cn.md)
+
 ---
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -62,7 +64,8 @@ Next.js is a minimalistic framework for server-rendered React applications.
     - [Configuring the build ID](#configuring-the-build-id)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
-    - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
+  - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
@@ -544,37 +547,39 @@ This uses the same exact parameters as in the `<Link>` component.
 You can also listen to different events happening inside the Router.
 Here's a list of supported events:
 
-- `onRouteChangeStart(url)` - Fires when a route starts to change
-- `onRouteChangeComplete(url)` - Fires when a route changed completely
-- `onRouteChangeError(err, url)` - Fires when there's an error when changing routes
-- `onBeforeHistoryChange(url)` - Fires just before changing the browser's history
-- `onHashChangeStart(url)` - Fires when the hash will change but not the page
-- `onHashChangeComplete(url)` - Fires when the hash has changed but not the page
+- `routeChangeStart(url)` - Fires when a route starts to change
+- `routeChangeComplete(url)` - Fires when a route changed completely
+- `routeChangeError(err, url)` - Fires when there's an error when changing routes
+- `beforeHistoryChange(url)` - Fires just before changing the browser's history
+- `hashChangeStart(url)` - Fires when the hash will change but not the page
+- `hashChangeComplete(url)` - Fires when the hash has changed but not the page
 
 > Here `url` is the URL shown in the browser. If you call `Router.push(url, as)` (or similar), then the value of `url` will be `as`.
 
-Here's how to properly listen to the router event `onRouteChangeStart`:
+Here's how to properly listen to the router event `routeChangeStart`:
 
 ```js
-Router.onRouteChangeStart = url => {
+const handleRouteChange = url => {
   console.log('App is changing to: ', url)
 }
+
+Router.events.on('routeChangeStart', handleRouteChange)
 ```
 
-If you no longer want to listen to that event, you can simply unset the event listener like this:
+If you no longer want to listen to that event, you can unsubscribe with the `off` method:
 
 ```js
-Router.onRouteChangeStart = null
+Router.events.off('routeChangeStart', handleRouteChange)
 ```
 
 If a route load is cancelled (for example by clicking two links rapidly in succession), `routeChangeError` will fire. The passed `err` will contain a `cancelled` property set to `true`.
 
 ```js
-Router.onRouteChangeError = (err, url) => {
+Router.events.on('routeChangeError', (err, url) => {
   if (err.cancelled) {
     console.log(`Route to ${url} was cancelled!`)
   }
-}
+})
 ```
 
 ##### Shallow Routing
@@ -846,7 +851,7 @@ const micro = require('micro')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
-const handle = app.getRequestHandler()
+const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
   const server = micro((req, res) => {
@@ -946,13 +951,11 @@ export default () =>
 import dynamic from 'next/dynamic'
 
 const HelloBundle = dynamic({
-  modules: props => {
+  modules: () => {
     const components = {
       Hello1: import('../components/hello1'),
       Hello2: import('../components/hello2')
     }
-
-    // Add remove components based on props
 
     return components
   },
@@ -1357,9 +1360,9 @@ These presets / plugins **should not** be added to your custom `.babelrc`. Inste
 
 The `modules` option on `"preset-env"` should be kept to `false` otherwise webpack code splitting is disabled.
 
-#### Exposing configuration to the server / client side
+### Exposing configuration to the server / client side
 
-The `config` key allows for exposing runtime configuration in your app. All keys are server only by default. To expose a configuration to both the server and client side you can use the `public` key.
+The `next/config` module gives your app access to runtime configuration stored in your `next.config.js`. Place any server-only runtime config under a `serverRuntimeConfig` property and anything accessible to both client and server-side code under `publicRuntimeConfig`.
 
 ```js
 // next.config.js
@@ -1368,7 +1371,8 @@ module.exports = {
     mySecret: 'secret'
   },
   publicRuntimeConfig: { // Will be available on both server and client
-    staticFolder: '/static'
+    staticFolder: '/static',
+    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```
@@ -1386,6 +1390,10 @@ export default () => <div>
   <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
 ```
+
+### Starting the server on alternative hostname
+
+To start the development server using a different default hostname you can use `--hostname hostname_here` or `-H hostname_here` option with next dev. This will start a TCP server listening for connections on the provided host.
 
 ### CDN support with Asset Prefix
 

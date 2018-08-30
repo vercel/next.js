@@ -1,20 +1,19 @@
-import { interval } from 'rxjs/observable/interval'
-import { of } from 'rxjs/observable/of'
+import { interval, of } from 'rxjs'
 import { takeUntil, mergeMap, catchError, map } from 'rxjs/operators'
 import { combineEpics, ofType } from 'redux-observable'
-import ajax from 'universal-rx-request' // because standard AjaxObservable only works in browser
+import { request } from 'universal-rxjs-ajax' // because standard AjaxObservable only works in browser
 
 import * as actions from './actions'
 import * as types from './actionTypes'
 
-export const fetchUserEpic = (action$, store) =>
+export const fetchUserEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.START_FETCHING_CHARACTERS),
     mergeMap(action => {
       return interval(3000).pipe(
-        mergeMap(x =>
+        map(x =>
           actions.fetchCharacter({
-            isServer: store.getState().isServer
+            isServer: state$.value.isServer
           })
         ),
         takeUntil(action$.ofType(types.STOP_FETCHING_CHARACTERS))
@@ -22,24 +21,24 @@ export const fetchUserEpic = (action$, store) =>
     })
   )
 
-export const fetchCharacterEpic = (action$, store) =>
+export const fetchCharacterEpic = (action$, state$) =>
   action$.pipe(
     ofType(types.FETCH_CHARACTER),
     mergeMap(action =>
-      ajax({
-        url: `https://swapi.co/api/people/${store.getState().nextCharacterId}`
+      request({
+        url: `https://swapi.co/api/people/${state$.value.nextCharacterId}`
       }).pipe(
         map(response =>
           actions.fetchCharacterSuccess(
-            response.body,
-            store.getState().isServer
+            response.response,
+            state$.value.isServer
           )
         ),
         catchError(error =>
           of(
             actions.fetchCharacterFailure(
-              error.response.body,
-              store.getState().isServer
+              error.xhr.response,
+              state$.value.isServer
             )
           )
         )

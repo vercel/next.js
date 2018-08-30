@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "hoist-non-react-statics": "^2.2.2",
-    "next": "latest",
+    "next": "^6.1.1-canary.2",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
   },

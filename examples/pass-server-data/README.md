@@ -16,7 +16,7 @@ yarn create next-app --example pass-server-data pass-server-data-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/pass-server-data
