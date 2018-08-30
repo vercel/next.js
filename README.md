@@ -1187,7 +1187,14 @@ module.exports = {
 }
 ```
 
-Node: In order to support dynamic styles nodejs uses a `nonce` for `style-src`. This is done automatically. If you use a different CSS-in-JS library, you can use the `cspNonce` document parameter to get the nonce set in the header.
+Node: In order to support dynamic styles nodejs uses a `nonce` for `style-src`. This is done automatically. If you use a different CSS-in-JS library, you can use the `cspNonce` document parameter to get the nonce set in the header. 
+
+If you use static exporting, you must do **one** of the following:
+
+1. set `unsafeCSPMeta: true` in `next.config.js` and set `style-src 'self' 'unsafe-inline'`
+2. set `unsafeCSPMeta: true` in `next.config.js` and swap Next.js's CSS-in-JS compiler to one that exports to a static file.
+3. set your `Content-Security-Policy` http header using `style-src 'self' 'unsafe-inline'`
+4. set your `Content-Security-Policy` http header and swap Next.js's CSS-in-JS compiler to one that exports to a static file.
 
 #### Disabling etag generation
 

@@ -49,6 +49,7 @@ export default class Server {
       distDir: this.distDir,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
+      unsafeCSPMeta: this.nextConfig.unsafeCSPMeta ? this.nextConfig.cspPolicy : false,
       generateEtags
     }
 
@@ -192,16 +193,6 @@ export default class Server {
 
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
-        const policy = this.nextConfig.cspPolicy
-        req.cspNonce = Buffer.from(nanoid()).toString('base64')
-
-        if (policy) {
-          if (policy.match(/style-src/gi)) {
-            res.setHeader('Content-Security-Policy', policy.replace(/style-src/gi, `style-src 'nonce-${req.cspNonce}'`))
-          } else {
-            res.setHeader('Content-Security-Policy', `style-src 'self' 'nonce-${req.cspNonce}'; ${policy}`)
-          }
-        }
 
         await this.render(req, res, pathname, query, parsedUrl)
       }
@@ -273,6 +264,17 @@ export default class Server {
       if (compilationErr) {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
+      }
+    }
+
+    const policy = this.nextConfig.cspPolicy
+
+    if (policy) {
+      this.renderOpts.cspNonce = Buffer.from(nanoid(32)).toString('base64')
+      if (policy.match(/style-src/gi)) {
+        res.setHeader('Content-Security-Policy', policy.replace(/style-src/gi, `style-src 'nonce-${this.renderOpts.cspNonce}'`))
+      } else {
+        res.setHeader('Content-Security-Policy', `style-src 'self' 'nonce-${this.renderOpts.cspNonce}'; ${policy}`)
       }
     }
 

@@ -13,12 +13,11 @@ export default class Document extends Component {
     _documentProps: PropTypes.any
   }
 
-  static getInitialProps ({ req, renderPage }) {
+  static getInitialProps ({ renderPage, cspNonce }) {
     const { html, head, errorHtml, buildManifest } = renderPage()
-    const cspNonce = req.cspNonce
-    const styles = flush(cspNonce)
+    const styles = flush({ nonce: cspNonce })
 
-    return { html, head, errorHtml, styles, buildManifest, cspNonce }
+    return { html, head, errorHtml, styles, buildManifest }
   }
 
   getChildContext () {
@@ -95,12 +94,13 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, cspNonce, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { head, styles, cspNonce, unsafeCSPMeta, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
+      { unsafeCSPMeta ? <meta http-equiv="Content-Security-Policy" content={unsafeCSPMeta} /> : ''}
       <meta property="csp-nonce" content={cspNonce}></meta>
       <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' />}

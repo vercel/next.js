@@ -1,4 +1,5 @@
 import Document, { Head, Main, NextScript } from 'next/document'
+import flush from 'styled-jsx/server'
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
@@ -20,8 +21,9 @@ export default class MyDocument extends Document {
     }
 
     const result = ctx.renderPage(options)
+    const styles = flush({ nonce: ctx.cspNonce })
 
-    return { ...result, customProperty: 'Hello Document' }
+    return { ...result, styles, customProperty: 'Hello Document', withViolation: ctx.query.withViolation }
   }
 
   render () {
@@ -29,6 +31,8 @@ export default class MyDocument extends Document {
       <html>
         <Head />
         <body className='custom_class'>
+          <style jsx>{`p { color: blue }`}</style>
+          { this.props.withViolation ? (<style>{`p { color: red }`}</style>) : '' }
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
