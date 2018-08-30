@@ -8,7 +8,7 @@ import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
-import Loadable from 'react-loadable'
+import Loadable from '../lib/loadable'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
