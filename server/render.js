@@ -9,7 +9,7 @@ import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
-import Loadable from 'react-loadable'
+import Loadable from '../lib/loadable'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from '../lib/constants'
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
