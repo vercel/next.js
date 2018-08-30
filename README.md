@@ -1191,10 +1191,10 @@ Node: In order to support dynamic styles nodejs uses a `nonce` for `style-src`. 
 
 If you use static exporting, you must do **one** of the following:
 
-1. set `unsafeCSPMeta: true` in `next.config.js` and set `style-src 'self' 'unsafe-inline'`
+1. set `unsafeCSPMeta: true` in `next.config.js` and use `style-src 'self' 'unsafe-inline'` in your policy.
 2. set `unsafeCSPMeta: true` in `next.config.js` and swap Next.js's CSS-in-JS compiler to one that exports to a static file.
-3. set your `Content-Security-Policy` http header using `style-src 'self' 'unsafe-inline'`
-4. set your `Content-Security-Policy` http header and swap Next.js's CSS-in-JS compiler to one that exports to a static file.
+3. set your `Content-Security-Policy` http header (only some CDNs/hosting providers support this) using `style-src 'self' 'unsafe-inline'` in your policy.
+4. set your `Content-Security-Policy` http header (only some CDNs/hosting providers support this) and swap Next.js's CSS-in-JS compiler to one that exports to a static file.
 
 #### Disabling etag generation
 
