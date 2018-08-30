@@ -149,8 +149,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     }
   }
 
+  const webpackMode = dev ? 'development' : 'production'
+
   let webpackConfig = {
-    mode: dev ? 'development' : 'production',
+    mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
@@ -221,6 +223,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           ]
         },
         config: {
+          mode: webpackMode,
           resolve: resolveConfig
         }
       }),
