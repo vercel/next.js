@@ -178,59 +178,79 @@ export default (context, render) => {
 
     describe('with onClick action', () => {
       it('should reload the page and perform additional action', async () => {
-        const browser = await webdriver(context.appPort, '/nav/on-click')
-        const defaultCount = await browser.elementByCss('p').text()
-        expect(defaultCount).toBe('COUNT: 0')
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/on-click')
+          const defaultCountQuery = await browser.elementByCss('#query-count').text()
+          const defaultCountState = await browser.elementByCss('#state-count').text()
+          expect(defaultCountQuery).toBe('QUERY COUNT: 0')
+          expect(defaultCountState).toBe('STATE COUNT: 0')
 
-        const countAfterClicked = await browser
-          .elementByCss('#on-click-link').click()
-          .elementByCss('p').text()
+          await browser.elementByCss('#on-click-link').click()
 
-        // counts (one click + onClick handler)
-        expect(countAfterClicked).toBe('COUNT: 2')
-        browser.close()
+          const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
+          const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClicked).toBe('QUERY COUNT: 1')
+          expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
 
       it('should not reload if default was prevented', async () => {
-        const browser = await webdriver(context.appPort, '/nav/on-click')
-        const defaultCount = await browser.elementByCss('p').text()
-        expect(defaultCount).toBe('COUNT: 0')
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/on-click')
+          const defaultCountQuery = await browser.elementByCss('#query-count').text()
+          const defaultCountState = await browser.elementByCss('#state-count').text()
+          expect(defaultCountQuery).toBe('QUERY COUNT: 0')
+          expect(defaultCountState).toBe('STATE COUNT: 0')
 
-        const countAfterClicked = await browser
-          .elementByCss('#on-click-link-prevent-default').click()
-          .elementByCss('p').text()
+          await browser.elementByCss('#on-click-link-prevent-default').click()
 
-        // counter is increased but there was no reload
-        expect(countAfterClicked).toBe('COUNT: 0')
+          const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
+          const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClicked).toBe('QUERY COUNT: 0')
+          expect(countStateAfterClicked).toBe('STATE COUNT: 1')
 
-        const countAfterClickedAndReloaded = await browser
-          .elementByCss('#on-click-link').click() // +2
-          .elementByCss('p').text()
+          await browser.elementByCss('#on-click-link').click()
 
-        // counts (onClick handler, no reload)
-        expect(countAfterClickedAndReloaded).toBe('COUNT: 3')
-        browser.close()
+          const countQueryAfterClickedAgain = await browser.elementByCss('#query-count').text()
+          const countStateAfterClickedAgain = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClickedAgain).toBe('QUERY COUNT: 1')
+          expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
 
       it('should always replace the state and perform additional action', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
 
-        const countAfterClicked = await browser
-          .elementByCss('#on-click-link').click() // 1
-          .waitForElementByCss('#on-click-page')
-          .elementByCss('#on-click-link').click() // 3
-          .elementByCss('#on-click-link').click() // 5
-          .elementByCss('p').text()
+          await browser.elementByCss('#on-click-link').click().waitForElementByCss('#on-click-page')
 
-        // counts (page change + two clicks + onClick handler)
-        expect(countAfterClicked).toBe('COUNT: 5')
+          const defaultCountQuery = await browser.elementByCss('#query-count').text()
+          expect(defaultCountQuery).toBe('QUERY COUNT: 1')
 
-        // Since we replace the state, back button would simply go us back to /nav
-        await browser
-          .back()
-          .waitForElementByCss('.nav-home')
+          await browser.elementByCss('#on-click-link').click()
+          const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
+          const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClicked).toBe('QUERY COUNT: 2')
+          expect(countStateAfterClicked).toBe('STATE COUNT: 1')
 
-        browser.close()
+          // Since we replace the state, back button would simply go us back to /nav
+          await browser.back().waitForElementByCss('.nav-home')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
 
@@ -248,7 +268,7 @@ export default (context, render) => {
           browser.close()
         })
 
-        it('should scroll to the specified position', async () => {
+        it('should scroll to the specified position on the same page', async () => {
           let browser
           try {
             browser = await webdriver(context.appPort, '/nav/hash-changes')
@@ -266,6 +286,52 @@ export default (context, render) => {
               .eval('window.pageYOffset')
 
             expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
+        it('should scroll to the specified position on the same page with a name property', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+            // Scrolls to item 400 with name="name-item-400" on the page
+            const scrollPosition = await browser
+              .elementByCss('#scroll-to-name-item-400').click()
+              .eval('window.pageYOffset')
+
+            console.log(scrollPosition)
+
+            expect(scrollPosition).toBe(16258)
+
+            // Scrolls back to top when scrolling to `#` with no value.
+            const scrollPositionAfterEmptyHash = await browser
+              .elementByCss('#via-empty-hash').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
+        it('should scroll to the specified position to a new page', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav')
+
+            // Scrolls to item 400 on the page
+            await browser
+              .elementByCss('#scroll-to-hash').click()
+              .waitForElementByCss('#hash-changes-page')
+
+            const scrollPosition = await browser.eval('window.pageYOffset')
+            expect(scrollPosition).toBe(7258)
           } finally {
             if (browser) {
               browser.close()
@@ -624,6 +690,24 @@ export default (context, render) => {
           expect(src.includes('/non-existent')).toBeFalsy()
         }
         browser.close()
+      })
+    })
+
+    describe('updating head while client routing', () => {
+      it('should update head during client routing', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/head-1')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+          await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head Two')
+          await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
   })

@@ -1,4 +1,4 @@
-const i18next = require('i18next')
+const i18n = require('i18next')
 const XHR = require('i18next-xhr-backend')
 const LanguageDetector = require('i18next-browser-languagedetector')
 
@@ -10,7 +10,7 @@ const options = {
   ns: ['common'],
   defaultNS: 'common',
 
-  debug: process.env.NODE_ENV !== 'production',
+  debug: false, // process.env.NODE_ENV !== 'production',
   saveMissing: true,
 
   interpolation: {
@@ -23,22 +23,20 @@ const options = {
   }
 }
 
-const i18nInstance = i18next
-
 // for browser use xhr backend to load translations and browser lng detector
 if (process.browser) {
-  i18nInstance
+  i18n
     .use(XHR)
     // .use(Cache)
     .use(LanguageDetector)
 }
 
 // initialize if not already initialized
-if (!i18nInstance.isInitialized) i18nInstance.init(options)
+if (!i18n.isInitialized) i18n.init(options)
 
 // a simple helper to getInitialProps passed on loaded i18n data
-const getInitialProps = (req, namespaces) => {
-  if (!namespaces) namespaces = i18nInstance.options.defaultNS
+i18n.getInitialProps = (req, namespaces) => {
+  if (!namespaces) namespaces = i18n.options.defaultNS
   if (typeof namespaces === 'string') namespaces = [namespaces]
 
   req.i18n.toJSON = () => null // do not serialize i18next instance and send to client
@@ -58,8 +56,4 @@ const getInitialProps = (req, namespaces) => {
   }
 }
 
-module.exports = {
-  getInitialProps,
-  i18nInstance,
-  I18n: i18next.default
-}
+module.exports = i18n

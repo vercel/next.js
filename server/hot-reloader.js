@@ -1,6 +1,7 @@
 import { join, relative, sep, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
+import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import del from 'del'
 import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
@@ -186,6 +187,7 @@ export default class HotReloader {
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
+      errorOverlayMiddleware,
       onDemandEntries.middleware()
     ]
   }

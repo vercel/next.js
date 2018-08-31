@@ -9,7 +9,8 @@ import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
-import Loadable from 'react-loadable'
+import Loadable from '../lib/loadable'
+import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from '../lib/constants'
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
@@ -41,6 +42,18 @@ export async function renderError (err, req, res, pathname, query, opts) {
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
+}
+
+function getPageFiles (buildManifest, page) {
+  const normalizedPage = normalizePagePath(page)
+  const files = buildManifest.pages[normalizedPage]
+
+  if (!files) {
+    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    return []
+  }
+
+  return files
 }
 
 async function doRender (req, res, pathname, query, {
@@ -84,11 +97,12 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...buildManifest.pages[normalizePagePath(page)],
-      ...buildManifest.pages[normalizePagePath('/_app')],
-      ...buildManifest.pages[normalizePagePath('/_error')]
+      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, '/_error')
     ])
   ]
 
@@ -112,13 +126,13 @@ async function doRender (req, res, pathname, query, {
       }
     }
 
-    const app = <Loadable.Capture report={moduleName => reactLoadableModules.push(moduleName)}>
+    const app = <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
       <EnhancedApp {...{
         Component: EnhancedComponent,
         router,
         ...props
       }} />
-    </Loadable.Capture>
+    </LoadableCapture>
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
@@ -167,6 +181,7 @@ async function doRender (req, res, pathname, query, {
     dir,
     staticMarkup,
     buildManifest,
+    devFiles,
     files,
     dynamicImports,
     assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it

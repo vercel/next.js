@@ -20,10 +20,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
-    test('renders a stateful component', async () => {
-      const $ = await get$('/stateful')
-      const answer = $('#answer')
-      expect(answer.text()).toBe('The answer is 42')
+    // default-head contains an empty <Head />.
+    test('header renders default charset', async () => {
+      const html = await (render('/default-head'))
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('next-head, but only once.')).toBeTruthy()
     })
 
     test('header helper renders header information', async () => {
@@ -49,6 +50,20 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).toContain('<meta property="article:tag" content="tag2" class="next-head"/>')
       expect(html).not.toContain('<meta property="dedupe:tag" content="tag3" class="next-head"/>')
       expect(html).toContain('<meta property="dedupe:tag" content="tag4" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image" content="ogImageTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image" content="ogImageTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:alt" content="ogImageAltTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:alt" content="ogImageAltTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:width" content="ogImageWidthTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:width" content="ogImageWidthTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:height" content="ogImageHeightTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:height" content="ogImageHeightTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:type" content="ogImageTypeTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:type" content="ogImageTypeTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag2" class="next-head"/>')
     })
 
     test('header helper renders Fragment children', async () => {
