@@ -55,9 +55,11 @@ let customHmrEventHandler
 export default function connect (options) {
   // Open stack traces in an editor.
   ErrorOverlay.setEditorHandler(function editorHandler ({ fileName, lineNumber, colNumber }) {
+    // Resolve invalid paths coming from react-error-overlay
+    const resolvedFilename = fileName.replace(/^webpack:\/\//, '')
     fetch(
       '/_next/development/open-stack-frame-in-editor' +
-        `?fileName=${window.encodeURIComponent(fileName)}` +
+        `?fileName=${window.encodeURIComponent(resolvedFilename)}` +
         `&lineNumber=${lineNumber || 1}` +
         `&colNumber=${colNumber || 1}`
     )
