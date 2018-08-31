@@ -13,8 +13,7 @@ export type NextConfig = {|
   distDir: string,
   assetPrefix: string,
   configOrigin: string,
-  cspPolicy: null | string,
-  unsafeCSPMeta: boolean,
+  contentSecurityPolicy: null | string,
   useFileSystemPublicRoutes: boolean,
   generateBuildId: () => string,
   generateEtags: boolean,
@@ -28,8 +27,7 @@ const defaultConfig: NextConfig = {
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
-  cspPolicy: null,
-  unsafeCSPMeta: false,
+  contentSecurityPolicy: null,
   useFileSystemPublicRoutes: true,
   generateBuildId: () => {
     // nanoid is a small url-safe uuid generator

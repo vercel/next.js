@@ -35,7 +35,7 @@ export default class Server {
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags, contentSecurityPolicy} = this.nextConfig
 
     if (!dev && !fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
       console.error(`> Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
@@ -49,9 +49,26 @@ export default class Server {
       distDir: this.distDir,
       hotReloader: this.hotReloader,
       buildId: this.buildId,
-      unsafeCSPMeta: this.nextConfig.unsafeCSPMeta ? this.nextConfig.cspPolicy : false,
+      csp: {
+        isDisabled: !contentSecurityPolicy
+      },
       generateEtags
     }
+
+    if (contentSecurityPolicy) {
+      if (dev) {
+        // Support for HMR and CSP
+        if (contentSecurityPolicy.match(/script-src/gi)) {
+          this.renderOpts.csp.policy = contentSecurityPolicy.replace(/script-src( [^;]+)+;?/gi, `script-src$1 'unsafe-eval';`)
+        } else {
+          this.renderOpts.csp.policy = `${contentSecurityPolicy.replace(/;?$/gi, '')}; script-src 'self' 'unsafe-eval' 'unsafe-inline';`
+        }
+      } else {
+        this.renderOpts.csp.policy = contentSecurityPolicy
+      }
+    }
+
+    console.log(this.renderOpts.csp.policy)
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -193,7 +210,6 @@ export default class Server {
 
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
-
         await this.render(req, res, pathname, query, parsedUrl)
       }
     }
@@ -267,15 +283,18 @@ export default class Server {
       }
     }
 
-    const policy = this.nextConfig.cspPolicy
+    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup) {
+      this.renderOpts.csp.nonce = Buffer.from(nanoid(32)).toString('base64')
+      let { policy } = this.renderOpts.csp
+      const { nonce } = this.renderOpts.csp
 
-    if (policy) {
-      this.renderOpts.cspNonce = Buffer.from(nanoid(32)).toString('base64')
       if (policy.match(/style-src/gi)) {
-        res.setHeader('Content-Security-Policy', policy.replace(/style-src/gi, `style-src 'nonce-${this.renderOpts.cspNonce}'`))
+        policy = policy.replace(/style-src/gi, `style-src 'nonce-${nonce}'`)
       } else {
-        res.setHeader('Content-Security-Policy', `style-src 'self' 'nonce-${this.renderOpts.cspNonce}'; ${policy}`)
+        policy = `style-src 'self' 'nonce-${nonce}'; ${policy}`
       }
+
+      res.setHeader('Content-Security-Policy', policy)
     }
 
     try {

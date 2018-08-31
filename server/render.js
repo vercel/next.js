@@ -61,8 +61,7 @@ async function doRender (req, res, pathname, query, {
   page,
   buildId,
   hotReloader,
-  cspNonce,
-  unsafeCSPMeta,
+  csp,
   assetPrefix,
   runtimeConfig,
   distDir,
@@ -96,7 +95,7 @@ async function doRender (req, res, pathname, query, {
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname, query, asPath, cspNonce }
+  const ctx = { err, req, res, pathname, query, asPath, csp }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
@@ -181,14 +180,13 @@ async function doRender (req, res, pathname, query, {
     },
     dev,
     dir,
+    csp,
     staticMarkup,
     buildManifest,
     devFiles,
     files,
     dynamicImports,
     assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
-    cspNonce, // ^
-    unsafeCSPMeta,
     ...docProps
   }} />
 

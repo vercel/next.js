@@ -1,3 +1,3 @@
 module.exports = {
-  cspPolicy: "default-src 'self'; style-src 'self';"
+  contentSecurityPolicy: "default-src 'self'; style-src 'self';"
 }
