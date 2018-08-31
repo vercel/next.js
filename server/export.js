@@ -122,7 +122,7 @@ export default async function (dir, options, configuration) {
       throw new Error(`path "${path}" doesn't start with a backslash`)
     }
 
-    const { page, query = {} } = exportPathMap[path]
+    const { page, query = {}, staticMarkup = false } = exportPathMap[path]
     const req = { url: path }
     const res = {}
 
@@ -139,7 +139,7 @@ export default async function (dir, options, configuration) {
 
     await mkdirp(baseDir)
 
-    const html = await renderToHTML(req, res, page, query, renderOpts)
+    const html = await renderToHTML(req, res, page, query, {...renderOpts, staticMarkup: staticMarkup})
     writeFileSync(htmlFilepath, html, 'utf8')
   }
 

@@ -90,17 +90,17 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, head, styles, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId, assetPrefix } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' nonce={this.props.nonce} />}
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_app.js`} as='script' nonce={this.props.nonce} />
-      <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' nonce={this.props.nonce} />
-      {this.getPreloadDynamicChunks()}
-      {this.getPreloadMainLinks()}
+      {page !== '/_error' && !staticMarkup && <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} as='script' nonce={this.props.nonce} />}
+      {staticMarkup ? null : <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_app.js`} as='script' nonce={this.props.nonce} />}
+      {staticMarkup ? null : <link rel='preload' href={`${assetPrefix}/_next/${buildId}/page/_error.js`} as='script' nonce={this.props.nonce} />}
+      {staticMarkup ? null : this.getPreloadDynamicChunks()}
+      {staticMarkup ? null : this.getPreloadMainLinks()}
       {styles || null}
       {this.props.children}
     </head>
@@ -212,9 +212,9 @@ export class NextScript extends Component {
           `}
         `
       }} />}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} nonce={this.props.nonce} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/${buildId}/page/_app.js`} nonce={this.props.nonce} />
-      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/${buildId}/page/_error.js`} nonce={this.props.nonce} />
+      {page !== '/_error' && !staticMarkup && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/${buildId}/page${pagePathname}`} nonce={this.props.nonce} />}
+      {staticMarkup ? null : <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/${buildId}/page/_app.js`} nonce={this.props.nonce} />}
+      {staticMarkup ? null : <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/${buildId}/page/_error.js`} nonce={this.props.nonce} />}
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>
