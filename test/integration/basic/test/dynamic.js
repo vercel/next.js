@@ -9,15 +9,27 @@ export default (context, render) => {
     return cheerio.load(html)
   }
   describe('Dynamic import', () => {
-    it('should render the component Head content', async () => {
+    // it('should render the component Head content', async () => {
+    //   let browser
+    //   try {
+    //     browser = await webdriver(context.appPort, '/dn-style')
+    //     await check(() => browser.elementByCss('body').text(), /test/)
+    //     const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
+    //     const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
+    //     expect(height).toBe('200px')
+    //     expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
+    //   } finally {
+    //     if (browser) {
+    //       browser.close()
+    //     }
+    //   }
+    // })
+    it('should render test', async () => {
       let browser
       try {
-        browser = await webdriver(context.appPort, '/dn-style')
-        await check(() => browser.elementByCss('body').text(), /test/)
-        const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
-        const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
-        expect(height).toBe('200px')
-        expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
+        browser = await webdriver(context.appPort, '/dynamic/no-chunk')
+        await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
+        await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
       } finally {
         if (browser) {
           browser.close()
