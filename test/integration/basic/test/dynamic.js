@@ -18,6 +18,19 @@ export default (context, render) => {
       it('should render even there are no physical chunk exists', async () => {
         let browser
         try {
+          browser = await webdriver(context.appPort, '/dynamic/new-page')
+          await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
+          await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+
+      it('should render even there are no physical chunk exists', async () => {
+        let browser
+        try {
           browser = await webdriver(context.appPort, '/dynamic/no-chunk')
           await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
           await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
