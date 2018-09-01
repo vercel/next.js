@@ -45,7 +45,9 @@ export default (context, render) => {
           }
         }
       })
+    })
 
+    describe('head component', () => {
       it('should render the component Head content', async () => {
         let browser
         try {
