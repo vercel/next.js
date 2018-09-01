@@ -2,6 +2,8 @@
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
+import fs from 'fs'
+import path from 'path'
 
 export default (context, render) => {
   async function get$ (path, query) {
@@ -16,6 +18,7 @@ export default (context, render) => {
       })
 
       it('should render even there are no physical chunk exists', async () => {
+        fs.accessSync(path.join(__dirname, '..', 'pages', 'dynamic', 'new-page.js'), fs.constants.R_OK | fs.constants.W_OK)
         let browser
         try {
           browser = await webdriver(context.appPort, '/dynamic/new-page')
