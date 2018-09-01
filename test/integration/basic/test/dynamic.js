@@ -27,19 +27,6 @@ export default (context, render) => {
           }
         }
       })
-
-      // it('should render even there are no physical chunk exists', async () => {
-      //   let browser
-      //   try {
-      //     browser = await webdriver(context.appPort, '/dynamic/no-chunk')
-      //     await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
-      //     await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
-      //   } finally {
-      //     if (browser) {
-      //       browser.close()
-      //     }
-      //   }
-      // })
     })
     describe('ssr:false option', () => {
       it('Should render loading on the server side', async () => {
