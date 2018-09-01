@@ -13,6 +13,7 @@
     directories: ["node_modules"]
   },
   before_install: [
+    "ls test/integration/basic/pages/dynamic",
     "rm yarn.lock",
     "export DISPLAY=:99.0",
     "sh -e /etc/init.d/xvfb start",
