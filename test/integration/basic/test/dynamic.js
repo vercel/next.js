@@ -9,6 +9,21 @@ export default (context, render) => {
     return cheerio.load(html)
   }
   describe('Dynamic import', () => {
+    it('should render the component Head content', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/dynamic/head')
+        await check(() => browser.elementByCss('body').text(), /test/)
+        const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
+        const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
+        expect(height).toBe('200px')
+        expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
+    })
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
@@ -39,24 +54,6 @@ export default (context, render) => {
         try {
           browser = await webdriver(context.appPort, '/dynamic/no-ssr')
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
-      })
-    })
-
-    describe('head component', () => {
-      it('should render the component Head content', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/head')
-          await check(() => browser.elementByCss('body').text(), /test/)
-          const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
-          const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
-          expect(height).toBe('200px')
-          expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
         } finally {
           if (browser) {
             browser.close()
