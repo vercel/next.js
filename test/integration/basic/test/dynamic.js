@@ -12,7 +12,7 @@ export default (context, render) => {
     it('should render the component Head content', async () => {
       let browser
       try {
-        browser = await webdriver(context.appPort, '/dynamic/style')
+        browser = await webdriver(context.appPort, '/dn-style')
         await check(() => browser.elementByCss('body').text(), /test/)
         const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
         const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
