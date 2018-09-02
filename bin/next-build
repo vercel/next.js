@@ -2,6 +2,7 @@
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import parseArgs from 'minimist'
+import del from 'del'
 import build from '../server/build'
 import { build as buildServer } from '../server/build/babel'
 import { printAndExit } from '../server/utils'
@@ -32,17 +33,6 @@ if (argv.help) {
 
 const dir = resolve(argv._[0] || '.')
 
-if (argv.s) {
-  buildServer([argv.s], {
-    base: dir,
-    outDir: join(dir, '.next', 'server')
-  })
-  .catch((err) => {
-    console.error(err)
-    process.exit(1)
-  })
-}
-
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
   printAndExit(`> No such directory exists as the project root: ${dir}`)
@@ -56,7 +46,8 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-build(dir)
+del(join(dir, '.next'), { force: true })
+  .then(() => build(dir, argv.s))
   .catch((err) => {
     console.error(err)
     process.exit(1)

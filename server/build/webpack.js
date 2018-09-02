@@ -11,7 +11,7 @@ import getConfig from '../config'
 
 const nextNodeModulesDir = join(__dirname, '../../../node_modules')
 
-export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, buildDir, conf = null } = {}) {
+export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, conf = null } = {}) {
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
@@ -158,7 +158,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     entry,
     output: {
       pathinfo: !!dev,
-      path: join(buildDir || dir, '.next', 'bundles'),
+      path: join(dir, '.next', 'bundles'),
       filename: '[name]',
       libraryTarget: 'commonjs2',
       publicPath: `/_next/${buildId}/`,
