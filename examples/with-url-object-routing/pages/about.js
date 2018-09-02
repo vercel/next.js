@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import Router from 'next/router'
+import Router, { withRouter } from 'next/router'
 
 const href = {
   pathname: '/about',
@@ -14,10 +14,10 @@ const as = {
 
 const handleClick = () => Router.push(href, as)
 
-export default (props) => (
+export default withRouter(({ router: { query } }) => (
   <div>
-    <h1>About {props.url.query.name}</h1>
-    {props.url.query.name === 'zeit' ? (
+    <h1>About {query.name}</h1>
+    {query.name === 'zeit' ? (
       <Link href='/'>
         <a>Go to home page</a>
       </Link>
@@ -25,4 +25,4 @@ export default (props) => (
       <button onClick={handleClick}>Go to /about/zeit</button>
     )}
   </div>
-)
+))

@@ -1,6 +1,7 @@
 /* global describe, it, expect */
 
 import webdriver from 'next-webdriver'
+import {waitFor, getReactErrorOverlayContent} from 'next-test-utils'
 
 export default (context, render) => {
   describe('Client Navigation', () => {
@@ -32,6 +33,20 @@ export default (context, render) => {
       })
     })
 
+    describe('With url property', () => {
+      it('Should keep immutable pathname, asPath and query', async () => {
+        const browser = await webdriver(context.appPort, '/nav/url-prop-change')
+        await browser.elementByCss('#add-query').click()
+        const urlResult = await browser.elementByCss('#url-result').text()
+        const previousUrlResult = await browser.elementByCss('#previous-url-result').text()
+
+        expect(JSON.parse(urlResult)).toMatchObject({'query': {'added': 'yes'}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes'})
+        expect(JSON.parse(previousUrlResult)).toMatchObject({'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change'})
+
+        browser.close()
+      })
+    })
+
     describe('with <a/> tag inside the <Link />', () => {
       it('should navigate the page', async () => {
         const browser = await webdriver(context.appPort, '/nav/about')
@@ -41,6 +56,18 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
+        browser.close()
+      })
+
+      it('should not navigate if the <a/> tag has a target', async () => {
+        const browser = await webdriver(context.appPort, '/nav')
+
+        const counterText = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#target-link').click()
+          .elementByCss('#counter').text()
+
+        expect(counterText).toBe('Counter: 1')
         browser.close()
       })
     })
@@ -71,16 +98,21 @@ export default (context, render) => {
 
     describe('with empty getInitialProps()', () => {
       it('should render an error', async () => {
-        const browser = await webdriver(context.appPort, '/nav')
-        const preText = await browser
-          .elementByCss('#empty-props').click()
-          .waitForElementByCss('pre')
-          .elementByCss('pre').text()
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+          await browser.elementByCss('#empty-props').click()
 
-        const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
-        expect(preText.includes(expectedErrorMessage)).toBeTruthy()
+          await waitFor(3000)
 
-        browser.close()
+          expect(await getReactErrorOverlayContent(browser)).toMatch(
+            /should resolve to an object\. But found "null" instead\./
+          )
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
 
@@ -144,6 +176,84 @@ export default (context, render) => {
       })
     })
 
+    describe('with onClick action', () => {
+      it('should reload the page and perform additional action', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/on-click')
+          const defaultCountQuery = await browser.elementByCss('#query-count').text()
+          const defaultCountState = await browser.elementByCss('#state-count').text()
+          expect(defaultCountQuery).toBe('QUERY COUNT: 0')
+          expect(defaultCountState).toBe('STATE COUNT: 0')
+
+          await browser.elementByCss('#on-click-link').click()
+
+          const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
+          const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClicked).toBe('QUERY COUNT: 1')
+          expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+
+      it('should not reload if default was prevented', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/on-click')
+          const defaultCountQuery = await browser.elementByCss('#query-count').text()
+          const defaultCountState = await browser.elementByCss('#state-count').text()
+          expect(defaultCountQuery).toBe('QUERY COUNT: 0')
+          expect(defaultCountState).toBe('STATE COUNT: 0')
+
+          await browser.elementByCss('#on-click-link-prevent-default').click()
+
+          const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
+          const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClicked).toBe('QUERY COUNT: 0')
+          expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+
+          await browser.elementByCss('#on-click-link').click()
+
+          const countQueryAfterClickedAgain = await browser.elementByCss('#query-count').text()
+          const countStateAfterClickedAgain = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClickedAgain).toBe('QUERY COUNT: 1')
+          expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+
+      it('should always replace the state and perform additional action', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav')
+
+          await browser.elementByCss('#on-click-link').click().waitForElementByCss('#on-click-page')
+
+          const defaultCountQuery = await browser.elementByCss('#query-count').text()
+          expect(defaultCountQuery).toBe('QUERY COUNT: 1')
+
+          await browser.elementByCss('#on-click-link').click()
+          const countQueryAfterClicked = await browser.elementByCss('#query-count').text()
+          const countStateAfterClicked = await browser.elementByCss('#state-count').text()
+          expect(countQueryAfterClicked).toBe('QUERY COUNT: 2')
+          expect(countStateAfterClicked).toBe('STATE COUNT: 1')
+
+          // Since we replace the state, back button would simply go us back to /nav
+          await browser.back().waitForElementByCss('.nav-home')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+    })
+
     describe('with hash changes', () => {
       describe('when hash change via Link', () => {
         it('should not run getInitialProps', async () => {
@@ -156,6 +266,77 @@ export default (context, render) => {
           expect(counter).toBe('COUNT: 0')
 
           browser.close()
+        })
+
+        it('should scroll to the specified position on the same page', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+            // Scrolls to item 400 on the page
+            const scrollPosition = await browser
+              .elementByCss('#scroll-to-item-400').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPosition).toBe(7258)
+
+            // Scrolls back to top when scrolling to `#` with no value.
+            const scrollPositionAfterEmptyHash = await browser
+              .elementByCss('#via-empty-hash').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
+        it('should scroll to the specified position on the same page with a name property', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+            // Scrolls to item 400 with name="name-item-400" on the page
+            const scrollPosition = await browser
+              .elementByCss('#scroll-to-name-item-400').click()
+              .eval('window.pageYOffset')
+
+            console.log(scrollPosition)
+
+            expect(scrollPosition).toBe(16258)
+
+            // Scrolls back to top when scrolling to `#` with no value.
+            const scrollPositionAfterEmptyHash = await browser
+              .elementByCss('#via-empty-hash').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
+        it('should scroll to the specified position to a new page', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav')
+
+            // Scrolls to item 400 on the page
+            await browser
+              .elementByCss('#scroll-to-hash').click()
+              .waitForElementByCss('#hash-changes-page')
+
+            const scrollPosition = await browser.eval('window.pageYOffset')
+            expect(scrollPosition).toBe(7258)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
         })
       })
 
@@ -370,7 +551,7 @@ export default (context, render) => {
         browser.close()
       })
 
-      it('should work with dir/ page ', async () => {
+      it('should work with dir/ page', async () => {
         const browser = await webdriver(context.appPort, '/nested-cdm')
         const text = await browser.elementByCss('p').text()
 
@@ -454,6 +635,38 @@ export default (context, render) => {
       })
     })
 
+    describe('runtime errors', () => {
+      it('should show ErrorDebug when a client side error is thrown inside a component', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/error-inside-browser-page')
+          await waitFor(3000)
+          const text = await getReactErrorOverlayContent(browser)
+          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+
+      it('should show ErrorDebug when a client side error is thrown outside a component', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
+          await waitFor(3000)
+          const text = await getReactErrorOverlayContent(browser)
+          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+    })
+
     describe('with 404 pages', () => {
       it('should 404 on not existent page', async () => {
         const browser = await webdriver(context.appPort, '/non-existent')
@@ -477,6 +690,24 @@ export default (context, render) => {
           expect(src.includes('/non-existent')).toBeFalsy()
         }
         browser.close()
+      })
+    })
+
+    describe('updating head while client routing', () => {
+      it('should update head during client routing', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/head-1')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+          await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head Two')
+          await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
   })

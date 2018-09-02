@@ -1,5 +1,5 @@
 import {join, posix} from 'path'
-import {PAGES_MANIFEST} from '../lib/constants'
+import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)
@@ -27,8 +27,8 @@ export function normalizePagePath (page) {
   return page
 }
 
-export function getPagePath (page, {dir, dist}) {
-  const serverBuildPath = join(dir, dist, 'dist')
+export function getPagePath (page, {distDir}) {
+  const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
@@ -45,7 +45,7 @@ export function getPagePath (page, {dir, dist}) {
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export default async function requirePage (page, {dir, dist}) {
-  const pagePath = getPagePath(page, {dir, dist})
+export default async function requirePage (page, {distDir}) {
+  const pagePath = getPagePath(page, {distDir})
   return require(pagePath)
 }

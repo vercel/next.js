@@ -1,7 +1,7 @@
 import React from 'react'
 import { bindActionCreators } from 'redux'
-import { initStore, startClock, addCount, serverRenderClock } from '../store'
-import withRedux from 'next-redux-wrapper'
+import { startClock, addCount, serverRenderClock } from '../store'
+import { connect } from 'react-redux'
 import Page from '../components/Page'
 
 class Counter extends React.Component {
@@ -33,4 +33,4 @@ const mapDispatchToProps = (dispatch) => {
   }
 }
 
-export default withRedux(initStore, null, mapDispatchToProps)(Counter)
+export default connect(null, mapDispatchToProps)(Counter)

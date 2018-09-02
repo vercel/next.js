@@ -8,9 +8,10 @@
   },
   "dependencies": {
     "express": "^4.14.0",
-    "isomorphic-fetch": "^2.2.1",
+    "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
-    "react": "^15.4.2",
-    "react-dom": "^15.4.2"
-  }
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC"
 }

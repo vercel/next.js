@@ -3,11 +3,11 @@ import React from 'react'
 import Link from 'next/link'
 
 export default class DynamicPage extends React.Component {
-  state = {}
-
   static getInitialProps ({ query }) {
     return { text: query.text }
   }
+
+  state = {}
 
   componentDidMount () {
     const [, hash] = location.href.split('#')

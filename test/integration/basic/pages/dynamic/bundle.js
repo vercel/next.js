@@ -7,11 +7,8 @@ const HelloBundle = dynamic({
   modules: (props) => {
     const components = {
       HelloContext: import('../../components/hello-context'),
-      Hello1: import('../../components/hello1')
-    }
-
-    if (props.showMore) {
-      components.Hello2 = import('../../components/hello2')
+      Hello1: import('../../components/hello1'),
+      Hello2: import('../../components/hello2')
     }
 
     return components
@@ -21,18 +18,18 @@ const HelloBundle = dynamic({
       <h1>{props.title}</h1>
       <HelloContext />
       <Hello1 />
-      {Hello2? <Hello2 /> : null}
+      {props.showMore ? <Hello2 /> : null}
     </div>
   )
 })
 
 export default class Bundle extends React.Component {
-  static getInitialProps ({ query }) {
-    return { showMore: Boolean(query.showMore) }
-  }
-
   static childContextTypes = {
     data: PropTypes.object 
+  }
+
+  static getInitialProps ({ query }) {
+    return { showMore: Boolean(query.showMore) }
   }
 
   getChildContext () {

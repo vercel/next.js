@@ -8,12 +8,11 @@
     }
   },
   language: "node_js",
-  node_js: ["6"],
+  node_js: ["8"],
   cache: {
     directories: ["node_modules"]
   },
   before_install: [
-    "rm yarn.lock",
     "export DISPLAY=:99.0",
     "sh -e /etc/init.d/xvfb start",
     "sleep 3"
@@ -24,7 +23,7 @@
     email: "leo@zeit.co",
     tag: "canary",
     api_key: {
-      secure: "mvLXMXn1z1ri29wAy5/CCrDuO7ZC3gxckcnY5W00cbL8aFuK5buvpizKr3dz1pYX7vC55I+nZMtVa2vn4oOlTae07dd0BYGmmpiwq692XD4P+PHVs8D5MlbiT62vIJl/ezv/TcyoAbfIVPfUfLXA7H6a04Kodyzj3LffannOYpZNTPRNSdNAtkVtHPCuHksVpZoj6WhmC52MBEWkh0TCV3OdbeQAs6z3m6j81XcTduhXdraO4UmyXi/ML+eAgEBSejH70/7O/RSGludBOtIWMuxSrEey4wB4F4/xpN7k4LjPQRS+EtUBg9DSb3vB5y/hGwbDqwx7gGfN/yP/ssc9j3G8syTevv3fxH4ver9kg5tvltTJ8/gOzV7nF2sK1+Nb8legL4fLwHvgThf4sB9dAgNc7R8dYNgYwivkLUrrAy9WJsu7OsXLhg3NpEb9PcbKH7yFwrAzQjRPguVxg7bC02g41v0c2i1UXTb0D0/1KW5Mdg7HYZEw4uUXRhJCLWZbOcBCWdmiB+hwKSaq+aO49C5aX2UAyIsUPmG0OgqY91H/Y09KP3O6jN4j7ADrIIrdMwcyx15UJDZMwADCHHesnzeelDah7w3H6q+/heOA4nzbWhZaYQEDK4/aouRDINdXMmCmt9NNYjUA50BAI2dPpqetjaqq3gaPSAXsMvzNvRs="
+      secure: "MJfpcAJC1IvPL01NiGRLYAAgb7TZz5K0ukM1n+E+QcoF9+L1gn4WcP056ECchuohEFSwvO/ZcTZM5yhpp10cd72RZykeat/YYgRXFyUDkD3up2FHr4hYdcv/tBHCkeUMJZwt1ZNH4xM69Y02KAmpRBWZGKe6qETlZqxUg79Gi1g6W5PdhbsKedTp2tJJzG58nevKsSRP01S97K7kDC5oJNwuO+cbLwtzX5cB6Rd8hGx6lMetWLzSmSS689N0flfm/R9pxY/WjgBBQ0iYZkosb1VO2NhJMnrHtdr/Wfrkvnz8KSO/KD2n7RrOnSzUQBJSNxx35kr7HU4pKreMxEiOnEbOog4HZmWsM0UyRlbYeREfXLBvIjlnYoWCblZdVbdIl4R7NflVBSeK2eDkZQt2iCqP0fHvJ7kyLQx9J2janlr+96dKSudalercfmV9aXtbCeweqim5l4AZywSggpZAvopE6uN6KtFafO0JM760flbQfDVEQWHrHGvZvu05NrzJvZa6CN47rDHbaO6IibMXakogVz+AIuTZ3t/2bynetkericV8MGdOrwb807DLWTdqNKCj2wTmHgDiX8n3FF7VisLS54mKFfuuzzALdWtlBPbwS+bZ0235/35rs2EUidC5eunryWp4Y150xWfCK2swxM9xR0iCE0KSXrsdGDGyrvE="
     },
     skip_cleanup: true,
     on: {

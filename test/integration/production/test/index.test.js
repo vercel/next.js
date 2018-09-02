@@ -1,5 +1,6 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
+import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   pkg,
@@ -12,8 +13,9 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
-import dynamicImportTests from '../../basic/test/dynamic'
+import dynamicImportTests from './dynamic'
 import security from './security'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -52,6 +54,37 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should set Cache-Control header', async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const url = `http://localhost:${appPort}/_next/`
+
+      const resources = []
+
+      // test a regular page
+      resources.push(`${url}static/${buildId}/pages/index.js`)
+
+      // test dynamic chunk
+      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+
+      // test main.js runtime etc
+      for (const item of buildManifest.pages['/']) {
+        resources.push(url + item)
+      }
+
+      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+
+      responses.forEach((res) => {
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
+      })
+    })
+
     it('should block special pages', async () => {
       const urls = ['/_document', '/_error']
       for (const url of urls) {
@@ -70,6 +103,36 @@ describe('Production Usage', () => {
         .elementByCss('div').text()
 
       expect(text).toBe('About Page')
+      browser.close()
+    })
+  })
+
+  describe('Runtime errors', () => {
+    it('should render a server side error on the client side', async () => {
+      const browser = await webdriver(appPort, '/error-in-ssr-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      // this makes sure we don't leak the actual error to the client side in production
+      expect(text).toMatch(/Internal Server Error\./)
+      const headingText = await browser.elementByCss('h1').text()
+      // This makes sure we render statusCode on the client side correctly
+      expect(headingText).toBe('500')
+      browser.close()
+    })
+
+    it('should render a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/An unexpected error has occurred\./)
+      browser.close()
+    })
+
+    it('should call getInitialProps on _error page during a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render-status-code')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/This page could not be found\./)
       browser.close()
     })
   })

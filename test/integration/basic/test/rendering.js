@@ -20,10 +20,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
-    test('renders a stateful component', async () => {
-      const $ = await get$('/stateful')
-      const answer = $('#answer')
-      expect(answer.text()).toBe('The answer is 42')
+    // default-head contains an empty <Head />.
+    test('header renders default charset', async () => {
+      const html = await (render('/default-head'))
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('next-head, but only once.')).toBeTruthy()
     })
 
     test('header helper renders header information', async () => {
@@ -43,6 +44,28 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).not.toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/><link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
     })
 
+    test('header helper avoids dedupe of specific tags', async () => {
+      const html = await (render('/head'))
+      expect(html).toContain('<meta property="article:tag" content="tag1" class="next-head"/>')
+      expect(html).toContain('<meta property="article:tag" content="tag2" class="next-head"/>')
+      expect(html).not.toContain('<meta property="dedupe:tag" content="tag3" class="next-head"/>')
+      expect(html).toContain('<meta property="dedupe:tag" content="tag4" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image" content="ogImageTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image" content="ogImageTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:alt" content="ogImageAltTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:alt" content="ogImageAltTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:width" content="ogImageWidthTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:width" content="ogImageWidthTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:height" content="ogImageHeightTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:height" content="ogImageHeightTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:type" content="ogImageTypeTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:type" content="ogImageTypeTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag1" class="next-head"/>')
+      expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag2" class="next-head"/>')
+    })
+
     test('header helper renders Fragment children', async () => {
       const html = await (render('/head'))
       expect(html).toContain('<title class="next-head">Fragment title</title>')
@@ -53,6 +76,16 @@ export default function ({ app }, suiteName, render, fetch) {
       const html = await render('/custom-extension')
       expect(html).toContain('<div>Hello</div>')
       expect(html).toContain('<div>World</div>')
+    })
+
+    it('should render the page without `err` property', async () => {
+      const html = await render('/')
+      expect(html).not.toContain('"err"')
+    })
+
+    it('should render the page without `nextExport` property', async () => {
+      const html = await render('/')
+      expect(html).not.toContain('"nextExport"')
     })
 
     test('renders styled jsx', async () => {
@@ -104,16 +137,34 @@ export default function ({ app }, suiteName, render, fetch) {
     test('error-inside-page', async () => {
       const $ = await get$('/error-inside-page')
       expect($('pre').text()).toMatch(/This is an expected error/)
+      // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('error-in-the-global-scope', async () => {
       const $ = await get$('/error-in-the-global-scope')
       expect($('pre').text()).toMatch(/aa is not defined/)
+      // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('asPath', async () => {
       const $ = await get$('/nav/as-path', { aa: 10 })
       expect($('.as-path-content').text()).toBe('/nav/as-path?aa=10')
+    })
+
+    describe('Url prop', () => {
+      it('should provide pathname, query and asPath', async () => {
+        const $ = await get$('/url-prop')
+        expect($('#pathname').text()).toBe('/url-prop')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop')
+      })
+
+      it('should override props.url, even when getInitialProps returns url as property', async () => {
+        const $ = await get$('/url-prop-override')
+        expect($('#pathname').text()).toBe('/url-prop-override')
+        expect($('#query').text()).toBe('0')
+        expect($('#aspath').text()).toBe('/url-prop-override')
+      })
     })
 
     describe('404', () => {

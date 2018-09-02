@@ -5,7 +5,7 @@ const mkdirp = require('mkdirp')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'lib', 'client'])
+  await task.parallel(['bin', 'server', 'nextbuild', 'lib', 'client'])
 }
 
 export async function bin (task, opts) {
@@ -21,6 +21,11 @@ export async function lib (task, opts) {
 export async function server (task, opts) {
   await task.source(opts.src || 'server/**/*.js').babel().target('dist/server')
   notify('Compiled server files')
+}
+
+export async function nextbuild (task, opts) {
+  await task.source(opts.src || 'build/**/*.js').babel().target('dist/build')
+  notify('Compiled build files')
 }
 
 export async function client (task, opts) {
@@ -50,6 +55,7 @@ export default async function (task) {
   await task.watch('bin/*', 'bin')
   await task.watch('pages/**/*.js', 'copy')
   await task.watch('server/**/*.js', 'server')
+  await task.watch('build/**/*.js', 'nextbuild')
   await task.watch('client/**/*.js', 'client')
   await task.watch('lib/**/*.js', 'lib')
 }
