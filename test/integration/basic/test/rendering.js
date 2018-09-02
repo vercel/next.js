@@ -20,12 +20,6 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
-    test('renders a stateful component', async () => {
-      const $ = await get$('/stateful')
-      const answer = $('#answer')
-      expect(answer.text()).toBe('The answer is 42')
-    })
-
     // default-head contains an empty <Head />.
     test('header renders default charset', async () => {
       const html = await (render('/default-head'))

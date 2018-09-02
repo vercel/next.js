@@ -3,6 +3,7 @@ import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
 
+// These tests are similar to ../../basic/test/dynamic.js
 export default (context, render) => {
   async function get$ (path, query) {
     const html = await render(path, query)
@@ -21,22 +22,6 @@ export default (context, render) => {
           browser = await webdriver(context.appPort, '/dynamic/no-chunk')
           await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
           await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
-      })
-
-      it('should render the component Head content', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/head')
-          await check(() => browser.elementByCss('body').text(), /test/)
-          const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
-          const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
-          expect(height).toBe('200px')
-          expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
         } finally {
           if (browser) {
             browser.close()
