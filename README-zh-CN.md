@@ -82,11 +82,11 @@ Next.js 是一个轻量级的 React 服务端渲染应用框架。
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## 怎么使用
 <a id="how-to-use" style="display: none"></a>
+## 怎么使用
 
-### 安装
 <a id="setup" style="display: none"></a>
+### 安装
 
 安装它:
 
@@ -141,6 +141,7 @@ export default () =>
   </pre>
 ```
 
+<a id="css" style="display: none"></a>
 ### CSS
 
 <a id="built-in-css-support" style="display: none"></a>
@@ -407,7 +408,7 @@ import Link from 'next/link'
 export default () =>
   <div>
     Click{' '}
-    <Link href={{ pathname: '/about', query: { name: 'Zeit' } }}>
+    <Link href={{ pathname: '/about', query: { name: 'Zeit' }}}>
       <a>here</a>
     </Link>{' '}
     to read more
@@ -1780,7 +1781,7 @@ PHP 的易用性也是个很好的灵感来源，我们觉得 Next.js 可以替�
 
 可查看 [contributing.md](./contributing.md)
 
-<a id="contributing" style="display: none"></a>
+<a id="authors" style="display: none"></a>
 ## 作者
 
 - Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – [ZEIT](https://zeit.co)
