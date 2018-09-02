@@ -5,8 +5,8 @@
     "start": "NODE_ENV=production node .next/production-server/index.js"
   },
   "dependencies": {
-    "@babel/core": "^7.0.0-beta.48",
-    "@zeit/next-typescript": "1.0.1",
+    "@babel/core": "^7.0.0-rc.1",
+    "@zeit/next-typescript": "1.1.0",
     "babel-loader": "^7.1.4",
     "next": "latest",
     "react": "^16.4.0",

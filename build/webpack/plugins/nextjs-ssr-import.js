@@ -4,8 +4,8 @@ import { join, resolve, relative, dirname } from 'path'
 // to work with Next.js SSR
 export default class NextJsSsrImportPlugin {
   apply (compiler) {
-    compiler.plugin('compilation', (compilation) => {
-      compilation.mainTemplate.plugin('require-ensure', (code, chunk) => {
+    compiler.hooks.compilation.tap('NextJsSSRImport', (compilation) => {
+      compilation.mainTemplate.hooks.requireEnsure.tap('NextJsSSRImport', (code, chunk) => {
         // Update to load chunks from our custom chunks directory
         const outputPath = resolve('/')
         const pagePath = join('/', dirname(chunk.name))
@@ -13,16 +13,7 @@ export default class NextJsSsrImportPlugin {
         // Make sure even in windows, the path looks like in unix
         // Node.js require system will convert it accordingly
         const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(/\\/g, '/')
-        let updatedCode = code.replace('require("./"', `require("${relativePathToBaseDirNormalized}/"`)
-
-        // Replace a promise equivalent which runs in the same loop
-        // If we didn't do this webpack's module loading process block us from
-        // doing SSR for chunks
-        updatedCode = updatedCode.replace(
-          'return Promise.resolve();',
-          `return require('next/dynamic').SameLoopPromise.resolve();`
-        )
-        return updatedCode
+        return code.replace('require("./"', `require("${relativePathToBaseDirNormalized}/"`).replace('readFile(join(__dirname', `readFile(join(__dirname, "${relativePathToBaseDirNormalized}"`)
       })
     })
   }

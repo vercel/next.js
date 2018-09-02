@@ -25,7 +25,7 @@
       ".next/**/*"
     ],
     "scripts": [
-      ".next/dist/**/*.js"
+      ".next/server/**/*.js"
     ]
   }
 }

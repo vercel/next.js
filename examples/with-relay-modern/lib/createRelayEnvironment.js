@@ -9,7 +9,7 @@ function fetchQuery (
   operation,
   variables,
   cacheConfig,
-  uploadables,
+  uploadables
 ) {
   return fetch(process.env.RELAY_ENDPOINT, {
     method: 'POST',

@@ -7,13 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.0.1",
+    "@zeit/next-typescript": "1.1.0",
     "next": "latest",
     "react": "^16.2.0",
     "react-dom": "^16.2.0"
   },
   "devDependencies": {
-    "@types/next": "^2.4.7",
+    "@types/next": "latest",
     "@types/react": "^16.0.36"
   },
   "license": "ISC"
