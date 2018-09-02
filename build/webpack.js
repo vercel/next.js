@@ -213,7 +213,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       // Precompile react / react-dom for development, speeding up webpack
       dev && !isServer && new AutoDllPlugin({
         filename: '[name]_[hash].js',
-        path: './static/dll',
+        path: './static/development/dll',
         context: dir,
         entry: {
           dll: [
