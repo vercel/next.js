@@ -63,6 +63,26 @@ export default (context, render) => {
       })
     })
 
+    describe('custom chunkfilename', () => {
+      it('should render the correct filename', async () => {
+        const $ = await get$('/dynamic/chunkfilename')
+        expect($('body').text()).toMatch(/test chunkfilename/)
+        expect($('html').html()).toMatch(/hello-world\.js/)
+      })
+
+      it('should render the component on client side', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/chunkfilename')
+          await check(() => browser.elementByCss('body').text(), /test chunkfilename/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+    })
+
     describe('custom loading', () => {
       it('should render custom loading on the server side when `ssr:false` and `loading` is provided', async () => {
         const $ = await get$('/dynamic/no-ssr-custom-loading')

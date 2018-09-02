@@ -181,7 +181,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? `${dev ? '[name]' : '[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[contenthash]'}.js`,
+      chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
@@ -213,7 +213,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       // Precompile react / react-dom for development, speeding up webpack
       dev && !isServer && new AutoDllPlugin({
         filename: '[name]_[hash].js',
-        path: './static/dll',
+        path: './static/development/dll',
         context: dir,
         entry: {
           dll: [

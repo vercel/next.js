@@ -15,7 +15,7 @@ export default class BuildManifestPlugin {
 
       for (const filePath of Object.keys(compilation.assets)) {
         const path = filePath.replace(/\\/g, '/')
-        if (/^static\/dll\//.test(path)) {
+        if (/^static\/development\/dll\//.test(path)) {
           assetMap.devFiles.push(path)
         }
       }
