@@ -151,16 +151,6 @@ export default class Server {
           throw err
         }
       },
-
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      '/_next/:hash/:name*': async (req, res, params) => {
-        const name = params.name.join('/')
-        const p = join(this.dir, '.next', 'bundles', name)
-        await this.serveStatic(req, res, p)
-      }
     }
 
     for (const method of ['GET', 'HEAD']) {
