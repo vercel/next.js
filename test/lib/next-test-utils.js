@@ -152,12 +152,18 @@ export async function startStaticServer (dir) {
 
 export async function check (contentFn, regex) {
   let found = false
-  setTimeout(() => {
+  setTimeout(async () => {
     if (found) {
       return
     }
-    console.error('TIMED OUT CHECK: ', regex)
-    throw new Error('TIMED OUT')
+    let content
+    try {
+      content = await contentFn()
+    } catch (err) {
+      console.error('Error while getting content', {regex})
+    }
+    console.error('TIMED OUT CHECK: ', {regex, content})
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }, 1000 * 30)
   while (!found) {
     try {
