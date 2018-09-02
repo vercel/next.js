@@ -9,18 +9,6 @@ export default (context, render) => {
     return cheerio.load(html)
   }
   describe('Dynamic import', () => {
-    it('should render test', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/dynamic/new-page')
-        await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
-        await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
-      } finally {
-        if (browser) {
-          browser.close()
-        }
-      }
-    })
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
