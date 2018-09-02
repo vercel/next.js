@@ -4,7 +4,7 @@
 // MIT: https://github.com/babel/babel/blob/master/LICENSE
 //
 import FS from 'fs'
-import Path from 'path'
+import Path, { resolve } from 'path'
 import Chokidar from 'chokidar'
 import slash from 'slash'
 import babelLoader from 'babel-loader'
@@ -26,7 +26,8 @@ process.on('message', (message) => {
 export async function handleMessage ({cmd, filenames, options}, response) {
   if (cmd === 'watch' || cmd === 'build') {
     let compiledFiles = 0
-    for (const filename of filenames) {
+    for (let filename of filenames) {
+      filename = resolve(options.base, filename);
       compiledFiles += await handle(filename, filename, filename, options, response, (filename, dest, base, rootFile) => {
         if (cmd === 'watch') {
           const watcher = Chokidar.watch(filename, {
