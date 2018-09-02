@@ -10,13 +10,16 @@ export default class UrlPropChange extends React.Component {
     }
   }
 
-  componentWillReceiveProps (nextProps) {
-    this.setState(() => {
-      return {
-        previousUrl: this.props.url,
-        url: nextProps.url
-      }
-    })
+  // eslint-disable-next-line camelcase
+  componentDidUpdate (prevProps) {
+    if (prevProps.url !== this.props.url) {
+      this.setState(() => {
+        return {
+          previousUrl: prevProps.url,
+          url: this.props.url
+        }
+      })
+    }
   }
 
   render () {

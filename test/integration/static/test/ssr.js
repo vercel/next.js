@@ -48,5 +48,10 @@ export default function (context) {
       const $ = cheerio.load(html)
       expect($('img').attr('src')).toBe('/static/myimage.png')
     })
+
+    it('should render _error on 404', async () => {
+      const html = await renderViaHTTP(context.port, '/404')
+      expect(html).toMatch(/404/)
+    })
   })
 }

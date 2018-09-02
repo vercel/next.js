@@ -1,30 +1,3 @@
-import { join } from 'path'
-import { readdirSync, existsSync } from 'fs'
-
-export function getChunkNameFromFilename (filename, dev) {
-  if (dev) {
-    return filename.replace(/\.[^.]*$/, '')
-  }
-  return filename.replace(/-[^-]*$/, '')
-}
-
-export function getAvailableChunks (distDir, dev) {
-  const chunksDir = join(distDir, 'chunks')
-  if (!existsSync(chunksDir)) return {}
-
-  const chunksMap = {}
-  const chunkFiles = readdirSync(chunksDir)
-
-  chunkFiles.forEach(filename => {
-    if (/\.js$/.test(filename)) {
-      const chunkName = getChunkNameFromFilename(filename, dev)
-      chunksMap[chunkName] = filename
-    }
-  })
-
-  return chunksMap
-}
-
 const internalPrefixes = [
   /^\/_next\//,
   /^\/static\//

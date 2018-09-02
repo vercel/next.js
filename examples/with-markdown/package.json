@@ -7,10 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "markdown-in-js": "^1.1.4",
+    "@mdx-js/mdx": "0.15.0-0",
+    "@zeit/next-mdx": "1.1.0",
     "next": "latest",
     "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react-dom": "^16.0.0",
+    "remark-emoji": "2.0.1",
+    "remark-images": "0.8.1"
   },
   "license": "ISC"
 }

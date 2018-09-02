@@ -57,6 +57,10 @@ const options = {
   outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
 }
 
-exportApp(dir, options).catch((err) => {
-  printAndExit(err)
-})
+exportApp(dir, options)
+  .then(() => {
+    printAndExit('Export successful', 0)
+  })
+  .catch((err) => {
+    printAndExit(err)
+  })
