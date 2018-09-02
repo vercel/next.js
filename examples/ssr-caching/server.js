@@ -1,6 +1,8 @@
 const express = require('express')
 const next = require('next')
 const LRUCache = require('lru-cache')
+const { BLOCKED_PAGES } = require('next/constants')
+const { isInternalUrl } = require('next/dist/server/utils')
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
@@ -55,11 +57,20 @@ async function renderAndCache (req, res, pagePath, queryParams) {
     return
   }
 
+  // If not let's render the page into HTML
   try {
-    // If not let's render the page into HTML
+    // Skip next.js internals
+    if (isInternalUrl(req.url)) {
+      return handle(req, res)
+    }
+    // Skip next.js blocked pages
+    if (BLOCKED_PAGES.indexOf(pagePath) !== -1) {
+      return await app.render404(req, res)
+    }
+    // Render the page
     const html = await app.renderToHTML(req, res, pagePath, queryParams)
 
-    // Something is wrong with the request, let's skip the cache
+    // If something is wrong with the request, let's skip the cache
     if (res.statusCode !== 200) {
       res.send(html)
       return
