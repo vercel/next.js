@@ -44,11 +44,6 @@ export default class HotReloader {
         watch([pathname], {
           base: this.dir,
           outDir: join(this.dir, '.next', 'server')
-        }, (msg) => {
-          if (msg.cmd === 'file-built') {
-            deleteCache(msg.dest)
-            msg.parents.forEach(deleteCache)
-          }
         })
       }
     }
@@ -238,10 +233,6 @@ export default class HotReloader {
   ensurePage (page) {
     return this.onDemandEntries.ensurePage(page)
   }
-}
-
-function deleteCache (path) {
-  delete require.cache[path]
 }
 
 function diff (a, b) {

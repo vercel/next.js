@@ -1,4 +1,5 @@
 import Cluster from 'cluster'
+import { resolve } from 'path';
 
 let callbacks = [];
 let worker
@@ -54,8 +55,15 @@ export function watch (filenames, options, fileCallback) {
     const callbackId = callbacks.length
     callbacks.push((err, msg) => {
       if (err) {
-        reject(err)
-      } else if (msg.cmd === 'built') {
+        return reject(err)
+      }
+
+      if (msg.cmd === 'file-built') {
+        deleteCache(msg.dest, options)
+        msg.parents.forEach((parent) => deleteCache(parent, options))
+      }
+
+      if (msg.cmd === 'built') {
         resolve(msg)
       } else if (fileCallback) {
         fileCallback(msg)
@@ -64,4 +72,9 @@ export function watch (filenames, options, fileCallback) {
 
     worker.send({callbackId, cmd: 'watch', filenames, options})
   })
+}
+
+function deleteCache (path, options) {
+  delete require.cache[path]
+  delete require.cache[resolve(options.base, path)];
 }
