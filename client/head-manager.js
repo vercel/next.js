@@ -13,6 +13,10 @@ export default class HeadManager {
     this.updatePromise = null
   }
 
+  async waitForUpdateToComplete () {
+    return this.updatePromise
+  }
+
   updateHead (head) {
     const promise = this.updatePromise = Promise.resolve().then(() => {
       if (promise !== this.updatePromise) return

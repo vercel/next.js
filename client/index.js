@@ -99,6 +99,7 @@ export default async ({
     App,
     Component,
     ErrorComponent,
+    headManager,
     err: initialErr
   })
 
