@@ -6,7 +6,7 @@
       "import",
       {
         "libraryName": "antd",
-        "style": "less"
+        "style": true
       }
     ]
   ]

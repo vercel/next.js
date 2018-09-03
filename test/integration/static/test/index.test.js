@@ -40,9 +40,11 @@ describe('Static Export', () => {
       renderViaHTTP(devContext.port, '/dynamic/one')
     ])
   })
-  afterAll(() => {
-    stopApp(context.server)
-    killApp(devContext.server)
+  afterAll(async () => {
+    await Promise.all([
+      stopApp(context.server),
+      killApp(devContext.server)
+    ])
   })
 
   ssr(context)

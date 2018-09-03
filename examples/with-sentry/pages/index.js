@@ -1,25 +1,26 @@
 import React from 'react'
-import withSentry from '../components/withSentry'
 
 class Index extends React.Component {
-  static getInitialProps (context) {
-    const { isServer } = context
-    return { isServer }
+  state = {
+    raiseError: false
   }
 
-  onClickHandler () {
-    throw new Error('woops')
+  componentDidUpdate () {
+    if (this.state.raiseError) {
+      throw new Error('Houston, we have a problem')
+    }
   }
+
+  raiseError = () => this.setState({ raiseError: true })
 
   render () {
     return (
       <div>
         <h2>Index page</h2>
-
-        <button onClick={this.onClickHandler.bind(this)}>Click to raise error</button>
+        <button onClick={this.raiseError}>Click to raise the error</button>
       </div>
     )
   }
 }
 
-export default withSentry(Index)
+export default Index

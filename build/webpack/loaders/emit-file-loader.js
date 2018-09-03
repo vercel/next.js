@@ -18,7 +18,7 @@ module.exports = function (content, sourceMap) {
   }
 
   const name = query.name || '[hash].[ext]'
-  const context = query.context || this.options.context
+  const context = query.context || this.rootContext || this.options.context
   const regExp = query.regExp
   const opts = { context, content, regExp }
   const interpolateName = query.interpolateName || ((name) => name)

@@ -1,6 +1,8 @@
 {
   "presets": [
-    "next/babel",
-    ["@babel/preset-stage-0", { "decoratorsLegacy": true }]
+    "next/babel"
   ],
+  "plugins": [
+    "@babel/plugin-proposal-do-expressions"
+  ]
 }

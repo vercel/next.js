@@ -18,7 +18,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('App asPath', () => {
   beforeAll(async () => {
     appPort = await findPort()
-    server = await launchApp(join(__dirname, '../'), appPort, true)
+    server = await launchApp(join(__dirname, '../'), appPort)
 
     // pre-build all pages at the start
     await Promise.all([

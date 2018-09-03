@@ -16,8 +16,7 @@
             },
             "transform-runtime": {
               "regenerator": false,
-              "useBuiltIns": true,
-              "polyfill": false
+              "useBuiltIns": true
             }
           }
         ]
