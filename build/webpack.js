@@ -82,6 +82,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     return config
   }
 
+  // Terser is a better uglifier
   config.minimizer = [new TerserPlugin({
     parallel: true,
     sourceMap: false,
