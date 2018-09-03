@@ -1,3 +1,7 @@
+const env = process.env.NODE_ENV
+const isDevelopment = env === 'development'
+const isTest = env === 'test'
+
 // Resolve styled-jsx plugins
 function styledJsxOptions (opts) {
   if (!opts) {
@@ -25,11 +29,16 @@ function styledJsxOptions (opts) {
 
 module.exports = (context, opts = {}) => ({
   presets: [
-    [require('@babel/preset-env'), {
+    [require('@babel/preset-env').default, {
       modules: false,
       ...opts['preset-env']
     }],
-    require('@babel/preset-react')
+    [require('@babel/preset-react'), {
+      // This adds @babel/plugin-transform-react-jsx-source and
+      // @babel/plugin-transform-react-jsx-self automatically in development
+      development: isDevelopment || isTest,
+      ...opts['preset-react']
+    }]
   ],
   plugins: [
     require('babel-plugin-react-require'),
