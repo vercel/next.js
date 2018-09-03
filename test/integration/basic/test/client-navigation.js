@@ -633,6 +633,28 @@ export default (context, render) => {
           browser.close()
         })
       })
+
+      describe('with next/link', () => {
+        it('should use pushState with same href and different asPath', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/as-path-pushstate')
+            await browser.elementByCss('#hello').click().waitForElementByCss('#something-hello')
+            const queryOne = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryOne.something).toBe('hello')
+            await browser.elementByCss('#same-query').click().waitForElementByCss('#something-same-query')
+            const queryTwo = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryTwo.something).toBe('hello')
+            await browser.back().waitForElementByCss('#something-hello')
+            const queryThree = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryThree.something).toBe('hello')
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+      })
     })
 
     describe('runtime errors', () => {
