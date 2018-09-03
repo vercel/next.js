@@ -19,6 +19,7 @@ import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
+import TerserPlugin from 'terser-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -80,6 +81,13 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (dev) {
     return config
   }
+
+  // Terser is a better uglifier
+  config.minimizer = [new TerserPlugin({
+    parallel: true,
+    sourceMap: false,
+    cache: true
+  })]
 
   // Only enabled in production
   // This logic will create a commons bundle
