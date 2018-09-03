@@ -123,25 +123,28 @@ export default async function (dir, options, configuration) {
       throw new Error(`path "${path}" doesn't start with a backslash`)
     }
 
-    const { page, query = {} } = exportPathMap[path]
+    const { page, query = {}, render = renderToHTML } = exportPathMap[path]
     const req = { url: path }
     const res = {}
 
-    let htmlFilename = `${path}${sep}index.html`
+    let filename = `${path}${sep}index.html`
     if (extname(path) !== '') {
       // If the path has an extension, use that as the filename instead
-      htmlFilename = path
+      filename = path
     } else if (path === '/') {
       // If the path is the root, just use index.html
-      htmlFilename = 'index.html'
+      filename = 'index.html'
     }
-    const baseDir = join(outDir, dirname(htmlFilename))
-    const htmlFilepath = join(outDir, htmlFilename)
+    const baseDir = join(outDir, dirname(filename))
+    const filepath = join(outDir, filename)
 
     await mkdirp(baseDir)
 
-    const html = await renderToHTML(req, res, page, query, renderOpts)
-    writeFileSync(htmlFilepath, html, 'utf8')
+    const content = await render(req, res, page, query, renderOpts)
+    if (typeof content !== 'string') {
+      throw new Error(`render must return a string`)
+    }
+    writeFileSync(filepath, content, 'utf8')
   }
 
   // Add an empty line to the console for the better readability.
