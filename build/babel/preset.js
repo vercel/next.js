@@ -1,4 +1,5 @@
 const env = process.env.NODE_ENV
+const isProduction = env === 'production'
 const isDevelopment = env === 'development'
 const isTest = env === 'test'
 
@@ -30,7 +31,9 @@ function styledJsxOptions (opts) {
 module.exports = (context, opts = {}) => ({
   presets: [
     [require('@babel/preset-env').default, {
-      modules: false,
+      // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
+      // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
+      modules: isDevelopment && isProduction ? false : 'auto',
       ...opts['preset-env']
     }],
     [require('@babel/preset-react'), {
