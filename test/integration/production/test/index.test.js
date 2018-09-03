@@ -13,7 +13,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
-import dynamicImportTests from '../../basic/test/dynamic'
+import dynamicImportTests from './dynamic'
 import security from './security'
 import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
 

@@ -3,6 +3,7 @@ import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
 
+// These tests are similar to ../../basic/test/dynamic.js
 export default (context, render) => {
   async function get$ (path, query) {
     const html = await render(path, query)
@@ -27,22 +28,6 @@ export default (context, render) => {
           }
         }
       })
-
-      it('should render the component Head content', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/head')
-          await check(() => browser.elementByCss('body').text(), /test/)
-          const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
-          const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
-          expect(height).toBe('200px')
-          expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
-      })
     })
     describe('ssr:false option', () => {
       it('Should render loading on the server side', async () => {
@@ -55,26 +40,6 @@ export default (context, render) => {
         try {
           browser = await webdriver(context.appPort, '/dynamic/no-ssr')
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
-      })
-    })
-
-    describe('custom chunkfilename', () => {
-      it('should render the correct filename', async () => {
-        const $ = await get$('/dynamic/chunkfilename')
-        expect($('body').text()).toMatch(/test chunkfilename/)
-        expect($('html').html()).toMatch(/hello-world\.js/)
-      })
-
-      it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/chunkfilename')
-          await check(() => browser.elementByCss('body').text(), /test chunkfilename/)
         } finally {
           if (browser) {
             browser.close()
