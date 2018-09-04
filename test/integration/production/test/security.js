@@ -41,5 +41,26 @@ module.exports = (context) => {
 
       browser.close()
     })
+
+    it('CSP should load without violations', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      const errLog = await browser.log('browser')
+      expect(errLog.filter((e) => e.source === 'security')).toEqual([])
+      browser.close()
+    })
+
+    it('CSP should fail when violations', async () => {
+      const browser = await webdriver(context.appPort, '/violation')
+      const errLog = await browser.log('browser')
+      expect(errLog.filter((e) => e.source === 'security')[0].level).toEqual('SEVERE')
+      browser.close()
+    })
+
+    it('properly applies CSP nonce', async () => {
+      const browser = await webdriver(context.appPort, '/')
+      const nonce = await browser.elementByCss('meta[property="csp-nonce"]').getAttribute('content')
+      expect(nonce).toMatch(/\w+=/)
+      browser.close()
+    })
   })
 }

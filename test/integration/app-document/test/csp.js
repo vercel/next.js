@@ -10,19 +10,5 @@ export default (context, render) => {
       expect(errLog.filter((e) => e.source === 'security')).toEqual([])
       browser.close()
     })
-
-    it('fail when violations', async () => {
-      const browser = await webdriver(context.appPort, '/?withViolation=true')
-      const errLog = await browser.log('browser')
-      expect(errLog.filter((e) => e.source === 'security')[0].level).toEqual('SEVERE')
-      browser.close()
-    })
-
-    it('properly applies nonce', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      const nonce = await browser.elementByCss('meta[property="csp-nonce"]').getAttribute('content')
-      expect(nonce).toMatch(/\w+=/)
-      browser.close()
-    })
   })
 }

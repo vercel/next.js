@@ -99,8 +99,8 @@ export class Head extends Component {
     const pagePathname = getPagePathname(pathname)
 
     return <head {...this.props}>
-      { (staticMarkup && !csp.isDisabled) ? <meta http-equiv="Content-Security-Policy" content={csp.policy} /> : '' }
-      { csp.nonce ? <meta property="csp-nonce" content={csp.nonce} /> : '' }
+      { (staticMarkup && csp && !csp.isDisabled) ? <meta http-equiv="Content-Security-Policy" content={csp.policy} /> : '' }
+      { csp && csp.nonce ? <meta property="csp-nonce" content={csp.nonce} /> : '' }
       <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' />}

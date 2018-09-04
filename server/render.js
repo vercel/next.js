@@ -212,8 +212,8 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
   const etag = generateEtags && generateETag(
     html // We must remove the nonce from html before generating eTag as it will differ by request.
-      .replace(/<meta property="csp-nonce" content="\w+"/gi, '<meta property="csp-nonce" content=""')
-      .replace(/<style id="__jsx-\d+" nonce="\w+">/gi, '<style id="__jsx-0" nonce="">')
+      .replace(/<meta property="csp-nonce" content=".+"/gi, '<meta property="csp-nonce" content=""')
+      .replace(/<style id="__jsx-\d+" nonce=".+">/gi, '<style id="__jsx-0" nonce="">')
   )
 
   if (fresh(req.headers, { etag })) {

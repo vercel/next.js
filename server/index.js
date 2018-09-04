@@ -62,21 +62,19 @@ export default class Server {
         if (policy.match(/script-src/gi)) {
           policy = policy.replace(/script-src( [^;]+)+;?/gi, `script-src$1 'unsafe-eval';`)
         } else {
-          policy = `${policy.replace(/;?$/gi, '')}; script-src 'self' 'unsafe-eval';`
+          policy = `${policy.replace(/;?$/gi, '')}; script-src ${/default-src ([^;]+)+;?/gi.exec(policy)[1]} 'unsafe-eval';`
         }
 
         if (policy.match(/style-src/gi)) {
           policy = policy.replace(/style-src( [^;]+)+;?/gi, `style-src$1 'unsafe-inline';`)
         } else {
-          policy = `${policy.replace(/;?$/gi, '')}; style-src 'self' 'unsafe-inline';`
+          policy = `${policy.replace(/;?$/gi, '')}; style-src ${/default-src ([^;]+)+;?/gi.exec(policy)[1]} 'unsafe-inline';`
         }
         this.renderOpts.csp.policy = policy
       } else {
         this.renderOpts.csp.policy = contentSecurityPolicy
       }
     }
-
-    console.log(this.renderOpts.csp.policy)
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
     // It'll be rendered as part of __NEXT_DATA__ on the client side
@@ -258,6 +256,20 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
+    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup && !this.renderOpts.dev) {
+      this.renderOpts.csp.nonce = Buffer.from(nanoid(32)).toString('base64')
+      let { policy } = this.renderOpts.csp
+      const { nonce } = this.renderOpts.csp
+
+      if (policy.match(/style-src/gi)) {
+        policy = policy.replace(/style-src/gi, `style-src 'nonce-${nonce}'`)
+      } else {
+        policy = `style-src ${/default-src ([^;]+)+;?/gi.exec(policy)[1]} 'nonce-${nonce}'; ${policy}`
+      }
+
+      res.setHeader('Content-Security-Policy', policy)
+    }
+
     if (isInternalUrl(req.url)) {
       return this.handleRequest(req, res, parsedUrl)
     }
@@ -284,20 +296,6 @@ export default class Server {
         res.statusCode = 500
         return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
       }
-    }
-
-    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup && !this.renderOpts.dev) {
-      this.renderOpts.csp.nonce = Buffer.from(nanoid(32)).toString('base64')
-      let { policy } = this.renderOpts.csp
-      const { nonce } = this.renderOpts.csp
-
-      if (policy.match(/style-src/gi)) {
-        policy = policy.replace(/style-src/gi, `style-src 'nonce-${nonce}'`)
-      } else {
-        policy = `style-src 'self' 'nonce-${nonce}'; ${policy}`
-      }
-
-      res.setHeader('Content-Security-Policy', policy)
     }
 
     try {
