@@ -108,7 +108,7 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dir, outDir, distDir})
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir})
   const exportPaths = Object.keys(exportPathMap)
 
   for (const path of exportPaths) {

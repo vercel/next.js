@@ -1543,8 +1543,9 @@ now
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
 `exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
 
+- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
 - `dir` - Absolute path to the project directory
-- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`)
+- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
 - `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key)
 
 ```js
@@ -1555,7 +1556,10 @@ const {promisify} = require('util')
 const copyFile = promisify(fs.copyFile)
 
 module.exports = {
-  exportPathMap: async function (defaultPathMap, {dir, outDir, distDir}) {
+  exportPathMap: async function (defaultPathMap, {dev, dir, outDir, distDir}) {
+    if(dev) {
+      return defaultPathMap
+    }
     // This will copy robots.txt from your project root into the out directory
     await copyFile(join(dir, 'robots.txt'), join(outDir, 'robots.txt'))
     return defaultPathMap
