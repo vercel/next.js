@@ -155,7 +155,7 @@ export default class Server {
       // So that the user doesn't have to define a custom server reading the exportPathMap
       if (this.dev && this.nextConfig.exportPathMap) {
         console.log('Defining routes from exportPathMap')
-        const exportPathMap = await this.nextConfig.exportPathMap({}) // In development we can't give a default path mapping
+        const exportPathMap = await this.nextConfig.exportPathMap({}, {dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId}) // In development we can't give a default path mapping
         for (const path in exportPathMap) {
           const {page, query = {}} = exportPathMap[path]
           routes[path] = async (req, res, params, parsedUrl) => {
