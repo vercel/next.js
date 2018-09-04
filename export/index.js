@@ -10,6 +10,11 @@ import { setAssetPrefix } from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 
 export default async function (dir, options, configuration) {
+  function log (message) {
+    if (options.silent) return
+    console.log(message)
+  }
+
   dir = resolve(dir)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const distDir = join(dir, nextConfig.distDir)
@@ -64,17 +69,6 @@ export default async function (dir, options, configuration) {
     )
   }
 
-  // Copy dynamic import chunks
-  if (existsSync(join(distDir, 'chunks'))) {
-    log('  copying dynamic import chunks')
-
-    await mkdirp(join(outDir, '_next', 'webpack'))
-    await cp(
-      join(distDir, 'chunks'),
-      join(outDir, '_next', 'webpack', 'chunks')
-    )
-  }
-
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
     console.log(`> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`)
@@ -114,7 +108,7 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap)
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
   const exportPaths = Object.keys(exportPathMap)
 
   for (const path of exportPaths) {
@@ -146,9 +140,4 @@ export default async function (dir, options, configuration) {
 
   // Add an empty line to the console for the better readability.
   log('')
-
-  function log (message) {
-    if (options.silent) return
-    console.log(message)
-  }
 }
