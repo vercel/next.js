@@ -19,6 +19,7 @@ import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
+import TerserPlugin from 'terser-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -80,6 +81,13 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (dev) {
     return config
   }
+
+  // Terser is a better uglifier
+  config.minimizer = [new TerserPlugin({
+    parallel: true,
+    sourceMap: false,
+    cache: true
+  })]
 
   // Only enabled in production
   // This logic will create a commons bundle
@@ -181,7 +189,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? `${dev ? '[name]' : '[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[contenthash]'}.js`,
+      chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
@@ -213,7 +221,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       // Precompile react / react-dom for development, speeding up webpack
       dev && !isServer && new AutoDllPlugin({
         filename: '[name]_[hash].js',
-        path: './static/dll',
+        path: './static/development/dll',
         context: dir,
         entry: {
           dll: [
