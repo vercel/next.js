@@ -8,7 +8,6 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "A K",
   "license": "ISC",
   "dependencies": {
     "@zeit/next-sass": "^0.2.0",
