@@ -1,4 +1,3 @@
-window.module = {}
 window.__NEXT_DATA__ = JSON.parse(
   document
     .getElementById('server-app-state')
