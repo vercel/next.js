@@ -13,7 +13,7 @@ import fkill from 'fkill'
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import build from 'next/dist/build'
-import _export from 'next/dist/server/export'
+import _export from 'next/dist/export'
 import _pkg from 'next/package.json'
 
 export const nextServer = server
