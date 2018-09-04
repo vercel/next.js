@@ -15,7 +15,7 @@ export default class Document extends Component {
 
   static getInitialProps ({ renderPage, csp }) {
     const { html, head, errorHtml, buildManifest } = renderPage()
-    const styles = flush({ nonce: csp.nonce })
+    const styles = flush({ nonce: csp && csp.nonce ? csp.nonce : undefined })
 
     return { html, head, errorHtml, styles, buildManifest }
   }

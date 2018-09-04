@@ -58,11 +58,19 @@ export default class Server {
     if (contentSecurityPolicy) {
       if (dev) {
         // Support for HMR and CSP
-        if (contentSecurityPolicy.match(/script-src/gi)) {
-          this.renderOpts.csp.policy = contentSecurityPolicy.replace(/script-src( [^;]+)+;?/gi, `script-src$1 'unsafe-eval';`)
+        let policy = contentSecurityPolicy
+        if (policy.match(/script-src/gi)) {
+          policy = policy.replace(/script-src( [^;]+)+;?/gi, `script-src$1 'unsafe-eval';`)
         } else {
-          this.renderOpts.csp.policy = `${contentSecurityPolicy.replace(/;?$/gi, '')}; script-src 'self' 'unsafe-eval' 'unsafe-inline';`
+          policy = `${policy.replace(/;?$/gi, '')}; script-src 'self' 'unsafe-eval';`
         }
+
+        if (policy.match(/style-src/gi)) {
+          policy = policy.replace(/style-src( [^;]+)+;?/gi, `style-src$1 'unsafe-inline';`)
+        } else {
+          policy = `${policy.replace(/;?$/gi, '')}; style-src 'self' 'unsafe-inline';`
+        }
+        this.renderOpts.csp.policy = policy
       } else {
         this.renderOpts.csp.policy = contentSecurityPolicy
       }
@@ -283,7 +291,7 @@ export default class Server {
       }
     }
 
-    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup) {
+    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup && !this.renderOpts.dev) {
       this.renderOpts.csp.nonce = Buffer.from(nanoid(32)).toString('base64')
       let { policy } = this.renderOpts.csp
       const { nonce } = this.renderOpts.csp
