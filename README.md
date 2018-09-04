@@ -1547,6 +1547,7 @@ In case you have to copy custom files like a robots.txt or generate a sitemap.xm
 - `dir` - Absolute path to the project directory
 - `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
 - `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key)
+- `buildId` - The buildId the export is running for
 
 ```js
 // next.config.js
@@ -1556,7 +1557,7 @@ const {promisify} = require('util')
 const copyFile = promisify(fs.copyFile)
 
 module.exports = {
-  exportPathMap: async function (defaultPathMap, {dev, dir, outDir, distDir}) {
+  exportPathMap: async function (defaultPathMap, {dev, dir, outDir, distDir, buildId}) {
     if(dev) {
       return defaultPathMap
     }
