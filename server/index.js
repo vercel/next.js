@@ -184,11 +184,6 @@ export default class Server {
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      routes['/_next/:path*'] = async (req, res, params) => {
-        const p = join(__dirname, '..', 'client', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      }
-
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query, parsedUrl)
