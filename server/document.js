@@ -182,7 +182,6 @@ export class NextScript extends Component {
 
     return `
       __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-      module={}
       __NEXT_LOADED_PAGES__ = []
 
       __NEXT_REGISTER_PAGE = function (route, fn) {
