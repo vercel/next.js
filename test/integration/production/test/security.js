@@ -43,7 +43,7 @@ module.exports = (context) => {
     })
 
     it('CSP should load without violations', async () => {
-      const browser = await webdriver(context.appPort, '/')
+      const browser = await webdriver(context.appPort, '/404/')
       const errLog = await browser.log('browser')
       expect(errLog.filter((e) => e.source === 'security')).toEqual([])
       browser.close()
