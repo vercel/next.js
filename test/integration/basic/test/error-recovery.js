@@ -177,7 +177,7 @@ export default (context, render) => {
       expect(text).toBe('This is the about page.')
 
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
+      aboutPage.replace('export default', 'export default { not: "a-page" }\nexport const fn = ')
 
       await waitFor(3000)
 
