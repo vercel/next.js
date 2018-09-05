@@ -165,8 +165,6 @@ async function doRender (req, res, pathname, query, {
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
     __NEXT_DATA__: {
-      // Used in development to replace paths for react-error-overlay
-      distDir: dev ? distDir : undefined,
       props, // The result of getInitialProps
       page, // The rendered page
       pathname, // The requested path
