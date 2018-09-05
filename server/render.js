@@ -138,11 +138,10 @@ async function doRender (req, res, pathname, query, {
 
     let html
     let head
-    let errorHtml = ''
 
     try {
       if (err && dev) {
-        errorHtml = render(<ErrorDebug error={err} />)
+        html = render(<ErrorDebug error={err} />)
       } else if (err) {
         html = render(app)
       } else {
@@ -152,7 +151,7 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, errorHtml, buildManifest }
+    return { html, head, buildManifest }
   }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
