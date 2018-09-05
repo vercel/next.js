@@ -41,4 +41,6 @@ now
 
 ## The idea behind the example
 
-This example show how to set custom environment variables for your application at runtime
+This example show how to set custom environment variables for your application at runtime using the `publicRuntimeConfig` key in `next.config.js`
+
+For documentation see: https://github.com/zeit/next.js#exposing-configuration-to-the-server--client-side
