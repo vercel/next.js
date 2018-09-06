@@ -1,7 +1,6 @@
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { isValidElementType } from 'react-is'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
@@ -88,8 +87,11 @@ async function doRender (req, res, pathname, query, {
 
   Component = Component.default || Component
 
-  if (!isValidElementType(Component)) {
-    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+  if (process.env.NODE_ENV === 'development') {
+    const { isValidElementType } = require('react-is')
+    if (!isValidElementType(Component)) {
+      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    }
   }
 
   App = App.default || App

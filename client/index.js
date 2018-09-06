@@ -1,6 +1,5 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { isValidElementType } from 'react-is'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
@@ -83,8 +82,11 @@ export default async ({
   try {
     Component = await pageLoader.loadPage(page)
 
-    if (!isValidElementType(Component)) {
-      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    if (process.env.NODE_ENV === 'development') {
+      const { isValidElementType } = require('react-is')
+      if (!isValidElementType(Component)) {
+        throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+      }
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
