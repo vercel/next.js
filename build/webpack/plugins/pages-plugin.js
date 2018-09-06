@@ -8,9 +8,16 @@ import {
 export default class PagesPlugin {
   apply (compiler: any) {
     compiler.hooks.compilation.tap('PagesPlugin', (compilation) => {
-      compilation.chunkTemplate.hooks.render.tap('PagesPluginRenderPageRegister', (modules, chunk) => {
+      compilation.moduleTemplates.javascript.hooks.render.tap('PagesPluginRenderPageRegister', (moduleSourcePostModule, module, options) => {
+        const {chunk} = options
+
+        // check if the current module is the entry module
+        if (chunk.entryModule !== module) {
+          return moduleSourcePostModule
+        }
+
         if (!IS_BUNDLED_PAGE_REGEX.test(chunk.name)) {
-          return modules
+          return moduleSourcePostModule
         }
 
         let routeName = ROUTE_NAME_REGEX.exec(chunk.name)[1]
@@ -27,16 +34,12 @@ export default class PagesPlugin {
 
         routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
-        const source = new ConcatSource()
-
-        source.add(`__NEXT_REGISTER_PAGE('${routeName}', function() {
-            var comp =
-        `)
-        source.add(modules)
-        source.add(`
-            return { page: comp.default }
-          })
-        `)
+        const source = new ConcatSource(
+          `__NEXT_REGISTER_PAGE('${routeName}', function() {\n`,
+          moduleSourcePostModule,
+          '\nreturn { page: module.exports.default }',
+          '});'
+        )
 
         return source
       })
