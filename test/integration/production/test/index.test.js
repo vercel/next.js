@@ -54,6 +54,12 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should render 404 for _next routes that do not exist', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const res = await fetch(url)
+      expect(res.status).toBe(404)
+    })
+
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
