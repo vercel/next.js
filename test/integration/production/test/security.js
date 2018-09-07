@@ -8,6 +8,13 @@ import webdriver from 'next-webdriver'
 
 module.exports = (context) => {
   describe('With Security Related Issues', () => {
+    it('CSP should load without violations', async () => {
+      const browser = await webdriver(context.appPort, '/about')
+      const errLog = await browser.log('browser')
+      expect(errLog.filter((e) => e.source === 'security')).toEqual([])
+      browser.close()
+    })
+
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
@@ -42,13 +49,6 @@ module.exports = (context) => {
       browser.close()
     })
 
-    it('CSP should load without violations', async () => {
-      const browser = await webdriver(context.appPort, '/404/')
-      const errLog = await browser.log('browser')
-      expect(errLog.filter((e) => e.source === 'security')).toEqual([])
-      browser.close()
-    })
-
     it('CSP should fail when violations', async () => {
       const browser = await webdriver(context.appPort, '/violation')
       const errLog = await browser.log('browser')
@@ -57,7 +57,7 @@ module.exports = (context) => {
     })
 
     it('properly applies CSP nonce', async () => {
-      const browser = await webdriver(context.appPort, '/')
+      const browser = await webdriver(context.appPort, '/about')
       const nonce = await browser.elementByCss('meta[property="csp-nonce"]').getAttribute('content')
       expect(nonce).toMatch(/\w+=/)
       browser.close()

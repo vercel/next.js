@@ -1,3 +1,10 @@
 export default () => (
-  <div className='about-page'>About Page</div>
+  <div className='about-page'>
+    <h1>About Page</h1>
+    <style jsx>{`
+      h1 {
+        color: purple;
+      }
+    `}</style>
+  </div>
 )

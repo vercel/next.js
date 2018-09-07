@@ -1191,7 +1191,9 @@ module.exports = {
 }
 ```
 
-Node: In order to support dynamic styles nodejs uses a `nonce` for `style-src`. This is done automatically. If you use a different CSS-in-JS library, you can use the `cspNonce` document parameter to get the nonce set in the header. 
+Interestingly, due to the way error handling works in Next.js, you will have to use [custom error handling](#custom-error-handling) to avoid an inline style violation, but this is very easy to do.
+
+Node: In order to support dynamic styles nodejs uses a `nonce` for `style-src`. This is done automatically. If you use a different CSS-in-JS library, you can use the `csp.nonce` document parameter to get the nonce set in the header. `csp.policy` is the CSP policy before nonce is added. `csp.isDisabled` is what you can use to see if CSP is enabled.
 
 #### Disabling etag generation
 
