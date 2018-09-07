@@ -14,10 +14,9 @@ export default class Document extends Component {
   }
 
   static getInitialProps ({ renderPage, csp }) {
-    const { html, head, errorHtml, buildManifest } = renderPage()
+    const { html, head, buildManifest } = renderPage()
     const styles = flush({ nonce: csp && csp.nonce ? csp.nonce : undefined })
-
-    return { html, head, errorHtml, styles, buildManifest }
+    return { html, head, styles, buildManifest }
   }
 
   getChildContext () {
@@ -121,11 +120,10 @@ export class Main extends Component {
   }
 
   render () {
-    const { html, errorHtml } = this.context._documentProps
+    const { html } = this.context._documentProps
     return (
       <Fragment>
         <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-        <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </Fragment>
     )
   }

@@ -33,10 +33,6 @@ import stripAnsi from 'strip-ansi'
 import {rewriteStacktrace} from '../source-map-support'
 import fetch from 'unfetch'
 
-const {
-  distDir
-} = window.__NEXT_DATA__
-
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -108,7 +104,8 @@ export default function connect (options) {
       const error = new Error(err.message)
       error.name = err.name
       error.stack = err.stack
-      rewriteStacktrace(error, distDir)
+      // __NEXT_DIST_DIR is provided by webpack
+      rewriteStacktrace(error, process.env.__NEXT_DIST_DIR)
       return error
     }
   }

@@ -139,11 +139,10 @@ async function doRender (req, res, pathname, query, {
 
     let html
     let head
-    let errorHtml = ''
 
     try {
       if (err && dev) {
-        errorHtml = render(<ErrorDebug error={err} />)
+        html = render(<ErrorDebug error={err} />)
       } else if (err) {
         html = render(app)
       } else {
@@ -153,7 +152,7 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, errorHtml, buildManifest }
+    return { html, head, buildManifest }
   }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
@@ -166,8 +165,6 @@ async function doRender (req, res, pathname, query, {
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
     __NEXT_DATA__: {
-      // Used in development to replace paths for react-error-overlay
-      distDir: dev ? distDir : undefined,
       props, // The result of getInitialProps
       page, // The rendered page
       pathname, // The requested path
