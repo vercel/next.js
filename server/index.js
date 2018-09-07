@@ -180,6 +180,11 @@ export default class Server {
         }
       }
 
+      // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+      routes['/_next/:path*'] = async (req, res, params, parsedUrl) => {
+        await this.render404(req, res, parsedUrl)
+      }
+
       // It's very important keep this route's param optional.
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
