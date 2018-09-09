@@ -128,6 +128,19 @@ export default function ({ app }, suiteName, render, fetch, appPort) {
       expect(res.status).toBe(404)
     })
 
+    test('should expose the compiled page file in development', async () => {
+      await fetch('/stateless') // make sure the stateless page is built
+      const clientSideJsRes = await fetch('/_next/development/static/development/pages/stateless.js')
+      expect(clientSideJsRes.status).toBe(200)
+      const clientSideJsBody = await clientSideJsRes.text()
+      expect(clientSideJsBody).toMatch(/My component!/)
+
+      const serverSideJsRes = await fetch('/_next/development/server/static/development/pages/stateless.js')
+      expect(serverSideJsRes.status).toBe(200)
+      const serverSideJsBody = await serverSideJsRes.text()
+      expect(serverSideJsBody).toMatch(/My component!/)
+    })
+
     test('allows to import .json files', async () => {
       const html = await render('/json')
       expect(html.includes('Zeit')).toBeTruthy()
