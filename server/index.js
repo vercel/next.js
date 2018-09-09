@@ -159,6 +159,7 @@ export default class Server {
       }
     }
 
+    // This path is needed because `render()` does a check for `/_next` and the calls the routing again
     routes['/_next/:path*'] = async (req, res, params, parsedUrl) => {
       await this.render404(req, res, parsedUrl)
     }
