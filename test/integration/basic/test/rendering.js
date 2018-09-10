@@ -2,7 +2,7 @@
 
 import cheerio from 'cheerio'
 
-export default function ({ app }, suiteName, render, fetch) {
+export default function ({ app }, suiteName, render, fetch, appPort) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -121,6 +121,11 @@ export default function ({ app }, suiteName, render, fetch) {
     test('setting Content-Type in getInitialProps', async () => {
       const res = await fetch('/custom-encoding')
       expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
+    })
+
+    test('should render 404 for _next routes that do not exist', async () => {
+      const res = await fetch('/_next/abcdef')
+      expect(res.status).toBe(404)
     })
 
     test('allows to import .json files', async () => {

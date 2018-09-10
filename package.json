@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "7.0.0-canary.13",
+  "version": "7.0.0-canary.14",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -88,7 +88,7 @@
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.7.0",
     "glob": "7.1.2",
-    "hoist-non-react-statics": "2.5.0",
+    "hoist-non-react-statics": "2.5.5",
     "htmlescape": "1.1.1",
     "http-errors": "1.6.2",
     "http-status": "1.0.1",
