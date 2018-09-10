@@ -256,15 +256,18 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
-    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup && !this.renderOpts.dev) {
-      this.renderOpts.csp.nonce = Buffer.from(nanoid(32)).toString('base64')
+    if (this.renderOpts.csp.policy && !this.renderOpts.staticMarkup) {
       let { policy } = this.renderOpts.csp
-      const { nonce } = this.renderOpts.csp
 
-      if (policy.match(/style-src/gi)) {
-        policy = policy.replace(/style-src/gi, `style-src 'nonce-${nonce}'`)
-      } else {
-        policy = `style-src ${/default-src ([^;]+)+;?/gi.exec(policy)[1]} 'nonce-${nonce}'; ${policy}`
+      if (!this.renderOpts.dev) {
+        this.renderOpts.csp.nonce = Buffer.from(nanoid(32)).toString('base64')
+        const { nonce } = this.renderOpts.csp
+
+        if (policy.match(/style-src/gi)) {
+          policy = policy.replace(/style-src/gi, `style-src 'nonce-${nonce}'`)
+        } else {
+          policy = `style-src ${/default-src ([^;]+)+;?/gi.exec(policy)[1]} 'nonce-${nonce}'; ${policy}`
+        }
       }
 
       res.setHeader('Content-Security-Policy', policy)
