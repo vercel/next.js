@@ -253,6 +253,20 @@ describe('Production Usage', () => {
     })
   })
 
+  it('should not expose the compiled page file in development', async () => {
+    const url = `http://localhost:${appPort}`
+    await fetch(`${url}/stateless`) // make sure the stateless page is built
+    const clientSideJsRes = await fetch(`${url}/_next/development/static/development/pages/stateless.js`)
+    expect(clientSideJsRes.status).toBe(404)
+    const clientSideJsBody = await clientSideJsRes.text()
+    expect(clientSideJsBody).toMatch(/404/)
+
+    const serverSideJsRes = await fetch(`${url}/_next/development/server/static/development/pages/stateless.js`)
+    expect(serverSideJsRes.status).toBe(404)
+    const serverSideJsBody = await serverSideJsRes.text()
+    expect(serverSideJsBody).toMatch(/404/)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   security(context)
