@@ -113,7 +113,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: {dev, isServer}
+      options: {dev, isServer, cwd: dir}
     },
     hotSelfAccept: {
       loader: 'hot-self-accept-loader',
