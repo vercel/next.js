@@ -113,7 +113,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: {dev, isServer}
+      options: {dev, isServer, cwd: dir}
     },
     hotSelfAccept: {
       loader: 'hot-self-accept-loader',
@@ -133,7 +133,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const outputPath = path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : '')
+  const distDir = path.join(dir, config.distDir)
+  const outputPath = path.join(distDir, isServer ? SERVER_DIRECTORY : '')
   const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
@@ -185,7 +186,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         }
         return '[name]'
       },
-      libraryTarget: 'commonjs2',
+      libraryTarget: isServer ? 'commonjs2' : 'jsonp',
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
@@ -259,6 +260,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+      }),
+      // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
+      !isServer && dev && new webpack.DefinePlugin({
+        'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
       }),
       !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),

@@ -54,6 +54,12 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should render 404 for _next routes that do not exist', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const res = await fetch(url)
+      expect(res.status).toBe(404)
+    })
+
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
@@ -245,6 +251,20 @@ describe('Production Usage', () => {
       await app.render(req, res, req.url)
       app.nextConfig.poweredByHeader = originalConfigValue
     })
+  })
+
+  it('should not expose the compiled page file in development', async () => {
+    const url = `http://localhost:${appPort}`
+    await fetch(`${url}/stateless`) // make sure the stateless page is built
+    const clientSideJsRes = await fetch(`${url}/_next/development/static/development/pages/stateless.js`)
+    expect(clientSideJsRes.status).toBe(404)
+    const clientSideJsBody = await clientSideJsRes.text()
+    expect(clientSideJsBody).toMatch(/404/)
+
+    const serverSideJsRes = await fetch(`${url}/_next/development/server/static/development/pages/stateless.js`)
+    expect(serverSideJsRes.status).toBe(404)
+    const serverSideJsBody = await serverSideJsRes.text()
+    expect(serverSideJsBody).toMatch(/404/)
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

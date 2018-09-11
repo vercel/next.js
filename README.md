@@ -1479,7 +1479,7 @@ next build
 next export
 ```
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. 
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below. 
 
 If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
 This function is asynchronous and gets the default `exportPathMap` as a parameter.
@@ -1536,6 +1536,36 @@ For an example, simply visit the `out` directory and run following command to de
 
 ```sh
 now
+```
+
+### Copying custom files
+
+In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
+`exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
+
+- `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
+- `dir` - Absolute path to the project directory
+- `outDir` - Absolute path to the `out` directory (configurable with `-o` or `--outdir`). When `dev` is `true` the value of `outDir` will be `null`.
+- `distDir` - Absolute path to the `.next` directory (configurable using the `distDir` config key)
+- `buildId` - The buildId the export is running for
+
+```js
+// next.config.js
+const fs = require('fs')
+const {join} = require('path')
+const {promisify} = require('util')
+const copyFile = promisify(fs.copyFile)
+
+module.exports = {
+  exportPathMap: async function (defaultPathMap, {dev, dir, outDir, distDir, buildId}) {
+    if (dev) {
+      return defaultPathMap
+    }
+    // This will copy robots.txt from your project root into the out directory
+    await copyFile(join(dir, 'robots.txt'), join(outDir, 'robots.txt'))
+    return defaultPathMap
+  }
+}
 ```
 
 ### Limitation

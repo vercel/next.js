@@ -292,8 +292,10 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
+    // We don’t watch .git .next/ and node_modules for changes
     const ignored = [
-      /(^|[/\\])\../, // .dotfiles
+      /\.git/,
+      /\.next\//,
       /node_modules/
     ]
 
