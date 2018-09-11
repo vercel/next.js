@@ -35,13 +35,20 @@ describe('Production Config Usage', () => {
   describe('with next-css', () => {
     it('should load styles', async () => {
       let browser
-      try {
+
+      async function testBrowser () {
         browser = await openBrowser('/')
         const element = await browser.elementByCss('#mounted')
         const text = await element.text()
         expect(text).toMatch(/ComponentDidMount executed on client\./)
         expect(await element.getComputedCss('font-size')).toBe('40px')
         expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
+      }
+      try {
+        // Try 3 times as the breaking happens intermittently
+        await testBrowser()
+        await testBrowser()
+        await testBrowser()
       } finally {
         if (browser) {
           browser.close()
