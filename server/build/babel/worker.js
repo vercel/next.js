@@ -4,6 +4,7 @@
 // MIT: https://github.com/babel/babel/blob/master/LICENSE
 //
 import FS from 'fs'
+import Crypto from 'crypto'
 import Path, { resolve } from 'path'
 import Chokidar from 'chokidar'
 import slash from 'slash'
@@ -69,12 +70,25 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
 
   const ext = Path.extname(relative)
 
-  if ((ext && !['.js', '.jsx', '.json'].includes(ext)) || /__tests__|node_modules/.test(relative)) {
+  if ((ext && !['.js', '.jsx', '.json', '.woff'].includes(ext)) || /__tests__|node_modules/.test(relative)) {
     return 0
   }
 
   if (ext === '.json') {
     outputFileSync(Path.join(options.outDir, relative), FS.readFileSync(filenameOrDir))
+    return 1
+  }
+
+  if (ext === '.woff') {
+    const content = FS.readFileSync(filenameOrDir);
+
+    const hasher = Crypto.createHash('md5');
+    hasher.update(content);
+
+    const filename = `${hasher.digest('base64').slice(8).toLowerCase().replace(/=*$/, '')}${ext}`;
+    outputFileSync(Path.join(options.staticDir, filename), content)
+    outputFileSync(Path.join(options.outDir, relative), `module.exports = (assetPrefix) => assetPrefix + ${JSON.stringify(`_static/${filename}`)};`)
+
     return 1
   }
 

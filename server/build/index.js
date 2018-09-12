@@ -16,7 +16,8 @@ export default async function build (dir, server) {
       runCompiler(compiler),
       await buildServer([`${dir}/pages`, server].filter(Boolean), {
         base: dir,
-        outDir: join(buildDir, 'server')
+        outDir: join(buildDir, 'server'),
+        staticDir: join(buildDir, 'static')
       })
     ])
 
