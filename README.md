@@ -739,7 +739,7 @@ class MyLink extends React.Component {
         <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
-      </div>   
+      </div>
     )
   }
 }
@@ -1291,11 +1291,11 @@ The second argument to `webpack` is an object containing properties useful when 
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
   - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
 
-Example usage of `defaultLoaders.babel`: 
+Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source: 
+// This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
   webpack: (config, {}) => {
@@ -1413,6 +1413,14 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
+If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can specify the `assetCrossOrigin` setting which is then used for all Next.js asset tags.
+
+```js
+module.exports = {
+  assetCrossOrigin: 'anonymous'
+}
+```
+
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -1448,7 +1456,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
@@ -1479,7 +1487,7 @@ next build
 next export
 ```
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below. 
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below.
 
 If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
 This function is asynchronous and gets the default `exportPathMap` as a parameter.
@@ -1541,7 +1549,7 @@ now
 ### Copying custom files
 
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
+`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
 - `dir` - Absolute path to the project directory

@@ -12,6 +12,7 @@ export type NextConfig = {|
   poweredByHeader: boolean,
   distDir: string,
   assetPrefix: string,
+  assetCrossOrigin: null | string,
   configOrigin: string,
   useFileSystemPublicRoutes: boolean,
   generateBuildId: () => string,
@@ -25,6 +26,7 @@ const defaultConfig: NextConfig = {
   poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
+  assetCrossOrigin: null,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => {

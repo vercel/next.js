@@ -28,6 +28,7 @@ const {
     query,
     buildId,
     assetPrefix,
+    assetCrossOrigin,
     runtimeConfig
   },
   location
@@ -48,7 +49,7 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, prefix)
+const pageLoader = new PageLoader(buildId, prefix, assetCrossOrigin)
 window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
   pageLoader.registerPage(route, fn)
 })
