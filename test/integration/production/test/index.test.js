@@ -78,6 +78,23 @@ describe('Production Usage', () => {
       })
     })
 
+    it('should set correct Cache-Control header for 404 in build folder', async () => {
+      // this is to fix CDNs are caching these 404s
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+      const res = await fetch(`http://localhost:${appPort}/_next/${buildId}/page/bad-index-file.js`)
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0, must-revalidate')
+    })
+
+    it('should set correct Cache-Control header for 404 on static folder', async () => {
+      // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
+      const res = await fetch(`http://localhost:${appPort}/_next//static/common/bad-static.js`)
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0, must-revalidate')
+    })
+
     it('should block special pages', async () => {
       const urls = ['/_document', '/_error']
       for (const url of urls) {
