@@ -87,7 +87,8 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
 
     const filename = `${hasher.digest('base64').slice(8).toLowerCase().replace(/=*$/, '')}${ext}`;
     outputFileSync(Path.join(options.staticDir, filename), content)
-    outputFileSync(Path.join(options.outDir, relative), `module.exports = (assetPrefix) => assetPrefix + ${JSON.stringify(`_static/${filename}`)};`)
+    outputFileSync(Path.join(options.outDir, relative), `
+      module.exports = __webpack_public_path__ + ${JSON.stringify(`_static/${filename}`)};`)
 
     return 1
   }
