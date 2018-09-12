@@ -352,20 +352,6 @@ export default class Server {
     return buildId.trim()
   }
 
-  handleBuildId (buildId, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    if (buildId !== this.renderOpts.buildId) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    return true
-  }
-
   async getCompilationError (page) {
     if (!this.hotReloader) return
 
@@ -374,10 +360,5 @@ export default class Server {
 
     // Return the very first error we found.
     return errors[0]
-  }
-
-  send404 (res) {
-    res.statusCode = 404
-    res.end('404 - Not Found')
   }
 }
