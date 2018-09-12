@@ -1,8 +1,10 @@
 /* global describe, test, it, expect */
 
 import cheerio from 'cheerio'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
+import { join } from 'path'
 
-export default function ({ app }, suiteName, render, fetch) {
+export default function ({ app }, suiteName, render, fetch, appPort) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -123,6 +125,24 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
     })
 
+    test('should render 404 for _next routes that do not exist', async () => {
+      const res = await fetch('/_next/abcdef')
+      expect(res.status).toBe(404)
+    })
+
+    test('should expose the compiled page file in development', async () => {
+      await fetch('/stateless') // make sure the stateless page is built
+      const clientSideJsRes = await fetch('/_next/development/static/development/pages/stateless.js')
+      expect(clientSideJsRes.status).toBe(200)
+      const clientSideJsBody = await clientSideJsRes.text()
+      expect(clientSideJsBody).toMatch(/My component!/)
+
+      const serverSideJsRes = await fetch('/_next/development/server/static/development/pages/stateless.js')
+      expect(serverSideJsRes.status).toBe(200)
+      const serverSideJsBody = await serverSideJsRes.text()
+      expect(serverSideJsBody).toMatch(/My component!/)
+    })
+
     test('allows to import .json files', async () => {
       const html = await render('/json')
       expect(html.includes('Zeit')).toBeTruthy()
@@ -144,6 +164,44 @@ export default function ({ app }, suiteName, render, fetch) {
       const $ = await get$('/error-in-the-global-scope')
       expect($('pre').text()).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
+    })
+
+    it('should set Cache-Control header', async () => {
+      const buildId = 'development'
+
+      // build dynamic page
+      await fetch('/dynamic/ssr')
+
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      console.log(buildManifest)
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const resources = []
+
+      // test a regular page
+      resources.push(`/_next/static/${buildId}/pages/index.js`)
+
+      // test dynamic chunk
+      resources.push('/_next/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
+
+      // test main.js runtime etc
+      for (const item of buildManifest.pages['/dynamic/ssr']) {
+        resources.push('/_next/' + item)
+      }
+
+      for (const item of buildManifest.devFiles) {
+        resources.push('/_next/' + item)
+      }
+
+      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+
+      responses.forEach((res) => {
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('no-store, must-revalidate')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
+      })
     })
 
     test('asPath', async () => {
