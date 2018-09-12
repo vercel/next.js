@@ -360,9 +360,4 @@ export default class Server {
     // Return the very first error we found.
     return errors[0]
   }
-
-  send404 (res) {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-  }
 }
