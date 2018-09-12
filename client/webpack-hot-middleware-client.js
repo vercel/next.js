@@ -4,6 +4,12 @@ import Router from '../lib/router'
 
 const handlers = {
   reload (route) {
+    // If the App component changes we have to reload the current route, this is handled by hot-self-accept-loader
+    // So we just return
+    if (route === '/_app') {
+      return
+    }
+
     if (route === '/_error') {
       for (const r of Object.keys(Router.components)) {
         const { err } = Router.components[r]
@@ -13,12 +19,6 @@ const handlers = {
           Router.reload(r)
         }
       }
-      return
-    }
-
-    // If the App component changes we have to reload the current route
-    if (route === '/_app') {
-      Router.reload(Router.route)
       return
     }
 
@@ -32,9 +32,9 @@ const handlers = {
   },
 
   change (route) {
-    // If the App component changes we have to reload the current route
+    // If the App component changes we have to reload the current route, this is handled by hot-self-accept-loader
+    // So we just return
     if (route === '/_app') {
-      Router.reload(Router.route)
       return
     }
 
