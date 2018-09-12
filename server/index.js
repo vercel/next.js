@@ -351,20 +351,6 @@ export default class Server {
     return buildId.trim()
   }
 
-  handleBuildId (buildId, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    if (buildId !== this.renderOpts.buildId) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    return true
-  }
-
   async getCompilationError (page) {
     if (!this.hotReloader) return
 
