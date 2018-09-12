@@ -310,6 +310,7 @@ export default class Server {
   async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
+    res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     return this.renderError(null, req, res, pathname, query)
   }
 
