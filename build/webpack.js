@@ -245,6 +245,15 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
+      // This removes prop-types-exact in production, as it's not used there.
+      !dev && new webpack.IgnorePlugin({
+        checkResource: (resource) => {
+          return /prop-types-exact/.test(resource)
+        },
+        checkContext: (context) => {
+          return context.indexOf(NEXT_PROJECT_ROOT_DIST) !== -1
+        }
+      }),
       // Even though require.cache is server only we have to clear assets from both compilations
       // This is because the client compilation generates the build manifest that's used on the server side
       dev && new NextJsRequireCacheHotReloader(),
