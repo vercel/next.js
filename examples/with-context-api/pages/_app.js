@@ -1,6 +1,6 @@
 import App, { Container } from 'next/app'
 /* First we import our provider */
-import NoteProvider from '../components/CounterProvider'
+import CounterProvider from '../components/CounterProvider'
 
 class MyApp extends App {
   render () {
@@ -8,9 +8,9 @@ class MyApp extends App {
     return (
       <Container>
         {/* Then we wrap our components with the provider */}
-        <NoteProvider>
+        <CounterProvider>
           <Component {...pageProps} />
-        </NoteProvider>
+        </CounterProvider>
       </Container>
     )
   }
