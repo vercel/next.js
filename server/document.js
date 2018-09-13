@@ -3,6 +3,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
+import { warn } from '../lib/utils'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
@@ -103,6 +104,13 @@ export class Head extends Component {
     const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
+
+    // show a warning if Head contains <title>
+    React.Children.forEach(this.props.children, (child) => {
+      if (child.type === 'title') {
+        warn("Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title")
+      }
+    })
 
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
