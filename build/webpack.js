@@ -267,14 +267,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         // required not to cache removed files
         useHashIndex: false
       }),
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
-      }),
       // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
       !isServer && dev && new webpack.DefinePlugin({
         'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
       }),
-      !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
