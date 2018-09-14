@@ -4,7 +4,6 @@ import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import { loadGetInitialProps, getURL } from '../lib/utils'
-import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
@@ -26,7 +25,6 @@ const {
     page,
     pathname,
     query,
-    buildId,
     assetPrefix,
     runtimeConfig
   },
@@ -48,13 +46,6 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
-  pageLoader.registerPage(route, fn)
-})
-delete window.__NEXT_LOADED_PAGES__
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
-
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
 
@@ -68,7 +59,8 @@ let App
 export const emitter = new EventEmitter()
 
 export default async ({
-  webpackHMR: passedWebpackHMR
+  webpackHMR: passedWebpackHMR,
+  pageLoader
 } = {}) => {
   // This makes sure this specific line is removed in production
   if (process.env.NODE_ENV === 'development') {

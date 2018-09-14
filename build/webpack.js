@@ -142,7 +142,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     'main.js': [],
     [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
       path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
-    ].filter(Boolean)
+    ]
   } : {}
 
   const resolveConfig = {
@@ -226,6 +226,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         context: dir,
         entry: {
           dll: [
+            path.join(NEXT_PROJECT_ROOT_DIST, 'client', 'index'),
             'react',
             'react-dom'
           ]
