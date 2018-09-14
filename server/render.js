@@ -90,7 +90,7 @@ export async function doDocRender (page, initialProps, { dev, dir, publicPath })
       props: docProps.props,
       pathname: docProps.pathname,
       query: docProps.query,
-      publicPath,
+      publicPath: docProps.publicPath || publicPath,
       err: docProps.err
     },
     dev,
