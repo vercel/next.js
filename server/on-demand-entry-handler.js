@@ -26,10 +26,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   pagesBufferLength = 2
 }) {
   const {compilers} = multiCompiler
+  const invalidator = new Invalidator(devMiddleware)
   let entries = {}
   let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
-  const invalidator = new Invalidator(devMiddleware)
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
