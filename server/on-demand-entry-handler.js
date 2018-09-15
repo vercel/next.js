@@ -33,13 +33,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
-  // Keep the names of compilers which are building pages at a given moment.
-  const currentBuilders = new Set()
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
       invalidator.startBuilding()
-      currentBuilders.add(compiler.name)
 
       const allEntries = Object.keys(entries).map(async (page) => {
         const { name, entry } = entries[page]
@@ -60,62 +57,59 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       return Promise.all(allEntries)
     })
+  }
 
-    compiler.hooks.done.tap('NextJsOnDemandEntries', function (stats) {
-      // Wait until all the compilers mark the build as done.
-      currentBuilders.delete(compiler.name)
-      if (currentBuilders.size !== 0) return
+  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+    const clientStats = multiStats.stats[0]
+    const { compilation } = clientStats
+    const hardFailedPages = compilation.errors
+      .filter(e => {
+        // Make sure to only pick errors which marked with missing modules
+        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+        if (!hasNoModuleFoundError) return false
 
-      const { compilation } = stats
-      const hardFailedPages = compilation.errors
-        .filter(e => {
-          // Make sure to only pick errors which marked with missing modules
-          const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-          if (!hasNoModuleFoundError) return false
+        // The page itself is missing. So this is a failed page.
+        if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
 
-          // The page itself is missing. So this is a failed page.
-          if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
-
-          // No dependencies means this is a top level page.
-          // So this is a failed page.
-          return e.module.dependencies.length === 0
-        })
-        .map(e => e.module.chunks)
-        .reduce((a, b) => [...a, ...b], [])
-        .map(c => {
-          const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
-          return normalizePage(`/${pageName}`)
-        })
-
-      // Call all the doneCallbacks
-      Object.keys(entries).forEach((page) => {
-        const entryInfo = entries[page]
-        if (entryInfo.status !== BUILDING) return
-
-        entryInfo.status = BUILT
-        entryInfo.lastActiveTime = Date.now()
-        doneCallbacks.emit(page)
+        // No dependencies means this is a top level page.
+        // So this is a failed page.
+        return e.module.dependencies.length === 0
+      })
+      .map(e => e.module.chunks)
+      .reduce((a, b) => [...a, ...b], [])
+      .map(c => {
+        const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
+        return normalizePage(`/${pageName}`)
       })
 
-      invalidator.doneBuilding()
+    // Call all the doneCallbacks
+    Object.keys(entries).forEach((page) => {
+      const entryInfo = entries[page]
+      if (entryInfo.status !== BUILDING) return
 
-      if (hardFailedPages.length > 0 && !reloading) {
-        console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
-        reloading = true
-        reload()
-          .then(() => {
-            console.log('> Webpack reloaded.')
-            reloadCallbacks.emit('done')
-            stop()
-          })
-          .catch(err => {
-            console.error(`> Webpack reloading failed: ${err.message}`)
-            console.error(err.stack)
-            process.exit(1)
-          })
-      }
+      entryInfo.status = BUILT
+      entryInfo.lastActiveTime = Date.now()
+      doneCallbacks.emit(page)
     })
-  }
+
+    invalidator.doneBuilding()
+
+    if (hardFailedPages.length > 0 && !reloading) {
+      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
+      reloading = true
+      reload()
+        .then(() => {
+          console.log('> Webpack reloaded.')
+          reloadCallbacks.emit('done')
+          stop()
+        })
+        .catch(err => {
+          console.error(`> Webpack reloading failed: ${err.message}`)
+          console.error(err.stack)
+          process.exit(1)
+        })
+    }
+  })
 
   const disposeHandler = setInterval(function () {
     if (stopped) return
