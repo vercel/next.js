@@ -16,7 +16,7 @@ const BUILT = Symbol('built')
 const glob = promisify(globModule)
 const access = promisify(fs.access)
 
-export default function onDemandEntryHandler (devMiddleware, compilers, {
+export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
   dev,
@@ -25,6 +25,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   maxInactiveAge = 1000 * 60,
   pagesBufferLength = 2
 }) {
+  const {compilers} = multiCompiler
   let entries = {}
   let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
