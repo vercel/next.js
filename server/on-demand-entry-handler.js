@@ -99,7 +99,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         doneCallbacks.emit(page)
       })
 
-      invalidator.doneBuilding(compiler.name)
+      invalidator.doneBuilding()
 
       if (hardFailedPages.length > 0 && !reloading) {
         console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
