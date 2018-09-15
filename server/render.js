@@ -19,6 +19,7 @@ export async function renderErrorToHTML (err, req, res, pathname, query, opts) {
 export async function doPageRender (req, res, pathname, query, {
   dev,
   err,
+  publicPath,
   page,
   hotReloader,
   dir,
@@ -74,6 +75,7 @@ export async function doPageRender (req, res, pathname, query, {
     props,
     head: renderToString(head),
     html,
+    publicPath,
     errorHtml
   }
 }
