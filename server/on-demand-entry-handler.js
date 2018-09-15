@@ -82,15 +82,34 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         return normalizePage(`/${pageName}`)
       })
 
-    // Call all the doneCallbacks
-    Object.keys(entries).forEach((page) => {
-      const entryInfo = entries[page]
-      if (entryInfo.status !== BUILDING) return
+    // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
+    for (const [, entrypoint] of compilation.entrypoints.entries()) {
+      const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
+      if (!result) {
+        continue
+      }
 
-      entryInfo.status = BUILT
-      entryInfo.lastActiveTime = Date.now()
+      const pagePath = result[1]
+
+      if (!pagePath) {
+        continue
+      }
+
+      const page = '/' + (pagePath === 'index' ? '' : pagePath)
+
+      const entry = entries[page]
+      if (!entry) {
+        continue
+      }
+
+      if (entry.status !== BUILDING) {
+        continue
+      }
+
+      entry.status = BUILT
+      entry.lastActiveTime = Date.now()
       doneCallbacks.emit(page)
-    })
+    }
 
     invalidator.doneBuilding()
 
