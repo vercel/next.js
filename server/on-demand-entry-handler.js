@@ -37,7 +37,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   const currentBuilders = new Set()
 
   for (const compiler of compilers) {
-    compiler.hooks.make.tapAsync('NextJsOnDemandEntries', function (compilation, done) {
+    compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
       invalidator.startBuilding()
       currentBuilders.add(compiler.name)
 
@@ -58,9 +58,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         return addEntry(compilation, compiler.context, name, entry)
       })
 
-      Promise.all(allEntries)
-        .then(() => done())
-        .catch(done)
+      return Promise.all(allEntries)
     })
 
     compiler.hooks.done.tap('NextJsOnDemandEntries', function (stats) {
