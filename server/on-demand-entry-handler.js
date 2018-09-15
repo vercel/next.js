@@ -16,6 +16,17 @@ const BUILT = Symbol('built')
 const glob = promisify(globModule)
 const access = promisify(fs.access)
 
+// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
+function addEntry (compilation, context, name, entry) {
+  return new Promise((resolve, reject) => {
+    const dep = DynamicEntryPlugin.createDependency(entry, name)
+    compilation.addEntry(context, dep, name, (err) => {
+      if (err) return reject(err)
+      resolve()
+    })
+  })
+}
+
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
@@ -26,7 +37,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   pagesBufferLength = 2
 }) {
   const {compilers} = multiCompiler
-  const invalidator = new Invalidator(devMiddleware)
+  const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
   let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
@@ -95,7 +106,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         continue
       }
 
-      const page = '/' + (pagePath === 'index' ? '' : pagePath)
+      const page = normalizePage('/' + pagePath)
 
       const entry = entries[page]
       if (!entry) {
@@ -260,17 +271,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   }
 }
 
-// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
-function addEntry (compilation, context, name, entry) {
-  return new Promise((resolve, reject) => {
-    const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
-}
-
 function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxInactiveAge) {
   const disposingPages = []
 
@@ -318,7 +318,8 @@ function sendJson (res, payload) {
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  constructor (devMiddleware) {
+  constructor (devMiddleware, multiCompiler) {
+    this.multiCompiler = multiCompiler
     this.devMiddleware = devMiddleware
     // contains an array of types of compilers currently building
     this.building = false
@@ -336,6 +337,9 @@ class Invalidator {
     }
 
     this.building = true
+    for (const compiler of this.multiCompiler.compilers) {
+      compiler.hooks.invalid.call()
+    }
     this.devMiddleware.invalidate()
   }
 
