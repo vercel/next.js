@@ -36,7 +36,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   // Keep the names of compilers which are building pages at a given moment.
   const currentBuilders = new Set()
 
-  compilers.forEach(compiler => {
+  for (const compiler of compilers) {
     compiler.hooks.make.tapAsync('NextJsOnDemandEntries', function (compilation, done) {
       invalidator.startBuilding()
       currentBuilders.add(compiler.name)
@@ -117,7 +117,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           })
       }
     })
-  })
+  }
 
   const disposeHandler = setInterval(function () {
     if (stopped) return
