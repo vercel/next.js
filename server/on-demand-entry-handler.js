@@ -95,7 +95,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         if (entryInfo.status !== BUILDING) return
 
         entryInfo.status = BUILT
-        entries[page].lastActiveTime = Date.now()
+        entryInfo.lastActiveTime = Date.now()
         doneCallbacks.emit(page)
       })
 
