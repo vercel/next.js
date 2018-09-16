@@ -338,6 +338,8 @@ class Invalidator {
     }
 
     this.building = true
+    // Work around a bug in webpack, calling `invalidate` on Watching.js
+    // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
     for (const compiler of this.multiCompiler.compilers) {
       compiler.hooks.invalid.call()
     }
