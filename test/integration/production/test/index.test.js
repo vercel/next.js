@@ -73,7 +73,8 @@ describe('Production Usage', () => {
       resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      const file = Object.keys(reactLoadableManifest).find((i) => i.indexOf('components/hello1') !== -1)
+      resources.push(url + reactLoadableManifest[file][0].publicPath)
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
