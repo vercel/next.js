@@ -1,6 +1,17 @@
 import initNext, * as next from './'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
+import {initPageLoader} from './page-loader'
+
+const {
+  buildId,
+  assetPrefix
+} = window.__NEXT_DATA__
+const prefix = assetPrefix || ''
+
+// With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
+// So, this is how we do it in the client side at runtime
+__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
@@ -8,17 +19,12 @@ import initWebpackHMR from './webpack-hot-middleware-client'
 // The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
 import('./noop')
 
-const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
-} = window
-
-const prefix = assetPrefix || ''
 const webpackHMR = initWebpackHMR({assetPrefix: prefix})
+const pageLoader = initPageLoader({buildId, assetPrefix: prefix})
 
 window.next = next
-initNext({ webpackHMR })
+
+initNext({ webpackHMR, pageLoader })
   .then((emitter) => {
     initOnDemandEntries({assetPrefix: prefix})
 
