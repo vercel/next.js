@@ -1,3 +1,4 @@
+/* global describe, it */
 import { shallow } from 'enzyme'
 import React from 'react'
 import expect from 'expect.js'
