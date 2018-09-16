@@ -178,22 +178,7 @@ export class NextScript extends Component {
   static getInlineScriptSource (documentProps) {
     const { __NEXT_DATA__ } = documentProps
     const { page, pathname } = __NEXT_DATA__
-
-    return `
-      __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-      __NEXT_LOADED_PAGES__ = []
-
-      __NEXT_REGISTER_PAGE = function (route, fn) {
-        __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-      }${page === '_error' ? `
-
-      __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
-        var error = new Error('Page does not exist: ${htmlescape(pathname)}')
-        error.statusCode = 404
-
-        return { error: error }
-      })`: ''}
-    `
+    return `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};__NEXT_LOADED_PAGES__=[];__NEXT_REGISTER_PAGE=function(r,f){__NEXT_LOADED_PAGES__.push([r, f])}${page === '/_error' ? `;__NEXT_REGISTER_PAGE(${htmlescape(pathname)},function(){var e = new Error('Page does not exist: ${htmlescape(pathname)}');e.statusCode=404;return {error:e}})`:''}`
   }
 
   render () {
