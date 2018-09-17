@@ -99,6 +99,11 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     chunks: 'all',
     minChunks: totalPages > 2 ? totalPages * 0.5 : 2
   }
+  config.splitChunks.cacheGroups.react = {
+    name: 'commons',
+    chunks: 'all',
+    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
+  }
 
   return config
 }
