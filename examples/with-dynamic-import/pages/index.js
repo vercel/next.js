@@ -18,21 +18,17 @@ const DynamicComponentWithNoSSR = dynamic(
 const DynamicComponent5 = dynamic(import('../components/hello5'))
 
 const DynamicBundle = dynamic({
-  modules: (props) => {
+  modules: () => {
     const components = {
-      Hello6: import('../components/hello6')
+      Hello6: import('../components/hello6'),
+      Hello7: import('../components/hello7')
     }
-
-    if (props.showMore) {
-      components.Hello7 = import('../components/hello7')
-    }
-
     return components
   },
   render: (props, { Hello6, Hello7 }) => (
     <div style={{padding: 10, border: '1px solid #888'}}>
       <Hello6 />
-      {Hello7 ? <Hello7 /> : null}
+      {props.showMore && <Hello7 />}
     </div>
   )
 })
@@ -62,6 +58,7 @@ export default class Index extends React.Component {
         <DynamicComponentWithCustomLoading />
         <DynamicComponentWithNoSSR />
         <DynamicBundle showMore={showMore} />
+
         <button onClick={() => this.toggleShowMore()}>Toggle Show More</button>
         {
           /*
