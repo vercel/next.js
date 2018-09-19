@@ -1,18 +1,28 @@
 import { join } from 'path'
-import { createElement } from 'react'
+import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requirePage from './require'
+import requirePage, {normalizePagePath} from './require'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
-import { getAvailableChunks } from './utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
-import { flushChunks } from '../lib/dynamic'
-import { BUILD_MANIFEST, SERVER_DIRECTORY } from '../lib/constants'
-import { applySourcemaps } from './lib/source-map-support'
+import Loadable from '../lib/loadable'
+import LoadableCapture from '../lib/loadable-capture'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from '../lib/constants'
+
+// Based on https://github.com/jamiebuilds/react-loadable/pull/132
+function getDynamicImportBundles (manifest, moduleIds) {
+  return moduleIds.reduce((bundles, moduleId) => {
+    if (typeof manifest[moduleId] === 'undefined') {
+      return bundles
+    }
+
+    return bundles.concat(manifest[moduleId])
+  }, [])
+}
 
 const logger = console
 
@@ -34,6 +44,18 @@ export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
 }
 
+function getPageFiles (buildManifest, page) {
+  const normalizedPage = normalizePagePath(page)
+  const files = buildManifest.pages[normalizedPage]
+
+  if (!files) {
+    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    return []
+  }
+
+  return files
+}
+
 async function doRender (req, res, pathname, query, {
   err,
   page,
@@ -41,25 +63,23 @@ async function doRender (req, res, pathname, query, {
   hotReloader,
   assetPrefix,
   runtimeConfig,
-  availableChunks,
   distDir,
   dir,
   dev = false,
   staticMarkup = false,
-  nextExport = false
+  nextExport
 } = {}) {
   page = page || pathname
-
-  await applySourcemaps(err)
 
   if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
     await ensurePage(page, { dir, hotReloader })
   }
 
-  const documentPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, 'bundles', 'pages', '_app')
-  const buildManifest = require(join(distDir, BUILD_MANIFEST))
-  let [Component, Document, App] = await Promise.all([
+  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
+  let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
+    require(join(distDir, BUILD_MANIFEST)),
+    require(join(distDir, REACT_LOADABLE_MANIFEST)),
     requirePage(page, {distDir}),
     require(documentPath),
     require(appPath)
@@ -77,26 +97,51 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const devFiles = buildManifest.devFiles
+  const files = [
+    ...new Set([
+      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, '/_error')
+    ])
+  ]
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
 
-  const renderPage = (enhancer = Page => Page) => {
-    const app = createElement(App, {
-      Component: enhancer(Component),
-      router,
-      ...props
-    })
+  let reactLoadableModules = []
+  const renderPage = (options = Page => Page) => {
+    let EnhancedApp = App
+    let EnhancedComponent = Component
+
+    // For backwards compatibility
+    if (typeof options === 'function') {
+      EnhancedComponent = options(Component)
+    } else if (typeof options === 'object') {
+      if (options.enhanceApp) {
+        EnhancedApp = options.enhanceApp(App)
+      }
+      if (options.enhanceComponent) {
+        EnhancedComponent = options.enhanceComponent(Component)
+      }
+    }
+
+    const app = <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
+      <EnhancedApp {...{
+        Component: EnhancedComponent,
+        router,
+        ...props
+      }} />
+    </LoadableCapture>
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
     let html
     let head
-    let errorHtml = ''
 
     try {
       if (err && dev) {
-        errorHtml = render(createElement(ErrorDebug, { error: err }))
+        html = render(<ErrorDebug error={err} />)
       } else if (err) {
         html = render(app)
       } else {
@@ -105,41 +150,47 @@ async function doRender (req, res, pathname, query, {
     } finally {
       head = Head.rewind() || defaultHead()
     }
-    const chunks = loadChunks({ dev, distDir, availableChunks })
 
-    return { html, head, errorHtml, chunks, buildManifest }
+    return { html, head, buildManifest }
   }
 
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
+
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const dynamicImports = getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)
 
   if (isResSent(res)) return
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
-  const doc = createElement(Document, {
+  const doc = <Document {...{
     __NEXT_DATA__: {
-      props,
-      page, // the rendered page
-      pathname, // the requested path
-      query,
-      buildId,
-      assetPrefix,
-      runtimeConfig,
-      nextExport,
-      err: (err) ? serializeError(dev, err) : null
+      props, // The result of getInitialProps
+      page, // The rendered page
+      pathname, // The requested path
+      query, // querystring parsed / passed by the user
+      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+      nextExport, // If this is a page exported by `next export`
+      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
     },
     dev,
     dir,
     staticMarkup,
     buildManifest,
+    devFiles,
+    files,
+    dynamicImports,
+    assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
     ...docProps
-  })
+  }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
 export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
 
   if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
@@ -177,15 +228,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   }
   res.setHeader('Content-Length', Buffer.byteLength(html))
   res.end(method === 'HEAD' ? null : html)
-}
-
-export function sendJSON (res, obj, method) {
-  if (isResSent(res)) return
-
-  const json = JSON.stringify(obj)
-  res.setHeader('Content-Type', 'application/json')
-  res.setHeader('Content-Length', Buffer.byteLength(json))
-  res.end(method === 'HEAD' ? null : json)
 }
 
 function errorToJSON (err) {
@@ -228,26 +270,4 @@ async function ensurePage (page, { dir, hotReloader }) {
   if (page === '/_error') return
 
   await hotReloader.ensurePage(page)
-}
-
-function loadChunks ({ dev, distDir, availableChunks }) {
-  const flushedChunks = flushChunks()
-  const response = {
-    names: [],
-    filenames: []
-  }
-
-  if (dev) {
-    availableChunks = getAvailableChunks(distDir, dev)
-  }
-
-  for (var chunk of flushedChunks) {
-    const filename = availableChunks[chunk]
-    if (filename) {
-      response.names.push(chunk)
-      response.filenames.push(filename)
-    }
-  }
-
-  return response
 }

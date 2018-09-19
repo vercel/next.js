@@ -9,17 +9,15 @@
   "author": "tomaszmularczyk(tomasz.mularczyk89@gmail.com)",
   "dependencies": {
     "next": "latest",
-    "next-redux-wrapper": "^1.0.0",
+    "next-redux-wrapper": "^2.0.0-beta.6",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
     "react-redux": "^5.0.1",
-    "redux": "^3.6.0",
+    "redux": "^4.0.0",
     "redux-logger": "^3.0.6",
-    "redux-observable": "^0.17.0",
-    "redux-thunk": "^2.1.0",
-    "rxjs": "^5.5.2",
-    "superagent": "^3.8.1",
-    "universal-rx-request": "^1.0.3"
+    "redux-observable": "^1.0.0",
+    "rxjs": "^6.2.1",
+    "universal-rxjs-ajax": "^2.0.0"
   },
   "license": "ISC"
 }

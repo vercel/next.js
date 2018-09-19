@@ -6,7 +6,7 @@ import Head from 'next/head'
 
 import initApollo from './initApollo'
 
-function parseCookies(req, options = {}) {
+function parseCookies (req, options = {}) {
   return cookie.parse(
     req ? req.headers.cookie || '' : document.cookie,
     options
@@ -20,7 +20,7 @@ export default App => {
       apolloState: PropTypes.object.isRequired
     }
 
-    static async getInitialProps(ctx) {
+    static async getInitialProps (ctx) {
       const { Component, router, ctx: { req, res } } = ctx
       const token = parseCookies(req).token
       const apollo = initApollo({}, {
@@ -40,26 +40,26 @@ export default App => {
         return {}
       }
 
-      // Run all graphql queries in the component tree
-      // and extract the resulting data
-      try {
-        // Run all GraphQL queries
-        await getDataFromTree(
-          <App
-            {...appProps}
-            Component={Component}
-            router={router}
-            apolloClient={apollo}
-          />
-        )
-      } catch (error) {
-        // Prevent Apollo Client GraphQL errors from crashing SSR.
-        // Handle them in components via the data.error prop:
-        // http://dev.apollodata.com/react/api-queries.html#graphql-query-data-error
-        console.error('Error while running `getDataFromTree`', error)
-      }
-
       if (!process.browser) {
+        // Run all graphql queries in the component tree
+        // and extract the resulting data
+        try {
+          // Run all GraphQL queries
+          await getDataFromTree(
+            <App
+              {...appProps}
+              Component={Component}
+              router={router}
+              apolloClient={apollo}
+            />
+          )
+        } catch (error) {
+          // Prevent Apollo Client GraphQL errors from crashing SSR.
+          // Handle them in components via the data.error prop:
+          // https://www.apollographql.com/docs/react/api/react-apollo.html#graphql-query-data-error
+          console.error('Error while running `getDataFromTree`', error)
+        }
+
         // getDataFromTree does not call componentWillUnmount
         // head side effect therefore need to be cleared manually
         Head.rewind()
@@ -75,7 +75,7 @@ export default App => {
       }
     }
 
-    constructor(props) {
+    constructor (props) {
       super(props)
       // `getDataFromTree` renders the component first, the client is passed off as a property.
       // After that rendering is done using Next's normal rendering pipeline
@@ -84,7 +84,7 @@ export default App => {
       })
     }
 
-    render() {
+    render () {
       return <App {...this.props} apolloClient={this.apolloClient} />
     }
   }

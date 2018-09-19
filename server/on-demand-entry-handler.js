@@ -2,7 +2,7 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
-import touch from 'touch'
+import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
@@ -14,8 +14,21 @@ const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
 const glob = promisify(globModule)
+const access = promisify(fs.access)
 
-export default function onDemandEntryHandler (devMiddleware, compilers, {
+// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
+function addEntry (compilation, context, name, entry) {
+  return new Promise((resolve, reject) => {
+    const dep = DynamicEntryPlugin.createDependency(entry, name)
+    compilation.addEntry(context, dep, name, (err) => {
+      if (err) return reject(err)
+      resolve()
+    })
+  })
+}
+
+export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
+  buildId,
   dir,
   dev,
   reload,
@@ -23,98 +36,109 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   maxInactiveAge = 1000 * 60,
   pagesBufferLength = 2
 }) {
+  const {compilers} = multiCompiler
+  const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
   let lastAccessPages = ['']
   let doneCallbacks = new EventEmitter()
-  const invalidator = new Invalidator(devMiddleware)
-  let touchedAPage = false
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
-  // Keep the names of compilers which are building pages at a given moment.
-  const currentBuilders = new Set()
 
-  compilers.forEach(compiler => {
-    compiler.plugin('make', function (compilation, done) {
+  for (const compiler of compilers) {
+    compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
       invalidator.startBuilding()
-      currentBuilders.add(compiler.name)
 
-      const allEntries = Object.keys(entries).map((page) => {
+      const allEntries = Object.keys(entries).map(async (page) => {
         const { name, entry } = entries[page]
+        const files = Array.isArray(entry) ? entry : [entry]
+        // Is just one item. But it's passed as an array.
+        for (const file of files) {
+          try {
+            await access(join(dir, file), (fs.constants || fs).W_OK)
+          } catch (err) {
+            console.warn('Page was removed', page)
+            delete entries[page]
+            return
+          }
+        }
         entries[page].status = BUILDING
         return addEntry(compilation, compiler.context, name, entry)
       })
 
-      Promise.all(allEntries)
-        .then(() => done())
-        .catch(done)
+      return Promise.all(allEntries)
     })
+  }
 
-    compiler.plugin('done', function (stats) {
-      // Wait until all the compilers mark the build as done.
-      currentBuilders.delete(compiler.name)
-      if (currentBuilders.size !== 0) return
+  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+    const clientStats = multiStats.stats[0]
+    const { compilation } = clientStats
+    const hardFailedPages = compilation.errors
+      .filter(e => {
+        // Make sure to only pick errors which marked with missing modules
+        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+        if (!hasNoModuleFoundError) return false
 
-      const { compilation } = stats
-      const hardFailedPages = compilation.errors
-        .filter(e => {
-          // Make sure to only pick errors which marked with missing modules
-          const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-          if (!hasNoModuleFoundError) return false
+        // The page itself is missing. So this is a failed page.
+        if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
 
-          // The page itself is missing. So this is a failed page.
-          if (IS_BUNDLED_PAGE_REGEX.test(e.module.name)) return true
-
-          // No dependencies means this is a top level page.
-          // So this is a failed page.
-          return e.module.dependencies.length === 0
-        })
-        .map(e => e.module.chunks)
-        .reduce((a, b) => [...a, ...b], [])
-        .map(c => {
-          const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
-          return normalizePage(`/${pageName}`)
-        })
-
-      // Call all the doneCallbacks
-      Object.keys(entries).forEach((page) => {
-        const entryInfo = entries[page]
-        if (entryInfo.status !== BUILDING) return
-
-        // With this, we are triggering a filesystem based watch trigger
-        // It'll memorize some timestamp related info related to common files used
-        // in the page
-        // That'll reduce the page building time significantly.
-        if (!touchedAPage) {
-          setTimeout(() => {
-            touch.sync(entryInfo.pathname)
-          }, 1000)
-          touchedAPage = true
-        }
-
-        entryInfo.status = BUILT
-        entries[page].lastActiveTime = Date.now()
-        doneCallbacks.emit(page)
+        // No dependencies means this is a top level page.
+        // So this is a failed page.
+        return e.module.dependencies.length === 0
+      })
+      .map(e => e.module.chunks)
+      .reduce((a, b) => [...a, ...b], [])
+      .map(c => {
+        const pageName = ROUTE_NAME_REGEX.exec(c.name)[1]
+        return normalizePage(`/${pageName}`)
       })
 
-      invalidator.doneBuilding(compiler.name)
-
-      if (hardFailedPages.length > 0 && !reloading) {
-        console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
-        reloading = true
-        reload()
-          .then(() => {
-            console.log('> Webpack reloaded.')
-            reloadCallbacks.emit('done')
-            stop()
-          })
-          .catch(err => {
-            console.error(`> Webpack reloading failed: ${err.message}`)
-            console.error(err.stack)
-            process.exit(1)
-          })
+    // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
+    for (const [, entrypoint] of compilation.entrypoints.entries()) {
+      const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
+      if (!result) {
+        continue
       }
-    })
+
+      const pagePath = result[1]
+
+      if (!pagePath) {
+        continue
+      }
+
+      const page = normalizePage('/' + pagePath)
+
+      const entry = entries[page]
+      if (!entry) {
+        continue
+      }
+
+      if (entry.status !== BUILDING) {
+        continue
+      }
+
+      entry.status = BUILT
+      entry.lastActiveTime = Date.now()
+      doneCallbacks.emit(page)
+    }
+
+    invalidator.doneBuilding()
+
+    if (hardFailedPages.length > 0 && !reloading) {
+      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
+      reloading = true
+      reload()
+        .then(() => {
+          console.log('> Webpack reloaded.')
+          reloadCallbacks.emit('done')
+          stop()
+        })
+        .catch(err => {
+          console.error(`> Webpack reloading failed: ${err.message}`)
+          console.error(err.stack)
+          process.exit(1)
+        })
+    }
   })
 
   const disposeHandler = setInterval(function () {
@@ -163,7 +187,7 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
 
       const pathname = join(dir, relativePathToPage)
 
-      const {name, files} = createEntry(relativePathToPage, {pageExtensions: extensions})
+      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions})
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
@@ -247,17 +271,6 @@ export default function onDemandEntryHandler (devMiddleware, compilers, {
   }
 }
 
-// Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
-function addEntry (compilation, context, name, entry) {
-  return new Promise((resolve, reject) => {
-    const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
-}
-
 function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxInactiveAge) {
   const disposingPages = []
 
@@ -289,8 +302,12 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
 
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
-function normalizePage (page) {
-  return page.replace(/\/index$/, '/')
+export function normalizePage (page) {
+  const unixPagePath = page.replace(/\\/g, '/')
+  if (unixPagePath === '/index' || unixPagePath === '/') {
+    return '/'
+  }
+  return unixPagePath.replace(/\/index$/, '')
 }
 
 function sendJson (res, payload) {
@@ -302,7 +319,8 @@ function sendJson (res, payload) {
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  constructor (devMiddleware) {
+  constructor (devMiddleware, multiCompiler) {
+    this.multiCompiler = multiCompiler
     this.devMiddleware = devMiddleware
     // contains an array of types of compilers currently building
     this.building = false
@@ -320,6 +338,11 @@ class Invalidator {
     }
 
     this.building = true
+    // Work around a bug in webpack, calling `invalidate` on Watching.js
+    // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
+    for (const compiler of this.multiCompiler.compilers) {
+      compiler.hooks.invalid.call()
+    }
     this.devMiddleware.invalidate()
   }
 

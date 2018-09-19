@@ -2,7 +2,7 @@
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
 import parseArgs from 'minimist'
-import exportApp from '../server/export'
+import exportApp from '../export'
 import { printAndExit } from '../lib/utils'
 
 const argv = parseArgs(process.argv.slice(2), {
@@ -57,6 +57,10 @@ const options = {
   outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
 }
 
-exportApp(dir, options).catch((err) => {
-  printAndExit(err)
-})
+exportApp(dir, options)
+  .then(() => {
+    printAndExit('Export successful', 0)
+  })
+  .catch((err) => {
+    printAndExit(err)
+  })
