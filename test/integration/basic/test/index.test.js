@@ -16,6 +16,7 @@ import hmr from './hmr'
 import errorRecovery from './error-recovery'
 import dynamic from './dynamic'
 import asset from './asset'
+import processEnv from './process-env'
 
 const context = {}
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -42,6 +43,7 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/with-cdm'),
       renderViaHTTP(context.appPort, '/url-prop'),
       renderViaHTTP(context.appPort, '/url-prop-override'),
+      renderViaHTTP(context.appPort, '/process-env'),
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
@@ -71,4 +73,5 @@ describe('Basic Features', () => {
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   asset(context)
+  processEnv(context)
 })

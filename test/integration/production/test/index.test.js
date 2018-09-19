@@ -14,6 +14,7 @@ import {
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
+import processEnv from './process-env'
 import security from './security'
 import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
 
@@ -72,7 +73,8 @@ describe('Production Usage', () => {
       resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      const file = Object.keys(reactLoadableManifest).find((i) => i.indexOf('components/hello1') !== -1)
+      resources.push(url + reactLoadableManifest[file][0].publicPath)
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
@@ -277,5 +279,6 @@ describe('Production Usage', () => {
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
+  processEnv(context)
   security(context)
 })

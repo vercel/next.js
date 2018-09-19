@@ -1,0 +1,6 @@
+[package]
+name = "next-rust"
+version = "0.1.0"
+authors = ["Tim Neutkens <timneutkens@me.com>"]
+
+[dependencies]

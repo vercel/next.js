@@ -17,6 +17,9 @@
     "sh -e /etc/init.d/xvfb start",
     "sleep 3"
   ],
+  before_cache: [
+    "rm -rf node_modules/.cache"
+  ],
   after_script: ["npm run coveralls"],
   deploy: {
     provider: "npm",
