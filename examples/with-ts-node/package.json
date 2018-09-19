@@ -2,7 +2,7 @@
   "scripts": {
     "dev": "nodemon server/index.ts",
     "build": "next build",
-    "start": "NODE_ENV=production ts-node --typeCheck --compilerOptions '{\"module\":\"commonjs\"}' server/index.ts"
+    "start": "NODE_ENV=production ts-node --compilerOptions '{\"module\":\"commonjs\"}' server/index.ts"
   },
   "dependencies": {
     "@types/next": "^2.4.11",
