@@ -104,12 +104,14 @@ export class Head extends Component {
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
+    let children = this.props.children
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV === 'development') {
-      React.Children.forEach(this.props.children, (child) => {
+      children = React.Children.map(children, (child) => {
         if (child.type === 'title') {
           console.warn("Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title")
         }
+        return child
       })
     }
 
@@ -122,7 +124,7 @@ export class Head extends Component {
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
       {styles || null}
-      {this.props.children}
+      {children}
     </head>
   }
 }
