@@ -319,7 +319,7 @@ export default class HotReloader {
       heartbeat: 2500
     })
 
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler.compilers, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
       dev: true,

@@ -20,6 +20,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
+import HardSourceWebpackPlugin from 'hard-source-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -97,6 +98,11 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     name: 'commons',
     chunks: 'all',
     minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+  }
+  config.splitChunks.cacheGroups.react = {
+    name: 'commons',
+    chunks: 'all',
+    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
   }
 
   return config
@@ -235,6 +241,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           resolve: resolveConfig
         }
       }),
+      new HardSourceWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({
