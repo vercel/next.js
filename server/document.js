@@ -106,7 +106,7 @@ export class Head extends Component {
 
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child) => {
         if (child.type === 'title') {
           console.warn("Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title")
