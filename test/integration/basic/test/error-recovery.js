@@ -5,6 +5,35 @@ import { check, File, waitFor, getReactErrorOverlayContent } from 'next-test-uti
 
 export default (context, render) => {
   describe('Error Recovery', () => {
+    it('should have installed the react-overlay-editor editor handler', async () => {
+      let browser
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      aboutPage.replace('</div>', 'div')
+
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+
+        // Wait for react-error-overlay
+        await browser.waitForElementByCss('iframe', 2000)
+
+        // react-error-overlay uses the following inline style if an editorHandler is installed
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/style="cursor: pointer;"/)
+
+        aboutPage.restore()
+
+        await check(
+          () => browser.elementByCss('body').text(),
+          /This is the about page/
+        )
+      } finally {
+        aboutPage.restore()
+
+        if (browser) {
+          browser.close()
+        }
+      }
+    })
+
     it('should detect syntax errors and recover', async () => {
       let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))

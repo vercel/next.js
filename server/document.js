@@ -14,9 +14,9 @@ export default class Document extends Component {
   }
 
   static getInitialProps ({ renderPage }) {
-    const { html, head, errorHtml, buildManifest } = renderPage()
+    const { html, head, buildManifest } = renderPage()
     const styles = flush()
-    return { html, head, errorHtml, styles, buildManifest }
+    return { html, head, styles, buildManifest }
   }
 
   getChildContext () {
@@ -67,10 +67,10 @@ export class Head extends Component {
   getPreloadDynamicChunks () {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     return dynamicImports.map((bundle) => {
-      return <script
-        async
+      return <link
+        rel='preload'
         key={bundle.file}
-        src={`${assetPrefix}/_next/${bundle.file}`}
+        href={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
         nonce={this.props.nonce}
       />
@@ -124,11 +124,10 @@ export class Main extends Component {
   }
 
   render () {
-    const { html, errorHtml } = this.context._documentProps
+    const { html } = this.context._documentProps
     return (
       <Fragment>
         <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-        <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
       </Fragment>
     )
   }
@@ -176,29 +175,21 @@ export class NextScript extends Component {
     })
   }
 
+  static getInlineScriptSource (documentProps) {
+    const { __NEXT_DATA__ } = documentProps
+    const { page, pathname } = __NEXT_DATA__
+    return `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};__NEXT_LOADED_PAGES__=[];__NEXT_REGISTER_PAGE=function(r,f){__NEXT_LOADED_PAGES__.push([r, f])}${page === '/_error' ? `;__NEXT_REGISTER_PAGE(${htmlescape(pathname)},function(){var e = new Error('Page does not exist: ${htmlescape(pathname)}');e.statusCode=404;return {error:e}})`:''}`
+  }
+
   render () {
-    const { staticMarkup, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
     return <Fragment>
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
       {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `
-          __NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}
-          module={}
-          __NEXT_LOADED_PAGES__ = []
-
-          __NEXT_REGISTER_PAGE = function (route, fn) {
-            __NEXT_LOADED_PAGES__.push({ route: route, fn: fn })
-          }${page === '_error' ? `
-
-          __NEXT_REGISTER_PAGE(${htmlescape(pathname)}, function() {
-            var error = new Error('Page does not exist: ${htmlescape(pathname)}')
-            error.statusCode = 404
-
-            return { error: error }
-          })`: ''}
-        `
+        __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />

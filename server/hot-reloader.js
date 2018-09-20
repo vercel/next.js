@@ -1,6 +1,7 @@
 import { join, relative, sep, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
+import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import del from 'del'
 import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
@@ -186,6 +187,7 @@ export default class HotReloader {
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
+      errorOverlayMiddleware,
       onDemandEntries.middleware()
     ]
   }
@@ -290,8 +292,10 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
+    // We don’t watch .git .next/ and node_modules for changes
     const ignored = [
-      /(^|[/\\])\../, // .dotfiles
+      /\.git/,
+      /\.next\//,
       /node_modules/
     ]
 
@@ -315,7 +319,7 @@ export default class HotReloader {
       heartbeat: 2500
     })
 
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler.compilers, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
       dev: true,

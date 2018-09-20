@@ -8,13 +8,13 @@ import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import ErrorBoundary from './error-boundary'
-import Loadable from 'react-loadable'
+import Loadable from '../lib/loadable'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
 // depends on Promise.
 // So, we need to polyfill it.
-// See: https://github.com/webpack/webpack/issues/4254
+// See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
   window.Promise = Promise
 }
@@ -49,15 +49,14 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
-  pageLoader.registerPage(route, fn)
+window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
+  pageLoader.registerPage(r, f)
 })
 delete window.__NEXT_LOADED_PAGES__
 window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
-const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
 let webpackHMR
@@ -148,6 +147,17 @@ export async function renderError (props) {
   await doRender({...props, err, Component: ErrorComponent, props: initProps})
 }
 
+let isInitialRender = true
+function renderReactElement (reactEl, domEl) {
+  // The check for `.hydrate` is there to support React alternatives like preact
+  if (isInitialRender && typeof ReactDOM.hydrate === 'function') {
+    ReactDOM.hydrate(reactEl, domEl)
+    isInitialRender = false
+  } else {
+    ReactDOM.render(reactEl, domEl)
+  }
+}
+
 async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
@@ -166,9 +176,6 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
   lastAppProps = appProps
 
   emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
-
-  // We need to clear any existing runtime error messages
-  ReactDOM.unmountComponentAtNode(errorContainer)
 
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
@@ -192,15 +199,4 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
   }
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
-}
-
-let isInitialRender = true
-function renderReactElement (reactEl, domEl) {
-  // The check for `.hydrate` is there to support React alternatives like preact
-  if (isInitialRender && typeof ReactDOM.hydrate === 'function') {
-    ReactDOM.hydrate(reactEl, domEl)
-    isInitialRender = false
-  } else {
-    ReactDOM.render(reactEl, domEl)
-  }
 }

@@ -13,10 +13,12 @@
     directories: ["node_modules"]
   },
   before_install: [
-    "rm yarn.lock",
     "export DISPLAY=:99.0",
     "sh -e /etc/init.d/xvfb start",
     "sleep 3"
+  ],
+  before_cache: [
+    "rm -rf node_modules/.cache"
   ],
   after_script: ["npm run coveralls"],
   deploy: {

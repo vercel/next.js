@@ -18,6 +18,9 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
+import AutoDllPlugin from 'autodll-webpack-plugin'
+import TerserPlugin from 'terser-webpack-plugin'
+import HardSourceWebpackPlugin from 'hard-source-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -80,6 +83,13 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     return config
   }
 
+  // Terser is a better uglifier
+  config.minimizer = [new TerserPlugin({
+    parallel: true,
+    sourceMap: false,
+    cache: true
+  })]
+
   // Only enabled in production
   // This logic will create a commons bundle
   // with modules that are used in 50% of all pages
@@ -88,6 +98,11 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     name: 'commons',
     chunks: 'all',
     minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+  }
+  config.splitChunks.cacheGroups.react = {
+    name: 'commons',
+    chunks: 'all',
+    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
   }
 
   return config
@@ -104,7 +119,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: {dev, isServer}
+      options: {dev, isServer, cwd: dir}
     },
     hotSelfAccept: {
       loader: 'hot-self-accept-loader',
@@ -124,7 +139,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const outputPath = path.join(dir, config.distDir, isServer ? SERVER_DIRECTORY : '')
+  const distDir = path.join(dir, config.distDir)
+  const outputPath = path.join(distDir, isServer ? SERVER_DIRECTORY : '')
   const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
@@ -135,8 +151,22 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     ].filter(Boolean)
   } : {}
 
+  const resolveConfig = {
+    extensions: ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    modules: [
+      NEXT_PROJECT_ROOT_NODE_MODULES,
+      'node_modules',
+      ...nodePathList // Support for NODE_PATH environment variable
+    ],
+    alias: {
+      next: NEXT_PROJECT_ROOT
+    }
+  }
+
+  const webpackMode = dev ? 'development' : 'production'
+
   let webpackConfig = {
-    mode: dev ? 'development' : 'production',
+    mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     cache: true,
@@ -162,25 +192,15 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         }
         return '[name]'
       },
-      libraryTarget: 'commonjs2',
+      libraryTarget: isServer ? 'commonjs2' : 'jsonp',
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
-      chunkFilename: isServer ? `${dev ? '[name]' : '[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[contenthash]'}.js`,
+      chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true
     },
     performance: { hints: false },
-    resolve: {
-      extensions: ['.js', '.jsx', '.json'],
-      modules: [
-        NEXT_PROJECT_ROOT_NODE_MODULES,
-        'node_modules',
-        ...nodePathList // Support for NODE_PATH environment variable
-      ],
-      alias: {
-        next: NEXT_PROJECT_ROOT
-      }
-    },
+    resolve: resolveConfig,
     resolveLoader: {
       modules: [
         NEXT_PROJECT_ROOT_NODE_MODULES,
@@ -205,6 +225,23 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       ].filter(Boolean)
     },
     plugins: [
+      // Precompile react / react-dom for development, speeding up webpack
+      dev && !isServer && new AutoDllPlugin({
+        filename: '[name]_[hash].js',
+        path: './static/development/dll',
+        context: dir,
+        entry: {
+          dll: [
+            'react',
+            'react-dom'
+          ]
+        },
+        config: {
+          mode: webpackMode,
+          resolve: resolveConfig
+        }
+      }),
+      new HardSourceWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({
@@ -215,6 +252,15 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
+      // This removes prop-types-exact in production, as it's not used there.
+      !dev && new webpack.IgnorePlugin({
+        checkResource: (resource) => {
+          return /prop-types-exact/.test(resource)
+        },
+        checkContext: (context) => {
+          return context.indexOf(NEXT_PROJECT_ROOT_DIST) !== -1
+        }
+      }),
       // Even though require.cache is server only we have to clear assets from both compilations
       // This is because the client compilation generates the build manifest that's used on the server side
       dev && new NextJsRequireCacheHotReloader(),
@@ -228,10 +274,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         // required not to cache removed files
         useHashIndex: false
       }),
-      new webpack.DefinePlugin({
-        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
+      // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
+      !isServer && dev && new webpack.DefinePlugin({
+        'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
       }),
-      !dev && new webpack.optimize.ModuleConcatenationPlugin(),
       isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),

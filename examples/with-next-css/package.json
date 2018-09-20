@@ -8,9 +8,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-css": "0.0.7",
-    "next": "5.0.0",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "@zeit/next-css": "0.2.1-canary.2",
+    "next": "7.0.0-canary.3",
+    "react": "16.4.2",
+    "react-dom": "16.4.2"
   }
 }

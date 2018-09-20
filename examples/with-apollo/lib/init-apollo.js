@@ -1,6 +1,4 @@
-import { ApolloClient } from 'apollo-boost'
-import { HttpLink } from 'apollo-boost'
-import { InMemoryCache } from 'apollo-boost'
+import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'
 import fetch from 'isomorphic-unfetch'
 
 let apolloClient = null
@@ -10,7 +8,7 @@ if (!process.browser) {
   global.fetch = fetch
 }
 
-function create(initialState) {
+function create (initialState) {
   // Check out https://github.com/zeit/next.js/pull/4611 if you want to use the AWSAppSyncClient
   return new ApolloClient({
     connectToDevTools: process.browser,
@@ -23,7 +21,7 @@ function create(initialState) {
   })
 }
 
-export default function initApollo(initialState) {
+export default function initApollo (initialState) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (!process.browser) {

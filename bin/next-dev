@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync } from 'fs'
 import Server from '../server'
 import { printAndExit } from '../lib/utils'
 
@@ -65,9 +65,14 @@ srv.start(argv.port, argv.hostname)
       const pkgAppPath = require('find-up').sync('package.json', {
         cwd: dir
       })
-      const appPackage = JSON.parse(readFileSync(pkgAppPath, 'utf8'))
-      const nextScript = Object.entries(appPackage.scripts).find(scriptLine => scriptLine[1] === 'next')
-      if (nextScript) errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+      const appPackage = require(pkgAppPath)
+      if (appPackage.scripts) {
+        const nextScript = Object.entries(appPackage.scripts).find(scriptLine => scriptLine[1] === 'next')
+        if (nextScript) {
+          errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+        }
+      }
+
       console.error(errorMessage)
     } else {
       console.error(err)

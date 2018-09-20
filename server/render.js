@@ -9,7 +9,8 @@ import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
-import Loadable from 'react-loadable'
+import Loadable from '../lib/loadable'
+import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from '../lib/constants'
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
@@ -41,6 +42,18 @@ export async function renderError (err, req, res, pathname, query, opts) {
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
+}
+
+function getPageFiles (buildManifest, page) {
+  const normalizedPage = normalizePagePath(page)
+  const files = buildManifest.pages[normalizedPage]
+
+  if (!files) {
+    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    return []
+  }
+
+  return files
 }
 
 async function doRender (req, res, pathname, query, {
@@ -84,11 +97,12 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...buildManifest.pages[normalizePagePath(page)],
-      ...buildManifest.pages[normalizePagePath('/_app')],
-      ...buildManifest.pages[normalizePagePath('/_error')]
+      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, '/_app'),
+      ...getPageFiles(buildManifest, '/_error')
     ])
   ]
 
@@ -112,23 +126,22 @@ async function doRender (req, res, pathname, query, {
       }
     }
 
-    const app = <Loadable.Capture report={moduleName => reactLoadableModules.push(moduleName)}>
+    const app = <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
       <EnhancedApp {...{
         Component: EnhancedComponent,
         router,
         ...props
       }} />
-    </Loadable.Capture>
+    </LoadableCapture>
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
     let html
     let head
-    let errorHtml = ''
 
     try {
       if (err && dev) {
-        errorHtml = render(<ErrorDebug error={err} />)
+        html = render(<ErrorDebug error={err} />)
       } else if (err) {
         html = render(app)
       } else {
@@ -138,7 +151,7 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, errorHtml, buildManifest }
+    return { html, head, buildManifest }
   }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
@@ -151,8 +164,6 @@ async function doRender (req, res, pathname, query, {
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
     __NEXT_DATA__: {
-      // Used in development to replace paths for react-error-overlay
-      distDir: dev ? distDir : undefined,
       props, // The result of getInitialProps
       page, // The rendered page
       pathname, // The requested path
@@ -167,6 +178,7 @@ async function doRender (req, res, pathname, query, {
     dir,
     staticMarkup,
     buildManifest,
+    devFiles,
     files,
     dynamicImports,
     assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
@@ -178,7 +190,7 @@ async function doRender (req, res, pathname, query, {
 
 export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
 
   if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404

@@ -150,45 +150,46 @@ export default class Server {
       }
     }
 
+    // In development we expose all compiled files for react-error-overlay's line show feature
+    if (this.dev) {
+      routes['/_next/development/:path*'] = async (req, res, params) => {
+        const p = join(this.distDir, ...(params.path || []))
+        console.log('page', p)
+        await this.serveStatic(req, res, p)
+      }
+    }
+
+    // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+    routes['/_next/:path*'] = async (req, res, params, parsedUrl) => {
+      await this.render404(req, res, parsedUrl)
+    }
+
+    // Makes `next export` exportPathMap work in development mode.
+    // So that the user doesn't have to define a custom server reading the exportPathMap
+    if (this.dev && this.nextConfig.exportPathMap) {
+      console.log('Defining routes from exportPathMap')
+      const exportPathMap = await this.nextConfig.exportPathMap({}, {dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId}) // In development we can't give a default path mapping
+      for (const path in exportPathMap) {
+        const {page, query = {}} = exportPathMap[path]
+        routes[path] = async (req, res, params, parsedUrl) => {
+          const { query: urlQuery } = parsedUrl
+
+          Object.keys(urlQuery)
+            .filter(key => query[key] === undefined)
+            .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
+
+          const mergedQuery = {...urlQuery, ...query}
+
+          await this.render(req, res, page, mergedQuery, parsedUrl)
+        }
+      }
+    }
+
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      // Makes `next export` exportPathMap work in development mode.
-      // So that the user doesn't have to define a custom server reading the exportPathMap
-      if (this.dev && this.nextConfig.exportPathMap) {
-        console.log('Defining routes from exportPathMap')
-        const exportPathMap = await this.nextConfig.exportPathMap({}) // In development we can't give a default path mapping
-        for (const path in exportPathMap) {
-          const {page, query = {}} = exportPathMap[path]
-          routes[path] = async (req, res, params, parsedUrl) => {
-            const { query: urlQuery } = parsedUrl
-
-            Object.keys(urlQuery)
-              .filter(key => query[key] === undefined)
-              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
-
-            const mergedQuery = {...urlQuery, ...query}
-
-            await this.render(req, res, page, mergedQuery, parsedUrl)
-          }
-        }
-      }
-
-      // In development we expose all compiled files for react-error-overlay's line show feature
-      if (this.dev) {
-        routes['/_next/development/:path*'] = async (req, res, params) => {
-          const p = join(this.distDir, ...(params.path || []))
-          await this.serveStatic(req, res, p)
-        }
-      }
-
       // It's very important keep this route's param optional.
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      routes['/_next/:path*'] = async (req, res, params) => {
-        const p = join(__dirname, '..', 'client', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      }
-
       routes['/:path*'] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query, parsedUrl)
@@ -309,6 +310,7 @@ export default class Server {
   async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
+    res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     return this.renderError(null, req, res, pathname, query)
   }
 
@@ -350,20 +352,6 @@ export default class Server {
     return buildId.trim()
   }
 
-  handleBuildId (buildId, res) {
-    if (this.dev) {
-      res.setHeader('Cache-Control', 'no-store, must-revalidate')
-      return true
-    }
-
-    if (buildId !== this.renderOpts.buildId) {
-      return false
-    }
-
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    return true
-  }
-
   async getCompilationError (page) {
     if (!this.hotReloader) return
 
@@ -372,10 +360,5 @@ export default class Server {
 
     // Return the very first error we found.
     return errors[0]
-  }
-
-  send404 (res) {
-    res.statusCode = 404
-    res.end('404 - Not Found')
   }
 }
