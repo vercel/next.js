@@ -126,9 +126,7 @@ export class Main extends Component {
   render () {
     const { html } = this.context._documentProps
     return (
-      <Fragment>
-        <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-      </Fragment>
+      <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
     )
   }
 }
