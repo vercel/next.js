@@ -66,10 +66,10 @@ export default class Server {
     this.setAssetPrefix(assetPrefix)
   }
 
-  getHotReloader (dir, options) {
-    const HotReloader = require('./hot-reloader').default
-    return new HotReloader(dir, options)
-  }
+//   getHotReloader (dir, options) {
+//     const HotReloader = require('./hot-reloader').default
+//     return new HotReloader(dir, options)
+//   }
 
   handleRequest (req, res, parsedUrl) {
     // Parse url if parsedUrl not provided
