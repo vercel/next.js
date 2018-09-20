@@ -5,9 +5,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-less": "^0.3.0",
+    "@zeit/next-less": "^1.0.1",
     "less": "^3.0.4",
-    "next": "^6.0.3",
+    "next": "latest",
     "react": "^16.4.0",
     "react-dom": "^16.4.0"
   }

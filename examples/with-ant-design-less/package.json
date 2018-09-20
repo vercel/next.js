@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-less": "0.3.0",
+    "@zeit/next-less": "^1.0.1",
     "antd": "^3.5.4",
     "babel-plugin-import": "^1.7.0",
     "less": "3.0.4",
