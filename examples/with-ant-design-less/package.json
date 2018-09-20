@@ -8,15 +8,12 @@
   },
   "dependencies": {
     "@zeit/next-less": "^1.0.1",
-    "antd": "^3.5.4",
-    "babel-plugin-import": "^1.7.0",
-    "less": "3.0.4",
+    "antd": "^3.9.2",
+    "babel-plugin-import": "^1.9.1",
+    "less": "^3.8.1",
     "next": "latest",
-    "react": "^16.4.0",
-    "react-dom": "^16.4.0"
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2"
   },
-  "license": "ISC",
-  "devDependencies": {
-    "babel-plugin-transform-decorators-legacy": "^1.3.5"
-  }
+  "license": "ISC"
 }
