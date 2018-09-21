@@ -244,6 +244,7 @@ To avoid duplicate tags in your `<head>` you can use the `key` property, which w
 
 ```jsx
 import Head from 'next/head'
+
 export default () => (
   <div>
     <Head>
