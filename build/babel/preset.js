@@ -44,7 +44,7 @@ module.exports = (context, opts = {}) => ({
     }]
   ],
   plugins: [
-    require('babel-preset-macros'),
+    require('babel-plugin-macros'),
     require('babel-plugin-react-require'),
     require('@babel/plugin-syntax-dynamic-import'),
     require('./plugins/react-loadable-plugin'),
