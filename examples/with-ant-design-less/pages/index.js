@@ -1,11 +1,13 @@
 import Layout from '../index.js'
 import { Form, Select, InputNumber, DatePicker, Switch, Slider, Button } from 'antd'
+import Header from "../components/Header";
 
 const FormItem = Form.Item
 const Option = Select.Option
 
 export default () => (
   <Layout>
+    <Header/>
     <div style={{ marginTop: 100 }}>
       <Form layout='horizontal'>
         <FormItem
