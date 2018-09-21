@@ -151,7 +151,7 @@
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",
-    "wd": "1.4.1"
+    "wd": "1.10.3"
   },
   "peerDependencies": {
     "react": "^16.0.0",
