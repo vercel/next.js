@@ -131,10 +131,11 @@ Every `import` you declare gets bundled and served with each page. That means pa
 ```jsx
 import cowsay from 'cowsay-browser'
 
-export default () =>
+export default () => (
   <pre>
     {cowsay.say({ text: 'hi there!' })}
   </pre>
+)
 ```
 
 ### CSS
@@ -149,7 +150,7 @@ export default () =>
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
-export default () =>
+export default () => (
   <div>
     Hello world
     <p>scoped!</p>
@@ -172,6 +173,7 @@ export default () =>
       }
     `}</style>
   </div>
+)
 ```
 
 Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-jsx) for more examples.
