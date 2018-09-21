@@ -15,6 +15,11 @@ export default (context, render) => {
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
+      it('should render dynamic import components using a function as first parameter', async () => {
+        const $ = await get$('/dynamic/function')
+        expect($('body').text()).toMatch(/Hello World 1/)
+      })
+
       it('should render even there are no physical chunk exists', async () => {
         let browser
         try {
@@ -94,6 +99,29 @@ export default (context, render) => {
         try {
           browser = await webdriver(context.appPort, '/dynamic/no-ssr-custom-loading')
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+    })
+
+    describe('Multiple modules', () => {
+      it('should only include the rendered module script tag', async () => {
+        const $ = await get$('/dynamic/multiple-modules')
+        const html = $('html').html()
+        expect(html).toMatch(/hello1\.js/)
+        expect(html).not.toMatch(/hello2\.js/)
+      })
+
+      it('should only load the rendered module in the browser', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/multiple-modules')
+          const html = await browser.elementByCss('html').getAttribute('innerHTML')
+          expect(html).toMatch(/hello1\.js/)
+          expect(html).not.toMatch(/hello2\.js/)
         } finally {
           if (browser) {
             browser.close()
