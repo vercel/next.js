@@ -22,7 +22,7 @@ import * as envConfig from '../lib/runtime-config'
 export default async function (dir, options, configuration) {
   dir = resolve(dir)
   const concurrency = options.concurrency || 10
-  const threads = options.threads || Math.max(cpus().length, 1)
+  const threads = options.threads || Math.max(cpus().length - 1, 1)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const distDir = join(dir, nextConfig.distDir)
 
