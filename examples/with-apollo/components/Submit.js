@@ -1,6 +1,6 @@
 import { graphql } from 'react-apollo'
 import gql from 'graphql-tag'
-import { allPosts, allPostsQueryVars } from './PostList'
+import { allPostsQuery, allPostsQueryVars } from './PostList'
 
 function Submit ({ createPost }) {
   function handleSubmit (event) {
@@ -57,11 +57,11 @@ export default graphql(createPost, {
         variables: { title, url },
         update: (proxy, { data: { createPost } }) => {
           const data = proxy.readQuery({
-            query: allPosts,
+            query: allPostsQuery,
             variables: allPostsQueryVars
           })
           proxy.writeQuery({
-            query: allPosts,
+            query: allPostsQuery,
             data: {
               ...data,
               allPosts: [createPost, ...data.allPosts]
