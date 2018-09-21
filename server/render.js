@@ -158,6 +158,7 @@ async function doRender (req, res, pathname, query, {
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   const dynamicImports = getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)
+  const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
   if (isResSent(res)) return
 
@@ -172,6 +173,7 @@ async function doRender (req, res, pathname, query, {
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
       runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
       nextExport, // If this is a page exported by `next export`
+      dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
       err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
     },
     dev,
