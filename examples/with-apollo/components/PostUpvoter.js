@@ -1,13 +1,39 @@
 import React from 'react'
 import { ApolloConsumer } from 'react-apollo'
-import { gql } from 'apollo-boost'
+import gql from 'graphql-tag'
 
 export default function PostUpvoter ({ votes, id }) {
   return (
     <ApolloConsumer>
       {client => {
+        function upvotePost () {
+          client.mutate({
+            mutation: gql`
+              mutation updatePost($id: ID!, $votes: Int) {
+                updatePost(id: $id, votes: $votes) {
+                  id
+                  __typename
+                  votes
+                }
+              }
+            `,
+            variables: {
+              id,
+              votes: votes + 1
+            },
+            optimisticResponse: {
+              __typename: 'Mutation',
+              updatePost: {
+                __typename: 'Post',
+                id,
+                votes: votes + 1
+              }
+            }
+          })
+        }
+
         return (
-          <button onClick={() => upvote(id, votes + 1, client)}>
+          <button onClick={upvotePost}>
             {votes}
             <style jsx>{`
               button {
@@ -34,29 +60,4 @@ export default function PostUpvoter ({ votes, id }) {
       }}
     </ApolloConsumer>
   )
-}
-
-const upvotePost = gql`
-  mutation updatePost($id: ID!, $votes: Int) {
-    updatePost(id: $id, votes: $votes) {
-      id
-      __typename
-      votes
-    }
-  }
-`
-
-function upvote (id, votes, client) {
-  client.mutate({
-    mutation: upvotePost,
-    variables: {id, votes},
-    optimisticResponse: {
-      __typename: 'Mutation',
-      updatePost: {
-        __typename: 'Post',
-        id,
-        votes,
-      }
-    }
-  })
 }
