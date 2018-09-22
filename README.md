@@ -1339,12 +1339,13 @@ Here's an example `.babelrc` file:
 
 The `next/babel` preset includes everything needed to transpile React applications. This includes:
 
-- preset-env
-- preset-react
-- plugin-proposal-class-properties
-- plugin-proposal-object-rest-spread
-- plugin-transform-runtime
-- styled-jsx
+- [preset-env](https://www.npmjs.com/package/@babel/preset-env)
+- [preset-react](https://www.npmjs.com/package/@babel/preset-react)
+- [plugin-proposal-class-properties](https://www.npmjs.com/package/@babel/plugin-proposal-class-properties)
+- [plugin-proposal-object-rest-spread](https://www.npmjs.com/package/@babel/plugin-proposal-object-rest-spread)
+- [plugin-transform-runtime](https://www.npmjs.com/package/@babel/plugin-transform-runtime)
+- [styled-jsx](https://www.npmjs.com/package/styled-jsx)
+- [plugin-macros](https://www.npmjs.com/package/babel-plugin-macros)
 
 These presets / plugins **should not** be added to your custom `.babelrc`. Instead, you can configure them on the `next/babel` preset:
 
