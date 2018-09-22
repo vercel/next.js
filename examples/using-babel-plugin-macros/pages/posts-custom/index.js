@@ -7,7 +7,7 @@ import Link from 'next/link'
 // So let's write our own macro that's specific for our use case which will
 // replace all instances of `allPosts` with only data we need for this page
 // (path, and title).
-import allPosts from './import-posts.macro'
+import allPosts from '../../lib/import-posts.macro'
 
 export default () => (
   <div>
@@ -21,7 +21,7 @@ export default () => (
         </li>
       ))}
     </ul>
-    <Link href='/'>
+    <Link href="/">
       <a>Home</a>
     </Link>
   </div>
