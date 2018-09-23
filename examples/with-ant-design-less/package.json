@@ -17,6 +17,6 @@
   },
   "license": "ISC",
   "devDependencies": {
-    "babel-plugin-transform-decorators-legacy": "^1.3.5"
+    "@babel/plugin-proposal-decorators": "^7.1.0"
   }
 }
