@@ -29,23 +29,6 @@ export default function PostList () {
         if (error) return <ErrorMessage message='Error loading posts.' />
         if (loading) return <div>Loading</div>
 
-        function loadMorePosts () {
-          fetchMore({
-            variables: {
-              skip: allPosts.length
-            },
-            updateQuery: (previousResult, { fetchMoreResult }) => {
-              if (!fetchMoreResult) {
-                return previousResult
-              }
-              return Object.assign({}, previousResult, {
-                // Append the new posts results to the old one
-                allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
-              })
-            }
-          })
-        }
-
         const areMorePosts = allPosts.length < _allPostsMeta.count
         return (
           <section>
@@ -61,7 +44,7 @@ export default function PostList () {
               ))}
             </ul>
             {areMorePosts ? (
-              <button onClick={loadMorePosts}>
+              <button onClick={() => loadMorePosts(allPosts, fetchMore)}>
                 {' '}
                 {loading ? 'Loading...' : 'Show More'}{' '}
               </button>
@@ -111,4 +94,21 @@ export default function PostList () {
       }}
     </Query>
   )
+}
+
+function loadMorePosts (allPosts, fetchMore) {
+  fetchMore({
+    variables: {
+      skip: allPosts.length
+    },
+    updateQuery: (previousResult, { fetchMoreResult }) => {
+      if (!fetchMoreResult) {
+        return previousResult
+      }
+      return Object.assign({}, previousResult, {
+        // Append the new posts results to the old one
+        allPosts: [...previousResult.allPosts, ...fetchMoreResult.allPosts]
+      })
+    }
+  })
 }
