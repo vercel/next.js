@@ -91,7 +91,7 @@ export default async ({
     initialErr = error
   }
 
-  await Loadable.preloadReady(dynamicIds)
+  await Loadable.preloadReady(dynamicIds || [])
 
   router = createRouter(pathname, query, asPath, {
     initialProps: props,
