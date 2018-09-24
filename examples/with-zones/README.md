@@ -16,7 +16,7 @@ yarn create next-app --example with-zones with-zones-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-zones
@@ -31,7 +31,7 @@ npm install
 yarn
 ```
 
-## The idead behind this example
+## The idea behind this example
 
 With Next.js you can use multiple apps as a single app using it's multi-zones feature.
 This is an example showing how to use it.

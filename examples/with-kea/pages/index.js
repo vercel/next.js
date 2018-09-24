@@ -1,6 +1,4 @@
 import React from 'react'
-import { initStore } from '../store'
-import withRedux from 'next-redux-wrapper'
 import PropTypes from 'prop-types'
 import { kea } from 'kea'
 
@@ -28,7 +26,8 @@ import { kea } from 'kea'
     ]
   })
 })
-class App extends React.Component {
+
+export default class App extends React.Component {
   render () {
     return (
       <div>
@@ -39,5 +38,3 @@ class App extends React.Component {
     )
   }
 }
-
-export default withRedux(initStore)(App)

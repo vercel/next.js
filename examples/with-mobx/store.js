@@ -20,7 +20,7 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-export function initStore (isServer, lastUpdate = Date.now()) {
+export function initializeStore (isServer, lastUpdate = Date.now()) {
   if (isServer) {
     return new Store(isServer, lastUpdate)
   } else {

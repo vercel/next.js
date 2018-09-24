@@ -1,6 +1,5 @@
 import React, {Component} from 'react'
 import {FormattedRelative} from 'react-intl'
-import pageWithIntl from '../components/PageWithIntl'
 import Layout from '../components/Layout'
 
 class About extends Component {
@@ -22,4 +21,4 @@ class About extends Component {
   }
 }
 
-export default pageWithIntl(About)
+export default About

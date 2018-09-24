@@ -5,7 +5,7 @@ const mkdirp = require('mkdirp')
 const isWindows = /^win/.test(process.platform)
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'lib', 'client'])
+  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'lib', 'client'])
 }
 
 export async function bin (task, opts) {
@@ -23,9 +23,20 @@ export async function server (task, opts) {
   notify('Compiled server files')
 }
 
+export async function nextbuild (task, opts) {
+  await task.source(opts.src || 'build/**/*.js').babel().target('dist/build')
+  notify('Compiled build files')
+}
+
 export async function client (task, opts) {
   await task.source(opts.src || 'client/**/*.js').babel().target('dist/client')
   notify('Compiled client files')
+}
+
+// export is a reserved keyword for functions
+export async function nextbuildstatic (task, opts) {
+  await task.source(opts.src || 'export/**/*.js').babel().target('dist/export')
+  notify('Compiled export files')
 }
 
 // Create node_modules/next for the use of test apps
@@ -50,6 +61,8 @@ export default async function (task) {
   await task.watch('bin/*', 'bin')
   await task.watch('pages/**/*.js', 'copy')
   await task.watch('server/**/*.js', 'server')
+  await task.watch('build/**/*.js', 'nextbuild')
+  await task.watch('export/**/*.js', 'nextexport')
   await task.watch('client/**/*.js', 'client')
   await task.watch('lib/**/*.js', 'lib')
 }

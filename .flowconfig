@@ -1,2 +1,3 @@
 [ignore]
 <PROJECT_ROOT>/examples/.*
+<PROJECT_ROOT>/.*.json

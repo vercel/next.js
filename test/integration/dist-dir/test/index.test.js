@@ -2,6 +2,7 @@
 
 import { join } from 'path'
 import { existsSync } from 'fs'
+import {BUILD_ID_FILE} from 'next/constants'
 import {
   nextServer,
   nextBuild,
@@ -39,10 +40,10 @@ describe('Production Usage', () => {
 
   describe('File locations', () => {
     it('should build the app within the given `dist` directory', () => {
-      expect(existsSync(join(__dirname, '/../dist/BUILD_ID'))).toBeTruthy()
+      expect(existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))).toBeTruthy()
     })
     it('should not build the app within the default `.next` directory', () => {
-      expect(existsSync(join(__dirname, '/../.next/BUILD_ID'))).toBeFalsy()
+      expect(existsSync(join(__dirname, `/../.next/${BUILD_ID_FILE}`))).toBeFalsy()
     })
   })
 })
