@@ -110,7 +110,7 @@
     "unfetch": "3.0.0",
     "url": "0.11.0",
     "webpack": "4.18.1",
-    "webpack-dev-middleware": "3.2.0",
+    "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
     "webpackbar": "2.6.3",
