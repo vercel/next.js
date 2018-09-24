@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-css": "^0.2.0",
+    "@zeit/next-css": "^1.0.1",
     "file-loader": "^1.1.11",
     "next": "latest",
     "react": "^16.0.0",

@@ -14,6 +14,7 @@ import {
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
+import processEnv from './process-env'
 import security from './security'
 import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
 
@@ -72,7 +73,8 @@ describe('Production Usage', () => {
       resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      const file = Object.keys(reactLoadableManifest).find((i) => i.indexOf('components/hello1') !== -1)
+      resources.push(url + reactLoadableManifest[file][0].publicPath)
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
@@ -89,6 +91,14 @@ describe('Production Usage', () => {
           throw err
         }
       })
+    })
+
+    it('should set correct Cache-Control header for static 404s', async () => {
+      // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
+      const res = await fetch(`http://localhost:${appPort}/_next//static/common/bad-static.js`)
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0, must-revalidate')
     })
 
     it('should block special pages', async () => {
@@ -253,7 +263,22 @@ describe('Production Usage', () => {
     })
   })
 
+  it('should not expose the compiled page file in development', async () => {
+    const url = `http://localhost:${appPort}`
+    await fetch(`${url}/stateless`) // make sure the stateless page is built
+    const clientSideJsRes = await fetch(`${url}/_next/development/static/development/pages/stateless.js`)
+    expect(clientSideJsRes.status).toBe(404)
+    const clientSideJsBody = await clientSideJsRes.text()
+    expect(clientSideJsBody).toMatch(/404/)
+
+    const serverSideJsRes = await fetch(`${url}/_next/development/server/static/development/pages/stateless.js`)
+    expect(serverSideJsRes.status).toBe(404)
+    const serverSideJsBody = await serverSideJsRes.text()
+    expect(serverSideJsBody).toMatch(/404/)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
+  processEnv(context)
   security(context)
 })
