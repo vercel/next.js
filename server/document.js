@@ -175,7 +175,7 @@ export class NextScript extends Component {
         type="application/json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({ ...__NEXT_DATA__ }).replace(
-            /<\/script>/g,
+            /<\/script>/gi,
             '%3C/script%3E'
           ),
         }}

@@ -50,6 +50,7 @@
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**",
+      "**/client/bootstrap.js",
       "**/examples/with-ioc/**",
       "**/examples/with-kea/**",
       "**/examples/with-mobx/**",
