@@ -10,7 +10,7 @@ export default class PagesPlugin {
     compiler.hooks.compilation.tap('PagesPlugin', (compilation) => {
       // This hook is triggered right before a module gets wrapped into it's initializing function,
       // For example when you look at the source of a bundle you'll see an object holding `'pages/_app.js': function(module, etc, etc)`
-      // This hook triggers right before that code is added and wraps the module into `__NEXT_REGISTER_PAGE` when the module is a page
+      // This hook triggers right before that code is added and wraps the module into `window._routes.push` when the module is a page
       // The reason we're doing this is that we don't want to execute the page code which has potential side effects before switching to a route
       compilation.moduleTemplates.javascript.hooks.render.tap('PagesPluginRenderPageRegister', (moduleSourcePostModule, module, options) => {
         const {chunk} = options
@@ -41,10 +41,10 @@ export default class PagesPlugin {
         routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
         const source = new ConcatSource(
-          `__NEXT_REGISTER_PAGE('${routeName}', function() {\n`,
+          `(window._routes||(window._routes=[])).push(['${routeName}',function(){\n`,
           moduleSourcePostModule,
           '\nreturn { page: module.exports.default }',
-          '});'
+          '}]);'
         )
 
         return source

@@ -1,7 +1,6 @@
 /* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
@@ -100,7 +99,6 @@ export class Head extends Component {
     return <head {...this.props}>
       { (staticMarkup && csp && !csp.isDisabled) ? <meta http-equiv="Content-Security-Policy" content={csp.policy} /> : '' }
       { csp && csp.nonce ? <meta property="csp-nonce" content={csp.nonce} /> : '' }
-      <link rel='preload' href={`${assetPrefix}/_next/static/runtime/bootstrap.js`} as='script' />
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' />
@@ -167,7 +165,6 @@ export class NextScript extends Component {
     const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
-    __NEXT_DATA__.cleanPathname = htmlescape(__NEXT_DATA__.pathname);
 
     return <Fragment>
       {staticMarkup ? null : <script
@@ -180,9 +177,6 @@ export class NextScript extends Component {
           ),
         }}
       />}
-      <script
-        src={`${assetPrefix}/_next/static/runtime/bootstrap.js`}
-      />
       {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} />) : null}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${pathname}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} />

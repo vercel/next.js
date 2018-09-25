@@ -1,9 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import htmlescape from 'htmlescape'
 import HeadManager from './head-manager'
 import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
-import { loadGetInitialProps, getURL } from '../lib/utils'
+import { loadGetInitialProps, getURL, getNextData } from '../lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
@@ -20,18 +21,16 @@ if (!window.Promise) {
 }
 
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    page,
-    pathname,
-    query,
-    buildId,
-    assetPrefix,
-    runtimeConfig
-  },
-  location
-} = window
+  props,
+  err,
+  page,
+  pathname,
+  query,
+  buildId,
+  assetPrefix,
+  runtimeConfig
+} = getNextData()
+const { location } = window
 
 const prefix = assetPrefix || ''
 
@@ -49,11 +48,21 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
-  pageLoader.registerPage(r, f)
+if (page === "_error") {
+  pageLoader.registerPage(htmlescape(pathname), () => {
+    const e = new Error(`Page does not exist: ${htmlescape(pathname)}`)
+    e.statusCode = 404
+    return { error: e }
+  })
+}
+
+window._routes.push = pageLoader.registerPage.bind(pageLoader)
+window._routes.forEach((route) => {
+  if (typeof route !== 'object' || typeof route[0] !== 'string' || typeof route[1] !== 'function') return
+
+  pageLoader.registerPage(route[0], route[1])
+  //TODO: clear out _routes variable
 })
-delete window.__NEXT_LOADED_PAGES__
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
