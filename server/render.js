@@ -157,7 +157,7 @@ async function doRender (req, res, pathname, query, {
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)
+  const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
   if (isResSent(res)) return
