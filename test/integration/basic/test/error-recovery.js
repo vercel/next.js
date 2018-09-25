@@ -1,11 +1,7 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, File, waitFor, getReactErrorOverlayContent } from 'next-test-utils'
-
-function getBrowserBodyText (browser) {
-  return browser.eval('document.getElementsByTagName("body")[0].innerText')
-}
+import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
 export default (context, render) => {
   describe('Error Recovery', () => {

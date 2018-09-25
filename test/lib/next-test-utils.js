@@ -232,3 +232,7 @@ export async function getReactErrorOverlayContent (browser) {
   }
   return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
 }
+
+export function getBrowserBodyText (browser) {
+  return browser.eval('document.getElementsByTagName("body")[0].innerText')
+}
