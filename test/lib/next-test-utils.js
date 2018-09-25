@@ -216,6 +216,8 @@ export async function getReactErrorOverlayContent (browser) {
   }, 1000 * 30)
   while (!found) {
     try {
+      await browser.waitForElementByCss('iframe', 10000)
+
       const hasIframe = await browser.hasElementByCssSelector('iframe')
       if (!hasIframe) {
         throw new Error('Waiting for iframe')
