@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 export default function (context) {
   describe('Render via browser', () => {
@@ -100,39 +100,36 @@ export default function (context) {
         .elementByCss('#dynamic-imports-page').click()
         .waitForElementByCss('#dynamic-imports-page')
 
-      // Wait until browser loads the dynamic import chunk
-      // TODO: We may need to find a better way to do this
-      await waitFor(5000)
+      await check(
+        () => browser.elementByCss('#dynamic-imports-page p').text(),
+        /Welcome to dynamic imports/
+      )
 
-      const text = await browser
-        .elementByCss('#dynamic-imports-page p').text()
-
-      expect(text).toBe('Welcome to dynamic imports.')
       browser.close()
     })
 
     it('should render pages with url hash correctly', async () => {
-      const browser = await webdriver(context.port, '/')
+      let browser
+      try {
+        browser = await webdriver(context.port, '/')
 
-      // Check for the query string content
-      const text = await browser
-        .elementByCss('#with-hash').click()
-        .waitForElementByCss('#dynamic-page')
-        .elementByCss('#dynamic-page p').text()
+        // Check for the query string content
+        const text = await browser
+          .elementByCss('#with-hash').click()
+          .waitForElementByCss('#dynamic-page')
+          .elementByCss('#dynamic-page p').text()
 
-      expect(text).toBe('zeit is awesome')
+        expect(text).toBe('zeit is awesome')
 
-      // Check for the hash
-      while (true) {
-        const hashText = await browser
-          .elementByCss('#hash').text()
-
-        if (/cool/.test(hashText)) {
-          break
+        await check(
+          () => browser.elementByCss('#hash').text(),
+          /cool/
+        )
+      } finally {
+        if (browser) {
+          browser.close()
         }
       }
-
-      browser.close()
     })
 
     it('should navigate even if used a button inside <Link />', async () => {
