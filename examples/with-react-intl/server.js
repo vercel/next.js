@@ -45,7 +45,7 @@ app.prepare().then(() => {
     const locale = accept.language(dev ? ['en'] : languages)
     req.locale = locale
     req.localeDataScript = getLocaleDataScript(locale)
-    req.messages = dev ? {} : getMessages(locale)
+    req.messages = getMessages(locale)
     handle(req, res)
   }).listen(port, (err) => {
     if (err) throw err
