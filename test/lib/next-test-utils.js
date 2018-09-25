@@ -152,7 +152,7 @@ export async function startStaticServer (dir) {
 
 export async function check (contentFn, regex) {
   let found = false
-  setTimeout(async () => {
+  const timeout = setTimeout(async () => {
     if (found) {
       return
     }
@@ -170,6 +170,7 @@ export async function check (contentFn, regex) {
       const newContent = await contentFn()
       if (regex.test(newContent)) {
         found = true
+        clearTimeout(timeout)
         break
       }
       await waitFor(1000)
