@@ -132,8 +132,13 @@ export default (context, render) => {
       it('should only render one bundle if component is used multiple times', async () => {
         const $ = await get$('/dynamic/multiple-modules')
         const html = $('html').html()
-        expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(2) // one for preload, one for the script tag
-        expect(html).not.toMatch(/hello2\.js/)
+        try {
+          expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(2) // one for preload, one for the script tag
+          expect(html).not.toMatch(/hello2\.js/)
+        } catch (err) {
+          console.error(html)
+          throw err
+        }
       })
     })
 
