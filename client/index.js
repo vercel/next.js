@@ -28,7 +28,8 @@ const {
     query,
     buildId,
     assetPrefix,
-    runtimeConfig
+    runtimeConfig,
+    dynamicIds
   },
   location
 } = window
@@ -90,7 +91,7 @@ export default async ({
     initialErr = error
   }
 
-  await Loadable.preloadReady()
+  await Loadable.preloadReady(dynamicIds || [])
 
   router = createRouter(pathname, query, asPath, {
     initialProps: props,

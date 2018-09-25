@@ -45,7 +45,7 @@ export default (context, render) => {
 
         aboutPage.replace('</div>', 'div')
 
-        await waitFor(3000)
+        await waitFor(10000)
 
         expect(await getReactErrorOverlayContent(browser)).toMatch(/Unterminated JSX contents/)
 
@@ -75,11 +75,11 @@ export default (context, render) => {
 
         aboutPage.replace('</div>', 'div')
 
-        await waitFor(3000)
+        await waitFor(10000)
 
         expect(await getReactErrorOverlayContent(browser)).toMatch(/Unterminated JSX contents/)
 
-        await waitFor(2000)
+        await waitFor(10000)
 
         // Check for the error overlay
         const bodyHtml = await browser.elementByCss('body').getAttribute('innerHTML')
@@ -100,7 +100,7 @@ export default (context, render) => {
 
         browser = await webdriver(context.appPort, '/hmr/contact')
 
-        await waitFor(3000)
+        await waitFor(10000)
 
         expect(await getReactErrorOverlayContent(browser)).toMatch(/Unterminated JSX contents/)
 
@@ -129,7 +129,7 @@ export default (context, render) => {
 
         aboutPage.replace('export', 'aa=20;\nexport')
 
-        await waitFor(3000)
+        await waitFor(10000)
 
         expect(await getReactErrorOverlayContent(browser)).toMatch(/aa is not defined/)
 
@@ -156,7 +156,7 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
 
-      await waitFor(3000)
+      await waitFor(10000)
 
       expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error/)
 
@@ -179,7 +179,7 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
 
-      await waitFor(3000)
+      await waitFor(10000)
 
       expect(await browser.elementByCss('body').text()).toMatch(/The default export is not a React Component/)
 
@@ -221,7 +221,7 @@ export default (context, render) => {
       const browser = await webdriver(context.appPort, '/hmr')
       await browser.elementByCss('#error-in-gip-link').click()
 
-      await waitFor(1500)
+      await waitFor(10000)
 
       expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
 
@@ -240,7 +240,7 @@ export default (context, render) => {
     it('should recover after an error reported via SSR', async () => {
       const browser = await webdriver(context.appPort, '/hmr/error-in-gip')
 
-      await waitFor(1500)
+      await waitFor(10000)
 
       expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
 

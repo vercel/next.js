@@ -71,6 +71,7 @@
     "@babel/runtime": "7.0.0",
     "@babel/runtime-corejs2": "7.0.0",
     "@babel/template": "7.0.0",
+    "@zeit/hard-source-webpack-plugin": "0.13.0",
     "ansi-html": "0.0.7",
     "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
@@ -86,7 +87,6 @@
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.7.0",
     "glob": "7.1.2",
-    "hard-source-webpack-plugin": "0.12.0",
     "hoist-non-react-statics": "2.5.5",
     "htmlescape": "1.1.1",
     "http-errors": "1.6.2",
@@ -109,7 +109,7 @@
     "terser-webpack-plugin": "1.0.2",
     "unfetch": "3.0.0",
     "url": "0.11.0",
-    "webpack": "4.19.0",
+    "webpack": "4.18.1",
     "webpack-dev-middleware": "3.2.0",
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
@@ -151,7 +151,7 @@
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",
-    "wd": "1.4.1"
+    "wd": "1.10.3"
   },
   "peerDependencies": {
     "react": "^16.0.0",

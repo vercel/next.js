@@ -139,6 +139,14 @@ export default function ({ types: t, template }) {
               ])
             )
           )
+
+          // Turns `dynamic(import('something'))` into `dynamic(() => import('something'))` for backwards compat.
+          // This is the replicate the behavior in versions below Next.js 7 where we magically handled not executing the `import()` too.
+          // We'll deprecate this behavior and provide a codemod for it in 7.1.
+          if (loader.isCallExpression()) {
+            const arrowFunction = t.arrowFunctionExpression([], loader.node)
+            loader.replaceWith(arrowFunction)
+          }
         })
       }
     }
