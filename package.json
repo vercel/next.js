@@ -128,7 +128,7 @@
     "babel-jest": "23.4.2",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
-    "chromedriver": "2.32.3",
+    "chromedriver": "2.42.0",
     "clone": "2.1.1",
     "coveralls": "2.13.1",
     "cross-env": "5.2.0",
