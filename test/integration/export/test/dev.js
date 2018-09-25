@@ -1,6 +1,6 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
-import { renderViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, getBrowserBodyText, check } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 const loadJSONInPage = pageContent => {
@@ -12,11 +12,8 @@ export default function (context) {
   describe('Render in development mode', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')
-      const text = await browser
-        .elementByCss('#home-page p').text()
 
-      expect(text).toBe('This is the home page')
-      browser.close()
+      await check(() => getBrowserBodyText(browser), /This is the home page/)
     })
 
     it('should render pages only existent in exportPathMap page', async () => {
