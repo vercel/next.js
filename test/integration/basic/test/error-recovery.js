@@ -3,6 +3,10 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent } from 'next-test-utils'
 
+function getBrowserBodyText (browser) {
+  return browser.eval('document.getElementsByTagName("body")[0].innerText')
+}
+
 export default (context, render) => {
   describe('Error Recovery', () => {
     it('should recover from 404 after a page has been added', async () => {
@@ -17,28 +21,14 @@ export default (context, render) => {
         newPage.write('export default () => (<div id="new-page">the-new-page</div>)')
 
         await check(
-          () => {
-            if (!browser.hasElementById('new-page')) {
-              throw new Error('waiting')
-            }
-
-            return browser.elementByCss('body').text()
-          },
+          () => getBrowserBodyText(browser),
           /the-new-page/
         )
 
         newPage.delete()
 
         await check(
-          async () => {
-            await browser.refresh()
-            const text = await browser.elementByCss('body').text()
-            if (text.includes('the-new-page')) {
-              await waitFor(2000)
-              throw new Error('waiting')
-            }
-            return browser.elementByCss('body').text()
-          },
+          () => getBrowserBodyText(browser),
           /This page could not be found/
         )
       } catch (err) {
@@ -65,14 +55,14 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } catch (err) {
         aboutPage.restore()
         if (browser) {
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the about page/
           )
         }
@@ -90,8 +80,7 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser
-          .elementByCss('p').text()
+        const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the about page.')
 
         aboutPage.replace('</div>', 'div')
@@ -101,14 +90,14 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } catch (err) {
         aboutPage.restore()
         if (browser) {
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the about page/
           )
         }
@@ -134,14 +123,14 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the contact page/
         )
       } catch (err) {
         aboutPage.restore()
         if (browser) {
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the contact page/
           )
         }
@@ -171,7 +160,7 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } finally {
@@ -198,14 +187,14 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } catch (err) {
         aboutPage.restore()
         if (browser) {
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the about page/
           )
         }
@@ -229,14 +218,14 @@ export default (context, render) => {
         aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /The default export is not a React Component/
         )
 
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } catch (err) {
@@ -244,7 +233,7 @@ export default (context, render) => {
 
         if (browser) {
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the about page/
           )
         }
@@ -268,14 +257,14 @@ export default (context, render) => {
         aboutPage.replace('export default', 'export default () => /search/ \nexport const fn = ')
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /Objects are not valid as a React child/
         )
 
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } catch (err) {
@@ -283,7 +272,7 @@ export default (context, render) => {
 
         if (browser) {
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the about page/
           )
         }
@@ -308,7 +297,7 @@ export default (context, render) => {
         erroredPage.replace('throw error', 'return {}')
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /Hello/
         )
 
@@ -349,7 +338,7 @@ export default (context, render) => {
         erroredPage.replace('throw error', 'return {}')
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /Hello/
         )
 
@@ -358,7 +347,7 @@ export default (context, render) => {
         await check(
           async () => {
             await browser.refresh()
-            const text = await browser.elementByCss('body').text()
+            const text = await getBrowserBodyText(browser)
             if (text.includes('Hello')) {
               await waitFor(2000)
               throw new Error('waiting')
