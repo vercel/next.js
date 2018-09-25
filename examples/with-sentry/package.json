@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "raven-js": "^3.19.1",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "@sentry/browser": "^4.0.4",
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2"
   },
   "license": "ISC"
 }

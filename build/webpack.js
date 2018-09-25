@@ -274,6 +274,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         // required not to cache removed files
         useHashIndex: false
       }),
+      // Removes server/client code by minifier
+      new webpack.DefinePlugin({
+        'process.browser': JSON.stringify(!isServer)
+      }),
       // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
       !isServer && dev && new webpack.DefinePlugin({
         'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)

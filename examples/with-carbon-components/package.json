@@ -10,11 +10,11 @@
   },
   "license": "ISC",
   "dependencies": {
-    "@zeit/next-sass": "^0.2.0",
+    "@zeit/next-sass": "^1.0.1",
     "carbon-components": "^9.6.4",
     "carbon-components-react": "^6.19.1",
     "carbon-icons": "^7.0.7",
-    "next": "^6.1.1",
+    "next": "latest",
     "next-images": "^0.10.6",
     "react": "^16.4.2",
     "react-dom": "^16.4.2"
