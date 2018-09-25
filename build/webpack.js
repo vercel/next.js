@@ -241,7 +241,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           resolve: resolveConfig
         }
       }),
-      new HardSourceWebpackPlugin(),
+      // Temporarily only enabled in development
+      dev && new HardSourceWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({
