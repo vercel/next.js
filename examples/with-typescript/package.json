@@ -4,17 +4,20 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "type-check": "tsc"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.1.0",
+    "@zeit/next-typescript": "^1.1.1",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0"
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2"
   },
   "devDependencies": {
-    "@types/next": "latest",
-    "@types/react": "^16.0.36"
+    "@types/next": "^6.1.7",
+    "@types/react": "^16.4.14",
+    "@types/react-dom": "16.0.7",
+    "typescript": "3.0.3"
   },
   "license": "ISC"
 }
