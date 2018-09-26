@@ -1,7 +1,7 @@
 import initNext, * as next from './'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
-import { getNextData } from '../lib/utils';
+import { getNextData } from '../lib/utils'
 
 // Temporary workaround for the issue described here:
 // https://github.com/zeit/next.js/issues/3775#issuecomment-407438123
