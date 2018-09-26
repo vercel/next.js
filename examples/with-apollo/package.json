@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "apollo-boost": "^0.1.16",
-    "graphql": "14.0.2",
-    "isomorphic-unfetch": "2.1.1",
+    "graphql": "^14.0.2",
+    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "prop-types": "15.6.1",
-    "react": "16.2.0",
-    "react-apollo": "2.1.11",
-    "react-dom": "16.2.0"
+    "prop-types": "^15.6.2",
+    "react": "^16.5.2",
+    "react-apollo": "^2.1.11",
+    "react-dom": "^16.5.2"
   },
   "author": "",
   "license": "ISC"
