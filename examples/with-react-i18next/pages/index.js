@@ -6,7 +6,7 @@ import ExtendedComponent from '../components/ExtendedComponent'
 import ComponentWithTrans from '../components/ComponentWithTrans'
 import { withI18next } from '../lib/withI18next'
 
-const TestContent = withI18next(['home', 'common'])(({ t, initialI18nStore }) => (
+const Test = ({ t }) => (
   <div>
     <h1>{t('welcome')}</h1>
     <p>{t('common:integrates_react-i18next')}</p>
@@ -25,10 +25,6 @@ const TestContent = withI18next(['home', 'common'])(({ t, initialI18nStore }) =>
       <a>{t('link.gotoPage3')}</a>
     </Link>
   </div>
-))
+)
 
-const Test = () => {
-  return <TestContent />
-}
-
-export default Test
+export default withI18next(['home', 'common'])(Test)
