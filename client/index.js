@@ -57,15 +57,23 @@ if (page === '_error') {
   })
 }
 
-window._routes.push = pageLoader.registerPage.bind(pageLoader)
-const deleteIndexes = []
-window._routes.forEach((route, index) => {
-  if (typeof route !== 'object' || typeof route[0] !== 'string' || typeof route[1] !== 'function') return
+window._routes = new Proxy(window._routes, {
+  set: (obj, prop, value) => {
+    if (prop !== 'string' || value !== 'function') return
 
-  pageLoader.registerPage(route[0], route[1])
-  deleteIndexes.push(index)
+    pageLoader.registerPage(prop, value)
+    delete obj[prop]
+
+    return false
+  }
 })
-deleteIndexes.sort((a, b) => b - a).forEach(i => delete window._routes[i])
+
+const deleteIndexes = []
+for (let [name, fn] of Object.entries(window._routes)) {
+  pageLoader.registerPage(name, fn)
+  deleteIndexes.push(name)
+}
+deleteIndexes.forEach(name => delete window._routes[name])
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
