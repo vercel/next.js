@@ -152,7 +152,7 @@ export async function startStaticServer (dir) {
 
 export async function check (contentFn, regex) {
   let found = false
-  setTimeout(async () => {
+  const timeout = setTimeout(async () => {
     if (found) {
       return
     }
@@ -170,6 +170,7 @@ export async function check (contentFn, regex) {
       const newContent = await contentFn()
       if (regex.test(newContent)) {
         found = true
+        clearTimeout(timeout)
         break
       }
       await waitFor(1000)
@@ -216,6 +217,8 @@ export async function getReactErrorOverlayContent (browser) {
   }, 1000 * 30)
   while (!found) {
     try {
+      await browser.waitForElementByCss('iframe', 10000)
+
       const hasIframe = await browser.hasElementByCssSelector('iframe')
       if (!hasIframe) {
         throw new Error('Waiting for iframe')
@@ -228,4 +231,8 @@ export async function getReactErrorOverlayContent (browser) {
     }
   }
   return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+}
+
+export function getBrowserBodyText (browser) {
+  return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }
