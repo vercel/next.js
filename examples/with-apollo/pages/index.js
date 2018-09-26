@@ -3,9 +3,9 @@ import Header from '../components/Header'
 import Submit from '../components/Submit'
 import PostList from '../components/PostList'
 
-export default () => (
+export default ({ router }) => (
   <App>
-    <Header />
+    <Header pathname={router.pathname} />
     <Submit />
     <PostList />
   </App>
