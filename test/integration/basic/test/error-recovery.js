@@ -1,10 +1,42 @@
 /* global describe, it, expect */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import { check, File, getReactErrorOverlayContent } from 'next-test-utils'
+import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
 export default (context, render) => {
   describe('Error Recovery', () => {
+    it('should recover from 404 after a page has been added', async () => {
+      let browser
+      const newPage = new File(join(__dirname, '../', 'pages', 'hmr', 'new-page.js'))
+      try {
+        browser = await webdriver(context.appPort, '/hmr/new-page')
+
+        expect(await browser.elementByCss('body').text()).toMatch(/This page could not be found/)
+
+        // Add the page
+        newPage.write('export default () => (<div id="new-page">the-new-page</div>)')
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /the-new-page/
+        )
+
+        newPage.delete()
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /This page could not be found/
+        )
+      } catch (err) {
+        newPage.delete()
+        throw err
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
+    })
+
     it('should have installed the react-overlay-editor editor handler', async () => {
       let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
@@ -19,12 +51,20 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
-      } finally {
+      } catch (err) {
         aboutPage.restore()
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
 
+        throw err
+      } finally {
         if (browser) {
           browser.close()
         }
@@ -36,8 +76,7 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser
-          .elementByCss('p').text()
+        const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the about page.')
 
         aboutPage.replace('</div>', 'div')
@@ -47,12 +86,20 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
-      } finally {
+      } catch (err) {
         aboutPage.restore()
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
 
+        throw err
+      } finally {
         if (browser) {
           browser.close()
         }
@@ -72,9 +119,19 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the contact page/
         )
+      } catch (err) {
+        aboutPage.restore()
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the contact page/
+          )
+        }
+
+        throw err
       } finally {
         aboutPage.restore()
         if (browser) {
@@ -99,7 +156,7 @@ export default (context, render) => {
         aboutPage.restore()
 
         await check(
-          () => browser.elementByCss('body').text(),
+          () => getBrowserBodyText(browser),
           /This is the about page/
         )
       } finally {
@@ -111,137 +168,195 @@ export default (context, render) => {
     })
 
     it('should recover from errors in the render function', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/about')
-      const text = await browser
-        .elementByCss('p').text()
-      expect(text).toBe('This is the about page.')
-
+      let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser.elementByCss('p').text()
 
-      expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error/)
+        expect(text).toBe('This is the about page.')
 
-      aboutPage.restore()
+        aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This is the about page/
-      )
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error/)
 
-      browser.close()
+        aboutPage.restore()
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
+      } catch (err) {
+        aboutPage.restore()
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should recover after exporting an invalid page', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/about')
-      const text = await browser
-        .elementByCss('p').text()
-      expect(text).toBe('This is the about page.')
-
+      let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser.elementByCss('p').text()
+        expect(text).toBe('This is the about page.')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /The default export is not a React Component/
-      )
+        aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
 
-      aboutPage.restore()
+        await check(
+          () => getBrowserBodyText(browser),
+          /The default export is not a React Component/
+        )
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This is the about page/
-      )
+        aboutPage.restore()
 
-      browser.close()
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
+      } catch (err) {
+        aboutPage.restore()
+
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should recover after a bad return from the render function', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/about')
-      const text = await browser
-        .elementByCss('p').text()
-      expect(text).toBe('This is the about page.')
-
+      let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('export default', 'export default () => /search/ \nexport const fn = ')
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser.elementByCss('p').text()
+        expect(text).toBe('This is the about page.')
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Objects are not valid as a React child/
-      )
+        aboutPage.replace('export default', 'export default () => /search/ \nexport const fn = ')
 
-      aboutPage.restore()
+        await check(
+          () => getBrowserBodyText(browser),
+          /Objects are not valid as a React child/
+        )
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /This is the about page/
-      )
+        aboutPage.restore()
 
-      browser.close()
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
+      } catch (err) {
+        aboutPage.restore()
+
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should recover from errors in getInitialProps in client', async () => {
-      const browser = await webdriver(context.appPort, '/hmr')
-      await browser.elementByCss('#error-in-gip-link').click()
-
-      expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
-
+      let browser
       const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
-      erroredPage.replace('throw error', 'return {}')
+      try {
+        browser = await webdriver(context.appPort, '/hmr')
+        await browser.elementByCss('#error-in-gip-link').click()
 
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Hello/
-      )
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
 
-      erroredPage.restore()
-      browser.close()
+        erroredPage.replace('throw error', 'return {}')
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /Hello/
+        )
+
+        erroredPage.restore()
+
+        await check(
+          async () => {
+            await browser.refresh()
+            const text = await browser.elementByCss('body').text()
+            if (text.includes('Hello')) {
+              await waitFor(2000)
+              throw new Error('waiting')
+            }
+            return getReactErrorOverlayContent(browser)
+          },
+          /an-expected-error-in-gip/
+        )
+      } catch (err) {
+        erroredPage.restore()
+
+        throw err
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
 
     it('should recover after an error reported via SSR', async () => {
-      const browser = await webdriver(context.appPort, '/hmr/error-in-gip')
-
-      expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
-
-      const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
-      erroredPage.replace('throw error', 'return {}')
-
-      await check(
-        () => browser.elementByCss('body').text(),
-        /Hello/
-      )
-
-      erroredPage.restore()
-      browser.close()
-    })
-
-    it('should recover from 404 after a page has been added', async () => {
       let browser
-      let newPage
+      const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
       try {
-        browser = await webdriver(context.appPort, '/hmr/new-page')
+        browser = await webdriver(context.appPort, '/hmr/error-in-gip')
 
-        expect(await browser.elementByCss('body').text()).toMatch(/This page could not be found/)
+        expect(await getReactErrorOverlayContent(browser)).toMatch(/an-expected-error-in-gip/)
 
-        // Add the page
-        newPage = new File(join(__dirname, '../', 'pages', 'hmr', 'new-page.js'))
-        newPage.write('export default () => (<div id="new-page">the-new-page</div>)')
+        const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
+        erroredPage.replace('throw error', 'return {}')
 
         await check(
-          () => {
-            if (!browser.hasElementById('new-page')) {
-              throw new Error('waiting')
-            }
-
-            return browser.elementByCss('body').text()
-          },
-          /the-new-page/
+          () => getBrowserBodyText(browser),
+          /Hello/
         )
 
-        // expect(await browser.elementByCss('body').text()).toMatch(/the-new-page/)
+        erroredPage.restore()
+
+        await check(
+          async () => {
+            await browser.refresh()
+            const text = await getBrowserBodyText(browser)
+            if (text.includes('Hello')) {
+              await waitFor(2000)
+              throw new Error('waiting')
+            }
+            return getReactErrorOverlayContent(browser)
+          },
+          /an-expected-error-in-gip/
+        )
+      } catch (err) {
+        erroredPage.restore()
+
+        throw err
       } finally {
-        if (newPage) {
-          newPage.delete()
-        }
         if (browser) {
           browser.close()
         }
