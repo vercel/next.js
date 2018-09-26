@@ -48,7 +48,7 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-if (page === "_error") {
+if (page === '_error') {
   pageLoader.registerPage(htmlescape(pathname), () => {
     const e = new Error(`Page does not exist: ${htmlescape(pathname)}`)
     e.statusCode = 404
@@ -57,12 +57,14 @@ if (page === "_error") {
 }
 
 window._routes.push = pageLoader.registerPage.bind(pageLoader)
-window._routes.forEach((route) => {
+const deleteIndexes = []
+window._routes.forEach((route, index) => {
   if (typeof route !== 'object' || typeof route[0] !== 'string' || typeof route[1] !== 'function') return
 
   pageLoader.registerPage(route[0], route[1])
-  //TODO: clear out _routes variable
+  deleteIndexes.push(index)
 })
+deleteIndexes.sort((a, b) => b - a).forEach(i => delete window._routes[i])
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
