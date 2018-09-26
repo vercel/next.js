@@ -58,13 +58,13 @@ export default class PageLoader {
 
       // Load the script if not asked to load yet.
       if (!this.loadingRoutes[route]) {
-        this.loadScript(route)
+        this.loadScript(route, resolve, reject)
         this.loadingRoutes[route] = true
       }
     })
   }
 
-  loadScript (route) {
+  loadScript (route, resolve, reject) {
     route = this.normalizeRoute(route)
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
@@ -75,6 +75,14 @@ export default class PageLoader {
       const error = new Error(`Error when loading route: ${route}`)
       error.code = 'PAGE_LOAD_ERROR'
       this.pageRegisterEvents.emit(route, { error })
+      reject(error)
+    }
+    script.onload = () => {
+      if (this.pageCache[route]) {
+        resolve(this.pageCache[route])
+      } else {
+        reject({code: 'PAGE_LOAD_ERROR'})
+      }
     }
 
     document.body.appendChild(script)
