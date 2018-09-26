@@ -104,10 +104,7 @@ export default async function (dir, options, configuration) {
   setAssetPrefix(renderOpts.assetPrefix)
 
   // We need this for server rendering the Link component.
-  //TODO: This might need to be refactored, along with the ref in lib/router.js and lib/link.js
-  global.__NEXT_DATA__ = {
-    nextExport: true
-  }
+  global.__NEXT_EXPORT__ = true
 
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
   const exportPaths = Object.keys(exportPathMap)

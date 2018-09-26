@@ -171,7 +171,7 @@ export class NextScript extends Component {
         id="server-app-state"
         type="application/json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({ ...__NEXT_DATA__ }).replace(
+          __html: JSON.stringify(__NEXT_DATA__).replace(
             /<\/script>/gi,
             '%3C/script%3E'
           ),
