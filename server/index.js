@@ -23,7 +23,6 @@ import pkg from '../../package'
 export default class Server {
   constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
-    this.dev = dev
     this.quiet = quiet
     this.router = new Router()
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
@@ -39,12 +38,10 @@ export default class Server {
       process.exit(1)
     }
     this.buildId = this.readBuildId(dev)
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId }) : null
     this.renderOpts = {
       dev,
       staticMarkup,
       distDir: this.distDir,
-      hotReloader: this.hotReloader,
       buildId: this.buildId,
       generateEtags
     }
@@ -62,11 +59,6 @@ export default class Server {
     })
 
     this.setAssetPrefix(assetPrefix)
-  }
-
-  getHotReloader (dir, options) {
-    const HotReloader = require('./hot-reloader').default
-    return new HotReloader(dir, options)
   }
 
   handleRequest (req, res, parsedUrl) {
@@ -100,16 +92,10 @@ export default class Server {
 
   async prepare () {
     await this.defineRoutes()
-    if (this.hotReloader) {
-      await this.hotReloader.start()
-    }
   }
 
-  async close () {
-    if (this.hotReloader) {
-      await this.hotReloader.stop()
-    }
-  }
+  // Backwards compatibility
+  async close () {}
 
   setImmutableAssetCacheControl (res) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
@@ -179,13 +165,6 @@ export default class Server {
   }
 
   async run (req, res, parsedUrl) {
-    if (this.hotReloader) {
-      const {finished} = await this.hotReloader.run(req, res, parsedUrl)
-      if (finished) {
-        return
-      }
-    }
-
     const fn = this.router.match(req, res, parsedUrl)
     if (fn) {
       await fn()

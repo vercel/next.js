@@ -3,8 +3,39 @@ import { join } from 'path'
 import {
   renderErrorToHTML
 } from './render'
+import HotReloader from './hot-reloader'
 
 export default class DevServer extends Server {
+  constructor (options) {
+    super(options)
+    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
+    this.renderOpts.hotReloader = this.hotReloader
+  }
+
+  async prepare () {
+    await super.prepare()
+    if (this.hotReloader) {
+      await this.hotReloader.start()
+    }
+  }
+
+  async close () {
+    if (this.hotReloader) {
+      await this.hotReloader.stop()
+    }
+  }
+
+  async run (req, res, parsedUrl) {
+    if (this.hotReloader) {
+      const {finished} = await this.hotReloader.run(req, res, parsedUrl)
+      if (finished) {
+        return
+      }
+    }
+
+    return super.run(req, res, parsedUrl)
+  }
+
   async generateRoutes () {
     const routes = await super.generateRoutes()
 
@@ -48,28 +79,25 @@ export default class DevServer extends Server {
   }
 
   async renderToHTML (req, res, pathname, query) {
-    if (this.dev) {
-      const compilationErr = await this.getCompilationError(pathname)
-      if (compilationErr) {
-        res.statusCode = 500
-        return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
-      }
+    const compilationErr = await this.getCompilationError(pathname)
+    if (compilationErr) {
+      res.statusCode = 500
+      return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
     return super.renderToHTML(req, res, pathname, query)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
-    if (this.dev) {
-      const compilationErr = await this.getCompilationError(pathname)
-      if (compilationErr) {
-        res.statusCode = 500
-        return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
-      }
+    const compilationErr = await this.getCompilationError(pathname)
+    if (compilationErr) {
+      res.statusCode = 500
+      return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
     }
 
     try {
-      return super.renderErrorToHTML(err, req, res, pathname, query)
+      const out = await super.renderErrorToHTML(err, req, res, pathname, query)
+      return out
     } catch (err2) {
       if (!this.quiet) console.error(err2)
       res.statusCode = 500
