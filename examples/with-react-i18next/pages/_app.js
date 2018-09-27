@@ -2,6 +2,7 @@ import React from 'react'
 import App, { Container } from 'next/app'
 import { I18n as I18nR, I18nextProvider } from 'react-i18next'
 import initialI18nInstance from '../i18n'
+import LanguageSwitch from '../components/LanguageSwitch'
 
 export default class MyApp extends App {
   render () {
@@ -19,6 +20,7 @@ export default class MyApp extends App {
             <I18nR ns='common' wait>
               {t => <h1>{t('common:integrates_react-i18next')}</h1>}
             </I18nR>
+            <LanguageSwitch />
             <Component {...pageProps} />
           </React.Fragment>
         </I18nextProvider>
