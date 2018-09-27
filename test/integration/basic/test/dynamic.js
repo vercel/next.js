@@ -12,11 +12,15 @@ export default (context, render) => {
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
+        // Make sure the client side knows it has to wait for the bundle
+        expect($('body').html()).toContain('"dynamicIds":["./components/hello1.js"]')
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
       it('should render dynamic import components using a function as first parameter', async () => {
         const $ = await get$('/dynamic/function')
+        // Make sure the client side knows it has to wait for the bundle
+        expect($('body').html()).toContain('"dynamicIds":["./components/hello1.js"]')
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
@@ -52,6 +56,7 @@ export default (context, render) => {
     describe('ssr:false option', () => {
       it('Should render loading on the server side', async () => {
         const $ = await get$('/dynamic/no-ssr')
+        expect($('body').html()).not.toContain('"dynamicIds"')
         expect($('p').text()).toBe('loading...')
       })
 

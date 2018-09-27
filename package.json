@@ -52,8 +52,7 @@
       "**/node_modules/**",
       "**/examples/with-ioc/**",
       "**/examples/with-kea/**",
-      "**/examples/with-mobx/**",
-      "**/examples/with-mobx-state-tree/**"
+      "**/examples/with-mobx/**"
     ]
   },
   "lint-staged": {
