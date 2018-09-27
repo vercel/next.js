@@ -20,7 +20,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
-import HardSourceWebpackPlugin from 'hard-source-webpack-plugin'
+// import HardSourceWebpackPlugin from '@zeit/hard-source-webpack-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -241,7 +241,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           resolve: resolveConfig
         }
       }),
-      new HardSourceWebpackPlugin(),
+      // Temporarily only enabled in development
+      // dev && new HardSourceWebpackPlugin(),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       !isServer && new ReactLoadablePlugin({
@@ -273,6 +274,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         log: false,
         // required not to cache removed files
         useHashIndex: false
+      }),
+      // Removes server/client code by minifier
+      new webpack.DefinePlugin({
+        'process.browser': JSON.stringify(!isServer)
       }),
       // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
       !isServer && dev && new webpack.DefinePlugin({

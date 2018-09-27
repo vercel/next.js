@@ -2,7 +2,7 @@
 import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
 import { join } from 'path'
-import { waitFor, check } from 'next-test-utils'
+import { waitFor, check, getBrowserBodyText } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 export default (context, renderViaHTTP) => {
@@ -22,7 +22,7 @@ export default (context, renderViaHTTP) => {
           renameSync(contactPagePath, newContactPagePath)
 
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This page could not be found/
           )
 
@@ -31,7 +31,7 @@ export default (context, renderViaHTTP) => {
 
           // wait until the page comes back
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the contact page/
           )
         } finally {
@@ -63,7 +63,7 @@ export default (context, renderViaHTTP) => {
           writeFileSync(aboutPagePath, editedContent, 'utf8')
 
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /COOL page/
           )
 
@@ -71,7 +71,7 @@ export default (context, renderViaHTTP) => {
           writeFileSync(aboutPagePath, originalContent, 'utf8')
 
           await check(
-            () => browser.elementByCss('body').text(),
+            () => getBrowserBodyText(browser),
             /This is the about page/
           )
         } finally {

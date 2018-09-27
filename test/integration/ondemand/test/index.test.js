@@ -7,7 +7,9 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor
+  waitFor,
+  check,
+  getBrowserBodyText
 } from 'next-test-utils'
 
 const context = {}
@@ -63,12 +65,13 @@ describe('On Demand Entries', () => {
     let browser
     try {
       browser = await webdriver(context.appPort, '/nav')
-      const text = await browser
-        .elementByCss('#to-dynamic').click()
-        .waitForElementByCss('.dynamic-page')
-        .elementByCss('p').text()
 
-      expect(text).toBe('Hello')
+      await browser.eval('document.getElementById("to-dynamic").click()')
+
+      await check(async () => {
+        const text = await getBrowserBodyText(browser)
+        return text
+      }, /Hello/)
     } finally {
       if (browser) {
         browser.close()
