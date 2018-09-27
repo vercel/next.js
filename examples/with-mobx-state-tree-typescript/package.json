@@ -8,21 +8,21 @@
     "tslint": "tslint -c tslint.json -p tsconfig.json"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.1.0",
-    "mobx": "5.0.5",
-    "mobx-react": "5.2.5",
-    "mobx-state-tree": "3.2.3",
-    "next": "6.1.1",
-    "react": "16.4.2",
-    "react-dom": "16.4.2",
+    "@zeit/next-typescript": "1.1.1",
+    "mobx": "^5.1.2",
+    "mobx-react": "^5.2.8",
+    "mobx-state-tree": "^3.4.0",
+    "next": "latest",
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
     "typescript": "^3.0.1"
   },
   "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^7.1.0",
     "@types/next": "^6.1.4",
     "@types/react": "^16.4.12",
-    "babel-plugin-transform-decorators-legacy": "^1.3.4",
     "tslint": "^5.9.1",
-    "tslint-config-standard": "^7.0.0",
+    "tslint-config-standard": "^8.0.1",
     "tslint-loader": "^3.5.3",
     "tslint-react": "^3.4.0"
   },
