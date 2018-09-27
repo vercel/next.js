@@ -2,8 +2,8 @@
 import { resolve, join } from 'path'
 import parseArgs from 'minimist'
 import { existsSync } from 'fs'
-import Server from '../server'
-import { printAndExit } from '../lib/utils'
+import startServer from '../server/lib/start-server'
+import { printAndExit } from '../server/lib/utils'
 
 const argv = parseArgs(process.argv.slice(2), {
   alias: {
@@ -52,12 +52,9 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-const srv = new Server({ dir, dev: true })
-srv.start(argv.port, argv.hostname)
+startServer({dir, dev: true}, argv.port, argv.hostname)
   .then(async () => {
-    if (!process.env.NOW) {
-      console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
-    }
+    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
   })
   .catch((err) => {
     if (err.code === 'EADDRINUSE') {

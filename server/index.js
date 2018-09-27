@@ -3,7 +3,6 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import http, { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -27,7 +26,6 @@ export default class Server {
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
@@ -87,7 +85,7 @@ export default class Server {
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
-        res.end(STATUS_CODES[500])
+        res.end('Internal Server Error')
       })
   }
 
@@ -110,15 +108,6 @@ export default class Server {
   async close () {
     if (this.hotReloader) {
       await this.hotReloader.stop()
-    }
-
-    if (this.http) {
-      await new Promise((resolve, reject) => {
-        this.http.close((err) => {
-          if (err) return reject(err)
-          return resolve()
-        })
-      })
     }
   }
 
@@ -203,17 +192,6 @@ export default class Server {
     }
   }
 
-  async start (port, hostname) {
-    await this.prepare()
-    this.http = http.createServer(this.getRequestHandler())
-    await new Promise((resolve, reject) => {
-      // This code catches EADDRINUSE error if the port is already in use
-      this.http.on('error', reject)
-      this.http.on('listening', () => resolve())
-      this.http.listen(port, hostname)
-    })
-  }
-
   async run (req, res, parsedUrl) {
     if (this.hotReloader) {
       const {finished} = await this.hotReloader.run(req, res, parsedUrl)
@@ -232,7 +210,7 @@ export default class Server {
       await this.render404(req, res, parsedUrl)
     } else {
       res.statusCode = 501
-      res.end(STATUS_CODES[501])
+      res.end('Not Implemented')
     }
   }
 
