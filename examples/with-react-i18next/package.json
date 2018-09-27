@@ -12,14 +12,14 @@
   "license": "MIT",
   "dependencies": {
     "express": "4.16.3",
-    "i18next": "11.3.6",
-    "i18next-browser-languagedetector": "2.2.0",
-    "i18next-express-middleware": "1.2.0",
-    "i18next-node-fs-backend": "1.2.1",
+    "i18next": "11.9.0",
+    "i18next-browser-languagedetector": "2.2.3",
+    "i18next-express-middleware": "1.4.0",
+    "i18next-node-fs-backend": "2.1.0",
     "i18next-xhr-backend": "1.5.1",
-    "next": "^6.1.1",
-    "react": "^16.4.1",
-    "react-dom": "^16.4.1",
-    "react-i18next": "7.8.1"
+    "next": "latest",
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
+    "react-i18next": "7.13.0"
   }
 }
