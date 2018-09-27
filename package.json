@@ -38,8 +38,7 @@
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "flow": "flow check",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'build/**/*.js' 'test/**/*.js'",
-    "prepublish": "npm run release",
-    "precommit": "lint-staged"
+    "prepublish": "npm run release"
   },
   "taskr": {
     "requires": [
@@ -136,7 +135,7 @@
     "flatten": "1.0.2",
     "flow-bin": "0.73.0",
     "get-port": "3.2.0",
-    "husky": "0.14.3",
+    "husky": "1.0.0",
     "jest-cli": "21.2.0",
     "lint-staged": "4.2.3",
     "micro": "9.1.0",
@@ -161,5 +160,10 @@
     "roots": [
       "test/"
     ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   }
 }
