@@ -3,7 +3,6 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -86,7 +85,7 @@ export default class Server {
       .catch((err) => {
         if (!this.quiet) console.error(err)
         res.statusCode = 500
-        res.end(STATUS_CODES[500])
+        res.end('Internal Server Error')
       })
   }
 
@@ -211,7 +210,7 @@ export default class Server {
       await this.render404(req, res, parsedUrl)
     } else {
       res.statusCode = 501
-      res.end(STATUS_CODES[501])
+      res.end('Not Implemented')
     }
   }
 
