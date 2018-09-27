@@ -48,7 +48,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .css files here
       if(!/\.css$/.exec(file)) {
@@ -82,7 +82,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
@@ -113,7 +113,12 @@ export class Head extends Component {
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
       {styles || null}
-      {this.props.children}
+      {process.env.NODE_ENV === 'development' && (React.Children.toArray(this.props.children)).map((child) => {
+        if (child.type === 'title') {
+          console.warn('Warning: <title> shouldn\'t be used in _document.js. https://err.sh/next.js/no-document-title.md')
+        }
+        return child
+      })}
     </head>
   }
 }
@@ -157,7 +162,7 @@ export class NextScript extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
