@@ -62,15 +62,16 @@ export default function ({ types: t, template }) {
             return
           }
 
-          if (args[0].isCallExpression()) {
+          if (args[0].isObjectExpression()) {
+            options = args[0]
+          } else {
             if (!args[1]) {
               callExpression.pushContainer('arguments', t.objectExpression([]))
             }
+            // This is needed as the code is modified above
             args = callExpression.get('arguments')
             loader = args[0]
             options = args[1]
-          } else {
-            options = args[0]
           }
 
           if (!options.isObjectExpression()) return
