@@ -3,7 +3,7 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
-import http, { STATUS_CODES } from 'http'
+import { STATUS_CODES } from 'http'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -27,7 +27,6 @@ export default class Server {
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.http = null
     const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
@@ -111,15 +110,6 @@ export default class Server {
     if (this.hotReloader) {
       await this.hotReloader.stop()
     }
-
-    if (this.http) {
-      await new Promise((resolve, reject) => {
-        this.http.close((err) => {
-          if (err) return reject(err)
-          return resolve()
-        })
-      })
-    }
   }
 
   async defineRoutes () {
@@ -201,17 +191,6 @@ export default class Server {
         this.router.add(method, p, routes[p])
       }
     }
-  }
-
-  async start (port, hostname) {
-    await this.prepare()
-    this.http = http.createServer(this.getRequestHandler())
-    await new Promise((resolve, reject) => {
-      // This code catches EADDRINUSE error if the port is already in use
-      this.http.on('error', reject)
-      this.http.on('listening', () => resolve())
-      this.http.listen(port, hostname)
-    })
   }
 
   async run (req, res, parsedUrl) {
