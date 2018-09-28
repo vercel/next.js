@@ -1,8 +1,8 @@
 import http from 'http'
-import Server from '../index'
+import next from '../next'
 
 export default async function start (serverOptions, port, hostname) {
-  const app = new Server(serverOptions)
+  const app = next(serverOptions)
   await app.prepare()
   const srv = http.createServer(app.getRequestHandler())
   await new Promise((resolve, reject) => {

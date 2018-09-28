@@ -74,8 +74,9 @@ async function doRender (req, res, pathname, query, {
 } = {}) {
   page = page || pathname
 
-  if (hotReloader) { // In dev mode we use on demand entries to compile the page before rendering
-    await ensurePage(page, { dir, hotReloader })
+  // In dev mode we use on demand entries to compile the page before rendering
+  if (hotReloader) {
+    await hotReloader.ensurePage(page)
   }
 
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
@@ -269,10 +270,4 @@ export function serveStatic (req, res, path) {
       .pipe(res)
       .on('finish', resolve)
   })
-}
-
-async function ensurePage (page, { dir, hotReloader }) {
-  if (page === '/_error') return
-
-  await hotReloader.ensurePage(page)
 }
