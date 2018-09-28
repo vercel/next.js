@@ -1,4 +1,4 @@
-import Server from './index'
+import Server from './next-server'
 import { join } from 'path'
 import HotReloader from './hot-reloader'
 import {PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
