@@ -12,7 +12,7 @@ import {
 import Router from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
+import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
@@ -21,11 +21,11 @@ import { isResSent } from '../lib/utils'
 import pkg from '../../package'
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
+  constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     this.router = new Router()
-    const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
+    const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
 
@@ -33,13 +33,8 @@ export default class Server {
     // publicRuntimeConfig gets it's default in client/index.js
     const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
 
-    if (!dev && !fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
-      console.error(`> Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
-      process.exit(1)
-    }
-    this.buildId = this.readBuildId(dev)
+    this.buildId = this.readBuildId()
     this.renderOpts = {
-      dev,
       staticMarkup,
       distDir: this.distDir,
       buildId: this.buildId,
@@ -59,6 +54,10 @@ export default class Server {
     })
 
     this.setAssetPrefix(assetPrefix)
+  }
+
+  currentPhase () {
+    return PHASE_PRODUCTION_SERVER
   }
 
   handleRequest (req, res, parsedUrl) {
@@ -109,7 +108,6 @@ export default class Server {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
           // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
-          // In development they don't have a hash, and shouldn't be cached by the browser.
           if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
             this.setImmutableAssetCacheControl(res)
           }
@@ -260,9 +258,9 @@ export default class Server {
     return true
   }
 
-  readBuildId (dev) {
-    if (dev) {
-      return 'development'
+  readBuildId () {
+    if (!fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
+      throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
     }
     const buildIdPath = join(this.distDir, BUILD_ID_FILE)
     const buildId = fs.readFileSync(buildIdPath, 'utf8')

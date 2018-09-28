@@ -1,12 +1,22 @@
 import Server from './index'
 import { join } from 'path'
 import HotReloader from './hot-reloader'
+import {PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
 
 export default class DevServer extends Server {
   constructor (options) {
     super(options)
     this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     this.renderOpts.hotReloader = this.hotReloader
+    this.renderOpts.dev = true
+  }
+
+  currentPhase () {
+    return PHASE_DEVELOPMENT_SERVER
+  }
+
+  readBuildId () {
+    return 'development'
   }
 
   async prepare () {
