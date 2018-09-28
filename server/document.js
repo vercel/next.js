@@ -104,6 +104,17 @@ export class Head extends Component {
     const { page, pathname, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(pathname)
 
+    let children = this.props.children
+    // show a warning if Head contains <title> (only in development)
+    if (process.env.NODE_ENV !== 'production') {
+      children = React.Children.map(children, (child) => {
+        if (child && child.type === 'title') {
+          console.warn("Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title")
+        }
+        return child
+      })
+    }
+
     return <head {...this.props}>
       {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
@@ -113,7 +124,7 @@ export class Head extends Component {
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
       {styles || null}
-      {this.props.children}
+      {children}
     </head>
   }
 }
