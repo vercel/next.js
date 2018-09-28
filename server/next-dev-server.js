@@ -1,8 +1,5 @@
 import Server from './index'
 import { join } from 'path'
-import {
-  renderErrorToHTML
-} from './render'
 import HotReloader from './hot-reloader'
 
 export default class DevServer extends Server {
@@ -92,7 +89,7 @@ export default class DevServer extends Server {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
-      return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
+      return super.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
     try {
@@ -101,7 +98,7 @@ export default class DevServer extends Server {
     } catch (err2) {
       if (!this.quiet) console.error(err2)
       res.statusCode = 500
-      return renderErrorToHTML(err2, req, res, pathname, query, this.renderOpts)
+      return super.renderErrorToHTML(err2, req, res, pathname, query)
     }
   }
 
