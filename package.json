@@ -113,7 +113,7 @@
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
     "webpackbar": "2.6.3",
-    "write-file-webpack-plugin": "4.3.2"
+    "write-file-webpack-plugin": "4.4.1"
   },
   "devDependencies": {
     "@babel/preset-flow": "7.0.0",
