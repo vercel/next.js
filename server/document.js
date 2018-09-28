@@ -116,7 +116,7 @@ export class Head extends Component {
     }
 
     return <head {...this.props}>
-      {(head || []).map((h, i) => React.cloneElement(h, { key: h.key || i }))}
+      {head}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} />
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />
