@@ -12,7 +12,7 @@ import {
 import Router from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, PHASE_DEVELOPMENT_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
+import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
@@ -21,12 +21,11 @@ import { isResSent } from '../lib/utils'
 import pkg from '../../package'
 
 export default class Server {
-  constructor ({ dir = '.', dev = false, staticMarkup = false, quiet = false, conf = null } = {}) {
+  constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
-    this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    const phase = dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
+    const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
 
@@ -34,17 +33,10 @@ export default class Server {
     // publicRuntimeConfig gets it's default in client/index.js
     const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
 
-    if (!dev && !fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
-      console.error(`> Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
-      process.exit(1)
-    }
-    this.buildId = this.readBuildId(dev)
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId }) : null
+    this.buildId = this.readBuildId()
     this.renderOpts = {
-      dev,
       staticMarkup,
       distDir: this.distDir,
-      hotReloader: this.hotReloader,
       buildId: this.buildId,
       generateEtags
     }
@@ -64,9 +56,8 @@ export default class Server {
     this.setAssetPrefix(assetPrefix)
   }
 
-  getHotReloader (dir, options) {
-    const HotReloader = require('./hot-reloader').default
-    return new HotReloader(dir, options)
+  currentPhase () {
+    return PHASE_PRODUCTION_SERVER
   }
 
   handleRequest (req, res, parsedUrl) {
@@ -100,106 +91,78 @@ export default class Server {
 
   async prepare () {
     await this.defineRoutes()
-    if (this.hotReloader) {
-      await this.hotReloader.start()
-    }
   }
 
-  async close () {
-    if (this.hotReloader) {
-      await this.hotReloader.stop()
-    }
+  // Backwards compatibility
+  async close () {}
+
+  setImmutableAssetCacheControl (res) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  async defineRoutes () {
-    const routes = {
-      '/_next/static/:path*': async (req, res, params) => {
-        // The commons folder holds commonschunk files
-        // The chunks folder holds dynamic entries
-        // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
-        // In development they don't have a hash, and shouldn't be cached by the browser.
-        if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
-          if (this.dev) {
-            res.setHeader('Cache-Control', 'no-store, must-revalidate')
-          } else {
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+  async generateRoutes () {
+    const routes = [
+      {
+        path: '/_next/static/:path*',
+        fn: async (req, res, params) => {
+          // The commons folder holds commonschunk files
+          // The chunks folder holds dynamic entries
+          // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
+          if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
+            this.setImmutableAssetCacheControl(res)
           }
+          const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
+          await this.serveStatic(req, res, p)
         }
-        const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
-        await this.serveStatic(req, res, p)
       },
-
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      '/static/:path*': async (req, res, params) => {
-        const p = join(this.dir, 'static', ...(params.path || []))
-        await this.serveStatic(req, res, p)
-      }
-    }
-
-    // In development we expose all compiled files for react-error-overlay's line show feature
-    if (this.dev) {
-      routes['/_next/development/:path*'] = async (req, res, params) => {
-        const p = join(this.distDir, ...(params.path || []))
-        console.log('page', p)
-        await this.serveStatic(req, res, p)
-      }
-    }
-
-    // This path is needed because `render()` does a check for `/_next` and the calls the routing again
-    routes['/_next/:path*'] = async (req, res, params, parsedUrl) => {
-      await this.render404(req, res, parsedUrl)
-    }
-
-    // Makes `next export` exportPathMap work in development mode.
-    // So that the user doesn't have to define a custom server reading the exportPathMap
-    if (this.dev && this.nextConfig.exportPathMap) {
-      console.log('Defining routes from exportPathMap')
-      const exportPathMap = await this.nextConfig.exportPathMap({}, {dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId}) // In development we can't give a default path mapping
-      for (const path in exportPathMap) {
-        const {page, query = {}} = exportPathMap[path]
-        routes[path] = async (req, res, params, parsedUrl) => {
-          const { query: urlQuery } = parsedUrl
-
-          Object.keys(urlQuery)
-            .filter(key => query[key] === undefined)
-            .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
-
-          const mergedQuery = {...urlQuery, ...query}
-
-          await this.render(req, res, page, mergedQuery, parsedUrl)
+      {
+        path: '/_next/:path*',
+        // This path is needed because `render()` does a check for `/_next` and the calls the routing again
+        fn: async (req, res, params, parsedUrl) => {
+          await this.render404(req, res, parsedUrl)
+        }
+      },
+      {
+        // It's very important keep this route's param optional.
+        // (but it should support as many as params, seperated by '/')
+        // Othewise this will lead to a pretty simple DOS attack.
+        // See more: https://github.com/zeit/next.js/issues/2617
+        path: '/static/:path*',
+        fn: async (req, res, params) => {
+          const p = join(this.dir, 'static', ...(params.path || []))
+          await this.serveStatic(req, res, p)
         }
       }
-    }
+    ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
       // It's very important keep this route's param optional.
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      routes['/:path*'] = async (req, res, params, parsedUrl) => {
-        const { pathname, query } = parsedUrl
-        await this.render(req, res, pathname, query, parsedUrl)
-      }
+      routes.push({
+        path: '/:path*',
+        fn: async (req, res, params, parsedUrl) => {
+          const { pathname, query } = parsedUrl
+          await this.render(req, res, pathname, query, parsedUrl)
+        }
+      })
     }
 
+    return routes
+  }
+
+  async defineRoutes () {
+    const routes = await this.generateRoutes()
+
     for (const method of ['GET', 'HEAD']) {
-      for (const p of Object.keys(routes)) {
-        this.router.add(method, p, routes[p])
+      for (const route of routes) {
+        this.router.add(method, route.path, route.fn)
       }
     }
   }
 
   async run (req, res, parsedUrl) {
-    if (this.hotReloader) {
-      const {finished} = await this.hotReloader.run(req, res, parsedUrl)
-      if (finished) {
-        return
-      }
-    }
-
     const fn = this.router.match(req, res, parsedUrl)
     if (fn) {
       await fn()
@@ -235,14 +198,6 @@ export default class Server {
   }
 
   async renderToHTML (req, res, pathname, query) {
-    if (this.dev) {
-      const compilationErr = await this.getCompilationError(pathname)
-      if (compilationErr) {
-        res.statusCode = 500
-        return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
-      }
-    }
-
     try {
       const out = await renderToHTML(req, res, pathname, query, this.renderOpts)
       return out
@@ -264,25 +219,7 @@ export default class Server {
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
-    if (this.dev) {
-      const compilationErr = await this.getCompilationError(pathname)
-      if (compilationErr) {
-        res.statusCode = 500
-        return renderErrorToHTML(compilationErr, req, res, pathname, query, this.renderOpts)
-      }
-    }
-
-    try {
-      return await renderErrorToHTML(err, req, res, pathname, query, this.renderOpts)
-    } catch (err2) {
-      if (this.dev) {
-        if (!this.quiet) console.error(err2)
-        res.statusCode = 500
-        return renderErrorToHTML(err2, req, res, pathname, query, this.renderOpts)
-      } else {
-        throw err2
-      }
-    }
+    return renderErrorToHTML(err, req, res, pathname, query, this.renderOpts)
   }
 
   async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
@@ -321,22 +258,12 @@ export default class Server {
     return true
   }
 
-  readBuildId (dev) {
-    if (dev) {
-      return 'development'
+  readBuildId () {
+    if (!fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
+      throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
     }
     const buildIdPath = join(this.distDir, BUILD_ID_FILE)
     const buildId = fs.readFileSync(buildIdPath, 'utf8')
     return buildId.trim()
-  }
-
-  async getCompilationError (page) {
-    if (!this.hotReloader) return
-
-    const errors = await this.hotReloader.getCompilationErrors(page)
-    if (errors.length === 0) return
-
-    // Return the very first error we found.
-    return errors[0]
   }
 }
