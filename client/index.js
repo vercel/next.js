@@ -30,8 +30,7 @@ const {
     assetPrefix,
     runtimeConfig,
     dynamicIds
-  },
-  location
+  }
 } = window
 
 const prefix = assetPrefix || ''
@@ -102,12 +101,11 @@ export default async ({
     err: initialErr
   })
 
-  router.subscribe(({ App, Component, props, hash, err }) => {
-    render({ App, Component, props, err, hash, emitter })
+  router.subscribe(({ App, Component, props, err }) => {
+    render({ App, Component, props, err, emitter })
   })
 
-  const hash = location.hash.substring(1)
-  render({ App, Component, props, hash, err: initialErr, emitter })
+  render({ App, Component, props, err: initialErr, emitter })
 
   return emitter
 }
@@ -159,7 +157,7 @@ function renderReactElement (reactEl, domEl) {
   }
 }
 
-async function doRender ({ App, Component, props, hash, err, emitter: emitterProp = emitter }) {
+async function doRender ({ App, Component, props, err, emitter: emitterProp = emitter }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
@@ -172,7 +170,7 @@ async function doRender ({ App, Component, props, hash, err, emitter: emitterPro
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, hash, err, router, headManager, ...props }
+  const appProps = { Component, err, router, headManager, ...props }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
