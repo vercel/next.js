@@ -17,9 +17,6 @@ import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
-// We need to go up one more level since we are in the `dist` directory
-import pkg from '../../package'
-
 export default class Server {
   constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
@@ -192,7 +189,7 @@ export default class Server {
     }
 
     if (this.nextConfig.poweredByHeader) {
-      res.setHeader('X-Powered-By', `Next.js ${pkg.version}`)
+      res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
     }
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
