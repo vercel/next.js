@@ -21,23 +21,17 @@ export default class DevServer extends Server {
 
   async prepare () {
     await super.prepare()
-    if (this.hotReloader) {
-      await this.hotReloader.start()
-    }
+    await this.hotReloader.start()
   }
 
   async close () {
-    if (this.hotReloader) {
-      await this.hotReloader.stop()
-    }
+    await this.hotReloader.stop()
   }
 
   async run (req, res, parsedUrl) {
-    if (this.hotReloader) {
-      const {finished} = await this.hotReloader.run(req, res, parsedUrl)
-      if (finished) {
-        return
-      }
+    const {finished} = await this.hotReloader.run(req, res, parsedUrl)
+    if (finished) {
+      return
     }
 
     return super.run(req, res, parsedUrl)
@@ -117,8 +111,6 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError (page) {
-    if (!this.hotReloader) return
-
     const errors = await this.hotReloader.getCompilationErrors(page)
     if (errors.length === 0) return
 
