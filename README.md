@@ -142,10 +142,12 @@ export default () => (
 
 #### Built-in CSS support
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/basic-css">Basic css</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/basic-css">Basic css</a></li>
+  </ul>
+</details>
 
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
@@ -180,12 +182,19 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
 
 #### CSS-in-JS
 
-<p><details>
+<details>
   <summary>
     <b>Examples</b>
-    </summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components</a></li><li><a href="./examples/with-styletron">Styletron</a></li><li><a href="./examples/with-glamor">Glamor</a></li><li><a href="./examples/with-glamorous">Glamorous</a></li><li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li><li><a href="./examples/with-fela">Fela</a></li></ul>
-</details></p>
+  </summary>
+  <ul>
+    <li><a href="./examples/with-styled-components">Styled components</a></li>
+    <li><a href="./examples/with-styletron">Styletron</a></li>
+    <li><a href="./examples/with-glamor">Glamor</a></li>
+    <li><a href="./examples/with-glamorous">Glamorous</a></li>
+    <li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li>
+    <li><a href="./examples/with-fela">Fela</a></li>
+  </ul>
+</details>
 
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
@@ -216,13 +225,13 @@ _Note: Don't name the `static` directory anything else. The name is required and
 
 ### Populating `<head>`
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/head-elements">Head elements</a></li>
     <li><a href="./examples/layout-component">Layout component</a></li>
   </ul>
-</details></p>
+</details>
 
 We expose a built-in component for appending elements to the `<head>` of the page.
 
@@ -265,10 +274,12 @@ _Note: The contents of `<head>` get cleared upon unmounting the component, so ma
 
 ### Fetching data and component lifecycle
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/data-fetch">Data fetch</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/data-fetch">Data fetch</a></li>
+  </ul>
+</details>
 
 When you need state, lifecycle hooks or **initial data population** you can export a `React.Component` (instead of a stateless function, like shown above):
 
@@ -337,12 +348,12 @@ export default Page
 
 #### With `<Link>`
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/hello-world">Hello World</a></li>
   </ul>
-</details></p>
+</details>
 
 Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
 
@@ -378,12 +389,12 @@ To inject the `pathname`, `query` or `asPath` in your component, you can use [wi
 
 ##### With URL object
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/with-url-object-routing">With URL Object Routing</a></li>
   </ul>
-</details></p>
+</details>
 
 The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
 
@@ -471,13 +482,13 @@ The default behaviour of `<Link>` is to scroll to the top of the page. When ther
 
 #### Imperatively
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/using-router">Basic routing</a></li>
     <li><a href="./examples/with-loading">With a page loading indicator</a></li>
   </ul>
-</details></p>
+</details>
 
 You can also do client-side page transitions using the `next/router`
 
@@ -592,12 +603,12 @@ Router.events.on('routeChangeError', (err, url) => {
 
 ##### Shallow Routing
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>
   </ul>
-</details></p>
+</details>
 
 Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
 
@@ -634,12 +645,12 @@ componentDidUpdate(prevProps) {
 
 #### Using a Higher Order Component
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/using-with-router">Using the `withRouter` utility</a></li>
   </ul>
-</details></p>
+</details>
 
 If you want to access the `router` object inside any component in your app, you can use the `withRouter` Higher-Order Component. Here's how to use it:
 
@@ -673,10 +684,12 @@ The above `router` object comes with an API similar to [`next/router`](#imperati
 
 ⚠️ This is a production only feature ⚠️
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-prefetching">Prefetching</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-prefetching">Prefetching</a></li>
+  </ul>
+</details>
 
 Next.js has an API which allows you to prefetch pages.
 
@@ -763,7 +776,7 @@ export default withRouter(MyLink)
 
 ### Custom server and routing
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/custom-server">Basic custom server</a></li>
@@ -773,7 +786,7 @@ export default withRouter(MyLink)
     <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
     <li><a href="./examples/ssr-caching">SSR caching</a></li>
   </ul>
-</details></p>
+</details>
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc.
 
@@ -896,12 +909,12 @@ app.prepare().then(() => {
 
 ### Dynamic Import
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="./examples/with-dynamic-import">With Dynamic Import</a></li>
   </ul>
-</details></p>
+</details>
 
 Next.js supports TC39 [dynamic import proposal](https://github.com/tc39/proposal-dynamic-import) for JavaScript.
 With that, you could import JavaScript modules (inc. React Components) dynamically and work with them.
@@ -992,11 +1005,13 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 
 ### Custom `<App>`
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-app-layout">Using `_app.js` for layout</a></li></ul>
-  <ul><li><a href="./examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-app-layout">Using `_app.js` for layout</a></li>
+    <li><a href="./examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li>
+  </ul>
+</details>
 
 Next.js uses the `App` component to initialize pages. You can override it and control the page initialization. Which allows you to do amazing things like:
 
@@ -1036,11 +1051,13 @@ export default class MyApp extends App {
 
 ### Custom `<Document>`
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-styled-components">Styled components custom document</a></li></ul>
-  <ul><li><a href="./examples/with-amp">Google AMP</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-styled-components">Styled components custom document</a></li>
+    <li><a href="./examples/with-amp">Google AMP</a></li>
+  </ul>
+</details>
 
 - Is rendered on the server side
 - Is used to change the initial server side rendered document markup
@@ -1251,10 +1268,12 @@ module.exports = {
 
 ### Customizing webpack config
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li>
+  </ul>
+</details>
 
 Some commonly asked for features are available as modules:
 
@@ -1334,10 +1353,12 @@ module.exports = {
 
 ### Customizing babel config
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li>
+  </ul>
+</details>
 
 In order to extend our usage of `babel`, you can simply define a `.babelrc` file at the root of your app. This file is optional.
 
@@ -1471,10 +1492,12 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 
 ## Static HTML export
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-static-export">Static export</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-static-export">Static export</a></li>
+  </ul>
+</details>
 
 `next export` is a way to run your Next.js app as a standalone static app without the need for a Node.js server.
 The exported app supports almost every feature of Next.js, including dynamic urls, prefetching, preloading and dynamic imports.
@@ -1521,7 +1544,7 @@ module.exports = {
 
 Then simply run these commands:
 
-```sh
+```bash
 next build
 next export
 ```
@@ -1539,7 +1562,7 @@ For that you may need to add a NPM script to `package.json` like this:
 
 And run it at once with:
 
-```sh
+```bash
 npm run export
 ```
 
@@ -1551,7 +1574,7 @@ Now you can deploy the `out` directory to any static hosting service. Note that 
 
 For an example, simply visit the `out` directory and run following command to deploy your app to [ZEIT Now](https://zeit.co/now).
 
-```sh
+```bash
 now
 ```
 
@@ -1595,10 +1618,12 @@ The `req` and `res` fields of the `context` object passed to `getInitialProps` a
 
 ## Multi Zones
 
-<p><details>
+<details>
   <summary><b>Examples</b></summary>
-  <ul><li><a href="./examples/with-zones">With Zones</a></li></ul>
-</details></p>
+  <ul>
+    <li><a href="./examples/with-zones">With Zones</a></li>
+  </ul>
+</details>
 
 A zone is a single deployment of a Next.js app. Just like that, you can have multiple zones. Then you can merge them as a single app.
 
