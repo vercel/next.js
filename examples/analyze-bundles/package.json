@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@zeit/next-bundle-analyzer": "^0.1.2",
-    "faker": "4.1.0",
+    "faker": "^4.1.0",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
