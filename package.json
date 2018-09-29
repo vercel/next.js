@@ -70,7 +70,6 @@
     "@babel/runtime": "7.0.0",
     "@babel/runtime-corejs2": "7.0.0",
     "@babel/template": "7.0.0",
-    "@zeit/hard-source-webpack-plugin": "0.13.0",
     "ansi-html": "0.0.7",
     "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
