@@ -41,6 +41,10 @@ To analyze your webpack output, invoke the following command:
 
 ```bash
 npm run analyze
+npm run analyze:server
+npm run analyze:browser
 # or
 yarn analyze
+yarn analyze:server
+yarn analyze:browser
 ```
