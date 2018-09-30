@@ -71,7 +71,7 @@ export function findPort () {
 
 // Launch the app in dev mode.
 export function launchApp (dir, port) {
-  const cwd = path.resolve(__dirname, '../../')
+  const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', dir, '-p', port], { cwd })
 

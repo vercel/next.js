@@ -1,0 +1,114 @@
+{
+  "name": "next",
+  "version": "7.0.1",
+  "description": "Minimalistic framework for server-rendered React applications",
+  "main": "./dist/server/next.js",
+  "license": "MIT",
+  "repository": "zeit/next.js",
+  "bugs": "https://github.com/zeit/next.js/issues",
+  "homepage": "https://github.com/zeit/next.js",
+  "files": [
+    "dist",
+    "app.js",
+    "asset.js",
+    "babel.js",
+    "client.js",
+    "config.js",
+    "constants.js",
+    "document.js",
+    "dynamic.js",
+    "error.js",
+    "head.js",
+    "link.js",
+    "prefetch.js",
+    "router.js"
+  ],
+  "bin": {
+    "next": "./dist/bin/next"
+  },
+  "scripts": {
+    "build": "taskr",
+    "release": "taskr release",
+    "flow": "flow check",
+    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'build/**/*.js' 'test/**/*.js'",
+    "prepublish": "npm run release"
+  },
+  "taskr": {
+    "requires": [
+      "./taskfile-babel.js"
+    ]
+  },
+  "standard": {
+    "parser": "babel-eslint",
+    "ignore": [
+      "**/node_modules/**",
+      "**/examples/with-ioc/**",
+      "**/examples/with-kea/**",
+      "**/examples/with-mobx/**"
+    ]
+  },
+  "dependencies": {
+    "@babel/core": "7.1.2",
+    "@babel/plugin-proposal-class-properties": "7.1.0",
+    "@babel/plugin-proposal-object-rest-spread": "7.0.0",
+    "@babel/plugin-syntax-dynamic-import": "7.0.0",
+    "@babel/plugin-transform-runtime": "7.1.0",
+    "@babel/preset-env": "7.1.0",
+    "@babel/preset-react": "7.0.0",
+    "@babel/runtime": "7.1.2",
+    "@babel/runtime-corejs2": "7.1.2",
+    "@babel/template": "7.1.2",
+    "ansi-html": "0.0.7",
+    "autodll-webpack-plugin": "0.4.2",
+    "babel-core": "7.0.0-bridge.0",
+    "babel-loader": "8.0.2",
+    "babel-plugin-react-require": "3.0.0",
+    "babel-plugin-transform-react-remove-prop-types": "0.4.15",
+    "case-sensitive-paths-webpack-plugin": "2.1.2",
+    "cross-spawn": "5.1.0",
+    "del": "3.0.0",
+    "etag": "1.8.1",
+    "event-source-polyfill": "0.0.12",
+    "find-up": "2.1.0",
+    "fresh": "0.5.2",
+    "friendly-errors-webpack-plugin": "1.7.0",
+    "glob": "7.1.2",
+    "hoist-non-react-statics": "2.5.5",
+    "htmlescape": "1.1.1",
+    "http-errors": "1.6.2",
+    "http-status": "1.0.1",
+    "launch-editor": "2.2.1",
+    "loader-utils": "1.1.0",
+    "minimist": "1.2.0",
+    "mkdirp-then": "1.2.0",
+    "nanoid": "1.2.1",
+    "path-to-regexp": "2.1.0",
+    "prop-types": "15.6.2",
+    "prop-types-exact": "1.2.0",
+    "react-error-overlay": "4.0.0",
+    "recursive-copy": "2.0.6",
+    "resolve": "1.5.0",
+    "send": "0.16.1",
+    "source-map": "0.5.7",
+    "strip-ansi": "3.0.1",
+    "styled-jsx": "3.1.0",
+    "terser-webpack-plugin": "1.0.2",
+    "unfetch": "3.0.0",
+    "url": "0.11.0",
+    "webpack": "4.20.2",
+    "webpack-dev-middleware": "3.4.0",
+    "webpack-hot-middleware": "2.22.3",
+    "webpack-sources": "1.2.0",
+    "webpackbar": "2.6.3",
+    "write-file-webpack-plugin": "4.3.2"
+  },
+  "peerDependencies": {
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "devDependencies": {
+    "@babel/preset-flow": "7.0.0",
+    "@taskr/clear": "1.1.0",
+    "@taskr/watch": "1.1.0"
+  }
+}
