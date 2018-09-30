@@ -1,7 +1,7 @@
 /* global describe, it, expect */
 
 import {normalize, join} from 'path'
-import {getPageEntries, createEntry} from '../../dist/build/webpack/utils'
+import {getPageEntries, createEntry} from 'next/dist/build/webpack/utils'
 
 const buildId = 'development'
 
