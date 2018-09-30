@@ -1,8 +1,4 @@
 const notifier = require('node-notifier')
-const childProcess = require('child_process')
-const rimraf = require('rimraf')
-const mkdirp = require('mkdirp')
-const isWindows = /^win/.test(process.platform)
 
 export async function compile (task) {
   await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'lib', 'client'])
@@ -39,21 +35,12 @@ export async function nextbuildstatic (task, opts) {
   notify('Compiled export files')
 }
 
-// Create node_modules/next for the use of test apps
-export async function symlinkNextForTesting () {
-  rimraf.sync('test/node_modules/next')
-  mkdirp.sync('test/node_modules')
-
-  const symlinkCommand = isWindows ? 'mklink /D "next" "..\\..\\"' : 'ln -s ../../ next'
-  childProcess.execSync(symlinkCommand, { cwd: 'test/node_modules' })
-}
-
 export async function copy (task) {
   await task.source('pages/**/*.js').target('dist/pages')
 }
 
 export async function build (task) {
-  await task.serial(['symlinkNextForTesting', 'copy', 'compile'])
+  await task.serial(['copy', 'compile'])
 }
 
 export default async function (task) {

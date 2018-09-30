@@ -1,11 +1,22 @@
 const isWindows = /^win/.test(process.platform)
 const childProcess = require('child_process')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
-// We run following task inside a NPM script chain and it runs chromedriver
-// inside a child process tree.
-// Even though we kill this task's process, chromedriver exists throughout
-// the lifetime of the original npm script.
 export async function pretest (task) {
+  // Create node_modules/next for the use of test apps
+  rimraf.sync('test/node_modules/next')
+  mkdirp.sync('test/node_modules')
+
+  if (isWindows) {
+    const symlinkCommand = 'mklink /D "next" "..\\..\\packages\\next"'
+    childProcess.execSync(symlinkCommand, { cwd: 'test/node_modules' })
+  }
+
+  // We run following task inside a NPM script chain and it runs chromedriver
+  // inside a child process tree.
+  // Even though we kill this task's process, chromedriver exists throughout
+  // the lifetime of the original npm script.
   // Start chromedriver
   const processName = isWindows ? 'chromedriver.cmd' : 'chromedriver'
   childProcess.spawn(processName, { stdio: 'inherit' })
