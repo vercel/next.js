@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@taskr/clear": "1.1.0",
+    "@taskr/esnext": "1.1.0",
     "@zeit/next-css": "0.2.1-canary.1",
     "@zeit/next-sass": "0.2.1-canary.1",
     "@zeit/next-typescript": "1.1.0",
