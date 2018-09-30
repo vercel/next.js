@@ -1,0 +1,16 @@
+pool:
+  vmImage: 'vs2017-win2016'
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '8.x'
+  displayName: 'Install Node.js'
+
+- script: |
+    npm install
+  displayName: "Install dependencies"
+        
+- script: |
+    npm test
+  displayName: 'Test next.js'
