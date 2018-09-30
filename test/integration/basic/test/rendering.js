@@ -173,7 +173,6 @@ export default function ({ app }, suiteName, render, fetch, appPort) {
       await fetch('/dynamic/ssr')
 
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
-      console.log(buildManifest)
       const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
       const resources = []
 
