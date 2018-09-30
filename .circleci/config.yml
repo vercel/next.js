@@ -7,4 +7,5 @@ jobs:
     steps:
       - checkout
       - run: yarn install
+      - run: yarn bootstrap
       - run: yarn test
