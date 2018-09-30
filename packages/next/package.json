@@ -20,7 +20,6 @@
     "error.js",
     "head.js",
     "link.js",
-    "prefetch.js",
     "router.js"
   ],
   "bin": {
