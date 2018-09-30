@@ -14,7 +14,8 @@
     "pretest": "npm run lint && npm run flow",
     "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "lint": "lerna run lint"
   },
   "lint-staged": {
     "*.js": "standard",
