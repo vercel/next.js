@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import { existsSync } from 'fs'
-import {BUILD_ID_FILE} from 'next/constants'
+import {BUILD_ID_FILE} from 'next-server/constants'
 import {
   nextServer,
   nextBuild,
