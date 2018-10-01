@@ -1,7 +1,7 @@
 // @flow
 import React from 'react'
 import ansiHTML from 'ansi-html'
-import Head from './head'
+import Head from 'next-server/head'
 
 // This component is rendered through dev-error-overlay on the client side.
 // On the server side it's rendered directly

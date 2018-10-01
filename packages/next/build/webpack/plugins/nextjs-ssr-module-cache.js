@@ -1,7 +1,7 @@
 import webpack from 'webpack'
 import { RawSource } from 'webpack-sources'
 import { join, relative, dirname } from 'path'
-import {IS_BUNDLED_PAGE_REGEX} from '../../../lib/constants'
+import {IS_BUNDLED_PAGE_REGEX} from 'next-server/constants'
 
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 

@@ -1,8 +1,8 @@
-import Server from './next-server'
+import Server from 'next-server'
 import { join } from 'path'
 import HotReloader from './hot-reloader'
-import {route} from './router'
-import {PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
+import {route} from 'next-server/dist/server/router'
+import {PHASE_DEVELOPMENT_SERVER} from 'next-server/constants'
 
 export default class DevServer extends Server {
   constructor (options) {

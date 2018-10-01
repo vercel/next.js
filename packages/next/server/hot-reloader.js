@@ -9,7 +9,7 @@ import getBaseWebpackConfig from '../build/webpack'
 import {
   addCorsSupport
 } from './utils'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
 import pathMatch from './lib/path-match'
 import {renderScriptError} from './render'
 

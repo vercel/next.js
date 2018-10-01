@@ -7,7 +7,7 @@ import promisify from '../lib/promisify'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from './require'
 import {createEntry} from '../build/webpack/utils'
-import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from '../lib/constants'
+import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')

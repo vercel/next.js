@@ -11,10 +11,10 @@ import {
 } from './render'
 import Router, {route} from './router'
 import { isInternalUrl } from './utils'
-import loadConfig from './config'
-import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
-import * as asset from '../lib/asset'
-import * as envConfig from '../lib/runtime-config'
+import loadConfig from 'next-server/next-config'
+import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
+// import * as asset from '../lib/asset'
+// import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
 export default class Server {
@@ -44,10 +44,10 @@ export default class Server {
     }
 
     // Initialize next/config with the environment configuration
-    envConfig.setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig
-    })
+    // envConfig.setConfig({
+    //   serverRuntimeConfig,
+    //   publicRuntimeConfig
+    // })
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
@@ -84,7 +84,7 @@ export default class Server {
 
   setAssetPrefix (prefix) {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
-    asset.setAssetPrefix(this.renderOpts.assetPrefix)
+    // asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
   // Backwards compatibility

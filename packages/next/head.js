@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/head')
+module.exports = require('next-server/head')
