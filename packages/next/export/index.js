@@ -6,8 +6,8 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
 import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
 import { renderToHTML } from 'next-server/dist/server/render'
-import { setAssetPrefix } from '../lib/asset'
-import * as envConfig from '../lib/runtime-config'
+import { setAssetPrefix } from 'next-server/asset'
+import * as envConfig from 'next-server/config'
 
 export default async function (dir, options, configuration) {
   function log (message) {
