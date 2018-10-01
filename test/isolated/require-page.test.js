@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH} from 'next/constants'
-import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
+import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from 'next/dist/server/require'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
