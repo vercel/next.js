@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 

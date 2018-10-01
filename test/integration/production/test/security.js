@@ -1,6 +1,4 @@
-/* global describe, it, expect
- */
-
+/* eslint-env jest */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'

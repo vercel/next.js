@@ -1,4 +1,4 @@
-/* global describe, test, it, expect */
+/* eslint-env jest */
 
 import cheerio from 'cheerio'
 import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
