@@ -4,7 +4,7 @@ import { resolve, format, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
 import Router, { _rewriteUrlForNextExport } from './router'
-import { execOnce, getLocationOrigin } from './utils'
+import {execOnce, getLocationOrigin} from './utils'
 
 function isLocal (href) {
   const url = parse(href, false, true)

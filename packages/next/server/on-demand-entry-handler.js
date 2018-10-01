@@ -5,9 +5,9 @@ import { parse } from 'url'
 import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
-import {normalizePagePath, pageNotFoundError} from './require'
+import {normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
 import {createEntry} from '../build/webpack/utils'
-import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from '../lib/constants'
+import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')

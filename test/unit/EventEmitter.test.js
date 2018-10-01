@@ -1,5 +1,5 @@
 /* global describe, it, expect */
-import EventEmitter from 'next/dist/lib/EventEmitter'
+import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
 describe('EventEmitter', () => {
   describe('With listeners', () => {

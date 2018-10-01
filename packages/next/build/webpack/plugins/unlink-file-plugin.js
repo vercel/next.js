@@ -2,7 +2,7 @@
 import { join } from 'path'
 import promisify from '../../../lib/promisify'
 import fs from 'fs'
-import { IS_BUNDLED_PAGE_REGEX } from '../../../lib/constants'
+import { IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const unlink = promisify(fs.unlink)
 

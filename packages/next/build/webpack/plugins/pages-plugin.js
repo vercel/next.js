@@ -3,7 +3,7 @@ import { ConcatSource } from 'webpack-sources'
 import {
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX
-} from '../../../lib/constants'
+} from 'next-server/constants'
 
 export default class PagesPlugin {
   apply (compiler: any) {

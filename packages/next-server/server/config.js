@@ -1,6 +1,6 @@
 // @flow
 import findUp from 'find-up'
-import {CONFIG_FILE} from '../lib/constants'
+import {CONFIG_FILE} from 'next-server/constants'
 
 type WebpackConfig = *
 
