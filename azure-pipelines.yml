@@ -9,8 +9,12 @@ steps:
 
 - script: |
     npm install
-  displayName: "Install dependencies"
-        
+  displayName: 'Install dependencies'
+
+- script: |
+    npm run bootstrap
+  displayName: 'Lerna bootstrap'
+  
 - script: |
     npm test
-  displayName: 'Test next.js'
+  displayName: 'Run tests'
