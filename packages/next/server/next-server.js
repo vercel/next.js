@@ -9,7 +9,7 @@ import {
   sendHTML,
   serveStatic
 } from './render'
-import Router from './router'
+import Router, {route} from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from './config'
 import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from '../lib/constants'
@@ -21,7 +21,6 @@ export default class Server {
   constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
-    this.router = new Router()
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
@@ -50,6 +49,8 @@ export default class Server {
       publicRuntimeConfig
     })
 
+    const routes = this.generateRoutes()
+    this.router = new Router(routes)
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -86,9 +87,8 @@ export default class Server {
     asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
-  async prepare () {
-    await this.defineRoutes()
-  }
+  // Backwards compatibility
+  async prepare () {}
 
   // Backwards compatibility
   async close () {}
@@ -97,10 +97,10 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  async generateRoutes () {
+  generateRoutes () {
     const routes = [
       {
-        path: '/_next/static/:path*',
+        match: route('/_next/static/:path*'),
         fn: async (req, res, params) => {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
@@ -113,7 +113,7 @@ export default class Server {
         }
       },
       {
-        path: '/_next/:path*',
+        match: route('/_next/:path*'),
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
@@ -124,7 +124,7 @@ export default class Server {
         // (but it should support as many as params, seperated by '/')
         // Othewise this will lead to a pretty simple DOS attack.
         // See more: https://github.com/zeit/next.js/issues/2617
-        path: '/static/:path*',
+        match: route('/static/:path*'),
         fn: async (req, res, params) => {
           const p = join(this.dir, 'static', ...(params.path || []))
           await this.serveStatic(req, res, p)
@@ -138,7 +138,7 @@ export default class Server {
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
       routes.push({
-        path: '/:path*',
+        match: route('/:path*'),
         fn: async (req, res, params, parsedUrl) => {
           const { pathname, query } = parsedUrl
           await this.render(req, res, pathname, query, parsedUrl)
@@ -147,16 +147,6 @@ export default class Server {
     }
 
     return routes
-  }
-
-  async defineRoutes () {
-    const routes = await this.generateRoutes()
-
-    for (const method of ['GET', 'HEAD']) {
-      for (const route of routes) {
-        this.router.add(method, route.path, route.fn)
-      }
-    }
   }
 
   async run (req, res, parsedUrl) {
