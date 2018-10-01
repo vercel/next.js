@@ -6,7 +6,7 @@ import EventEmitter from 'next-server/dist/lib/EventEmitter'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from '../lib/asset'
-import * as envConfig from '../lib/runtime-config'
+import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 
