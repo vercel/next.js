@@ -1,6 +1,7 @@
 import Server from './next-server'
 import { join } from 'path'
 import HotReloader from './hot-reloader'
+import {route} from './router'
 import {PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
 
 export default class DevServer extends Server {
@@ -19,8 +20,37 @@ export default class DevServer extends Server {
     return 'development'
   }
 
+  async addExportPathMapRoutes () {
+    // Makes `next export` exportPathMap work in development mode.
+    // So that the user doesn't have to define a custom server reading the exportPathMap
+    if (this.nextConfig.exportPathMap) {
+      console.log('Defining routes from exportPathMap')
+      const exportPathMap = await this.nextConfig.exportPathMap({}, {dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId}) // In development we can't give a default path mapping
+      for (const path in exportPathMap) {
+        const {page, query = {}} = exportPathMap[path]
+
+        // We use unshift so that we're sure the routes is defined before Next's default routes
+        this.router.add({
+          match: route(path),
+          fn: async (req, res, params, parsedUrl) => {
+            const { query: urlQuery } = parsedUrl
+
+            Object.keys(urlQuery)
+              .filter(key => query[key] === undefined)
+              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
+
+            const mergedQuery = {...urlQuery, ...query}
+
+            await this.render(req, res, page, mergedQuery, parsedUrl)
+          }
+        })
+      }
+    }
+  }
+
   async prepare () {
     await super.prepare()
+    await this.addExportPathMapRoutes()
     await this.hotReloader.start()
   }
 
@@ -37,44 +67,18 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
-  async generateRoutes () {
-    const routes = await super.generateRoutes()
+  generateRoutes () {
+    const routes = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
     routes.unshift({
-      path: '/_next/development/:path*',
+      match: route('/_next/development/:path*'),
       fn: async (req, res, params) => {
         const p = join(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
       }
     })
-
-    // Makes `next export` exportPathMap work in development mode.
-    // So that the user doesn't have to define a custom server reading the exportPathMap
-    if (this.nextConfig.exportPathMap) {
-      console.log('Defining routes from exportPathMap')
-      const exportPathMap = await this.nextConfig.exportPathMap({}, {dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId}) // In development we can't give a default path mapping
-      for (const path in exportPathMap) {
-        const {page, query = {}} = exportPathMap[path]
-
-        // We use unshift so that we're sure the routes is defined before Next's default routes
-        routes.unshift({
-          path,
-          fn: async (req, res, params, parsedUrl) => {
-            const { query: urlQuery } = parsedUrl
-
-            Object.keys(urlQuery)
-              .filter(key => query[key] === undefined)
-              .forEach(key => console.warn(`Url defines a query parameter '${key}' that is missing in exportPathMap`))
-
-            const mergedQuery = {...urlQuery, ...query}
-
-            await this.render(req, res, page, mergedQuery, parsedUrl)
-          }
-        })
-      }
-    }
 
     return routes
   }

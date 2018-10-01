@@ -1,29 +1,26 @@
 import pathMatch from './lib/path-match'
 
-const route = pathMatch()
+export const route = pathMatch()
 
 export default class Router {
-  constructor () {
-    this.routes = new Map()
+  constructor (routes = []) {
+    this.routes = routes
   }
 
-  add (method, path, fn) {
-    const routes = this.routes.get(method) || new Set()
-    routes.add({ match: route(path), fn })
-    this.routes.set(method, routes)
+  add (route) {
+    this.routes.unshift(route)
   }
 
   match (req, res, parsedUrl) {
-    const routes = this.routes.get(req.method)
-    if (!routes) return
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return
+    }
 
     const { pathname } = parsedUrl
-    for (const r of routes) {
-      const params = r.match(pathname)
+    for (const route of this.routes) {
+      const params = route.match(pathname)
       if (params) {
-        return async () => {
-          return r.fn(req, res, params, parsedUrl)
-        }
+        return () => route.fn(req, res, params, parsedUrl)
       }
     }
   }
