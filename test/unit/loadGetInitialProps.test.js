@@ -1,5 +1,5 @@
 /* global describe, it, expect */
-import { loadGetInitialProps } from 'next/dist/lib/utils'
+import { loadGetInitialProps } from 'next-server/dist/lib/utils'
 
 describe('loadGetInitialProps', () => {
   it('should throw if getInitialProps is defined as an instance method', () => {
