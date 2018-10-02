@@ -41,5 +41,20 @@ module.exports = (context) => {
 
       browser.quit()
     })
+
+    it('should prevent URI based XSS attacks using dashes', async () => {
+      const browser = await webdriver(context.appPort, `/'-(document.body.innerHTML='HACKED')-'`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
   })
 }
