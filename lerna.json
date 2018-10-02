@@ -6,6 +6,7 @@
   ],
   "command": {
     "publish": {
+      "npmClient": "npm",
       "allowBranch": "canary",
       "registry": "https://registry.npmjs.org/"
     }
