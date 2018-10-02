@@ -13,7 +13,6 @@
     ]
   },
   "dependencies": {
-    "@babel/runtime": "7.1.2",
     "@babel/runtime-corejs2": "7.1.2",
     "find-up": "3.0.0",
     "http-errors": "1.6.2",
