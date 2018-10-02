@@ -12,7 +12,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - dist
+            - packages/*/dist
   publish-stable:
     docker:
       - image: circleci/node:9.10.0
