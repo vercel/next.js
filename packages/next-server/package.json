@@ -13,6 +13,8 @@
     ]
   },
   "dependencies": {
+    "@babel/runtime": "7.1.2",
+    "@babel/runtime-corejs2": "7.1.2",
     "find-up": "3.0.0",
     "http-errors": "1.6.2",
     "path-to-regexp": "2.1.0",
@@ -37,8 +39,6 @@
     "@babel/plugin-transform-runtime": "7.1.0",
     "@babel/preset-env": "7.1.0",
     "@babel/preset-react": "7.0.0",
-    "@babel/runtime": "7.1.2",
-    "@babel/runtime-corejs2": "7.1.2",
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0"
   }
