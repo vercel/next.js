@@ -32,14 +32,20 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
+  const notExternalModules = ['next/app', 'next/document', 'next/error']
+
   externals.push((context, request, callback) => {
-    resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
+    if (notExternalModules.indexOf(request) !== -1) {
+      return callback()
+    }
+
+    resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
       if (err) {
         return callback()
       }
 
       // Default pages have to be transpiled
-      if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
+      if (res.match(/next[/\\]dist[/\\]pages/)) {
         return callback()
       }
 

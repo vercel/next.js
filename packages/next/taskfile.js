@@ -36,7 +36,7 @@ export async function nextbuildstatic (task, opts) {
 }
 
 export async function copy (task) {
-  await task.source('pages/**/*.js').target('dist/pages')
+  await task.source('pages/**/*.js').babel().target('dist/pages')
 }
 
 export async function build (task) {
