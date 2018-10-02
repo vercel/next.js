@@ -9,24 +9,20 @@ jobs:
       - run: yarn install
       - run: yarn bootstrap
       - run: yarn test
-      - persist_to_workspace:
-          root: .
-          paths:
-            - packages/*/dist
   publish-stable:
     docker:
       - image: circleci/node:9.10.0
     working_directory: ~/repo
     steps:
       - checkout
-      - attach_workspace:
-          at: .
+      - run: yarn install
+      - run: yarn bootstrap
       - run:
           name: Saving Authentication Information
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      - run:
-          name: Publishing to Stable Channel
-          command: npm run lerna publish from-git
+      # - run:
+      #     name: Publishing to Stable Channel
+      #     command: npm run lerna publish from-git
 
   publish-canary:
     docker:
@@ -34,8 +30,8 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      - attach_workspace:
-          at: .
+      - run: yarn install
+      - run: yarn bootstrap
       - run:
           name: Saving Authentication Information
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
