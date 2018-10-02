@@ -12,15 +12,13 @@ export default function (context) {
   describe('Render in development mode', () => {
     it('should render the home page', async () => {
       const browser = await webdriver(context.port, '/')
-
       await check(() => getBrowserBodyText(browser), /This is the home page/)
+      browser.close()
     })
 
     it('should render pages only existent in exportPathMap page', async () => {
       const browser = await webdriver(context.port, '/dynamic/one')
-      const text = await browser
-        .elementByCss('#dynamic-page p').text()
-
+      const text = await browser.elementByCss('#dynamic-page p').text()
       expect(text).toBe('next export is nice')
       browser.close()
     })
