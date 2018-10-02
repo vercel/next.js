@@ -16,7 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -59,6 +59,21 @@ describe('Production Usage', () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
       const res = await fetch(url)
       expect(res.status).toBe(404)
+    })
+
+    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const methods = ['POST', 'PUT', 'DELETE']
+      for (const method of methods) {
+        const res = await fetch(url, {method})
+        expect(res.status).toBe(501)
+      }
+    })
+
+    it('should set Content-Length header', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetch(url)
+      expect(res.headers.get('Content-Length')).toBeDefined()
     })
 
     it('should set Cache-Control header', async () => {
