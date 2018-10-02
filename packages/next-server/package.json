@@ -2,6 +2,17 @@
   "name": "next-server",
   "version": "7.0.2-canary.0",
   "main": "./dist/server/next-server.js",
+  "files": [
+    "dist",
+    "asset.js",
+    "config.js",
+    "constants.js",
+    "dynamic.js",
+    "head.js",
+    "link.js",
+    "router.js",
+    "next-config.js"
+  ],
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
