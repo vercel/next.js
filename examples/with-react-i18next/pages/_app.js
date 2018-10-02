@@ -7,12 +7,12 @@ import LanguageSwitch from '../components/LanguageSwitch'
 export default class MyApp extends App {
   render () {
     const { Component, pageProps } = this.props
-    const { initialI18nStore, initialLanguage } = pageProps || {}
+    const { i18n, initialI18nStore, initialLanguage } = pageProps || {}
 
     return (
       <Container>
         <I18nextProvider
-          i18n={initialI18nInstance}
+          i18n={i18n || initialI18nInstance}
           initialI18nStore={initialI18nStore}
           initialLanguage={initialLanguage}
         >
