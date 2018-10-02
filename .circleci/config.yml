@@ -52,9 +52,13 @@ workflows:
           filters:
             tags:
               only: /^.*canary.*($|\b)/
+            branches:
+              ignore: /.*/
       - publish-stable:
           requires:
             - build
           filters:
             tags:
               only: /^(\d+\.)?(\d+\.)?(\*|\d+)$/
+            branches:
+              ignore: /.*/
