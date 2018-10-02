@@ -165,6 +165,10 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
+    if (isResSent(res)) {
+      return
+    }
+
     if (isInternalUrl(req.url)) {
       return this.handleRequest(req, res, parsedUrl)
     }
@@ -174,9 +178,6 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query)
-    if (isResSent(res)) {
-      return
-    }
 
     if (this.nextConfig.poweredByHeader) {
       res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
