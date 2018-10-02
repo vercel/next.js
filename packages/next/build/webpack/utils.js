@@ -1,7 +1,7 @@
 import path from 'path'
 import promisify from '../../lib/promisify'
 import globModule from 'glob'
-import {CLIENT_STATIC_FILES_PATH} from '../../lib/constants'
+import {CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
 
 const glob = promisify(globModule)
 

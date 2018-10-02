@@ -1,5 +1,5 @@
 /* global window, document */
-import EventEmitter from './EventEmitter'
+import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
 const webpackModule = module
 

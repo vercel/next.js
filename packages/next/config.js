@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/runtime-config')
+module.exports = require('next-server/config')

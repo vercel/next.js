@@ -1,5 +1,5 @@
 import {join, posix} from 'path'
-import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
+import {PAGES_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
 
 export function pageNotFoundError (page) {
   const err = new Error(`Cannot find module for page: ${page}`)

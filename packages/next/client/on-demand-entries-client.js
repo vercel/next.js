@@ -1,6 +1,6 @@
 /* global location */
 
-import Router from '../lib/router'
+import Router from 'next-server/router'
 import fetch from 'unfetch'
 
 export default ({assetPrefix}) => {

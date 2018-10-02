@@ -1,14 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
-import { createRouter } from '../lib/router'
-import EventEmitter from '../lib/EventEmitter'
-import { loadGetInitialProps, getURL } from '../lib/utils'
+import { createRouter } from 'next-server/dist/lib/router'
+import EventEmitter from 'next-server/dist/lib/EventEmitter'
+import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from '../lib/page-loader'
-import * as asset from '../lib/asset'
-import * as envConfig from '../lib/runtime-config'
+import * as asset from 'next-server/asset'
+import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
-import Loadable from '../lib/loadable'
+import Loadable from 'next-server/dist/lib/loadable'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code

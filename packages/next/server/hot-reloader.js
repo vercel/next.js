@@ -6,14 +6,31 @@ import del from 'del'
 import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack'
-import {
-  addCorsSupport
-} from './utils'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from '../lib/constants'
-import pathMatch from './lib/path-match'
-import {renderScriptError} from './render'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
+import {route} from 'next-server/dist/server/router'
+import {renderScriptError} from 'next-server/dist/server/render'
 
-const route = pathMatch()
+function addCorsSupport (req, res) {
+  if (!req.headers.origin) {
+    return { preflight: false }
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
+  // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
+  if (req.headers['access-control-request-headers']) {
+    res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers'])
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(200)
+    res.end()
+    return { preflight: true }
+  }
+
+  return { preflight: false }
+}
+
 const matchNextPageBundleRequest = route('/_next/static/:buildId/pages/:path*.js(.map)?')
 
 // Recursively look up the issuer till it ends up at the root

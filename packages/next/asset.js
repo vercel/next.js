@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/asset')
+module.exports = require('next-server/asset')

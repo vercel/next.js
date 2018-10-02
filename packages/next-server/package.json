@@ -1,0 +1,45 @@
+{
+  "name": "next-server",
+  "version": "7.0.1",
+  "main": "./dist/server/next-server.js",
+  "scripts": {
+    "build": "taskr",
+    "release": "taskr release",
+    "prepublish": "npm run release"
+  },
+  "taskr": {
+    "requires": [
+      "./taskfile-babel.js"
+    ]
+  },
+  "dependencies": {
+    "find-up": "3.0.0",
+    "http-errors": "1.6.2",
+    "path-to-regexp": "2.1.0",
+    "url": "0.11.0",
+    "ansi-html": "0.0.7",
+    "prop-types": "15.6.2",
+    "send": "0.16.1",
+    "styled-jsx": "3.1.0",
+    "etag": "1.8.1",
+    "fresh": "0.5.2",
+    "htmlescape": "1.1.1"
+  },
+  "peerDependencies": {
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.1.2",
+    "@babel/plugin-proposal-class-properties": "7.1.0",
+    "@babel/plugin-proposal-object-rest-spread": "7.0.0",
+    "@babel/plugin-syntax-dynamic-import": "7.0.0",
+    "@babel/plugin-transform-runtime": "7.1.0",
+    "@babel/preset-env": "7.1.0",
+    "@babel/preset-react": "7.0.0",
+    "@babel/runtime": "7.1.2",
+    "@babel/runtime-corejs2": "7.1.2",
+    "@taskr/clear": "1.1.0",
+    "@taskr/watch": "1.1.0"
+  }
+}

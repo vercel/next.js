@@ -1,7 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import HTTPStatus from 'http-status'
-import Head from './head'
+import Head from 'next-server/head'
 
 export default class Error extends React.Component {
   static getInitialProps ({ res, err }) {
