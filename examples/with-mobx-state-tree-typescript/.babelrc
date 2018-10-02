@@ -4,6 +4,6 @@
     "@zeit/next-typescript/babel"
   ],
   "plugins": [
-    ["@babel/plugin-proposal-decorators", { "legacy": true }]
+    "transform-decorators-legacy"
   ]
 }

@@ -29,7 +29,7 @@ const Store = types
     return { start, stop, update }
   })
 
-export function initStore (isServer, snapshot = null) {
+export function initializeStore (isServer, snapshot = null) {
   if (isServer) {
     store = Store.create({ lastUpdate: Date.now() })
   }
