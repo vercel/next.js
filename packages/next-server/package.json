@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "7.0.1",
+  "version": "7.0.2-canary.0",
   "main": "./dist/server/next-server.js",
   "scripts": {
     "build": "taskr",
@@ -13,17 +13,17 @@
     ]
   },
   "dependencies": {
+    "ansi-html": "0.0.7",
+    "etag": "1.8.1",
     "find-up": "3.0.0",
+    "fresh": "0.5.2",
+    "htmlescape": "1.1.1",
     "http-errors": "1.6.2",
     "path-to-regexp": "2.1.0",
-    "url": "0.11.0",
-    "ansi-html": "0.0.7",
     "prop-types": "15.6.2",
     "send": "0.16.1",
     "styled-jsx": "3.1.0",
-    "etag": "1.8.1",
-    "fresh": "0.5.2",
-    "htmlescape": "1.1.1"
+    "url": "0.11.0"
   },
   "peerDependencies": {
     "react": "^16.0.0",
