@@ -1,7 +1,7 @@
 {
   "name": "next-server",
   "version": "7.0.2-canary.5",
-  "main": "./dist/server/next-server.js",
+  "main": "./index.js",
   "files": [
     "dist",
     "asset.js",
