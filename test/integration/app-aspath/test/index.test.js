@@ -32,24 +32,22 @@ describe('App asPath', () => {
     const appPath = join(__dirname, '../', 'pages', '_app.js')
     const originalContent = readFileSync(appPath, 'utf8')
 
-    try {
-      const text = await browser.elementByCss('body').text()
-      expect(text).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
+    const text = await browser.elementByCss('body').text()
+    expect(text).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
 
-      const editedContent = originalContent.replace('find this', 'replace with this')
+    const editedContent = originalContent.replace('find this', 'replace with this')
 
-      // Change the content to trigger a bundle rebuild
-      await writeFileSync(appPath, editedContent, 'utf8')
+    // Change the content to trigger a bundle rebuild
+    await writeFileSync(appPath, editedContent, 'utf8')
 
-      // Wait for the bundle rebuild
-      await waitFor(5000)
+    // Wait for the bundle rebuild
+    await waitFor(5000)
 
-      const newContent = await browser.elementByCss('body').text()
-      expect(newContent).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
-    } finally {
-      // Change back to the original content
-      writeFileSync(appPath, originalContent, 'utf8')
-      browser.close()
-    }
+    const newContent = await browser.elementByCss('body').text()
+    expect(newContent).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
+
+    // Change back to the original content
+    writeFileSync(appPath, originalContent, 'utf8')
+    browser.quit()
   })
 })
