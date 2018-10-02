@@ -9,3 +9,56 @@ jobs:
       - run: yarn install
       - run: yarn bootstrap
       - run: yarn test
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist
+  publish-stable:
+    docker:
+      - image: circleci/node:9.10.0
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Saving Authentication Information
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run:
+          name: Publishing to Stable Channel
+          command: npm run lerna publish from-git
+
+  publish-canary:
+    docker:
+      - image: circleci/node:9.10.0
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Saving Authentication Information
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run:
+          name: Publishing to Canary Channel
+          command: npm run lerna publish from-git --npm-tag canary
+workflows:
+  version: 2
+  unscheduled:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - publish-canary:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^.*canary.*($|\b)/
+      - publish-stable:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^(\d+\.)?(\d+\.)?(\*|\d+)$/
