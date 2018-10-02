@@ -22,7 +22,7 @@ jobs:
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       # - run:
       #     name: Publishing to Stable Channel
-      #     command: npm run lerna publish from-git
+      #     command: npm run lerna publish from-git --yes
 
   publish-canary:
     docker:
@@ -37,7 +37,7 @@ jobs:
           command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run:
           name: Publishing to Canary Channel
-          command: npm run lerna publish from-git --npm-tag canary
+          command: npm run lerna publish from-git --npm-tag canary --yes
 workflows:
   version: 2
   unscheduled:
