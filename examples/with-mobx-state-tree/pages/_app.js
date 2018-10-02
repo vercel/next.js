@@ -5,27 +5,26 @@ import App, { Container } from 'next/app'
 import { initializeStore } from '../stores/store'
 
 export default class MyApp extends App {
-
-  static async getInitialProps({ Component, router, ctx }) {
+  static async getInitialProps ({ Component, router, ctx }) {
     //
     // Use getInitialProps as a step in the lifecycle when
     // we can initialize our store
     //
-    const isServer = (typeof window === "undefined");
-    const store = initializeStore(isServer);
+    const isServer = (typeof window === 'undefined')
+    const store = initializeStore(isServer)
     //
     // Check whether the page being rendered by the App has a
     // static getInitialProps method and if so call it
     //
-    let pageProps = {};
+    let pageProps = {}
     if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx);
+      pageProps = await Component.getInitialProps(ctx)
     }
     return {
       initialState: getSnapshot(store),
       isServer,
-      pageProps,
-    };
+      pageProps
+    }
   }
 
   constructor (props) {
@@ -34,13 +33,13 @@ export default class MyApp extends App {
   }
 
   render () {
-    const { Component, pageProps } = this.props;
+    const { Component, pageProps } = this.props
     return (
       <Container>
         <Provider store={this.store}>
           <Component {...pageProps} />
         </Provider>
       </Container>
-    );
+    )
   }
 }
