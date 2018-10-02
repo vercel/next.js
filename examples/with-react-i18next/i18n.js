@@ -50,7 +50,8 @@ i18n.getInitialProps = (req, namespaces) => {
   })
 
   return {
-    i18n: req.i18n, // use the instance on req - fixed language on request (avoid issues in race conditions with lngs of different users)
+    // Do we really need to insert the i18n instance on the props?
+    // i18n: req.i18n, // use the instance on req - fixed language on request (avoid issues in race conditions with lngs of different users)
     initialI18nStore,
     initialLanguage: req.i18n.language
   }
