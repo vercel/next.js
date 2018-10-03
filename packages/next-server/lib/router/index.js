@@ -17,7 +17,7 @@ const SingletonRouter = {
 const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
 const propertyFields = ['components']
 const routerEvents = ['routeChangeStart', 'beforeHistoryChange', 'routeChangeComplete', 'routeChangeError', 'hashChangeStart', 'hashChangeComplete']
-const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
+const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState', 'beforeRouteChangeStart']
 
 // Events is a static property on the router, the router doesn't have to be initialized to use it
 Object.defineProperty(SingletonRouter, 'events', {

@@ -38,6 +38,7 @@ export default class Router {
     this.subscriptions = new Set()
     this.componentLoadCancel = null
     this._beforePopState = () => true
+    this._beforeRouteChangeStart = () => true
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -140,7 +141,16 @@ export default class Router {
     return this.change('replaceState', url, as, options)
   }
 
+  beforeRouteChangeStart (cb) {
+    this._beforeRouteChangeStart = cb
+  }
+
   async change (method, _url, _as, options) {
+    // Check if there is a false return from the beforeRouteChangeStart callback
+    if (!this._beforeRouteChangeStart()) {
+      return
+    }
+
     // If url and as provided as an object representation,
     // we'll format them into the string version here.
     const url = typeof _url === 'object' ? format(_url) : _url
