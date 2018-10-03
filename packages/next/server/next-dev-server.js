@@ -1,4 +1,4 @@
-import Server from 'next-server'
+import Server from 'next-server/dist/server/next-server'
 import { join } from 'path'
 import HotReloader from './hot-reloader'
 import {route} from 'next-server/dist/server/router'
