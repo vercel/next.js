@@ -4,6 +4,7 @@
   "main": "./index.js",
   "files": [
     "dist",
+    "index.js",
     "asset.js",
     "config.js",
     "constants.js",
