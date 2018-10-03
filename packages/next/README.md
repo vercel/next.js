@@ -1110,9 +1110,7 @@ export default class MyDocument extends Document {
   render() {
     return (
       <html>
-        <Head>
-          <style>{`body { margin: 0 } /* custom! */`}</style>
-        </Head>
+        <Head />
         <body className="custom_class">
           <Main />
           <NextScript />
