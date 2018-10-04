@@ -1,0 +1,28 @@
+{
+  "name": "with-shopify-storefront-api",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "apollo-boost": "^0.1.4",
+    "apollo-link-context": "^1.0.8",
+    "apollo-link-http": "^1.5.4",
+    "graphql": "^0.13.2",
+    "graphql-tag": "^2.9.1",
+    "isomorphic-fetch": "^2.2.1",
+    "next": "latest",
+    "prop-types": "^15.6.1",
+    "react": "^16.0.0",
+    "react-addons-create-fragment": "^15.6.2",
+    "react-apollo": "^2.1.4",
+    "react-art": "^16.3.2",
+    "react-dom": "^16.0.0"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-decorators": "^7.1.2"
+  },
+  "license": "ISC"
+}
