@@ -26,6 +26,9 @@ function getDynamicImportBundles (manifest, moduleIds) {
 
 const logger = console
 
+// since send doesn't support wasm yet
+send.mime.define({ 'application/wasm': ['wasm'] })
+
 export async function render (req, res, pathname, query, opts) {
   const html = await renderToHTML(req, res, pathname, query, opts)
   sendHTML(req, res, html, req.method, opts)

@@ -32,14 +32,20 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
+  const notExternalModules = ['next/app', 'next/document', 'next/error']
+
   externals.push((context, request, callback) => {
-    resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
+    if (notExternalModules.indexOf(request) !== -1) {
+      return callback()
+    }
+
+    resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
       if (err) {
         return callback()
       }
 
       // Default pages have to be transpiled
-      if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
+      if (res.match(/next[/\\]dist[/\\]pages/)) {
         return callback()
       }
 
@@ -197,7 +203,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
-      strictModuleExceptionHandling: true
+      strictModuleExceptionHandling: true,
+      webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
     },
     performance: { hints: false },
     resolve: resolveConfig,
