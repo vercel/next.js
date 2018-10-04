@@ -50,7 +50,7 @@ yarn docker:deploy
 
 ## The idea behind the example
 
-The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL, with docker support. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
+The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL, with docker support for a consistent development environment. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render. Docker is entirely dedicated for local development and the deployment process and that Firebase itself will not leverage Docker itself.
 
 This is based off of the work of @jthegedus in the [with-firebase-hosting](https://github.com/zeit/next.js/tree/canary/examples/with-firebase-hosting) example.
 
