@@ -1108,9 +1108,12 @@ export default class MyDocument extends Document {
   }
 
   render() {
+    // Important: All of Head, Main, and NextScript are required to be rendered
     return (
       <html>
-        <Head />
+        <Head>
+          <style>{`body { margin: 0 } /* custom! */`}</style>
+        </Head>
         <body className="custom_class">
           <Main />
           <NextScript />
