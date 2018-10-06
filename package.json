@@ -8,6 +8,7 @@
     "lerna": "lerna",
     "bootstrap": "lerna bootstrap",
     "pretestonly": "taskr pretest",
+    "dev": "lerna run build --stream --parallel",
     "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
     "posttestonly": "taskr posttest",
     "testall": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
