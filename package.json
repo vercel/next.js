@@ -7,11 +7,9 @@
   "scripts": {
     "lerna": "lerna",
     "bootstrap": "lerna bootstrap",
-    "pretestonly": "taskr pretest",
     "dev": "lerna run build --stream --parallel",
-    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
-    "posttestonly": "taskr posttest",
-    "testall": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
+    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js --config=./test/jest-config.json",
+    "testall": "npm run testonly -- --coverage --forceExit --runInBand",
     "pretest": "npm run lint",
     "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
@@ -30,12 +28,6 @@
       "**/examples/with-ioc/**",
       "**/examples/with-kea/**",
       "**/examples/with-mobx/**"
-    ]
-  },
-  "jest": {
-    "testEnvironment": "./test/jest-wd-environment.js",
-    "roots": [
-      "test/"
     ]
   },
   "devDependencies": {
