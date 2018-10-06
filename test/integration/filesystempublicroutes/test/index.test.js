@@ -1,11 +1,11 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
 import { join } from 'path'
-import getPort from 'get-port'
 import {
   fetchViaHTTP,
   initNextServerScript,
-  killApp
+  killApp,
+  findPort
 } from 'next-test-utils'
 import clone from 'clone'
 
@@ -18,7 +18,7 @@ const context = {}
 
 const startServer = async (optEnv = {}) => {
   const scriptPath = join(appDir, 'server.js')
-  context.appPort = appPort = await getPort()
+  context.appPort = appPort = await findPort()
   const env = Object.assign(
     {},
     clone(process.env),

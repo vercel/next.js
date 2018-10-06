@@ -1,33 +1,30 @@
 /* global jasmine, describe, it, expect, beforeAll, afterAll */
 
 import { join } from 'path'
-import getPort from 'get-port'
 import clone from 'clone'
 import cheerio from 'cheerio'
 import {
   initNextServerScript,
   killApp,
+  findPort,
   renderViaHTTP,
   fetchViaHTTP
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-const appDir = join(__dirname, '../')
 let appPort
 let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
 
-const context = {}
-
 const startServer = async (optEnv = {}) => {
+  const appDir = join(__dirname, '../')
   const scriptPath = join(appDir, 'server.js')
-  context.appPort = appPort = await getPort()
-  const env = Object.assign(
-    {},
-    clone(process.env),
-    { PORT: `${appPort}` },
-    optEnv
-  )
+  appPort = await findPort()
+  const env = {
+    ...clone(process.env),
+    PORT: `${appPort}`,
+    ...optEnv
+  }
 
   server = await initNextServerScript(scriptPath, /Ready on/, env)
 }
@@ -67,27 +64,37 @@ describe('Custom Server', () => {
       expect($normal('img').attr('src')).toBe('/static/myimage.png')
 
       const $dynamic = cheerio.load(await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'))
-      expect($dynamic('img').attr('src')).toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
+      expect($dynamic('img').attr('src')).toBe(`http://127.0.0.1:${appPort}/static/myimage.png`)
     })
 
     it('should support next/asset in client side', async () => {
-      const browser = await webdriver(context.appPort, '/')
+      const browser = await webdriver(appPort, '/')
       await browser
         .elementByCss('#go-asset').click()
         .waitForElementByCss('#asset-page')
 
-      expect(await browser.elementByCss('img').getAttribute('src'))
-        .toBe(`http://localhost:${context.appPort}/static/myimage.png`)
-      browser.close()
+      const imgSrc = await browser
+        .elementByCss('img')
+        .getAttribute('src')
 
-      const browser2 = await webdriver(context.appPort, '/?setAssetPrefix=1')
+      expect(imgSrc).toBe(`http://localhost:${appPort}/static/myimage.png`)
+
+      await browser.close()
+
+      const browser2 = await webdriver(appPort, '/?setAssetPrefix=1')
+
       await browser2
-        .elementByCss('#go-asset').click()
+        .elementByCss('#go-asset')
+        .click()
         .waitForElementByCss('#asset-page')
 
-      expect(await browser2.elementByCss('img').getAttribute('src'))
-        .toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
-      browser2.close()
+      const imgSrc2 = await browser2
+        .elementByCss('img')
+        .getAttribute('src')
+
+      expect(imgSrc2).toBe(`http://127.0.0.1:${appPort}/static/myimage.png`)
+
+      return browser2.close()
     })
   })
 
