@@ -13,9 +13,13 @@
     "pretest": "npm run lint",
     "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
-    "precommit": "lint-staged",
     "lint": "lerna run lint",
     "prepublish": "lerna run prepublish"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
   },
   "lint-staged": {
     "*.js": "standard",
@@ -51,10 +55,10 @@
     "flatten": "1.0.2",
     "flow-bin": "0.73.0",
     "get-port": "3.2.0",
-    "husky": "0.14.3",
+    "husky": "1.1.1",
     "jest-cli": "23.6.0",
     "lerna": "^3.4.0",
-    "lint-staged": "4.2.3",
+    "lint-staged": "7.3.0",
     "micro": "9.1.0",
     "mkdirp": "0.5.1",
     "node-fetch": "1.7.3",
