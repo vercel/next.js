@@ -56,7 +56,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        browser.close()
+        browser.quit()
       })
 
       it('should not navigate if the <a/> tag has a target', async () => {
