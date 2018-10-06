@@ -1843,7 +1843,7 @@ As we were researching options for server-rendering React that didn’t involve 
 
 ## Contributing
 
-Please see our [contributing.md](/packages/next/contributing.md)
+Please see our [contributing.md](/contributing.md)
 
 ## Authors
 
