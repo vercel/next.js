@@ -6,16 +6,6 @@ import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
-export async function renderToHTML (req, res, pathname, query, opts) {
-  const page = await doPageRender(req, res, pathname, query, opts)
-  return doDocRender(page, {}, opts)
-}
-
-export async function renderErrorToHTML (err, req, res, pathname, query, opts) {
-  const page = await doPageRender(req, res, pathname, query, { ...opts, err, page: '_error' })
-  return doDocRender(page, {}, opts)
-}
-
 export async function doPageRender (req, res, pathname, query, {
   dev,
   err,
