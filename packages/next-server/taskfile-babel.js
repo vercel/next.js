@@ -41,7 +41,23 @@ module.exports = function (task) {
     // attach file's name
     opts.filename = file.base
 
-    const output = transform(file.data, opts)
+    const output = transform(file.data, Object.assign({}, opts, file.dir !== 'server' ? {
+      plugins: [
+        ['@babel/plugin-transform-runtime', {
+          'corejs': 2
+        }]
+      ]
+    } : {
+      presets: [
+        [
+          '@babel/preset-env', {
+            targets: {
+              node: '8.0.0'
+            }
+          }
+        ]
+      ]
+    }))
 
     if (output.map) {
       const map = `${file.base}.map`
