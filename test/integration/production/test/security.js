@@ -5,11 +5,11 @@ import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 // Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
-async function checkInjected(browser) {
+async function checkInjected (browser) {
   const start = Date.now()
-  while(Date.now() - start < 15000) {
+  while (Date.now() - start < 15000) {
     const bodyText = await getBrowserBodyText(browser)
-    if(/INJECTED/.test(bodyText)) {
+    if (/INJECTED/.test(bodyText)) {
       throw new Error('Vulnerable to XSS attacks')
     }
     await waitFor(500)
@@ -66,7 +66,6 @@ module.exports = (context) => {
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
       const browser = await webdriver(context.appPort, `/;'-(document.body.innerHTML='INJECTED')-'`)
       await checkInjected(browser)
-
 
       browser.close()
     })
