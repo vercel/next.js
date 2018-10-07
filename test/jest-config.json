@@ -1,7 +1,0 @@
-{
-  "verbose": true,
-  "bail": true,
-  "testEnvironment": "node",
-  "globalSetup": "./jest-global-setup.js",
-  "globalTeardown": "./jest-global-teardown.js"
-}
