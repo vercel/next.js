@@ -92,19 +92,6 @@ export async function doDocRender (page, initialProps, { dev, dir, publicPath })
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-function errorToJSON (err) {
-  const { name, message, stack } = err
-  const json = { name, message: stripAnsi(message), stack: stripAnsi(stack) }
-
-  if (err.module) {
-    // rawRequest contains the filename of the module which has the error.
-    const { rawRequest } = err.module
-    json.module = { rawRequest }
-  }
-
-  return json
-}
-
 export function serializeError (dev, err) {
   if (!err) {
     return undefined
@@ -116,7 +103,16 @@ export function serializeError (dev, err) {
     return { name: err.name, message: err.message, status: err.status }
   }
   if (dev) {
-    return errorToJSON(err)
+    const { name, message, stack } = err
+    const json = { name, message: stripAnsi(message), stack: stripAnsi(stack) }
+
+    if (err.module) {
+      // rawRequest contains the filename of the module which has the error.
+      const { rawRequest } = err.module
+      json.module = { rawRequest }
+    }
+
+    return json
   }
 
   return { message: '500 - Internal Server Error.' }
