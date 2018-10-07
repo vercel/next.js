@@ -7,11 +7,9 @@
   "scripts": {
     "lerna": "lerna",
     "bootstrap": "lerna bootstrap",
-    "pretestonly": "taskr pretest",
     "dev": "lerna run build --stream --parallel",
-    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
-    "posttestonly": "taskr posttest",
-    "testall": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
+    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js --config=./test/jest-config.json",
+    "testall": "npm run testonly -- --coverage --forceExit --runInBand",
     "pretest": "npm run lint",
     "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
@@ -32,24 +30,15 @@
       "**/examples/with-mobx/**"
     ]
   },
-  "jest": {
-    "testEnvironment": "node",
-    "roots": [
-      "test/"
-    ]
-  },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
     "@babel/preset-react": "7.0.0",
-    "@taskr/clear": "1.1.0",
-    "@taskr/esnext": "1.1.0",
-    "@taskr/watch": "1.1.0",
     "@zeit/next-css": "0.2.1-canary.1",
     "@zeit/next-sass": "0.2.1-canary.1",
     "@zeit/next-typescript": "1.1.0",
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "9.0.0",
-    "babel-jest": "23.4.2",
+    "babel-jest": "23.6.0",
     "babel-plugin-transform-define": "1.3.0",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
@@ -63,7 +52,7 @@
     "flow-bin": "0.73.0",
     "get-port": "3.2.0",
     "husky": "0.14.3",
-    "jest-cli": "21.2.0",
+    "jest-cli": "23.6.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
     "micro": "9.1.0",

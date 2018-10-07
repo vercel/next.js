@@ -39,7 +39,7 @@ module.exports = (context) => {
         throw new Error('Vulnerable to XSS attacks')
       }
 
-      browser.close()
+      browser.quit()
     })
   })
 }
