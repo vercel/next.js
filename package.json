@@ -20,7 +20,7 @@
   "pre-commit": "lint-staged",
   "lint-staged": {
     "*.js": "standard",
-    "bin/*": "standard"
+    "packages/**/bin/*": "standard"
   },
   "standard": {
     "parser": "babel-eslint",
