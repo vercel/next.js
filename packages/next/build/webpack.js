@@ -123,7 +123,7 @@ type BaseConfigContext = {|
   config: NextConfig
 |}
 
-export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config}: BaseConfigContext) {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, pages}: BaseConfigContext) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -149,7 +149,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
 
   const distDir = path.join(dir, config.distDir)
   const outputPath = path.join(distDir, isServer ? SERVER_DIRECTORY : '')
-  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
+  const pagesEntries = await getPages(dir, {pages, nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {
     // Backwards compatibility
