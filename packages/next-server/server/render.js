@@ -28,8 +28,6 @@ function getDynamicImportBundles (manifest, moduleIds) {
   }, [])
 }
 
-const logger = console
-
 // since send doesn't support wasm yet
 send.mime.define({ 'application/wasm': ['wasm'] })
 
@@ -222,7 +220,7 @@ export async function renderScriptError (req, res, page, error) {
     return
   }
 
-  logger.error(error.stack)
+  console.error(error.stack)
   res.statusCode = 500
   res.end('500 - Internal Error')
 }
