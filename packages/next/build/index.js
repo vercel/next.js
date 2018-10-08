@@ -9,7 +9,7 @@ import getBaseWebpackConfig from './webpack'
 const access = promisify(fs.access)
 const writeFile = promisify(fs.writeFile)
 
-export default async function build (dir, conf = null) {
+export default async function build ({dir, conf = null, pages}) {
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = await config.generateBuildId().trim() // defaults to a uuid
   const distDir = join(dir, config.distDir)
@@ -23,8 +23,8 @@ export default async function build (dir, conf = null) {
 
   try {
     const configs = await Promise.all([
-      getBaseWebpackConfig(dir, { buildId, isServer: false, config }),
-      getBaseWebpackConfig(dir, { buildId, isServer: true, config })
+      getBaseWebpackConfig(dir, { pages, buildId, isServer: false, config }),
+      getBaseWebpackConfig(dir, { pages, buildId, isServer: true, config })
     ])
 
     await runCompiler(configs)
