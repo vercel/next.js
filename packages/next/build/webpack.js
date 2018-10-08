@@ -99,17 +99,17 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   // Only enabled in production
   // This logic will create a commons bundle
   // with modules that are used in 50% of all pages
-  config.splitChunks.chunks = 'all'
-  config.splitChunks.cacheGroups.commons = {
-    name: 'commons',
-    chunks: 'all',
-    minChunks: totalPages > 2 ? totalPages * 0.5 : 2
-  }
-  config.splitChunks.cacheGroups.react = {
-    name: 'commons',
-    chunks: 'all',
-    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
-  }
+  // config.splitChunks.chunks = 'all'
+  // config.splitChunks.cacheGroups.commons = {
+  //   name: 'commons',
+  //   chunks: 'all',
+  //   minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+  // }
+  // config.splitChunks.cacheGroups.react = {
+  //   name: 'commons',
+  //   chunks: 'all',
+  //   test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
+  // }
 
   return config
 }
