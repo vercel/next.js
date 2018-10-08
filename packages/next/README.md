@@ -1108,7 +1108,6 @@ export default class MyDocument extends Document {
   }
 
   render() {
-    // Important: All of Head, Main, and NextScript are required to be rendered
     return (
       <html>
         <Head>
@@ -1123,6 +1122,8 @@ export default class MyDocument extends Document {
   }
 }
 ```
+
+All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
