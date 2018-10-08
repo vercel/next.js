@@ -90,11 +90,13 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   }
 
   // Terser is a better uglifier
-  config.minimizer = [new TerserPlugin({
-    parallel: true,
-    sourceMap: false,
-    cache: true
-  })]
+  config.minimizer = [
+    new TerserPlugin({
+      parallel: true,
+      sourceMap: false,
+      cache: true
+    })
+  ]
 
   // Only enabled in production
   // This logic will create a commons bundle
