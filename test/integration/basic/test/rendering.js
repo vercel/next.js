@@ -187,10 +187,6 @@ export default function ({ app }, suiteName, render, fetch, appPort) {
         resources.push('/_next/' + item)
       }
 
-      for (const item of buildManifest.devFiles) {
-        resources.push('/_next/' + item)
-      }
-
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
       responses.forEach((res) => {
