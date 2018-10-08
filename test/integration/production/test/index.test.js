@@ -16,7 +16,6 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST} from 'next-server/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -78,7 +77,7 @@ describe('Production Usage', () => {
 
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
-      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const buildManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-assets.json'))
       const reactLoadableManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-loadable.json'))
       const url = `http://localhost:${appPort}/_next/`
 

@@ -13,7 +13,7 @@ import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import {promisify} from 'util'
 import fs from 'fs'
-import { BUILD_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+import { SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 
 const access = promisify(fs.access)
 
@@ -47,17 +47,6 @@ export async function renderError (err, req, res, pathname, query, opts) {
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
-}
-
-function getPageFiles (buildManifest, normalizedPagePath) {
-  const files = buildManifest.pages[normalizedPagePath]
-
-  if (!files) {
-    console.warn(`Could not find files for ${normalizedPagePath} in .next/build-manifest.json`)
-    return []
-  }
-
-  return files
 }
 
 async function doRender (req, res, pathname, query, {
@@ -107,7 +96,7 @@ async function doRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   const reactLoadableManifest = require(pagePath + '-loadable.json')
-  const buildManifest = require(join(distDir, BUILD_MANIFEST))
+  const buildManifest = require(pagePath + '-assets.json')
 
   if (typeof Component !== 'function') {
     throw new Error(`The default export is not a React Component in page: "${page}"`)
@@ -117,13 +106,7 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
-  const files = [
-    ...new Set([
-      ...getPageFiles(buildManifest, normalizedPagePath),
-      ...getPageFiles(buildManifest, '/_app'),
-      ...getPageFiles(buildManifest, '/_error')
-    ])
-  ]
+  const files = buildManifest.assets
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return

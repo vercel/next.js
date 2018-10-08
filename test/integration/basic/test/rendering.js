@@ -1,7 +1,6 @@
 /* global describe, test, it, expect */
 
 import cheerio from 'cheerio'
-import {BUILD_MANIFEST} from 'next-server/constants'
 import { join } from 'path'
 
 export default function ({ app }, suiteName, render, fetch, appPort) {
@@ -172,7 +171,7 @@ export default function ({ app }, suiteName, render, fetch, appPort) {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const buildManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-assets.json'))
       const reactLoadableManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-loadable.json'))
       const resources = []
 
