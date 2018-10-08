@@ -181,7 +181,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer),
     optimization: optimizationConfig({dir, dev, isServer, totalPages}),
-    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
