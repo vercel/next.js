@@ -4,14 +4,18 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requirePage, {normalizePagePath} from './require'
+import {normalizePagePath, pageNotFoundError} from './require'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+import {promisify} from 'util'
+import fs from 'fs'
+import { BUILD_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+
+const access = promisify(fs.access)
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
 function getDynamicImportBundles (manifest, moduleIds) {
@@ -47,12 +51,11 @@ export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
   return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
 }
 
-function getPageFiles (buildManifest, page) {
-  const normalizedPage = normalizePagePath(page)
-  const files = buildManifest.pages[normalizedPage]
+function getPageFiles (buildManifest, normalizedPagePath) {
+  const files = buildManifest.pages[normalizedPagePath]
 
   if (!files) {
-    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    console.warn(`Could not find files for ${normalizedPagePath} in .next/build-manifest.json`)
     return []
   }
 
@@ -73,30 +76,45 @@ async function doRender (req, res, pathname, query, {
   nextExport
 } = {}) {
   page = page || pathname
+  let normalizedPagePath
+  try {
+    normalizedPagePath = normalizePagePath(page)
+  } catch (err) {
+    console.error(err)
+    throw pageNotFoundError(page)
+  }
 
   // In dev mode we use on demand entries to compile the page before rendering
   if (hotReloader) {
     await hotReloader.ensurePage(page)
   }
 
-  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
-  let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(page, {distDir}),
-    require(documentPath),
-    require(appPath)
-  ])
+  const pagePath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', normalizedPagePath)
 
-  Component = Component.default || Component
-
-  if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+  try {
+    await access(`${pagePath}.js`, (fs.constants || fs).R_OK)
+  } catch (err) {
+    throw pageNotFoundError(page)
   }
 
-  App = App.default || App
+  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
+
+  let Document = require(documentPath)
+  let App = require(appPath)
+  let Component = require(pagePath)
+
   Document = Document.default || Document
+  App = App.default || App
+  Component = Component.default || Component
+
+  const reactLoadableManifest = require(pagePath + '-loadable.json')
+  const buildManifest = require(join(distDir, BUILD_MANIFEST))
+
+  if (typeof Component !== 'function') {
+    throw new Error(`The default export is not a React Component in page: "${page}"`)
+  }
+
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
@@ -104,7 +122,7 @@ async function doRender (req, res, pathname, query, {
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, normalizedPagePath),
       ...getPageFiles(buildManifest, '/_app'),
       ...getPageFiles(buildManifest, '/_error')
     ])

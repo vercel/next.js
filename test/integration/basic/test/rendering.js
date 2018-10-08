@@ -1,7 +1,7 @@
 /* global describe, test, it, expect */
 
 import cheerio from 'cheerio'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
+import {BUILD_MANIFEST} from 'next-server/constants'
 import { join } from 'path'
 
 export default function ({ app }, suiteName, render, fetch, appPort) {
@@ -173,7 +173,7 @@ export default function ({ app }, suiteName, render, fetch, appPort) {
       await fetch('/dynamic/ssr')
 
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
-      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-loadable.json'))
       const resources = []
 
       // test a regular page

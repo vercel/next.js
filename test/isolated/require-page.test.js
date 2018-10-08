@@ -1,12 +1,10 @@
 /* global describe, it, expect */
 
 import { join } from 'path'
-import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
-import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
+import requirePage, {normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
-const pathToBundles = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, 'development', 'pages')
 
 describe('pageNotFoundError', () => {
   it('Should throw error with ENOENT code', () => {
@@ -37,22 +35,6 @@ describe('normalizePagePath', () => {
 
   it('Should throw on /../../test.js', () => {
     expect(() => normalizePagePath('/../../test.js')).toThrow()
-  })
-})
-
-describe('getPagePath', () => {
-  it('Should append /index to the / page', () => {
-    const pagePath = getPagePath('/', {distDir})
-    expect(pagePath).toBe(join(pathToBundles, `${sep}index.js`))
-  })
-
-  it('Should prepend / when a page does not have it', () => {
-    const pagePath = getPagePath('_error', {distDir})
-    expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
-  })
-
-  it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', {distDir})).toThrow()
   })
 })
 
