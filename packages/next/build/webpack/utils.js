@@ -2,27 +2,34 @@ import path from 'path'
 import promisify from '../../lib/promisify'
 import globModule from 'glob'
 import {CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
+import {normalizePagePath} from 'next-server/dist/server/require'
 
 const glob = promisify(globModule)
 
-export async function getPages (dir, {nextPagesDir, dev, buildId, isServer, pageExtensions}) {
-  const pageFiles = await getPagePaths(dir, {dev, isServer, pageExtensions})
+export async function getPages (dir, {pages, nextPagesDir, dev, buildId, isServer, pageExtensions}) {
+  const pageFiles = await getPagePaths(dir, {pages, dev, isServer, pageExtensions})
 
   return getPageEntries(pageFiles, {nextPagesDir, buildId, isServer, pageExtensions})
 }
 
-export async function getPagePaths (dir, {dev, isServer, pageExtensions}) {
-  let pages
+export async function getPagePaths (dir, {pages, dev, isServer, pageExtensions}) {
+  if (dev || pages) {
+    // In development or when page files are provided we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
+    const defaultPages = await glob(isServer ? `pages/+(_document|_app|_error).+(${pageExtensions})` : `pages/+(_app|_error).+(${pageExtensions})`, { cwd: dir })
+    const resolvedFiles = await Promise.all((pages || []).map(async (file) => {
+      const normalizedPagePath = normalizePagePath(file)
+      const paths = await glob(`pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${pageExtensions})`, {cwd: dir})
+      if (paths.length === 0) {
+        return null
+      }
 
-  if (dev) {
-    // In development we only compile _document.js, _error.js and _app.js when starting, since they're always needed. All other pages are compiled with on demand entries
-    pages = await glob(isServer ? `pages/+(_document|_app|_error).+(${pageExtensions})` : `pages/+(_app|_error).+(${pageExtensions})`, { cwd: dir })
-  } else {
-    // In production get all pages from the pages directory
-    pages = await glob(isServer ? `pages/**/*.+(${pageExtensions})` : `pages/**/!(_document)*.+(${pageExtensions})`, { cwd: dir })
+      return paths[0]
+    }))
+
+    return [...new Set([...defaultPages, ...resolvedFiles.filter(f => f !== null)])]
   }
-
-  return pages
+  // In production when no page files are provided get all pages from the pages directory
+  return glob(isServer ? `pages/**/*.+(${pageExtensions})` : `pages/**/!(_document)*.+(${pageExtensions})`, { cwd: dir })
 }
 
 // Convert page path into single entry

@@ -17,7 +17,7 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
+import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
@@ -251,9 +251,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
-      !isServer && new ReactLoadablePlugin({
-        filename: REACT_LOADABLE_MANIFEST
-      }),
+      !isServer && new ReactLoadablePlugin(),
       new WebpackBar({
         name: isServer ? 'server' : 'client'
       }),

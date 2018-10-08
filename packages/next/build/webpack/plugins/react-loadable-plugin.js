@@ -22,56 +22,58 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to strip out unneeded results for Next's specific use case
 
 import url from 'url'
-
-function buildManifest (compiler, compilation) {
-  let context = compiler.options.context
-  let manifest = {}
-
-  compilation.chunks.forEach(chunk => {
-    chunk.files.forEach(file => {
-      for (const module of chunk.modulesIterable) {
-        let id = module.id
-        let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
-        // If it doesn't end in `.js` Next.js can't handle it right now.
-        if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
-          return
-        }
-        let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
-
-        let currentModule = module
-        if (module.constructor.name === 'ConcatenatedModule') {
-          currentModule = module.rootModule
-        }
-        if (!manifest[currentModule.rawRequest]) {
-          manifest[currentModule.rawRequest] = []
-        }
-
-        manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
-      }
-    })
-  })
-
-  return manifest
-}
+import path from 'path'
+import {IS_BUNDLED_PAGE_REGEX} from 'next-server/constants'
 
 export class ReactLoadablePlugin {
-  constructor (opts = {}) {
-    this.filename = opts.filename
-  }
-
   apply (compiler) {
-    compiler.hooks.emit.tapAsync('ReactLoadableManifest', (compilation, callback) => {
-      const manifest = buildManifest(compiler, compilation)
-      var json = JSON.stringify(manifest, null, 2)
-      compilation.assets[this.filename] = {
-        source () {
-          return json
-        },
-        size () {
-          return json.length
+    compiler.hooks.emit.tapPromise('ReactLoadableManifest', async (compilation) => {
+      const context = compiler.options.context
+      const manifest = {}
+
+      for (const chunk of compilation.chunks) {
+        for (const file of chunk.files) {
+          // If it doesn't end in `.js` Next.js can't handle it right now.
+          if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+            continue
+          }
+
+          for (const module of chunk.modulesIterable) {
+            const id = module.id
+            const name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
+            const publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
+
+            let currentModule = module
+            if (module.constructor.name === 'ConcatenatedModule') {
+              currentModule = module.rootModule
+            }
+            if (!manifest[currentModule.rawRequest]) {
+              manifest[currentModule.rawRequest] = []
+            }
+
+            manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
+          }
         }
       }
-      callback()
+
+      const json = JSON.stringify(manifest)
+
+      for (const [, entrypoint] of compilation.entrypoints.entries()) {
+        if (!IS_BUNDLED_PAGE_REGEX.exec(entrypoint.name)) {
+          continue
+        }
+
+        const manifestFile = path.join('server', entrypoint.name.replace(/\.js$/, '-loadable.json'))
+
+        compilation.assets[manifestFile] = {
+          source () {
+            return json
+          },
+          size () {
+            return json.length
+          }
+        }
+      }
     })
   }
 }
