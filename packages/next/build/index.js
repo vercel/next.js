@@ -11,7 +11,7 @@ const writeFile = promisify(fs.writeFile)
 
 export default async function build (dir, conf = null) {
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = await config.generateBuildId() // defaults to a uuid
+  const buildId = await config.generateBuildId().trim() // defaults to a uuid
   const distDir = join(dir, config.distDir)
 
   try {
