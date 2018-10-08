@@ -40,10 +40,15 @@ export class Head extends Component {
   }
 
   static propTypes = {
-    nonce: PropTypes.string
+    nonce: PropTypes.string,
+    nocss: PropTypes.bool
   }
 
   getCssLinks () {
+    if (this.props.nocss) {
+      return null
+    }
+
     const { assetPrefix, files } = this.context._documentProps
     if(!files || files.length === 0) {
       return null
