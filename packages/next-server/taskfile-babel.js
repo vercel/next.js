@@ -56,6 +56,9 @@ module.exports = function (task) {
             }
           }
         ]
+      ],
+      plugins: [
+        ['@babel/plugin-transform-classes']
       ]
     }))
 
