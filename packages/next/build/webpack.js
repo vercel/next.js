@@ -32,7 +32,7 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status']
+  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'styled-jsx']
 
   externals.push((context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
