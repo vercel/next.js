@@ -28,7 +28,7 @@ const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await nextBuild({dir: appDir})
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,

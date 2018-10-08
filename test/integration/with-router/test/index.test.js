@@ -17,7 +17,7 @@ describe('withRouter', () => {
   jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await nextBuild({dir: appDir})
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,

@@ -25,7 +25,7 @@ const devContext = {}
 describe('Static Export', () => {
   beforeAll(async () => {
     const outdir = join(appDir, 'out')
-    await nextBuild(appDir)
+    await nextBuild({dir: appDir})
     await nextExport(appDir, { outdir })
 
     context.server = await startStaticServer(join(appDir, 'out'))

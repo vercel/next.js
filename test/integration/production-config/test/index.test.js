@@ -17,7 +17,7 @@ let server
 describe('Production Config Usage', () => {
   beforeAll(async () => {
     const appDir = join(__dirname, '../')
-    await nextBuild(appDir)
+    await nextBuild({dir: appDir})
     const app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
