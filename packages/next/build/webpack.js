@@ -10,7 +10,7 @@ import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
 import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
-import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
+// import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
 import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -67,15 +67,19 @@ function externalsConfig (dir, isServer) {
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
+      // namedChunks: true,
+      // namedModules: true,
       splitChunks: false,
       minimize: false
     }
   }
 
   const config: any = {
-    runtimeChunk: {
-      name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-    },
+    // namedChunks: true,
+    // namedModules: true,
+    // runtimeChunk: {
+    //   name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
+    // },
     splitChunks: {
       cacheGroups: {
         default: false,
@@ -273,8 +277,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
-      isServer && new NextJsSsrImportPlugin(),
-      isServer && new NextJsSSRModuleCachePlugin({outputPath})
+      isServer && new NextJsSsrImportPlugin()
+      // isServer && new NextJsSSRModuleCachePlugin({outputPath})
     ].filter(Boolean)
   }
 
