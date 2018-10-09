@@ -90,7 +90,7 @@ describe('Production Usage', () => {
       resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js runtime etc
-      for (const item of buildManifest.pages['/']) {
+      for (const item of buildManifest.assets) {
         resources.push(url + item)
       }
 

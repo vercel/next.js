@@ -182,7 +182,7 @@ export default function ({ app }, suiteName, render, fetch, appPort) {
       resources.push('/_next/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js runtime etc
-      for (const item of buildManifest.pages['/dynamic/ssr']) {
+      for (const item of buildManifest.assets) {
         resources.push('/_next/' + item)
       }
 
