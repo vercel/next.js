@@ -10,13 +10,13 @@
   "dependencies": {
     "next": "latest",
     "next-redux-wrapper": "^2.0.0-beta.6",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
-    "react-redux": "^5.0.1",
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
+    "react-redux": "^5.0.7",
     "redux": "^4.0.0",
     "redux-logger": "^3.0.6",
     "redux-observable": "^1.0.0",
-    "rxjs": "^6.2.1",
+    "rxjs": "^6.3.3",
     "universal-rxjs-ajax": "^2.0.0"
   },
   "license": "ISC"
