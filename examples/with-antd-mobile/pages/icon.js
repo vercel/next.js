@@ -2,8 +2,19 @@ import React, { Component } from 'react'
 import { WhiteSpace, WingBlank, Card, Icon } from 'antd-mobile'
 import Layout from '../components/Layout'
 import MenuBar from '../components/MenuBar'
+import { withRouter } from 'next/dist/lib/router'
 
-export default class Home extends Component {
+
+const CustomIcon = ({ type, className = '', size = 'md', ...restProps }) => (
+  <svg
+    className={`am-icon am-icon-reload am-icon-${size} ${className}`}
+    {...restProps}
+  >
+    <use xlinkHref={`#${type.default.id}`} />
+  </svg>
+);
+
+class Home extends Component {
   static getInitialProps ({ req }) {
     const language = req ? req.headers['accept-language'] : navigator.language
 
@@ -15,7 +26,7 @@ export default class Home extends Component {
   render () {
     const {
       language,
-      url: { pathname }
+      router: { pathname }
     } = this.props
 
     return (
@@ -40,11 +51,11 @@ export default class Home extends Component {
             <Card>
               <Card.Header
                 extra='Custom svg'
-                thumb={<Icon type={require('../static/reload.svg')} />}
+                thumb={<CustomIcon type={require('../static/reload.svg')} />}
               />
               <Card.Body>
                 <code>
-                  {`<Icon type={require('../static/reload.svg')} />`}
+                  {`<CustomIcon type={require('../static/reload.svg')} />`}
                 </code>
               </Card.Body>
             </Card>
@@ -53,7 +64,7 @@ export default class Home extends Component {
               <Card.Header
                 extra='Fill color'
                 thumb={
-                  <Icon
+                  <CustomIcon
                     type={require('../static/reload.svg')}
                     style={{ fill: '#108ee9' }}
                   />
@@ -61,7 +72,7 @@ export default class Home extends Component {
               />
               <Card.Body>
                 <code>{`
-                  <Icon
+                  <CustomIcon
                     type={require('../static/reload.svg')}
                     style={{ fill: '#108ee9' }}
                   />
@@ -79,3 +90,6 @@ export default class Home extends Component {
     )
   }
 }
+
+// https://github.com/zeit/next-codemod#url-to-withrouter
+export default withRouter(Home)

@@ -2,8 +2,9 @@ import React, { Component } from 'react'
 import { WhiteSpace, List, Switch, Menu } from 'antd-mobile'
 import Layout from '../components/Layout'
 import MenuBar from '../components/MenuBar'
+import { withRouter } from 'next/dist/lib/router'
 
-export default class Trick extends Component {
+class Trick extends Component {
   static getInitialProps ({ req }) {
     const language = req ? req.headers['accept-language'] : navigator.language
     const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
@@ -52,16 +53,15 @@ export default class Trick extends Component {
       }
     ]
 
-    this.state = {
-      switchChecked: true
-    }
+    this.setState({switchChecked: true})
+
   }
 
   render () {
     const {
       language,
       platform,
-      url: { pathname }
+      router: { pathname }
     } = this.props
 
     const {
@@ -98,3 +98,6 @@ export default class Trick extends Component {
     )
   }
 }
+
+// https://github.com/zeit/next-codemod#url-to-withrouter
+export default withRouter(Trick)

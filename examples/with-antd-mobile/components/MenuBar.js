@@ -31,8 +31,8 @@ export default class MenuBar extends Component {
 const tabBarData = [
   {
     title: 'Home',
-    icon: 'koubei-o',
-    selectedIcon: 'koubei',
+    icon: 'up',
+    selectedIcon: 'up',
     link: '/home'
   },
   {
