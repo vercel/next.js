@@ -29,7 +29,7 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
-const pages = argv.page
+const pages = typeof argv.page === 'string' ? [argv.page] : argv.page
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
