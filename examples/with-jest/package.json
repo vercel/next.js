@@ -16,7 +16,7 @@
     "react-test-renderer": "16.4.2"
   },
   "scripts": {
-    "test": "NODE_ENV=test jest",
+    "test": "jest",
     "dev": "next",
     "build": "next build",
     "start": "next start"
