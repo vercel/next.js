@@ -1,6 +1,11 @@
 /* global window */
 import _Router from './router'
-import { execOnce } from '../utils'
+
+// Create public properties and methods of the router in the SingletonRouter
+const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
+const propertyFields = ['components']
+const routerEvents = ['routeChangeStart', 'beforeHistoryChange', 'routeChangeComplete', 'routeChangeError', 'hashChangeStart', 'hashChangeComplete']
+const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
 
 const SingletonRouter = {
   router: null, // holds the actual router instance
@@ -13,66 +18,9 @@ const SingletonRouter = {
   }
 }
 
-// Create public properties and methods of the router in the SingletonRouter
-const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
-const propertyFields = ['components']
-const routerEvents = ['routeChangeStart', 'beforeHistoryChange', 'routeChangeComplete', 'routeChangeError', 'hashChangeStart', 'hashChangeComplete']
-const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
-
-// Events is a static property on the router, the router doesn't have to be initialized to use it
-Object.defineProperty(SingletonRouter, 'events', {
-  get () {
-    return _Router.events
-  }
-})
-
-propertyFields.concat(urlPropertyFields).forEach((field) => {
-  // Here we need to use Object.defineProperty because, we need to return
-  // the property assigned to the actual router
-  // The value might get changed as we change routes and this is the
-  // proper way to access it
-  Object.defineProperty(SingletonRouter, field, {
-    get () {
-      throwIfNoRouter()
-      return SingletonRouter.router[field]
-    }
-  })
-})
-
-coreMethodFields.forEach((field) => {
-  SingletonRouter[field] = (...args) => {
-    throwIfNoRouter()
-    return SingletonRouter.router[field](...args)
-  }
-})
-
-routerEvents.forEach((event) => {
-  SingletonRouter.ready(() => {
-    _Router.events.on(event, (...args) => {
-      const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(1)}`
-      if (SingletonRouter[eventField]) {
-        try {
-          SingletonRouter[eventField](...args)
-        } catch (err) {
-          console.error(`Error when running the Router event: ${eventField}`)
-          console.error(`${err.message}\n${err.stack}`)
-        }
-      }
-    })
-  })
-})
-
-const warnAboutRouterOnAppUpdated = execOnce(() => {
-  console.warn(`Router.onAppUpdated is removed - visit https://err.sh/zeit/next.js/no-on-app-updated-hook for more information.`)
-})
-
-Object.defineProperty(SingletonRouter, 'onAppUpdated', {
-  get () { return null },
-  set () {
-    warnAboutRouterOnAppUpdated()
-    return null
-  }
-})
+if (typeof window !== 'undefined') {
+  window.__NEXT_ROUTER__ = window.__NEXT_ROUTER__ || SingletonRouter
+}
 
 function throwIfNoRouter () {
   if (!SingletonRouter.router) {
@@ -82,8 +30,58 @@ function throwIfNoRouter () {
   }
 }
 
+let initialized = false
+if (!initialized) {
+  initialized = true
+
+  // Events is a static property on the router, the router doesn't have to be initialized to use it
+  Object.defineProperty(SingletonRouter, 'events', {
+    get () {
+      return _Router.events
+    }
+  })
+
+  propertyFields.concat(urlPropertyFields).forEach((field) => {
+    // Here we need to use Object.defineProperty because, we need to return
+    // the property assigned to the actual router
+    // The value might get changed as we change routes and this is the
+    // proper way to access it
+    Object.defineProperty(SingletonRouter, field, {
+      get () {
+        throwIfNoRouter()
+        return SingletonRouter.router[field]
+      }
+    })
+  })
+
+  coreMethodFields.forEach((field) => {
+    SingletonRouter[field] = (...args) => {
+      throwIfNoRouter()
+      return SingletonRouter.router[field](...args)
+    }
+  })
+
+  routerEvents.forEach((event) => {
+    SingletonRouter.ready(() => {
+      _Router.events.on(event, (...args) => {
+        const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(1)}`
+        if (SingletonRouter[eventField]) {
+          try {
+            SingletonRouter[eventField](...args)
+          } catch (err) {
+            console.error(`Error when running the Router event: ${eventField}`)
+            console.error(`${err.message}\n${err.stack}`)
+          }
+        }
+      })
+    })
+  })
+}
+
+const routerInstance = typeof window !== 'undefined' ? window.__NEXT_ROUTER__ : SingletonRouter
+
 // Export the SingletonRouter and this is the public API.
-export default SingletonRouter
+export default routerInstance
 
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
