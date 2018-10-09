@@ -43,10 +43,11 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
+const hostname = argv.hostname ? argv.hostname : 'localhost'
 
-startServer({dir}, argv.port, argv.hostname)
+startServer({dir}, argv.port, hostname)
   .then(() => {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    console.log(`> Ready on http://${hostname}:${argv.port}`)
   })
   .catch((err) => {
     console.error(err)
