@@ -951,7 +951,7 @@ Here are a few ways to use dynamic imports.
 ```jsx
 import dynamic from 'next/dynamic'
 
-const DynamicComponent = dynamic(() => import('../components/hello'))
+const DynamicComponent = dynamic(import('../components/hello'))
 
 export default () => (
   <div>
@@ -967,7 +967,7 @@ export default () => (
 ```jsx
 import dynamic from 'next/dynamic'
 
-const DynamicComponentWithCustomLoading = dynamic(() => import('../components/hello2'), {
+const DynamicComponentWithCustomLoading = dynamic(import('../components/hello2'), {
   loading: () => <p>...</p>
 })
 
@@ -985,7 +985,7 @@ export default () => (
 ```jsx
 import dynamic from 'next/dynamic'
 
-const DynamicComponentWithNoSSR = dynamic(() => import('../components/hello3'), {
+const DynamicComponentWithNoSSR = dynamic(import('../components/hello3'), {
   ssr: false
 })
 
