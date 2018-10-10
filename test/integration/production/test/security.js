@@ -56,5 +56,95 @@ module.exports = (context) => {
 
       browser.close()
     })
+
+    it('should prevent URI based XSS attacks using double quotes', async () => {
+      const browser = await webdriver(context.appPort, `/"-(document.body.innerHTML='HACKED')-"`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
+
+    it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
+      const browser = await webdriver(context.appPort, `/;"-(document.body.innerHTML='HACKED')-"`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
+
+    it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
+      const browser = await webdriver(context.appPort, `/;'-(document.body.innerHTML='HACKED')-'`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
+
+    it('should prevent URI based XSS attacks using src', async () => {
+      const browser = await webdriver(context.appPort, `/javascript:(document.body.innerHTML='HACKED')`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
+
+    it('should prevent URI based XSS attacks using querystring', async () => {
+      const browser = await webdriver(context.appPort, `/?javascript=(document.body.innerHTML='HACKED')`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
+
+    it('should prevent URI based XSS attacks using querystring and quotes', async () => {
+      const browser = await webdriver(context.appPort, `/?javascript="(document.body.innerHTML='HACKED')"`)
+      // Wait 5 secs to make sure we load all the client side JS code
+      await waitFor(5000)
+
+      const bodyText = await browser
+        .elementByCss('body').text()
+
+      if (/HACKED/.test(bodyText)) {
+        throw new Error('Vulnerable to XSS attacks')
+      }
+
+      browser.close()
+    })
   })
 }
