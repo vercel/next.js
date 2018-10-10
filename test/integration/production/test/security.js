@@ -42,7 +42,7 @@ module.exports = (context) => {
       browser.close()
     })
 
-    it('should prevent URI based XSS attacks using dashes', async () => {
+    it('should prevent URI based XSS attacks using single quotes', async () => {
       const browser = await webdriver(context.appPort, `/'-(document.body.innerHTML='HACKED')-'`)
       // Wait 5 secs to make sure we load all the client side JS code
       await waitFor(5000)
