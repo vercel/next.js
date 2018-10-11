@@ -20,6 +20,6 @@
     "next": "latest",
     "react": "^16.5.2",
     "react-dom": "^16.5.2",
-    "react-i18next": "7.13.0"
+    "react-i18next": "8.0.6"
   }
 }
