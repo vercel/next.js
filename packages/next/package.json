@@ -80,7 +80,6 @@
     "loader-utils": "1.1.0",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
-    "nanoid": "1.2.1",
     "next-server": "^7.0.2-canary.9",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
