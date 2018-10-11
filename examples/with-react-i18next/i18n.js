@@ -3,6 +3,9 @@ const XHR = require('i18next-xhr-backend')
 const LanguageDetector = require('i18next-browser-languagedetector')
 
 const options = {
+  backend: {
+    loadPath: '/static/locales/{{lng}}/{{ns}}.json'
+  },
   fallbackLng: 'en',
   load: 'languageOnly', // we only provide en, de -> no region specific locals like en-US, de-DE
 
