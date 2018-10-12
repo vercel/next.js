@@ -13,13 +13,14 @@
     "pretest": "npm run lint",
     "test": "cross-env npm run testall || npm run testall",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
-    "precommit": "lint-staged",
     "lint": "lerna run lint",
-    "prepublish": "lerna run prepublish"
+    "prepublish": "lerna run prepublish",
+    "lint-staged": "lint-staged"
   },
+  "pre-commit": "lint-staged",
   "lint-staged": {
     "*.js": "standard",
-    "bin/*": "standard"
+    "packages/**/bin/*": "standard"
   },
   "standard": {
     "parser": "babel-eslint",
@@ -51,7 +52,6 @@
     "flatten": "1.0.2",
     "flow-bin": "0.73.0",
     "get-port": "3.2.0",
-    "husky": "0.14.3",
     "jest-cli": "23.6.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
@@ -61,6 +61,7 @@
     "node-notifier": "5.1.2",
     "node-sass": "4.9.2",
     "nyc": "11.2.1",
+    "pre-commit": "1.2.2",
     "react": "16.4.2",
     "react-dom": "16.4.2",
     "rimraf": "2.6.2",
