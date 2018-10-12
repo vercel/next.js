@@ -92,14 +92,14 @@ async function doRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    throw new Error(`The default export is not a React Component in page: "${page}"`)
   }
 
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname, query, asPath }
-  const router = new Router(pathname, query, asPath)
+  const ctx = { err, req, res, pathname: page, query, asPath }
+  const router = new Router(page, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
   const files = [
@@ -171,7 +171,6 @@ async function doRender (req, res, pathname, query, {
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page, // The rendered page
-      pathname, // The requested path
       query, // querystring parsed / passed by the user
       buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML

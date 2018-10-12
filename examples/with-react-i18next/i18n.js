@@ -39,7 +39,7 @@ i18n.getInitialProps = (req, namespaces) => {
   if (!namespaces) namespaces = i18n.options.defaultNS
   if (typeof namespaces === 'string') namespaces = [namespaces]
 
-  req.i18n.toJSON = () => null // do not serialize i18next instance and send to client
+  req.i18n.toJSON = () => {} // do not serialize i18next instance to prevent circular references on the client
 
   const initialI18nStore = {}
   req.i18n.languages.forEach((l) => {
