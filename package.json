@@ -8,10 +8,10 @@
     "lerna": "lerna",
     "bootstrap": "lerna bootstrap",
     "dev": "lerna run build --stream --parallel",
-    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js --config=./test/jest-config.json",
+    "testonly": "jest",
     "testall": "npm run testonly -- --coverage --forceExit --runInBand",
     "pretest": "npm run lint",
-    "test": "cross-env npm run testall || npm run testall",
+    "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "lerna run lint",
     "prepublish": "lerna run prepublish",
@@ -46,7 +46,6 @@
     "chromedriver": "2.42.0",
     "clone": "2.1.1",
     "coveralls": "3.0.2",
-    "cross-env": "5.2.0",
     "express": "4.16.3",
     "fkill": "5.1.0",
     "flatten": "1.0.2",
@@ -66,6 +65,7 @@
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",
+    "wait-port": "0.2.2",
     "wd": "1.10.3"
   }
 }
