@@ -10,10 +10,10 @@
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
-    "styled-components": "^2.1.0"
+    "styled-components": "^3.4.9"
   },
   "devDependencies": {
-    "babel-plugin-styled-components": "^1.1.5"
+    "babel-plugin-styled-components": "^1.8.0"
   },
   "license": "ISC"
 }

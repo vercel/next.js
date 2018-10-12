@@ -14,10 +14,10 @@
     "react-dom": "^16.5.2"
   },
   "devDependencies": {
-    "@types/next": "^6.1.7",
-    "@types/react": "^16.4.14",
-    "@types/react-dom": "16.0.7",
-    "typescript": "3.0.3"
+    "@types/next": "^7.0.1",
+    "@types/react": "^16.4.16",
+    "@types/react-dom": "16.0.8",
+    "typescript": "3.1.1"
   },
   "license": "ISC"
 }
