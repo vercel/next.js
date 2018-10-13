@@ -1,8 +1,8 @@
-import { translate } from 'react-i18next'
+import { withNamespaces } from 'react-i18next'
 import i18n from '../i18n'
 
 export const withI18next = (namespaces = ['common']) => ComposedComponent => {
-  const Extended = translate(namespaces, { wait: process.browser })(
+  const Extended = withNamespaces(namespaces, { wait: process.browser })(
     ComposedComponent
   )
 
