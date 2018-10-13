@@ -1,6 +1,6 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-shopify-storefront-api)
 
-# MobX State Tree example
+# Shopify Storefront API (GraphQL) Typescript example
 
 ## How to use
 
