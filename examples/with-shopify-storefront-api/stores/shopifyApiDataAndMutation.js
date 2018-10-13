@@ -63,15 +63,15 @@ query query {
     }
   }
 }
-`;
+`
 
 const withShopifyApiDataAndMutation = compose(
-graphql(query),
-graphql(createCheckout, {name: "createCheckout"}),
-graphql(checkoutLineItemsAdd, {name: "checkoutLineItemsAdd"}),
-graphql(checkoutLineItemsUpdate, {name: "checkoutLineItemsUpdate"}),
-graphql(checkoutLineItemsRemove, {name: "checkoutLineItemsRemove"}),
-graphql(checkoutCustomerAssociate, {name: "checkoutCustomerAssociate"})
+  graphql(query),
+  graphql(createCheckout, {name: "createCheckout"}),
+  graphql(checkoutLineItemsAdd, {name: "checkoutLineItemsAdd"}),
+  graphql(checkoutLineItemsUpdate, {name: "checkoutLineItemsUpdate"}),
+  graphql(checkoutLineItemsRemove, {name: "checkoutLineItemsRemove"}),
+  graphql(checkoutCustomerAssociate, {name: "checkoutCustomerAssociate"})
 );
 
 export default withShopifyApiDataAndMutation

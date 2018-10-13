@@ -12,14 +12,13 @@ import {
 import withShopifyApiDataAndMutation from '../stores/shopifyApiDataAndMutation'
 
 class App extends Component {
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
 
     this.state = {
       isCartOpen: false,
       isCustomerAuthOpen: false,
       isNewCustomer: false,
-      products: [],
       checkout: { lineItems: { edges: [] } }
     };
 

@@ -1,5 +1,5 @@
-import { graphql, compose } from 'react-apollo'
-import gql from 'graphql-tag'
+import gql from "graphql-tag";
+import { compose, graphql } from "react-apollo";
 
 const customerCreate = gql`
   mutation customerCreate($input: CustomerCreateInput!) {
@@ -13,7 +13,7 @@ const customerCreate = gql`
       }
     }
   }
-`
+`;
 
 const customerAccessTokenCreate = gql`
   mutation customerAccessTokenCreate($input: CustomerAccessTokenCreateInput!) {
@@ -28,11 +28,11 @@ const customerAccessTokenCreate = gql`
       }
     }
   }
-`
+`;
 
 const withCustomerAuthMutation = compose(
-  graphql(customerCreate, {name: "customerCreate"}),
-  graphql(customerAccessTokenCreate, {name: "customerAccessTokenCreate"})
-)
+  graphql(customerCreate, { name: "customerCreate" }),
+  graphql(customerAccessTokenCreate, { name: "customerAccessTokenCreate" }),
+);
 
-export default withCustomerAuthMutation
+export { withCustomerAuthMutation };

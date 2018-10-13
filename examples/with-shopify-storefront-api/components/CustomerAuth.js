@@ -11,7 +11,7 @@ class CustomerAuth extends Component {
       nonFieldErrorMessage: null,
       emailErrorMessage: null,
       passwordErrorMessage: null
-    };
+    }
 
     this.handleInputChange = this.handleInputChange.bind(this)
     this.createCustomerAccount = this.createCustomerAccount.bind(this)

@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+
+Sitemap: https://with-shopify-storefront-api-typescript.now.sh/sitemap.xml

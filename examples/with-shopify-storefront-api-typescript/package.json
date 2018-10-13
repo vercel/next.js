@@ -1,0 +1,48 @@
+{
+  "name": "with-shopify-storefront-api-typescript",
+  "version": "1.0.0",
+  "scripts": {
+    "build-ts": "tsc -p tsconfig.next.json && tsc -p tsconfig.server.json",
+    "build-static": "npx copyfiles -u 1 \"src/static/**/*\" dist",
+    "build-next": "next build ./dist",
+    "build": "npm run build-ts && npm run build-static && npm run build-next",
+    "start-node": "cd ./dist && node server/app.js",
+    "start-nodemon": "cd ./dist && nodemon server/app.js --watch server",
+    "start": "npm run build-ts && npm run build-static && npm run start-node",
+    "dev": "npm run build-ts && npm run build-static && npm run start-nodemon",
+    "now": "npm run build && now ./dist && now alias",
+    "tslint": "tslint -c tslint.json -p tsconfig.next.json && tslint -c tslint.json -p tsconfig.server.json"
+  },
+  "dependencies": {
+    "apollo-boost": "^0.1.4",
+    "apollo-cache-inmemory": "^1.2.10",
+    "apollo-client": "^2.4.2",
+    "apollo-link-context": "^1.0.8",
+    "apollo-link-http": "^1.5.4",
+    "graphql": "^0.13.2",
+    "graphql-tag": "^2.9.1",
+    "isomorphic-fetch": "^2.2.1",
+    "next": "latest",
+    "path-match": "1.2.4",
+    "react": "16.4.2",
+    "react-addons-create-fragment": "^15.6.2",
+    "react-apollo": "^2.1.4",
+    "react-art": "^16.3.2",
+    "react-dom": "16.4.2",
+    "typescript": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/isomorphic-fetch": "0.0.34",
+    "@zeit/next-typescript": "1.1.0",
+    "@types/next": "^6.1.4",
+    "@types/react": "^16.4.12",
+    "@babel/plugin-proposal-decorators": "^7.1.2",
+    "nodemon": "^1.14.11",
+    "tslint": "^5.9.1",
+    "tslint-config-standard": "^7.0.0",
+    "tslint-loader": "^3.5.3",
+    "tslint-react": "^3.4.0",
+    "typescript": "^3.0.1"
+  },
+  "license": "ISC"
+}

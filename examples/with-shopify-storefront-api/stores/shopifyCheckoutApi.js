@@ -40,7 +40,7 @@ export const createCheckout = gql`
     }
   }
   ${CheckoutFragment}
-`;
+`
 
 export const checkoutLineItemsAdd = gql`
   mutation checkoutLineItemsAdd ($checkoutId: ID!, $lineItems: [CheckoutLineItemInput!]!) {
@@ -55,7 +55,7 @@ export const checkoutLineItemsAdd = gql`
     }
   }
   ${CheckoutFragment}
-`;
+`
 
 export const checkoutLineItemsUpdate = gql`
   mutation checkoutLineItemsUpdate ($checkoutId: ID!, $lineItems: [CheckoutLineItemUpdateInput!]!) {
@@ -70,7 +70,7 @@ export const checkoutLineItemsUpdate = gql`
     }
   }
   ${CheckoutFragment}
-`;
+`
 
 export const checkoutLineItemsRemove = gql`
   mutation checkoutLineItemsRemove ($checkoutId: ID!, $lineItemIds: [ID!]!) {
@@ -85,7 +85,7 @@ export const checkoutLineItemsRemove = gql`
     }
   }
   ${CheckoutFragment}
-`;
+`
 
 export const checkoutCustomerAssociate = gql`
   mutation checkoutCustomerAssociate($checkoutId: ID!, $customerAccessToken: String!) {
@@ -100,7 +100,7 @@ export const checkoutCustomerAssociate = gql`
     }
   }
   ${CheckoutFragment}
-`;
+`
 
 export function addVariantToCart(variantId, quantity){
   this.props.checkoutLineItemsAdd(
@@ -108,10 +108,10 @@ export function addVariantToCart(variantId, quantity){
     }).then((res) => {
     this.setState({
       checkout: res.data.checkoutLineItemsAdd.checkout
-    });
-  });
+    })
+  })
 
-  this.handleCartOpen();
+  this.handleCartOpen()
 }
 
 export function updateLineItemInCart(lineItemId, quantity){
@@ -120,8 +120,8 @@ export function updateLineItemInCart(lineItemId, quantity){
     }).then((res) => {
     this.setState({
       checkout: res.data.checkoutLineItemsUpdate.checkout
-    });
-  });
+    })
+  })
 }
 
 export function removeLineItemInCart(lineItemId){
@@ -130,8 +130,8 @@ export function removeLineItemInCart(lineItemId){
     }).then((res) => {
     this.setState({
       checkout: res.data.checkoutLineItemsRemove.checkout
-    });
-  });
+    })
+  })
 }
 
 export function associateCustomerCheckout(customerAccessToken){
@@ -141,6 +141,6 @@ export function associateCustomerCheckout(customerAccessToken){
     this.setState({
       checkout: res.data.checkoutCustomerAssociate.checkout,
       isCustomerAuthOpen: false
-    });
-  });
+    })
+  })
 }

@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import React, {Component} from 'react'
 import VariantSelector from './VariantSelector'
 
@@ -61,16 +62,23 @@ class Product extends Component {
       )
     })
     return (
-      <div className="Product">
+      <div className='Product'>
         {this.props.product.images.edges.length ? <img src={variantImage} alt={`${this.props.product.title} product shot`}/> : null}
-        <h5 className="Product__title">{this.props.product.title}</h5>
-        <span className="Product__price">${variant.price}</span>
+        <Link href={'/product?id='+this.props.product.id} as={'/product/'+this.props.product.id}>
+          <a>
+            <h5 className='Product__title'>{this.props.product.title}</h5>
+          </a>
+        </Link>
+        <span className='Product__price'>${variant.price}</span>
         {variant_selectors}
-        <label className="Product__option">
+        <label className='Product__option'>
           Quantity
-          <input min="1" type="number" defaultValue={variantQuantity} onChange={this.handleQuantityChange}></input>
+          <input min='1' type='number' defaultValue={variantQuantity} onChange={this.handleQuantityChange}></input>
         </label>
-        <button className="Product__buy button" onClick={() => this.props.addVariantToCart(variant.id, variantQuantity)}>Add to Cart</button>
+        <Link href={'/product?id='+this.props.product.id} as={'/product/'+this.props.product.id}>
+          <button className='Product__buy button'>Details</button>
+        </Link>
+        <button className='Product__buy button' onClick={() => this.props.addVariantToCart(variant.id, variantQuantity)}>Add to Cart</button>
       </div>
     )
   }

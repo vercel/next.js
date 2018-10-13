@@ -2,9 +2,9 @@
   "name": "with-shopify-storefront-api",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start"
+    "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
     "apollo-boost": "^0.1.4",
@@ -14,6 +14,7 @@
     "graphql-tag": "^2.9.1",
     "isomorphic-fetch": "^2.2.1",
     "next": "latest",
+    "path-match": "1.2.4",
     "prop-types": "^15.6.1",
     "react": "^16.0.0",
     "react-addons-create-fragment": "^15.6.2",
