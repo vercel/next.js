@@ -1,109 +1,69 @@
-/* global describe, it, expect */
-
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { waitFor, check, File } from 'next-test-utils'
-import { readFileSync, writeFileSync } from 'fs'
+import { fsTimeMachine } from 'next-test-utils'
+import { Asserter } from 'wd'
 import { join } from 'path'
+
+const computedCssAsserter = (prop, value) => {
+  return new Asserter(async (el) => {
+    const val = await el.getComputedCss(prop)
+    return val === value
+  })
+}
 
 export default (context, render) => {
   describe('Configuration', () => {
     it('should have config available on the client', async () => {
       const browser = await webdriver(context.appPort, '/next-config')
+
       // Wait for client side to load
-      await waitFor(10000)
+      await browser.executeAsync(
+        'const args = Array.from(arguments);' +
+        'const done = args[args.length -1];' +
+        'window.requestIdleCallback(done);'
+      )
 
       const serverText = await browser.elementByCss('#server-only').text()
-      const serverClientText = await browser.elementByCss('#server-and-client').text()
-
       expect(serverText).toBe('')
+
+      const serverClientText = await browser.elementByCss('#server-and-client').text()
       expect(serverClientText).toBe('/static')
+
       browser.close()
     })
 
     it('should update css styles using hmr', async () => {
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/webpack-css')
-        const pTag = await browser.elementByCss('.hello-world')
-        const initialFontSize = await pTag.getComputedCss('font-size')
+      const webpackCssFile = await fsTimeMachine(join(__dirname, '../components/hello-webpack-css.css'))
+      const browser = await webdriver(context.appPort, '/webpack-css')
 
-        expect(initialFontSize).toBe('100px')
+      const pTag = await browser.elementByCss('.hello-world')
+      const initialFontSize = await pTag.getComputedCss('font-size')
 
-        const pagePath = join(__dirname, '../', 'components', 'hello-webpack-css.css')
+      expect(initialFontSize).toBe('100px')
 
-        const originalContent = readFileSync(pagePath, 'utf8')
-        const editedContent = originalContent.replace('100px', '200px')
+      await webpackCssFile.replace('100px', '200px')
+      await browser.waitForElementByCss('.hello-world', computedCssAsserter('font-size', '200px'), 20000)
 
-        // Change the page
-        writeFileSync(pagePath, editedContent, 'utf8')
-
-        await waitFor(10000)
-
-        try {
-          // Check whether the this page has reloaded or not.
-          const editedPTag = await browser.elementByCss('.hello-world')
-          const editedFontSize = await editedPTag.getComputedCss('font-size')
-
-          expect(editedFontSize).toBe('200px')
-        } finally {
-          // Finally is used so that we revert the content back to the original regardless of the test outcome
-          // restore the about page content.
-          writeFileSync(pagePath, originalContent, 'utf8')
-        }
-      } finally {
-        if (browser) {
-          browser.close()
-        }
-      }
+      await Promise.all([
+        webpackCssFile.restore(),
+        browser.quit()
+      ])
     })
 
     it('should update sass styles using hmr', async () => {
-      const file = new File(join(__dirname, '../', 'components', 'hello-webpack-sass.scss'))
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/webpack-css')
+      const file = await fsTimeMachine(join(__dirname, '../components/hello-webpack-sass.scss'))
+      const browser = await webdriver(context.appPort, '/webpack-css')
 
-        expect(
-          await browser.elementByCss('.hello-world').getComputedCss('color')
-        ).toBe('rgba(255, 255, 0, 1)')
+      const computedColor = await browser.elementByCss('.hello-world').getComputedCss('color')
+      expect(computedColor).toBe('rgba(255, 255, 0, 1)')
 
-        file.replace('yellow', 'red')
+      await file.replace('yellow', 'red')
+      await browser.waitForElementByCss('.hello-world', computedCssAsserter('color', 'rgba(255, 0, 0, 1)'), 20000)
 
-        await waitFor(10000)
+      await file.restore()
+      await browser.waitForElementByCss('.hello-world', computedCssAsserter('color', 'rgba(255, 255, 0, 1)'), 20000)
 
-        await check(
-          async () => {
-            const tag = await browser.elementByCss('.hello-world')
-            const prop = await tag.getComputedCss('color')
-
-            expect(prop).toBe('rgba(255, 0, 0, 1)')
-            return 'works'
-          },
-          /works/
-        )
-
-        file.restore()
-
-        await waitFor(10000)
-
-        await check(
-          async () => {
-            const tag = await browser.elementByCss('.hello-world')
-            const prop = await tag.getComputedCss('color')
-            expect(prop).toBe('rgba(255, 255, 0, 1)')
-            return 'works'
-          },
-          /works/
-        )
-      } catch (err) {
-        file.restore()
-
-        throw err
-      } finally {
-        if (browser) {
-          browser.close()
-        }
-      }
+      await browser.quit()
     })
   })
 }
