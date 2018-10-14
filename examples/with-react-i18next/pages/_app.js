@@ -1,6 +1,6 @@
 import React from 'react'
 import App, { Container } from 'next/app'
-import { I18n as I18nR, I18nextProvider } from 'react-i18next'
+import { NamespacesConsumer, I18nextProvider } from 'react-i18next'
 import initialI18nInstance from '../i18n'
 import LanguageSwitch from '../components/LanguageSwitch'
 
@@ -17,10 +17,11 @@ export default class MyApp extends App {
           initialLanguage={initialLanguage}
         >
           <React.Fragment>
-            <I18nR ns='common' wait>
+            <NamespacesConsumer ns='common' wait>
               {t => <h1>{t('common:integrates_react-i18next')}</h1>}
-            </I18nR>
+            </NamespacesConsumer>
             <LanguageSwitch />
+
             <Component {...pageProps} />
           </React.Fragment>
         </I18nextProvider>

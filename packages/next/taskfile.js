@@ -1,7 +1,7 @@
 const notifier = require('node-notifier')
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'lib', 'client'])
+  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
 }
 
 export async function bin (task, opts) {
@@ -35,18 +35,18 @@ export async function nextbuildstatic (task, opts) {
   notify('Compiled export files')
 }
 
-export async function copy (task) {
-  await task.source('pages/**/*.js').target('dist/pages')
+export async function pages (task, opts) {
+  await task.source(opts.src || 'pages/**/*.js').babel().target('dist/pages')
 }
 
 export async function build (task) {
-  await task.serial(['copy', 'compile'])
+  await task.serial(['compile'])
 }
 
 export default async function (task) {
   await task.start('build')
   await task.watch('bin/*', 'bin')
-  await task.watch('pages/**/*.js', 'copy')
+  await task.watch('pages/**/*.js', 'pages')
   await task.watch('server/**/*.js', 'server')
   await task.watch('build/**/*.js', 'nextbuild')
   await task.watch('export/**/*.js', 'nextexport')

@@ -24,7 +24,6 @@ const {
     props,
     err,
     page,
-    pathname,
     query,
     buildId,
     assetPrefix,
@@ -83,7 +82,7 @@ export default async ({
     Component = await pageLoader.loadPage(page)
 
     if (typeof Component !== 'function') {
-      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+      throw new Error(`The default export is not a React Component in page: "${page}"`)
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
@@ -92,7 +91,7 @@ export default async ({
 
   await Loadable.preloadReady(dynamicIds || [])
 
-  router = createRouter(pathname, query, asPath, {
+  router = createRouter(page, query, asPath, {
     initialProps: props,
     pageLoader,
     App,
@@ -141,7 +140,7 @@ export async function renderError (props) {
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
   const initProps = props.props
     ? props.props
-    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname, query, asPath}})
+    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname: page, query, asPath}})
 
   await doRender({...props, err, Component: ErrorComponent, props: initProps})
 }
