@@ -1,15 +1,15 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import {
   renderViaHTTP,
   findPort,
   launchApp,
   killApp,
-  waitFor
+  fsTimeMachine
 } from 'next-test-utils'
+import { asserters } from 'wd'
 
 let appPort
 let server
@@ -28,26 +28,18 @@ describe('App asPath', () => {
   afterAll(() => killApp(server))
 
   it('should not have any changes in asPath after a bundle rebuild', async () => {
+    const _appJS = await fsTimeMachine(join(__dirname, '../', 'pages', '_app.js'))
     const browser = await webdriver(appPort, '/')
-    const appPath = join(__dirname, '../', 'pages', '_app.js')
-    const originalContent = readFileSync(appPath, 'utf8')
 
     const text = await browser.elementByCss('body').text()
     expect(text).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
 
-    const editedContent = originalContent.replace('find this', 'replace with this')
+    await _appJS.replace('find this', 'replace with this')
+    await browser.waitFor(asserters.textInclude('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }'), 30000)
 
-    // Change the content to trigger a bundle rebuild
-    await writeFileSync(appPath, editedContent, 'utf8')
-
-    // Wait for the bundle rebuild
-    await waitFor(5000)
-
-    const newContent = await browser.elementByCss('body').text()
-    expect(newContent).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
-
-    // Change back to the original content
-    writeFileSync(appPath, originalContent, 'utf8')
-    browser.quit()
+    await Promise.all([
+      _appJS.restore(),
+      browser.quit()
+    ])
   })
 })

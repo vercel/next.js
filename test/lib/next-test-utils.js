@@ -5,7 +5,6 @@ import express from 'express'
 import path from 'path'
 import getPort from 'get-port'
 import { spawn } from 'child_process'
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import fkill from 'fkill'
 
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -15,6 +14,14 @@ import server from 'next/dist/server/next'
 import build from 'next/dist/build'
 import _export from 'next/dist/export'
 import _pkg from 'next/package.json'
+
+// TODO: After deprecation of node 8 & 9 replace with fs-promise
+import { readFile, writeFile, unlink } from 'fs'
+import { promisify } from 'util'
+
+const readFileAsync = promisify(readFile)
+const writeFileAsync = promisify(writeFile)
+const unlinkAsync = promisify(unlink)
 
 export const nextServer = server
 export const nextBuild = build
@@ -178,33 +185,6 @@ export async function check (contentFn, regex) {
   }
 }
 
-export class File {
-  constructor (path) {
-    this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
-  }
-
-  write (content) {
-    if (!this.originalContent) {
-      this.originalContent = content
-    }
-    writeFileSync(this.path, content, 'utf8')
-  }
-
-  replace (pattern, newValue) {
-    const newContent = this.originalContent.replace(pattern, newValue)
-    this.write(newContent)
-  }
-
-  delete () {
-    unlinkSync(this.path)
-  }
-
-  restore () {
-    this.write(this.originalContent)
-  }
-}
-
 // react-error-overlay uses an iframe so we have to read the contents from the frame
 export async function getReactErrorOverlayContent (browser) {
   let found = false
@@ -235,4 +215,45 @@ export async function getReactErrorOverlayContent (browser) {
 
 export function getBrowserBodyText (browser) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
+}
+
+export async function fsTimeMachine (filePath) {
+  let orginalNull = false
+  let originalContent
+  let currentContent
+  try {
+    originalContent = currentContent = await readFileAsync(filePath, 'utf8')
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error
+    }
+    orginalNull = true
+  }
+  return {
+    async write (content) {
+      currentContent = content
+      return writeFileAsync(filePath, currentContent, 'utf8')
+    },
+    async replace (pattern, newValue) {
+      currentContent = currentContent.replace(pattern, newValue)
+      return writeFileAsync(filePath, currentContent, 'utf8')
+    },
+    async delete () {
+      return unlinkAsync(filePath)
+    },
+    async restore () {
+      if (orginalNull) {
+        try {
+          await unlinkAsync(filePath)
+        } catch (error) {
+          if (error.code !== 'ENOENT') {
+            throw error
+          }
+          // File was deleted before
+        }
+      } else {
+        await writeFileAsync(filePath, originalContent, 'utf8')
+      }
+    }
+  }
 }
