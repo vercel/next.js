@@ -1,7 +1,7 @@
 import { inject, observer } from "mobx-react";
 import Link from "next/link";
 import React from "react";
-import { IStore } from "../store";
+import { IStore } from "../stores/store";
 import { Clock } from "./Clock";
 
 interface IOwnProps {
@@ -12,7 +12,7 @@ interface IOwnProps {
 
 @inject("store")
 @observer
-class Page extends React.Component<IOwnProps> {
+class SampleComponent extends React.Component<IOwnProps> {
   public componentDidMount () {
     if (!this.props.store) {
       return;
@@ -29,7 +29,11 @@ class Page extends React.Component<IOwnProps> {
 
   public render () {
     if (!this.props.store) {
-      return;
+      return (
+        <div>
+          Store not defined
+        </div>
+      );
     }
     return (
       <div>
@@ -43,4 +47,4 @@ class Page extends React.Component<IOwnProps> {
   }
 }
 
-export { Page };
+export { SampleComponent };
