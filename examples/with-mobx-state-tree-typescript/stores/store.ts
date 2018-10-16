@@ -1,9 +1,10 @@
-import { applySnapshot, Instance, IStateTreeNode, SnapshotIn, SnapshotOut, types } from "mobx-state-tree";
+import { applySnapshot, Instance, SnapshotIn, SnapshotOut, types } from "mobx-state-tree";
 
-let store:IStateTreeNode = null as any;
+let store:IStore = null as any;
 
 const Store = types
   .model({
+    foo: types.number,
     lastUpdate: types.Date,
     light: false,
   })
@@ -11,8 +12,8 @@ const Store = types
     let timer;
     const start = () => {
       timer = setInterval(() => {
-        // mobx-state-tree doesn't allow anonymous callbacks changing data
-        // pass off to another action instead (need to cast self as any
+        // mobx-state-tree doesn't allow anonymous callbacks changing data.
+        // Pass off to another action instead (need to cast self as any
         // because typescript doesn't yet know about the actions we're
         // adding to self here)
         (self as any).update();
@@ -32,12 +33,12 @@ type IStore = Instance<typeof Store>;
 type IStoreSnapshotIn = SnapshotIn<typeof Store>;
 type IStoreSnapshotOut = SnapshotOut<typeof Store>;
 
-const initStore = (isServer, snapshot = null) => {
+const initializeStore = (isServer, snapshot = null) => {
   if (isServer) {
-    store = Store.create({ lastUpdate: Date.now() });
+    store = Store.create({ foo:6, lastUpdate: Date.now() });
   }
   if (store as any === null) {
-    store = Store.create({ lastUpdate: Date.now() });
+    store = Store.create({ foo:6, lastUpdate: Date.now() });
   }
   if (snapshot) {
     applySnapshot(store, snapshot);
@@ -45,4 +46,4 @@ const initStore = (isServer, snapshot = null) => {
   return store;
 };
 
-export { initStore, IStore, IStoreSnapshotIn, IStoreSnapshotOut };
+export { initializeStore, IStore, IStoreSnapshotIn, IStoreSnapshotOut };
