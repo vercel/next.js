@@ -128,6 +128,9 @@ export default async function (dir, options, configuration) {
     } else if (path === '/') {
       // If the path is the root, just use index.html
       htmlFilename = 'index.html'
+    }else if (path === '/404') {
+      // if the path is 404, use 404.html because it is recognised by every browser
+      htmlFilename = '404.html'
     }
     const baseDir = join(outDir, dirname(htmlFilename))
     const htmlFilepath = join(outDir, htmlFilename)
