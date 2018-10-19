@@ -2,6 +2,7 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import touch from 'touch'
+import fs from 'fs'
 import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE, normalizePageEntryName } from './utils'
 
 const ADDED = Symbol('added')
@@ -64,17 +65,6 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
       const entryInfo = entries[page]
       if (entryInfo.status !== BUILDING) return
 
-      // With this, we are triggering a filesystem based watch trigger
-      // It'll memorize some timestamp related info related to common files used
-      // in the page
-      // That'll reduce the page building time significantly.
-      if (!touchedAPage) {
-        setTimeout(() => {
-          touch.sync(entryInfo.pathname)
-        }, 1000)
-        touchedAPage = true
-      }
-
       entryInfo.status = BUILT
       entries[page].lastActiveTime = Date.now()
       doneCallbacks.emit(page)
@@ -113,6 +103,53 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
           resolve()
         })
       })
+    },
+
+    async ensureAllPages() {
+      await this.waitUntilReloaded()
+
+      const wait = Promise.all(
+        fs.readdirSync(join(dir, 'pages'))
+          .filter((file) => /\.js$/.test(file) && !/^_/.test(file))
+          .map((file) => `/${file.replace(/\.js$/, '')}`)
+          .map(normalizePage)
+          .map((page) => {
+            const pagePath = join(dir, 'pages', page)
+            const pathname = require.resolve(pagePath)
+            const name = normalizePageEntryName(pathname, dir)
+
+            const entry = [`${pathname}?entry`]
+
+            return new Promise((resolve, reject) => {
+              const entryInfo = entries[page]
+              if (entryInfo) {
+                if (entryInfo.status === BUILT) {
+                  resolve()
+                  return
+                }
+
+                if (entryInfo.status === BUILDING) {
+                  doneCallbacks.on(page, processCallback)
+                  return
+                }
+              }
+
+              babelCompiler.setEntry(name, pathname)
+              entries[page] = { name, entry, pathname, status: ADDED }
+              doneCallbacks.on(page, processCallback)
+
+              function processCallback (err) {
+                if (err) return reject(err)
+                resolve()
+              }
+            })
+          })
+      )
+
+      console.log(`> Building all pages`)
+
+      invalidator.invalidate()
+      return wait
     },
 
     async ensurePage (page) {

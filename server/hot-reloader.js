@@ -8,9 +8,10 @@ import { IS_BUNDLED_PAGE } from './utils'
 import { watch } from './build/babel'
 
 export default class HotReloader {
-  constructor (dir, { quiet, conf } = {}) {
+  constructor (dir, { quiet, conf, initialDevBuild }) {
     this.dir = dir
     this.quiet = quiet
+    this.initialDevBuild = initialDevBuild
     this.middlewares = []
     this.webpackDevMiddleware = null
     this.webpackHotMiddleware = null
@@ -186,6 +187,10 @@ export default class HotReloader {
       reload: this.reload.bind(this),
       ...this.config.onDemandEntries
     })
+
+    if (this.initialDevBuild) {
+      await onDemandEntries.ensureAllPages()
+    }
 
     return {
       webpackDevMiddleware,
