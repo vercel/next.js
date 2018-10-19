@@ -46,4 +46,4 @@ now
 This example show you how to add Sentry to catch errors in next.js
 
 You will need a Sentry DSN for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.
-Note that if you are using a custom server, there is logging available for common platforms: https://docs.sentry.io/platforms/javascript/express/?platform=node
+Note that if you are using a custom server, there is logging available for common platforms: https://docs.sentry.io/platforms/
