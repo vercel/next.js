@@ -1120,6 +1120,8 @@ export default class MyDocument extends Document {
 }
 ```
 
+All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
+
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)

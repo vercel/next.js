@@ -1,4 +1,5 @@
 import React from 'react'
+import Head from 'next/head'
 import styled, { hydrate, keyframes, css, injectGlobal } from 'react-emotion'
 
 // Adds server generated styles to emotion cache.
@@ -68,12 +69,17 @@ const Animated = styled.div`
 
 export default () => {
   return (
-    <div>
-      <Basic>Cool Styles</Basic>
-      <Combined>
-        With <code>:hover</code>.
-      </Combined>
-      <Animated animation={bounce}>Let's bounce.</Animated>
-    </div>
+    <>
+      <Head>
+        <title>With Emotion</title>
+      </Head>
+      <div>
+        <Basic>Cool Styles</Basic>
+        <Combined>
+          With <code>:hover</code>.
+        </Combined>
+        <Animated animation={bounce}>Let's bounce.</Animated>
+      </div>
+    </>
   )
 }

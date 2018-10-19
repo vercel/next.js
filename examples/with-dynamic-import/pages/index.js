@@ -63,7 +63,7 @@ export default class Index extends React.Component {
       <div>
         <Header />
 
-        {/* Load immediately, but in a sepeate bundle */}
+        {/* Load immediately, but in a separate bundle */}
         <DynamicComponent1 />
 
         {/* Show a progress indicator while loading */}
@@ -79,7 +79,7 @@ export default class Index extends React.Component {
         {showMore && <DynamicComponent5 />}
         <button onClick={this.toggleShowMore}>Toggle Show More</button>
 
-        {/* Load multible components in one bundle */}
+        {/* Load multiple components in one bundle */}
         <DynamicBundle />
 
         <p>HOME PAGE is here!</p>
