@@ -36,7 +36,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
-    const entryPages = dev ? devPages : pages.filter((p) => p !== 'pages/_document.js' && !/\.test\.js/.test(p))
+    const entryPages = dev ? devPages : pages.filter((p) => p !== 'pages/_document.js' && !/\.test\.js/.test(p) && !/__tests__/.test(p))
     for (const p of entryPages) {
       entries[p.replace(/^(pages\/.*)\/index.js$/, '$1.js')] = [`./${p}?entry`]
     }
