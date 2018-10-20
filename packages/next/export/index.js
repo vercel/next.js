@@ -85,7 +85,7 @@ export default async function (dir, options, configuration) {
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
     dev: false,
-    staticMarkup: nextConfig.staticExport || false,
+    staticMarkup: nextConfig.staticMarkup || false,
     hotReloader: null
   }
 
