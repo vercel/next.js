@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import { loadGetInitialProps } from 'next-server/dist/lib/utils'
 
 describe('loadGetInitialProps', () => {

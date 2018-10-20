@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
 describe('EventEmitter', () => {

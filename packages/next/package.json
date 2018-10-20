@@ -29,21 +29,11 @@
     "build": "taskr",
     "release": "taskr release",
     "flow": "flow check",
-    "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'pages/**/*.js' 'server/**/*.js' 'build/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release"
   },
   "taskr": {
     "requires": [
       "./taskfile-babel.js"
-    ]
-  },
-  "standard": {
-    "parser": "babel-eslint",
-    "ignore": [
-      "**/node_modules/**",
-      "**/examples/with-ioc/**",
-      "**/examples/with-kea/**",
-      "**/examples/with-mobx/**"
     ]
   },
   "dependencies": {

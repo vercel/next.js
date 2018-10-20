@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { renderViaHTTP, getBrowserBodyText, check } from 'next-test-utils'
 import cheerio from 'cheerio'
