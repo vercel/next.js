@@ -27,7 +27,7 @@ export default (...args) => Component => {
   const ConnectedComponent = connect.apply(null, connectArgs)(Component)
 
   const ComponentWithRematch = (props = {}) => {
-    const { store, initialProps, initialState } = props
+    const { store, initialProps, initialState, ...others } = props
 
     // Wrap with redux Provider with store
     // Create connected page with initialProps
@@ -39,7 +39,7 @@ export default (...args) => Component => {
             ? store
             : getOrCreateStore(initStore, initialState)
       },
-      React.createElement(ConnectedComponent, initialProps)
+      React.createElement(ConnectedComponent, { ...initialProps, ...others })
     )
   }
 
