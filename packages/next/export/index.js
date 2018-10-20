@@ -8,6 +8,18 @@ import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FI
 import { renderToHTML } from 'next-server/dist/server/render'
 import { setAssetPrefix } from 'next-server/asset'
 import * as envConfig from 'next-server/config'
+import globModule from 'glob'
+import {promisify} from 'util'
+
+const glob = promisify(globModule)
+
+function normalizePageName(page) {
+  if(page === 'index') {
+    return ''
+  }
+
+  return page.replace(/(^|\/)index$/, '')
+}
 
 export default async function (dir, options, configuration) {
   function log (message) {
@@ -26,9 +38,11 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest = require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
 
-  const pages = Object.keys(pagesManifest)
+  const foundPages = await glob('**/*.js', {cwd: join(distDir, 'server', 'pages')})
+  const pages = foundPages.map((page) => {
+    return '/' + normalizePageName(page.replace(/\.js$/, ''))
+  })
   const defaultPathMap = {}
 
   for (const page of pages) {
@@ -38,7 +52,7 @@ export default async function (dir, options, configuration) {
     }
 
     if (page === '/_error') {
-      defaultPathMap['/404'] = { page }
+      defaultPathMap['/404.html'] = { page }
       continue
     }
 
@@ -48,7 +62,7 @@ export default async function (dir, options, configuration) {
   // Initialize the output directory
   const outDir = options.outdir
   await del(join(outDir, '*'))
-  await mkdirp(join(outDir, '_next', buildId))
+  await mkdirp(join(outDir, '_next'))
 
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
