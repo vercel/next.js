@@ -37,7 +37,7 @@ const prefix = assetPrefix || ''
 
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
-__webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
+// __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
 // Initialize next/asset with the assetPrefix
 asset.setAssetPrefix(prefix)
 // Initialize next/config with the environment configuration
@@ -48,7 +48,7 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, prefix)
+const pageLoader = new PageLoader({buildId, assetPrefix: prefix})
 window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
   pageLoader.registerPage(r, f)
 })

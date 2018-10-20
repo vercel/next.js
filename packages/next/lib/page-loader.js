@@ -4,7 +4,7 @@ import EventEmitter from 'next-server/dist/lib/EventEmitter'
 const webpackModule = module
 
 export default class PageLoader {
-  constructor (buildId, assetPrefix) {
+  constructor ({buildId, assetPrefix}) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 

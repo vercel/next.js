@@ -1,0 +1,11 @@
+{
+  "name": "next-build",
+  "version": "7.0.2-canary.8",
+  "main": "index.js",
+  "dependencies": {
+    "@mdx-js/parcel-plugin-mdx": "0.15.5",
+    "@mdx-js/tag": "0.15.0",
+    "next-server": "^7.0.2-canary.8",
+    "parcel": "1.10.3"
+  }
+}

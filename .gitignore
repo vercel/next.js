@@ -19,3 +19,4 @@ coverage
 # test output
 test/**/out
 .DS_Store
+.cache 

@@ -76,7 +76,7 @@ async function doRender (req, res, pathname, query, {
     await hotReloader.ensurePage(page)
   }
 
-  const pagePath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', normalizedPagePath)
+  const pagePath = join(distDir, SERVER_DIRECTORY, /* CLIENT_STATIC_FILES_PATH, */ buildId, 'pages', normalizedPagePath)
 
   try {
     await access(`${pagePath}.js`, (fs.constants || fs).R_OK)
@@ -84,8 +84,8 @@ async function doRender (req, res, pathname, query, {
     throw pageNotFoundError(page)
   }
 
-  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
+  const documentPath = join(distDir, SERVER_DIRECTORY, /* CLIENT_STATIC_FILES_PATH, */ buildId, 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, /* CLIENT_STATIC_FILES_PATH, */ buildId, 'pages', '_app')
 
   let Document = require(documentPath)
   let App = require(appPath)
@@ -95,8 +95,8 @@ async function doRender (req, res, pathname, query, {
   App = App.default || App
   Component = Component.default || Component
 
-  const reactLoadableManifest = require(pagePath + '-loadable.json')
-  const buildManifest = require(pagePath + '-assets.json')
+  // const reactLoadableManifest = require(pagePath + '-loadable.json')
+  // const buildManifest = require(pagePath + '-assets.json')
 
   if (typeof Component !== 'function') {
     throw new Error(`The default export is not a React Component in page: "${page}"`)
@@ -106,7 +106,8 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
-  const files = buildManifest.assets
+  // const files = buildManifest.assets
+  const files = [`static/${buildId}/main.js`]
 
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return
@@ -153,13 +154,14 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, buildManifest }
+    return { html, head, /* buildManifest */ }
   }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
+  // const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
+  const dynamicImports = []
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
   if (isResSent(res)) return
@@ -181,7 +183,7 @@ async function doRender (req, res, pathname, query, {
     dev,
     dir,
     staticMarkup,
-    buildManifest,
+    // buildManifest,
     files,
     dynamicImports,
     assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
