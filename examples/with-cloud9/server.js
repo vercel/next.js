@@ -14,12 +14,10 @@ app.prepare().then(() => {
     // Be sure to pass `true` as the second argument to `url.parse`.
     // This tells it to parse the query portion of the URL.
     const parsedUrl = parse(req.url, true)
-    const { pathname, query } = parsedUrl
-
     handle(req, res, parsedUrl)
-  }).listen(process.env.PORT, process.env.IP || "0.0.0.0", err => {
+  }).listen(process.env.PORT, process.env.IP || '0.0.0.0', err => {
     if (err) throw err
-    let addr = server.address();
-    console.log("> Ready on http://", addr.address + ":" + addr.port);
+    let addr = server.address()
+    console.log('> Ready on http://', addr.address + ':' + addr.port)
   })
 })
