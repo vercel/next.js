@@ -42,13 +42,18 @@ function runCompiler (compiler) {
     webpackCompiler.run((err, stats) => {
       if (err) return reject(err)
 
-      const jsonStats = stats.toJson('errors-only')
+      const jsonStats = stats.toJson({ warnings: true, errors: true })
 
       if (jsonStats.errors.length > 0) {
-        const error = new Error(jsonStats.errors[0])
-        error.errors = jsonStats.errors
-        error.warnings = jsonStats.warnings
-        return reject(error)
+        console.log()
+        console.log(...jsonStats.warnings)
+        console.error(...jsonStats.errors)
+        return reject(new Error('Soft webpack errors'))
+      }
+
+      if (jsonStats.warnings.length > 0) {
+        console.log()
+        console.log(...jsonStats.warnings)
       }
 
       resolve()
