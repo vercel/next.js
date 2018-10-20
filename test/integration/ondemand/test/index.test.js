@@ -1,4 +1,5 @@
-/* global jasmine, describe, beforeAll, afterAll, it, expect */
+/* eslint-env jest */
+/* global jasmine */
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
 import webdriver from 'next-webdriver'

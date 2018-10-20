@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'

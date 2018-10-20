@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import {join} from 'path'
 import loadConfig from 'next-server/next-config'
