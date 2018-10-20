@@ -69,6 +69,7 @@
 - [Production deployment](#production-deployment)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
+  - [Fully static](#fully-static)
   - [Limitation](#limitation)
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
@@ -1640,6 +1641,18 @@ module.exports = {
     return defaultPathMap
   }
 }
+```
+
+### Fully static
+In case you want to export a fully static website, without React. Add `staticMarkup` property to `next.config.js` file.
+
+> Have in mind that `getInitialProps` won't be called and all React bindings won't work. This will be a only html/css export.
+
+``` js
+module.exports = {
+  staticMarkup: true
+}
+
 ```
 
 ### Limitation
