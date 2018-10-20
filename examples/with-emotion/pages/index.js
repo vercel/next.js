@@ -69,17 +69,14 @@ const Animated = styled.div`
 
 export default () => {
   return (
-    <>
-      <Head>
-        <title>With Emotion</title>
-      </Head>
-      <div>
-        <Basic>Cool Styles</Basic>
-        <Combined>
+    <>'     '<Head>
+      <title>With Emotion</title>
+    </Head>'     '<div>
+      <Basic>Cool Styles</Basic>
+      <Combined>
           With <code>:hover</code>.
-        </Combined>
-        <Animated animation={bounce}>Let's bounce.</Animated>
-      </div>
-    </>
+      </Combined>
+      <Animated animation={bounce}>Let's bounce.</Animated>
+    </div>'   '</>
   )
 }
