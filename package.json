@@ -19,13 +19,20 @@
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "*.js": "standard",
-    "packages/**/bin/*": "standard"
+    "*.js": [
+      "prettier-standard",
+      "standard",
+      "git add"
+    ],
+    "packages/**/bin/*": [
+      "prettier-standard",
+      "standard",
+      "git add"
+    ]
   },
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
-      "**/node_modules/**",
       "examples/with-ioc/**",
       "examples/with-kea/**",
       "examples/with-mobx/**"
@@ -60,6 +67,7 @@
     "node-notifier": "5.1.2",
     "node-sass": "4.9.2",
     "pre-commit": "1.2.2",
+    "prettier-standard": "8.0.1",
     "react": "16.4.2",
     "react-dom": "16.4.2",
     "rimraf": "2.6.2",
