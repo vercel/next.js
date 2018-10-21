@@ -1,9 +1,8 @@
-import { Component } from 'react'
+import { Button, WhiteSpace, WingBlank } from 'antd-mobile'
 
-export default class Index extends Component {
-  static async getInitialProps ({ res }) {
-    res.setHeader('Location', '/home')
-    res.statusCode = 302
-    res.end()
-  }
-}
+export default () => (
+  <WingBlank>
+    <WhiteSpace />
+    <Button>Welcome to next.js</Button>
+  </WingBlank>
+)
