@@ -58,23 +58,17 @@ export default class Trick extends Component {
   }
 
   render () {
-    const {
-      language,
-      platform,
-      url: { pathname }
-    } = this.props
+    const { language, platform, url: { pathname } } = this.props
 
-    const {
-      switchChecked
-    } = this.state
+    const { switchChecked } = this.state
 
     return (
       <Layout language={language}>
-        <MenuBar
-          pathname={pathname}
-        >
+        <MenuBar pathname={pathname}>
           <WhiteSpace />
-          <List renderHeader={() => 'Switch platform prop is required in SSR mode'}>
+          <List
+            renderHeader={() => 'Switch platform prop is required in SSR mode'}
+          >
             <List.Item
               extra={
                 <Switch
@@ -88,10 +82,7 @@ export default class Trick extends Component {
             </List.Item>
           </List>
           <List renderHeader={() => 'Menu height prop is required in SSR mode'}>
-            <Menu
-              height={500}
-              data={this.menuData}
-            />
+            <Menu height={500} data={this.menuData} />
           </List>
         </MenuBar>
       </Layout>

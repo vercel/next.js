@@ -1,17 +1,26 @@
 const notifier = require('node-notifier')
 
 export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').babel().target('dist/bin', {mode: '0755'})
+  await task
+    .source(opts.src || 'bin/*')
+    .babel()
+    .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
 
 export async function lib (task, opts) {
-  await task.source(opts.src || 'lib/**/*.js').babel().target('dist/lib')
+  await task
+    .source(opts.src || 'lib/**/*.js')
+    .babel()
+    .target('dist/lib')
   notify('Compiled lib files')
 }
 
 export async function server (task, opts) {
-  await task.source(opts.src || 'server/**/*.js').babel().target('dist/server')
+  await task
+    .source(opts.src || 'server/**/*.js')
+    .babel()
+    .target('dist/server')
   notify('Compiled server files')
 }
 

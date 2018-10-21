@@ -1,10 +1,10 @@
 import React from 'react'
-import {initializeStore} from '../store'
+import { initializeStore } from '../store'
 
 const isServer = typeof window === 'undefined'
 const __NEXT_MOBX_STORE__ = '__NEXT_MOBX_STORE__'
 
-function getOrCreateStore(initialState) {
+function getOrCreateStore (initialState) {
   // Always make a new store if server, otherwise state is shared between requests
   if (isServer) {
     return initializeStore(initialState)
@@ -17,7 +17,7 @@ function getOrCreateStore(initialState) {
   return window[__NEXT_MOBX_STORE__]
 }
 
-export default (App) => {
+export default App => {
   return class AppWithMobx extends React.Component {
     static async getInitialProps (appContext) {
       // Get or Create the store with `undefined` as initialState
@@ -38,12 +38,12 @@ export default (App) => {
       }
     }
 
-    constructor(props) {
+    constructor (props) {
       super(props)
       this.mobxStore = getOrCreateStore(props.initialMobxState)
     }
 
-    render() {
+    render () {
       return <App {...this.props} mobxStore={this.mobxStore} />
     }
   }

@@ -8,8 +8,6 @@ export default class extends React.Component {
 
   render () {
     const { data } = this.context
-    return (
-      <div>{data.title}</div>
-    )
+    return <div>{data.title}</div>
   }
 }

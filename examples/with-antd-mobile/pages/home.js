@@ -1,7 +1,11 @@
-import React, {Component} from 'react'
+import React, { Component } from 'react'
 import {
-  WhiteSpace, WingBlank,
-  NavBar, Icon, Pagination, Steps
+  WhiteSpace,
+  WingBlank,
+  NavBar,
+  Icon,
+  Pagination,
+  Steps
 } from 'antd-mobile'
 import Layout from '../components/Layout'
 import MenuBar from '../components/MenuBar'
@@ -16,16 +20,11 @@ export default class Home extends Component {
   }
 
   render () {
-    const {
-      language,
-      url: { pathname }
-    } = this.props
+    const { language, url: { pathname } } = this.props
 
     return (
       <Layout language={language}>
-        <MenuBar
-          pathname={pathname}
-        >
+        <MenuBar pathname={pathname}>
           <NavBar
             leftContent='back'
             mode='light'
@@ -42,8 +41,14 @@ export default class Home extends Component {
           <WhiteSpace />
           <WingBlank>
             <Steps current={1}>
-              <Steps.Step title='Finished' description='Most components has supported' />
-              <Steps.Step title='In Progress' description='Switch Modal and Menu' />
+              <Steps.Step
+                title='Finished'
+                description='Most components has supported'
+              />
+              <Steps.Step
+                title='In Progress'
+                description='Switch Modal and Menu'
+              />
               <Steps.Step title='Waiting' description='1.2.0' />
             </Steps>
           </WingBlank>

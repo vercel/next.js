@@ -41,12 +41,17 @@ describe('Custom Server', () => {
       const normalUsage = await renderViaHTTP(appPort, '/asset')
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
 
-      const dynamicUsage = await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
+      const dynamicUsage = await renderViaHTTP(
+        appPort,
+        '/asset?setAssetPrefix=1'
+      )
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
     })
 
     it('should handle null assetPrefix accordingly', async () => {
-      const $normal = cheerio.load(await renderViaHTTP(appPort, '/asset?setEmptyAssetPrefix=1'))
+      const $normal = cheerio.load(
+        await renderViaHTTP(appPort, '/asset?setEmptyAssetPrefix=1')
+      )
       expect($normal('img').attr('src')).toBe('/static/myimage.png')
     })
 
@@ -66,27 +71,35 @@ describe('Custom Server', () => {
       const $normal = cheerio.load(await renderViaHTTP(appPort, '/asset'))
       expect($normal('img').attr('src')).toBe('/static/myimage.png')
 
-      const $dynamic = cheerio.load(await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'))
-      expect($dynamic('img').attr('src')).toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
+      const $dynamic = cheerio.load(
+        await renderViaHTTP(appPort, '/asset?setAssetPrefix=1')
+      )
+      expect($dynamic('img').attr('src')).toBe(
+        `http://127.0.0.1:${context.appPort}/static/myimage.png`
+      )
     })
 
     it('should support next/asset in client side', async () => {
       const browser = await webdriver(context.appPort, '/')
       await browser
-        .elementByCss('#go-asset').click()
+        .elementByCss('#go-asset')
+        .click()
         .waitForElementByCss('#asset-page')
 
-      expect(await browser.elementByCss('img').getAttribute('src'))
-        .toBe(`http://localhost:${context.appPort}/static/myimage.png`)
+      expect(await browser.elementByCss('img').getAttribute('src')).toBe(
+        `http://localhost:${context.appPort}/static/myimage.png`
+      )
       browser.close()
 
       const browser2 = await webdriver(context.appPort, '/?setAssetPrefix=1')
       await browser2
-        .elementByCss('#go-asset').click()
+        .elementByCss('#go-asset')
+        .click()
         .waitForElementByCss('#asset-page')
 
-      expect(await browser2.elementByCss('img').getAttribute('src'))
-        .toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
+      expect(await browser2.elementByCss('img').getAttribute('src')).toBe(
+        `http://127.0.0.1:${context.appPort}/static/myimage.png`
+      )
       browser2.close()
     })
   })

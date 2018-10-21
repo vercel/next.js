@@ -14,22 +14,27 @@ export default class UnlinkFilePlugin {
   }
 
   apply (compiler: any) {
-    compiler.hooks.afterEmit.tapAsync('NextJsUnlinkRemovedPages', (compilation, callback) => {
-      const removed = Object.keys(this.prevAssets)
-        .filter((a) => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a])
+    compiler.hooks.afterEmit.tapAsync(
+      'NextJsUnlinkRemovedPages',
+      (compilation, callback) => {
+        const removed = Object.keys(this.prevAssets).filter(
+          a => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a]
+        )
 
-      this.prevAssets = compilation.assets
+        this.prevAssets = compilation.assets
 
-      Promise.all(removed.map(async (f) => {
-        const path = join(compiler.outputPath, f)
-        try {
-          await unlink(path)
-        } catch (err) {
-          if (err.code === 'ENOENT') return
-          throw err
-        }
-      }))
-        .then(() => callback(), callback)
-    })
+        Promise.all(
+          removed.map(async f => {
+            const path = join(compiler.outputPath, f)
+            try {
+              await unlink(path)
+            } catch (err) {
+              if (err.code === 'ENOENT') return
+              throw err
+            }
+          })
+        ).then(() => callback(), callback)
+      }
+    )
   }
 }

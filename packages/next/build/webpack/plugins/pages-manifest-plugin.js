@@ -1,14 +1,14 @@
 // @flow
 import { RawSource } from 'webpack-sources'
-import {PAGES_MANIFEST, ROUTE_NAME_REGEX} from 'next-server/constants'
+import { PAGES_MANIFEST, ROUTE_NAME_REGEX } from 'next-server/constants'
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
 export default class PagesManifestPlugin {
   apply (compiler: any) {
-    compiler.hooks.emit.tap('NextJsPagesManifest', (compilation) => {
-      const {entries} = compilation
+    compiler.hooks.emit.tap('NextJsPagesManifest', compilation => {
+      const { entries } = compilation
       const pages = {}
 
       for (const entry of entries) {
@@ -23,7 +23,7 @@ export default class PagesManifestPlugin {
           continue
         }
 
-        const {name} = entry
+        const { name } = entry
         pages[`/${pagePath.replace(/\\/g, '/')}`] = name
       }
 

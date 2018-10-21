@@ -1,7 +1,7 @@
 import webpack from 'webpack'
 import { RawSource } from 'webpack-sources'
 import { join, relative, dirname } from 'path'
-import {IS_BUNDLED_PAGE_REGEX} from 'next-server/constants'
+import { IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 
@@ -20,15 +20,18 @@ export default class NextJsSsrImportPlugin {
     this.options = options
   }
   apply (compiler) {
-    const {outputPath} = this.options
-    compiler.hooks.emit.tapAsync('NextJsSSRModuleCache', (compilation, callback) => {
-      compilation.assets[SSR_MODULE_CACHE_FILENAME] = new RawSource(`
+    const { outputPath } = this.options
+    compiler.hooks.emit.tapAsync(
+      'NextJsSSRModuleCache',
+      (compilation, callback) => {
+        compilation.assets[SSR_MODULE_CACHE_FILENAME] = new RawSource(`
       /* This cache is used by webpack for instantiated modules */
       module.exports = {}
       `)
-      callback()
-    })
-    compiler.hooks.compilation.tap('NextJsSSRModuleCache', (compilation) => {
+        callback()
+      }
+    )
+    compiler.hooks.compilation.tap('NextJsSSRModuleCache', compilation => {
       compilation.mainTemplate.hooks.localVars.intercept({
         register (tapInfo) {
           if (tapInfo.name === 'MainTemplate') {
@@ -41,10 +44,16 @@ export default class NextJsSsrImportPlugin {
                 return originalFn(source, chunk)
               }
               const pagePath = join(outputPath, dirname(chunk.name))
-              const relativePathToBaseDir = relative(pagePath, join(outputPath, SSR_MODULE_CACHE_FILENAME))
+              const relativePathToBaseDir = relative(
+                pagePath,
+                join(outputPath, SSR_MODULE_CACHE_FILENAME)
+              )
               // Make sure even in windows, the path looks like in unix
               // Node.js require system will convert it accordingly
-              const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(/\\/g, '/')
+              const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(
+                /\\/g,
+                '/'
+              )
               return webpack.Template.asString([
                 source,
                 '// The module cache',

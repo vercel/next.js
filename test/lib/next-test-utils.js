@@ -45,7 +45,7 @@ export function initNextServerScript (scriptPath, successRegexp, env) {
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', (err) => {
+    instance.on('error', err => {
       reject(err)
     })
   })
@@ -57,11 +57,13 @@ export function renderViaAPI (app, pathname, query) {
 }
 
 export function renderViaHTTP (appPort, pathname, query) {
-  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
+  return fetchViaHTTP(appPort, pathname, query).then(res => res.text())
 }
 
 export function fetchViaHTTP (appPort, pathname, query) {
-  const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  const url = `http://localhost:${appPort}${pathname}${
+    query ? `?${qs.stringify(query)}` : ''
+  }`
   return fetch(url)
 }
 
@@ -95,7 +97,7 @@ export function launchApp (dir, port) {
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', (err) => {
+    instance.on('error', err => {
       reject(err)
     })
   })
@@ -138,7 +140,7 @@ function promiseCall (obj, method, ...args) {
 }
 
 export function waitFor (millis) {
-  return new Promise((resolve) => setTimeout(resolve, millis))
+  return new Promise(resolve => setTimeout(resolve, millis))
 }
 
 export async function startStaticServer (dir) {
@@ -160,9 +162,9 @@ export async function check (contentFn, regex) {
     try {
       content = await contentFn()
     } catch (err) {
-      console.error('Error while getting content', {regex})
+      console.error('Error while getting content', { regex })
     }
-    console.error('TIMED OUT CHECK: ', {regex, content})
+    console.error('TIMED OUT CHECK: ', { regex, content })
     throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }, 1000 * 30)
   while (!found) {
@@ -181,7 +183,9 @@ export async function check (contentFn, regex) {
 export class File {
   constructor (path) {
     this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
+    this.originalContent = existsSync(this.path)
+      ? readFileSync(this.path, 'utf8')
+      : null
   }
 
   write (content) {
@@ -225,12 +229,16 @@ export async function getReactErrorOverlayContent (browser) {
       }
 
       found = true
-      return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+      return browser.eval(
+        `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+      )
     } catch (ex) {
       await waitFor(1000)
     }
   }
-  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+  return browser.eval(
+    `document.querySelector('iframe').contentWindow.document.body.innerHTML`
+  )
 }
 
 export function getBrowserBodyText (browser) {

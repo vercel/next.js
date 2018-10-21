@@ -14,7 +14,7 @@
  */
 
 declare module 'source-map' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,101 +23,101 @@ declare module 'source-map' {
  * needed.
  */
 declare module 'source-map/dist/source-map.debug' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/dist/source-map' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/dist/source-map.min' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/array-set' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/base64-vlq' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/base64' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/binary-search' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/mapping-list' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/quick-sort' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/source-map-consumer' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/source-map-generator' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/source-node' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/lib/util' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'source-map/source-map' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'source-map/dist/source-map.debug.js' {
-  declare module.exports: $Exports<'source-map/dist/source-map.debug'>;
+  declare module.exports: $Exports<'source-map/dist/source-map.debug'>
 }
 declare module 'source-map/dist/source-map.js' {
-  declare module.exports: $Exports<'source-map/dist/source-map'>;
+  declare module.exports: $Exports<'source-map/dist/source-map'>
 }
 declare module 'source-map/dist/source-map.min.js' {
-  declare module.exports: $Exports<'source-map/dist/source-map.min'>;
+  declare module.exports: $Exports<'source-map/dist/source-map.min'>
 }
 declare module 'source-map/lib/array-set.js' {
-  declare module.exports: $Exports<'source-map/lib/array-set'>;
+  declare module.exports: $Exports<'source-map/lib/array-set'>
 }
 declare module 'source-map/lib/base64-vlq.js' {
-  declare module.exports: $Exports<'source-map/lib/base64-vlq'>;
+  declare module.exports: $Exports<'source-map/lib/base64-vlq'>
 }
 declare module 'source-map/lib/base64.js' {
-  declare module.exports: $Exports<'source-map/lib/base64'>;
+  declare module.exports: $Exports<'source-map/lib/base64'>
 }
 declare module 'source-map/lib/binary-search.js' {
-  declare module.exports: $Exports<'source-map/lib/binary-search'>;
+  declare module.exports: $Exports<'source-map/lib/binary-search'>
 }
 declare module 'source-map/lib/mapping-list.js' {
-  declare module.exports: $Exports<'source-map/lib/mapping-list'>;
+  declare module.exports: $Exports<'source-map/lib/mapping-list'>
 }
 declare module 'source-map/lib/quick-sort.js' {
-  declare module.exports: $Exports<'source-map/lib/quick-sort'>;
+  declare module.exports: $Exports<'source-map/lib/quick-sort'>
 }
 declare module 'source-map/lib/source-map-consumer.js' {
-  declare module.exports: $Exports<'source-map/lib/source-map-consumer'>;
+  declare module.exports: $Exports<'source-map/lib/source-map-consumer'>
 }
 declare module 'source-map/lib/source-map-generator.js' {
-  declare module.exports: $Exports<'source-map/lib/source-map-generator'>;
+  declare module.exports: $Exports<'source-map/lib/source-map-generator'>
 }
 declare module 'source-map/lib/source-node.js' {
-  declare module.exports: $Exports<'source-map/lib/source-node'>;
+  declare module.exports: $Exports<'source-map/lib/source-node'>
 }
 declare module 'source-map/lib/util.js' {
-  declare module.exports: $Exports<'source-map/lib/util'>;
+  declare module.exports: $Exports<'source-map/lib/util'>
 }
 declare module 'source-map/source-map.js' {
-  declare module.exports: $Exports<'source-map/source-map'>;
+  declare module.exports: $Exports<'source-map/source-map'>
 }

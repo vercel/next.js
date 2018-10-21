@@ -28,7 +28,10 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          <style data-aphrodite dangerouslySetInnerHTML={{ __html: this.props.css.content }} />
+          <style
+            data-aphrodite
+            dangerouslySetInnerHTML={{ __html: this.props.css.content }}
+          />
         </Head>
         <body>
           <Main />

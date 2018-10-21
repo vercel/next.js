@@ -1,11 +1,7 @@
 import React from 'react'
 
 export default () => {
-  return (
-    <ul>
-      {items()}
-    </ul>
-  )
+  return <ul>{items()}</ul>
 }
 
 const items = () => {

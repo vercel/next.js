@@ -54,20 +54,22 @@ const handlers = {
     if (!Component) {
       // This only happens when we create a new page without a default export.
       // If you removed a default export from a exising viewing page, this has no effect.
-      console.warn(`Hard reloading due to no default component in page: ${route}`)
+      console.warn(
+        `Hard reloading due to no default component in page: ${route}`
+      )
       window.location.reload()
     }
   }
 }
 
-export default ({assetPrefix}) => {
+export default ({ assetPrefix }) => {
   const options = {
     path: `${assetPrefix}/_next/webpack-hmr`
   }
 
   const devClient = connect(options)
 
-  devClient.subscribeToHmrEvent((obj) => {
+  devClient.subscribeToHmrEvent(obj => {
     const fn = handlers[obj.action]
     if (fn) {
       const data = obj.data || []

@@ -10,7 +10,12 @@ import { _rewriteUrlForNextExport } from './'
 export default class Router {
   static events = new EventEmitter()
 
-  constructor (pathname, query, as, { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}) {
+  constructor (
+    pathname,
+    query,
+    as,
+    { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}
+  ) {
     // represents the current component key
     this.route = toRoute(pathname)
 
@@ -73,11 +78,13 @@ export default class Router {
     const { url, as, options } = e.state
     if (process.env.NODE_ENV !== 'production') {
       if (typeof url === 'undefined' || typeof as === 'undefined') {
-        console.warn('`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/zeit/next.js/popstate-state-empty')
+        console.warn(
+          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/zeit/next.js/popstate-state-empty'
+        )
       }
     }
     this.replace(url, as, options)
-  };
+  }
 
   update (route, Component) {
     const data = this.components[route]
@@ -108,7 +115,8 @@ export default class Router {
     const { pathname, query } = this
     const url = window.location.href
     // This makes sure we only use pathname + query + hash, to mirror `asPath` coming from the server.
-    const as = window.location.pathname + window.location.search + window.location.hash
+    const as =
+      window.location.pathname + window.location.search + window.location.hash
 
     Router.events.emit('routeChangeStart', url)
     const routeInfo = await this.getRouteInfo(route, pathname, query, as)
@@ -240,7 +248,9 @@ export default class Router {
       const { Component } = routeInfo
 
       if (typeof Component !== 'function') {
-        throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+        throw new Error(
+          `The default export is not a React Component in page: "${pathname}"`
+        )
       }
 
       const ctx = { pathname, query, asPath: as }
@@ -297,11 +307,11 @@ export default class Router {
 
   onlyAHashChange (as) {
     if (!this.asPath) return false
-    const [ oldUrlNoHash, oldHash ] = this.asPath.split('#')
-    const [ newUrlNoHash, newHash ] = as.split('#')
+    const [oldUrlNoHash, oldHash] = this.asPath.split('#')
+    const [newUrlNoHash, newHash] = as.split('#')
 
     // Makes sure we scroll to the provided hash if the url/hash are the same
-    if (newHash && (oldUrlNoHash === newUrlNoHash) && (oldHash === newHash)) {
+    if (newHash && oldUrlNoHash === newUrlNoHash && oldHash === newHash) {
       return true
     }
 
@@ -318,7 +328,7 @@ export default class Router {
   }
 
   scrollToHash (as) {
-    const [ , hash ] = as.split('#')
+    const [, hash] = as.split('#')
     // Scroll to top if the hash is just `#` with no value
     if (hash === '') {
       window.scrollTo(0, 0)
@@ -364,9 +374,9 @@ export default class Router {
 
   async fetchComponent (route, as) {
     let cancelled = false
-    const cancel = this.componentLoadCancel = function () {
+    const cancel = (this.componentLoadCancel = function () {
       cancelled = true
-    }
+    })
 
     const Component = await this.fetchRoute(route)
 
@@ -385,11 +395,17 @@ export default class Router {
 
   async getInitialProps (Component, ctx) {
     let cancelled = false
-    const cancel = () => { cancelled = true }
+    const cancel = () => {
+      cancelled = true
+    }
     this.componentLoadCancel = cancel
-    const {Component: App} = this.components['/_app']
+    const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps(App, {Component, router: this, ctx})
+    const props = await loadGetInitialProps(App, {
+      Component,
+      router: this,
+      ctx
+    })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null
@@ -417,8 +433,8 @@ export default class Router {
   }
 
   notify (data) {
-    const {Component: App} = this.components['/_app']
-    this.subscriptions.forEach((fn) => fn({...data, App}))
+    const { Component: App } = this.components['/_app']
+    this.subscriptions.forEach(fn => fn({ ...data, App }))
   }
 
   subscribe (fn) {

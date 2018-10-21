@@ -9,16 +9,27 @@ import {
   sendHTML,
   serveStatic
 } from './render'
-import Router, {route} from './router'
+import Router, { route } from './router'
 import { isInternalUrl } from './utils'
 import loadConfig from 'next-server/next-config'
-import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
+import {
+  PHASE_PRODUCTION_SERVER,
+  BLOCKED_PAGES,
+  BUILD_ID_FILE,
+  CLIENT_STATIC_FILES_PATH,
+  CLIENT_STATIC_FILES_RUNTIME
+} from 'next-server/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
 export default class Server {
-  constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
+  constructor ({
+    dir = '.',
+    staticMarkup = false,
+    quiet = false,
+    conf = null
+  } = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -27,7 +38,12 @@ export default class Server {
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+    const {
+      serverRuntimeConfig = {},
+      publicRuntimeConfig,
+      assetPrefix,
+      generateEtags
+    } = this.nextConfig
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
@@ -70,12 +86,11 @@ export default class Server {
     }
 
     res.statusCode = 200
-    return this.run(req, res, parsedUrl)
-      .catch((err) => {
-        if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        res.end('Internal Server Error')
-      })
+    return this.run(req, res, parsedUrl).catch(err => {
+      if (!this.quiet) console.error(err)
+      res.statusCode = 500
+      res.end('Internal Server Error')
+    })
   }
 
   getRequestHandler () {
@@ -105,10 +120,18 @@ export default class Server {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
           // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
-          if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
+          if (
+            params.path[0] === CLIENT_STATIC_FILES_RUNTIME ||
+            params.path[0] === 'chunks' ||
+            params.path[0] === this.buildId
+          ) {
             this.setImmutableAssetCacheControl(res)
           }
-          const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
+          const p = join(
+            this.distDir,
+            CLIENT_STATIC_FILES_PATH,
+            ...(params.path || [])
+          )
           await this.serveStatic(req, res, p)
         }
       },
@@ -212,7 +235,10 @@ export default class Server {
   async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
-    res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
+    res.setHeader(
+      'Cache-Control',
+      'no-cache, no-store, max-age=0, must-revalidate'
+    )
     return this.renderError(null, req, res, pathname, query)
   }
 
@@ -247,7 +273,11 @@ export default class Server {
 
   readBuildId () {
     if (!fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
-      throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
+      throw new Error(
+        `Could not find a valid build in the '${
+          this.distDir
+        }' directory! Try building your app with 'next build' before starting the server.`
+      )
     }
     const buildIdPath = join(this.distDir, BUILD_ID_FILE)
     const buildId = fs.readFileSync(buildIdPath, 'utf8')

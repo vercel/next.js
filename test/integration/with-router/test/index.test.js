@@ -1,12 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import {
-  nextServer,
-  nextBuild,
-  startApp,
-  stopApp
-} from 'next-test-utils'
+import { nextServer, nextBuild, startApp, stopApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 describe('withRouter', () => {
@@ -50,7 +45,9 @@ describe('withRouter', () => {
     const browser = await webdriver(appPort, '/a')
     await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser.elementByCss('.active-top-level-router').text()
+    let activePage = await browser
+      .elementByCss('.active-top-level-router')
+      .text()
     expect(activePage).toBe('Foo')
 
     await browser.elementByCss('button').click()
@@ -66,13 +63,17 @@ describe('withRouter', () => {
     const browser = await webdriver(appPort, '/a')
     await browser.waitForElementByCss('#page-a')
 
-    let activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
+    let activePage = await browser
+      .elementByCss('.active-top-level-router-deprecated-behavior')
+      .text()
     expect(activePage).toBe('Foo')
 
     await browser.elementByCss('button').click()
     await browser.waitForElementByCss('#page-b')
 
-    activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
+    activePage = await browser
+      .elementByCss('.active-top-level-router-deprecated-behavior')
+      .text()
     expect(activePage).toBe('Bar')
 
     browser.close()

@@ -13,27 +13,17 @@ export default class Home extends Component {
   }
 
   render () {
-    const {
-      language,
-      url: { pathname }
-    } = this.props
+    const { language, url: { pathname } } = this.props
 
     return (
       <Layout language={language}>
-        <MenuBar
-          pathname={pathname}
-        >
+        <MenuBar pathname={pathname}>
           <WingBlank>
             <WhiteSpace />
             <Card>
-              <Card.Header
-                extra='Internal svg'
-                thumb={<Icon type='check' />}
-              />
+              <Card.Header extra='Internal svg' thumb={<Icon type='check' />} />
               <Card.Body>
-                <code>
-                  {`<Icon type='check' />`}
-                </code>
+                <code>{`<Icon type='check' />`}</code>
               </Card.Body>
             </Card>
             <WhiteSpace />
@@ -43,9 +33,7 @@ export default class Home extends Component {
                 thumb={<Icon type={require('../static/reload.svg')} />}
               />
               <Card.Body>
-                <code>
-                  {`<Icon type={require('../static/reload.svg')} />`}
-                </code>
+                <code>{`<Icon type={require('../static/reload.svg')} />`}</code>
               </Card.Body>
             </Card>
             <WhiteSpace />

@@ -8,11 +8,7 @@ export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const CONFIG_FILE = 'next.config.js'
 export const BUILD_ID_FILE = 'BUILD_ID'
-export const BLOCKED_PAGES = [
-  '/_document',
-  '/_app',
-  '/_error'
-]
+export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
 export const CLIENT_STATIC_FILES_RUNTIME_PATH = `${CLIENT_STATIC_FILES_PATH}/${CLIENT_STATIC_FILES_RUNTIME}`

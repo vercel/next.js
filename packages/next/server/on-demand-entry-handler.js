@@ -5,8 +5,11 @@ import { parse } from 'url'
 import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
-import {normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
-import {createEntry} from '../build/webpack/utils'
+import {
+  normalizePagePath,
+  pageNotFoundError
+} from 'next-server/dist/server/require'
+import { createEntry } from '../build/webpack/utils'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const ADDED = Symbol('added')
@@ -20,23 +23,27 @@ const access = promisify(fs.access)
 function addEntry (compilation, context, name, entry) {
   return new Promise((resolve, reject) => {
     const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, (err) => {
+    compilation.addEntry(context, dep, name, err => {
       if (err) return reject(err)
       resolve()
     })
   })
 }
 
-export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
-  buildId,
-  dir,
-  dev,
-  reload,
-  pageExtensions,
-  maxInactiveAge = 1000 * 60,
-  pagesBufferLength = 2
-}) {
-  const {compilers} = multiCompiler
+export default function onDemandEntryHandler (
+  devMiddleware,
+  multiCompiler,
+  {
+    buildId,
+    dir,
+    dev,
+    reload,
+    pageExtensions,
+    maxInactiveAge = 1000 * 60,
+    pagesBufferLength = 2
+  }
+) {
+  const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
   let lastAccessPages = ['']
@@ -46,10 +53,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   let reloadCallbacks = new EventEmitter()
 
   for (const compiler of compilers) {
-    compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
+    compiler.hooks.make.tapPromise('NextJsOnDemandEntries', compilation => {
       invalidator.startBuilding()
 
-      const allEntries = Object.keys(entries).map(async (page) => {
+      const allEntries = Object.keys(entries).map(async page => {
         const { name, entry } = entries[page]
         const files = Array.isArray(entry) ? entry : [entry]
         // Is just one item. But it's passed as an array.
@@ -70,13 +77,14 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     })
   }
 
-  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', multiStats => {
     const clientStats = multiStats.stats[0]
     const { compilation } = clientStats
     const hardFailedPages = compilation.errors
       .filter(e => {
         // Make sure to only pick errors which marked with missing modules
-        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
+        const hasNoModuleFoundError =
+          /ENOENT/.test(e.message) || /Module not found/.test(e.message)
         if (!hasNoModuleFoundError) return false
 
         // The page itself is missing. So this is a failed page.
@@ -125,7 +133,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     invalidator.doneBuilding()
 
     if (hardFailedPages.length > 0 && !reloading) {
-      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
+      console.log(
+        `> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(
+          ', '
+        )}`
+      )
       reloading = true
       reload()
         .then(() => {
@@ -143,7 +155,12 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
   const disposeHandler = setInterval(function () {
     if (stopped) return
-    disposeInactiveEntries(devMiddleware, entries, lastAccessPages, maxInactiveAge)
+    disposeInactiveEntries(
+      devMiddleware,
+      entries,
+      lastAccessPages,
+      maxInactiveAge
+    )
   }, 5000)
 
   disposeHandler.unref()
@@ -158,7 +175,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   return {
     waitUntilReloaded () {
       if (!reloading) return Promise.resolve(true)
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         reloadCallbacks.once('done', function () {
           resolve()
         })
@@ -177,7 +194,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       }
 
       const extensions = pageExtensions.join('|')
-      const paths = await glob(`pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${extensions})`, {cwd: dir})
+      const paths = await glob(
+        `pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${extensions})`,
+        { cwd: dir }
+      )
 
       if (paths.length === 0) {
         throw pageNotFoundError(normalizedPagePath)
@@ -187,7 +207,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const pathname = join(dir, relativePathToPage)
 
-      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions})
+      const { name, files } = createEntry(relativePathToPage, {
+        buildId,
+        pageExtensions: extensions
+      })
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
@@ -230,12 +253,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           // Webpack config is reloading. So, we need to wait until it's done and
           // reload user's browser.
           // So the user could connect to the new handler and webpack setup.
-          this.waitUntilReloaded()
-            .then(() => {
-              res.statusCode = 302
-              res.setHeader('Location', req.url)
-              res.end('302')
-            })
+          this.waitUntilReloaded().then(() => {
+            res.statusCode = 302
+            res.setHeader('Location', req.url)
+            res.end('302')
+          })
         } else {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
@@ -262,7 +284,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
             lastAccessPages.unshift(page)
 
             // Maintain the buffer max length
-            if (lastAccessPages.length > pagesBufferLength) lastAccessPages.pop()
+            if (lastAccessPages.length > pagesBufferLength) {
+              lastAccessPages.pop()
+            }
           }
           entryInfo.lastActiveTime = Date.now()
         }
@@ -271,10 +295,15 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   }
 }
 
-function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxInactiveAge) {
+function disposeInactiveEntries (
+  devMiddleware,
+  entries,
+  lastAccessPages,
+  maxInactiveAge
+) {
   const disposingPages = []
 
-  Object.keys(entries).forEach((page) => {
+  Object.keys(entries).forEach(page => {
     const { lastActiveTime, status } = entries[page]
 
     // This means this entry is currently building or just added
@@ -292,7 +321,7 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
   })
 
   if (disposingPages.length > 0) {
-    disposingPages.forEach((page) => {
+    disposingPages.forEach(page => {
       delete entries[page]
     })
     console.log(`> Disposing inactive page(s): ${disposingPages.join(', ')}`)

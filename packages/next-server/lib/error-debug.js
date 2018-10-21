@@ -5,19 +5,24 @@ import Head from 'next-server/head'
 
 // This component is rendered through dev-error-overlay on the client side.
 // On the server side it's rendered directly
-export default function ErrorDebug ({error, info}: any) {
+export default function ErrorDebug ({ error, info }: any) {
   const { name, message, module } = error
   return (
     <div style={styles.errorDebug}>
       <Head>
         <meta name='viewport' content='width=device-width, initial-scale=1.0' />
       </Head>
-      {module ? <h1 style={styles.heading}>Error in {module.rawRequest}</h1> : null}
-      {
-        name === 'ModuleBuildError' && message
-          ? <pre style={styles.stack} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />
-          : <StackTrace error={error} info={info} />
-      }
+      {module ? (
+        <h1 style={styles.heading}>Error in {module.rawRequest}</h1>
+      ) : null}
+      {name === 'ModuleBuildError' && message ? (
+        <pre
+          style={styles.stack}
+          dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }}
+        />
+      ) : (
+        <StackTrace error={error} info={info} />
+      )}
     </div>
   )
 }
@@ -25,12 +30,8 @@ export default function ErrorDebug ({error, info}: any) {
 const StackTrace = ({ error: { name, message, stack }, info }: any) => (
   <div>
     <div style={styles.heading}>{message || name}</div>
-    <pre style={styles.stack}>
-      {stack}
-    </pre>
-    {info && <pre style={styles.stack}>
-      {info.componentStack}
-    </pre>}
+    <pre style={styles.stack}>{stack}</pre>
+    {info && <pre style={styles.stack}>{info.componentStack}</pre>}
   </div>
 )
 
@@ -50,7 +51,8 @@ export const styles = {
   },
 
   stack: {
-    fontFamily: '"SF Mono", "Roboto Mono", "Fira Mono", consolas, menlo-regular, monospace',
+    fontFamily:
+      '"SF Mono", "Roboto Mono", "Fira Mono", consolas, menlo-regular, monospace',
     fontSize: '13px',
     lineHeight: '18px',
     color: '#777',
@@ -61,7 +63,8 @@ export const styles = {
   },
 
   heading: {
-    fontFamily: '-apple-system, system-ui, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+    fontFamily:
+      '-apple-system, system-ui, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     fontSize: '20px',
     fontWeight: '400',
     lineHeight: '28px',

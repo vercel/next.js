@@ -4,10 +4,15 @@ import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
 export default class Index extends Component {
-  static async getInitialProps ({req, query}) {
+  static async getInitialProps ({ req, query }) {
     const user = req && req.session ? req.session.decodedToken : null
     // don't fetch anything from firebase if the user is not found
-    const snap = user && await req.firebaseServer.database().ref('messages').once('value')
+    const snap =
+      user &&
+      (await req.firebaseServer
+        .database()
+        .ref('messages')
+        .once('value'))
     const messages = snap && snap.val()
     return { user, messages }
   }
@@ -33,8 +38,9 @@ export default class Index extends Component {
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         this.setState({ user: user })
-        return user.getIdToken()
-          .then((token) => {
+        return user
+          .getIdToken()
+          .then(token => {
             // eslint-disable-next-line no-undef
             return fetch('/api/login', {
               method: 'POST',
@@ -43,23 +49,32 @@ export default class Index extends Component {
               credentials: 'same-origin',
               body: JSON.stringify({ token })
             })
-          }).then((res) => this.addDbListener())
+          })
+          .then(res => this.addDbListener())
       } else {
         this.setState({ user: null })
         // eslint-disable-next-line no-undef
         fetch('/api/logout', {
           method: 'POST',
           credentials: 'same-origin'
-        }).then(() => firebase.database().ref('messages').off())
+        }).then(() =>
+          firebase
+            .database()
+            .ref('messages')
+            .off()
+        )
       }
     })
   }
 
   addDbListener () {
-    firebase.database().ref('messages').on('value', snap => {
-      const messages = snap.val()
-      if (messages) this.setState({ messages })
-    })
+    firebase
+      .database()
+      .ref('messages')
+      .on('value', snap => {
+        const messages = snap.val()
+        if (messages) this.setState({ messages })
+      })
   }
 
   handleChange (event) {
@@ -69,10 +84,13 @@ export default class Index extends Component {
   handleSubmit (event) {
     event.preventDefault()
     const date = new Date().getTime()
-    firebase.database().ref(`messages/${date}`).set({
-      id: date,
-      text: this.state.value
-    })
+    firebase
+      .database()
+      .ref(`messages/${date}`)
+      .set({
+        id: date,
+        text: this.state.value
+      })
     this.setState({ value: '' })
   }
 
@@ -87,31 +105,32 @@ export default class Index extends Component {
   render () {
     const { user, value, messages } = this.state
 
-    return <div>
-      {
-        user
-          ? <button onClick={this.handleLogout}>Logout</button>
-          : <button onClick={this.handleLogin}>Login</button>
-      }
-      {
-        user &&
-        <div>
-          <form onSubmit={this.handleSubmit}>
-            <input
-              type={'text'}
-              onChange={this.handleChange}
-              placeholder={'add message'}
-              value={value}
-            />
-          </form>
-          <ul>
-            {
-              messages &&
-              Object.keys(messages).map(key => <li key={key}>{messages[key].text}</li>)
-            }
-          </ul>
-        </div>
-      }
-    </div>
+    return (
+      <div>
+        {user ? (
+          <button onClick={this.handleLogout}>Logout</button>
+        ) : (
+          <button onClick={this.handleLogin}>Login</button>
+        )}
+        {user && (
+          <div>
+            <form onSubmit={this.handleSubmit}>
+              <input
+                type={'text'}
+                onChange={this.handleChange}
+                placeholder={'add message'}
+                value={value}
+              />
+            </form>
+            <ul>
+              {messages &&
+                Object.keys(messages).map(key => (
+                  <li key={key}>{messages[key].text}</li>
+                ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )
   }
 }

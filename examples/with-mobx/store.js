@@ -10,7 +10,8 @@ class Store {
     this.lastUpdate = lastUpdate
   }
 
-  @action start = () => {
+  @action
+  start = () => {
     this.timer = setInterval(() => {
       this.lastUpdate = Date.now()
       this.light = true

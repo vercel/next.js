@@ -16,8 +16,22 @@ const SingletonRouter = {
 // Create public properties and methods of the router in the SingletonRouter
 const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
 const propertyFields = ['components']
-const routerEvents = ['routeChangeStart', 'beforeHistoryChange', 'routeChangeComplete', 'routeChangeError', 'hashChangeStart', 'hashChangeComplete']
-const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
+const routerEvents = [
+  'routeChangeStart',
+  'beforeHistoryChange',
+  'routeChangeComplete',
+  'routeChangeError',
+  'hashChangeStart',
+  'hashChangeComplete'
+]
+const coreMethodFields = [
+  'push',
+  'replace',
+  'reload',
+  'back',
+  'prefetch',
+  'beforePopState'
+]
 
 // Events is a static property on the router, the router doesn't have to be initialized to use it
 Object.defineProperty(SingletonRouter, 'events', {
@@ -26,7 +40,7 @@ Object.defineProperty(SingletonRouter, 'events', {
   }
 })
 
-propertyFields.concat(urlPropertyFields).forEach((field) => {
+propertyFields.concat(urlPropertyFields).forEach(field => {
   // Here we need to use Object.defineProperty because, we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
@@ -39,17 +53,19 @@ propertyFields.concat(urlPropertyFields).forEach((field) => {
   })
 })
 
-coreMethodFields.forEach((field) => {
+coreMethodFields.forEach(field => {
   SingletonRouter[field] = (...args) => {
     throwIfNoRouter()
     return SingletonRouter.router[field](...args)
   }
 })
 
-routerEvents.forEach((event) => {
+routerEvents.forEach(event => {
   SingletonRouter.ready(() => {
     _Router.events.on(event, (...args) => {
-      const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(1)}`
+      const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
+        1
+      )}`
       if (SingletonRouter[eventField]) {
         try {
           SingletonRouter[eventField](...args)
@@ -63,11 +79,15 @@ routerEvents.forEach((event) => {
 })
 
 const warnAboutRouterOnAppUpdated = execOnce(() => {
-  console.warn(`Router.onAppUpdated is removed - visit https://err.sh/zeit/next.js/no-on-app-updated-hook for more information.`)
+  console.warn(
+    `Router.onAppUpdated is removed - visit https://err.sh/zeit/next.js/no-on-app-updated-hook for more information.`
+  )
 })
 
 Object.defineProperty(SingletonRouter, 'onAppUpdated', {
-  get () { return null },
+  get () {
+    return null
+  },
   set () {
     warnAboutRouterOnAppUpdated()
     return null
@@ -76,7 +96,8 @@ Object.defineProperty(SingletonRouter, 'onAppUpdated', {
 
 function throwIfNoRouter () {
   if (!SingletonRouter.router) {
-    const message = 'No router instance found.\n' +
+    const message =
+      'No router instance found.\n' +
       'You should only use "next/router" inside the client side of your app.\n'
     throw new Error(message)
   }
@@ -136,7 +157,7 @@ export function makePublicRouterInstance (router) {
 
   for (const property of urlPropertyFields) {
     if (typeof router[property] === 'object') {
-      instance[property] = {...router[property]} // makes sure query is not stateful
+      instance[property] = { ...router[property] } // makes sure query is not stateful
       continue
     }
 
@@ -146,7 +167,7 @@ export function makePublicRouterInstance (router) {
   // Events is a static property on the router, the router doesn't have to be initialized to use it
   instance.events = _Router.events
 
-  propertyFields.forEach((field) => {
+  propertyFields.forEach(field => {
     // Here we need to use Object.defineProperty because, we need to return
     // the property assigned to the actual router
     // The value might get changed as we change routes and this is the
@@ -158,7 +179,7 @@ export function makePublicRouterInstance (router) {
     })
   })
 
-  coreMethodFields.forEach((field) => {
+  coreMethodFields.forEach(field => {
     instance[field] = (...args) => {
       return router[field](...args)
     }

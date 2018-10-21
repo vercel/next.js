@@ -4,14 +4,19 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
-import requirePage, {normalizePagePath} from './require'
+import requirePage, { normalizePagePath } from './require'
 import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+import {
+  BUILD_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+  SERVER_DIRECTORY,
+  CLIENT_STATIC_FILES_PATH
+} from 'next-server/constants'
 
 // Based on https://github.com/jamiebuilds/react-loadable/pull/132
 function getDynamicImportBundles (manifest, moduleIds) {
@@ -52,26 +57,34 @@ function getPageFiles (buildManifest, page) {
   const files = buildManifest.pages[normalizedPage]
 
   if (!files) {
-    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
+    console.warn(
+      `Could not find files for ${normalizedPage} in .next/build-manifest.json`
+    )
     return []
   }
 
   return files
 }
 
-async function doRender (req, res, pathname, query, {
-  err,
-  page,
-  buildId,
-  hotReloader,
-  assetPrefix,
-  runtimeConfig,
-  distDir,
-  dir,
-  dev = false,
-  staticMarkup = false,
-  nextExport
-} = {}) {
+async function doRender (
+  req,
+  res,
+  pathname,
+  query,
+  {
+    err,
+    page,
+    buildId,
+    hotReloader,
+    assetPrefix,
+    runtimeConfig,
+    distDir,
+    dir,
+    dev = false,
+    staticMarkup = false,
+    nextExport
+  } = {}
+) {
   page = page || pathname
 
   // In dev mode we use on demand entries to compile the page before rendering
@@ -79,12 +92,32 @@ async function doRender (req, res, pathname, query, {
     await hotReloader.ensurePage(page)
   }
 
-  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
-  let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
+  const documentPath = join(
+    distDir,
+    SERVER_DIRECTORY,
+    CLIENT_STATIC_FILES_PATH,
+    buildId,
+    'pages',
+    '_document'
+  )
+  const appPath = join(
+    distDir,
+    SERVER_DIRECTORY,
+    CLIENT_STATIC_FILES_PATH,
+    buildId,
+    'pages',
+    '_app'
+  )
+  let [
+    buildManifest,
+    reactLoadableManifest,
+    Component,
+    Document,
+    App
+  ] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(page, {distDir}),
+    requirePage(page, { distDir }),
     require(documentPath),
     require(appPath)
   ])
@@ -92,7 +125,9 @@ async function doRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${page}"`)
+    throw new Error(
+      `The default export is not a React Component in page: "${page}"`
+    )
   }
 
   App = App.default || App
@@ -100,7 +135,7 @@ async function doRender (req, res, pathname, query, {
   const asPath = req.url
   const ctx = { err, req, res, pathname: page, query, asPath }
   const router = new Router(page, query, asPath)
-  const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const props = await loadGetInitialProps(App, { Component, router, ctx })
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
@@ -130,13 +165,19 @@ async function doRender (req, res, pathname, query, {
       }
     }
 
-    const app = <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
-      <EnhancedApp {...{
-        Component: EnhancedComponent,
-        router,
-        ...props
-      }} />
-    </LoadableCapture>
+    const app = (
+      <LoadableCapture
+        report={moduleName => reactLoadableModules.push(moduleName)}
+      >
+        <EnhancedApp
+          {...{
+            Component: EnhancedComponent,
+            router,
+            ...props
+          }}
+        />
+      </LoadableCapture>
+    )
 
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
@@ -161,41 +202,55 @@ async function doRender (req, res, pathname, query, {
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
-  const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
+  const dynamicImports = [
+    ...new Set(
+      getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)
+    )
+  ]
+  const dynamicImportsIds = dynamicImports.map(bundle => bundle.id)
 
   if (isResSent(res)) return
 
-  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
-  const doc = <Document {...{
-    __NEXT_DATA__: {
-      props, // The result of getInitialProps
-      page, // The rendered page
-      query, // querystring parsed / passed by the user
-      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-      nextExport, // If this is a page exported by `next export`
-      dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
-    },
-    dev,
-    dir,
-    staticMarkup,
-    buildManifest,
-    devFiles,
-    files,
-    dynamicImports,
-    assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
-    ...docProps
-  }} />
+  if (!Document.prototype || !Document.prototype.isReactComponent) {
+    throw new Error('_document.js is not exporting a React component')
+  }
+  const doc = (
+    <Document
+      {...{
+        __NEXT_DATA__: {
+          props, // The result of getInitialProps
+          page, // The rendered page
+          query, // querystring parsed / passed by the user
+          buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+          assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+          runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+          nextExport, // If this is a page exported by `next export`
+          dynamicIds:
+            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+          err: err ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
+        },
+        dev,
+        dir,
+        staticMarkup,
+        buildManifest,
+        devFiles,
+        files,
+        dynamicImports,
+        assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
+        ...docProps
+      }}
+    />
+  )
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
 export async function renderScriptError (req, res, page, error) {
   // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
+  res.setHeader(
+    'Cache-Control',
+    'no-cache, no-store, max-age=0, must-revalidate'
+  )
 
   if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
     res.statusCode = 404
@@ -260,7 +315,7 @@ export function serveStatic (req, res, path) {
   return new Promise((resolve, reject) => {
     send(req, path)
       .on('directory', () => {
-      // We don't allow directories to be read.
+        // We don't allow directories to be read.
         const err = new Error('No directory access')
         err.code = 'ENOENT'
         reject(err)

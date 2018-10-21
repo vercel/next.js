@@ -18,10 +18,13 @@ class Queue {
 
 export default class PQueue {
   constructor (opts) {
-    opts = Object.assign({
-      concurrency: Infinity,
-      queueClass: Queue
-    }, opts)
+    opts = Object.assign(
+      {
+        concurrency: Infinity,
+        queueClass: Queue
+      },
+      opts
+    )
 
     if (opts.concurrency < 1) {
       throw new TypeError('Expected `concurrency` to be a number from 1 and up')

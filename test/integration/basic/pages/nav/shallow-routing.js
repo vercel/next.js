@@ -30,14 +30,18 @@ export default class extends Component {
   render () {
     return (
       <div className='shallow-routing'>
-        <Link href='/nav'><a id='home-link' style={linkStyle}>Home</a></Link>
-        <div id='counter'>
-          Counter: {this.getCurrentCounter()}
-        </div>
+        <Link href='/nav'>
+          <a id='home-link' style={linkStyle}>
+            Home
+          </a>
+        </Link>
+        <div id='counter'>Counter: {this.getCurrentCounter()}</div>
         <div id='get-initial-props-run-count'>
           getInitialProps run count: {this.props.getInitialPropsRunCount}
         </div>
-        <button id='increase' onClick={() => this.increase()}>Increase</button>
+        <button id='increase' onClick={() => this.increase()}>
+          Increase
+        </button>
       </div>
     )
   }

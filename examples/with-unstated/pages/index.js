@@ -10,17 +10,15 @@ class Index extends React.Component {
   render () {
     return (
       <Subscribe to={[ClockContainer, CounterContainer]}>
-        {
-          (clock, counter) => {
-            this.timer = clock.interval
-            return (
-              <div>
-                <Clock clock={clock} />
-                <Counter counter={counter} />
-              </div>
-            )
-          }
-        }
+        {(clock, counter) => {
+          this.timer = clock.interval
+          return (
+            <div>
+              <Clock clock={clock} />
+              <Counter counter={counter} />
+            </div>
+          )
+        }}
       </Subscribe>
     )
   }

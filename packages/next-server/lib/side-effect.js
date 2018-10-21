@@ -1,7 +1,11 @@
 import React, { Component } from 'react'
 import { getDisplayName } from './utils'
 
-export default function withSideEffect (reduceComponentsToState, handleStateChangeOnClient, mapStateOnServer) {
+export default function withSideEffect (
+  reduceComponentsToState,
+  handleStateChangeOnClient,
+  mapStateOnServer
+) {
   if (typeof reduceComponentsToState !== 'function') {
     throw new Error('Expected reduceComponentsToState to be a function.')
   }
@@ -10,8 +14,13 @@ export default function withSideEffect (reduceComponentsToState, handleStateChan
     throw new Error('Expected handleStateChangeOnClient to be a function.')
   }
 
-  if (typeof mapStateOnServer !== 'undefined' && typeof mapStateOnServer !== 'function') {
-    throw new Error('Expected mapStateOnServer to either be undefined or a function.')
+  if (
+    typeof mapStateOnServer !== 'undefined' &&
+    typeof mapStateOnServer !== 'function'
+  ) {
+    throw new Error(
+      'Expected mapStateOnServer to either be undefined or a function.'
+    )
   }
 
   return function wrap (WrappedComponent) {
@@ -47,7 +56,9 @@ export default function withSideEffect (reduceComponentsToState, handleStateChan
 
       static rewind () {
         if (SideEffect.canUseDOM) {
-          throw new Error('You may only call rewind() on the server. Call peek() to read the current state.')
+          throw new Error(
+            'You may only call rewind() on the server. Call peek() to read the current state.'
+          )
         }
 
         const recordedState = state
@@ -77,7 +88,7 @@ export default function withSideEffect (reduceComponentsToState, handleStateChan
       }
 
       render () {
-        return <WrappedComponent>{ this.props.children }</WrappedComponent>
+        return <WrappedComponent>{this.props.children}</WrappedComponent>
       }
     }
 

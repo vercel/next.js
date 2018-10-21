@@ -12,12 +12,12 @@ type Props = {|
 
 class ErrorBoundary extends React.Component<Props> {
   componentDidCatch (error: Error, info: ComponentDidCatchInfo) {
-    const {onError} = this.props
+    const { onError } = this.props
     // onError is required
     onError(error, info)
   }
   render () {
-    const {children} = this.props
+    const { children } = this.props
     return React.Children.only(children)
   }
 }

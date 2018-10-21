@@ -11,7 +11,7 @@ class PageLoader {
     this.loaded[route] = true
 
     if (this.options.delay) {
-      return new Promise((resolve) => setTimeout(resolve, this.options.delay))
+      return new Promise(resolve => setTimeout(resolve, this.options.delay))
     }
   }
 }
@@ -41,7 +41,7 @@ describe('Router', () => {
       router.prefetch('route4')
 
       // Wait for a bit
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       expect(Object.keys(pageLoader.loaded).length).toBe(2)
       expect(Object.keys(pageLoader.loaded)).toEqual(['route1', 'route2'])

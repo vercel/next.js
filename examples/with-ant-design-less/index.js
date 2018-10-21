@@ -2,7 +2,7 @@ import Head from 'next/head'
 
 import './asserts/styles.less'
 
-export default ({ children }) =>
+export default ({ children }) => (
   <div>
     <Head>
       <meta name='viewport' content='width=device-width, initial-scale=1' />
@@ -15,3 +15,4 @@ export default ({ children }) =>
     `}</style>
     {children}
   </div>
+)

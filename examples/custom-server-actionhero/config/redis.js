@@ -11,15 +11,20 @@ if (process.env.REDIS_URL) {
 }
 
 exports['default'] = {
-  redis: (api) => {
+  redis: api => {
     // konstructor: The redis client constructor method.  All redis methods must be promises
     // args: The arguments to pass to the constructor
     // buildNew: is it `new konstructor()` or just `konstructor()`?
 
     function retryStrategy (times) {
       if (times === 1) {
-        const error = 'Unable to connect to Redis - please check your Redis config!'
-        if (process.env.NODE_ENV === 'test') { console.error(error) } else { api.log(error, 'error') }
+        const error =
+          'Unable to connect to Redis - please check your Redis config!'
+        if (process.env.NODE_ENV === 'test') {
+          console.error(error)
+        } else {
+          api.log(error, 'error')
+        }
         return 5000
       }
       return Math.min(times * 50, maxBackoff)
@@ -28,20 +33,44 @@ exports['default'] = {
     return {
       enabled: true,
 
-      '_toExpand': false,
+      _toExpand: false,
       client: {
         konstructor: require('ioredis'),
-        args: [{ port: port, host: host, password: password, db: db, retryStrategy: retryStrategy }],
+        args: [
+          {
+            port: port,
+            host: host,
+            password: password,
+            db: db,
+            retryStrategy: retryStrategy
+          }
+        ],
         buildNew: true
       },
       subscriber: {
         konstructor: require('ioredis'),
-        args: [{ port: port, host: host, password: password, db: db, retryStrategy: retryStrategy }],
+        args: [
+          {
+            port: port,
+            host: host,
+            password: password,
+            db: db,
+            retryStrategy: retryStrategy
+          }
+        ],
         buildNew: true
       },
       tasks: {
         konstructor: require('ioredis'),
-        args: [{ port: port, host: host, password: password, db: db, retryStrategy: retryStrategy }],
+        args: [
+          {
+            port: port,
+            host: host,
+            password: password,
+            db: db,
+            retryStrategy: retryStrategy
+          }
+        ],
         buildNew: true
       }
     }

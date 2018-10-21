@@ -3,7 +3,7 @@
 // This plugin is based on https://github.com/researchgate/webpack/commit/2f28947fa0c63ccbb18f39c0098bd791a2c37090
 export default class ChunkNamesPlugin {
   apply (compiler) {
-    compiler.hooks.compilation.tap('NextJsChunkNamesPlugin', (compilation) => {
+    compiler.hooks.compilation.tap('NextJsChunkNamesPlugin', compilation => {
       compilation.chunkTemplate.hooks.renderManifest.intercept({
         register (tapInfo) {
           if (tapInfo.name === 'JavascriptModulesPlugin') {

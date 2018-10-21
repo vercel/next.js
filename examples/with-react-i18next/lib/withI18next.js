@@ -6,7 +6,7 @@ export const withI18next = (namespaces = ['common']) => ComposedComponent => {
     ComposedComponent
   )
 
-  Extended.getInitialProps = async (ctx) => {
+  Extended.getInitialProps = async ctx => {
     const composedInitialProps = ComposedComponent.getInitialProps
       ? await ComposedComponent.getInitialProps(ctx)
       : {}

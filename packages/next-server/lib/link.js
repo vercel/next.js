@@ -4,14 +4,15 @@ import { resolve, format, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
 import Router, { _rewriteUrlForNextExport } from './router'
-import {execOnce, getLocationOrigin} from './utils'
+import { execOnce, getLocationOrigin } from './utils'
 
 function isLocal (href) {
   const url = parse(href, false, true)
   const origin = parse(getLocationOrigin(), false, true)
 
-  return !url.host ||
-    (url.protocol === origin.protocol && url.host === origin.host)
+  return (
+    !url.host || (url.protocol === origin.protocol && url.host === origin.host)
+  )
 }
 
 function memoizedFormatUrl (formatUrl) {
@@ -46,19 +47,21 @@ class Link extends Component {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: href && typeof href === 'object'
-        ? format(href)
-        : href,
-      as: asHref && typeof asHref === 'object'
-        ? format(asHref)
-        : asHref
+      href: href && typeof href === 'object' ? format(href) : href,
+      as: asHref && typeof asHref === 'object' ? format(asHref) : asHref
     }
   })
 
   linkClicked = e => {
     const { nodeName, target } = e.currentTarget
-    if (nodeName === 'A' &&
-      ((target && target !== '_self') || e.metaKey || e.ctrlKey || e.shiftKey || (e.nativeEvent && e.nativeEvent.which === 2))) {
+    if (
+      nodeName === 'A' &&
+      ((target && target !== '_self') ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        (e.nativeEvent && e.nativeEvent.which === 2))
+    ) {
       // ignore click for new tab / new window behavior
       return
     }
@@ -88,17 +91,17 @@ class Link extends Component {
 
     // straight up redirect
     Router[changeMethod](href, as, { shallow: this.props.shallow })
-      .then((success) => {
+      .then(success => {
         if (!success) return
         if (scroll) {
           window.scrollTo(0, 0)
           document.body.focus()
         }
       })
-      .catch((err) => {
+      .catch(err => {
         if (this.props.onError) this.props.onError(err)
       })
-  };
+  }
 
   prefetch () {
     if (!this.props.prefetch) return
@@ -106,7 +109,7 @@ class Link extends Component {
 
     // Prefetch the JSON page if asked (only in the client)
     const { pathname } = window.location
-    const {href: parsedHref} = this.formatUrls(this.props.href, this.props.as)
+    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
     const href = resolve(pathname, parsedHref)
     Router.prefetch(href)
   }
@@ -122,7 +125,7 @@ class Link extends Component {
     // This will return the first child, if multiple are provided it will throw an error
     const child = Children.only(children)
     const props = {
-      onClick: (e) => {
+      onClick: e => {
         if (child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
         }
@@ -134,7 +137,10 @@ class Link extends Component {
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
     // defined, we specify the current 'href', so that repetition is not needed by the user
-    if (this.props.passHref || (child.type === 'a' && !('href' in child.props))) {
+    if (
+      this.props.passHref ||
+      (child.type === 'a' && !('href' in child.props))
+    ) {
       props.href = as || href
     }
 
@@ -171,7 +177,9 @@ if (process.env.NODE_ENV === 'development') {
         const value = props[propName]
 
         if (typeof value === 'string') {
-          warn(`Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`)
+          warn(
+            `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
+          )
         }
 
         return null

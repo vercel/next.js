@@ -42,10 +42,11 @@ i18n.getInitialProps = (req, namespaces) => {
   req.i18n.toJSON = () => {} // do not serialize i18next instance to prevent circular references on the client
 
   const initialI18nStore = {}
-  req.i18n.languages.forEach((l) => {
+  req.i18n.languages.forEach(l => {
     initialI18nStore[l] = {}
-    namespaces.forEach((ns) => {
-      initialI18nStore[l][ns] = (req.i18n.services.resourceStore.data[l] || {})[ns] || {}
+    namespaces.forEach(ns => {
+      initialI18nStore[l][ns] =
+        (req.i18n.services.resourceStore.data[l] || {})[ns] || {}
     })
   })
 

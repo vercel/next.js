@@ -14,7 +14,7 @@
  */
 
 declare module 'loader-utils' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,80 +23,80 @@ declare module 'loader-utils' {
  * needed.
  */
 declare module 'loader-utils/lib/getCurrentRequest' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/getHashDigest' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/getOptions' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/getRemainingRequest' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/index' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/interpolateName' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/isUrlRequest' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/parseQuery' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/parseString' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/stringifyRequest' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'loader-utils/lib/urlToRequest' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'loader-utils/lib/getCurrentRequest.js' {
-  declare module.exports: $Exports<'loader-utils/lib/getCurrentRequest'>;
+  declare module.exports: $Exports<'loader-utils/lib/getCurrentRequest'>
 }
 declare module 'loader-utils/lib/getHashDigest.js' {
-  declare module.exports: $Exports<'loader-utils/lib/getHashDigest'>;
+  declare module.exports: $Exports<'loader-utils/lib/getHashDigest'>
 }
 declare module 'loader-utils/lib/getOptions.js' {
-  declare module.exports: $Exports<'loader-utils/lib/getOptions'>;
+  declare module.exports: $Exports<'loader-utils/lib/getOptions'>
 }
 declare module 'loader-utils/lib/getRemainingRequest.js' {
-  declare module.exports: $Exports<'loader-utils/lib/getRemainingRequest'>;
+  declare module.exports: $Exports<'loader-utils/lib/getRemainingRequest'>
 }
 declare module 'loader-utils/lib/index.js' {
-  declare module.exports: $Exports<'loader-utils/lib/index'>;
+  declare module.exports: $Exports<'loader-utils/lib/index'>
 }
 declare module 'loader-utils/lib/interpolateName.js' {
-  declare module.exports: $Exports<'loader-utils/lib/interpolateName'>;
+  declare module.exports: $Exports<'loader-utils/lib/interpolateName'>
 }
 declare module 'loader-utils/lib/isUrlRequest.js' {
-  declare module.exports: $Exports<'loader-utils/lib/isUrlRequest'>;
+  declare module.exports: $Exports<'loader-utils/lib/isUrlRequest'>
 }
 declare module 'loader-utils/lib/parseQuery.js' {
-  declare module.exports: $Exports<'loader-utils/lib/parseQuery'>;
+  declare module.exports: $Exports<'loader-utils/lib/parseQuery'>
 }
 declare module 'loader-utils/lib/parseString.js' {
-  declare module.exports: $Exports<'loader-utils/lib/parseString'>;
+  declare module.exports: $Exports<'loader-utils/lib/parseString'>
 }
 declare module 'loader-utils/lib/stringifyRequest.js' {
-  declare module.exports: $Exports<'loader-utils/lib/stringifyRequest'>;
+  declare module.exports: $Exports<'loader-utils/lib/stringifyRequest'>
 }
 declare module 'loader-utils/lib/urlToRequest.js' {
-  declare module.exports: $Exports<'loader-utils/lib/urlToRequest'>;
+  declare module.exports: $Exports<'loader-utils/lib/urlToRequest'>
 }

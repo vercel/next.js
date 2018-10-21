@@ -3,7 +3,7 @@ import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
 describe('EventEmitter', () => {
   describe('With listeners', () => {
-    it('should listen to a event', (done) => {
+    it('should listen to a event', done => {
       const ev = new EventEmitter()
       ev.on('sample', done)
       ev.emit('sample')
@@ -13,8 +13,12 @@ describe('EventEmitter', () => {
       const ev = new EventEmitter()
       let cnt = 0
 
-      ev.on('sample', () => { cnt += 1 })
-      ev.on('sample', () => { cnt += 1 })
+      ev.on('sample', () => {
+        cnt += 1
+      })
+      ev.on('sample', () => {
+        cnt += 1
+      })
 
       ev.emit('sample')
 
@@ -24,7 +28,9 @@ describe('EventEmitter', () => {
     it('should listen to multiple events', () => {
       const ev = new EventEmitter()
       const data = []
-      const cb = (name) => { data.push(name) }
+      const cb = name => {
+        data.push(name)
+      }
 
       ev.on('sample1', cb)
       ev.on('sample2', cb)
@@ -39,7 +45,9 @@ describe('EventEmitter', () => {
       const ev = new EventEmitter()
       let data
 
-      ev.on('sample', (...args) => { data = args })
+      ev.on('sample', (...args) => {
+        data = args
+      })
       ev.emit('sample', 'one', 'two')
 
       expect(data).toEqual(['one', 'two'])
@@ -48,7 +56,9 @@ describe('EventEmitter', () => {
     it('should possible to stop listening an event', () => {
       const ev = new EventEmitter()
       let cnt = 0
-      const cb = () => { cnt += 1 }
+      const cb = () => {
+        cnt += 1
+      }
 
       ev.on('sample', cb)
 
@@ -78,8 +88,12 @@ describe('EventEmitter', () => {
       let calledB = false
 
       emitter
-        .on('a', () => { calledA = true })
-        .on('b', () => { calledB = true })
+        .on('a', () => {
+          calledA = true
+        })
+        .on('b', () => {
+          calledB = true
+        })
 
       emitter.emit('a')
       emitter.emit('b')
@@ -90,7 +104,7 @@ describe('EventEmitter', () => {
 
     it('should return an indication on emit if there were listeners', () => {
       const emitter = new EventEmitter()
-      emitter.on('a', () => { })
+      emitter.on('a', () => {})
 
       expect(emitter.emit('a')).toEqual(true)
       expect(emitter.emit('b')).toEqual(false)

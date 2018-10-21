@@ -18,10 +18,7 @@ export default class Counter extends React.Component {
           </Link>
         </div>
         <p>Counter: {counter}</p>
-        <button
-          id='counter-increase'
-          onClick={() => this.increaseCounter()}
-        >
+        <button id='counter-increase' onClick={() => this.increaseCounter()}>
           Increase
         </button>
       </div>

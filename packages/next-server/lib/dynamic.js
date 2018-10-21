@@ -1,20 +1,23 @@
 // @flow
-import type {ElementType} from 'react'
+import type { ElementType } from 'react'
 
 import React from 'react'
 import Loadable from './loadable'
 
-type ImportedComponent = Promise<null|ElementType>
+type ImportedComponent = Promise<null | ElementType>
 
-type ComponentMapping = {[componentName: string]: ImportedComponent}
+type ComponentMapping = { [componentName: string]: ImportedComponent }
 
 type NextDynamicOptions = {
-  loader?: ComponentMapping | () => ImportedComponent,
+  loader?: ComponentMapping | (() => ImportedComponent),
   loading: ElementType,
   timeout?: number,
   delay?: number,
   ssr?: boolean,
-  render?: (props: any, loaded: {[componentName: string]: ElementType}) => ElementType,
+  render?: (
+    props: any,
+    loaded: { [componentName: string]: ElementType }
+  ) => ElementType,
   modules?: () => ComponentMapping,
   loadableGenerated?: {
     webpack?: any,
@@ -23,18 +26,24 @@ type NextDynamicOptions = {
 }
 
 type LoadableOptions = {
-  loader?: ComponentMapping | () => ImportedComponent,
+  loader?: ComponentMapping | (() => ImportedComponent),
   loading: ElementType,
   timeout?: number,
   delay?: number,
-  render?: (props: any, loaded: {[componentName: string]: ElementType}) => ElementType,
+  render?: (
+    props: any,
+    loaded: { [componentName: string]: ElementType }
+  ) => ElementType,
   webpack?: any,
   modules?: any
 }
 
 const isServerSide = typeof window === 'undefined'
 
-export function noSSR (LoadableInitializer: (loadableOptions: LoadableOptions) => ElementType, loadableOptions: LoadableOptions) {
+export function noSSR (
+  LoadableInitializer: (loadableOptions: LoadableOptions) => ElementType,
+  loadableOptions: LoadableOptions
+) {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
@@ -45,24 +54,40 @@ export function noSSR (LoadableInitializer: (loadableOptions: LoadableOptions) =
   }
 
   // This will only be rendered on the server side
-  return () => <loadableOptions.loading error={null} isLoading pastDelay={false} timedOut={false} />
+  return () => (
+    <loadableOptions.loading
+      error={null}
+      isLoading
+      pastDelay={false}
+      timedOut={false}
+    />
+  )
 }
 
 function DefaultLoading () {
   return <p>loading...</p>
 }
 
-export default function dynamic (dynamicOptions: any, options: NextDynamicOptions) {
+export default function dynamic (
+  dynamicOptions: any,
+  options: NextDynamicOptions
+) {
   let loadableFn = Loadable
   let loadableOptions: NextDynamicOptions = {
     // A loading component is not required, so we default it
-    loading: ({error, isLoading}) => {
+    loading: ({ error, isLoading }) => {
       if (process.env.NODE_ENV === 'development') {
         if (isLoading) {
           return <DefaultLoading />
         }
         if (error) {
-          return <p>{error.message}<br />{error.stack}</p>
+          return (
+            <p>
+              {error.message}
+              <br />
+              {error.stack}
+            </p>
+          )
         }
       }
 
@@ -76,20 +101,21 @@ export default function dynamic (dynamicOptions: any, options: NextDynamicOption
   // To make sure we don't execute the import without rendering first
   if (typeof dynamicOptions.then === 'function') {
     loadableOptions.loader = () => dynamicOptions
-  // Support for having import as a function, eg: dynamic(() => import('../hello-world'))
+    // Support for having import as a function, eg: dynamic(() => import('../hello-world'))
   } else if (typeof dynamicOptions === 'function') {
     loadableOptions.loader = dynamicOptions
-  // Support for having first argument being options, eg: dynamic({loader: import('../hello-world')})
+    // Support for having first argument being options, eg: dynamic({loader: import('../hello-world')})
   } else if (typeof dynamicOptions === 'object') {
-    loadableOptions = {...loadableOptions, ...dynamicOptions}
+    loadableOptions = { ...loadableOptions, ...dynamicOptions }
   }
 
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
-  loadableOptions = {...loadableOptions, ...options}
+  loadableOptions = { ...loadableOptions, ...options }
 
   // Support for `render` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
   if (dynamicOptions.render) {
-    loadableOptions.render = (loaded, props) => dynamicOptions.render(props, loaded)
+    loadableOptions.render = (loaded, props) =>
+      dynamicOptions.render(props, loaded)
   }
   // Support for `modules` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
   if (dynamicOptions.modules) {
@@ -109,7 +135,10 @@ export default function dynamic (dynamicOptions: any, options: NextDynamicOption
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
-    loadableOptions = {...loadableOptions, ...loadableOptions.loadableGenerated}
+    loadableOptions = {
+      ...loadableOptions,
+      ...loadableOptions.loadableGenerated
+    }
     delete loadableOptions.loadableGenerated
   }
 

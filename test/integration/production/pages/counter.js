@@ -19,14 +19,18 @@ export default class extends Component {
   render () {
     return (
       <div id='counter-page'>
-        <Link href='/no-such-page'><a id='no-such-page'>No Such Page</a></Link>
+        <Link href='/no-such-page'>
+          <a id='no-such-page'>No Such Page</a>
+        </Link>
         <br />
-        <Link href='/no-such-page' prefetch><a id='no-such-page-prefetch'>No Such Page (with prefetch)</a></Link>
+        <Link href='/no-such-page' prefetch>
+          <a id='no-such-page-prefetch'>No Such Page (with prefetch)</a>
+        </Link>
         <p>This is the home.</p>
-        <div id='counter'>
-          Counter: {counter}
-        </div>
-        <button id='increase' onClick={() => this.increase()}>Increase</button>
+        <div id='counter'>Counter: {counter}</div>
+        <button id='increase' onClick={() => this.increase()}>
+          Increase
+        </button>
       </div>
     )
   }

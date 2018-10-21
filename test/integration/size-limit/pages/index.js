@@ -4,6 +4,8 @@ export default () => (
   <div>
     Size-Limit Page
     <br />
-    <Link href='/about'><a>about</a></Link>
+    <Link href='/about'>
+      <a>about</a>
+    </Link>
   </div>
 )

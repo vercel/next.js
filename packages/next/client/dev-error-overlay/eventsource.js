@@ -9,7 +9,7 @@ function EventSourceWrapper (options) {
 
   init()
   var timer = setInterval(function () {
-    if ((new Date() - lastActivity) > options.timeout) {
+    if (new Date() - lastActivity > options.timeout) {
       handleDisconnect()
     }
   }, options.timeout / 2)

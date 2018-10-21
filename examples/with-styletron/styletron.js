@@ -1,4 +1,3 @@
-
 const isServer = typeof window === 'undefined'
 
 let styletron

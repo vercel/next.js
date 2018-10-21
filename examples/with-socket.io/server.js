@@ -16,11 +16,11 @@ const messages = {
 
 // socket.io server
 io.on('connection', socket => {
-  socket.on('message.chat1', (data) => {
+  socket.on('message.chat1', data => {
     messages['chat1'].push(data)
     socket.broadcast.emit('message.chat1', data)
   })
-  socket.on('message.chat2', (data) => {
+  socket.on('message.chat2', data => {
     messages['chat2'].push(data)
     socket.broadcast.emit('message.chat2', data)
   })
@@ -35,7 +35,7 @@ nextApp.prepare().then(() => {
     return nextHandler(req, res)
   })
 
-  server.listen(port, (err) => {
+  server.listen(port, err => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

@@ -11,7 +11,7 @@ export default class App extends Component {
 
   static async getInitialProps ({ Component, router, ctx }) {
     const pageProps = await loadGetInitialProps(Component, ctx)
-    return {pageProps}
+    return { pageProps }
   }
 
   getChildContext () {
@@ -29,11 +29,13 @@ export default class App extends Component {
   }
 
   render () {
-    const {router, Component, pageProps} = this.props
+    const { router, Component, pageProps } = this.props
     const url = createUrl(router)
-    return <Container>
-      <Component {...pageProps} url={url} />
-    </Container>
+    return (
+      <Container>
+        <Component {...pageProps} url={url} />
+      </Container>
+    )
   }
 }
 
@@ -66,13 +68,15 @@ export class Container extends Component {
 
 const warnUrl = execOnce(() => {
   if (process.env.NODE_ENV !== 'production') {
-    console.error(`Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`)
+    console.error(
+      `Warning: the 'url' property is deprecated. https://err.sh/zeit/next.js/url-deprecated`
+    )
   }
 })
 
 export function createUrl (router) {
   // This is to make sure we don't references the router object at call time
-  const {pathname, asPath, query} = router
+  const { pathname, asPath, query } = router
   return {
     get query () {
       warnUrl()

@@ -14,7 +14,7 @@
  */
 
 declare module 'react-lifecycles-compat' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,31 +23,39 @@ declare module 'react-lifecycles-compat' {
  * needed.
  */
 declare module 'react-lifecycles-compat/react-lifecycles-compat.cjs' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'react-lifecycles-compat/react-lifecycles-compat.es' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'react-lifecycles-compat/react-lifecycles-compat' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'react-lifecycles-compat/react-lifecycles-compat.min' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'react-lifecycles-compat/react-lifecycles-compat.cjs.js' {
-  declare module.exports: $Exports<'react-lifecycles-compat/react-lifecycles-compat.cjs'>;
+  declare module.exports: $Exports<
+    'react-lifecycles-compat/react-lifecycles-compat.cjs'
+  >
 }
 declare module 'react-lifecycles-compat/react-lifecycles-compat.es.js' {
-  declare module.exports: $Exports<'react-lifecycles-compat/react-lifecycles-compat.es'>;
+  declare module.exports: $Exports<
+    'react-lifecycles-compat/react-lifecycles-compat.es'
+  >
 }
 declare module 'react-lifecycles-compat/react-lifecycles-compat.js' {
-  declare module.exports: $Exports<'react-lifecycles-compat/react-lifecycles-compat'>;
+  declare module.exports: $Exports<
+    'react-lifecycles-compat/react-lifecycles-compat'
+  >
 }
 declare module 'react-lifecycles-compat/react-lifecycles-compat.min.js' {
-  declare module.exports: $Exports<'react-lifecycles-compat/react-lifecycles-compat.min'>;
+  declare module.exports: $Exports<
+    'react-lifecycles-compat/react-lifecycles-compat.min'
+  >
 }

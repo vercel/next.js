@@ -32,7 +32,11 @@ describe('Static Export', () => {
     context.port = context.server.address().port
 
     devContext.port = await findPort()
-    devContext.server = await launchApp(join(__dirname, '../'), devContext.port, true)
+    devContext.server = await launchApp(
+      join(__dirname, '../'),
+      devContext.port,
+      true
+    )
 
     // pre-build all pages at the start
     await Promise.all([
@@ -41,10 +45,7 @@ describe('Static Export', () => {
     ])
   })
   afterAll(async () => {
-    await Promise.all([
-      stopApp(context.server),
-      killApp(devContext.server)
-    ])
+    await Promise.all([stopApp(context.server), killApp(devContext.server)])
   })
 
   ssr(context)

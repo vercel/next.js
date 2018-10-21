@@ -3,7 +3,8 @@ import Link from 'next/link'
 import { inject, observer } from 'mobx-react'
 import Clock from './Clock'
 
-@inject('store') @observer
+@inject('store')
+@observer
 class Page extends React.Component {
   componentDidMount () {
     this.props.store.start()
@@ -17,9 +18,14 @@ class Page extends React.Component {
     return (
       <div>
         <h1>{this.props.title}</h1>
-        <Clock lastUpdate={this.props.store.lastUpdate} light={this.props.store.light} />
+        <Clock
+          lastUpdate={this.props.store.lastUpdate}
+          light={this.props.store.light}
+        />
         <nav>
-          <Link href={this.props.linkTo}><a>Navigate</a></Link>
+          <Link href={this.props.linkTo}>
+            <a>Navigate</a>
+          </Link>
         </nav>
       </div>
     )

@@ -12,8 +12,6 @@ export default class Welcome extends React.Component {
     const { name } = this.state
     if (!name) return null
 
-    return (
-      <p>Welcome, {name}</p>
-    )
+    return <p>Welcome, {name}</p>
   }
 }

@@ -4,25 +4,24 @@ import { TabBar, Icon } from 'antd-mobile'
 
 export default class MenuBar extends Component {
   render () {
-    const {
-      pathname,
-      children
-    } = this.props
+    const { pathname, children } = this.props
 
     return (
       <TabBar>
-        {tabBarData.map(({ title, icon, selectedIcon, link, dot, component: Component }) => (
-          <TabBar.Item
-            key={link}
-            title={title}
-            icon={<Icon type={icon} />}
-            selectedIcon={<Icon type={selectedIcon} />}
-            selected={pathname === link}
-            onPress={() => Router.push(link)}
-          >
-            {children}
-          </TabBar.Item>
-        ))}
+        {tabBarData.map(
+          ({ title, icon, selectedIcon, link, dot, component: Component }) => (
+            <TabBar.Item
+              key={link}
+              title={title}
+              icon={<Icon type={icon} />}
+              selectedIcon={<Icon type={selectedIcon} />}
+              selected={pathname === link}
+              onPress={() => Router.push(link)}
+            >
+              {children}
+            </TabBar.Item>
+          )
+        )}
       </TabBar>
     )
   }

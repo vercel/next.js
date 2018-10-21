@@ -8,7 +8,7 @@ export function rewriteStacktrace (e: any, distDir: string): void {
 
   const lines = e.stack.split('\n')
 
-  const result = lines.map((line) => {
+  const result = lines.map(line => {
     return rewriteTraceLine(line, distDir)
   })
 
@@ -21,7 +21,9 @@ function rewriteTraceLine (trace: string, distDir: string): string {
     return trace
   }
   const filename = m[1]
-  const filenameLink = filename.replace(distDir, '/_next/development').replace(/\\/g, '/')
+  const filenameLink = filename
+    .replace(distDir, '/_next/development')
+    .replace(/\\/g, '/')
   trace = trace.replace(filename, filenameLink)
   return trace
 }

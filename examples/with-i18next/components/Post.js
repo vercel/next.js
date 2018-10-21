@@ -5,11 +5,7 @@ class Post extends React.Component {
   render () {
     const { t } = this.props
 
-    return (
-      <div>
-        {t('namespace1:greatMorning')}
-      </div>
-    )
+    return <div>{t('namespace1:greatMorning')}</div>
   }
 }
 

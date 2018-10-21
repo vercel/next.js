@@ -10,7 +10,9 @@ export default () => (
       <link href='/static/theme.css' rel='stylesheet' />
     </Head>
     <ThemeProvider theme={theme}>
-      <Button raised primary>Hello</Button>
+      <Button raised primary>
+        Hello
+      </Button>
     </ThemeProvider>
   </div>
 )

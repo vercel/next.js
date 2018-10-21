@@ -21,7 +21,7 @@ app.prepare().then(() => {
   server.get('*', (req, res) => handle(req, res))
 
   // starting express server
-  server.listen(port, (err) => {
+  server.listen(port, err => {
     if (err) throw err
     console.log(`> Ready on ${ROOT_URL}`) // eslint-disable-line no-console
   })

@@ -14,7 +14,7 @@
  */
 
 declare module 'uglifyjs-webpack-plugin' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,45 +23,47 @@ declare module 'uglifyjs-webpack-plugin' {
  * needed.
  */
 declare module 'uglifyjs-webpack-plugin/dist/cjs' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'uglifyjs-webpack-plugin/dist/index' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'uglifyjs-webpack-plugin/dist/uglify/index' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'uglifyjs-webpack-plugin/dist/uglify/minify' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'uglifyjs-webpack-plugin/dist/uglify/versions' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'uglifyjs-webpack-plugin/dist/uglify/worker' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'uglifyjs-webpack-plugin/dist/cjs.js' {
-  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/cjs'>;
+  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/cjs'>
 }
 declare module 'uglifyjs-webpack-plugin/dist/index.js' {
-  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/index'>;
+  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/index'>
 }
 declare module 'uglifyjs-webpack-plugin/dist/uglify/index.js' {
-  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/index'>;
+  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/index'>
 }
 declare module 'uglifyjs-webpack-plugin/dist/uglify/minify.js' {
-  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/minify'>;
+  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/minify'>
 }
 declare module 'uglifyjs-webpack-plugin/dist/uglify/versions.js' {
-  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/versions'>;
+  declare module.exports: $Exports<
+    'uglifyjs-webpack-plugin/dist/uglify/versions'
+  >
 }
 declare module 'uglifyjs-webpack-plugin/dist/uglify/worker.js' {
-  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/worker'>;
+  declare module.exports: $Exports<'uglifyjs-webpack-plugin/dist/uglify/worker'>
 }

@@ -17,7 +17,9 @@ export default async function build (dir, conf = null) {
   try {
     await access(dir, (fs.constants || fs).W_OK)
   } catch (err) {
-    console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
+    console.error(
+      `> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`
+    )
     throw err
   }
 

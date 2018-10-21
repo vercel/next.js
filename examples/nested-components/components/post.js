@@ -1,7 +1,7 @@
 export default ({ title, children }) => (
   <div className='main'>
-    <h1>{ title }</h1>
-    { children }
+    <h1>{title}</h1>
+    {children}
     <style jsx>{`
       .main {
         font: 15px Helvetica, Arial;

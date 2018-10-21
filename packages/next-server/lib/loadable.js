@@ -136,7 +136,11 @@ function createLoadableComponent (loadFn, options) {
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined' && typeof opts.webpack === 'function') {
+  if (
+    !initialized &&
+    typeof window !== 'undefined' &&
+    typeof opts.webpack === 'function'
+  ) {
     const moduleIds = opts.webpack()
     for (const moduleId of moduleIds) {
       READY_INITIALIZERS.set(moduleId, () => {
@@ -163,7 +167,7 @@ function createLoadableComponent (loadFn, options) {
       loadable: PropTypes.shape({
         report: PropTypes.func.isRequired
       })
-    };
+    }
 
     static preload () {
       return init()
@@ -239,7 +243,7 @@ function createLoadableComponent (loadFn, options) {
       this.setState({ error: null, loading: true, timedOut: false })
       res = loadFn(opts.loader)
       this._loadModule()
-    };
+    }
 
     render () {
       if (this.state.loading || this.state.error) {
@@ -294,7 +298,7 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = (webpackIds) => {
+Loadable.preloadReady = webpackIds => {
   return new Promise((resolve, reject) => {
     const initializers = webpackIds.reduce((allInitalizers, moduleId) => {
       const initializer = READY_INITIALIZERS.get(moduleId)

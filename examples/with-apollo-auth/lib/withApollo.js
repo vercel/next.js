@@ -7,10 +7,7 @@ import Head from 'next/head'
 import initApollo from './initApollo'
 
 function parseCookies (req, options = {}) {
-  return cookie.parse(
-    req ? req.headers.cookie || '' : document.cookie,
-    options
-  )
+  return cookie.parse(req ? req.headers.cookie || '' : document.cookie, options)
 }
 
 export default App => {
@@ -23,9 +20,12 @@ export default App => {
     static async getInitialProps (ctx) {
       const { Component, router, ctx: { req, res } } = ctx
       const token = parseCookies(req).token
-      const apollo = initApollo({}, {
-        getToken: () => token
-      })
+      const apollo = initApollo(
+        {},
+        {
+          getToken: () => token
+        }
+      )
 
       ctx.ctx.apolloClient = apollo
 
@@ -83,7 +83,9 @@ export default App => {
       // After that rendering is done using Next's normal rendering pipeline
       this.apolloClient = initApollo(props.apolloState, {
         getToken: () => {
-          if (token) { return token }
+          if (token) {
+            return token
+          }
           return parseCookies().token
         }
       })

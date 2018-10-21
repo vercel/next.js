@@ -7,10 +7,6 @@ export default class Layout extends Component {
     const { language, children } = this.props
     const locale = language.substr(0, 2) === 'en' ? enUS : undefined
 
-    return (
-      <LocaleProvider locale={locale}>
-        {children}
-      </LocaleProvider>
-    )
+    return <LocaleProvider locale={locale}>{children}</LocaleProvider>
   }
 }

@@ -12,7 +12,9 @@ module.exports = function promisify (original) {
             reject(err)
           } else if (argumentNames !== undefined && values.length > 1) {
             const obj = {}
-            for (var i = 0; i < argumentNames.length; i++) { obj[argumentNames[i]] = values[i] }
+            for (var i = 0; i < argumentNames.length; i++) {
+              obj[argumentNames[i]] = values[i]
+            }
             resolve(obj)
           } else {
             resolve(values[0])

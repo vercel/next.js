@@ -26,13 +26,13 @@ import PropTypes from 'prop-types'
 export default class Capture extends React.Component {
   static propTypes = {
     report: PropTypes.func.isRequired
-  };
+  }
 
   static childContextTypes = {
     loadable: PropTypes.shape({
       report: PropTypes.func.isRequired
     }).isRequired
-  };
+  }
 
   getChildContext () {
     return {

@@ -14,7 +14,7 @@
  */
 
 declare module 'terser-webpack-plugin' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,38 +23,38 @@ declare module 'terser-webpack-plugin' {
  * needed.
  */
 declare module 'terser-webpack-plugin/dist/cjs' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'terser-webpack-plugin/dist/index' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'terser-webpack-plugin/dist/minify' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'terser-webpack-plugin/dist/TaskRunner' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'terser-webpack-plugin/dist/worker' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'terser-webpack-plugin/dist/cjs.js' {
-  declare module.exports: $Exports<'terser-webpack-plugin/dist/cjs'>;
+  declare module.exports: $Exports<'terser-webpack-plugin/dist/cjs'>
 }
 declare module 'terser-webpack-plugin/dist/index.js' {
-  declare module.exports: $Exports<'terser-webpack-plugin/dist/index'>;
+  declare module.exports: $Exports<'terser-webpack-plugin/dist/index'>
 }
 declare module 'terser-webpack-plugin/dist/minify.js' {
-  declare module.exports: $Exports<'terser-webpack-plugin/dist/minify'>;
+  declare module.exports: $Exports<'terser-webpack-plugin/dist/minify'>
 }
 declare module 'terser-webpack-plugin/dist/TaskRunner.js' {
-  declare module.exports: $Exports<'terser-webpack-plugin/dist/TaskRunner'>;
+  declare module.exports: $Exports<'terser-webpack-plugin/dist/TaskRunner'>
 }
 declare module 'terser-webpack-plugin/dist/worker.js' {
-  declare module.exports: $Exports<'terser-webpack-plugin/dist/worker'>;
+  declare module.exports: $Exports<'terser-webpack-plugin/dist/worker'>
 }

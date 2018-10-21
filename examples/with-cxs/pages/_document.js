@@ -13,7 +13,10 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <title>My page</title>
-          <style id='cxs-style' dangerouslySetInnerHTML={{ __html: this.props.style }} />
+          <style
+            id='cxs-style'
+            dangerouslySetInnerHTML={{ __html: this.props.style }}
+          />
         </Head>
         <body>
           <Main />

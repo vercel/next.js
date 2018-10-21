@@ -14,7 +14,7 @@
  */
 
 declare module 'webpackbar' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,38 +23,38 @@ declare module 'webpackbar' {
  * needed.
  */
 declare module 'webpackbar/dist/cjs' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'webpackbar/dist/description' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'webpackbar/dist/index' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'webpackbar/dist/profile' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 declare module 'webpackbar/dist/utils' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'webpackbar/dist/cjs.js' {
-  declare module.exports: $Exports<'webpackbar/dist/cjs'>;
+  declare module.exports: $Exports<'webpackbar/dist/cjs'>
 }
 declare module 'webpackbar/dist/description.js' {
-  declare module.exports: $Exports<'webpackbar/dist/description'>;
+  declare module.exports: $Exports<'webpackbar/dist/description'>
 }
 declare module 'webpackbar/dist/index.js' {
-  declare module.exports: $Exports<'webpackbar/dist/index'>;
+  declare module.exports: $Exports<'webpackbar/dist/index'>
 }
 declare module 'webpackbar/dist/profile.js' {
-  declare module.exports: $Exports<'webpackbar/dist/profile'>;
+  declare module.exports: $Exports<'webpackbar/dist/profile'>
 }
 declare module 'webpackbar/dist/utils.js' {
-  declare module.exports: $Exports<'webpackbar/dist/utils'>;
+  declare module.exports: $Exports<'webpackbar/dist/utils'>
 }

@@ -4,7 +4,14 @@ import mkdirp from 'mkdirp-then'
 import { extname, resolve, join, dirname, sep } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
+import {
+  PHASE_EXPORT,
+  SERVER_DIRECTORY,
+  PAGES_MANIFEST,
+  CONFIG_FILE,
+  BUILD_ID_FILE,
+  CLIENT_STATIC_FILES_PATH
+} from 'next-server/constants'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { setAssetPrefix } from 'next-server/asset'
 import * as envConfig from 'next-server/config'
@@ -22,7 +29,9 @@ export default async function (dir, options, configuration) {
   log(`> using build directory: ${distDir}`)
 
   if (!existsSync(distDir)) {
-    throw new Error(`Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`)
+    throw new Error(
+      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
@@ -53,11 +62,7 @@ export default async function (dir, options, configuration) {
   // Copy static directory
   if (existsSync(join(dir, 'static'))) {
     log('  copying "static" directory')
-    await cp(
-      join(dir, 'static'),
-      join(outDir, 'static'),
-      { expand: true }
-    )
+    await cp(join(dir, 'static'), join(outDir, 'static'), { expand: true })
   }
 
   // Copy .next/static directory
@@ -71,8 +76,10 @@ export default async function (dir, options, configuration) {
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log(`> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`)
-    nextConfig.exportPathMap = async (defaultMap) => {
+    console.log(
+      `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+    )
+    nextConfig.exportPathMap = async defaultMap => {
       return defaultMap
     }
   }
@@ -89,7 +96,7 @@ export default async function (dir, options, configuration) {
     hotReloader: null
   }
 
-  const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
+  const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (publicRuntimeConfig) {
     renderOpts.runtimeConfig = publicRuntimeConfig
@@ -108,7 +115,13 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {
+    dev: false,
+    dir,
+    outDir,
+    distDir,
+    buildId
+  })
   const exportPaths = Object.keys(exportPathMap)
 
   for (const path of exportPaths) {

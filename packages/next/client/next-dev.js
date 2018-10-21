@@ -8,19 +8,15 @@ import initWebpackHMR from './webpack-hot-middleware-client'
 // The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
 import('./noop')
 
-const {
-  __NEXT_DATA__: {
-    assetPrefix
-  }
-} = window
+const { __NEXT_DATA__: { assetPrefix } } = window
 
 const prefix = assetPrefix || ''
-const webpackHMR = initWebpackHMR({assetPrefix: prefix})
+const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
-  .then((emitter) => {
-    initOnDemandEntries({assetPrefix: prefix})
+  .then(emitter => {
+    initOnDemandEntries({ assetPrefix: prefix })
 
     let lastScroll
 
@@ -43,6 +39,7 @@ initNext({ webpackHMR })
         lastScroll = null
       }
     })
-  }).catch((err) => {
+  })
+  .catch(err => {
     console.error('Error was not caught', err)
   })

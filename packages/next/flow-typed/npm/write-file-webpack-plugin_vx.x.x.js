@@ -14,7 +14,7 @@
  */
 
 declare module 'write-file-webpack-plugin' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 /**
@@ -23,10 +23,10 @@ declare module 'write-file-webpack-plugin' {
  * needed.
  */
 declare module 'write-file-webpack-plugin/dist/index' {
-  declare module.exports: any;
+  declare module.exports: any
 }
 
 // Filename aliases
 declare module 'write-file-webpack-plugin/dist/index.js' {
-  declare module.exports: $Exports<'write-file-webpack-plugin/dist/index'>;
+  declare module.exports: $Exports<'write-file-webpack-plugin/dist/index'>
 }

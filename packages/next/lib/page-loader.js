@@ -69,7 +69,9 @@ export default class PageLoader {
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
     const script = document.createElement('script')
-    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(
+      this.buildId
+    )}/pages${scriptRoute}`
     script.src = url
     script.onerror = () => {
       const error = new Error(`Error when loading route: ${route}`)
@@ -95,10 +97,16 @@ export default class PageLoader {
 
     // Wait for webpack to become idle if it's not.
     // More info: https://github.com/zeit/next.js/pull/1511
-    if (webpackModule && webpackModule.hot && webpackModule.hot.status() !== 'idle') {
-      console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
+    if (
+      webpackModule &&
+      webpackModule.hot &&
+      webpackModule.hot.status() !== 'idle'
+    ) {
+      console.log(
+        `Waiting for webpack to become "idle" to initialize the page: "${route}"`
+      )
 
-      const check = (status) => {
+      const check = status => {
         if (status === 'idle') {
           webpackModule.hot.removeStatusHandler(check)
           register()

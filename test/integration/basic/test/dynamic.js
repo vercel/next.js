@@ -13,14 +13,18 @@ export default (context, render) => {
       it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
         // Make sure the client side knows it has to wait for the bundle
-        expect($('body').html()).toContain('"dynamicIds":["./components/hello1.js"]')
+        expect($('body').html()).toContain(
+          '"dynamicIds":["./components/hello1.js"]'
+        )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
       it('should render dynamic import components using a function as first parameter', async () => {
         const $ = await get$('/dynamic/function')
         // Make sure the client side knows it has to wait for the bundle
-        expect($('body').html()).toContain('"dynamicIds":["./components/hello1.js"]')
+        expect($('body').html()).toContain(
+          '"dynamicIds":["./components/hello1.js"]'
+        )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
@@ -28,8 +32,14 @@ export default (context, render) => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/dynamic/no-chunk')
-          await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
-          await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
+          await check(
+            () => browser.elementByCss('body').text(),
+            /Welcome, normal/
+          )
+          await check(
+            () => browser.elementByCss('body').text(),
+            /Welcome, dynamic/
+          )
         } finally {
           if (browser) {
             browser.close()
@@ -42,8 +52,12 @@ export default (context, render) => {
         try {
           browser = await webdriver(context.appPort, '/dynamic/head')
           await check(() => browser.elementByCss('body').text(), /test/)
-          const backgroundColor = await browser.elementByCss('.dynamic-style').getComputedCss('background-color')
-          const height = await browser.elementByCss('.dynamic-style').getComputedCss('height')
+          const backgroundColor = await browser
+            .elementByCss('.dynamic-style')
+            .getComputedCss('background-color')
+          const height = await browser
+            .elementByCss('.dynamic-style')
+            .getComputedCss('height')
           expect(height).toBe('200px')
           expect(backgroundColor).toBe('rgba(0, 128, 0, 1)')
         } finally {
@@ -64,7 +78,10 @@ export default (context, render) => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/dynamic/no-ssr')
-          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
+          await check(
+            () => browser.elementByCss('body').text(),
+            /Hello World 1/
+          )
         } finally {
           if (browser) {
             browser.close()
@@ -84,7 +101,10 @@ export default (context, render) => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/dynamic/chunkfilename')
-          await check(() => browser.elementByCss('body').text(), /test chunkfilename/)
+          await check(
+            () => browser.elementByCss('body').text(),
+            /test chunkfilename/
+          )
         } finally {
           if (browser) {
             browser.close()
@@ -102,8 +122,14 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr-custom-loading')
-          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
+          browser = await webdriver(
+            context.appPort,
+            '/dynamic/no-ssr-custom-loading'
+          )
+          await check(
+            () => browser.elementByCss('body').text(),
+            /Hello World 1/
+          )
         } finally {
           if (browser) {
             browser.close()
@@ -123,8 +149,13 @@ export default (context, render) => {
       it('should only load the rendered module in the browser', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/multiple-modules')
-          const html = await browser.elementByCss('html').getAttribute('innerHTML')
+          browser = await webdriver(
+            context.appPort,
+            '/dynamic/multiple-modules'
+          )
+          const html = await browser
+            .elementByCss('html')
+            .getAttribute('innerHTML')
           expect(html).toMatch(/hello1\.js/)
           expect(html).not.toMatch(/hello2\.js/)
         } finally {
@@ -168,13 +199,14 @@ export default (context, render) => {
         const browser = await webdriver(context.appPort, '/dynamic/bundle')
 
         while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
+          const bodyText = await browser.elementByCss('body').text()
           if (
             /Dynamic Bundle/.test(bodyText) &&
             /Hello World 1/.test(bodyText) &&
-            !(/Hello World 2/.test(bodyText))
-          ) break
+            !/Hello World 2/.test(bodyText)
+          ) {
+            break
+          }
           await waitFor(1000)
         }
 
@@ -185,11 +217,8 @@ export default (context, render) => {
         const browser = await webdriver(context.appPort, '/dynamic/bundle')
 
         while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
-          if (
-            /ZEIT Rocks/.test(bodyText)
-          ) break
+          const bodyText = await browser.elementByCss('body').text()
+          if (/ZEIT Rocks/.test(bodyText)) break
           await waitFor(1000)
         }
 
@@ -201,16 +230,18 @@ export default (context, render) => {
 
         await browser
           .waitForElementByCss('#toggle-show-more')
-          .elementByCss('#toggle-show-more').click()
+          .elementByCss('#toggle-show-more')
+          .click()
 
         while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
+          const bodyText = await browser.elementByCss('body').text()
           if (
             /Dynamic Bundle/.test(bodyText) &&
             /Hello World 1/.test(bodyText) &&
             /Hello World 2/.test(bodyText)
-          ) break
+          ) {
+            break
+          }
           await waitFor(1000)
         }
 

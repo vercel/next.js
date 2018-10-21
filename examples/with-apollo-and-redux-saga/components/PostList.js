@@ -32,7 +32,7 @@ function PostList ({
                 <span>{index + 1}. </span>
                 <a
                   href={`/blog/${post.id}`}
-                  onClick={(event) => handleClick(event, post.id)}
+                  onClick={event => handleClick(event, post.id)}
                 >
                   {post.title}
                 </a>

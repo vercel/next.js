@@ -3,14 +3,16 @@
 import Router from 'next-server/router'
 import fetch from 'unfetch'
 
-export default ({assetPrefix}) => {
+export default ({ assetPrefix }) => {
   Router.ready(() => {
     Router.events.on('routeChangeComplete', ping)
   })
 
   async function ping () {
     try {
-      const url = `${assetPrefix || ''}/_next/on-demand-entries-ping?page=${Router.pathname}`
+      const url = `${assetPrefix || ''}/_next/on-demand-entries-ping?page=${
+        Router.pathname
+      }`
       const res = await fetch(url, {
         credentials: 'same-origin'
       })
@@ -37,24 +39,27 @@ export default ({assetPrefix}) => {
     // at this point.
     while (!document.hidden) {
       await ping()
-      await new Promise((resolve) => {
+      await new Promise(resolve => {
         pingerTimeout = setTimeout(resolve, 5000)
       })
     }
   }
 
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      runPinger()
-    } else {
-      clearTimeout(pingerTimeout)
-    }
-  }, false)
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      if (!document.hidden) {
+        runPinger()
+      } else {
+        clearTimeout(pingerTimeout)
+      }
+    },
+    false
+  )
 
   setTimeout(() => {
-    runPinger()
-      .catch((err) => {
-        console.error(err)
-      })
+    runPinger().catch(err => {
+      console.error(err)
+    })
   }, 10000)
 }

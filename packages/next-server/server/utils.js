@@ -1,7 +1,4 @@
-const internalPrefixes = [
-  /^\/_next\//,
-  /^\/static\//
-]
+const internalPrefixes = [/^\/_next\//, /^\/static\//]
 
 export function isInternalUrl (url) {
   for (const prefix of internalPrefixes) {

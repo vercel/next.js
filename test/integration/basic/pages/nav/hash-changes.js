@@ -17,7 +17,9 @@ export default class SelfReload extends Component {
         <Link href='#via-link'>
           <a id='via-link'>Via Link</a>
         </Link>
-        <a href='#via-a' id='via-a'>Via A</a>
+        <a href='#via-a' id='via-a'>
+          Via A
+        </a>
         <Link href='/nav/hash-changes'>
           <a id='page-url'>Page URL</a>
         </Link>
@@ -31,11 +33,19 @@ export default class SelfReload extends Component {
           <a id='scroll-to-name-item-400'>Go to name item 400</a>
         </Link>
         <p>COUNT: {this.props.count}</p>
-        {Array.from({length: 500}, (x, i) => i + 1).map(i => {
-          return <div key={`item-${i}`} id={`item-${i}`}>{i}</div>
+        {Array.from({ length: 500 }, (x, i) => i + 1).map(i => {
+          return (
+            <div key={`item-${i}`} id={`item-${i}`}>
+              {i}
+            </div>
+          )
         })}
-        {Array.from({length: 500}, (x, i) => i + 1).map(i => {
-          return <div key={`item-${i}`} name={`name-item-${i}`}>{i}</div>
+        {Array.from({ length: 500 }, (x, i) => i + 1).map(i => {
+          return (
+            <div key={`item-${i}`} name={`name-item-${i}`}>
+              {i}
+            </div>
+          )
         })}
       </div>
     )

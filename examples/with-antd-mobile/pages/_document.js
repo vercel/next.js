@@ -6,9 +6,13 @@ export default class extends Document {
       <html>
         <Head>
           <script src='/static/hd.min.js' />
-          <link rel='stylesheet' type='text/css' href='//unpkg.com/antd-mobile/dist/antd-mobile.min.css' />
+          <link
+            rel='stylesheet'
+            type='text/css'
+            href='//unpkg.com/antd-mobile/dist/antd-mobile.min.css'
+          />
         </Head>
-        <body style={{margin: 0}}>
+        <body style={{ margin: 0 }}>
           <Main />
           <NextScript />
         </body>

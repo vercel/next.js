@@ -15,14 +15,12 @@ class Head extends React.Component {
 const NEXT_HEAD_IDENTIFIER = 'next-head'
 
 export function defaultHead (className = NEXT_HEAD_IDENTIFIER) {
-  return [
-    <meta key='charSet' charSet='utf-8' className={className} />
-  ]
+  return [<meta key='charSet' charSet='utf-8' className={className} />]
 }
 
 function reduceComponents (components) {
   return components
-    .map((component) => React.Children.toArray(component.props.children))
+    .map(component => React.Children.toArray(component.props.children))
     .reduce((a, b) => a.concat(b), [])
     .reduce((a, b) => {
       if (React.Fragment && b.type === React.Fragment) {
@@ -36,7 +34,9 @@ function reduceComponents (components) {
     .filter(unique())
     .reverse()
     .map((c, i) => {
-      const className = (c.props && c.props.className ? c.props.className + ' ' : '') + NEXT_HEAD_IDENTIFIER
+      const className =
+        (c.props && c.props.className ? c.props.className + ' ' : '') +
+        NEXT_HEAD_IDENTIFIER
       const key = c.key || i
       return React.cloneElement(c, { key, className })
     })
@@ -53,7 +53,16 @@ function onStateChange (head) {
 }
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp', 'property']
-const ALLOWED_DUPLICATES = ['article:tag', 'og:image', 'og:image:alt', 'og:image:width', 'og:image:height', 'og:image:type', 'og:image:secure_url', 'og:image:url']
+const ALLOWED_DUPLICATES = [
+  'article:tag',
+  'og:image',
+  'og:image:alt',
+  'og:image:width',
+  'og:image:height',
+  'og:image:type',
+  'og:image:secure_url',
+  'og:image:url'
+]
 
 /*
  returns a function for filtering head child elements
@@ -67,7 +76,7 @@ function unique () {
   const metaTypes = new Set()
   const metaCategories = {}
 
-  return (h) => {
+  return h => {
     if (h.key && h.key.indexOf('.$') === 0) {
       if (keys.has(h.key)) return false
       keys.add(h.key)
@@ -89,7 +98,12 @@ function unique () {
           } else {
             const category = h.props[metatype]
             const categories = metaCategories[metatype] || new Set()
-            if (categories.has(category) && ALLOWED_DUPLICATES.indexOf(category) === -1) return false
+            if (
+              categories.has(category) &&
+              ALLOWED_DUPLICATES.indexOf(category) === -1
+            ) {
+              return false
+            }
             categories.add(category)
             metaCategories[metatype] = categories
           }
