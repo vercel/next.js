@@ -15,8 +15,7 @@
               }
             },
             "transform-runtime": {
-              "regenerator": false,
-              "useBuiltIns": true
+              "regenerator": false
             }
           }
         ]
