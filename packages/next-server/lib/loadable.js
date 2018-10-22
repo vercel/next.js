@@ -25,7 +25,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 
 const ALL_INITIALIZERS = []
-const READY_INITIALIZERS = new Map()
+let READY_INITIALIZERS = {}
 let initialized = false
 
 function load (loader) {
@@ -136,10 +136,12 @@ function createLoadableComponent (loadFn, options) {
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined' && typeof opts.webpack === 'function') {
-    const moduleIds = opts.webpack()
-    for (const moduleId of moduleIds) {
-      READY_INITIALIZERS.set(moduleId, () => {
+  if (!initialized && typeof window !== 'undefined' && opts.modules) {
+    for (const moduleId of opts.modules) {
+      if(!READY_INITIALIZERS[moduleId]) {
+        READY_INITIALIZERS[moduleId] = []
+      }
+      READY_INITIALIZERS[moduleId].push(() => {
         return init()
       })
     }
@@ -297,18 +299,16 @@ Loadable.preloadAll = () => {
 Loadable.preloadReady = (webpackIds) => {
   return new Promise((resolve, reject) => {
     const initializers = webpackIds.reduce((allInitalizers, moduleId) => {
-      const initializer = READY_INITIALIZERS.get(moduleId)
+      const initializer = READY_INITIALIZERS[moduleId]
       if (!initializer) {
         return allInitalizers
       }
-
-      allInitalizers.push(initializer)
-      return allInitalizers
+      return allInitalizers.concat(initializer)
     }, [])
 
     initialized = true
     // Make sure the object is cleared
-    READY_INITIALIZERS.clear()
+    READY_INITIALIZERS = {}
 
     // We always will resolve, errors should be handled within loading UIs.
     flushInitializers(initializers).then(resolve, resolve)

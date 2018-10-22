@@ -95,8 +95,7 @@ async function doRender (req, res, pathname, query, {
   App = App.default || App
   Component = Component.default || Component
 
-  // const reactLoadableManifest = require(pagePath + '-loadable.json')
-  // const buildManifest = require(pagePath + '-assets.json')
+  const reactLoadableManifest = require(pagePath + '-loadable.json')
 
   if (typeof Component !== 'function') {
     throw new Error(`The default export is not a React Component in page: "${page}"`)
@@ -106,7 +105,6 @@ async function doRender (req, res, pathname, query, {
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
-  // const files = buildManifest.assets
   const files = [`static/${buildId}/main.js`]
 
   // the response might be finshed on the getinitialprops call
@@ -154,7 +152,7 @@ async function doRender (req, res, pathname, query, {
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, /* buildManifest */ }
+    return { html, head }
   }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
@@ -162,7 +160,7 @@ async function doRender (req, res, pathname, query, {
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
   const dynamicImports = []
-  const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
+  const dynamicImportsIds = reactLoadableModules
 
   if (isResSent(res)) return
 

@@ -113,23 +113,6 @@ export default function ({ types: t, template }) {
               t.identifier('loadableGenerated'),
               t.objectExpression([
                 t.objectProperty(
-                  t.identifier('webpack'),
-                  t.arrowFunctionExpression(
-                    [],
-                    t.arrayExpression(
-                      dynamicImports.map(dynamicImport => {
-                        return t.callExpression(
-                          t.memberExpression(
-                            t.identifier('require'),
-                            t.identifier('resolveWeak')
-                          ),
-                          [dynamicImport.get('arguments')[0].node]
-                        )
-                      })
-                    )
-                  )
-                ),
-                t.objectProperty(
                   t.identifier('modules'),
                   t.arrayExpression(
                     dynamicImports.map(dynamicImport => {

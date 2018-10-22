@@ -218,7 +218,39 @@ async function clientBundler({Bundler, dir, buildId, config}) {
 
   // Run the bundler, this returns the main bundle
   // Use the events if you're using watch mode as this promise will only trigger once and not for every rebuild
-  const bundle = await bundler.bundle();
+  const mainBundle = await bundler.bundle()
+  const manifests = new Set()
+  
+  function getDynamicBundlesForAsset(entryAsset, entryName) {
+    const modulesMapping = {}
+    for(const [dep, asset] of entryAsset.depAssets) {
+      if(!dep.dynamic) {
+        continue
+      }
+
+      if(!modulesMapping[dep.name]) {
+        modulesMapping[dep.name] = []
+      }
+
+      for(const bundle of asset.bundles) {
+        modulesMapping[dep.name].push(path.relative(path.dirname(entryName), bundle.name))
+      }
+    }
+
+    return modulesMapping
+  }
+  
+  const writePromises = []
+  for(const [, entryBundle] of mainBundle.childBundles.entries()) {
+    if(!ROUTE_NAME_REGEX.exec(entryBundle.name)) {
+      continue
+    }
+
+    const dynamicBundles = getDynamicBundlesForAsset(entryBundle.entryAsset, entryBundle.name)
+    const manifestName = entryBundle.name.replace(options.outDir, path.join(dir, '.next', 'server')).replace(/\.js$/, '-loadable.json')
+    writePromises.push(writeFile(manifestName, JSON.stringify(dynamicBundles), 'utf8'))
+  }
+  await Promise.all(writePromises)
 }
 
 async function serverBundler({Bundler, dir, buildId, config}) {
