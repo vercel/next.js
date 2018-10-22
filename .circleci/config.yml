@@ -11,7 +11,7 @@ jobs:
       - run: yarn test
   publish-stable:
     docker:
-      - image: circleci/node:9.10.0
+      - image: circleci/node:10
     working_directory: ~/repo
     steps:
       - checkout
@@ -26,7 +26,7 @@ jobs:
 
   publish-canary:
     docker:
-      - image: circleci/node:9.10.0
+      - image: circleci/node:10
     working_directory: ~/repo
     steps:
       - checkout

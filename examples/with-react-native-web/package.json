@@ -11,6 +11,6 @@
     "react": "^16.4.1",
     "react-art": "^16.4.1",
     "react-dom": "^16.4.1",
-    "react-native-web": "^0.8.8"
+    "react-native-web": "0.9.3"
   }
 }

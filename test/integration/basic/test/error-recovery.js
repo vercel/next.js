@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
