@@ -17,6 +17,10 @@ import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
+function isHashFilename(path) {
+  return Boolean(/\..*\.js$/.exec(path))
+}
+
 export default class Server {
   constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
@@ -108,7 +112,11 @@ export default class Server {
           if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
             this.setImmutableAssetCacheControl(res)
           }
-          const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
+          
+          const p = resolve(join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || [])))
+          if(isHashFilename(p)) {
+            this.setImmutableAssetCacheControl(res)
+          }
           await this.serveStatic(req, res, p)
         }
       },
