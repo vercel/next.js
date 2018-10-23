@@ -17,19 +17,19 @@ export default (context) => {
     })
   })
 
-  describe('process.browser', () => {
-    it('should eliminate server only code on the client', async () => {
-      const buildId = await readNextBuildFile('./BUILD_ID')
-      const clientCode = await readNextBuildFile(`./static/${buildId}/pages/process-env.js`)
-      expect(clientCode).toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/)
-      expect(clientCode).not.toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/)
-    })
+  // describe('process.browser', () => {
+  //   it('should eliminate server only code on the client', async () => {
+  //     const buildId = await readNextBuildFile('./BUILD_ID')
+  //     const clientCode = await readNextBuildFile(`./static/${buildId}/pages/process-env.js`)
+  //     expect(clientCode).toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/)
+  //     expect(clientCode).not.toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/)
+  //   })
 
-    it('should eliminate client only code on the server', async () => {
-      const buildId = await readNextBuildFile('./BUILD_ID')
-      const serverCode = await readNextBuildFile(`./server/static/${buildId}/pages/process-env.js`)
-      expect(serverCode).not.toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/)
-      expect(serverCode).toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/)
-    })
-  })
+  //   it('should eliminate client only code on the server', async () => {
+  //     const buildId = await readNextBuildFile('./BUILD_ID')
+  //     const serverCode = await readNextBuildFile(`./server/static/${buildId}/pages/process-env.js`)
+  //     expect(serverCode).not.toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/)
+  //     expect(serverCode).toMatch(/__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/)
+  //   })
+  // })
 }
