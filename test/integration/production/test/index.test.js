@@ -77,7 +77,7 @@ describe('Production Usage', () => {
 
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
-      const buildManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-assets.json'))
+      // const buildManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-assets.json'))
       const reactLoadableManifest = require(join('../.next', 'server', 'static', buildId, 'pages', 'dynamic', 'ssr-loadable.json'))
       const url = `http://localhost:${appPort}/_next/`
 
@@ -87,12 +87,14 @@ describe('Production Usage', () => {
       resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
+      resources.push(url + 'static/' + buildId + 'pages/dynamic/' + reactLoadableManifest['../../components/hello1'][0])
+
+      console.log(resources)
 
       // test main.js runtime etc
-      for (const item of buildManifest.assets) {
-        resources.push(url + item)
-      }
+      // for (const item of buildManifest.assets) {
+      //   resources.push(url + item)
+      // }
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
