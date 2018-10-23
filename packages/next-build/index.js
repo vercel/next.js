@@ -247,7 +247,7 @@ async function clientBundler({Bundler, dir, buildId, config}) {
     }
 
     const dynamicBundles = getDynamicBundlesForAsset(entryBundle.entryAsset, entryBundle.name)
-    const manifestName = entryBundle.name.replace(options.outDir, path.join(dir, '.next', 'server')).replace(/\.js$/, '-loadable.json')
+    const manifestName = entryBundle.name.replace(options.outDir, path.join(dir, '.next', 'server', 'static')).replace(/\.js$/, '-loadable.json')
     writePromises.push(writeFile(manifestName, JSON.stringify(dynamicBundles), 'utf8'))
   }
   await Promise.all(writePromises)
@@ -258,7 +258,7 @@ async function serverBundler({Bundler, dir, buildId, config}) {
   const entryFiles = serverPages
   
   const options = {
-    outDir: path.join(dir, '.next', 'server'),
+    outDir: path.join(dir, '.next', 'server', 'static'),
     watch: false,
     sourceMaps: false,
     minify: true,
