@@ -76,7 +76,7 @@ async function doRender (req, res, pathname, query, {
     await hotReloader.ensurePage(page)
   }
 
-  const pagePath = join(distDir, SERVER_DIRECTORY, /* CLIENT_STATIC_FILES_PATH, */ buildId, 'pages', normalizedPagePath)
+  const pagePath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', normalizedPagePath)
 
   try {
     await access(`${pagePath}.js`, (fs.constants || fs).R_OK)
@@ -84,8 +84,8 @@ async function doRender (req, res, pathname, query, {
     throw pageNotFoundError(page)
   }
 
-  const documentPath = join(distDir, SERVER_DIRECTORY, /* CLIENT_STATIC_FILES_PATH, */ buildId, 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, /* CLIENT_STATIC_FILES_PATH, */ buildId, 'pages', '_app')
+  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
+  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
 
   let Document = require(documentPath)
   let App = require(appPath)
