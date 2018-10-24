@@ -1,4 +1,8 @@
 // @flow
+
+// Check node version before including other dependencies
+import '../server/lib/check-node-version'
+
 import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
