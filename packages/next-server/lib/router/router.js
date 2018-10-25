@@ -4,7 +4,7 @@ import { parse, format } from 'url'
 import EventEmitter from '../EventEmitter'
 import shallowEquals from '../shallow-equals'
 import PQueue from '../p-queue'
-import { loadGetInitialProps, getURL } from '../utils'
+import { loadGetInitialProps, getURL, execOnce } from '../utils'
 import { _rewriteUrlForNextExport } from './'
 
 export default class Router {
@@ -224,6 +224,9 @@ export default class Router {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+    if (window.frameElement) {
+      execOnce(console.warn)(`Warning: You're using Next.js inside an iFrame. Browser history is disabled.`)
+    } else if (method !== 'pushState' || getURL() !== as) {
       window.history[method]({ url, as, options }, null, as)
     }
   }
