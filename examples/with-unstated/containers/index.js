@@ -1,4 +1,4 @@
-import CounterContainer from './CounterContainer'
-import ClockContainer from './ClockContainer'
+import CounterContainer from "./CounterContainer";
+import ClockContainer from "./ClockContainer";
 
-export { CounterContainer, ClockContainer }
+export { CounterContainer, ClockContainer };

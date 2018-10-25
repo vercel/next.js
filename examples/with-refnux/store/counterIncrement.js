@@ -1,6 +1,3 @@
+const counterIncrement = ({ counter }, dispatch) => ({ counter: counter + 1 });
 
-const counterIncrement = ({counter}, dispatch) => {
-  return { counter: counter + 1 }
-}
-
-export default counterIncrement
+export default counterIncrement;

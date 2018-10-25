@@ -1,8 +1,8 @@
-import React, {Component} from 'react'
-import {UserAgent} from '@quentin-sommer/react-useragent'
+import React, { Component } from "react";
+import { UserAgent } from "@quentin-sommer/react-useragent";
 
 class Index extends Component {
-  render () {
+  render() {
     return (
       <div>
         <p>
@@ -35,13 +35,13 @@ class Index extends Component {
           <p>Hello Windows!</p>
         </UserAgent>
         <div>
-          <a href='https://github.com/quentin-sommer/react-useragent'>
+          <a href="https://github.com/quentin-sommer/react-useragent">
             See full documentation here
           </a>
         </div>
       </div>
-    )
+    );
   }
 }
 
-export default Index
+export default Index;

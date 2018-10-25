@@ -1,20 +1,20 @@
-import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: "center",
     flexGrow: 1,
-    justifyContent: 'center'
+    justifyContent: "center"
   },
   text: {
-    alignItems: 'center',
+    alignItems: "center",
     fontSize: 24
   }
-})
+});
 
 export default props => (
   <View style={styles.container}>
     <Text style={styles.text}>Welcome to Next.js!</Text>
   </View>
-)
+);

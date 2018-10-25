@@ -1,8 +1,5 @@
-import Reflux from 'reflux'
+import Reflux from "reflux";
 
-var Actions = Reflux.createActions([
-  'increment',
-  'decrement'
-])
+const Actions = Reflux.createActions(["increment", "decrement"]);
 
-export default Actions
+export default Actions;

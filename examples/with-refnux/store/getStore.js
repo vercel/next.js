@@ -1,16 +1,16 @@
-import { createStore } from 'refnux'
+import { createStore } from "refnux";
 
-const storeInitialState = { counter: 0, key: 'value' }
+const storeInitialState = { counter: 0, key: "value" };
 
 const getStore = () => {
-  let store = null
-  if (typeof window === 'undefined') {
-    store = createStore(storeInitialState)
+  let store = null;
+  if (typeof window === "undefined") {
+    store = createStore(storeInitialState);
   } else {
-    store = window.store || createStore(storeInitialState)
-    window.store = store
+    store = window.store || createStore(storeInitialState);
+    window.store = store;
   }
-  return store
-}
+  return store;
+};
 
-export default getStore
+export default getStore;

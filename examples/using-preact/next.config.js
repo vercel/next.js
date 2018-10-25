@@ -1,3 +1,3 @@
-const withPreact = require('@zeit/next-preact')
+const withPreact = require("@zeit/next-preact");
 
-module.exports = withPreact()
+module.exports = withPreact();

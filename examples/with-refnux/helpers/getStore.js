@@ -1,18 +1,18 @@
-import { createStore } from 'refnux'
+import { createStore } from "refnux";
 
-let storeMemoized = null
+let storeMemoized = null;
 
-const getStore = (initialState) => {
-  let store = null
-  if (typeof window === 'undefined') {
-    store = createStore(initialState)
+const getStore = initialState => {
+  let store = null;
+  if (typeof window === "undefined") {
+    store = createStore(initialState);
   } else {
     if (!storeMemoized) {
-      storeMemoized = createStore(initialState)
+      storeMemoized = createStore(initialState);
     }
-    store = storeMemoized
+    store = storeMemoized;
   }
-  return store
-}
+  return store;
+};
 
-export default getStore
+export default getStore;

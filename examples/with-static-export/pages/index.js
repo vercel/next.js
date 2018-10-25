@@ -1,18 +1,20 @@
-import { Component } from 'react'
-import Head from 'next/head'
-import fetch from 'isomorphic-unfetch'
+import { Component } from "react";
+import Head from "next/head";
+import fetch from "isomorphic-unfetch";
 
-import Post from '../components/post'
+import Post from "../components/post";
 
 export default class extends Component {
-  static async getInitialProps () {
+  static async getInitialProps() {
     // fetch list of posts
-    const response = await fetch('https://jsonplaceholder.typicode.com/posts?_page=1')
-    const postList = await response.json()
-    return { postList }
+    const response = await fetch(
+      "https://jsonplaceholder.typicode.com/posts?_page=1"
+    );
+    const postList = await response.json();
+    return { postList };
   }
 
-  render () {
+  render() {
     return (
       <main>
         <Head>
@@ -22,9 +24,11 @@ export default class extends Component {
         <h1>List of posts</h1>
 
         <section>
-          {this.props.postList.map(post => <Post {...post} key={post.id} />)}
+          {this.props.postList.map(post => (
+            <Post {...post} key={post.id} />
+          ))}
         </section>
       </main>
-    )
+    );
   }
 }

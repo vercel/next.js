@@ -1,9 +1,9 @@
-import React, { Component } from 'react'
+import React, { Component } from "react";
 /* First we import the consumer */
-import { CounterConsumer } from '../components/CounterProvider'
+import { CounterConsumer } from "../components/CounterProvider";
 
 export default class index extends Component {
-  render () {
+  render() {
     return (
       /* Then we use our context through render props */
       <CounterConsumer>
@@ -15,6 +15,6 @@ export default class index extends Component {
           </div>
         )}
       </CounterConsumer>
-    )
+    );
   }
 }

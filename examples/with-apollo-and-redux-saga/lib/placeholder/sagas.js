@@ -1,19 +1,19 @@
-import { put, takeLatest } from 'redux-saga/effects'
-import es6promise from 'es6-promise'
-import fetch from 'isomorphic-unfetch'
+import { put, takeLatest } from "redux-saga/effects";
+import es6promise from "es6-promise";
+import fetch from "isomorphic-unfetch";
 
-import { actionTypes, loadDataSuccess, loadDataError } from './actions'
+import { actionTypes, loadDataSuccess, loadDataError } from "./actions";
 
-es6promise.polyfill()
+es6promise.polyfill();
 
-function * loadDataSaga () {
+function* loadDataSaga() {
   try {
-    const res = yield fetch('https://jsonplaceholder.typicode.com/users')
-    const data = yield res.json()
-    yield put(loadDataSuccess(data))
+    const res = yield fetch("https://jsonplaceholder.typicode.com/users");
+    const data = yield res.json();
+    yield put(loadDataSuccess(data));
   } catch (err) {
-    yield put(loadDataError(err))
+    yield put(loadDataError(err));
   }
 }
 
-export default takeLatest(actionTypes.LOAD_DATA, loadDataSaga)
+export default takeLatest(actionTypes.LOAD_DATA, loadDataSaga);

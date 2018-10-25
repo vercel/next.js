@@ -1,11 +1,11 @@
-import React from 'react'
-import Head from 'next/head'
-import styled, { hydrate, keyframes, css, injectGlobal } from 'react-emotion'
+import React from "react";
+import Head from "next/head";
+import styled, { hydrate, keyframes, css, injectGlobal } from "react-emotion";
 
 // Adds server generated styles to emotion cache.
 // '__NEXT_DATA__.ids' is set in '_document.js'
-if (typeof window !== 'undefined') {
-  hydrate(window.__NEXT_DATA__.ids)
+if (typeof window !== "undefined") {
+  hydrate(window.__NEXT_DATA__.ids);
 }
 
 injectGlobal`
@@ -17,7 +17,7 @@ injectGlobal`
     font-family: Helvetica, Arial, sans-serif;
     font-size: 24px;
   }
-`
+`;
 
 const basicStyles = css`
   background-color: white;
@@ -29,7 +29,7 @@ const basicStyles = css`
   transition: all 0.1s linear;
   margin: 3rem 0;
   padding: 1rem 0.5rem;
-`
+`;
 const hoverStyles = css`
   &:hover {
     color: white;
@@ -37,7 +37,7 @@ const hoverStyles = css`
     border-color: aqua;
     box-shadow: -15px -15px 0 0 aqua, -30px -30px 0 0 cornflowerblue;
   }
-`
+`;
 const bounce = keyframes`
   from {
     transform: scale(1.01);
@@ -45,11 +45,11 @@ const bounce = keyframes`
   to {
     transform: scale(0.99);
   }
-`
+`;
 
 const Basic = styled.div`
   ${basicStyles};
-`
+`;
 
 const Combined = styled.div`
   ${basicStyles};
@@ -57,7 +57,7 @@ const Combined = styled.div`
   & code {
     background-color: linen;
   }
-`
+`;
 const Animated = styled.div`
   ${basicStyles};
   ${hoverStyles};
@@ -65,18 +65,22 @@ const Animated = styled.div`
     background-color: linen;
   }
   animation: ${props => props.animation} 0.2s infinite ease-in-out alternate;
-`
+`;
 
-export default () => {
-  return (
-    <>'     '<Head>
+export default () => (
+  <>
+    ' '
+    <Head>
       <title>With Emotion</title>
-    </Head>'     '<div>
+    </Head>
+    ' '
+    <div>
       <Basic>Cool Styles</Basic>
       <Combined>
-          With <code>:hover</code>.
+        With <code>:hover</code>.
       </Combined>
       <Animated animation={bounce}>Let's bounce.</Animated>
-    </div>'   '</>
-  )
-}
+    </div>
+    ' '
+  </>
+);

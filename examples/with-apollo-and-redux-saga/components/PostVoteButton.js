@@ -1,4 +1,4 @@
-export default ({id, votes, onClickHandler, className}) => (
+export default ({ id, votes, onClickHandler, className }) => (
   <button className={className} onClick={() => onClickHandler()}>
     <style jsx>{`
       button {
@@ -14,7 +14,7 @@ export default ({id, votes, onClickHandler, className}) => (
         border-color: transparent transparent #000000 transparent;
         border-style: solid;
         border-width: 0 4px 6px 4px;
-        content: '';
+        content: "";
         height: 0;
         margin-right: 0px;
         width: 0;
@@ -27,4 +27,4 @@ export default ({id, votes, onClickHandler, className}) => (
       }
     `}</style>
   </button>
-)
+);

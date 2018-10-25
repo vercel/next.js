@@ -1,11 +1,11 @@
-import React from 'react'
-import { connect } from 'react-redux'
+import React from "react";
+import { connect } from "react-redux";
 
-import PageCount from './PageCount'
-import Clock from './Clock'
-import Placeholder from './Placeholder'
+import PageCount from "./PageCount";
+import Clock from "./Clock";
+import Placeholder from "./Placeholder";
 
-function Page ({ clock, placeholder, linkTo, title }) {
+function Page({ clock, placeholder, linkTo, title }) {
   return (
     <React.Fragment>
       <h1>{title}</h1>
@@ -13,7 +13,7 @@ function Page ({ clock, placeholder, linkTo, title }) {
       <PageCount />
       <Placeholder placeholder={placeholder} />
     </React.Fragment>
-  )
+  );
 }
 
-export default connect(state => state)(Page)
+export default connect(state => state)(Page);

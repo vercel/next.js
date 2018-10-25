@@ -1,7 +1,7 @@
-const withLess = require('@zeit/next-less')
+const withLess = require("@zeit/next-less");
 
 /* Without CSS Modules, with PostCSS */
-module.exports = withLess()
+module.exports = withLess();
 
 /* With CSS Modules */
 // module.exports = withLess({ cssModules: true })

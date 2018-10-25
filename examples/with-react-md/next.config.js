@@ -1,9 +1,9 @@
 module.exports = {
-  webpack: function (config) {
+  webpack(config) {
     if (config.resolve.alias) {
-      delete config.resolve.alias['react']
-      delete config.resolve.alias['react-dom']
+      delete config.resolve.alias.react;
+      delete config.resolve.alias["react-dom"];
     }
-    return config
+    return config;
   }
-}
+};

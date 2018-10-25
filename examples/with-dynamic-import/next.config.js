@@ -1,8 +1,8 @@
 module.exports = {
-  exportPathMap: function () {
+  exportPathMap() {
     return {
-      '/': { page: '/', query: { showMore: false } },
-      '/about': { page: '/about' }
-    }
+      "/": { page: "/", query: { showMore: false } },
+      "/about": { page: "/about" }
+    };
   }
-}
+};

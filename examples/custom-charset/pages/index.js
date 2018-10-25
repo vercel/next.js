@@ -1,3 +1,3 @@
-import React from 'react'
+import React from "react";
 
-export default () => <div>áéíóöúü</div>
+export default () => <div>áéíóöúü</div>;

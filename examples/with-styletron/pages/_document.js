@@ -1,24 +1,24 @@
-import Document, { Head, Main, NextScript } from 'next/document'
-import { flush } from '../styletron'
+import Document, { Head, Main, NextScript } from "next/document";
+import { flush } from "../styletron";
 
 export default class MyDocument extends Document {
-  static getInitialProps ({ renderPage }) {
-    const page = renderPage()
-    const styletron = flush()
-    const stylesheets = styletron ? styletron.getStylesheets() : []
-    return { ...page, stylesheets }
+  static getInitialProps({ renderPage }) {
+    const page = renderPage();
+    const styletron = flush();
+    const stylesheets = styletron ? styletron.getStylesheets() : [];
+    return { ...page, stylesheets };
   }
 
-  render () {
+  render() {
     return (
       <html>
         <Head>
           <title>My page</title>
           {this.props.stylesheets.map((sheet, i) => (
             <style
-              className='_styletron_hydrate_'
+              className="_styletron_hydrate_"
               dangerouslySetInnerHTML={{ __html: sheet.css }}
-              media={sheet.media || ''}
+              media={sheet.media || ""}
               key={i}
             />
           ))}
@@ -28,6 +28,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </html>
-    )
+    );
   }
 }

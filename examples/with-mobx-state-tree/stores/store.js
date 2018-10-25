@@ -1,43 +1,43 @@
-import { types, applySnapshot } from 'mobx-state-tree'
+import { types, applySnapshot } from "mobx-state-tree";
 
-let store = null
+let store = null;
 
 const Store = types
   .model({
     lastUpdate: types.Date,
     light: false
   })
-  .actions((self) => {
-    let timer
-    function start () {
+  .actions(self => {
+    let timer;
+    function start() {
       timer = setInterval(() => {
         // mobx-state-tree doesn't allow anonymous callbacks changing data
         // pass off to another action instead
-        self.update()
-      }, 1000)
+        self.update();
+      }, 1000);
     }
 
-    function update () {
-      self.lastUpdate = Date.now()
-      self.light = true
+    function update() {
+      self.lastUpdate = Date.now();
+      self.light = true;
     }
 
-    function stop () {
-      clearInterval(timer)
+    function stop() {
+      clearInterval(timer);
     }
 
-    return { start, stop, update }
-  })
+    return { start, stop, update };
+  });
 
-export function initializeStore (isServer, snapshot = null) {
+export function initializeStore(isServer, snapshot = null) {
   if (isServer) {
-    store = Store.create({ lastUpdate: Date.now() })
+    store = Store.create({ lastUpdate: Date.now() });
   }
   if (store === null) {
-    store = Store.create({ lastUpdate: Date.now() })
+    store = Store.create({ lastUpdate: Date.now() });
   }
   if (snapshot) {
-    applySnapshot(store, snapshot)
+    applySnapshot(store, snapshot);
   }
-  return store
+  return store;
 }

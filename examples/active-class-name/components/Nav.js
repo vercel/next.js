@@ -1,10 +1,10 @@
-import Link from './Link'
+import Link from "./Link";
 
 export default () => (
   <nav>
     <style jsx>{`
       .active:after {
-        content: ' (current page)';
+        content: " (current page)";
       }
 
       .nav-link {
@@ -16,15 +16,15 @@ export default () => (
 
     <ul>
       <li>
-        <Link activeClassName='active' href='/'>
-          <a className='nav-link home-link'>Home</a>
+        <Link activeClassName="active" href="/">
+          <a className="nav-link home-link">Home</a>
         </Link>
       </li>
       <li>
-        <Link activeClassName='active' href='/about'>
-          <a className='nav-link'>About</a>
+        <Link activeClassName="active" href="/about">
+          <a className="nav-link">About</a>
         </Link>
       </li>
     </ul>
   </nav>
-)
+);

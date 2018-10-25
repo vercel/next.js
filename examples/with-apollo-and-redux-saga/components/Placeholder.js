@@ -1,6 +1,6 @@
-import React from 'react'
+import React from "react";
 
-export default ({placeholder}) => (
+export default ({ placeholder }) => (
   <React.Fragment>
     <h2>JSON:</h2>
     {placeholder.data && (
@@ -9,7 +9,7 @@ export default ({placeholder}) => (
       </pre>
     )}
     {placeholder.error && (
-      <p style={{ color: 'red' }}>Error: {placeholder.error.message}</p>
+      <p style={{ color: "red" }}>Error: {placeholder.error.message}</p>
     )}
     <style jsx>{`
       aside {
@@ -17,4 +17,4 @@ export default ({placeholder}) => (
       }
     `}</style>
   </React.Fragment>
-)
+);

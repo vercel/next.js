@@ -1,5 +1,5 @@
 export default () => (
-  <div className='hello'>
+  <div className="hello">
     <p>Hello World</p>
     <style jsx>{`
       .hello {
@@ -14,4 +14,4 @@ export default () => (
       }
     `}</style>
   </div>
-)
+);

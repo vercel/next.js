@@ -1,4 +1,4 @@
-import {reduxPage} from '../config/redux'
-import About from '../containers/about'
+import { reduxPage } from "../config/redux";
+import About from "../containers/about";
 
-export default reduxPage(About)
+export default reduxPage(About);

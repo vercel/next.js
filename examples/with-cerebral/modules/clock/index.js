@@ -1,6 +1,5 @@
-
-import {mounted, unMounted, secondTicked} from './signals'
-import provider from './provider'
+import { mounted, unMounted, secondTicked } from "./signals";
+import provider from "./provider";
 
 export default {
   state: {
@@ -13,4 +12,4 @@ export default {
     secondTicked
   },
   provider
-}
+};

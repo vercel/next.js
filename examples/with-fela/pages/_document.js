@@ -1,28 +1,28 @@
-import Document, { Head, Main, NextScript } from 'next/document'
-import { renderToSheetList } from 'fela-dom'
+import Document, { Head, Main, NextScript } from "next/document";
+import { renderToSheetList } from "fela-dom";
 
-import FelaProvider from '../FelaProvider'
-import getFelaRenderer from '../getFelaRenderer'
+import FelaProvider from "../FelaProvider";
+import getFelaRenderer from "../getFelaRenderer";
 
 export default class MyDocument extends Document {
-  static getInitialProps ({ renderPage }) {
-    const serverRenderer = getFelaRenderer()
+  static getInitialProps({ renderPage }) {
+    const serverRenderer = getFelaRenderer();
 
     const page = renderPage(App => props => (
       <FelaProvider renderer={serverRenderer}>
         <App {...props} />
       </FelaProvider>
-    ))
+    ));
 
-    const sheetList = renderToSheetList(serverRenderer)
+    const sheetList = renderToSheetList(serverRenderer);
 
     return {
       ...page,
       sheetList
-    }
+    };
   }
 
-  render () {
+  render() {
     const styleNodes = this.props.sheetList.map(
       ({ type, rehydration, support, media, css }) => (
         <style
@@ -34,7 +34,7 @@ export default class MyDocument extends Document {
           media={media}
         />
       )
-    )
+    );
 
     return (
       <html>
@@ -47,6 +47,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </html>
-    )
+    );
   }
 }

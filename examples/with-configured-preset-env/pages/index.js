@@ -1,21 +1,22 @@
-import {Component} from 'react'
+import { Component } from "react";
 
-function * generatorMethod () {
-  yield 1
+function* generatorMethod() {
+  yield 1;
 }
 
-async function fooBar () {
-  for (let val of generatorMethod()) {
-    return val
+async function fooBar() {
+  for (const val of generatorMethod()) {
+    return val;
   }
 }
 
 export default class Index extends Component {
-  async otherMethod () {
-    await fooBar()
+  async otherMethod() {
+    await fooBar();
   }
-  render () {
-    const foo = new Map([['cats', 'dogs']])
-    return <h1>Garbage {foo.get('cats')}</h1>
+
+  render() {
+    const foo = new Map([["cats", "dogs"]]);
+    return <h1>Garbage {foo.get("cats")}</h1>;
   }
 }

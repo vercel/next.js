@@ -4,16 +4,16 @@ module.exports = {
       test: /\.(txt|jpg|png|svg)$/,
       use: [
         {
-          loader: 'file-loader',
+          loader: "file-loader",
           options: {
-            context: '',
+            context: "",
             emitFile: true,
-            name: '[path][name].[hash].[ext]'
+            name: "[path][name].[hash].[ext]"
           }
         }
       ]
-    })
+    });
 
-    return config
+    return config;
   }
-}
+};

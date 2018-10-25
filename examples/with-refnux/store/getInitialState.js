@@ -1,8 +1,6 @@
-const getInitialState = () => {
-  return {
-    title: '',
-    counter: 0
-  }
-}
+const getInitialState = () => ({
+  title: "",
+  counter: 0
+});
 
-export default getInitialState
+export default getInitialState;

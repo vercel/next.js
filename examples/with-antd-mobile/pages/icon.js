@@ -1,61 +1,52 @@
-import React, { Component } from 'react'
-import { WhiteSpace, WingBlank, Card, Icon } from 'antd-mobile'
-import Layout from '../components/Layout'
-import MenuBar from '../components/MenuBar'
+import React, { Component } from "react";
+import { WhiteSpace, WingBlank, Card, Icon } from "antd-mobile";
+import Layout from "../components/Layout";
+import MenuBar from "../components/MenuBar";
 
 export default class Home extends Component {
-  static getInitialProps ({ req }) {
-    const language = req ? req.headers['accept-language'] : navigator.language
+  static getInitialProps({ req }) {
+    const language = req ? req.headers["accept-language"] : navigator.language;
 
     return {
       language
-    }
+    };
   }
 
-  render () {
+  render() {
     const {
       language,
       url: { pathname }
-    } = this.props
+    } = this.props;
 
     return (
       <Layout language={language}>
-        <MenuBar
-          pathname={pathname}
-        >
+        <MenuBar pathname={pathname}>
           <WingBlank>
             <WhiteSpace />
             <Card>
-              <Card.Header
-                extra='Internal svg'
-                thumb={<Icon type='check' />}
-              />
+              <Card.Header extra="Internal svg" thumb={<Icon type="check" />} />
               <Card.Body>
-                <code>
-                  {`<Icon type='check' />`}
-                </code>
+                <code>{`<Icon type='check' />`}</code>
               </Card.Body>
             </Card>
             <WhiteSpace />
             <Card>
               <Card.Header
-                extra='Custom svg'
-                thumb={<Icon type={require('../static/reload.svg')} />}
+                extra="Custom svg"
+                thumb={<Icon type={require("../static/reload.svg")} />}
               />
               <Card.Body>
-                <code>
-                  {`<Icon type={require('../static/reload.svg')} />`}
-                </code>
+                <code>{`<Icon type={require('../static/reload.svg')} />`}</code>
               </Card.Body>
             </Card>
             <WhiteSpace />
             <Card>
               <Card.Header
-                extra='Fill color'
+                extra="Fill color"
                 thumb={
                   <Icon
-                    type={require('../static/reload.svg')}
-                    style={{ fill: '#108ee9' }}
+                    type={require("../static/reload.svg")}
+                    style={{ fill: "#108ee9" }}
                   />
                 }
               />
@@ -76,6 +67,6 @@ export default class Home extends Component {
           </WingBlank>
         </MenuBar>
       </Layout>
-    )
+    );
   }
 }

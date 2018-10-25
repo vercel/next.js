@@ -1,7 +1,7 @@
-import React from 'react'
+import React from "react";
 
 const Loader = () => (
-  <div className='loader'>
+  <div className="loader">
     <style jsx>{`
       .loader {
         border: 8px solid #f3f3f3; /* Light grey */
@@ -25,6 +25,6 @@ const Loader = () => (
       }
     `}</style>
   </div>
-)
+);
 
-export default Loader
+export default Loader;

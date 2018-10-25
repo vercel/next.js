@@ -1,5 +1,5 @@
-import Header from '../components/Header'
-import Counter from '../components/Counter'
+import Header from "../components/Header";
+import Counter from "../components/Counter";
 
 export default () => (
   <div>
@@ -7,4 +7,4 @@ export default () => (
     <p>This is the about page.</p>
     <Counter />
   </div>
-)
+);

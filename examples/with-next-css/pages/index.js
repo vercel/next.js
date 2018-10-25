@@ -1,9 +1,8 @@
-
 /* Without CSS Modules, maybe with PostCSS */
 
-import '../style.css'
+import "../style.css";
 
-export default () => <div className='example'>O Hai world!</div>
+export default () => <div className="example">O Hai world!</div>;
 
 /* With CSS Modules */
 /*

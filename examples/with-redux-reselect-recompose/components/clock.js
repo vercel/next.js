@@ -1,13 +1,14 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import { compose, pure, setDisplayName, setPropTypes } from 'recompose'
+import React from "react";
+import PropTypes from "prop-types";
+import { compose, pure, setDisplayName, setPropTypes } from "recompose";
 
-const format = t => `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
+const format = t =>
+  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`;
 
-const pad = n => n < 10 ? `0${n}` : n
+const pad = n => (n < 10 ? `0${n}` : n);
 
-const Clock = ({ lastUpdate, light }) =>
-  <div className={light ? 'light' : ''}>
+const Clock = ({ lastUpdate, light }) => (
+<div className={light ? 'light' : ''}>
     {format(new Date(lastUpdate))}
     <style jsx>{`
       div {
@@ -23,12 +24,11 @@ const Clock = ({ lastUpdate, light }) =>
       }
     `}</style>
   </div>
-
-export default compose(
-  setDisplayName('Clock'),
+)export default compose(
+  setDisplayName("Clock"),
   setPropTypes({
     lastUpdate: PropTypes.number,
     light: PropTypes.bool
   }),
   pure
-)(Clock)
+)(Clock);

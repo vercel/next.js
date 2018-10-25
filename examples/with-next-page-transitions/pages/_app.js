@@ -1,36 +1,36 @@
-import React from 'react'
-import App, { Container } from 'next/app'
-import { PageTransition } from 'next-page-transitions'
+import React from "react";
+import App, { Container } from "next/app";
+import { PageTransition } from "next-page-transitions";
 
-import Loader from '../components/Loader'
+import Loader from "../components/Loader";
 
-const TIMEOUT = 400
+const TIMEOUT = 400;
 
 export default class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
-    let pageProps = {}
+  static async getInitialProps({ Component, ctx }) {
+    let pageProps = {};
 
     if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
+      pageProps = await Component.getInitialProps(ctx);
     }
 
-    return { pageProps }
+    return { pageProps };
   }
 
-  render () {
-    const { Component, pageProps } = this.props
+  render() {
+    const { Component, pageProps } = this.props;
     return (
       <Container>
         <PageTransition
           timeout={TIMEOUT}
-          classNames='page-transition'
+          classNames="page-transition"
           loadingComponent={<Loader />}
           loadingDelay={500}
           loadingTimeout={{
             enter: TIMEOUT,
             exit: 0
           }}
-          loadingClassNames='loading-indicator'
+          loadingClassNames="loading-indicator"
         >
           <Component {...pageProps} />
         </PageTransition>
@@ -62,6 +62,6 @@ export default class MyApp extends App {
           }
         `}</style>
       </Container>
-    )
+    );
   }
 }

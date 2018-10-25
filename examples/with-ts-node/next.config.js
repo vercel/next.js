@@ -1,2 +1,3 @@
-const withTypescript = require('next-with-typescript')
-module.exports = withTypescript()
+const withTypescript = require("next-with-typescript");
+
+module.exports = withTypescript();

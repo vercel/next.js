@@ -1,8 +1,8 @@
-import { startClock, addCount, serverRenderClock } from 'actions'
-import Page from 'containers/page'
-import withRedux from 'next-redux-wrapper'
-import { compose, setDisplayName, pure, lifecycle, withProps } from 'recompose'
-import initStore from '../store'
+import { startClock, addCount, serverRenderClock } from 'actions';
+import Page from 'containers/page';
+import withRedux from 'next-redux-wrapper';
+import { compose, setDisplayName, pure, lifecycle, withProps } from 'recompose';
+import initStore from '../store';
 
 const Counter = compose(
   setDisplayName('OtherPage'),
@@ -11,20 +11,20 @@ const Counter = compose(
     linkTo: '/'
   }),
   lifecycle({
-    componentDidMount () {
-      this.timer = this.props.startClock()
+    componentDidMount() {
+      this.timer = this.props.startClock();
     },
-    componentWillUnmount () {
-      clearInterval(this.timer)
+    componentWillUnmount() {
+      clearInterval(this.timer);
     }
   }),
   pure
-)(Page)
+)(Page);
 
 Counter.getInitialProps = ({ store, isServer }) => {
-  store.dispatch(serverRenderClock(isServer))
-  store.dispatch(addCount())
-  return { isServer }
-}
+  store.dispatch(serverRenderClock(isServer));
+  store.dispatch(addCount());
+  return { isServer };
+};
 
-export default withRedux(initStore, null, { startClock })(Counter)
+export default withRedux(initStore, null, { startClock })(Counter);

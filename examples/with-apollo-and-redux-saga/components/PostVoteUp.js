@@ -1,17 +1,17 @@
-import React from 'react'
-import { graphql } from 'react-apollo'
-import gql from 'graphql-tag'
-import PostVoteButton from './PostVoteButton'
+import React from "react";
+import { graphql } from "react-apollo";
+import gql from "graphql-tag";
+import PostVoteButton from "./PostVoteButton";
 
-function PostVoteUp ({ upvote, votes, id }) {
+function PostVoteUp({ upvote, votes, id }) {
   return (
     <PostVoteButton
       id={id}
       votes={votes}
-      className='upvote'
+      className="upvote"
       onClickHandler={() => upvote(id, votes + 1)}
     />
-  )
+  );
 }
 
 const upvotePost = gql`
@@ -22,7 +22,7 @@ const upvotePost = gql`
       votes
     }
   }
-`
+`;
 
 export default graphql(upvotePost, {
   props: ({ ownProps, mutate }) => ({
@@ -30,13 +30,13 @@ export default graphql(upvotePost, {
       mutate({
         variables: { id, votes },
         optimisticResponse: {
-          __typename: 'Mutation',
+          __typename: "Mutation",
           updatePost: {
-            __typename: 'Post',
+            __typename: "Post",
             id: ownProps.id,
             votes: ownProps.votes + 1
           }
         }
       })
   })
-})(PostVoteUp)
+})(PostVoteUp);

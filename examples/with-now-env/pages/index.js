@@ -1,5 +1,5 @@
 export default () => (
-  <div className='hello'>
+  <div className="hello">
     <p>
       Hello World! Here's a secret shared with the client using webpack
       DefinePlugin: <strong>{process.env.SECRET}</strong>, the secret is shared
@@ -19,4 +19,4 @@ export default () => (
       }
     `}</style>
   </div>
-)
+);

@@ -1,8 +1,4 @@
-import React from 'react'
-import SampleComponent from '../components/SampleComponent'
+import React from "react";
+import SampleComponent from "../components/SampleComponent";
 
-export default () => {
-  return (
-    <SampleComponent title={'Other Page'} linkTo='/' />
-  )
-}
+export default () => <SampleComponent title="Other Page" linkTo="/" />;

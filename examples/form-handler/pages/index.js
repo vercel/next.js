@@ -1,14 +1,14 @@
-import React, { Component } from 'react'
-import withRedux from 'next-redux-wrapper'
+import React, { Component } from "react";
+import withRedux from "next-redux-wrapper";
 
-import Main from '../components'
+import Main from "../components";
 
-import { initStore } from '../store'
+import { initStore } from "../store";
 
 class Index extends Component {
-  render () {
-    return <Main />
+  render() {
+    return <Main />;
   }
 }
 
-export default withRedux(initStore, null)(Index)
+export default withRedux(initStore, null)(Index);

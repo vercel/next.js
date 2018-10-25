@@ -1,5 +1,5 @@
-import foo from 'foo'
-import Bar from 'bar'
+import foo from "foo";
+import Bar from "bar";
 
 export default () => (
   <div>
@@ -7,4 +7,4 @@ export default () => (
     <pre>{foo}</pre>
     <Bar />
   </div>
-)
+);

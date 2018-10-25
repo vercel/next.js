@@ -1,5 +1,4 @@
-import { INPUT_VALUE } from '../constants'
+import { INPUT_VALUE } from "../constants";
 
-export const inputChange = (title, name, val) => dispatch => {
-  return dispatch({type: INPUT_VALUE, title, name, val})
-}
+export const inputChange = (title, name, val) => dispatch =>
+  dispatch({ type: INPUT_VALUE, title, name, val });

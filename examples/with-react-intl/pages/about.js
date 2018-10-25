@@ -1,13 +1,13 @@
-import React, {Component} from 'react'
-import {FormattedRelative} from 'react-intl'
-import Layout from '../components/Layout'
+import React, { Component } from "react";
+import { FormattedRelative } from "react-intl";
+import Layout from "../components/Layout";
 
 class About extends Component {
-  static async getInitialProps ({req}) {
-    return {someDate: Date.now()}
+  static async getInitialProps({ req }) {
+    return { someDate: Date.now() };
   }
 
-  render () {
+  render() {
     return (
       <Layout>
         <p>
@@ -17,8 +17,8 @@ class About extends Component {
           />
         </p>
       </Layout>
-    )
+    );
   }
 }
 
-export default About
+export default About;

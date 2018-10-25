@@ -1,9 +1,5 @@
-exports['default'] = {
-  routes: (api) => {
-    return {
-      get: [
-        { path: '/', matchTrailingPathParts: true, action: 'render' }
-      ]
-    }
-  }
-}
+exports.default = {
+  routes: api => ({
+    get: [{ path: "/", matchTrailingPathParts: true, action: "render" }]
+  })
+};

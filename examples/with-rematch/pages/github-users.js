@@ -1,19 +1,20 @@
-import React, { Component } from 'react'
-import Link from 'next/link'
-import { dispatch } from '@rematch/core'
-import { initStore } from '../shared/store'
-import withRematch from '../shared/utils/withRematch'
-import Header from '../shared/components/header'
-import CounterDisplay from '../shared/components/counter-display'
+import React, { Component } from "react";
+import Link from "next/link";
+import { dispatch } from "@rematch/core";
+import { initStore } from "../shared/store";
+import withRematch from "../shared/utils/withRematch";
+import Header from "../shared/components/header";
+import CounterDisplay from "../shared/components/counter-display";
 
 class Github extends Component {
-  static async getInitialProps ({ isServer, initialState }) {
+  static async getInitialProps({ isServer, initialState }) {
     if (isServer) {
-      await dispatch.github.fetchUsers()
+      await dispatch.github.fetchUsers();
     }
-    return {}
+    return {};
   }
-  render () {
+
+  render() {
     return (
       <div>
         <Header />
@@ -30,7 +31,7 @@ class Github extends Component {
           <div key={user.login}>
             <Link href={user.html_url} passHref>
               <a>
-                <img height='45' width='45' src={user.avatar_url} />
+                <img height="45" width="45" src={user.avatar_url} />
                 <span> Username - {user.login}</span>
               </a>
             </Link>
@@ -41,17 +42,17 @@ class Github extends Component {
 
         <CounterDisplay />
       </div>
-    )
+    );
   }
 }
 
 const mapState = state => ({
   userList: state.github.users,
   isLoading: state.github.isLoading
-})
+});
 
 const mapDispatch = ({ github: { fetchUsers } }) => ({
   fetchUsers: () => fetchUsers()
-})
+});
 
-export default withRematch(initStore, mapState, mapDispatch)(Github)
+export default withRematch(initStore, mapState, mapDispatch)(Github);

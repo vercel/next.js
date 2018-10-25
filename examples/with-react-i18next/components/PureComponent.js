@@ -1,5 +1,5 @@
-import React from 'react'
+import React from "react";
 
-export default function PureComponent ({ t }) {
-  return <p>{t('common:pureComponent')}</p>
+export default function PureComponent({ t }) {
+  return <p>{t("common:pureComponent")}</p>;
 }

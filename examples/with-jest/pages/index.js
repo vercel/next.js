@@ -7,4 +7,4 @@ export default () => (
     `}</style>
     <p>Hello World!</p>
   </div>
-)
+);

@@ -1,26 +1,26 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export default () => (
   <header>
     <nav>
       <ul>
         <li>
-          <Link href='/'>
+          <Link href="/">
             <a>Home</a>
           </Link>
         </li>
         <li>
-          <Link href='/about'>
+          <Link href="/about">
             <a>About</a>
           </Link>
         </li>
         <li>
-          <Link href='/contact'>
+          <Link href="/contact">
             <a>Contact</a>
           </Link>
         </li>
       </ul>
     </nav>
   </header>
-)
+);

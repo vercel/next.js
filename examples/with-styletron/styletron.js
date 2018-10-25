@@ -1,23 +1,24 @@
+const isServer = typeof window === "undefined";
 
-const isServer = typeof window === 'undefined'
+let styletron;
 
-let styletron
-
-export default function getStyletron () {
+export default function getStyletron() {
   if (isServer) {
-    const Styletron = require('styletron-server')
-    styletron = new Styletron()
+    const Styletron = require("styletron-server");
+    styletron = new Styletron();
   } else if (!styletron) {
-    const Styletron = require('styletron-client')
-    const styleElements = document.getElementsByClassName('_styletron_hydrate_')
-    styletron = new Styletron(styleElements)
+    const Styletron = require("styletron-client");
+    const styleElements = document.getElementsByClassName(
+      "_styletron_hydrate_"
+    );
+    styletron = new Styletron(styleElements);
   }
 
-  return styletron
+  return styletron;
 }
 
-export function flush () {
-  const _styletron = styletron
-  styletron = null
-  return _styletron
+export function flush() {
+  const _styletron = styletron;
+  styletron = null;
+  return _styletron;
 }

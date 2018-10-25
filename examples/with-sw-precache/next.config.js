@@ -1,20 +1,20 @@
-const SWPrecacheWebpackPlugin = require('sw-precache-webpack-plugin')
+const SWPrecacheWebpackPlugin = require("sw-precache-webpack-plugin");
 
 module.exports = {
-  webpack: (config) => {
+  webpack: config => {
     config.plugins.push(
       new SWPrecacheWebpackPlugin({
         verbose: true,
         staticFileGlobsIgnorePatterns: [/\.next\//],
         runtimeCaching: [
           {
-            handler: 'networkFirst',
+            handler: "networkFirst",
             urlPattern: /^https?.*/
           }
         ]
       })
-    )
+    );
 
-    return config
+    return config;
   }
-}
+};

@@ -1,16 +1,12 @@
-import React from 'react'
-import { translate } from 'react-i18next'
+import React from "react";
+import { translate } from "react-i18next";
 
 class Post extends React.Component {
-  render () {
-    const { t } = this.props
+  render() {
+    const { t } = this.props;
 
-    return (
-      <div>
-        {t('namespace1:greatMorning')}
-      </div>
-    )
+    return <div>{t("namespace1:greatMorning")}</div>;
   }
 }
 
-export default translate(['namespace1'])(Post)
+export default translate(["namespace1"])(Post);

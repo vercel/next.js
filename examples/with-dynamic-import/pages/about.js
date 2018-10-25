@@ -1,5 +1,5 @@
-import Header from '../components/Header'
-import Counter from '../components/Counter'
+import Header from "../components/Header";
+import Counter from "../components/Counter";
 
 const About = () => (
   <div>
@@ -7,6 +7,6 @@ const About = () => (
     <p>This is the about page.</p>
     <Counter />
   </div>
-)
+);
 
-export default About
+export default About;

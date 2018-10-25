@@ -1,25 +1,25 @@
-import { graphql } from 'react-apollo'
-import gql from 'graphql-tag'
-import { allPosts, allPostsQueryVars } from './PostList'
+import { graphql } from "react-apollo";
+import gql from "graphql-tag";
+import { allPosts, allPostsQueryVars } from "./PostList";
 
-function Submit ({ createPost }) {
-  function handleSubmit (event) {
-    event.preventDefault()
+function Submit({ createPost }) {
+  function handleSubmit(event) {
+    event.preventDefault();
 
-    const form = event.target
+    const form = event.target;
 
-    const formData = new window.FormData(form)
-    createPost(formData.get('title'), formData.get('url'))
+    const formData = new window.FormData(form);
+    createPost(formData.get("title"), formData.get("url"));
 
-    form.reset()
+    form.reset();
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <h1>Submit</h1>
-      <input placeholder='title' name='title' type='text' required />
-      <input placeholder='url' name='url' type='url' required />
-      <button type='submit'>Submit</button>
+      <input placeholder="title" name="title" type="text" required />
+      <input placeholder="url" name="url" type="url" required />
+      <button type="submit">Submit</button>
       <style jsx>{`
         form {
           border-bottom: 1px solid #ececec;
@@ -32,7 +32,7 @@ function Submit ({ createPost }) {
         }
       `}</style>
     </form>
-  )
+  );
 }
 
 const createPost = gql`
@@ -45,7 +45,7 @@ const createPost = gql`
       createdAt
     }
   }
-`
+`;
 
 export default graphql(createPost, {
   props: ({ mutate }) => ({
@@ -56,7 +56,7 @@ export default graphql(createPost, {
           const data = proxy.readQuery({
             query: allPosts,
             variables: allPostsQueryVars
-          })
+          });
           proxy.writeQuery({
             query: allPosts,
             data: {
@@ -64,8 +64,8 @@ export default graphql(createPost, {
               allPosts: [createPost, ...data.allPosts]
             },
             variables: allPostsQueryVars
-          })
+          });
         }
       })
   })
-})(Submit)
+})(Submit);

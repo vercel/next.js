@@ -1,8 +1,8 @@
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
+import React, { Component } from "react";
+import { connect } from "react-redux";
 
 class CounterDisplay extends Component {
-  render () {
+  render() {
     return (
       <div>
         <h3> Counter </h3>
@@ -16,16 +16,19 @@ class CounterDisplay extends Component {
           <button onClick={this.props.incrementBy3}>Increment</button>
         </p>
       </div>
-    )
+    );
   }
 }
 
 const mapState = state => ({
   counter: state.counter
-})
+});
 
 const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   incrementBy3: () => increment(3)
-})
+});
 
-export default connect(mapState, mapDispatch)(CounterDisplay)
+export default connect(
+  mapState,
+  mapDispatch
+)(CounterDisplay);

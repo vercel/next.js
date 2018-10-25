@@ -1,15 +1,15 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 const href = {
-  pathname: '/about',
-  query: { name: 'next' }
-}
+  pathname: "/about",
+  query: { name: "next" }
+};
 
 const as = {
-  pathname: '/about/next',
-  hash: 'title-1'
-}
+  pathname: "/about/next",
+  hash: "title-1"
+};
 
 export default () => (
   <div>
@@ -18,4 +18,4 @@ export default () => (
       <a>Go to /about/next</a>
     </Link>
   </div>
-)
+);
