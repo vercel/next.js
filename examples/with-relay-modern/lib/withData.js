@@ -1,53 +1,55 @@
-import React from 'react'
-import initEnvironment from './createRelayEnvironment'
-import { fetchQuery } from 'react-relay'
-import RelayProvider from './RelayProvider'
+import React from "react";
+import { fetchQuery } from "react-relay";
+import initEnvironment from "./createRelayEnvironment";
+import RelayProvider from "./RelayProvider";
 
-export default (ComposedComponent, options = {}) => {
-  return class WithData extends React.Component {
-    static displayName = `WithData(${ComposedComponent.displayName})`
+export default (ComposedComponent, options = {}) =>
+  class WithData extends React.Component {
+    static displayName = `WithData(${ComposedComponent.displayName})`;
 
-    static async getInitialProps (ctx) {
+    static async getInitialProps(ctx) {
       // Evaluate the composed component's getInitialProps()
-      let composedInitialProps = {}
+      let composedInitialProps = {};
       if (ComposedComponent.getInitialProps) {
-        composedInitialProps = await ComposedComponent.getInitialProps(ctx)
+        composedInitialProps = await ComposedComponent.getInitialProps(ctx);
       }
 
-      let queryProps = {}
-      let queryRecords = {}
-      const environment = initEnvironment()
+      let queryProps = {};
+      let queryRecords = {};
+      const environment = initEnvironment();
 
       if (options.query) {
         // Provide the `url` prop data in case a graphql query uses it
         // const url = { query: ctx.query, pathname: ctx.pathname }
-        const variables = {}
+        const variables = {};
         // TODO: Consider RelayQueryResponseCache
         // https://github.com/facebook/relay/issues/1687#issuecomment-302931855
-        queryProps = await fetchQuery(environment, options.query, variables)
-        queryRecords = environment.getStore().getSource().toJSON()
+        queryProps = await fetchQuery(environment, options.query, variables);
+        queryRecords = environment
+          .getStore()
+          .getSource()
+          .toJSON();
       }
 
       return {
         ...composedInitialProps,
         ...queryProps,
         queryRecords
-      }
+      };
     }
 
-    constructor (props) {
-      super(props)
+    constructor(props) {
+      super(props);
       this.environment = initEnvironment({
         records: props.queryRecords
-      })
+      });
     }
 
-    render () {
+    render() {
       return (
         <RelayProvider environment={this.environment} variables={{}}>
           <ComposedComponent {...this.props} />
         </RelayProvider>
-      )
+      );
     }
-  }
-}
+  };

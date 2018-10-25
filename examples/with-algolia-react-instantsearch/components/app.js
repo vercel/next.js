@@ -1,5 +1,5 @@
-import React from 'react'
-import PropTypes from 'prop-types'
+import React from "react";
+import PropTypes from "prop-types";
 import {
   RefinementList,
   SearchBox,
@@ -7,38 +7,35 @@ import {
   Configure,
   Highlight,
   Pagination
-} from 'react-instantsearch/dom'
-import { InstantSearch } from './instantsearch'
+} from "react-instantsearch/dom";
+import { InstantSearch } from "./instantsearch";
 
-const HitComponent = ({ hit }) =>
-  <div className='hit'>
+const HitComponent = ({ hit }) => (
+  <div className="hit">
     <div>
-      <div className='hit-picture'>
+      <div className="hit-picture">
         <img src={`${hit.image}`} />
       </div>
     </div>
-    <div className='hit-content'>
+    <div className="hit-content">
       <div>
-        <Highlight attributeName='name' hit={hit} />
-        <span>
-          {' '}- ${hit.price}
-        </span>
-        <span>
-          {' '}- {hit.rating} stars
-        </span>
+        <Highlight attributeName="name" hit={hit} />
+        <span> - ${hit.price}</span>
+        <span> - {hit.rating} stars</span>
       </div>
-      <div className='hit-type'>
-        <Highlight attributeName='type' hit={hit} />
+      <div className="hit-type">
+        <Highlight attributeName="type" hit={hit} />
       </div>
-      <div className='hit-description'>
-        <Highlight attributeName='description' hit={hit} />
+      <div className="hit-description">
+        <Highlight attributeName="description" hit={hit} />
       </div>
     </div>
   </div>
+);
 
 HitComponent.propTypes = {
   hit: PropTypes.object
-}
+};
 
 export default class extends React.Component {
   static propTypes = {
@@ -47,12 +44,12 @@ export default class extends React.Component {
     onSearchStateChange: PropTypes.func
   };
 
-  render () {
+  render() {
     return (
       <InstantSearch
-        appId='appId' // change this
-        apiKey='apiKey' // change this
-        indexName='indexName' // change this
+        appId="appId" // change this
+        apiKey="apiKey" // change this
+        indexName="indexName" // change this
         resultsState={this.props.resultsState}
         onSearchStateChange={this.props.onSearchStateChange}
         searchState={this.props.searchState}
@@ -64,7 +61,7 @@ export default class extends React.Component {
         </header>
         <content>
           <menu>
-            <RefinementList attributeName='category' />
+            <RefinementList attributeName="category" />
           </menu>
           <results>
             <Hits hitComponent={HitComponent} />
@@ -73,14 +70,14 @@ export default class extends React.Component {
         <footer>
           <Pagination />
           <div>
-            See{' '}
-            <a href='https://github.com/algolia/react-instantsearch/tree/master/packages/react-instantsearch/examples/next-app'>
+            See{" "}
+            <a href="https://github.com/algolia/react-instantsearch/tree/master/packages/react-instantsearch/examples/next-app">
               source code
-            </a>{' '}
+            </a>{" "}
             on github
           </div>
         </footer>
       </InstantSearch>
-    )
+    );
   }
 }

@@ -1,10 +1,10 @@
-import React, { Component } from 'react'
-import Header from '../components/Header'
+import React, { Component } from "react";
+import Header from "../components/Header";
 
 export default class extends Component {
-  state = { message: '' }
+  state = { message: "" };
 
-  render () {
+  render() {
     return (
       <div>
         <Header />
@@ -14,7 +14,7 @@ export default class extends Component {
             <span>Message:</span>
             <textarea onInput={this.handleInput} value={this.state.message} />
           </label>
-          <button type='submit'>submit</button>
+          <button type="submit">submit</button>
         </form>
 
         <style jsx>{`
@@ -34,18 +34,18 @@ export default class extends Component {
           }
         `}</style>
       </div>
-    )
+    );
   }
 
   handleInput = e => {
-    this.setState({ message: e.target.value })
-  }
+    this.setState({ message: e.target.value });
+  };
 
   handleSubmit = e => {
-    e.preventDefault()
-    global.analytics.track('Form Submitted', {
+    e.preventDefault();
+    global.analytics.track("Form Submitted", {
       message: this.state.message
-    })
-    this.setState({ message: '' })
-  }
+    });
+    this.setState({ message: "" });
+  };
 }

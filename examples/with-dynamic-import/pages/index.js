@@ -1,63 +1,63 @@
-import React from 'react'
-import Router from 'next/router'
-import Header from '../components/Header'
-import Counter from '../components/Counter'
-import dynamic from 'next/dynamic'
+import React from "react";
+import Router from "next/router";
+import dynamic from "next/dynamic";
+import Header from "../components/Header";
+import Counter from "../components/Counter";
 
-const DynamicComponent1 = dynamic(import('../components/hello1'))
+const DynamicComponent1 = dynamic(import("../components/hello1"));
 
 const DynamicComponent2WithCustomLoading = dynamic({
-  loader: () => import('../components/hello2'),
-  loading: () => (<p>Loading caused by client page transition ...</p>)
-})
+  loader: () => import("../components/hello2"),
+  loading: () => <p>Loading caused by client page transition ...</p>
+});
 
 const DynamicComponent3WithNoSSR = dynamic({
-  loader: () => import('../components/hello3'),
-  loading: () => (<p>Loading ...</p>),
+  loader: () => import("../components/hello3"),
+  loading: () => <p>Loading ...</p>,
   ssr: false
-})
+});
 
 const DynamicComponent4 = dynamic({
-  loader: () => import('../components/hello4')
-})
+  loader: () => import("../components/hello4")
+});
 
 const DynamicComponent5 = dynamic({
-  loader: () => import('../components/hello5')
-})
+  loader: () => import("../components/hello5")
+});
 
 const DynamicBundle = dynamic({
   modules: () => {
     const components = {
-      Hello6: import('../components/hello6'),
-      Hello7: import('../components/hello7')
-    }
-    return components
+      Hello6: import("../components/hello6"),
+      Hello7: import("../components/hello7")
+    };
+    return components;
   },
   render: (props, { Hello6, Hello7 }) => (
-    <div style={{padding: 10, border: '1px solid #888'}}>
+    <div style={{ padding: 10, border: "1px solid #888" }}>
       <Hello6 />
       <Hello7 />
     </div>
   )
-})
+});
 
 export default class Index extends React.Component {
-  static getInitialProps ({ query }) {
-    return { showMore: Boolean(query.showMore) }
+  static getInitialProps({ query }) {
+    return { showMore: Boolean(query.showMore) };
   }
 
   toggleShowMore = () => {
-    const { showMore } = this.props
+    const { showMore } = this.props;
     if (showMore) {
-      Router.push('/')
-      return
+      Router.push("/");
+      return;
     }
 
-    Router.push('/?showMore=1')
-  }
+    Router.push("/?showMore=1");
+  };
 
-  render () {
-    const { showMore } = this.props
+  render() {
+    const { showMore } = this.props;
 
     return (
       <div>
@@ -85,6 +85,6 @@ export default class Index extends React.Component {
         <p>HOME PAGE is here!</p>
         <Counter />
       </div>
-    )
+    );
   }
 }

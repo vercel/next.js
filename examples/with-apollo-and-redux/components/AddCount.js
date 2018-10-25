@@ -1,18 +1,20 @@
-import React, {Component} from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux'
-import { addCount } from '../lib/store'
+import React, { Component } from "react";
+import { connect } from "react-redux";
+import { bindActionCreators } from "redux";
+import { addCount } from "../lib/store";
 
 class AddCount extends Component {
   add = () => {
-    this.props.addCount()
-  }
+    this.props.addCount();
+  };
 
-  render () {
-    const { count } = this.props
+  render() {
+    const { count } = this.props;
     return (
       <div>
-        <h1>AddCount: <span>{count}</span></h1>
+        <h1>
+          AddCount: <span>{count}</span>
+        </h1>
         <button onClick={this.add}>Add To Count</button>
         <style jsx>{`
           h1 {
@@ -23,16 +25,17 @@ class AddCount extends Component {
           }
         `}</style>
       </div>
-    )
+    );
   }
 }
 
-const mapStateToProps = ({ count }) => ({ count })
+const mapStateToProps = ({ count }) => ({ count });
 
-const mapDispatchToProps = (dispatch) => {
-  return {
-    addCount: bindActionCreators(addCount, dispatch)
-  }
-}
+const mapDispatchToProps = dispatch => ({
+  addCount: bindActionCreators(addCount, dispatch)
+});
 
-export default connect(mapStateToProps, mapDispatchToProps)(AddCount)
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(AddCount);

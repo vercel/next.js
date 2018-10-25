@@ -1,36 +1,36 @@
-import * as React from 'react'
+import * as React from "react";
 
-import { Portal } from './Portal'
+import { Portal } from "./Portal";
 
 export class Modal extends React.Component {
-  constructor () {
-    super(...arguments)
-    this.state = { opened: false }
+  constructor() {
+    super(...arguments);
+    this.state = { opened: false };
   }
 
   open = () => {
-    this.setState({ opened: true })
-  }
+    this.setState({ opened: true });
+  };
 
   close = () => {
-    this.setState({ opened: false })
-  }
+    this.setState({ opened: false });
+  };
 
-  render () {
+  render() {
     return (
       <React.Fragment>
-        <button type='button' onClick={this.open}>
+        <button type="button" onClick={this.open}>
           Open Modal
         </button>
         {this.state.opened && (
-          <Portal selector='#modal'>
-            <div className='overlay'>
-              <div className='modal'>
+          <Portal selector="#modal">
+            <div className="overlay">
+              <div className="modal">
                 <p>
-                  This modal is rendered using{' '}
-                  <a href='https://reactjs.org/docs/portals.html'>portals</a>.
+                  This modal is rendered using{" "}
+                  <a href="https://reactjs.org/docs/portals.html">portals</a>.
                 </p>
-                <button type='button' onClick={this.close}>
+                <button type="button" onClick={this.close}>
                   Close Modal
                 </button>
               </div>
@@ -63,6 +63,6 @@ export class Modal extends React.Component {
           </Portal>
         )}
       </React.Fragment>
-    )
+    );
   }
 }
