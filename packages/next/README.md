@@ -540,6 +540,27 @@ If you return a `false` value from `beforePopState`, `Router` will not handle `p
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
+#### Intercepting `beforeRouteChangeStart`
+
+Similar to the `beforePopState`, this will work if a user clicks on a link to navigate to another page using the router.
+For example, you could confirm changing routes or canceling.
+
+```jsx
+import Router from 'next/router'
+
+class Example extends Component {
+  componentDidMount() {
+    Router.beforeRouteChangeStart(() => window.confirm('Are you sure you want to change pages?'));
+  }
+
+  componentWillUnmount() {
+    Router.beforeRouteChangeStart(() => true)
+  }
+  ...
+}
+```
+Note that in this example, you should also set the beforeRouteChangeStart callback to return true in `componentWillUnmount` if you don't want it to continue confirming route changes.
+
 Above `Router` object comes with the following API:
 
 - `route` - `String` of the current route
@@ -549,6 +570,7 @@ Above `Router` object comes with the following API:
 - `push(url, as=url)` - performs a `pushState` call with the given url
 - `replace(url, as=url)` - performs a `replaceState` call with the given url
 - `beforePopState(cb=function)` - intercept popstate before router processes the event.
+- `beforeRouteChangeStart(cb=function`) - intercept the router change event
 
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
