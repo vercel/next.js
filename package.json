@@ -19,16 +19,15 @@
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "*.js": "standard",
+    "examples/**/*.js": "eslint",
+    "{bench,packages,test}/**/*.js": "standard",
     "packages/**/bin/*": "standard"
   },
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**",
-      "examples/with-ioc/**",
-      "examples/with-kea/**",
-      "examples/with-mobx/**"
+      "examples/**"
     ]
   },
   "devDependencies": {
