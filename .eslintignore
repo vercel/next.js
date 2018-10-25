@@ -1,0 +1,3 @@
+# Only run eslint on examples folder for now.
+**/*.js
+!examples/**/*.js
