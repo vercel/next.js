@@ -7,7 +7,7 @@ export default class EventEmitter {
     }
 
     if (this.listeners[event].has(cb)) {
-      throw new Error(`Listener already exists for the router event: \`${event}\``)
+      throw new Error(`Listener already exists for router event: \`${event}\``)
     }
 
     this.listeners[event].add(cb)
