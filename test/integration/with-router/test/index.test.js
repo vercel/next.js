@@ -77,4 +77,31 @@ describe('withRouter', () => {
 
     browser.close()
   })
+
+  it('allows Router change to be prevented with beforeRouteChangeStart', async () => {
+    // mock a false return from window.confirm cancel
+    global.confirm = () => false
+
+    const browser = await webdriver(appPort, '/c')
+    await browser.waitForElementByCss('#page-c')
+
+    let activePage = await browser.elementByCss('.active-top-level-router').text()
+    expect(activePage).toBe('Baz')
+
+    // mock beforeRouteChangeStart returns false
+    await browser.elementByCss('button.false').click()
+    await browser.waitForElementByCss('#page-c')
+
+    activePage = await browser.elementByCss('.active-top-level-router').text()
+    expect(activePage).toBe('Baz')
+
+    // mock beforeRouteChangeStart returns true
+    await browser.elementByCss('button.true').click()
+    await browser.waitForElementByCss('#page-b')
+
+    activePage = await browser.elementByCss('.active-top-level-router').text()
+    expect(activePage).toBe('Bar')
+
+    browser.close()
+  })
 })

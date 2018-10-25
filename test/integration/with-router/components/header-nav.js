@@ -4,7 +4,8 @@ import Link from 'next/link'
 
 const pages = {
   '/a': 'Foo',
-  '/b': 'Bar'
+  '/b': 'Bar',
+  '/c': 'Baz'
 }
 
 class HeaderNav extends React.Component {
