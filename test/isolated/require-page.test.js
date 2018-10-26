@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import { join } from 'path'
 import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'

@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
 describe('EventEmitter', () => {
@@ -69,7 +69,7 @@ describe('EventEmitter', () => {
 
       const run = () => ev.on('sample', cb)
 
-      expect(run).toThrow(/The listener already exising in event: sample/)
+      expect(run).toThrow(/Listener already exists for router event: `sample`/)
     })
 
     it('should support chaining like the nodejs EventEmitter', () => {

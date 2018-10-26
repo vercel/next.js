@@ -535,7 +535,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a falsy value from `beforePopState`, `Router` will not handle `popstate`;
+If you return a `false` value from `beforePopState`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -1694,7 +1694,7 @@ You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local pro
 }
 ```
 
-For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as show above.
+For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as shown above.
 
 ## Recipes
 

@@ -13,7 +13,7 @@
     "pretest": "npm run lint",
     "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
-    "lint": "lerna run lint",
+    "lint": "standard",
     "prepublish": "lerna run prepublish",
     "lint-staged": "lint-staged"
   },
@@ -26,9 +26,9 @@
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**",
-      "**/examples/with-ioc/**",
-      "**/examples/with-kea/**",
-      "**/examples/with-mobx/**"
+      "examples/with-ioc/**",
+      "examples/with-kea/**",
+      "examples/with-mobx/**"
     ]
   },
   "devDependencies": {
