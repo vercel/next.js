@@ -6,8 +6,9 @@ class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor (isServer, lastUpdate) {
-    this.lastUpdate = lastUpdate
+  constructor (isServer, initialData = {}) {
+    this.lastUpdate = initialData.lastUpdate != null ? initialData.lastUpdate : Date.now()
+    this.light = !!initialData.light
   }
 
   @action start = () => {
@@ -20,12 +21,12 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-export function initializeStore (isServer, lastUpdate = Date.now()) {
+export function initializeStore (isServer, initialData) {
   if (isServer) {
-    return new Store(isServer, lastUpdate)
+    return new Store(isServer, initialData)
   } else {
     if (store === null) {
-      store = new Store(isServer, lastUpdate)
+      store = new Store(isServer, initialData)
     }
     return store
   }

@@ -7,12 +7,12 @@ const __NEXT_MOBX_STORE__ = '__NEXT_MOBX_STORE__'
 function getOrCreateStore(initialState) {
   // Always make a new store if server, otherwise state is shared between requests
   if (isServer) {
-    return initializeStore(initialState)
+    return initializeStore(true, initialState)
   }
 
   // Create store if unavailable on the client and set it on the window object
   if (!window[__NEXT_MOBX_STORE__]) {
-    window[__NEXT_MOBX_STORE__] = initializeStore(initialState)
+    window[__NEXT_MOBX_STORE__] = initializeStore(false, initialState)
   }
   return window[__NEXT_MOBX_STORE__]
 }
