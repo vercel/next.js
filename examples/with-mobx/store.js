@@ -1,6 +1,9 @@
 import { action, observable } from 'mobx'
+import { useStaticRendering } from 'mobx-react'
 
 let store = null
+const isServer = typeof window === 'undefined'
+useStaticRendering(isServer)
 
 class Store {
   @observable lastUpdate = 0
