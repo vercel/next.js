@@ -312,7 +312,7 @@ export default class HotReloader {
     // We don’t watch .git/ .next/ and node_modules for changes
     const ignored = [
       /\.git[\\/]/,
-      /\.next[\\/]/,
+      /[\\/]\.next[\\/]/,
       /[\\/]node_modules[\\/]/
     ]
 
