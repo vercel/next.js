@@ -313,7 +313,7 @@ export default class HotReloader {
     const ignored = [
       /\.git[\\/]/,
       /\.next[\\/]/,
-      /node_modules/
+      /[\\/]node_modules[\\/]/
     ]
 
     let webpackDevMiddlewareConfig = {
