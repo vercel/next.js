@@ -69,7 +69,7 @@ export default App => {
 
       return {
         ...appProps,
-        apolloState,
+        apolloState
       }
     }
 
