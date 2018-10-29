@@ -18,7 +18,7 @@ export default class MyApp extends App {
     const { Component, pageProps } = this.props
     return <Container>
       <Head>
-        <title>My new cool app</title>
+        <title>Next.js + TypeScript Example</title>
       </Head>
       <Component {...pageProps} />
     </Container>
