@@ -1,7 +1,7 @@
 'use strict'
 
-const chromedriver = require('chromedriver')
+const fkill = require('fkill')
 
 module.exports = async function globalSetup () {
-  chromedriver.stop()
+  await fkill(require('chromedriver').defaultInstance.pid)
 }
