@@ -7,9 +7,12 @@
   "command": {
     "publish": {
       "npmClient": "npm",
-      "allowBranch": ["canary", "alpha"],
+      "allowBranch": [
+        "canary",
+        "alpha"
+      ],
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "7.0.2-canary.8"
+  "version": "7.0.2-alpha.0"
 }
