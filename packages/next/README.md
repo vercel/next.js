@@ -385,7 +385,10 @@ export default () => (
 export default () => <p>Welcome to About!</p>
 ```
 
-__Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
+__Notes:__
+
+  - use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time
+  - if child of `<Link >` is of type `string` - then `Link` will take care of automatically wrapping it into an `<a>` tag for you
 
 Client-side routing behaves exactly like the browser:
 
