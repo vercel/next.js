@@ -141,7 +141,7 @@ export default class Router {
   }
 
   async change (method, _url, _as, options) {
-    // If url and as provided as an object representation,
+    // If _url and _as provided as an object representation,
     // we'll format them into the string version here.
     const url = typeof _url === 'object' ? format(_url) : _url
     let as = typeof _as === 'object' ? format(_as) : _as
@@ -431,5 +431,6 @@ export default class Router {
 }
 
 function toRoute (path) {
+  // remove trailing slash, except for root path
   return path.replace(/\/$/, '') || '/'
 }
