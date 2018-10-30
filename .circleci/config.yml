@@ -38,6 +38,20 @@ jobs:
       - run:
           name: Publishing to Canary Channel
           command: yarn run lerna publish from-git --npm-tag canary --yes
+  publish-alpha:
+    docker:
+      - image: circleci/node:9.10.0
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: yarn install
+      - run: yarn bootstrap
+      - run:
+          name: Saving Authentication Information
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run:
+          name: Publishing to Alpha Channel
+          command: yarn run lerna publish from-git --npm-tag alpha --yes
 workflows:
   version: 2
   unscheduled:
@@ -52,6 +66,14 @@ workflows:
           filters:
             tags:
               only: /^.*canary.*($|\b)/
+            branches:
+              ignore: /.*/
+      - publish-alpha:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^.*alpha.*($|\b)/
             branches:
               ignore: /.*/
       - publish-stable:

@@ -15,7 +15,9 @@
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "precommit": "lint-staged",
     "lint": "lerna run lint",
-    "prepublish": "lerna run prepublish"
+    "prepublish": "lerna run prepublish",
+    "publish-canary": "yarn lerna version prerelease --preid canary --force-publish",
+    "publish-alpha": "yarn lerna version prerelease --preid canary --force-publish"
   },
   "lint-staged": {
     "*.js": "standard",
