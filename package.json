@@ -31,6 +31,12 @@
       "examples/with-mobx/**"
     ]
   },
+  "jest": {
+    "projects": [
+      "test/jest.config.js",
+      "test-integration/jest.config.js"
+    ]
+  },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
     "@babel/preset-react": "7.0.0",
@@ -50,8 +56,9 @@
     "fkill": "5.1.0",
     "flatten": "1.0.2",
     "flow-bin": "0.73.0",
-    "get-port": "3.2.0",
+    "get-port": "4.0.0",
     "jest-cli": "23.6.0",
+    "jest-puppeteer": "3.4.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
     "micro": "9.1.0",
@@ -60,6 +67,7 @@
     "node-notifier": "5.1.2",
     "node-sass": "4.9.2",
     "pre-commit": "1.2.2",
+    "puppeteer": "1.9.0",
     "react": "16.4.2",
     "react-dom": "16.4.2",
     "rimraf": "2.6.2",
