@@ -82,6 +82,7 @@
     "mkdirp-then": "1.2.0",
     "nanoid": "1.2.1",
     "next-server": "^7.0.2-alpha.1",
+    "next-build": "^7.0.2-alpha.1",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
