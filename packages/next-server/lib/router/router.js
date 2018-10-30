@@ -200,9 +200,11 @@ export default class Router {
     }
 
     Router.events.emit('beforeHistoryChange', as)
-    this.changeState(method, url, as, options)
-    const hash = window.location.hash.substring(1)
 
+    this.changeState(method, url, as, options)
+    this.scrollToHash(as)
+
+    const hash = window.location.hash.substring(1)
     this.set(route, pathname, query, as, { ...routeInfo, hash })
 
     if (error) {

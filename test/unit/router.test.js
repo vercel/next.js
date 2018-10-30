@@ -84,8 +84,7 @@ describe('Router', () => {
       await router.change('pushState', '/', '/test#test', {})
       const result = await router.change('pushState', '/', '/', {})
       expect(result).toBeTruthy()
-      // @todo scrollToHash should be called for all hash requests
-      // expect(router.scrollToHash).toHaveBeenCalledWith('/test#test')
+      expect(router.scrollToHash).toHaveBeenCalledWith('/test#test')
       expect(router.fetchComponent).toHaveBeenCalled()
       expect(Router.events.emit).toHaveBeenCalledWith('routeChangeStart', '/test#test')
       expect(Router.events.emit).toHaveBeenCalledWith('routeChangeComplete', '/test#test')
