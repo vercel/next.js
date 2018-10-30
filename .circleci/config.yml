@@ -8,6 +8,7 @@ jobs:
       - checkout
       - run: yarn install
       - run: yarn bootstrap
+      # temporarily disabled
       # - run: yarn test
   publish-stable:
     docker:
