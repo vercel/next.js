@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "7.0.2-alpha.3",
+  "version": "7.0.3-alpha.0",
   "main": "./index.js",
   "files": [
     "dist",
