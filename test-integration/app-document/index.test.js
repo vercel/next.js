@@ -136,5 +136,14 @@ describe('Document and App', () => {
     })
   })
 
-  // csp(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  // TODO: Fix this test. More info https://github.com/zeit/next.js/pull/4939#pullrequestreview-170031605
+  describe('With CSP enabled', () => {
+    it.skip('should load inline script by hash', async () => {
+      await page.goto(server.getURL('/?withCSP=hash'))
+    })
+
+    it.skip('should load inline script by nonce', async () => {
+      await page.goto(server.getURL('/?withCSP=nonce'))
+    })
+  })
 })
