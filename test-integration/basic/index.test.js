@@ -54,7 +54,7 @@ describe('Basic Features', () => {
   describe('Dynamic import', () => require('./test/dynamic-import'))
   describe('Hot Module Reloading', () => require('./test/hot-module-reloading'))
   describe('With next/asset', () => require('./test/asset'))
+  describe('process.env', () => require('./test/process-env'))
 
   // errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  // processEnv(context)
 })
