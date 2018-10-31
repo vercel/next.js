@@ -11,7 +11,7 @@ const argv = parseArgs(process.argv.slice(2), {
     h: 'help'
   },
   boolean: ['h'],
-  string: ['page']
+  string: ['entrypoint']
 })
 
 if (argv.help) {
@@ -30,7 +30,7 @@ if (argv.help) {
 }
 
 const dir = resolve(argv._[0] || '.')
-const pages = typeof argv.page === 'string' ? [argv.page] : argv.page
+const entrypoint = argv.entrypoint
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
@@ -45,7 +45,7 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-build({dir, pages})
+build({dir, entrypoint})
   .catch((err) => {
     printAndExit(err)
   })

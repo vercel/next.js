@@ -168,8 +168,18 @@ function createClientPackager({buildId}) {
   }
 }
 
-function getPageFiles({dir, config, isClient}) {
-  const result = glob.sync(`pages/**/${isClient ? '!(_document)' : ''}*.+(${config.pageExtensions.join('|')})`, { cwd: dir, absolute: true })
+function getPageFiles({dir, config, isClient, entrypoint}) {
+  let result = []
+  if(entrypoint) {
+    if(isClient) {
+      result = glob.sync(`pages(_app|_error).+(${config.pageExtensions.join('|')})`, { cwd: dir, absolute: true })      
+    } else {
+      result = glob.sync(`pages(_document|_app|_error).+(${config.pageExtensions.join('|')})`, { cwd: dir, absolute: true })            
+    }
+    result = [...result, ...glob.sync(entrypoint, { cwd: dir, absolute: true })]
+  } else {
+    result = glob.sync(`pages/**/${isClient ? '!(_document)' : ''}*.+(${config.pageExtensions.join('|')})`, { cwd: dir, absolute: true })
+  }
   const appPath = path.join(dir, 'pages', '_app.js')
   if(!result.some((item) => item === appPath)) {
     result.push(require.resolve('next/dist/pages/_app.js'))
@@ -190,8 +200,8 @@ function getPageFiles({dir, config, isClient}) {
   return result
 }
 
-async function clientBundler({Bundler, dir, buildId, config}) {
-  const clientPages = getPageFiles({dir, config, isClient: true})
+async function clientBundler({Bundler, dir, buildId, config, entrypoint}) {
+  const clientPages = getPageFiles({dir, config, entrypoint, isClient: true})
   const entryFiles = [
     require.resolve('next/dist/client/next.js'),
     ...clientPages
@@ -253,8 +263,8 @@ async function clientBundler({Bundler, dir, buildId, config}) {
   await Promise.all(writePromises)
 }
 
-async function serverBundler({Bundler, dir, buildId, config}) {
-  const serverPages = getPageFiles({dir, config})
+async function serverBundler({Bundler, dir, buildId, config, entrypoint}) {
+  const serverPages = getPageFiles({dir, config, entrypoint})
   const entryFiles = serverPages
   
   const options = {
@@ -308,7 +318,7 @@ function rewriteFileName(Bundle, buildId) {
   }
 }
 
-module.exports = async function build({dir, conf}) {
+module.exports = async function build({dir, conf, entrypoint}) {
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = await config.generateBuildId().trim() // defaults to a uuid
   const distDir = path.join(dir, config.distDir)
@@ -325,7 +335,7 @@ module.exports = async function build({dir, conf}) {
 
   const Bundler = require('parcel');
 
-  await serverBundler({Bundler, dir, buildId, config})
-  await clientBundler({Bundler, dir, buildId, config})
+  await clientBundler({Bundler, dir, buildId, config, entrypoint})
+  await serverBundler({Bundler, dir, buildId, config, entrypoint})
   await writeBuildId(distDir, buildId)
 }
