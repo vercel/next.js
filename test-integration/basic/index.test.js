@@ -53,9 +53,8 @@ describe('Basic Features', () => {
   describe('Client Navigation', () => require('./test/client-navigation'))
   describe('Dynamic import', () => require('./test/dynamic-import'))
   describe('Hot Module Reloading', () => require('./test/hot-module-reloading'))
+  describe('With next/asset', () => require('./test/asset'))
 
-  // hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   // errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  // asset(context)
   // processEnv(context)
 })
