@@ -10,7 +10,7 @@ describe('Basic Features', () => {
   beforeAll(async () => {
     global.server = await runNextDev(__dirname)
 
-    // Prerender the following pages
+    // Prebuild the following pages
     await Promise.all([
       '/async-props',
       '/default-head',
@@ -51,8 +51,8 @@ describe('Basic Features', () => {
 
   describe('Rendering via HTTP', () => require('./test/rendering-via-http'))
   describe('Client Navigation', () => require('./test/client-navigation'))
+  describe('Dynamic import', () => require('./test/dynamic-import'))
 
-  // dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   // hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   // errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   // asset(context)
