@@ -52,6 +52,7 @@ describe('Basic Features', () => {
   describe('Rendering via HTTP', () => require('./test/rendering-via-http'))
   describe('Client Navigation', () => require('./test/client-navigation'))
   describe('Dynamic import', () => require('./test/dynamic-import'))
+  describe('Hot Module Reloading', () => require('./test/hot-module-reloading'))
 
   // hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   // errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
