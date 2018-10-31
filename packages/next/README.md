@@ -1185,7 +1185,7 @@ export default class Page extends React.Component {
 }
 ```
 
-> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` from `./_error` component instead of `next/error`
 
 ### Custom configuration
 
