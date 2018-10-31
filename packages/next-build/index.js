@@ -335,7 +335,7 @@ module.exports = async function build({dir, conf, entrypoint}) {
 
   const Bundler = require('parcel');
 
-  await clientBundler({Bundler, dir, buildId, config, entrypoint})
   await serverBundler({Bundler, dir, buildId, config, entrypoint})
+  await clientBundler({Bundler, dir, buildId, config, entrypoint})
   await writeBuildId(distDir, buildId)
 }
