@@ -211,7 +211,7 @@ async function clientBundler({Bundler, dir, buildId, config, entrypoint}) {
     outDir: path.join(dir, '.next', 'static'),
     watch: false,
     sourceMaps: false,
-    minify: true,
+    minify: false,
     target: 'browser'
   }
 
@@ -271,7 +271,7 @@ async function serverBundler({Bundler, dir, buildId, config, entrypoint}) {
     outDir: path.join(dir, '.next', 'server', 'static'),
     watch: false,
     sourceMaps: false,
-    minify: true,
+    minify: false,
     target: 'node'
   }
 
