@@ -3,8 +3,9 @@ import fsTimeMachine from 'fs-time-machine'
 import { runNextDev } from 'next-test-utils'
 import { setDefaultOptions } from 'expect-puppeteer'
 
-jest.setTimeout(1000 * 50)
-setDefaultOptions({ timeout: 1000 * 50 })
+const timeout = 1000 * 60
+jest.setTimeout(timeout)
+setDefaultOptions({ timeout })
 
 describe('Basic Features', () => {
   beforeAll(async () => {
