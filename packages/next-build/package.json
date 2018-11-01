@@ -1,11 +1,11 @@
 {
   "name": "next-build",
-  "version": "7.0.3-alpha.3",
+  "version": "7.0.3-alpha.4",
   "main": "index.js",
   "dependencies": {
     "@mdx-js/parcel-plugin-mdx": "0.15.5",
     "@mdx-js/tag": "0.15.0",
-    "next-server": "^7.0.3-alpha.3",
+    "next-server": "^7.0.3-alpha.4",
     "parcel": "1.10.3"
   }
 }
