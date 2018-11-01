@@ -46,7 +46,7 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-build({dir, entrypoint, entrypoint})
+build({dir, entrypoint, buildid})
   .catch((err) => {
     printAndExit(err)
   })
