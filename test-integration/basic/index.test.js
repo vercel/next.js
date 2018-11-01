@@ -3,8 +3,8 @@ import fsTimeMachine from 'fs-time-machine'
 import { runNextDev } from 'next-test-utils'
 import { setDefaultOptions } from 'expect-puppeteer'
 
-jest.setTimeout(1000 * 60)
-setDefaultOptions({ timeout: 1000 * 60 })
+jest.setTimeout(1000 * 50)
+setDefaultOptions({ timeout: 1000 * 50 })
 
 describe('Basic Features', () => {
   beforeAll(async () => {
@@ -54,7 +54,6 @@ describe('Basic Features', () => {
   describe('Dynamic import', () => require('./test/dynamic-import'))
   describe('Hot Module Reloading', () => require('./test/hot-module-reloading'))
   describe('With next/asset', () => require('./test/asset'))
+  describe('Error Recovery', () => require('./test/error-recovery'))
   describe('process.env', () => require('./test/process-env'))
-
-  // errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 })
