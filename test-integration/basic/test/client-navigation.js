@@ -215,16 +215,20 @@ describe('with hash changes', () => {
     it('should scroll to the specified position on the same page', async () => {
       await page.goto(server.getURL('/nav/hash-changes'))
       await expect(page).toClick('#scroll-to-item-400')
+      /* istanbul ignore next */
       expect(await page.evaluate('window.pageYOffset')).toBe(7258)
       await expect(page).toClick('#via-empty-hash')
+      /* istanbul ignore next */
       expect(await page.evaluate('window.pageYOffset')).toBe(0)
     })
 
     it('should scroll to the specified position on the same page with a name property', async () => {
       await page.goto(server.getURL('/nav/hash-changes'))
       await expect(page).toClick('#scroll-to-name-item-400')
+      /* istanbul ignore next */
       expect(await page.evaluate('window.pageYOffset')).toBe(16258)
       await expect(page).toClick('#via-empty-hash')
+      /* istanbul ignore next */
       expect(await page.evaluate('window.pageYOffset')).toBe(0)
     })
 
@@ -232,6 +236,7 @@ describe('with hash changes', () => {
       await page.goto(server.getURL('/nav'))
       await expect(page).toClick('#scroll-to-hash')
       await page.waitFor('#hash-changes-page')
+      /* istanbul ignore next */
       expect(await page.evaluate('window.pageYOffset')).toBe(7258)
     })
   })
@@ -357,11 +362,13 @@ describe('with URL objects', () => {
     await expect(page).toMatchElement('p', {
       text: 'This is the about page.'
     })
+    /* istanbul ignore next */
     expect(await page.evaluate('window.history.length')).toBe(2)
 
     // Going back to the home with a regular link will augment the history count
     await expect(page).toClick('#home-link')
     await page.waitFor('.nav-home')
+    /* istanbul ignore next */
     expect(await page.evaluate('window.history.length')).toBe(3)
     page.close()
   })
@@ -465,6 +472,7 @@ describe('with asPath', () => {
     it('should use pushState with same href and different asPath', async () => {
       async function getJSONFromNode (page, selector) {
         const node = await page.$(selector)
+        /* istanbul ignore next */
         const jsonString = await page.evaluate(e => e.textContent, node)
         return JSON.parse(jsonString)
       }
@@ -523,6 +531,8 @@ describe('with 404 pages', () => {
 
   it('should should not contain a page script in a 404 page', async () => {
     await page.goto(server.getURL('/non-existent'))
+
+    /* istanbul ignore next */
     const hasPageScript = await page.$$eval('script[src]', scripts => scripts.some(
       script => script
         .getAttribute('src')
@@ -537,18 +547,21 @@ describe('updating head while client routing', () => {
     await page.goto(server.getURL('/nav/head-1'))
 
     const meta1 = await expect(page).toMatchElement('meta[name="description"]')
+    /* istanbul ignore next */
     const meta1Content = await page.evaluate(e => e.getAttribute('content'), meta1)
     expect(meta1Content).toBe('Head One')
 
     await expect(page).toClick('#to-head-2')
     await page.waitForSelector('#head-2')
     const meta2 = await expect(page).toMatchElement('meta[name="description"]')
+    /* istanbul ignore next */
     const meta2Content = await page.evaluate(e => e.getAttribute('content'), meta2)
     expect(meta2Content).toBe('Head Two')
 
     await expect(page).toClick('#to-head-1')
     await page.waitForSelector('#head-1')
     const meta3 = await expect(page).toMatchElement('meta[name="description"]')
+    /* istanbul ignore next */
     const meta3Content = await page.evaluate(e => e.getAttribute('content'), meta3)
     expect(meta3Content).toBe('Head One')
   })

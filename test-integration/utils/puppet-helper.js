@@ -3,5 +3,6 @@ export async function getReactErrorOverlayContent (page) {
   const frame = await page.frames()[1]
   await frame.waitForSelector('div>div>div')
   const $body = await frame.$('body')
+  /* istanbul ignore next */
   return frame.evaluate(e => e.innerHTML, $body)
 }

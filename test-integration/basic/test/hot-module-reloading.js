@@ -72,6 +72,8 @@ describe('editing a page', () => {
     const stylePage = await fsTimeMachine(join(__dirname, '../pages/hmr/style.js'))
     await page.goto(server.getURL('/hmr/style'))
     const pTag = await expect(page).toMatchElement('.hmr-style-page p')
+
+    /* istanbul ignore next */
     const initialFontSize = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('font-size'), pTag)
     expect(initialFontSize).toBe('100px')
 
@@ -79,6 +81,8 @@ describe('editing a page', () => {
     await page.waitForRequest(request => /\.hot-update\.js$/.test(request.url()))
 
     const editedPTag = await expect(page).toMatchElement('.hmr-style-page p')
+
+    /* istanbul ignore next */
     const editedFontSize = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('font-size'), editedPTag)
     expect(editedFontSize).toBe('200px')
 
@@ -93,6 +97,8 @@ describe('editing a page', () => {
     await page.goto(server.getURL('/hmr/style-stateful-component'))
 
     const pTag = await expect(page).toMatchElement('.hmr-style-page p')
+
+    /* istanbul ignore next */
     const initialFontSize = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('font-size'), pTag)
     expect(initialFontSize).toBe('100px')
 
@@ -100,6 +106,8 @@ describe('editing a page', () => {
     await page.waitForRequest(request => /\.hot-update\.js$/.test(request.url()))
 
     const editedPTag = await expect(page).toMatchElement('.hmr-style-page p')
+
+    /* istanbul ignore next */
     const editedFontSize = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('font-size'), editedPTag)
     expect(editedFontSize).toBe('200px')
     await statefulComponentPage.restore()
@@ -111,7 +119,11 @@ describe('editing a page', () => {
     const hmrDynamicPage = await fsTimeMachine(join(__dirname, '../components/hmr/dynamic.js'))
     await page.goto(server.getURL('/hmr/style-dynamic-component'))
     const div = await expect(page).toMatchElement('#dynamic-component')
+
+    /* istanbul ignore next */
     const initialClientClassName = await page.evaluate(e => e.getAttribute('class'), div)
+
+    /* istanbul ignore next */
     const initialFontSize = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('font-size'), div)
 
     expect(initialFontSize).toBe('100px')
@@ -127,8 +139,14 @@ describe('editing a page', () => {
 
     // Check whether the this page has reloaded or not.
     const editedDiv = await expect(page).toMatchElement('#dynamic-component')
+
+    /* istanbul ignore next */
     const editedClientClassName = await page.evaluate(e => e.getAttribute('class'), editedDiv)
+
+    /* istanbul ignore next */
     const editedFontSize = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('font-size'), editedDiv)
+
+    /* istanbul ignore next */
     const editedHtml = await page.evaluate('document.documentElement.innerHTML')
 
     expect(editedFontSize).toBe('200px')

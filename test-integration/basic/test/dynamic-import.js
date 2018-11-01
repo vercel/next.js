@@ -25,7 +25,9 @@ describe('default behavior', () => {
   it('should render the component Head content', async () => {
     await page.goto(server.getURL('/dynamic/head'))
     const dynamicStyle = await expect(page).toMatchElement('.dynamic-style')
+    /* istanbul ignore next */
     const backgroundColor = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('background-color'), dynamicStyle)
+    /* istanbul ignore next */
     const height = await page.evaluate(e => window.getComputedStyle(e).getPropertyValue('height'), dynamicStyle)
     expect(height).toBe('200px')
     expect(backgroundColor).toBe('rgb(0, 128, 0)')
@@ -86,6 +88,7 @@ describe('Multiple modules', () => {
 
   it('should only load the rendered module in the browser', async () => {
     await page.goto(server.getURL('/dynamic/multiple-modules'))
+    /* istanbul ignore next */
     const scripts = await page.$$eval('script[src]', scripts => scripts.map(node => node.getAttribute('src')))
     expect(scripts.some(src => src.includes('hello1.js'))).toBe(true)
     expect(scripts.some(src => src.includes('hello2.js'))).toBe(false)

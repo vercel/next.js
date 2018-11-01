@@ -23,10 +23,13 @@ describe('with client navigation', () => {
     await expect(page).toMatchElement('#asset-page')
 
     const img1 = await expect(page).toMatchElement('#img1')
+    /* istanbul ignore next */
     const img1Src = await page.evaluate(e => e.getAttribute('src'), img1)
     expect(img1Src).toBe('/static/the-image')
 
     const img2 = await expect(page).toMatchElement('#img2')
+
+    /* istanbul ignore next */
     const img2Src = await page.evaluate(e => e.getAttribute('src'), img2)
     expect(img2Src).toBe('/static/the-image')
   })
@@ -38,10 +41,14 @@ describe('with client navigation', () => {
     await expect(page).toMatchElement('#asset-page')
 
     const img3 = await expect(page).toMatchElement('#img3')
+
+    /* istanbul ignore next */
     const img3Src = await page.evaluate(e => e.getAttribute('src'), img3)
     expect(img3Src).toBe('http://the-image.com/the-image')
 
     const img4 = await expect(page).toMatchElement('#img4')
+
+    /* istanbul ignore next */
     const img4Src = await page.evaluate(e => e.getAttribute('src'), img4)
     expect(img4Src).toBe('https://the-image.com/the-image')
   })
