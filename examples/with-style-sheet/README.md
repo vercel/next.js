@@ -1,6 +1,6 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-style-sheet)
 
-# Using a custom Babel config
+# Using the style-sheet CSS in JS library and extract CSS to file.
 
 ## How to use
 
@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-This example features an app using the [style-sheet]() CSS in JS library and demonstrates how it is possible to extract styles to file.
+This example features an app using the [style-sheet](https://www.npmjs.com/package/style-sheet) CSS in JS library and demonstrates how it is possible to extract styles to file.
