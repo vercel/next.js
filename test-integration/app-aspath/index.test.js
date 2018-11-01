@@ -4,10 +4,6 @@ import { join } from 'path'
 import { runNextDev } from 'next-test-utils'
 import fsTimeMachine from 'fs-time-machine'
 import waitFor from 'wait-for'
-import { setDefaultOptions } from 'expect-puppeteer'
-
-jest.setTimeout(1000 * 60 * 2)
-setDefaultOptions({ timeout: 1000 * 60 * 2 })
 
 let server
 

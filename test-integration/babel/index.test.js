@@ -1,8 +1,6 @@
 /* eslint-env jest */
 import { runNextDev } from 'next-test-utils'
 
-jest.setTimeout(1000 * 60)
-
 let server
 
 describe('Babel', () => {

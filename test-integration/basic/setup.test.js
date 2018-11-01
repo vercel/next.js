@@ -1,11 +1,6 @@
 /* eslint-env jest */
 import fsTimeMachine from 'fs-time-machine'
 import { runNextDev } from 'next-test-utils'
-import { setDefaultOptions } from 'expect-puppeteer'
-
-const timeout = 1000 * 60
-jest.setTimeout(timeout)
-setDefaultOptions({ timeout })
 
 describe('Basic Features', () => {
   beforeAll(async () => {
@@ -45,7 +40,7 @@ describe('Basic Features', () => {
       '/hmr/style',
       '/hmr/contact',
       '/hmr/counter'
-    ].map(path => global.server.fetch(path)))
+    ].map(path => global.server.fetchHTML(path)))
   })
   afterAll(() => global.server.close())
   afterEach(fsTimeMachine.restore)

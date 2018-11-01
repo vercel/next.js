@@ -2,5 +2,6 @@ module.exports = {
   bail: true,
   displayName: 'puppeteer',
   preset: 'jest-puppeteer',
-  modulePaths: ['./utils']
+  modulePaths: ['./utils'],
+  setupTestFrameworkScriptFile: './testSetupFile.js'
 }

@@ -2,12 +2,8 @@
 /* global page */
 import { join } from 'path'
 import fsTimeMachine from 'fs-time-machine'
-import { setDefaultOptions } from 'expect-puppeteer'
 
 import { runNextDev } from 'next-test-utils'
-
-jest.setTimeout(1000 * 60)
-setDefaultOptions({ timeout: 1000 * 60 })
 
 let server
 
