@@ -318,9 +318,9 @@ function rewriteFileName(Bundle, buildId) {
   }
 }
 
-module.exports = async function build({dir, conf, entrypoint}) {
+module.exports = async function build({dir, conf, entrypoint, buildid: passedBuildId}) {
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = await config.generateBuildId().trim() // defaults to a uuid
+  const buildId = passedBuildId || await config.generateBuildId().trim() // defaults to a uuid
   const distDir = path.join(dir, config.distDir)
 
   try {
