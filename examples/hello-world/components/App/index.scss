@@ -1,0 +1,15 @@
+*{
+    box-sizing: border-box;
+}
+body{
+    padding: 20px;
+}
+input,button{
+    border:1px solid #ddd;
+    padding: 5px 10px;
+    margin: inherit;
+}
+button{
+    cursor: pointer;
+    background-color: #f0f0f0;
+}
