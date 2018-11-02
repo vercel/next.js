@@ -309,11 +309,11 @@ export default class HotReloader {
       this.prevChunkHashes = chunkHashes
     })
 
-    // We don’t watch .git .next/ and node_modules for changes
+    // We don’t watch .git/ .next/ and node_modules for changes
     const ignored = [
-      /\.git/,
-      /\.next\//,
-      /node_modules/
+      /[\\/]\.git[\\/]/,
+      /[\\/]\.next[\\/]/,
+      /[\\/]node_modules[\\/]/
     ]
 
     let webpackDevMiddlewareConfig = {
