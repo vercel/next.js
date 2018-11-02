@@ -4,7 +4,6 @@ import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
-import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
@@ -257,16 +256,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         name: isServer ? 'server' : 'client'
       }),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
-      new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
-      // This removes prop-types-exact in production, as it's not used there.
-      !dev && new webpack.IgnorePlugin({
-        checkResource: (resource) => {
-          return /prop-types-exact/.test(resource)
-        },
-        checkContext: (context) => {
-          return context.indexOf(NEXT_PROJECT_ROOT_DIST) !== -1
-        }
-      }),
       // Even though require.cache is server only we have to clear assets from both compilations
       // This is because the client compilation generates the build manifest that's used on the server side
       dev && new NextJsRequireCacheHotReloader(),
@@ -274,12 +263,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      dev && new WriteFilePlugin({
-        exitOnErrors: false,
-        log: false,
-        // required not to cache removed files
-        useHashIndex: false
-      }),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
         'process.browser': JSON.stringify(!isServer)

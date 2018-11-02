@@ -48,7 +48,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .css files here
       if(!/\.css$/.exec(file)) {
@@ -82,7 +82,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
@@ -168,7 +168,7 @@ export class NextScript extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
@@ -187,7 +187,7 @@ export class NextScript extends Component {
   static getInlineScriptSource (documentProps) {
     const { __NEXT_DATA__ } = documentProps
     const { page } = __NEXT_DATA__
-    return `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};__NEXT_LOADED_PAGES__=[];__NEXT_REGISTER_PAGE=function(r,f){__NEXT_LOADED_PAGES__.push([r, f])}`
+    return `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};__NEXT_LOADED_PAGES__=[];__NEXT_REGISTER_PAGE=function(r,f){__NEXT_LOADED_PAGES__.push([r, f])};`
   }
 
   render () {

@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import shallowEquals from 'next-server/dist/lib/shallow-equals'
 

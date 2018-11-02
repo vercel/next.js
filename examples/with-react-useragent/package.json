@@ -1,0 +1,16 @@
+{
+  "name": "with-react-useragent",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@quentin-sommer/react-useragent": "2.0.0",
+    "next": "latest",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC"
+}

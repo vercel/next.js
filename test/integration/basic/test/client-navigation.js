@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import webdriver from 'next-webdriver'
 import {waitFor, getReactErrorOverlayContent} from 'next-test-utils'
