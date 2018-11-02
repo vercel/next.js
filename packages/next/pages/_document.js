@@ -48,7 +48,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .css files here
       if(!/\.css$/.exec(file)) {
@@ -82,7 +82,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
@@ -168,7 +168,7 @@ export class NextScript extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
