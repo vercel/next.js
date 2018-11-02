@@ -8,13 +8,13 @@ module.exports = withTypescript(withCSS({
     camelCase: true,
     namedExport: true
   },
-  webpack(config, options) {
+  webpack (config, options) {
     if (!options.isServer) {
       /* Using next-css */
       for (let entry of options.defaultLoaders.css) {
         if (entry.loader === 'css-loader') {
-          entry.loader = 'typings-for-css-modules-loader';
-          break;
+          entry.loader = 'typings-for-css-modules-loader'
+          break
         }
       }
 
