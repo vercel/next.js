@@ -211,8 +211,11 @@ export async function renderScriptError (req, res, page, error) {
 export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
   const etag = generateEtags && generateETag(html)
+  if (etag) {
+    res.setHeader('etag', etag)
+  }
 
-  if (fresh(req.headers, { etag })) {
+  if (fresh(req.headers, res.getHeaders())) {
     res.statusCode = 304
     res.end()
     return
@@ -222,10 +225,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
     // In dev, we should not cache pages for any reason.
     // That's why we do this.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  }
-
-  if (etag) {
-    res.setHeader('ETag', etag)
   }
 
   if (!res.getHeader('Content-Type')) {
