@@ -2,6 +2,7 @@ import { join } from 'path'
 import promisify from '../lib/promisify'
 import fs from 'fs'
 import webpack from 'webpack'
+import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
 import { PHASE_PRODUCTION_BUILD, BUILD_ID_FILE } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack'
@@ -11,8 +12,13 @@ const writeFile = promisify(fs.writeFile)
 
 export default async function build (dir, conf = null) {
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = await config.generateBuildId() // defaults to a uuid
   const distDir = join(dir, config.distDir)
+
+  let buildId = await config.generateBuildId() // defaults to a uuid
+  if (buildId == null) {
+    // nanoid is a small url-safe uuid generator
+    buildId = nanoid()
+  }
 
   try {
     await access(dir, (fs.constants || fs).W_OK)

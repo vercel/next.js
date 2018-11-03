@@ -2,6 +2,7 @@
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
+[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
@@ -676,7 +677,7 @@ import { withRouter } from 'next/router'
 const ActiveLink = ({ children, router, href }) => {
   const style = {
     marginRight: 10,
-    color: router.pathname === href? 'red' : 'black'
+    color: router.pathname === href ? 'red' : 'black'
   }
 
   const handleClick = (e) => {
