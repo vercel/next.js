@@ -61,7 +61,6 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
-  hotReloader,
   assetPrefix,
   runtimeConfig,
   distDir,
@@ -71,11 +70,6 @@ async function doRender (req, res, pathname, query, {
   nextExport
 } = {}) {
   page = page || pathname
-
-  // In dev mode we use on demand entries to compile the page before rendering
-  if (hotReloader) {
-    await hotReloader.ensurePage(page)
-  }
 
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
