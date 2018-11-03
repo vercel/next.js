@@ -48,11 +48,12 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
-  pageLoader.registerPage(r, f)
-})
-delete window.__NEXT_LOADED_PAGES__
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
+const register = ([r, f]) => pageLoader.registerPage(r, f)
+if (window.__NEXT_P) {
+  window.__NEXT_P.map(register)
+}
+window.__NEXT_P = []
+window.__NEXT_P.push = register
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
