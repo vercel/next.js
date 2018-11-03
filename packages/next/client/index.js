@@ -19,6 +19,9 @@ if (!window.Promise) {
   window.Promise = Promise
 }
 
+const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 const {
   props,
   err,
@@ -28,7 +31,7 @@ const {
   assetPrefix,
   runtimeConfig,
   dynamicIds
-} = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+} = data
 
 const prefix = assetPrefix || ''
 
