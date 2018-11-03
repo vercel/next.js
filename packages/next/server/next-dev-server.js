@@ -90,9 +90,6 @@ export default class DevServer extends Server {
       return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
-    // In dev mode we use on demand entries to compile the page before rendering
-    await this.hotReloader.ensurePage(pathname)
-
     return super.renderToHTML(req, res, pathname, query)
   }
 

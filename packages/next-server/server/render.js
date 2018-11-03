@@ -24,6 +24,8 @@ function getDynamicImportBundles (manifest, moduleIds) {
   }, [])
 }
 
+const logger = console
+
 // since send doesn't support wasm yet
 send.mime.define({ 'application/wasm': ['wasm'] })
 
@@ -61,6 +63,7 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
+  hotReloader,
   assetPrefix,
   runtimeConfig,
   distDir,
@@ -70,6 +73,11 @@ async function doRender (req, res, pathname, query, {
   nextExport
 } = {}) {
   page = page || pathname
+
+  // In dev mode we use on demand entries to compile the page before rendering
+  if (hotReloader) {
+    await hotReloader.ensurePage(page)
+  }
 
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
@@ -159,7 +167,7 @@ async function doRender (req, res, pathname, query, {
   if (isResSent(res)) return
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
-  const documentProps = {
+  const doc = <Document {...{
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page, // The rendered page
@@ -180,8 +188,7 @@ async function doRender (req, res, pathname, query, {
     dynamicImports,
     assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
     ...docProps
-  }
-  const doc = <Document {...documentProps} />
+  }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
@@ -196,7 +203,7 @@ export async function renderScriptError (req, res, page, error) {
     return
   }
 
-  console.error(error.stack)
+  logger.error(error.stack)
   res.statusCode = 500
   res.end('500 - Internal Error')
 }
