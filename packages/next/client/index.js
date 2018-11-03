@@ -20,17 +20,15 @@ if (!window.Promise) {
 }
 
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    page,
-    query,
-    buildId,
-    assetPrefix,
-    runtimeConfig,
-    dynamicIds
-  }
-} = window
+  props,
+  err,
+  page,
+  query,
+  buildId,
+  assetPrefix,
+  runtimeConfig,
+  dynamicIds
+} = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 
 const prefix = assetPrefix || ''
 

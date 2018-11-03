@@ -186,8 +186,7 @@ export class NextScript extends Component {
 
   static getInlineScriptSource (documentProps) {
     const { __NEXT_DATA__ } = documentProps
-    const { page } = __NEXT_DATA__
-    return `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};`
+    return htmlescape(__NEXT_DATA__)
   }
 
   render () {
@@ -197,7 +196,7 @@ export class NextScript extends Component {
 
     return <Fragment>
       {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
-      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
+      {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" nonce={this.props.nonce} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
