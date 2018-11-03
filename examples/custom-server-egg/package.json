@@ -1,0 +1,20 @@
+{
+  "name": "custom-server-egg",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "next build",
+    "start": "npm run dev",
+    "dev": "egg-bin dev",
+    "prod": "npm run build && NODE_ENV=production egg-scripts start"
+  },
+  "dependencies": {
+    "egg": "^2.12.0",
+    "egg-scripts": "^2.10.0",
+    "next": "latest",
+    "react": "^16.6.0",
+    "react-dom": "^16.6.0"
+  },
+  "devDependencies": {
+    "egg-bin": "^4.9.0"
+  }
+}
