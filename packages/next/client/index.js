@@ -19,18 +19,19 @@ if (!window.Promise) {
   window.Promise = Promise
 }
 
+const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    page,
-    query,
-    buildId,
-    assetPrefix,
-    runtimeConfig,
-    dynamicIds
-  }
-} = window
+  props,
+  err,
+  page,
+  query,
+  buildId,
+  assetPrefix,
+  runtimeConfig,
+  dynamicIds
+} = data
 
 const prefix = assetPrefix || ''
 
