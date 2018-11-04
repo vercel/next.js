@@ -46,7 +46,11 @@ function runCompiler (compiler) {
   return new Promise(async (resolve, reject) => {
     const webpackCompiler = await webpack(await compiler)
     webpackCompiler.run((err, stats) => {
-      if (err) return reject(err)
+      if (err) {
+        console.log({...err})
+        console.log(...stats.errors)
+        return reject(err)
+      }
 
       const jsonStats = stats.toJson({ warnings: true, errors: true })
 
