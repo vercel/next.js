@@ -173,6 +173,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     }
   }
 
+  console.log('RESOLVE_CONFIG', resolveConfig)
+
   const webpackMode = dev ? 'development' : 'production'
 
   let webpackConfig = {
