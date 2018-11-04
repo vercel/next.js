@@ -150,10 +150,18 @@ export default class Server {
   }
 
   async run (req, res, parsedUrl) {
-    const fn = this.router.match(req, res, parsedUrl)
-    if (fn) {
-      await fn()
-      return
+    try {
+      const fn = this.router.match(req, res, parsedUrl)
+      if (fn) {
+        await fn()
+        return
+      }
+    } catch (err) {
+      if (err.code === 'DECODE_FAILED') {
+        res.statusCode = 400
+        return this.renderError(null, req, res, '/_error', {})
+      }
+      throw err
     }
 
     if (req.method === 'GET' || req.method === 'HEAD') {
@@ -201,6 +209,7 @@ export default class Server {
   }
 
   async renderError (err, req, res, pathname, query) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
     return sendHTML(req, res, html, req.method, this.renderOpts)
   }
@@ -212,7 +221,6 @@ export default class Server {
   async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
     const { pathname, query } = parsedUrl
     res.statusCode = 404
-    res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     return this.renderError(null, req, res, pathname, query)
   }
 
