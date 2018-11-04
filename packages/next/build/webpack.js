@@ -31,7 +31,7 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'styled-jsx']
+  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status']
 
   externals.push((context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
@@ -50,6 +50,11 @@ function externalsConfig (dir, isServer) {
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
+        return callback()
+      }
+
+      // styled-jsx has to be transpiled
+      if (res.match(/node_modules[/\\]styled-jsx/)) {
         return callback()
       }
 
