@@ -52,18 +52,22 @@ function runCompiler (compiler) {
         return reject(err)
       }
 
-      const jsonStats = stats.toJson({ warnings: true, errors: true })
+      let buildFailed = false
+      for (const stat of stats.stats) {
+        for (const error of stat.compilation.errors) {
+          buildFailed = true
+          console.error('ERROR', error)
+          console.error('ORIGINAL ERROR', error.error)
+        }
 
-      if (jsonStats.errors.length > 0) {
-        console.log()
-        console.log(...jsonStats.warnings)
-        console.error(...jsonStats.errors)
-        return reject(new Error('Soft webpack errors'))
+        for (const warning of stat.compilation.warnings) {
+          buildFailed = true
+          console.warn('WARNING', warning)
+        }
       }
 
-      if (jsonStats.warnings.length > 0) {
-        console.log()
-        console.log(...jsonStats.warnings)
+      if (buildFailed) {
+        return reject(new Error('Webpack errors'))
       }
 
       resolve()
