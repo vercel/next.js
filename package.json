@@ -15,7 +15,7 @@
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "standard",
     "prepublish": "lerna run prepublish",
-    "publish-canary": "yarn lerna version prerelease --preid canary --force-publish",
+    "publish-canary": "lerna version prerelease --preid canary --force-publish",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
