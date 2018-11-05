@@ -2,6 +2,7 @@
 import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
+import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
@@ -142,7 +143,23 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: ['../lib/loadable'],
+    externals: [(context, request, callback) => {
+      if (request.indexOf('loadable') === -1) {
+        return callback()
+      }
+      resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+        if (err) {
+          return callback()
+        }
+
+        // Default pages have to be transpiled
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]loadable/)) {
+          return callback(null, `commonjs next-server/dist/lib/loadable.js`)
+        }
+
+        callback()
+      })
+    }],
     optimization: optimizationConfig({dir, dev, isServer, totalPages}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
