@@ -141,7 +141,7 @@ export default class Router {
   }
 
   async change (method, _url, _as, options) {
-    // If url and as provided as an object representation,
+    // If _url and _as provided as an object representation,
     // we'll format them into the string version here.
     const url = typeof _url === 'object' ? format(_url) : _url
     let as = typeof _as === 'object' ? format(_as) : _as
@@ -154,39 +154,42 @@ export default class Router {
 
     this.abortComponentLoad(as)
 
+    const { pathname: asPathname, query: asQuery } = parse(as, true)
+    const { pathname, query } = parse(url, true)
+    const route = toRoute(pathname)
+
+    // Reuse existing routeInfo when possible.
+    let routeInfo = this.components[route] || null
+
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
     if (this.onlyAHashChange(as)) {
       Router.events.emit('hashChangeStart', as)
       this.changeState(method, url, as)
       this.scrollToHash(as)
+
+      // record hash change
+      const hash = window.location.hash.substring(1)
+      this.set(route, pathname, query, as, { ...routeInfo, hash })
+
       Router.events.emit('hashChangeComplete', as)
       return true
     }
 
-    const { pathname: asPathname, query: asQuery } = parse(as, true)
-    const { pathname, query } = parse(url, true)
-
-    // If asked to change the current URL we should reload the current page
-    // (not location.reload() but reload getInitialProps and other Next.js stuffs)
+    // If asked to change the current URL, we should reload the current page component.
     // We also need to set the method = replaceState always
     // as this should not go into the history (That's how browsers work)
     if (!this.urlIsNew(asPathname, asQuery)) {
       method = 'replaceState'
     }
 
-    const route = toRoute(pathname)
-    const { shallow = false } = options
-    let routeInfo = null
-
     Router.events.emit('routeChangeStart', as)
 
-    // If shallow === false and other conditions met, we reuse the
-    // existing routeInfo for this route.
-    // Because of this, getInitialProps would not run.
-    if (shallow && this.isShallowRoutingPossible(route)) {
-      routeInfo = this.components[route]
-    } else {
+    const { shallow = false } = options
+
+    const shouldShallowRoute = shallow && this.isShallowRoutingPossible(route)
+    if (!shouldShallowRoute) {
+      // fetch component and call getInitialProps
       routeInfo = await this.getRouteInfo(route, pathname, query, as)
     }
 
@@ -197,9 +200,11 @@ export default class Router {
     }
 
     Router.events.emit('beforeHistoryChange', as)
-    this.changeState(method, url, as, options)
-    const hash = window.location.hash.substring(1)
 
+    this.changeState(method, url, as, options)
+    this.scrollToHash(as)
+
+    const hash = window.location.hash.substring(1)
     this.set(route, pathname, query, as, { ...routeInfo, hash })
 
     if (error) {
@@ -428,5 +433,6 @@ export default class Router {
 }
 
 function toRoute (path) {
+  // remove trailing slash, except for root path
   return path.replace(/\/$/, '') || '/'
 }
