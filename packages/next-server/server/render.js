@@ -24,8 +24,6 @@ function getDynamicImportBundles (manifest, moduleIds) {
   }, [])
 }
 
-const logger = console
-
 // since send doesn't support wasm yet
 send.mime.define({ 'application/wasm': ['wasm'] })
 
@@ -63,7 +61,6 @@ async function doRender (req, res, pathname, query, {
   err,
   page,
   buildId,
-  hotReloader,
   assetPrefix,
   runtimeConfig,
   distDir,
@@ -73,11 +70,6 @@ async function doRender (req, res, pathname, query, {
   nextExport
 } = {}) {
   page = page || pathname
-
-  // In dev mode we use on demand entries to compile the page before rendering
-  if (hotReloader) {
-    await hotReloader.ensurePage(page)
-  }
 
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
@@ -203,7 +195,7 @@ export async function renderScriptError (req, res, page, error) {
     return
   }
 
-  logger.error(error.stack)
+  console.error(error.stack)
   res.statusCode = 500
   res.end('500 - Internal Error')
 }

@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "7.0.2-canary.9",
+  "version": "7.0.2-canary.17",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -64,14 +64,13 @@
     "glob": "7.1.2",
     "hoist-non-react-statics": "2.5.5",
     "htmlescape": "1.1.1",
-    "http-errors": "1.6.2",
     "http-status": "1.0.1",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "nanoid": "1.2.1",
-    "next-server": "^7.0.2-canary.9",
+    "next-server": "^7.0.2-canary.17",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
@@ -89,8 +88,7 @@
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
-    "webpackbar": "2.6.3",
-    "write-file-webpack-plugin": "4.3.2"
+    "webpackbar": "2.6.3"
   },
   "peerDependencies": {
     "react": "^16.0.0",
