@@ -142,7 +142,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: [],
+    externals: ['../lib/loadable'],
     // externals: externalsConfig(dir, isServer),
     optimization: optimizationConfig({dir, dev, isServer, totalPages}),
     recordsPath: path.join(outputPath, 'records.json'),
