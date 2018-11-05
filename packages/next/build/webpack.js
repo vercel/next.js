@@ -2,7 +2,7 @@
 import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
-import resolve from 'resolve'
+// import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
@@ -24,74 +24,53 @@ import TerserPlugin from 'terser-webpack-plugin'
 // The externals config makes sure that
 // on the server side when modules are
 // in node_modules they don't get compiled by webpack
-function externalsConfig (dir, isServer) {
-  const externals = []
+// function externalsConfig (dir, isServer) {
+//   const externals = []
 
-  if (!isServer) {
-    return externals
-  }
+//   if (!isServer) {
+//     return externals
+//   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
+//   const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
 
-  externals.push((context, request, callback) => {
-    if (notExternalModules.indexOf(request) !== -1) {
-      return callback()
-    }
+//   externals.push((context, request, callback) => {
+//     if (notExternalModules.indexOf(request) !== -1) {
+//       return callback()
+//     }
 
-    resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
-      if (err) {
-        return callback()
-      }
+//     resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+//       if (err) {
+//         return callback()
+//       }
 
-      // Default pages have to be transpiled
-      if (res.match(/next[/\\]dist[/\\]pages/)) {
-        return callback()
-      }
+//       // Default pages have to be transpiled
+//       if (res.match(/next[/\\]dist[/\\]pages/)) {
+//         return callback()
+//       }
 
-      // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
-        return callback()
-      }
+//       // Webpack itself has to be compiled because it doesn't always use module relative paths
+//       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
+//         return callback()
+//       }
 
-      // styled-jsx has to be transpiled
-      if (res.match(/node_modules[/\\]styled-jsx/)) {
-        return callback()
-      }
+//       // styled-jsx has to be transpiled
+//       if (res.match(/node_modules[/\\]styled-jsx/)) {
+//         return callback()
+//       }
 
-      if (res.match(/node_modules[/\\].*\.js$/)) {
-        return callback(null, `commonjs ${request}`)
-      }
+//       if (res.match(/node_modules[/\\].*\.js$/)) {
+//         return callback(null, `commonjs ${request}`)
+//       }
 
-      callback()
-    })
-  })
+//       callback()
+//     })
+//   })
 
-  return externals
-}
+//   return externals
+// }
 
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
-  if (isServer) {
-    return {
-      splitChunks: false,
-      minimize: false
-    }
-  }
-
-  const config: any = {
-    runtimeChunk: {
-      name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-    },
-    splitChunks: {
-      cacheGroups: {
-        default: false,
-        vendors: false
-      }
-    }
-  }
-
-  if (dev) {
-    return config
-  }
+  const config: any = {}
 
   // Terser is a better uglifier
   config.minimizer = [
@@ -107,6 +86,29 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
       }
     })
   ]
+
+  if (isServer) {
+    return {
+      ...config,
+      splitChunks: false,
+      minimize: false
+    }
+  }
+
+  config.runtimeChunk = {
+    name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
+  }
+
+  config.splitChunks = {
+    cacheGroups: {
+      default: false,
+      vendors: false
+    }
+  }
+
+  if (dev) {
+    return config
+  }
 
   // Only enabled in production
   // This logic will create a commons bundle
@@ -189,7 +191,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: externalsConfig(dir, isServer),
+    externals: [],
+    // externals: externalsConfig(dir, isServer),
     optimization: optimizationConfig({dir, dev, isServer, totalPages}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,

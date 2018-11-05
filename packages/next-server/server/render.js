@@ -5,7 +5,6 @@ import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
 import requirePage, {normalizePagePath} from './require'
-import { Router } from '../lib/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import ErrorDebug from '../lib/error-debug'
@@ -91,7 +90,7 @@ async function doRender (req, res, pathname, query, {
   Document = Document.default || Document
   const asPath = req.url
   const ctx = { err, req, res, pathname: page, query, asPath }
-  const router = new Router(page, query, asPath)
+  const router = {route: page, pathname: page, query, asPath}
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
   const files = [

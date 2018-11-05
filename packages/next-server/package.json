@@ -25,7 +25,6 @@
     ]
   },
   "dependencies": {
-    "@babel/runtime-corejs2": "^7.1.2",
     "ansi-html": "0.0.7",
     "etag": "1.8.1",
     "find-up": "3.0.0",
