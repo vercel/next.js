@@ -94,11 +94,19 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   }
 
   // Terser is a better uglifier
-  config.minimizer = [new TerserPlugin({
-    parallel: true,
-    sourceMap: false,
-    cache: true
-  })]
+  config.minimizer = [
+    new TerserPlugin({
+      parallel: true,
+      sourceMap: false,
+      cache: true,
+      cacheKeys: (keys) => {
+        // path changes per build because we add buildId
+        // because the input is already hashed the path is not needed
+        delete keys.path
+        return keys
+      }
+    })
+  ]
 
   // Only enabled in production
   // This logic will create a commons bundle
@@ -268,6 +276,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
+      !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
         'process.browser': JSON.stringify(!isServer)
