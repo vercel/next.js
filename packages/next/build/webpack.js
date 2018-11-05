@@ -262,7 +262,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
-      new webpack.HashedModuleIdsPlugin(),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
@@ -277,6 +276,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
+      !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
         'process.browser': JSON.stringify(!isServer)
