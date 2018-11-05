@@ -94,11 +94,19 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   }
 
   // Terser is a better uglifier
-  config.minimizer = [new TerserPlugin({
-    parallel: true,
-    sourceMap: false,
-    cache: true
-  })]
+  config.minimizer = [
+    new TerserPlugin({
+      parallel: true,
+      sourceMap: false,
+      cache: true,
+      cacheKeys: (keys) => {
+        // path changes per build because we add buildId
+        // because the input is already hashed the path is not needed
+        delete keys.path
+        return keys
+      }
+    })
+  ]
 
   // Only enabled in production
   // This logic will create a commons bundle
@@ -254,6 +262,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
+      new webpack.HashedModuleIdsPlugin(),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
