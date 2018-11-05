@@ -2,7 +2,6 @@
 import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
-// import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
@@ -20,54 +19,6 @@ import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_W
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
-
-// The externals config makes sure that
-// on the server side when modules are
-// in node_modules they don't get compiled by webpack
-// function externalsConfig (dir, isServer) {
-//   const externals = []
-
-//   if (!isServer) {
-//     return externals
-//   }
-
-//   const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
-
-//   externals.push((context, request, callback) => {
-//     if (notExternalModules.indexOf(request) !== -1) {
-//       return callback()
-//     }
-
-//     resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
-//       if (err) {
-//         return callback()
-//       }
-
-//       // Default pages have to be transpiled
-//       if (res.match(/next[/\\]dist[/\\]pages/)) {
-//         return callback()
-//       }
-
-//       // Webpack itself has to be compiled because it doesn't always use module relative paths
-//       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
-//         return callback()
-//       }
-
-//       // styled-jsx has to be transpiled
-//       if (res.match(/node_modules[/\\]styled-jsx/)) {
-//         return callback()
-//       }
-
-//       if (res.match(/node_modules[/\\].*\.js$/)) {
-//         return callback(null, `commonjs ${request}`)
-//       }
-
-//       callback()
-//     })
-//   })
-
-//   return externals
-// }
 
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   const config: any = {}
