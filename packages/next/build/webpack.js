@@ -143,7 +143,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: [(context, request, callback) => {
+    externals: isServer ? [(context, request, callback) => {
       if (request.indexOf('loadable') === -1) {
         return callback()
       }
@@ -159,7 +159,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
 
         callback()
       })
-    }],
+    }] : [],
     optimization: optimizationConfig({dir, dev, isServer, totalPages}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
