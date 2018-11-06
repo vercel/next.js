@@ -149,6 +149,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           return callback()
         }
 
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]head/)) {
+          return callback(null, `commonjs next-server/dist/lib/head.js`)
+        }
+
         if (res.match(/next-server[/\\]dist[/\\]lib[/\\]asset/)) {
           return callback(null, `commonjs next-server/dist/lib/asset.js`)
         }
