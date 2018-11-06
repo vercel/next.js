@@ -144,12 +144,17 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     cache: true,
     target: isServer ? 'node' : 'web',
     externals: isServer ? [(context, request, callback) => {
-      if (request.indexOf('loadable') === -1) {
-        return callback()
-      }
       resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
         if (err) {
           return callback()
+        }
+
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]asset/)) {
+          return callback(null, `commonjs next-server/dist/lib/asset.js`)
+        }
+
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]runtime-config/)) {
+          return callback(null, `commonjs next-server/dist/lib/runtime-config.js`)
         }
 
         // Default pages have to be transpiled
