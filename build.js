@@ -1,4 +1,4 @@
-const { build, watch } = require('./dist/server/build/babel')
+const { build, watch } = require('./node/server/build/babel')
 
 exports.build = build
 exports.watch = watch
