@@ -11,6 +11,13 @@ export default async function build (dir, server) {
   const compiler = await webpack(dir, { buildId })
 
   const pages = (await fs.exists(`${dir}/pages`)) ? `${dir}/pages` : undefined
+  if (!pages) {
+    return buildServer([server], {
+      base: dir,
+      outDir: join(buildDir, 'server'),
+      staticDir: join(buildDir, 'static')
+    })
+  }
 
   try {
     const [stats] = await Promise.all([
