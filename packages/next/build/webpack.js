@@ -48,6 +48,10 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
+      if (res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)) {
+        return callback()
+      }
+
       // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
         return callback()
