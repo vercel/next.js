@@ -1,4 +1,3 @@
-import { tmpdir } from 'os'
 import { join } from 'path'
 import fs from 'mz/fs'
 import uuid from 'uuid'
@@ -11,10 +10,12 @@ export default async function build (dir, server) {
   const buildDir = join(dir, '.next')
   const compiler = await webpack(dir, { buildId })
 
+  const pages = (await fs.exists(`${dir}/pages`)) ? `${dir}/pages` : undefined
+
   try {
     const [stats] = await Promise.all([
       runCompiler(compiler),
-      await buildServer([`${dir}/pages`, server].filter(Boolean), {
+      await buildServer([pages, server].filter(Boolean), {
         base: dir,
         outDir: join(buildDir, 'server'),
         staticDir: join(buildDir, 'static')
