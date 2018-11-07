@@ -25,12 +25,12 @@
     ]
   },
   "dependencies": {
-    "@babel/runtime-corejs2": "^7.1.2",
+    "@babel/runtime-corejs2": "7.1.2",
     "ansi-html": "0.0.7",
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
-    "hoist-non-react-statics": "^3.0.1",
+    "hoist-non-react-statics": "3.0.1",
     "htmlescape": "1.1.1",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
