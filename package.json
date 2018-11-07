@@ -112,10 +112,6 @@
     "taskr": "1.1.0",
     "wd": "1.6.1"
   },
-  "peerDependencies": {
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
-  },
   "jest": {
     "testEnvironment": "node",
     "roots": [
