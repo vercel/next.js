@@ -21,58 +21,6 @@ import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIS
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
 
-// The externals config makes sure that
-// on the server side when modules are
-// in node_modules they don't get compiled by webpack
-function externalsConfig (dir, isServer) {
-  const externals = []
-
-  if (!isServer) {
-    return externals
-  }
-
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
-
-  externals.push((context, request, callback) => {
-    if (notExternalModules.indexOf(request) !== -1) {
-      return callback()
-    }
-
-    resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
-      if (err) {
-        return callback()
-      }
-
-      // Default pages have to be transpiled
-      if (res.match(/next[/\\]dist[/\\]pages/)) {
-        return callback()
-      }
-
-      if (res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)) {
-        return callback()
-      }
-
-      // Webpack itself has to be compiled because it doesn't always use module relative paths
-      if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
-        return callback()
-      }
-
-      // styled-jsx has to be transpiled
-      if (res.match(/node_modules[/\\]styled-jsx/)) {
-        return callback()
-      }
-
-      if (res.match(/node_modules[/\\].*\.js$/)) {
-        return callback(null, `commonjs ${request}`)
-      }
-
-      callback()
-    })
-  })
-
-  return externals
-}
-
 function optimizationConfig ({dir, dev, isServer, totalPages}) {
   if (isServer) {
     return {
@@ -193,7 +141,27 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: externalsConfig(dir, isServer),
+    externals: isServer ? [(context, request, callback) => {
+      resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+        if (err) {
+          return callback()
+        }
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]head/)) {
+          return callback(null, `commonjs next-server/dist/lib/head.js`)
+        }
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]asset/)) {
+          return callback(null, `commonjs next-server/dist/lib/asset.js`)
+        }
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]runtime-config/)) {
+          return callback(null, `commonjs next-server/dist/lib/runtime-config.js`)
+        }
+        // Default pages have to be transpiled
+        if (res.match(/next-server[/\\]dist[/\\]lib[/\\]loadable/)) {
+          return callback(null, `commonjs next-server/dist/lib/loadable.js`)
+        }
+        callback()
+      })
+    }] : [],
     optimization: optimizationConfig({dir, dev, isServer, totalPages}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
