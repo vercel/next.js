@@ -37,7 +37,7 @@ export default async function build (dir, conf = null) {
   const distDir = join(dir, config.distDir)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
 
-  await ensureProjectDirectoryIsWriteAble()
+  await ensureProjectDirectoryIsWriteAble(dir)
 
   try {
     const configs = await Promise.all([
