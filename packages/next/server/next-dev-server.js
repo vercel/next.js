@@ -8,7 +8,6 @@ export default class DevServer extends Server {
   constructor (options) {
     super(options)
     this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
-    this.renderOpts.hotReloader = this.hotReloader
     this.renderOpts.dev = true
   }
 
@@ -88,6 +87,17 @@ export default class DevServer extends Server {
     if (compilationErr) {
       res.statusCode = 500
       return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
+    }
+
+    // In dev mode we use on demand entries to compile the page before rendering
+    try {
+      await this.hotReloader.ensurePage(pathname)
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        res.statusCode = 404
+        return this.renderErrorToHTML(null, req, res, pathname, query)
+      }
+      if (!this.quiet) console.error(err)
     }
 
     return super.renderToHTML(req, res, pathname, query)

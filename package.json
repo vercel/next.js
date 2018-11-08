@@ -13,8 +13,9 @@
     "pretest": "npm run lint",
     "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
-    "lint": "lerna run lint",
+    "lint": "standard",
     "prepublish": "lerna run prepublish",
+    "publish-canary": "lerna version prerelease --preid canary --force-publish",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
@@ -26,9 +27,9 @@
     "parser": "babel-eslint",
     "ignore": [
       "**/node_modules/**",
-      "**/examples/with-ioc/**",
-      "**/examples/with-kea/**",
-      "**/examples/with-mobx/**"
+      "examples/with-ioc/**",
+      "examples/with-kea/**",
+      "examples/with-mobx/**"
     ]
   },
   "devDependencies": {
@@ -67,5 +68,8 @@
     "taskr": "1.1.0",
     "wait-port": "0.2.2",
     "wd": "1.10.3"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
   }
 }

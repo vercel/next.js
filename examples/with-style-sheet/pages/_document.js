@@ -1,13 +1,12 @@
-import React from 'react'
 import Document, { Head, Main, NextScript } from 'next/document'
 
-// Document component is strongly typed with `@types/next`
 export default class MyDocument extends Document {
   render () {
     return (
-      <html lang="en">
+      <html>
         <Head>
-          <title>Next.js TypeScript Example</title>
+          <style>{`body { margin: 0 }`}</style>
+          <link id='__style_sheet_extracted__' rel='stylesheet' href='/_next/static/bundle.css' />
         </Head>
         <body>
           <Main />

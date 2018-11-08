@@ -2,7 +2,7 @@
   "scripts": {
     "dev": "nodemon server/index.ts",
     "build": "next build && tsc --project tsconfig.server.json",
-    "start": "NODE_ENV=production node .next/production-server/index.js"
+    "start": "NODE_ENV=production node .next/production-server/server/index.js"
   },
   "dependencies": {
     "@babel/core": "^7.1.2",

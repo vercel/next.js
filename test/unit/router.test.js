@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import Router from 'next-server/dist/lib/router/router'
 
 class PageLoader {

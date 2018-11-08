@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import {normalize, join} from 'path'
 import {getPageEntries, createEntry} from 'next/dist/build/webpack/utils'
