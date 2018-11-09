@@ -61,7 +61,6 @@ function runCompiler (compiler) {
         }
 
         for (const warning of stat.compilation.warnings) {
-          buildFailed = true
           console.warn('WARNING', warning)
         }
       }
