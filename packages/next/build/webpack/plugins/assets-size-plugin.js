@@ -12,6 +12,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 */
 
 import { gzip as _gzip } from 'zlib'
+import { relative as pathRelative } from 'path'
 import promisify from '../../../lib/promisify'
 import {
   IS_BUNDLED_PAGE_REGEX,
@@ -38,7 +39,8 @@ const prettyBytes = number => {
 export default class AssetsSizePlugin {
   constructor ({ buildId, distDir }) {
     this.buildId = buildId
-    this.distDir = distDir
+    // this.distDir = distDir
+    this.distDir = '.next'
     this.hashes = []
   }
 
@@ -47,7 +49,7 @@ export default class AssetsSizePlugin {
 
     // add distDir
     if (this.distDir) {
-      filename = this.distDir + '/' + filename
+      filename = pathRelative(process.cwd(), this.distDir) + '/' + filename
     }
 
     // shorten buildId
