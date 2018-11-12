@@ -44,7 +44,7 @@ export default class MyDocument extends Document {
 
     return (
       <html>
-        <Head nonce='test-nonce'>
+        <Head nonce='test-nonce' crossOrigin='anonymous'>
           {csp ? <meta httpEquiv='Content-Security-Policy' content={csp} /> : null}
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
@@ -52,7 +52,7 @@ export default class MyDocument extends Document {
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
-          <NextScript nonce='test-nonce' />
+          <NextScript nonce='test-nonce' crossOrigin='anonymous' />
         </body>
       </html>
     )
