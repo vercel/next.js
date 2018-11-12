@@ -22,7 +22,7 @@ import {
 
 const gzip = promisify(_gzip)
 
-// This file is based on https://github.com/sindresorhus/pretty-bytes/blob/v5.1.0/index.js
+// This part is based on https://github.com/sindresorhus/pretty-bytes/blob/v5.1.0/index.js
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 const UNITS = ['B', 'kB', 'MB']
