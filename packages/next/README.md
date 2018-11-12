@@ -2,6 +2,7 @@
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
+[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
@@ -535,7 +536,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a falsy value from `beforePopState`, `Router` will not handle `popstate`;
+If you return a `false` value from `beforePopState`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -676,7 +677,7 @@ import { withRouter } from 'next/router'
 const ActiveLink = ({ children, router, href }) => {
   const style = {
     marginRight: 10,
-    color: router.pathname === href? 'red' : 'black'
+    color: router.pathname === href ? 'red' : 'black'
   }
 
   const handleClick = (e) => {
@@ -1185,7 +1186,7 @@ export default class Page extends React.Component {
 }
 ```
 
-> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
 
 ### Custom configuration
 
@@ -1212,7 +1213,7 @@ module.exports = (phase, {defaultConfig}) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/lib/constants.js)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.js)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -1348,7 +1349,7 @@ module.exports = {
 }
 ```
 
-The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+The second argument to `webpack` is an object containing properties useful when customizing its configuration:
 
 - `buildId` - `String` the build id used as a unique identifier between builds
 - `dev` - `Boolean` shows if the compilation is done in development mode

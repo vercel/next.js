@@ -27,11 +27,7 @@ const defaultConfig: NextConfig = {
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => {
-    // nanoid is a small url-safe uuid generator
-    const nanoid = require('nanoid')
-    return nanoid()
-  },
+  generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['jsx', 'js']
 }

@@ -38,7 +38,7 @@ export default async function (dir, options, configuration) {
     }
 
     if (page === '/_error') {
-      defaultPathMap['/404'] = { page }
+      defaultPathMap['/404.html'] = { page }
       continue
     }
 

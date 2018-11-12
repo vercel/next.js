@@ -3,7 +3,6 @@
 // So, it'll give us issues when the app has used a newer version of path-to-regexp
 // (When webpack resolving packages)
 var pathToRegexp = require('path-to-regexp')
-var createError = require('http-errors')
 
 module.exports = function (options) {
   options = options || {}
@@ -36,6 +35,8 @@ function decodeParam (param) {
   try {
     return decodeURIComponent(param)
   } catch (_) {
-    throw createError(400, 'failed to decode param "' + param + '"')
+    const err = new Error('failed to decode param')
+    err.code = 'DECODE_FAILED'
+    throw err
   }
 }

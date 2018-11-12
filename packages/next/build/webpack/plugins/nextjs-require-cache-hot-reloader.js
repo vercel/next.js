@@ -5,7 +5,7 @@ function deleteCache (path: string) {
 }
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-export default class ChunkNamesPlugin {
+export default class NextJsRequireCacheHotReloader {
   prevAssets: null | {[string]: {existsAt: string}}
   constructor () {
     this.prevAssets = null

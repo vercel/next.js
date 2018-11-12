@@ -22,9 +22,8 @@ export default App => {
 
     static async getInitialProps (ctx) {
       const { Component, router, ctx: { req, res } } = ctx
-      const token = parseCookies(req).token
       const apollo = initApollo({}, {
-        getToken: () => token
+        getToken: () => parseCookies(req).token
       })
 
       ctx.ctx.apolloClient = apollo
@@ -70,20 +69,16 @@ export default App => {
 
       return {
         ...appProps,
-        apolloState,
-        token
+        apolloState
       }
     }
 
     constructor (props) {
       super(props)
-
-      const { token } = props
       // `getDataFromTree` renders the component first, the client is passed off as a property.
       // After that rendering is done using Next's normal rendering pipeline
       this.apolloClient = initApollo(props.apolloState, {
         getToken: () => {
-          if (token) { return token }
           return parseCookies().token
         }
       })

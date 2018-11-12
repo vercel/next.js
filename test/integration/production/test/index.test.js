@@ -291,6 +291,12 @@ describe('Production Usage', () => {
     expect(serverSideJsBody).toMatch(/404/)
   })
 
+  it('should handle failed param decoding', async () => {
+    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    expect(html).toMatch(/400/)
+    expect(html).toMatch(/Bad Request/)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)

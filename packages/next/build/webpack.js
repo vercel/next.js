@@ -4,7 +4,6 @@ import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
-import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
@@ -32,7 +31,7 @@ function externalsConfig (dir, isServer) {
     return externals
   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'styled-jsx']
+  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
 
   externals.push((context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
@@ -49,8 +48,17 @@ function externalsConfig (dir, isServer) {
         return callback()
       }
 
+      if (res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)) {
+        return callback()
+      }
+
       // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
+        return callback()
+      }
+
+      // styled-jsx has to be transpiled
+      if (res.match(/node_modules[/\\]styled-jsx/)) {
         return callback()
       }
 
@@ -90,11 +98,19 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   }
 
   // Terser is a better uglifier
-  config.minimizer = [new TerserPlugin({
-    parallel: true,
-    sourceMap: false,
-    cache: true
-  })]
+  config.minimizer = [
+    new TerserPlugin({
+      parallel: true,
+      sourceMap: false,
+      cache: true,
+      cacheKeys: (keys) => {
+        // path changes per build because we add buildId
+        // because the input is already hashed the path is not needed
+        delete keys.path
+        return keys
+      }
+    })
+  ]
 
   // Only enabled in production
   // This logic will create a commons bundle
@@ -264,12 +280,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      dev && new WriteFilePlugin({
-        exitOnErrors: false,
-        log: false,
-        // required not to cache removed files
-        useHashIndex: false
-      }),
+      !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
         'process.browser': JSON.stringify(!isServer)
