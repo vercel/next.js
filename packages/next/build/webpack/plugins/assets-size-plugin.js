@@ -121,16 +121,20 @@ export default class AssetsSizePlugin {
   }
 
   async printAssetsSizeHook ({ assets, chunks }) {
-    chunks.forEach(chunk => {
-      this.hashes.push(chunk.hash, ...Object.values(chunk.contentHash))
-    })
-    await this.printAssetsSize(assets)
+    try {
+      chunks.forEach(chunk => {
+        this.hashes.push(chunk.hash, ...Object.values(chunk.contentHash))
+      })
+      await this.printAssetsSize(assets)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   async apply (compiler) {
     compiler.hooks.afterEmit.tapPromise(
       'AssetsSizePlugin',
-      this.printAssetsSizeHook
+      this.printAssetsSizeHook.bind(this)
     )
   }
 }
