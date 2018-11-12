@@ -39,18 +39,14 @@ const prettyBytes = number => {
 export default class AssetsSizePlugin {
   constructor ({ buildId, distDir }) {
     this.buildId = buildId
-    // this.distDir = distDir
-    this.distDir = '.next'
-    this.hashes = []
+    this.distDir = distDir ? pathRelative(process.cwd(), distDir) + '/' : ''
   }
 
   formatFilename (rawFilename) {
     let filename = rawFilename
 
     // add distDir
-    if (this.distDir) {
-      filename = pathRelative(process.cwd(), this.distDir) + '/' + filename
-    }
+    filename = this.distDir + filename
 
     // shorten buildId
     if (this.buildId) {
@@ -61,19 +57,10 @@ export default class AssetsSizePlugin {
     }
 
     // shorten hashes
-    for (let hash of this.hashes) {
-      // for each hash, search 8 first chars
-      const pos = filename.indexOf(hash.substring(0, 8))
-      if (pos === -1) continue
-      let length = 8
-      while (filename[pos + length] === hash[length]) length++
-      filename =
-        filename.substring(0, pos) +
-        hash.substring(0, 4) +
-        '****' +
-        filename.substring(pos + length)
-      break
-    }
+    filename = filename.replace(
+      /(.*[-.])([0-9a-f]{8,})(\.js|\.css)/,
+      (_, c1, hash, c2) => c1 + hash.substring(0, 4) + '****' + c2
+    )
 
     return filename
   }
@@ -122,21 +109,9 @@ export default class AssetsSizePlugin {
     console.log(message)
   }
 
-  async printAssetsSizeHook ({ assets, chunks }) {
-    try {
-      chunks.forEach(chunk => {
-        this.hashes.push(chunk.hash, ...Object.values(chunk.contentHash))
-      })
-      await this.printAssetsSize(assets)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   async apply (compiler) {
-    compiler.hooks.afterEmit.tapPromise(
-      'AssetsSizePlugin',
-      this.printAssetsSizeHook.bind(this)
+    compiler.hooks.afterEmit.tapPromise('AssetsSizePlugin', compilation =>
+      this.printAssetsSize(compilation.assets).catch(console.error)
     )
   }
 }
