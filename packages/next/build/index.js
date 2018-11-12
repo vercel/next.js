@@ -10,22 +10,34 @@ import getBaseWebpackConfig from './webpack'
 const access = promisify(fs.access)
 const writeFile = promisify(fs.writeFile)
 
-export default async function build (dir, conf = null) {
-  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const distDir = join(dir, config.distDir)
-
-  let buildId = await config.generateBuildId() // defaults to a uuid
-  if (buildId == null) {
-    // nanoid is a small url-safe uuid generator
-    buildId = nanoid()
+async function generateBuildId (generate, fallback) {
+  let buildId = await generate()
+  // If there's no buildId defined we'll fall back
+  if (buildId === null) {
+    buildId = fallback()
   }
 
+  if (typeof buildId !== 'string') {
+    throw new Error('generateBuildId did not return a string. https://err.sh/zeit/next.js/generatebuildid-not-a-string')
+  }
+
+  return buildId.trim()
+}
+
+async function ensureProjectDirectoryIsWriteAble (dir) {
   try {
     await access(dir, (fs.constants || fs).W_OK)
   } catch (err) {
-    console.error(`> Failed, build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable`)
-    throw err
+    throw new Error('Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
   }
+}
+
+export default async function build (dir, conf = null) {
+  const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const distDir = join(dir, config.distDir)
+  const buildId = await generateBuildId(config.generateBuildId, nanoid)
+
+  await ensureProjectDirectoryIsWriteAble(dir)
 
   try {
     const configs = await Promise.all([
