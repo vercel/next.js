@@ -1133,6 +1133,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
+⚠️ The default `error.js` component is only used in production ⚠️
+
 ```jsx
 import React from 'react'
 
