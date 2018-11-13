@@ -43,7 +43,7 @@ export default class AssetsSizePlugin {
   }
 
   formatFilename (rawFilename) {
-    let filename = rawFilename
+    let filename = this.distDir + rawFilename
 
     // add distDir
     filename = this.distDir + filename
