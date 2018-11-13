@@ -46,7 +46,6 @@ export default class AssetsSizePlugin {
     let filename = this.distDir + rawFilename
 
     // add distDir
-    filename = this.distDir + filename
 
     // shorten buildId
     if (this.buildId) {
