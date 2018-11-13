@@ -29,7 +29,7 @@ export default function ({ app }, suiteName, render, fetch) {
         const $ = await get$('/')
         const nonce = 'test-nonce'
         let noncesAdded = true
-        $('script, link[rel=preload]').each((index, element) => {
+        $('script, link[rel=preload]').not("#__NEXT_DATA__").each((index, element) => {
           if ($(element).attr('nonce') !== nonce) noncesAdded = false
         })
         expect(noncesAdded).toBe(true)
