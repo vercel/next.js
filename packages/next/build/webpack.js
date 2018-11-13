@@ -20,6 +20,7 @@ import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_W
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
+import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -293,7 +294,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       isServer && new NextJsSsrImportPlugin(),
-      isServer && new NextJsSSRModuleCachePlugin({outputPath})
+      isServer && new NextJsSSRModuleCachePlugin({outputPath}),
+      !isServer && !dev && new AssetsSizePlugin({buildId, distDir})
     ].filter(Boolean)
   }
 
