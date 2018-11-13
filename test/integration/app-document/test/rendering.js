@@ -38,11 +38,9 @@ export default function ({ app }, suiteName, render, fetch) {
       test('It adds crossOrigin to all scripts and preload links', async () => {
         const $ = await get$('/')
         const crossOrigin = 'anonymous'
-        let crossOriginsAdded = true
         $('script, link[rel=preload]').each((index, element) => {
-          if ($(element).attr('crossOrigin') !== crossOrigin) crossOriginsAdded = false
+          expect($(element).attr('crossorigin') === crossOrigin).toBeTruthy()
         })
-        expect(crossOriginsAdded).toBe(true)
       })
 
       test('It renders ctx.renderPage with enhancer correctly', async () => {
