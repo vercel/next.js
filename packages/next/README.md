@@ -1484,6 +1484,14 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
+If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can extend _document.js and specify the `crossOrigin` attribute on Head and NextScripts which is then used for all Next.js asset tags.
+```js
+<Head crossOrigin="anonymous">...</Head>
+<body>
+   <Main/>
+   <NextScript crossOrigin="anonymous"/>
+</body>
+```
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
