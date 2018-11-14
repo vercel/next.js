@@ -120,9 +120,9 @@ export default class Server {
         }
       },
       {
-        // It's very important keep this route's param optional.
-        // (but it should support as many as params, seperated by '/')
-        // Othewise this will lead to a pretty simple DOS attack.
+        // It's very important to keep this route's param optional.
+        // (but it should support as many params as needed, separated by '/')
+        // Otherwise this will lead to a pretty simple DOS attack.
         // See more: https://github.com/zeit/next.js/issues/2617
         match: route('/static/:path*'),
         fn: async (req, res, params) => {
@@ -133,9 +133,9 @@ export default class Server {
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      // It's very important keep this route's param optional.
-      // (but it should support as many as params, seperated by '/')
-      // Othewise this will lead to a pretty simple DOS attack.
+      // It's very important to keep this route's param optional.
+      // (but it should support as many params as needed, separated by '/')
+      // Otherwise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
       routes.push({
         match: route('/:path*'),
