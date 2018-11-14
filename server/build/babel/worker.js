@@ -173,7 +173,7 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
                 FS.statSync(`${source}/index.js`)
                 source = `${source}/index.js`
               } catch (err2) {
-              /* NOP */
+                throw new Error(`Unable to find import "${source}" in "${filename}"`)
               }
             }
           }
@@ -195,7 +195,7 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
 
     return locals + 1
   } catch (err) {
-    response({cmd: 'error', message: err.message, stack: err.stack})
+    response({cmd: 'error', message: `${filename}: ${err.message}`, stack: `${filename}: ${err.stack}`})
     return 0
   }
 }
