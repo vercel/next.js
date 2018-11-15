@@ -1,5 +1,5 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
@@ -16,7 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -61,6 +61,21 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
+    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const methods = ['POST', 'PUT', 'DELETE']
+      for (const method of methods) {
+        const res = await fetch(url, {method})
+        expect(res.status).toBe(501)
+      }
+    })
+
+    it('should set Content-Length header', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetch(url)
+      expect(res.headers.get('Content-Length')).toBeDefined()
+    })
+
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
@@ -73,8 +88,7 @@ describe('Production Usage', () => {
       resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      const file = Object.keys(reactLoadableManifest).find((i) => i.indexOf('components/hello1') !== -1)
-      resources.push(url + reactLoadableManifest[file][0].publicPath)
+      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
@@ -275,6 +289,12 @@ describe('Production Usage', () => {
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
     expect(serverSideJsBody).toMatch(/404/)
+  })
+
+  it('should handle failed param decoding', async () => {
+    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    expect(html).toMatch(/400/)
+    expect(html).toMatch(/Bad Request/)
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

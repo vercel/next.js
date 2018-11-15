@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
@@ -12,6 +12,15 @@ export default (context, render) => {
     describe('default behavior', () => {
       it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
+        // Make sure the client side knows it has to wait for the bundle
+        expect($('body').html()).toContain('"dynamicIds":["./components/hello1.js"]')
+        expect($('body').text()).toMatch(/Hello World 1/)
+      })
+
+      it('should render dynamic import components using a function as first parameter', async () => {
+        const $ = await get$('/dynamic/function')
+        // Make sure the client side knows it has to wait for the bundle
+        expect($('body').html()).toContain('"dynamicIds":["./components/hello1.js"]')
         expect($('body').text()).toMatch(/Hello World 1/)
       })
 
@@ -47,6 +56,7 @@ export default (context, render) => {
     describe('ssr:false option', () => {
       it('Should render loading on the server side', async () => {
         const $ = await get$('/dynamic/no-ssr')
+        expect($('body').html()).not.toContain('"dynamicIds"')
         expect($('p').text()).toBe('loading...')
       })
 
@@ -98,6 +108,41 @@ export default (context, render) => {
           if (browser) {
             browser.close()
           }
+        }
+      })
+    })
+
+    describe('Multiple modules', () => {
+      it('should only include the rendered module script tag', async () => {
+        const $ = await get$('/dynamic/multiple-modules')
+        const html = $('html').html()
+        expect(html).toMatch(/hello1\.js/)
+        expect(html).not.toMatch(/hello2\.js/)
+      })
+
+      it('should only load the rendered module in the browser', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/multiple-modules')
+          const html = await browser.elementByCss('html').getAttribute('innerHTML')
+          expect(html).toMatch(/hello1\.js/)
+          expect(html).not.toMatch(/hello2\.js/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+
+      it('should only render one bundle if component is used multiple times', async () => {
+        const $ = await get$('/dynamic/multiple-modules')
+        const html = $('html').html()
+        try {
+          expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(2) // one for preload, one for the script tag
+          expect(html).not.toMatch(/hello2\.js/)
+        } catch (err) {
+          console.error(html)
+          throw err
         }
       })
     })

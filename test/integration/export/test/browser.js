@@ -1,6 +1,6 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils'
+import { check, getBrowserBodyText } from 'next-test-utils'
 
 export default function (context) {
   describe('Render via browser', () => {
@@ -100,39 +100,36 @@ export default function (context) {
         .elementByCss('#dynamic-imports-page').click()
         .waitForElementByCss('#dynamic-imports-page')
 
-      // Wait until browser loads the dynamic import chunk
-      // TODO: We may need to find a better way to do this
-      await waitFor(5000)
+      await check(
+        () => browser.elementByCss('#dynamic-imports-page p').text(),
+        /Welcome to dynamic imports/
+      )
 
-      const text = await browser
-        .elementByCss('#dynamic-imports-page p').text()
-
-      expect(text).toBe('Welcome to dynamic imports.')
       browser.close()
     })
 
     it('should render pages with url hash correctly', async () => {
-      const browser = await webdriver(context.port, '/')
+      let browser
+      try {
+        browser = await webdriver(context.port, '/')
 
-      // Check for the query string content
-      const text = await browser
-        .elementByCss('#with-hash').click()
-        .waitForElementByCss('#dynamic-page')
-        .elementByCss('#dynamic-page p').text()
+        // Check for the query string content
+        const text = await browser
+          .elementByCss('#with-hash').click()
+          .waitForElementByCss('#dynamic-page')
+          .elementByCss('#dynamic-page p').text()
 
-      expect(text).toBe('zeit is awesome')
+        expect(text).toBe('zeit is awesome')
 
-      // Check for the hash
-      while (true) {
-        const hashText = await browser
-          .elementByCss('#hash').text()
-
-        if (/cool/.test(hashText)) {
-          break
+        await check(
+          () => browser.elementByCss('#hash').text(),
+          /cool/
+        )
+      } finally {
+        if (browser) {
+          browser.close()
         }
       }
-
-      browser.close()
     })
 
     it('should navigate even if used a button inside <Link />', async () => {
@@ -150,23 +147,21 @@ export default function (context) {
     describe('pages in the nested level: level1', () => {
       it('should render the home page', async () => {
         const browser = await webdriver(context.port, '/')
-        const text = await browser
-          .elementByCss('#level1-home-page').click()
-          .waitForElementByCss('#level1-home-page')
-          .elementByCss('#level1-home-page p').text()
 
-        expect(text).toBe('This is the Level1 home page')
+        await browser.eval('document.getElementById("level1-home-page").click()')
+
+        await check(() => getBrowserBodyText(browser), /This is the Level1 home page/)
+
         browser.close()
       })
 
       it('should render the about page', async () => {
         const browser = await webdriver(context.port, '/')
-        const text = await browser
-          .elementByCss('#level1-about-page').click()
-          .waitForElementByCss('#level1-about-page')
-          .elementByCss('#level1-about-page p').text()
 
-        expect(text).toBe('This is the Level1 about page')
+        await browser.eval('document.getElementById("level1-about-page").click()')
+
+        await check(() => getBrowserBodyText(browser), /This is the Level1 about page/)
+
         browser.close()
       })
     })

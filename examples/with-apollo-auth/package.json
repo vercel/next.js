@@ -12,7 +12,7 @@
     "apollo-boost": "^0.1.6",
     "apollo-link-context": "^1.0.8",
     "cookie": "^0.3.1",
-    "graphql": "^0.13.2",
+    "graphql": "14.0.2",
     "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
     "prop-types": "^15.6.1",

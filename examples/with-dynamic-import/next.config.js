@@ -1,7 +1,7 @@
 module.exports = {
   exportPathMap: function () {
     return {
-      '/': { page: '/' },
+      '/': { page: '/', query: { showMore: false } },
       '/about': { page: '/about' }
     }
   }

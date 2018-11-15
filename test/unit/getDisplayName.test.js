@@ -1,6 +1,6 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import { Component } from 'react'
-import { getDisplayName } from '../../dist/lib/utils'
+import { getDisplayName } from 'next-server/dist/lib/utils'
 
 describe('getDisplayName', () => {
   it('gets the proper display name of a component', () => {
