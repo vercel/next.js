@@ -102,7 +102,27 @@ function externalsConfig (dir, isServer, lambdas) {
   return externals
 }
 
-function optimizationConfig ({dir, dev, isServer, totalPages}) {
+function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
+  if (isServer && lambdas) {
+    return {
+      splitChunks: false,
+      minimize: false,
+      minimizer: [
+        new TerserPlugin({
+          parallel: true,
+          sourceMap: false,
+          cache: true,
+          cacheKeys: (keys) => {
+            // path changes per build because we add buildId
+            // because the input is already hashed the path is not needed
+            delete keys.path
+            return keys
+          }
+        })
+      ]
+    }
+  }
+
   if (isServer) {
     return {
       splitChunks: false,
@@ -224,7 +244,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     cache: true,
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer, lambdas),
-    optimization: optimizationConfig({dir, dev, isServer, totalPages}),
+    optimization: optimizationConfig({dir, dev, isServer, totalPages, lambdas}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
