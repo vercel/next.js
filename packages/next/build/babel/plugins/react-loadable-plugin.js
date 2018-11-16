@@ -28,7 +28,7 @@ export default function ({ types: t, template }) {
     visitor: {
       ImportDeclaration (path) {
         let source = path.node.source.value
-        if (source !== 'next/dynamic') return
+        if (source !== 'next/dynamic' || typeof require.resolveWeak !== 'function') return
 
         let defaultSpecifier = path.get('specifiers').find(specifier => {
           return specifier.isImportDefaultSpecifier()
