@@ -34,6 +34,7 @@ async function ensureProjectDirectoryIsWriteAble (dir) {
 
 export default async function build (dir, conf = null, lambdas = false) {
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const lambdasOption = config.lambdas ? config.lambdas : lambdas
   const distDir = join(dir, config.distDir)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
 
@@ -41,8 +42,8 @@ export default async function build (dir, conf = null, lambdas = false) {
 
   try {
     const configs = await Promise.all([
-      getBaseWebpackConfig(dir, { buildId, isServer: false, config, lambdas }),
-      getBaseWebpackConfig(dir, { buildId, isServer: true, config, lambdas })
+      getBaseWebpackConfig(dir, { buildId, isServer: false, config, lambdas: lambdasOption }),
+      getBaseWebpackConfig(dir, { buildId, isServer: true, config, lambdas: lambdasOption })
     ])
 
     await runCompiler(configs)
