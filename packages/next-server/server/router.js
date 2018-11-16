@@ -17,11 +17,11 @@ export default class Router {
     }
 
     const { pathname } = parsedUrl
-    for (const route of this.routes) {
+    this.routes.each((route) => {
       const params = route.match(pathname)
       if (params) {
         return () => route.fn(req, res, params, parsedUrl)
       }
-    }
+    })
   }
 }
