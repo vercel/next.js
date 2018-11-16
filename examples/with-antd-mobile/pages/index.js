@@ -1,9 +1,11 @@
-import { Component } from 'react'
+import Layout from '../components/Layout'
+import { Button } from 'antd-mobile'
+import Link from 'next/link'
 
-export default class Index extends Component {
-  static async getInitialProps ({ res }) {
-    res.setHeader('Location', '/home')
-    res.statusCode = 302
-    res.end()
-  }
-}
+export default () => (
+  <Layout title='Index'>
+    <Link href='/about'>
+      <Button>Go to About</Button>
+    </Link>
+  </Layout>
+)

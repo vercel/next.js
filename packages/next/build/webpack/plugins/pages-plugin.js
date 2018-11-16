@@ -41,10 +41,10 @@ export default class PagesPlugin {
         routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
         const source = new ConcatSource(
-          `__NEXT_REGISTER_PAGE('${routeName}', function() {\n`,
+          `(window.__NEXT_P=window.__NEXT_P||[]).push(['${routeName}', function() {\n`,
           moduleSourcePostModule,
           '\nreturn { page: module.exports.default }',
-          '});'
+          '}]);'
         )
 
         return source

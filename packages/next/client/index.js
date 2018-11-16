@@ -19,18 +19,19 @@ if (!window.Promise) {
   window.Promise = Promise
 }
 
+const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    page,
-    query,
-    buildId,
-    assetPrefix,
-    runtimeConfig,
-    dynamicIds
-  }
-} = window
+  props,
+  err,
+  page,
+  query,
+  buildId,
+  assetPrefix,
+  runtimeConfig,
+  dynamicIds
+} = data
 
 const prefix = assetPrefix || ''
 
@@ -48,11 +49,12 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
-  pageLoader.registerPage(r, f)
-})
-delete window.__NEXT_LOADED_PAGES__
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
+const register = ([r, f]) => pageLoader.registerPage(r, f)
+if (window.__NEXT_P) {
+  window.__NEXT_P.map(register)
+}
+window.__NEXT_P = []
+window.__NEXT_P.push = register
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')

@@ -53,5 +53,10 @@ export default function (context) {
       const html = await renderViaHTTP(context.port, '/404')
       expect(html).toMatch(/404/)
     })
+
+    it('should export 404.html instead of 404/index.html', async () => {
+      const html = await renderViaHTTP(context.port, '/404.html')
+      expect(html).toMatch(/404/)
+    })
   })
 }

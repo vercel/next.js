@@ -8,7 +8,7 @@
   },
   "license": "ISC",
   "dependencies": {
-    "babel-plugin-bucklescript": "^0.4.0",
+    "babel-plugin-bucklescript": "^0.5.3",
     "next": "latest",
     "react": "^16.4.2",
     "react-dom": "^16.4.2",
@@ -16,7 +16,6 @@
   },
   "devDependencies": {
     "bs-platform": "^4.0.5",
-    "concurrently": "^3.5.1",
-    "webpack": "^3.8.1"
+    "concurrently": "^4.0.1"
   }
 }

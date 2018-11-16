@@ -320,7 +320,8 @@ export default class HotReloader {
       publicPath: `/_next/static/webpack`,
       noInfo: true,
       logLevel: 'silent',
-      watchOptions: { ignored }
+      watchOptions: { ignored },
+      writeToDisk: true
     }
 
     if (this.config.webpackDevMiddleware) {
