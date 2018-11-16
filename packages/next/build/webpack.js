@@ -106,7 +106,6 @@ function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
   if (isServer && lambdas) {
     return {
       splitChunks: false,
-      minimize: false,
       minimizer: [
         new TerserPlugin({
           parallel: true,
