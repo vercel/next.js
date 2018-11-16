@@ -28,7 +28,7 @@ export default function ({ types: t, template }) {
     visitor: {
       ImportDeclaration (path) {
         let source = path.node.source.value
-        if (source !== 'next/dynamic' || typeof require.resolveWeak !== 'function') return
+        if (source !== 'next/dynamic') return
 
         let defaultSpecifier = path.get('specifiers').find(specifier => {
           return specifier.isImportDefaultSpecifier()
@@ -121,7 +121,7 @@ export default function ({ types: t, template }) {
                         return t.callExpression(
                           t.memberExpression(
                             t.identifier('require'),
-                            t.identifier('resolveWeak')
+                            (typeof require.resolveWeak === 'function') ? t.identifier('resolveWeak') : t.identifier('resolve')
                           ),
                           [dynamicImport.get('arguments')[0].node]
                         )
