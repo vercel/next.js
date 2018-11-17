@@ -25,11 +25,39 @@ import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 // The externals config makes sure that
 // on the server side when modules are
 // in node_modules they don't get compiled by webpack
-function externalsConfig (dir, isServer) {
+function externalsConfig (dir, isServer, lambdas) {
   const externals = []
 
   if (!isServer) {
     return externals
+  }
+
+  // When lambdas mode is enabled all node_modules will be compiled into the server bundles
+  // So that all dependencies can be devDependencies and are not required to be installed
+  if (lambdas) {
+    return [
+      (context, request, callback) => {
+        resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+          if (err) {
+            return callback()
+          }
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]head/)) {
+            return callback(null, `commonjs next-server/dist/lib/head.js`)
+          }
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]asset/)) {
+            return callback(null, `commonjs next-server/dist/lib/asset.js`)
+          }
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]runtime-config/)) {
+            return callback(null, `commonjs next-server/dist/lib/runtime-config.js`)
+          }
+          // Default pages have to be transpiled
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]loadable/)) {
+            return callback(null, `commonjs next-server/dist/lib/loadable.js`)
+          }
+          callback()
+        })
+      }
+    ]
   }
 
   const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
@@ -74,7 +102,26 @@ function externalsConfig (dir, isServer) {
   return externals
 }
 
-function optimizationConfig ({dir, dev, isServer, totalPages}) {
+function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
+  if (isServer && lambdas) {
+    return {
+      splitChunks: false,
+      minimizer: [
+        new TerserPlugin({
+          parallel: true,
+          sourceMap: false,
+          cache: true,
+          cacheKeys: (keys) => {
+            // path changes per build because we add buildId
+            // because the input is already hashed the path is not needed
+            delete keys.path
+            return keys
+          }
+        })
+      ]
+    }
+  }
+
   if (isServer) {
     return {
       splitChunks: false,
@@ -135,10 +182,11 @@ type BaseConfigContext = {|
   dev: boolean,
   isServer: boolean,
   buildId: string,
-  config: NextConfig
+  config: NextConfig,
+  lambdas: boolean
 |}
 
-export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config}: BaseConfigContext) {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, lambdas = false}: BaseConfigContext) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -194,8 +242,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: externalsConfig(dir, isServer),
-    optimization: optimizationConfig({dir, dev, isServer, totalPages}),
+    externals: externalsConfig(dir, isServer, lambdas),
+    optimization: optimizationConfig({dir, dev, isServer, totalPages, lambdas}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
