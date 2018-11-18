@@ -1,7 +1,8 @@
 {
   "name": "next-server",
-  "version": "7.0.2-canary.22",
+  "version": "7.0.2-canary.24",
   "main": "./index.js",
+  "license": "MIT",
   "files": [
     "dist",
     "index.js",

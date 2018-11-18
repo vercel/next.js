@@ -138,8 +138,6 @@ async function doRender (req, res, pathname, query, {
     try {
       if (err && dev) {
         html = render(<ErrorDebug error={err} />)
-      } else if (err) {
-        html = render(app)
       } else {
         html = render(app)
       }
