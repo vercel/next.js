@@ -126,9 +126,9 @@ export class Head extends Component {
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
+      {children}
       {this.getCssLinks()}
       {styles || null}
-      {children}
     </head>
   }
 }
