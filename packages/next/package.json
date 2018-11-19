@@ -28,7 +28,6 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "flow": "flow check",
     "prepublish": "npm run release"
   },
   "taskr": {
@@ -89,7 +88,6 @@
     "react-dom": "^16.0.0"
   },
   "devDependencies": {
-    "@babel/preset-flow": "7.0.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",

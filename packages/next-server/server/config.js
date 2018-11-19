@@ -1,25 +1,7 @@
-// @flow
 import findUp from 'find-up'
 import {CONFIG_FILE} from 'next-server/constants'
 
-type WebpackConfig = *
-
-type WebpackDevMiddlewareConfig = *
-
-export type NextConfig = {|
-  webpack: null | (webpackConfig: WebpackConfig, {dir: string, dev: boolean, isServer: boolean, buildId: string, config: NextConfig, defaultLoaders: {}, totalPages: number}) => WebpackConfig,
-  webpackDevMiddleware: null | (WebpackDevMiddlewareConfig: WebpackDevMiddlewareConfig) => WebpackDevMiddlewareConfig,
-  poweredByHeader: boolean,
-  distDir: string,
-  assetPrefix: string,
-  configOrigin: string,
-  useFileSystemPublicRoutes: boolean,
-  generateBuildId: () => string,
-  generateEtags: boolean,
-  pageExtensions: Array<string>
-|}
-
-const defaultConfig: NextConfig = {
+const defaultConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   poweredByHeader: true,
@@ -32,9 +14,7 @@ const defaultConfig: NextConfig = {
   pageExtensions: ['jsx', 'js']
 }
 
-type PhaseFunction = (phase: string, options: {defaultConfig: NextConfig}) => NextConfig
-
-export default function loadConfig (phase: string, dir: string, customConfig?: NextConfig): NextConfig {
+export default function loadConfig (phase: string, dir: string, customConfig) {
   if (customConfig) {
     customConfig.configOrigin = 'server'
     return {...defaultConfig, ...customConfig}
@@ -45,9 +25,8 @@ export default function loadConfig (phase: string, dir: string, customConfig?: N
 
   // If config file was found
   if (path && path.length) {
-    // $FlowFixMe
     const userConfigModule = require(path)
-    const userConfigInitial: NextConfig | PhaseFunction = userConfigModule.default || userConfigModule
+    const userConfigInitial = userConfigModule.default || userConfigModule
     if (typeof userConfigInitial === 'function') {
       return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfigInitial(phase, {defaultConfig})}
     }

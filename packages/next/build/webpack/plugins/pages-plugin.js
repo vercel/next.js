@@ -1,4 +1,3 @@
-// @flow
 import { ConcatSource } from 'webpack-sources'
 import {
   IS_BUNDLED_PAGE_REGEX,
@@ -6,7 +5,7 @@ import {
 } from 'next-server/constants'
 
 export default class PagesPlugin {
-  apply (compiler: any) {
+  apply (compiler) {
     compiler.hooks.compilation.tap('PagesPlugin', (compilation) => {
       // This hook is triggered right before a module gets wrapped into it's initializing function,
       // For example when you look at the source of a bundle you'll see an object holding `'pages/_app.js': function(module, etc, etc)`

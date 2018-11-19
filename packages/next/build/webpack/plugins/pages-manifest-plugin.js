@@ -1,4 +1,3 @@
-// @flow
 import { RawSource } from 'webpack-sources'
 import {PAGES_MANIFEST, ROUTE_NAME_REGEX} from 'next-server/constants'
 
@@ -6,7 +5,7 @@ import {PAGES_MANIFEST, ROUTE_NAME_REGEX} from 'next-server/constants'
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
 export default class PagesManifestPlugin {
-  apply (compiler: any) {
+  apply (compiler) {
     compiler.hooks.emit.tap('NextJsPagesManifest', (compilation) => {
       const {entries} = compilation
       const pages = {}
