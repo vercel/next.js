@@ -55,7 +55,6 @@
     "jest-cli": "23.6.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
-    "micro": "9.1.0",
     "mkdirp": "0.5.1",
     "node-fetch": "1.7.3",
     "node-notifier": "5.1.2",

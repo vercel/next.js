@@ -899,14 +899,14 @@ Here's an example usage of it:
 
 ```js
 const next = require('next')
-const micro = require('micro')
+const http = require('http')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
     // Add assetPrefix support based on the hostname
     if (req.headers.host === 'my-app.com') {
       app.setAssetPrefix('http://cdn.com/myapp')
