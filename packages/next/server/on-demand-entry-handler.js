@@ -177,7 +177,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       }
 
       const extensions = pageExtensions.join('|')
-      const paths = await glob(`pages/{${normalizedPagePath.replace(/[/g, '\[')}/index,${normalizedPagePath.replace(/[/g, '\[')}}.+(${extensions})`, {cwd: dir})
+      // eslint-disable-next-line
+      const paths = await glob(`pages/{${normalizedPagePath.replace('[', '\[')}/index,${normalizedPagePath.replace('[', '\[')}}.+(${extensions})`, {cwd: dir})
 
       if (paths.length === 0) {
         throw pageNotFoundError(normalizedPagePath)

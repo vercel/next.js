@@ -89,6 +89,14 @@ describe('Custom Server', () => {
         .toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
       browser2.close()
     })
+
+    it('should support pages with square brackets in them', async () => {
+      const browser = await webdriver(context.appPort, '/[withbrackets]')
+
+      expect(await browser.elementByCss('#withbrackets').getAttribute('id'))
+        .toBe(`withbrackets`)
+      browser.close()
+    })
   })
 
   describe('with generateEtags enabled', () => {
