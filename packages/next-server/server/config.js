@@ -14,12 +14,12 @@ const defaultConfig = {
   pageExtensions: ['jsx', 'js']
 }
 
-export default function loadConfig (phase: string, dir: string, customConfig) {
+export default function loadConfig (phase, dir, customConfig) {
   if (customConfig) {
     customConfig.configOrigin = 'server'
     return {...defaultConfig, ...customConfig}
   }
-  const path: string = findUp.sync(CONFIG_FILE, {
+  const path = findUp.sync(CONFIG_FILE, {
     cwd: dir
   })
 
