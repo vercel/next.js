@@ -77,7 +77,8 @@ export default class Server {
       dev,
       dir: this.dir,
       hotReloader: this.hotReloader,
-      publicPath: `${assetPrefix}/_next/${buildId}/`
+      publicPath: `${assetPrefix}/_next/${buildId}/`,
+      entrypoints: !dev ? this.readEntrypoints() : undefined
     }
 
     this.defineRoutes()
@@ -150,7 +151,7 @@ export default class Server {
 
           throw err
         }
-      },
+      }
     }
 
     for (const method of ['GET', 'HEAD']) {
@@ -204,6 +205,11 @@ export default class Server {
   readBuildId () {
     const buildIdPath = join(this.dir, '.next', 'BUILD_ID')
     return fs.readFileSync(buildIdPath, 'utf8').trim()
+  }
+
+  readEntrypoints () {
+    const buildIdPath = join(this.dir, '.next', 'webpack-entrypoints.json')
+    return new Map(Object.entries(JSON.parse(fs.readFileSync(buildIdPath, 'utf8'))))
   }
 
   async getCompilationError () {

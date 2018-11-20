@@ -57,6 +57,16 @@ function runCompiler (compiler) {
 }
 
 async function writeBuildStats (dir, stats) {
+  const entrypoints = {}
+  Object.keys(stats.entrypoints).forEach(name => {
+    entrypoints[name] = {
+      files: stats.entrypoints[name].assets.filter(name => !/\.map$/.test(name))
+    }
+  })
+
+  const runtimePath = join(dir, 'webpack-entrypoints.json')
+  await fs.writeFile(runtimePath, JSON.stringify(entrypoints, undefined, 2), 'utf8')
+
   const statsPath = join(dir, 'webpack-stats.json')
   await fs.writeFile(statsPath, JSON.stringify(stats), 'utf8')
 }

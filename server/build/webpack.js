@@ -1,17 +1,14 @@
-import { resolve, join, sep } from 'path'
+import { resolve, join } from 'path'
 import webpack from 'webpack'
-import glob from 'glob-promise'
 import WriteFilePlugin from 'write-file-webpack-plugin'
-import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
-import UnlinkFilePlugin from './plugins/unlink-file-plugin'
-import PagesPlugin from './plugins/pages-plugin'
-import CombineAssetsPlugin from './plugins/combine-assets-plugin'
+import glob from 'glob-promise'
 import getConfig from '../config'
 
 const nextNodeModulesDir = join(__dirname, '../../../node_modules')
 
 export default async function createCompiler (dir, { buildId = '-', dev = false, quiet = false, conf = null } = {}) {
+  const addedEntries = {}
+
   dir = resolve(dir)
   const config = getConfig(dir, conf)
   const defaultEntries = dev ? [
@@ -20,117 +17,52 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   const mainJS = dev
     ? require.resolve('../../../browser/client/next-dev') : require.resolve('../../../browser/client/next')
 
-  let totalPages
-
   const entry = async () => {
-    const entries = {
-      'main.js': [
-        ...defaultEntries,
-        ...config.clientBootstrap || [],
-        mainJS
-      ]
-    }
-
-    const pages = await glob('pages/**/*.js', { cwd: dir })
-    const devPages = pages.filter((p) => p === 'pages/_error.js')
+    const loader = 'page-loader!'
+    const base = [
+      ...defaultEntries,
+      ...config.clientBootstrap || [],
+      `${loader}./pages/_error.js`,
+      mainJS
+    ]
 
     // In the dev environment, on-demand-entry-handler will take care of
     // managing pages.
-    const entryPages = dev ? devPages : pages.filter((p) => p !== 'pages/_document.js' && !/\.test\.js/.test(p) && !/__tests__/.test(p))
-    for (const p of entryPages) {
-      entries[p.replace(/^(pages\/.*)\/index.js$/, '$1.js')] = [`./${p}?entry`]
-    }
+    const entryPages = dev
+      ? Object.values(addedEntries)
+      : (await glob('./pages/**/*.js', { cwd: dir }))
+        .filter((p) => !p.includes('pages/_') && !/\.test\.js/.test(p) && !/__tests__/.test(p))
 
-    totalPages = pages.length
+    const entries = {}
+    for (const p of entryPages) {
+      entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1.js')] = base.concat(`${loader}${p}`)
+    }
 
     return entries
   }
 
   const plugins = [
-    new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
     new WriteFilePlugin({
       exitOnErrors: false,
       log: false,
       // required not to cache removed files
       useHashIndex: false
-    }),
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'commons',
-      filename: 'commons.js',
-      minChunks (module, count) {
-        // We need to move react-dom explicitly into common chunks.
-        // Otherwise, if some other page or module uses it, it might
-        // included in that bundle too.
-        if (module.context && module.context.indexOf(`${sep}react-dom${sep}`) >= 0) {
-          return true
-        }
-
-        // In the dev we use on-demand-entries.
-        // So, it makes no sense to use commonChunks based on the minChunks count.
-        // Instead, we move all the code in node_modules into each of the pages.
-        if (dev) {
-          return false
-        }
-
-        // If there are one or two pages, only move modules to common if they are
-        // used in all of the pages. Otherwise, move modules used in at-least
-        // 1/2 of the total pages into commons.
-        if (totalPages <= 2) {
-          return count >= totalPages
-        }
-        return count >= totalPages * 0.5
-      }
-    }),
-    // This chunk contains all the webpack related code. So, all the changes
-    // related to that happens to this chunk.
-    // It won't touch commons.js and that gives us much better re-build perf.
-    new webpack.optimize.CommonsChunkPlugin({
-      name: 'manifest',
-      filename: 'manifest.js'
-    }),
-    new webpack.DefinePlugin({
-      'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production')
-    }),
-    new PagesPlugin(),
-    new CaseSensitivePathPlugin()
+    })
   ]
 
   if (dev) {
     plugins.push(
-      new webpack.HotModuleReplacementPlugin(),
-      new webpack.NoEmitOnErrorsPlugin(),
-      new UnlinkFilePlugin()
+      new webpack.HotModuleReplacementPlugin()
     )
-    if (!quiet) {
-      plugins.push(new FriendlyErrorsWebpackPlugin())
-    }
   } else {
     plugins.push(new webpack.NormalModuleReplacementPlugin(
       /react-hot-loader/,
       require.resolve('../../../browser/client/hot-module-loader.stub')
     ))
-    plugins.push(
-      new CombineAssetsPlugin({
-        input: ['manifest.js', 'pages/_error.js', 'commons.js', 'main.js'],
-        output: 'app.js'
-      }),
-      new webpack.optimize.UglifyJsPlugin({
-        exclude: ['manifest.js', 'commons.js', 'main.js', 'pages/_error.js'],
-        compress: { warnings: false },
-        sourceMap: false,
-        extractComments: true
-      })
-    )
-    plugins.push(new webpack.optimize.ModuleConcatenationPlugin())
   }
 
-  const nodePathList = (process.env.NODE_PATH || '')
-    .split(process.platform === 'win32' ? ';' : ':')
-    .filter((p) => !!p)
-
   const mainBabelOptions = {
-    cacheDirectory: true,
-    presets: []
+    cacheDirectory: true
   }
 
   const rules = (dev ? [{
@@ -141,9 +73,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     ]
   }] : [])
     .concat([{
-      test: /\.json$/,
-      loader: 'json-loader'
-    }, {
       test: /\.js(\?[^?]*)?$/,
       loader: 'babel-loader',
       include: [dir],
@@ -154,25 +83,28 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     }])
 
   let webpackConfig = {
+    name: 'client',
+    mode: dev ? 'development' : 'production',
+    target: 'web',
     context: dir,
     entry,
     output: {
       pathinfo: !!dev,
       path: join(dir, '.next', 'bundles'),
       filename: '[name]',
-      libraryTarget: 'commonjs2',
       publicPath: `/_next/${buildId}/`,
       strictModuleExceptionHandling: true,
       // This saves chunks with the name given via require.ensure()
-      chunkFilename: '[name]'
+      chunkFilename: !dev ? '[name]-[chunkhash:5].js' : '[name].js'
     },
     resolve: {
       modules: [
         nextNodeModulesDir,
-        'node_modules',
-        ...nodePathList
+        'node_modules'
       ],
       alias: {
+        'next/page-loader': require.resolve('../../../browser/lib/page-loader'),
+        'html-entities': require.resolve('../../../browser/lib/html-entities'),
         'object-assign': 'core-js/fn/object/assign',
         'strip-ansi': require.resolve('../../../browser/client/strip-ansi.stub')
       }
@@ -181,15 +113,33 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       modules: [
         nextNodeModulesDir,
         'node_modules',
-        join(__dirname, 'loaders'),
-        ...nodePathList
+        join(__dirname, 'loaders')
       ]
     },
     plugins,
     module: {
       rules
     },
-    devtool: dev ? 'cheap-module-inline-source-map' : false,
+    devtool: dev ? 'nosources-inline-source-map' : 'source-map',
+
+    optimization: {
+      namedModules: !dev,
+      minimize: !dev,
+      splitChunks: { // CommonsChunkPlugin()
+        name: true,
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]|[\\/]next\.js[\\/]/,
+            name: 'vendor',
+            chunks: 'initial',
+            minChunks: dev ? 1 : 2,
+            priority: 100
+          }
+        }
+      },
+      noEmitOnErrors: true,
+      concatenateModules: !dev
+    },
     performance: { hints: false }
   }
 
@@ -197,5 +147,10 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     console.log(`> Using "webpack" config function defined in ${config.configOrigin}.`)
     webpackConfig = await config.webpack(webpackConfig, { buildId, dev })
   }
-  return webpack(webpackConfig)
+
+  const compiler = webpack(webpackConfig)
+  compiler.setEntry = (name, path) => {
+    addedEntries[name] = path
+  }
+  return compiler
 }

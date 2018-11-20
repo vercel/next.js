@@ -28,7 +28,7 @@ export async function handleMessage ({cmd, filenames, options}, response) {
   if (cmd === 'watch' || cmd === 'build') {
     let compiledFiles = 0
     for (let filename of filenames) {
-      filename = resolve(options.base, filename);
+      filename = resolve(options.base, filename)
       compiledFiles += await handle(filename, filename, filename, options, response, (filename, dest, base, rootFile) => {
         if (cmd === 'watch') {
           const watcher = Chokidar.watch(filename, {
@@ -80,12 +80,12 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
   }
 
   if (ext === '.woff') {
-    const content = FS.readFileSync(filenameOrDir);
+    const content = FS.readFileSync(filenameOrDir)
 
-    const hasher = Crypto.createHash('md5');
-    hasher.update(content);
+    const hasher = Crypto.createHash('md5')
+    hasher.update(content)
 
-    const filename = `${hasher.digest('base64').slice(8).toLowerCase().replace(/=*$/, '')}${ext}`;
+    const filename = `${hasher.digest('base64').slice(8).toLowerCase().replace(/=*$/, '')}${ext}`
     outputFileSync(Path.join(options.staticDir, filename), content)
     outputFileSync(Path.join(options.outDir, relative), `
       module.exports = __webpack_public_path__ + ${JSON.stringify(`_static/${filename}`)};`)
@@ -99,18 +99,18 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
   const dest = Path.join(options.outDir, relative)
 
   if (building[dest]) {
-    building[dest].responses.add(response);
+    building[dest].responses.add(response)
 
     building[dest].parents.add(requestor)
     building[requestor].parents.forEach((a) => {
-      building[dest].parents.add(a);
+      building[dest].parents.add(a)
     })
     return 0
   }
   building[dest] = building[filenameOrDir] = {
     responses: new Set([response]),
     parents: new Set(building[requestor] && building[requestor].parents)
-  };
+  }
   building[dest].parents.add(requestor)
 
   const stat = FS.statSync(filenameOrDir)

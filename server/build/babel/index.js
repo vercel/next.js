@@ -1,7 +1,7 @@
 import Cluster from 'cluster'
-import { resolve } from 'path';
+import { resolve } from 'path'
 
-let callbacks = [];
+let callbacks = []
 let worker
 
 if (Cluster.isMaster) {
@@ -14,7 +14,7 @@ if (Cluster.isMaster) {
   worker.on('message', (msg) => {
     const callback = callbacks[msg.callbackId]
     if (!callback) {
-      throw new Error(`Message without callback: ${JSON.stringify(msg, undefined, 2)}`);
+      throw new Error(`Message without callback: ${JSON.stringify(msg, undefined, 2)}`)
     }
 
     if (msg.cmd === 'error') {
@@ -27,7 +27,7 @@ if (Cluster.isMaster) {
   })
   worker.on('error', (err) => {
     console.error('Babel worker errored', err)
-    throw new Error('Worker error');
+    throw new Error('Worker error')
   })
   worker.on('exit', () => {
     console.error('Babel worker exited')
@@ -76,5 +76,5 @@ export function watch (filenames, options, fileCallback) {
 
 function deleteCache (path, options) {
   delete require.cache[path]
-  delete require.cache[resolve(options.base, path)];
+  delete require.cache[resolve(options.base, path)]
 }

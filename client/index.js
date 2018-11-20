@@ -7,7 +7,7 @@ import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { getURL } from '../lib/utils'
-import PageLoader from '../lib/page-loader'
+import { loadPage } from '../lib/page-loader'
 
 const {
   __NEXT_DATA__: {
@@ -24,12 +24,6 @@ __webpack_public_path__ = publicPath    // eslint-disable-line
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader()
-window.__NEXT_LOADED_PAGES__.forEach(({ route, fn }) => {
-  pageLoader.registerPage(route, fn)
-})
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
-
 const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
@@ -41,17 +35,16 @@ let Component
 export const emitter = new EventEmitter()
 
 export default async () => {
-  ErrorComponent = await pageLoader.loadPage('/_error')
+  ErrorComponent = await loadPage('/_error')
 
   try {
-    Component = await pageLoader.loadPage(pathname)
+    Component = await loadPage(pathname)
   } catch (err) {
     console.error(err)
     Component = ErrorComponent
   }
 
   router = createRouter(pathname, query, asPath, {
-    pageLoader,
     Component,
     ErrorComponent,
     err

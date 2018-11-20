@@ -1,99 +1,36 @@
-import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
-import touch from 'touch'
 import fs from 'fs'
-import { MATCH_ROUTE_NAME, IS_BUNDLED_PAGE, normalizePageEntryName } from './utils'
+import { normalizePageEntryName } from './utils'
 
-const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
 export default function onDemandEntryHandler (devMiddleware, webpackCompiler, babelCompiler, {
   dir,
   dev,
-  reload,
   maxInactiveAge = 1000 * 25,
   pagesBufferLength = 2
 }) {
   let entries = {}
   let doneCallbacks = new EventEmitter()
-  const invalidator = new Invalidator(devMiddleware)
-  let touchedAPage = false
+  const invalidator = new Invalidator(devMiddleware, webpackCompiler)
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
 
-  webpackCompiler.plugin('make', function (compilation, done) {
-    invalidator.startBuilding()
-
-    const allEntries = Object.keys(entries).map((page) => {
-      const { name, entry } = entries[page]
-      entries[page].status = BUILDING
-      return addEntry(compilation, this.context, name, entry)
-    })
-
-    Promise.all(allEntries)
-      .then(() => done())
-      .catch(done)
-  })
-
-  webpackCompiler.plugin('done', function (stats) {
-    const { compilation } = stats
-    const hardFailedPages = compilation.errors
-      .filter(e => {
-        // Make sure to only pick errors which marked with missing modules
-        const hasNoModuleFoundError = /ENOENT/.test(e.message) || /Module not found/.test(e.message)
-        if (!hasNoModuleFoundError) return false
-
-        // The page itself is missing. So this is a failed page.
-        if (IS_BUNDLED_PAGE.test(e.module.name)) return true
-
-        // No dependencies means this is a top level page.
-        // So this is a failed page.
-        return e.module.dependencies.length === 0
-      })
-      .map(e => e.module.chunks)
-      .reduce((a, b) => [...a, ...b], [])
-      .map(c => {
-        const pageName = MATCH_ROUTE_NAME.exec(c.name)[1]
-        return normalizePage(`/${pageName}`)
-      })
-
+  webpackCompiler.hooks.done.tap('onDemandEntryHandler', function (stats) {
     // Call all the doneCallbacks
     Object.keys(entries).forEach((page) => {
       const entryInfo = entries[page]
       if (entryInfo.status !== BUILDING) return
 
       entryInfo.status = BUILT
-      entries[page].lastActiveTime = Date.now()
       doneCallbacks.emit(page)
     })
 
     invalidator.doneBuilding()
-
-    if (hardFailedPages.length > 0 && !reloading) {
-      console.log(`> Reloading webpack due to inconsistant state of pages(s): ${hardFailedPages.join(', ')}`)
-      reloading = true
-      reload()
-        .then(() => {
-          console.log('> Webpack reloaded.')
-          reloadCallbacks.emit('done')
-          stop()
-        })
-        .catch(err => {
-          console.error(`> Webpack reloading failed: ${err.message}`)
-          console.error(err.stack)
-          process.exit(1)
-        })
-    }
   })
-
-  function stop () {
-    stopped = true
-    doneCallbacks = null
-    reloadCallbacks = null
-  }
 
   return {
     waitUntilReloaded () {
@@ -105,7 +42,7 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
       })
     },
 
-    async ensureAllPages() {
+    async ensureAllPages () {
       await this.waitUntilReloaded()
 
       const wait = Promise.all(
@@ -118,7 +55,7 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
             const pathname = require.resolve(pagePath)
             const name = normalizePageEntryName(pathname, dir)
 
-            const entry = [`${pathname}?entry`]
+            const entry = [`${pathname}`]
 
             return new Promise((resolve, reject) => {
               const entryInfo = entries[page]
@@ -135,7 +72,8 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
               }
 
               babelCompiler.setEntry(name, pathname)
-              entries[page] = { name, entry, pathname, status: ADDED }
+              webpackCompiler.setEntry(name, pathname)
+              entries[page] = { name, entry, pathname, status: BUILDING }
               doneCallbacks.on(page, processCallback)
 
               function processCallback (err) {
@@ -160,7 +98,7 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
       const pathname = require.resolve(pagePath)
       const name = normalizePageEntryName(pathname, dir)
 
-      const entry = [`${pathname}?entry`]
+      const entry = [pathname]
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
@@ -179,8 +117,9 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
 
         console.log(`> Building page: ${page}`)
 
+        webpackCompiler.setEntry(name, pathname)
         babelCompiler.setEntry(name, pathname)
-        entries[page] = { name, entry, pathname, status: ADDED }
+        entries[page] = { name, entry, pathname, status: BUILDING }
         doneCallbacks.on(page, processCallback)
 
         invalidator.invalidate()
@@ -218,16 +157,6 @@ export default function onDemandEntryHandler (devMiddleware, webpackCompiler, ba
   }
 }
 
-function addEntry (compilation, context, name, entry) {
-  return new Promise((resolve, reject) => {
-    const dep = DynamicEntryPlugin.createDependency(entry, name)
-    compilation.addEntry(context, dep, name, (err) => {
-      if (err) return reject(err)
-      resolve()
-    })
-  })
-}
-
 // /index and / is the same. So, we need to identify both pages as the same.
 // This also applies to sub pages as well.
 function normalizePage (page) {
@@ -237,10 +166,16 @@ function normalizePage (page) {
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  constructor (devMiddleware) {
+  constructor (devMiddleware, webpackCompiler) {
     this.devMiddleware = devMiddleware
+    this.webpackCompiler = webpackCompiler
     this.building = false
     this.rebuildAgain = false
+
+    webpackCompiler.hooks.make.tap('onDemandEntryHandler', () => {
+      console.log(`Rebuilding ${webpackCompiler.name}`)
+      this.startBuilding()
+    })
   }
 
   invalidate () {
@@ -253,7 +188,6 @@ class Invalidator {
       return
     }
 
-    this.building = true
     this.devMiddleware.invalidate()
   }
 

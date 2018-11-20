@@ -4,19 +4,7 @@ import Router from '../lib/router'
 export default () => {
   const handlers = {
     reload (route) {
-      if (route === '/_error') {
-        for (const r of Object.keys(Router.components)) {
-          const { err } = Router.components[r]
-          if (err) {
-            // reload all error routes
-            // which are expected to be errors of '/_error' routes
-            Router.reload(r)
-          }
-        }
-        return
-      }
-
-      if (route === '/_document') {
+      if (route === '/_error' || route === '/_document') {
         window.location.reload()
         return
       }

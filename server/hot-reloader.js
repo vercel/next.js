@@ -37,12 +37,10 @@ export default class HotReloader {
   }
 
   async start () {
-    const [webpackCompiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet })
-    ])
+    const webpackCompiler = await webpack(this.dir, { dev: true, quiet: this.quiet })
     const babelCompiler = {
       setEntry: (name, pathname) => {
-        watch([pathname], {
+        return watch([pathname], {
           base: this.dir,
           outDir: join(this.dir, '.next', 'server'),
           staticDir: join(this.dir, '.next', 'static')
@@ -52,7 +50,8 @@ export default class HotReloader {
     await babelCompiler.setEntry('_error', `${this.dir}/pages/_error.js`)
     await babelCompiler.setEntry('_document', `${this.dir}/pages/_document.js`)
 
-    const buildTools = await this.prepareBuildTools(webpackCompiler, babelCompiler)
+    this.babelCompiler = babelCompiler
+    const buildTools = await this.prepareBuildTools(webpackCompiler)
     this.assignBuildTools(buildTools)
 
     this.stats = await this.waitUntilValid()
@@ -70,22 +69,6 @@ export default class HotReloader {
     }
   }
 
-  async reload () {
-    this.stats = null
-
-    const [compiler] = await Promise.all([
-      webpack(this.dir, { dev: true, quiet: this.quiet })
-    ])
-
-    const buildTools = await this.prepareBuildTools(compiler)
-    this.stats = await this.waitUntilValid(buildTools.webpackDevMiddleware)
-
-    const oldWebpackDevMiddleware = this.webpackDevMiddleware
-
-    this.assignBuildTools(buildTools)
-    await this.stop(oldWebpackDevMiddleware)
-  }
-
   assignBuildTools ({ webpackDevMiddleware, webpackHotMiddleware, onDemandEntries }) {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
@@ -97,8 +80,8 @@ export default class HotReloader {
     ]
   }
 
-  async prepareBuildTools (webpackCompiler, babelCompiler) {
-    webpackCompiler.plugin('done', (stats) => {
+  async prepareBuildTools (webpackCompiler) {
+    webpackCompiler.hooks.done.tap('prepareBuildTools', (stats) => {
       const { compilation } = stats
       const chunkNames = new Set(
         compilation.chunks
@@ -107,9 +90,10 @@ export default class HotReloader {
       )
 
       const failedChunkNames = new Set(compilation.errors
-        .map((e) => e.module.reasons)
+        .map((e) => e.module && e.module.reasons)
         .reduce((a, b) => a.concat(b), [])
-        .map((r) => r.module.chunks)
+        .filter((r) => r && r.module)
+        .map((r) => Array.from(r.module.chunksIterable))
         .reduce((a, b) => a.concat(b), [])
         .map((c) => c.name))
 
@@ -165,7 +149,9 @@ export default class HotReloader {
       publicPath: `/_next/-/webpack/`,
       noInfo: true,
       quiet: true,
+      hot: true,
       clientLogLevel: 'warning',
+      stats: 'minimal',
       watchOptions: { ignored }
     }
 
@@ -181,10 +167,9 @@ export default class HotReloader {
       log: false,
       heartbeat: 2500
     })
-    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, webpackCompiler, babelCompiler, {
+    const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, webpackCompiler, this.babelCompiler, {
       dir: this.dir,
       dev: true,
-      reload: this.reload.bind(this),
       ...this.config.onDemandEntries
     })
 

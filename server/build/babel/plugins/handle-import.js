@@ -8,24 +8,8 @@ const TYPE_IMPORT = 'Import'
 
 const buildImport = (args) => (template(`
   (
-    typeof window === 'undefined' ?
       new (require('next/same-loop-promise').default)((resolve, reject) => {
-        eval('require.ensure = function (deps, callback) { callback(require) }')
-        require.ensure([], (require) => {
-          let m = require(SOURCE)
-          m.__webpackChunkName = '${args.name}.js'
-          resolve(m);
-        }, 'chunks/${args.name}.js');
-      })
-      :
-      new (require('next/same-loop-promise').default)((resolve, reject) => {
-        const weakId = require.resolveWeak(SOURCE)
-        try {
-          const weakModule = __webpack_require__(weakId)
-          return resolve(weakModule)
-        } catch (err) {}
-
-        require.ensure([], (require) => {
+        require.ensure(SOURCE, (require) => {
           try {
             let m = require(SOURCE)
             resolve(m)
