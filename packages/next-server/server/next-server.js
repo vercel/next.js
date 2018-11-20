@@ -194,8 +194,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     try {
-      const out = await renderToHTML(req, res, pathname, query, this.renderOpts)
-      return out
+      return await renderToHTML(req, res, pathname, query, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
