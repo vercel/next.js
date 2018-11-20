@@ -223,7 +223,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   } : {}
 
   const resolveConfig = {
-    extensions: ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    // Disable .mjs for node_modules bundling
+    extensions: ['.wasm', !lambdas && '.mjs', '.js', '.jsx', '.json'].filter(Boolean),
     modules: [
       NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
