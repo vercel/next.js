@@ -224,7 +224,7 @@ export default class Server {
   }
 
   async serveStatic (req, res, path) {
-    if (!this.isServeableUrl(path)) {
+    if (this.isServeableUrl(path)) {
       return this.render404(req, res)
     }
 
@@ -239,17 +239,13 @@ export default class Server {
     }
   }
 
+  // Seems like the user is trying to traverse the filesystem if condition below is true.
   isServeableUrl (path) {
     const resolved = resolve(path)
-    if (
+    return (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
       resolved.indexOf(join(this.dir, 'static') + sep) !== 0
-    ) {
-      // Seems like the user is trying to traverse the filesystem.
-      return false
-    }
-
-    return true
+    )
   }
 
   readBuildId () {
