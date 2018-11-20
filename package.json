@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
+    "@babel/preset-flow": "7.0.0",
     "@babel/preset-react": "7.0.0",
     "@zeit/next-css": "0.2.1-canary.1",
     "@zeit/next-sass": "0.2.1-canary.1",
