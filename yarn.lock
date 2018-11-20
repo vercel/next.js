@@ -870,10 +870,10 @@ babel-plugin-module-resolver@3.1.1:
     reselect "^3.0.1"
     resolve "^1.4.0"
 
-babel-plugin-react-require@3.0.1:
-  version "3.0.1"
-  resolved "https://registry.npmjs.org/babel-plugin-react-require/-/babel-plugin-react-require-3.0.1.tgz#bd052971cc32a3a4450234ae0a252402e7394900"
-  integrity sha512-NAOj+5m+2Y125igiveyBzvSTz8Mv21idmYkmkxFX6aUVRXEmGGaFpuQ347GwSoZgrYmyal3aFw4F6/F6ZmIzUg==
+babel-plugin-react-require@3.0.0:
+  version "3.0.0"
+  resolved "http://registry.npmjs.org/babel-plugin-react-require/-/babel-plugin-react-require-3.0.0.tgz#2e4e7b4496b93a654a1c80042276de4e4eeb20e3"
+  integrity sha1-Lk57RJa5OmVKHIAEInbeTk7rIOM=
 
 babel-plugin-syntax-async-functions@^6.8.0:
   version "6.13.0"
