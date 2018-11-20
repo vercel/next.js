@@ -28,13 +28,13 @@ steps:
   displayName: 'Run tests'
 
 - task: PublishTestResults@2
-    displayName: 'Publish Test Results'
-    inputs:
-      testResultsFiles: '**junit*.xml'
-      testRunTitle: TestRun ${{ parameters.name }} $(node_version)
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFiles: '**junit*.xml'
+    testRunTitle: TestRun ${{ parameters.name }} $(node_version)
 
 - task: PublishCodeCoverageResults@1
   displayName: 'Publish code coverage results'
   inputs: 
     codeCoverageTool: 'cobertura'
-    summaryFileLocation: '**cobertura-coverage*.xml'
+    summaryFileLocation: '**/coverage/cobertura-coverage.xml'
