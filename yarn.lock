@@ -1226,10 +1226,10 @@ babel-plugin-transform-strict-mode@^6.24.1:
     babel-runtime "^6.22.0"
     babel-types "^6.24.1"
 
-babel-preset-env@1.6.1:
-  version "1.6.1"
-  resolved "https://registry.yarnpkg.com/babel-preset-env/-/babel-preset-env-1.6.1.tgz#a18b564cc9b9afdf4aae57ae3c1b0d99188e6f48"
-  integrity sha512-W6VIyA6Ch9ePMI7VptNn2wBM6dbG0eSz25HEiL40nQXCsXGTGZSTZu1Iap+cj3Q0S5a7T9+529l/5Bkvd+afNA==
+babel-preset-env@1.7.0:
+  version "1.7.0"
+  resolved "https://registry.npmjs.org/babel-preset-env/-/babel-preset-env-1.7.0.tgz#dea79fa4ebeb883cd35dab07e260c1c9c04df77a"
+  integrity sha512-9OR2afuKDneX2/q2EurSftUYM0xGu4O2D9adAhVfADDhrYDaxXV0rBbevVYoY9n6nyX1PmQW/0jtpJvUNr9CHg==
   dependencies:
     babel-plugin-check-es2015-constants "^6.22.0"
     babel-plugin-syntax-trailing-function-commas "^6.22.0"
@@ -1258,7 +1258,7 @@ babel-preset-env@1.6.1:
     babel-plugin-transform-es2015-unicode-regex "^6.22.0"
     babel-plugin-transform-exponentiation-operator "^6.22.0"
     babel-plugin-transform-regenerator "^6.22.0"
-    browserslist "^2.1.2"
+    browserslist "^3.2.6"
     invariant "^2.2.2"
     semver "^5.3.0"
 
@@ -1553,13 +1553,13 @@ browserify-zlib@^0.2.0:
   dependencies:
     pako "~1.0.5"
 
-browserslist@^2.1.2:
-  version "2.11.3"
-  resolved "https://registry.yarnpkg.com/browserslist/-/browserslist-2.11.3.tgz#fe36167aed1bbcde4827ebfe71347a2cc70b99b2"
-  integrity sha512-yWu5cXT7Av6mVwzWc8lMsJMHWn4xyjSuGYi4IozbVTLUOEYPSagUB8kiMDUHA1fS3zjr8nkxkn9jdvug4BBRmA==
+browserslist@^3.2.6:
+  version "3.2.8"
+  resolved "https://registry.npmjs.org/browserslist/-/browserslist-3.2.8.tgz#b0005361d6471f0f5952797a76fc985f1f978fc6"
+  integrity sha512-WHVocJYavUwVgVViC0ORikPHQquXwVh939TaelZ4WDqpWgTX/FsGhl/+P4qBUAGcRvtOgDgC+xftNWWp2RUTAQ==
   dependencies:
-    caniuse-lite "^1.0.30000792"
-    electron-to-chromium "^1.3.30"
+    caniuse-lite "^1.0.30000844"
+    electron-to-chromium "^1.3.47"
 
 buffer-crc32@^0.2.1:
   version "0.2.13"
@@ -1642,10 +1642,10 @@ callsites@^0.2.0:
   resolved "https://registry.yarnpkg.com/callsites/-/callsites-0.2.0.tgz#afab96262910a7f33c19a5775825c69f34e350ca"
   integrity sha1-r6uWJikQp/M8GaV3WCXGnzTjUMo=
 
-caniuse-lite@^1.0.30000792:
-  version "1.0.30000830"
-  resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30000830.tgz#cb96b8a2dd3cbfe04acea2af3c4e894249095328"
-  integrity sha512-yMqGkujkoOIZfvOYiWdqPALgY/PVGiqCHUJb6yNq7xhI/pR+gQO0U2K6lRDqAiJv4+CIU3CtTLblNGw0QGnr6g==
+caniuse-lite@^1.0.30000844:
+  version "1.0.30000909"
+  resolved "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30000909.tgz#697e8f447ca5f758e7c6cef39ec429ce18b908d3"
+  integrity sha512-4Ix9ArKpo3s/dLGVn/el9SAk6Vn2kGhg8XeE4eRTsGEsmm9RnTkwnBsVZs7p4wA8gB+nsgP36vZWYbG8a4nYrg==
 
 caseless@~0.11.0:
   version "0.11.0"
@@ -2005,15 +2005,15 @@ create-hmac@^1.1.0, create-hmac@^1.1.2, create-hmac@^1.1.4:
     safe-buffer "^5.0.1"
     sha.js "^2.4.8"
 
-cross-env@5.1.4:
-  version "5.1.4"
-  resolved "https://registry.yarnpkg.com/cross-env/-/cross-env-5.1.4.tgz#f61c14291f7cc653bb86457002ea80a04699d022"
-  integrity sha512-Mx8mw6JWhfpYoEk7PGvHxJMLQwQHORAs8+2bX+C1lGQ4h3GkDb1zbzC2Nw85YH9ZQMlO0BHZxMacgrfPmMFxbg==
+cross-env@5.2.0:
+  version "5.2.0"
+  resolved "https://registry.npmjs.org/cross-env/-/cross-env-5.2.0.tgz#6ecd4c015d5773e614039ee529076669b9d126f2"
+  integrity sha512-jtdNFfFW1hB7sMhr/H6rW1Z45LFqyI431m3qU6bFXcQ3Eh7LtBuG3h74o7ohHZ3crrRkkqHlo4jYHFPcjroANg==
   dependencies:
-    cross-spawn "^5.1.0"
+    cross-spawn "^6.0.5"
     is-windows "^1.0.0"
 
-cross-spawn@^5.0.1, cross-spawn@^5.1.0:
+cross-spawn@^5.0.1:
   version "5.1.0"
   resolved "https://registry.yarnpkg.com/cross-spawn/-/cross-spawn-5.1.0.tgz#e8bd0efee58fcff6f8f94510a0a554bbfa235449"
   integrity sha1-6L0O/uWPz/b4+UUQoKVUu/ojVEk=
@@ -2277,10 +2277,10 @@ ee-first@1.1.1:
   resolved "https://registry.yarnpkg.com/ee-first/-/ee-first-1.1.1.tgz#590c61156b0ae2f4f0255732a158b266bc56b21d"
   integrity sha1-WQxhFWsK4vTwJVcyoViyZrxWsh0=
 
-electron-to-chromium@^1.3.30:
-  version "1.3.42"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.3.42.tgz#95c33bf01d0cc405556aec899fe61fd4d76ea0f9"
-  integrity sha1-lcM78B0MxAVVauyJn+Yf1NduoPk=
+electron-to-chromium@^1.3.47:
+  version "1.3.84"
+  resolved "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.3.84.tgz#2e55df59e818f150a9f61b53471ebf4f0feecc65"
+  integrity sha512-IYhbzJYOopiTaNWMBp7RjbecUBsbnbDneOP86f3qvS0G0xfzwNSvMJpTrvi5/Y1gU7tg2NAgeg8a8rCYvW9Whw==
 
 elegant-spinner@^1.0.1:
   version "1.0.1"
@@ -4490,13 +4490,13 @@ node-libs-browser@^2.0.0:
     util "^0.10.3"
     vm-browserify "0.0.4"
 
-node-notifier@5.2.1:
-  version "5.2.1"
-  resolved "https://registry.yarnpkg.com/node-notifier/-/node-notifier-5.2.1.tgz#fa313dd08f5517db0e2502e5758d664ac69f9dea"
-  integrity sha512-MIBs+AAd6dJ2SklbbE8RUDRlIVhU8MaNLh1A9SUZDUHPiZkWLFde6UNwG41yQHZEToHgJMXqyVZ9UcS/ReOVTg==
+node-notifier@5.3.0:
+  version "5.3.0"
+  resolved "https://registry.npmjs.org/node-notifier/-/node-notifier-5.3.0.tgz#c77a4a7b84038733d5fb351aafd8a268bfe19a01"
+  integrity sha512-AhENzCSGZnZJgBARsUjnQ7DnZbzyP+HxlVXuD0xqAnvL8q+OqtSX7lGg9e8nHzwXkMMXNdVeqq4E2M3EUAqX6Q==
   dependencies:
     growly "^1.3.0"
-    semver "^5.4.1"
+    semver "^5.5.0"
     shellwords "^0.1.1"
     which "^1.3.0"
 
@@ -5208,10 +5208,10 @@ react-dom@16.2.0:
     object-assign "^4.1.1"
     prop-types "^15.6.0"
 
-react-hot-loader@4.2.0:
-  version "4.2.0"
-  resolved "https://registry.yarnpkg.com/react-hot-loader/-/react-hot-loader-4.2.0.tgz#4a2ec79114f872e28ea786e04889d643ad3dfb7c"
-  integrity sha512-QqneZhA+cAbGBltg36/nivzi6Zh0PYHm4VJE2MqfEj8bAekLCqV/vqYc3fy2LIiGEctdsC+C8HCbmmCP53Ki4A==
+react-hot-loader@4.3.12:
+  version "4.3.12"
+  resolved "https://registry.npmjs.org/react-hot-loader/-/react-hot-loader-4.3.12.tgz#0d56688884e7330c63a00a17217866280616b07a"
+  integrity sha512-GMM4TsqUVss2QPe+Y33NlgydA5/+7tAVQxR0rZqWvBpapM8JhD7p6ymMwSZzr5yxjoXXlK/6P6qNQBOqm1dqdg==
   dependencies:
     fast-levenshtein "^2.0.6"
     global "^4.3.0"
@@ -5583,7 +5583,7 @@ schema-utils@^1.0.0:
     ajv-errors "^1.0.0"
     ajv-keywords "^3.1.0"
 
-"semver@2 || 3 || 4 || 5", semver@^5.4.1:
+"semver@2 || 3 || 4 || 5":
   version "5.5.0"
   resolved "https://registry.yarnpkg.com/semver/-/semver-5.5.0.tgz#dc4bbc7a6ca9d916dee5d43516f0092b58f7b8ab"
   integrity sha512-4SJ3dm0WAwWy/NVeioZh5AntkdJoWKxHxcmyP622fOkgHa4z3R0TdBJICINyaSDE6uNwVc8gZr+ZinwZAH4xIA==
