@@ -25,9 +25,7 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "pretestonly": "taskr pretest",
     "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
-    "posttestonly": "taskr posttest",
     "pretest": "npm run lint",
     "test": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
     "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
