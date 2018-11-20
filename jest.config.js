@@ -9,6 +9,5 @@ module.exports = {
   modulePaths: ['<rootDir>/lib'],
   globalSetup: '<rootDir>/jest-global-setup.js',
   globalTeardown: '<rootDir>/jest-global-teardown.js',
-  coverageReporters: ['text', 'cobertura'],
-  collectCoverage: true
+  coverageReporters: ['text', 'cobertura']
 }
