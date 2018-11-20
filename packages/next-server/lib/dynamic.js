@@ -115,11 +115,10 @@ export default function dynamic (dynamicOptions: any, options: NextDynamicOption
 
   // support for disabling server side rendering, eg: dynamic(import('../hello-world'), {ssr: false})
   if (typeof loadableOptions.ssr === 'boolean') {
+    delete loadableOptions.ssr
     if (!loadableOptions.ssr) {
-      delete loadableOptions.ssr
       return noSSR(loadableFn, loadableOptions)
     }
-    delete loadableOptions.ssr
   }
 
   return loadableFn(loadableOptions)
