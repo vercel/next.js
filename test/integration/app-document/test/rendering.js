@@ -35,6 +35,14 @@ export default function ({ app }, suiteName, render, fetch) {
         expect(noncesAdded).toBe(true)
       })
 
+      test('It adds crossOrigin to all scripts and preload links', async () => {
+        const $ = await get$('/')
+        const crossOrigin = 'anonymous'
+        $('script, link[rel=preload]').each((index, element) => {
+          expect($(element).attr('crossorigin') === crossOrigin).toBeTruthy()
+        })
+      })
+
       test('It renders ctx.renderPage with enhancer correctly', async () => {
         const $ = await get$('/?withEnhancer=true')
         const nonce = 'RENDERED'

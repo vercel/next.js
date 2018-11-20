@@ -15,6 +15,7 @@
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "standard",
     "prepublish": "lerna run prepublish",
+    "publish-canary": "lerna version prerelease --preid canary --force-publish",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
@@ -34,9 +35,9 @@
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
     "@babel/preset-react": "7.0.0",
-    "@zeit/next-css": "0.2.1-canary.1",
-    "@zeit/next-sass": "0.2.1-canary.1",
-    "@zeit/next-typescript": "1.1.0",
+    "@zeit/next-css": "1.0.2-canary.2",
+    "@zeit/next-sass": "1.0.2-canary.2",
+    "@zeit/next-typescript": "1.1.2-canary.0",
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "9.0.0",
     "babel-jest": "23.6.0",
@@ -54,7 +55,6 @@
     "jest-cli": "23.6.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
-    "micro": "9.1.0",
     "mkdirp": "0.5.1",
     "node-fetch": "1.7.3",
     "node-notifier": "5.1.2",
@@ -67,5 +67,8 @@
     "taskr": "1.1.0",
     "wait-port": "0.2.2",
     "wd": "1.10.3"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
   }
 }
