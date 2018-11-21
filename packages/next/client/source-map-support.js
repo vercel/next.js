@@ -1,7 +1,6 @@
-// @flow
 const filenameRE = /\(([^)]+\.js):(\d+):(\d+)\)$/
 
-export function rewriteStacktrace (e: any, distDir: string): void {
+export function rewriteStacktrace (e, distDir) {
   if (!e || typeof e.stack !== 'string') {
     return
   }
@@ -15,7 +14,7 @@ export function rewriteStacktrace (e: any, distDir: string): void {
   e.stack = result.join('\n')
 }
 
-function rewriteTraceLine (trace: string, distDir: string): string {
+function rewriteTraceLine (trace, distDir) {
   const m = trace.match(filenameRE)
   if (m == null) {
     return trace

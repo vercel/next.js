@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
+    "@babel/preset-flow": "7.0.0",
     "@babel/preset-react": "7.0.0",
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
@@ -50,7 +51,6 @@
     "express": "4.16.3",
     "fkill": "5.1.0",
     "flatten": "1.0.2",
-    "flow-bin": "0.73.0",
     "get-port": "3.2.0",
     "jest-cli": "23.6.0",
     "lerna": "^3.4.0",
