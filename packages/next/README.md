@@ -1127,6 +1127,51 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
+#### Customizing `renderPage`
+- It takes as argument an options object for further customization
+
+```js
+import Document from 'next/document'
+
+export default MyDocument extends Document {
+  static async getInitialProps(ctx) {
+    const originalRenderPage = ctx.renderPage
+
+    ctx.renderPage = () => originalRenderPage({
+      // useful for wrapping the whole react tree
+      enhanceApp: App => App,
+      // userful for wrapping in a per-page basis
+      enhanceComponent: Component => Component
+    })
+
+    // Run the parent `getInitialProps` using `ctx` that now includes our custom `renderPage`
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return { ...initialProps }c
+  }
+}
+```
+
+- It also can take as argument a  function instead of the object, that would be the equivalent of using the `enhanceComponent` option.
+
+**⚠️ This usage is kept for backwards compatibility only, you should use the options object instead.** 
+
+```js
+import Document from 'next/document'
+
+export default MyDocument extends Document {
+  static async getInitialProps(ctx) {
+    const originalRenderPage = ctx.renderPage
+
+    ctx.renderPage = () => originalRenderPage(Component => Component)
+
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return { ...initialProps }
+  }
+}
+```
+
 __Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
 
 ### Custom error handling
