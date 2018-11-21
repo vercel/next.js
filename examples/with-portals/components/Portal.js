@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom'
 export class Portal extends React.Component {
   componentDidMount () {
     this.element = document.querySelector(this.props.selector)
+    this.forceUpdate()
   }
 
   render () {
