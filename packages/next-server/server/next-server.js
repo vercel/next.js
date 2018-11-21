@@ -256,8 +256,6 @@ export default class Server {
     if (!fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
       throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
     }
-    const buildIdPath = join(this.distDir, BUILD_ID_FILE)
-    const buildId = fs.readFileSync(buildIdPath, 'utf8')
-    return buildId.trim()
+    return fs.readFileSync(join(this.distDir, BUILD_ID_FILE), 'utf8').trim()
   }
 }

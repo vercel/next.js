@@ -536,7 +536,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a `false` value from `beforePopState`, `Router` will not handle `popstate`;
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
