@@ -92,5 +92,8 @@
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "taskr": "1.1.0"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
   }
 }
