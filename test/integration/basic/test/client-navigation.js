@@ -354,16 +354,16 @@ export default (context, render) => {
         })
       })
 
-      describe('when hash get removed', () => {
+      describe('when hash gets removed', () => {
         it('should not run getInitialProps', async () => {
           const browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           const counter = await browser
-            .elementByCss('#via-a').click()
+            .elementByCss('#via-link').click()
             .elementByCss('#page-url').click()
             .elementByCss('p').text()
 
-          expect(counter).toBe('COUNT: 1')
+          expect(counter).toBe('COUNT: 0')
 
           browser.close()
         })
