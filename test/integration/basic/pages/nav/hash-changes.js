@@ -1,5 +1,6 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
+import Router from 'next/router'
 
 let count = 0
 
@@ -9,6 +10,11 @@ export default class SelfReload extends Component {
     count += 1
 
     return { count }
+  }
+
+  goBack (event) {
+    event.preventDefault()
+    Router.back()
   }
 
   render () {
@@ -30,6 +36,7 @@ export default class SelfReload extends Component {
         <Link href='#name-item-400'>
           <a id='scroll-to-name-item-400'>Go to name item 400</a>
         </Link>
+        <a href='#via-back' id='via-back' onClick={this.goBack}>Back</a>
         <p>COUNT: {this.props.count}</p>
         {Array.from({length: 500}, (x, i) => i + 1).map(i => {
           return <div key={`item-${i}`} id={`item-${i}`}>{i}</div>

@@ -398,6 +398,21 @@ export default (context, render) => {
           browser.close()
         })
       })
+
+      describe('when hash removed by back navigation', () => {
+        it('should not run getInitialProps', async () => {
+          const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          const counter = await browser
+            .elementByCss('#via-link').click()
+            .elementByCss('#via-back').click()
+            .elementByCss('p').text()
+
+          expect(counter).toBe('COUNT: 0')
+
+          browser.close()
+        })
+      })
     })
 
     describe('with shallow routing', () => {
