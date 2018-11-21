@@ -536,7 +536,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a `false` value from `beforePopState`, `Router` will not handle `popstate`;
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -899,14 +899,14 @@ Here's an example usage of it:
 
 ```js
 const next = require('next')
-const micro = require('micro')
+const http = require('http')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
     // Add assetPrefix support based on the hostname
     if (req.headers.host === 'my-app.com') {
       app.setAssetPrefix('http://cdn.com/myapp')
@@ -1132,6 +1132,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 ### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
+
+⚠️ The default `error.js` component is only used in production ⚠️
 
 ```jsx
 import React from 'react'

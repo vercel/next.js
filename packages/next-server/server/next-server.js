@@ -10,9 +10,9 @@ import {
   serveStatic
 } from './render'
 import Router, {route} from './router'
-import { isInternalUrl } from './utils'
+import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
-import {PHASE_PRODUCTION_SERVER, BLOCKED_PAGES, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
+import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
@@ -177,7 +177,7 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
-    if (BLOCKED_PAGES.indexOf(pathname) !== -1) {
+    if (isBlockedPage(pathname)) {
       return await this.render404(req, res, parsedUrl)
     }
 
@@ -194,8 +194,7 @@ export default class Server {
 
   async renderToHTML (req, res, pathname, query) {
     try {
-      const out = await renderToHTML(req, res, pathname, query, this.renderOpts)
-      return out
+      return await renderToHTML(req, res, pathname, query, this.renderOpts)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
@@ -257,8 +256,6 @@ export default class Server {
     if (!fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
       throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
     }
-    const buildIdPath = join(this.distDir, BUILD_ID_FILE)
-    const buildId = fs.readFileSync(buildIdPath, 'utf8')
-    return buildId.trim()
+    return fs.readFileSync(join(this.distDir, BUILD_ID_FILE), 'utf8').trim()
   }
 }
