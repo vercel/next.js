@@ -1147,12 +1147,12 @@ export default MyDocument extends Document {
     // Run the parent `getInitialProps` using `ctx` that now includes our custom `renderPage`
     const initialProps = await Document.getInitialProps(ctx)
 
-    return { ...initialProps }c
+    return initialProps
   }
 }
 ```
 
-- It also can take as argument a  function instead of the object, that would be the equivalent of using the `enhanceComponent` option.
+- It also can take a function instead of the object as argument. This would be the equivalent of using the `enhanceComponent` property in the options object previously mentioned.
 
 **⚠️ This usage is kept for backwards compatibility only, you should use the options object instead.** 
 
@@ -1167,7 +1167,7 @@ export default MyDocument extends Document {
 
     const initialProps = await Document.getInitialProps(ctx)
 
-    return { ...initialProps }
+    return initialProps
   }
 }
 ```
