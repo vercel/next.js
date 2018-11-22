@@ -57,7 +57,7 @@ async function node (shouldWatch) {
   await del(`${outDir}/server`, { force: true })
   await del(`${outDir}/lib`, { force: true })
 
-  const files = ['./server/next.js']
+  const files = ['./server/next.js', './server/build/index.js', './server/build/loaders']
 
   await build(files, {
     base: baseDir,
