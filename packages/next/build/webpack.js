@@ -100,22 +100,24 @@ function externalsConfig (dir, isServer, lambdas) {
   return externals
 }
 
-function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
+function optimizationConfig ({ dir, dev, isServer, totalPages, lambdas }) {
+  const terserPluginConfig = {
+    parallel: true,
+    sourceMap: false,
+    cache: true,
+    cacheKeys: (keys) => {
+      // path changes per build because we add buildId
+      // because the input is already hashed the path is not needed
+      delete keys.path
+      return keys
+    }
+  }
+
   if (isServer && lambdas) {
     return {
       splitChunks: false,
       minimizer: [
-        new TerserPlugin({
-          parallel: true,
-          sourceMap: false,
-          cache: true,
-          cacheKeys: (keys) => {
-            // path changes per build because we add buildId
-            // because the input is already hashed the path is not needed
-            delete keys.path
-            return keys
-          }
-        })
+        new TerserPlugin(terserPluginConfig)
       ]
     }
   }
@@ -145,17 +147,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
 
   // Terser is a better uglifier
   config.minimizer = [
-    new TerserPlugin({
-      parallel: true,
-      sourceMap: false,
-      cache: true,
-      cacheKeys: (keys) => {
-        // path changes per build because we add buildId
-        // because the input is already hashed the path is not needed
-        delete keys.path
-        return keys
-      }
-    })
+    new TerserPlugin(terserPluginConfig)
   ]
 
   // Only enabled in production
