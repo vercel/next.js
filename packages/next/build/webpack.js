@@ -1,5 +1,3 @@
-// @flow
-import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
@@ -129,7 +127,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
     }
   }
 
-  const config: any = {
+  const config = {
     runtimeChunk: {
       name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
     },
@@ -178,15 +176,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages, lambdas}) {
   return config
 }
 
-type BaseConfigContext = {|
-  dev: boolean,
-  isServer: boolean,
-  buildId: string,
-  config: NextConfig,
-  lambdas: boolean
-|}
-
-export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, lambdas = false}: BaseConfigContext) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, lambdas = false}) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -355,7 +345,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   // Backwards compat for `main.js` entry key
   const originalEntry = webpackConfig.entry
   webpackConfig.entry = async () => {
-    const entry: any = {...await originalEntry()}
+    const entry = {...await originalEntry()}
 
     // Server compilation doesn't have main.js
     if (typeof entry['main.js'] !== 'undefined') {
