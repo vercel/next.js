@@ -3,7 +3,7 @@ const { resolve, join } = require('path')
 const { existsSync } = require('fs')
 const parseArgs = require('minimist')
 const del = require('del')
-const build = require('../node/server/build')
+const build = require('../node/server/build').default
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
