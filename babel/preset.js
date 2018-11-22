@@ -1,6 +1,6 @@
 const envPlugins = {
   'development': [
-    require.resolve('babel-plugin-transform-react-jsx-source')
+    require.resolve('@babel/plugin-transform-react-jsx-source')
   ],
   'production': [
     require.resolve('babel-plugin-transform-react-remove-prop-types')
@@ -12,29 +12,28 @@ const plugins = envPlugins[process.env.NODE_ENV] || envPlugins['development']
 const isJest = !!process.env.JEST_WORKER_ID
 const isServer = !!process.env.IS_SERVER || isJest
 
-module.exports = (context, opts = {}) => ({
+export default (context, opts = {}) => ({
   presets: [
-    [require.resolve('babel-preset-env'), {
+    [require.resolve('@babel/preset-env'), {
       modules: false,
       loose: true,
       targets: !isServer ? {
         browsers: ['ie >= 11', 'edge >= 16', 'safari >= 9', 'chrome >= 64', 'firefox >= 60']
       } : { node: 'current' },
-      exclude: ['transform-es2015-typeof-symbol'],
-      useBuiltIns: true
+      exclude: ['@babel/plugin-transform-typeof-symbol'],
+      useBuiltIns: false
     }],
-    require.resolve('babel-preset-react')
+    require.resolve('@babel/preset-react')
   ],
   plugins: [
     !isServer && require.resolve('react-hot-loader/babel'),
     require.resolve('babel-plugin-react-require'),
     require.resolve('./plugins/handle-import'),
-    require.resolve('babel-plugin-transform-object-rest-spread'),
-    require.resolve('babel-plugin-transform-class-properties'),
+    require.resolve('@babel/plugin-proposal-object-rest-spread'),
+    require.resolve('@babel/plugin-proposal-class-properties'),
 
-    [require.resolve('babel-plugin-transform-runtime'), {
-      helpers: true,
-      polyfill: false
+    [require.resolve('@babel/plugin-transform-runtime'), {
+      helpers: true
     }],
 
     [require.resolve('babel-plugin-transform-define'), {
@@ -42,7 +41,7 @@ module.exports = (context, opts = {}) => ({
     }],
 
     ...plugins,
-    isServer && require.resolve('babel-plugin-transform-es2015-modules-commonjs'),
+    isServer && require.resolve('@babel/plugin-transform-modules-commonjs'),
     [
       require.resolve('babel-plugin-module-resolver'),
       {

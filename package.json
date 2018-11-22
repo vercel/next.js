@@ -20,15 +20,14 @@
     "error.js"
   ],
   "bin": {
-    "next-build": "./node/bin/next-build"
+    "next-build": "./bin/next-build"
   },
   "scripts": {
-    "build": "taskr",
-    "release": "taskr release",
-    "testonly": "cross-env NODE_PATH=test/lib jest \\.test.js",
+    "build": "yarn build:babel && yarn build:package",
+    "build:babel": "yarn babel --out-dir node/babel  --plugins=@babel/plugin-transform-modules-commonjs babel",
+    "build:package": "node ./node/babel/build-package.js",
+    "release": "yarn build",
     "pretest": "npm run lint",
-    "test": "npm run testonly -- --coverage --forceExit --runInBand --verbose --bail",
-    "coveralls": "nyc --instrument=false --source-map=false report --temp-directory=./coverage --reporter=text-lcov | coveralls",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'server/**/*.js' 'test/**/*.js'",
     "prepublish": "npm run release",
     "precommit": "lint-staged"
@@ -45,23 +44,22 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "babel-core": "6.26.3",
-    "babel-loader": "7.1.5",
-    "babel-plugin-external-helpers": "6.22.0",
+    "@babel/core": "7.1.6",
+    "@babel/plugin-proposal-class-properties": "7.1.0",
+    "@babel/plugin-proposal-object-rest-spread": "7.0.0",
+    "@babel/plugin-syntax-dynamic-import": "7.0.0",
+    "@babel/plugin-transform-modules-commonjs": "7.1.0",
+    "@babel/plugin-transform-react-jsx-source": "7.0.0",
+    "@babel/plugin-transform-runtime": "7.1.0",
+    "@babel/preset-env": "7.1.6",
+    "@babel/preset-react": "7.0.0",
+    "@babel/runtime": "7.1.5",
+    "@babel/template": "7.1.2",
+    "babel-loader": "8.0.4",
     "babel-plugin-module-resolver": "3.1.1",
-    "babel-plugin-react-require": "3.0.0",
-    "babel-plugin-syntax-dynamic-import": "6.18.0",
-    "babel-plugin-transform-class-properties": "6.24.1",
+    "babel-plugin-react-require": "3.0.1",
     "babel-plugin-transform-define": "1.3.0",
-    "babel-plugin-transform-es2015-modules-commonjs": "6.26.2",
-    "babel-plugin-transform-object-rest-spread": "6.26.0",
-    "babel-plugin-transform-react-jsx-source": "6.22.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.20",
-    "babel-plugin-transform-runtime": "6.23.0",
-    "babel-preset-env": "1.7.0",
-    "babel-preset-react": "6.24.1",
-    "babel-runtime": "6.26.0",
-    "babel-template": "6.26.0",
     "boom": "7.2.2",
     "chokidar": "2.0.4",
     "del": "3.0.0",
@@ -91,20 +89,13 @@
     "write-file-webpack-plugin": "4.5.0"
   },
   "devDependencies": {
-    "@taskr/babel": "1.1.0",
-    "@taskr/clear": "1.1.0",
-    "@taskr/esnext": "1.1.0",
-    "@taskr/watch": "1.1.0",
-    "babel-eslint": "8.2.2",
-    "babel-preset-es2015": "6.24.1",
-    "cross-env": "5.2.0",
+    "@babel/cli": "7.1.5",
+    "babel-eslint": "10.0.1",
     "lint-staged": "4.2.3",
     "node-notifier": "5.3.0",
     "react": "16.2.0",
     "react-dom": "16.2.0",
-    "standard": "12.0.1",
-    "taskr": "1.1.0",
-    "wd": "1.6.1"
+    "standard": "12.0.1"
   },
   "jest": {
     "testEnvironment": "node",

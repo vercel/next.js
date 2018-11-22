@@ -1,14 +1,8 @@
 import Server from './'
-import { doPageRender, doDocRender, serializeError } from './render'
-import { build, watch } from './build/babel'
 
-module.exports = exports = (opts) => {
+export { doPageRender, doDocRender, serializeError } from './render'
+export { build, watch } from '../babel/index'
+
+export default (opts) => {
   return new Server(opts)
 }
-
-exports.doDocRender = doDocRender
-exports.doPageRender = doPageRender
-exports.serializeError = serializeError
-
-exports.build = build
-exports.watch = watch

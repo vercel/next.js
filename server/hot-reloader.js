@@ -5,7 +5,7 @@ import onDemandEntryHandler from './on-demand-entry-handler'
 import webpack from './build/webpack'
 import getConfig from './config'
 import { IS_BUNDLED_PAGE } from './utils'
-import { watch } from './build/babel'
+import { watch } from '../babel/index'
 
 export default class HotReloader {
   constructor (dir, { quiet, conf, initialDevBuild }) {

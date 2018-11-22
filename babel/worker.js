@@ -22,6 +22,14 @@ process.on('message', (message) => {
     callbackId: message.callbackId,
     ...msg
   }))
+    .catch(err => {
+      process.send({
+        callbackId: message.callbackId,
+        cmd: 'error',
+        message: err.message,
+        stack: err.stack
+      })
+    })
 })
 
 export async function handleMessage ({cmd, filenames, options}, response) {
@@ -127,7 +135,6 @@ async function handle (filenameOrDir, rootFile, requestor, options, response, on
       const compiled = await handle(src, rootFile, dirname, options, response, onBuilt)
       count += compiled
     }))
-
     return count
   } else {
     const filename = filenameOrDir
@@ -154,12 +161,8 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
 
     if (!res) return 0
 
-    const { modules } = res.metadata
-    const fsDeps = modules.imports.concat(
-      modules.exports.specifiers.filter(({kind}) => kind === 'external')
-    )
-      .map(({source}) => source)
-      .filter((source) => /^\./.test(source))
+    const { importSources } = res.metadata
+    const fsDeps = importSources.filter((source) => /^\./.test(source))
     const locals = (await Promise.all(
       fsDeps
         .map((source) => {
@@ -206,7 +209,12 @@ function compile (filename, babelOptions) {
       resourcePath: filename,
       query: {
         ...babelOptions,
+        plugins: [
+          require.resolve('./plugins/track-imports'),
+          ...babelOptions.plugins
+        ],
         cacheDirectory: findCacheDir({ name: 'babel-loader-next-server' }),
+        cacheCompression: false,
         metadataSubscribers: ['metadata']
       },
       metadata (_metadata) {

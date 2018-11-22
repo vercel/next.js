@@ -10,13 +10,3 @@ export function normalizePageEntryName (pathname, dir) {
   const pagesDir = join(dir, 'pages')
   return join('pages', relative(pagesDir, pathname).replace(/[/|\\]index\.js$/, '.js'))
 }
-
-export function printAndExit (message, code = 1) {
-  if (code === 0) {
-    console.log(message)
-  } else {
-    console.error(message)
-  }
-
-  process.exit(code)
-}

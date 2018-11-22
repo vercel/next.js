@@ -39,9 +39,12 @@ export function build (filenames, options) {
     const callbackId = callbacks.length
     callbacks.push((err, msg) => {
       if (err) {
+        Cluster.disconnect()
         reject(err)
       } else if (msg.cmd === 'built') {
-        Cluster.disconnect()
+        if (!options.keepAlive) {
+          Cluster.disconnect()
+        }
         resolve(msg)
       }
     })

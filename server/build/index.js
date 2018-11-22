@@ -3,7 +3,7 @@ import fs from 'mz/fs'
 import uuid from 'uuid'
 import webpack from './webpack'
 
-import { build as buildServer } from './babel'
+import { build as buildServer } from '../../babel/index'
 
 export default async function build (dir, server) {
   const buildId = uuid.v4()

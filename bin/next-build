@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-import { resolve, join } from 'path'
-import { existsSync } from 'fs'
-import parseArgs from 'minimist'
-import del from 'del'
-import build from '../server/build'
-import { printAndExit } from '../server/utils'
+const { resolve, join } = require('path')
+const { existsSync } = require('fs')
+const parseArgs = require('minimist')
+const del = require('del')
+const build = require('../node/server/build')
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
@@ -34,7 +33,8 @@ const dir = resolve(argv._[0] || '.')
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
-  printAndExit(`> No such directory exists as the project root: ${dir}`)
+  console.error(`> No such directory exists as the project root: ${dir}`)
+  process.exit(1)
 }
 
 del(join(dir, '.next'), { force: true })
