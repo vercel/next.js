@@ -73,6 +73,26 @@ export default (context, render) => {
       })
     })
 
+    describe('ssr:true option', () => {
+      it('Should render the component on the server side', async () => {
+        const $ = await get$('/dynamic/ssr-true')
+        expect($('body').html()).toContain('"dynamicIds"')
+        expect($('p').text()).toBe('Hello World 1')
+      })
+
+      it('should render the component on client side', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/no-ssr')
+          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+    })
+
     describe('custom chunkfilename', () => {
       it('should render the correct filename', async () => {
         const $ = await get$('/dynamic/chunkfilename')
