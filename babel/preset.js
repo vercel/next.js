@@ -20,7 +20,7 @@ export default (context, opts = {}) => ({
       targets: !isServer ? {
         browsers: ['ie >= 11', 'edge >= 16', 'safari >= 9', 'chrome >= 64', 'firefox >= 60']
       } : { node: 'current' },
-      exclude: ['@babel/plugin-transform-typeof-symbol'],
+      exclude: ['transform-typeof-symbol'],
       useBuiltIns: false
     }],
     require.resolve('@babel/preset-react')

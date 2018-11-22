@@ -211,7 +211,7 @@ function compile (filename, babelOptions) {
         ...babelOptions,
         plugins: [
           require.resolve('./plugins/track-imports'),
-          ...babelOptions.plugins
+          ...(babelOptions.plugins || [])
         ],
         cacheDirectory: findCacheDir({ name: 'babel-loader-next-server' }),
         cacheCompression: false,
