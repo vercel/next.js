@@ -77,7 +77,7 @@
     "terser-webpack-plugin": "1.1.0",
     "unfetch": "3.0.0",
     "url": "0.11.0",
-    "webpack": "4.25.1",
+    "webpack": "4.26.0",
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
