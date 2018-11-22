@@ -54,7 +54,7 @@ export default (context, render) => {
       })
     })
     describe('ssr:false option', () => {
-      it('Should render loading on the server side', async () => {
+      it('should render loading on the server side', async () => {
         const $ = await get$('/dynamic/no-ssr')
         expect($('body').html()).not.toContain('"dynamicIds"')
         expect($('p').text()).toBe('loading...')
@@ -83,7 +83,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr')
+          browser = await webdriver(context.appPort, '/dynamic/ssr-true')
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {

@@ -57,7 +57,7 @@ export default (context, render) => {
       it('should render the component on client side', async () => {
         let browser
         try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr')
+          browser = await webdriver(context.appPort, '/dynamic/ssr-true')
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
