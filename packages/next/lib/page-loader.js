@@ -9,6 +9,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.prefetchCache = new Set()
     this.pageLoadedHandlers = {}
     this.pageRegisterEvents = new EventEmitter()
     this.loadingRoutes = {}
@@ -108,6 +109,24 @@ export default class PageLoader {
     } else {
       register()
     }
+  }
+
+  async prefetch (route) {
+    route = this.normalizeRoute(route)
+    const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    if (this.prefetchCache.has(scriptRoute)) {
+      return
+    }
+    this.prefetchCache.add(scriptRoute)
+
+    const link = document.createElement('link')
+    // Safari doesn't support `prefetch` but does support `preload`
+    // https://caniuse.com/#feat=link-rel-prefetch
+    // https://caniuse.com/#feat=link-rel-preload
+    link.rel = navigator.userAgent.toLowerCase().indexOf('safari') !== -1 ? 'preload' : 'prefetch'
+    link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    link.as = 'script'
+    document.head.appendChild(link)
   }
 
   clearCache (route) {
