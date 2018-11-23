@@ -13,7 +13,7 @@ const babelBrowserConfig = {
       modules: false,
       loose: true,
       targets: {
-        browsers: ['ie >= 11', 'edge >= 16', 'safari >= 9', 'chrome >= 64', 'firefox >= 60']
+        browsers: ['ie >= 11', 'edge >= 16', 'safari >= 10', 'chrome >= 64', 'firefox >= 60', 'iOS >= 9']
       },
       exclude: ['transform-typeof-symbol', 'transform-function-name'],
       useBuiltIns: false,
@@ -44,6 +44,7 @@ const babelNodeConfig = {
     '@babel/preset-react'
   ],
   plugins: [
+    require.resolve('./plugins/require-react'),
     '@babel/plugin-proposal-class-properties'
   ]
 }
@@ -58,7 +59,7 @@ async function node (shouldWatch) {
   await del(`${outDir}/server`, { force: true })
   await del(`${outDir}/lib`, { force: true })
 
-  const files = ['./server/next.js', './server/build/index.js', './server/build/loaders']
+  const files = ['./server', './lib']
 
   await build(files, {
     base: baseDir,
