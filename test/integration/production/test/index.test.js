@@ -210,6 +210,21 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    it('should add prefetch tags when link prefetch is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const elements = await browser.elementsByCss('link[rel=prefetch]')
+      expect(elements.length).toBe(4)
+      await Promise.all(
+        elements.map(async (element) => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('prefetch')
+          expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
