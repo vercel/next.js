@@ -8,8 +8,22 @@ export default declare((api, options) => {
 
     visitor: {
       Program: {
+        enter (path, { file }) {
+          file.metadata.importSources = []
+        },
         exit (path, { file }) {
-          file.metadata.importSources = gettImportSources(path)
+          file.metadata.importSources.push(...gettImportSources(path))
+        }
+      },
+      CallExpression: {
+        enter (path, { file }) {
+          const { callee } = path.node
+          const arg = path.node.arguments[0]
+          if (arg && arg.type === 'StringLiteral') {
+            if (callee.name === 'require') {
+              file.metadata.importSources.push(arg.value)
+            }
+          }
         }
       }
     }
