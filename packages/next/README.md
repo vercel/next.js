@@ -1128,7 +1128,7 @@ The `ctx` object is equivalent to the one received in all [`getInitialProps`](#f
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
 #### Customizing `renderPage`
-🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with ccs-in-js libraries
+🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with css-in-js libraries
 that need to wrap the application to properly work with server-rendering. 🚧
 
 - It takes as argument an options object for further customization
