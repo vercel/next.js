@@ -1,18 +1,9 @@
 export default function ({ types: t }) {
   return {
     visitor: {
-      JSXOpeningElement (path, { file }) {
-        file.set('hasJSX', true)
-      },
-
-      ImportDefaultSpecifier: {
-        exit (path, { file }) {
-          // if (/icon/.test(file.opts.sourceFileName)) {
-          //   console.log(path.node)
-          // }
-          if (path.node.local.name === 'React') {
-            file.set('hasReactImport', true)
-          }
+      JSXOpeningElement: {
+        enter (path, { file }) {
+          file.set('hasJSX', true)
         }
       },
 
@@ -22,16 +13,17 @@ export default function ({ types: t }) {
         },
 
         exit ({ node, scope }, { file }) {
-          if (!file.get('hasJSX') || scope.hasBinding('React') || file.get('hasReactImport')) {
+          if (!file.get('hasJSX') || scope.hasBinding('React')) {
             return
           }
-          const reactImport = node.body.filter(child => {
+
+          // Secondary scan to check for plugins that do similar injection.
+          const reactImport = node.body.find(child => {
             if (child.type === 'ImportDeclaration') {
               const { specifiers } = child
               return specifiers.find(({ type, local }) => type === 'ImportDefaultSpecifier' && local.name === 'React')
             }
           })
-          console.log(file.opts.sourceFileName, file.get('hasJSX'), scope.hasBinding('React'), file.get('hasReactImport'), reactImport)
           if (reactImport) {
             return
           }
