@@ -27,7 +27,7 @@ export default (context, opts = {}) => ({
   ],
   plugins: [
     !isServer && require.resolve('react-hot-loader/babel'),
-    require.resolve('babel-plugin-react-require'),
+    require.resolve('./plugins/require-react'),
     require.resolve('./plugins/handle-import'),
     require.resolve('@babel/plugin-proposal-object-rest-spread'),
     require.resolve('@babel/plugin-proposal-class-properties'),

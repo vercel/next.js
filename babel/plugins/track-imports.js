@@ -8,8 +8,8 @@ export default declare((api, options) => {
 
     visitor: {
       Program: {
-        exit (path) {
-          path.hub.file.metadata.importSources = gettImportSources(path)
+        exit (path, { file }) {
+          file.metadata.importSources = gettImportSources(path)
         }
       }
     }

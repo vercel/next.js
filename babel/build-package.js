@@ -22,6 +22,7 @@ const babelBrowserConfig = {
     '@babel/preset-react'
   ],
   'plugins': [
+    require.resolve('./plugins/require-react'),
     '@babel/plugin-proposal-object-rest-spread',
     '@babel/plugin-proposal-class-properties',
     'transform-react-remove-prop-types',
