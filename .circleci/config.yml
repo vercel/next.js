@@ -9,6 +9,7 @@ jobs:
       - run: yarn install
       - run: yarn bootstrap
       - run: yarn test
+      - run: yarn bundlesize
   publish-stable:
     docker:
       - image: circleci/node:10
