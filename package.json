@@ -8,6 +8,7 @@
   "bugs": "https://github.com/zeit/next.js/issues",
   "homepage": "https://github.com/zeit/next.js",
   "files": [
+    "bin",
     "node",
     "browser",
     "babel.js",
