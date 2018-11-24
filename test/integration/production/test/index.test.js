@@ -210,7 +210,7 @@ describe('Production Usage', () => {
       browser.close()
     })
 
-    it('should add prefetch tags when link prefetch is used', async () => {
+    it('should add prefetch tags when Link prefetch prop is used', async () => {
       const browser = await webdriver(appPort, '/prefetch')
       const elements = await browser.elementsByCss('link[rel=prefetch]')
       expect(elements.length).toBe(4)
