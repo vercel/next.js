@@ -210,6 +210,21 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    it('should add prefetch tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const elements = await browser.elementsByCss('link[rel=prefetch]')
+      expect(elements.length).toBe(4)
+      await Promise.all(
+        elements.map(async (element) => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('prefetch')
+          expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
@@ -220,7 +235,14 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
-      expect(browserLogs[0].message).toMatch(/\/no-such-page.js - Failed to load resource/)
+      let foundLog = false
+      browserLogs.forEach((log) => {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+          foundLog = true
+        }
+      })
+
+      expect(foundLog).toBe(true)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.

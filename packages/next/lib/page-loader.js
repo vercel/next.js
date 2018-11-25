@@ -1,6 +1,19 @@
-/* global window, document */
+/* global document */
 import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
+// smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
+function listSupports (list, token) {
+  if (!list || !list.supports) {
+    return false
+  }
+  try {
+    return list.supports(token)
+  } catch (e) {
+    return false
+  }
+}
+
+const supportsPrefetch = listSupports(document.createElement('link').relList, 'prefetch')
 const webpackModule = module
 
 export default class PageLoader {
@@ -9,7 +22,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
-    this.pageLoadedHandlers = {}
+    this.prefetchCache = new Set()
     this.pageRegisterEvents = new EventEmitter()
     this.loadingRoutes = {}
   }
@@ -110,9 +123,29 @@ export default class PageLoader {
     }
   }
 
+  async prefetch (route) {
+    route = this.normalizeRoute(route)
+    const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
+    if (this.prefetchCache.has(scriptRoute)) {
+      return
+    }
+    this.prefetchCache.add(scriptRoute)
+
+    const link = document.createElement('link')
+    // Feature detection is used to see if prefetch is supported, else fall back to preload
+    // Mainly this is for Safari
+    // https://caniuse.com/#feat=link-rel-prefetch
+    // https://caniuse.com/#feat=link-rel-preload
+    link.rel = supportsPrefetch ? 'prefetch' : 'preload'
+    link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    link.as = 'script'
+    document.head.appendChild(link)
+  }
+
   clearCache (route) {
     route = this.normalizeRoute(route)
     delete this.pageCache[route]
+    delete this.loadingRoutes[route]
     delete this.loadingRoutes[route]
 
     const script = document.getElementById(`__NEXT_PAGE__${route}`)
