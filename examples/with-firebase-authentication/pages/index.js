@@ -60,7 +60,7 @@ export default class Index extends Component {
       const messages = snap.val()
       if (messages) this.setState({ messages })
     }, (error) => {
-      console.error(error);
+      console.error(error)
     })
   }
 
