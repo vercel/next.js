@@ -4,7 +4,19 @@
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+
+```bash
+npx create-next-app --example with-noscript with-noscript-app
+# or
+yarn create next-app --example with-noscript with-noscript-app
+```
+
+### Download manually
+
+Download the example:
 
 ## Development
 Install it and run:
@@ -13,6 +25,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 **yarn**

@@ -4,10 +4,22 @@
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-dotenv
+npx create-next-app --example with-dotenv with-dotenv-app
+# or
+yarn create next-app --example with-dotenv with-dotenv-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-dotenv
 cd with-dotenv
 ```
 
@@ -16,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -26,16 +41,11 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic idea of babel replacement from multiple environment. We have 1 env variable: `TEST` which will be replaced in development env and in production env with different babel plugin. In local development, babel reads .env file and replace process.env.* in your nextjs files. In production env (such as heroku), babel reads the ENV and replace process.env.* in your nextjs files. Thus no more needed to commit your secrets anymore.
+This example shows how to inline env vars. 
 
-Of course, please put .env* in your .gitignore when using this example locally.
+**Please note**:
 
-## Troubleshooting
-
-### Environment variables not showing on the page
-
-If for some reason the variable is not displayed on the page, try clearing the `babel-loader` cache:
-
-```
-rm -rf ./node_modules/.cache/babel-loader
-```
+* It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
+* As soon as you are using an env var in your code it will be publicly available and exposed to the client.
+* If you want to have more control of what is exposed to the client check out [tusbar/next-runtime-dotenv](https://github.com/tusbar/next-runtime-dotenv).
+* Env vars are set (inlined) at build time. If you need to configure your app on rutime check out [examples/with-universal-configuration-runtime](../with-universal-configuration-runtime)

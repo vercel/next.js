@@ -1,0 +1,21 @@
+{
+  "name": "using-nerv",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "module-alias": "^2.0.0",
+    "next": "latest",
+    "nervjs": "^1.2.4",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "react": "~15.6.1",
+    "react-dom": "~15.6.1"
+  }
+}

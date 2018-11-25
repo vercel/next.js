@@ -22,6 +22,18 @@ function reducer (state = exampleInitialState, action) {
         ...{count: state.count + 1}
       }
 
+    case actionTypes.DECREMENT:
+      return {
+        ...state,
+        ...{count: state.count - 1}
+      }
+
+    case actionTypes.RESET:
+      return {
+        ...state,
+        ...{count: exampleInitialState.count}
+      }
+
     case actionTypes.LOAD_DATA_SUCCESS:
       return {
         ...state,

@@ -59,6 +59,8 @@ export default class Index extends Component {
     firebase.database().ref('messages').on('value', snap => {
       const messages = snap.val()
       if (messages) this.setState({ messages })
+    }, (error) => {
+      console.error(error)
     })
   }
 
@@ -90,8 +92,8 @@ export default class Index extends Component {
     return <div>
       {
         user
-        ? <button onClick={this.handleLogout}>Logout</button>
-        : <button onClick={this.handleLogin}>Login</button>
+          ? <button onClick={this.handleLogout}>Logout</button>
+          : <button onClick={this.handleLogin}>Login</button>
       }
       {
         user &&

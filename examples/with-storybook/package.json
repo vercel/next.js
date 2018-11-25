@@ -1,0 +1,26 @@
+{
+  "name": "with-storybook",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "storybook": "start-storybook -p 6006",
+    "build-storybook": "build-storybook"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "@storybook/react": "^3.4.7",
+    "@storybook/addon-actions": "^3.4.7",
+    "@storybook/addon-links": "^3.4.7",
+    "@storybook/addons": "^3.4.7",
+    "babel-core": "^6.26.3",
+    "babel-runtime": "^6.26.0"
+  }
+}

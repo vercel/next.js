@@ -4,10 +4,22 @@
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-ga
+npx create-next-app --example with-react-ga with-react-ga-app
+# or
+yarn create next-app --example with-react-ga with-react-ga-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-react-ga
 cd with-react-ga
 ```
 
@@ -16,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -26,4 +41,5 @@ now
 
 ## The idea behind the example
 
-This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using `<Layout/>` component with NextJs. You can also use an HOC instead of `<Layout/>` component. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.
+This example shows the most basic way to use [react-ga](https://github.com/react-ga/react-ga) using custom [App](https://github.com/zeit/next.js#custom-app) 
+component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for testing this example.

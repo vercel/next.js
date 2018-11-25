@@ -6,10 +6,22 @@
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-redux-saga
+npx create-next-app --example with-redux-saga with-redux-saga-app
+# or
+yarn create next-app --example with-redux-saga with-redux-saga-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-saga
 cd with-redux-saga
 ```
 
@@ -18,6 +30,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -46,11 +61,11 @@ The trick here for supporting universal redux is to separate the cases for the c
 
 The clock, under `components/clock.js`, has access to the state using the `connect` function from `react-redux`. In this case Clock is a direct child from the page but it could be deep down the render tree.
 
-The second example, under `components/add-count.js`, shows a simple add counter function with a class component implementing a common redux pattern of mapping state and props. Again, the first render is happening in the server and instead of starting the count at 0, it will dispatch an action in redux that starts the count at 1. This continues to highlight how each navigation triggers a server render first and then a client render second, when you navigate between pages.
+The second example, under `components/counter.js`, shows a simple add counter function with a class component implementing a common redux pattern of mapping state and props. Again, the first render is happening in the server and instead of starting the count at 0, it will dispatch an action in redux that starts the count at 1. This continues to highlight how each navigation triggers a server render first and then a client render second, when you navigate between pages.
 
 ## What changed with next-redux-saga
 
-The digital clock is updated every 800ms using the `runClockSaga` found in `saga.js`.
+The digital clock is updated every second using the `runClockSaga` found in `saga.js`.
 
 All pages are also being wrapped by `next-redux-saga` using a helper function from `store.js`:
 

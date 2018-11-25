@@ -4,10 +4,22 @@
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/data-fetch
+npx create-next-app --example data-fetch data-fetch-app
+# or
+yarn create next-app --example data-fetch data-fetch-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/data-fetch
 cd data-fetch
 ```
 
@@ -16,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -27,6 +42,6 @@ now
 ## The idea behind the example
 
 Next.js was conceived to make it easy to create universal apps. That's why fetching data
-on the server and the client when necessary it's so easy with Next.
+on the server and the client when necessary is so easy with Next.
 
-Using `getInitialProps` we will fetch data in the server for SSR and then in the client only when the component is re-mounted but not in the first paint.
+Using `getInitialProps` fetches data on the server for SSR and then on the client when the component is re-mounted (not on the first paint).

@@ -1,5 +1,5 @@
-/* global describe, it, expect */
-import EventEmitter from '../../dist/lib/EventEmitter'
+/* eslint-env jest */
+import EventEmitter from 'next-server/dist/lib/EventEmitter'
 
 describe('EventEmitter', () => {
   describe('With listeners', () => {
@@ -69,7 +69,31 @@ describe('EventEmitter', () => {
 
       const run = () => ev.on('sample', cb)
 
-      expect(run).toThrow(/The listener already exising in event: sample/)
+      expect(run).toThrow(/Listener already exists for router event: `sample`/)
+    })
+
+    it('should support chaining like the nodejs EventEmitter', () => {
+      const emitter = new EventEmitter()
+      let calledA = false
+      let calledB = false
+
+      emitter
+        .on('a', () => { calledA = true })
+        .on('b', () => { calledB = true })
+
+      emitter.emit('a')
+      emitter.emit('b')
+
+      expect(calledA).toEqual(true)
+      expect(calledB).toEqual(true)
+    })
+
+    it('should return an indication on emit if there were listeners', () => {
+      const emitter = new EventEmitter()
+      emitter.on('a', () => { })
+
+      expect(emitter.emit('a')).toEqual(true)
+      expect(emitter.emit('b')).toEqual(false)
     })
   })
 

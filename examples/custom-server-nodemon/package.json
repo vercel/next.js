@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "dev": "nodemon server/index.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server/index.js"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.12.1"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "with-mocha",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "NODE_ENV=test mocha",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.5.0",
+    "react-dom": "^16.5.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.0.1",
+    "@babel/register": "^7.0.0",
+    "enzyme": "^3.6.0",
+    "enzyme-adapter-react-16": "^1.5.0",
+    "expect.js": "^0.3.1",
+    "mocha": "^5.2.0"
+  }
+}

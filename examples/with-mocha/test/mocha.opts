@@ -1,0 +1,2 @@
+--require @babel/register
+--file mocha.setup.js

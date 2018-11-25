@@ -1,6 +1,8 @@
 {
   "presets": [
-    "next/babel",
-    "stage-0"
+    "next/babel"
   ],
+  "plugins": [
+    "@babel/plugin-proposal-do-expressions"
+  ]
 }

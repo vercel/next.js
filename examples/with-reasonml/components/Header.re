@@ -1,13 +1,16 @@
-let component = ReasonReact.statelessComponent "Header";
-let styles = ReactDOMRe.Style.make
-  marginRight::"10px"
-  ();
-let make _children => {
+let component = ReasonReact.statelessComponent("Header");
+
+let styles = ReactDOMRe.Style.make(~marginRight="10px", ());
+
+let make = (_children) => {
   ...component,
-  render: fun _self => {
+  render: (_self) =>
     <div>
-      <a href="/" style=styles> (ReasonReact.stringToElement "Home") </a>
-      <a href="/about" style=styles> (ReasonReact.stringToElement "About") </a>
+      <Next.Link href="/">
+        <a style=styles> (ReasonReact.string("Home")) </a>
+      </Next.Link>
+      <Next.Link href="/about">
+        <a style=styles> (ReasonReact.string("About")) </a>
+      </Next.Link>
     </div>
-  }
 };

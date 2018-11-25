@@ -4,7 +4,7 @@ const LRUCache = require('lru-cache')
 
 const port = parseInt(process.env.PORT, 10) || 3000
 const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dir: '.', dev })
+const app = next({ dev })
 const handle = app.getRequestHandler()
 
 // This is where we cache our rendered HTML pages
@@ -14,28 +14,28 @@ const ssrCache = new LRUCache({
 })
 
 app.prepare()
-.then(() => {
-  const server = express()
+  .then(() => {
+    const server = express()
 
-  // Use the `renderAndCache` utility defined below to serve pages
-  server.get('/', (req, res) => {
-    renderAndCache(req, res, '/')
-  })
+    // Use the `renderAndCache` utility defined below to serve pages
+    server.get('/', (req, res) => {
+      renderAndCache(req, res, '/')
+    })
 
-  server.get('/blog/:id', (req, res) => {
-    const queryParams = { id: req.params.id }
-    renderAndCache(req, res, '/blog', queryParams)
-  })
+    server.get('/blog/:id', (req, res) => {
+      const queryParams = { id: req.params.id }
+      renderAndCache(req, res, '/blog', queryParams)
+    })
 
-  server.get('*', (req, res) => {
-    return handle(req, res)
-  })
+    server.get('*', (req, res) => {
+      return handle(req, res)
+    })
 
-  server.listen(port, (err) => {
-    if (err) throw err
-    console.log(`> Ready on http://localhost:${port}`)
+    server.listen(port, (err) => {
+      if (err) throw err
+      console.log(`> Ready on http://localhost:${port}`)
+    })
   })
-})
 
 /*
  * NB: make sure to modify this to take into account anything that should trigger
@@ -45,26 +45,32 @@ function getCacheKey (req) {
   return `${req.url}`
 }
 
-function renderAndCache (req, res, pagePath, queryParams) {
+async function renderAndCache (req, res, pagePath, queryParams) {
   const key = getCacheKey(req)
 
   // If we have a page in the cache, let's serve it
   if (ssrCache.has(key)) {
-    console.log(`CACHE HIT: ${key}`)
+    res.setHeader('x-cache', 'HIT')
     res.send(ssrCache.get(key))
     return
   }
 
-  // If not let's render the page into HTML
-  app.renderToHTML(req, res, pagePath, queryParams)
-    .then((html) => {
-      // Let's cache this page
-      console.log(`CACHE MISS: ${key}`)
-      ssrCache.set(key, html)
+  try {
+    // If not let's render the page into HTML
+    const html = await app.renderToHTML(req, res, pagePath, queryParams)
 
+    // Something is wrong with the request, let's skip the cache
+    if (res.statusCode !== 200) {
       res.send(html)
-    })
-    .catch((err) => {
-      app.renderError(err, req, res, pagePath, queryParams)
-    })
+      return
+    }
+
+    // Let's cache this page
+    ssrCache.set(key, html)
+
+    res.setHeader('x-cache', 'MISS')
+    res.send(html)
+  } catch (err) {
+    app.renderError(err, req, res, pagePath, queryParams)
+  }
 }
