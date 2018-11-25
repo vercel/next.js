@@ -4,9 +4,9 @@
   "description": "Example of Next.js with Relay Modern and react-relay-network-modern",
   "scripts": {
     "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "start": "next start",
     "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
     "schema": "graphql get-schema dev"
   },
@@ -17,9 +17,6 @@
     "dotenv-webpack": "^1.5.4",
     "graphql": "^0.13.2",
     "isomorphic-fetch": "2.2.1",
-    "isomorphic-unfetch": "^2.0.0",
-    "koa": "2.5.3",
-    "koa-router": "7.4.0",
     "next": "latest",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
