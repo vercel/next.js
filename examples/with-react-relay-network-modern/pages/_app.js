@@ -1,42 +1,51 @@
 import React from 'react'
 import ReactDOMServer from 'react-dom/server'
-import { QueryRenderer } from 'react-relay'
+import { QueryRenderer, fetchQuery } from 'react-relay'
 import NextApp, { Container } from 'next/app'
 
 import {
-  environment,
+  initEnvironment,
   createEnvironment,
-  relaySSR
 } from '../lib/createEnvironment'
 
 export default class App extends NextApp {
   static getInitialProps = async ({ Component, router, ctx }) => {
     const { variables } = Component.getInitialProps ? await Component.getInitialProps(ctx) : {}
 
-    if (environment) {
-      ReactDOMServer.renderToString(
-        <QueryRenderer
-          environment={environment}
-          query={Component.query}
-          variables={variables}
-          render={() => null}
-        />
-      )
+    try {
+      if (initEnvironment) {
+        const { environment, relaySSR } = initEnvironment();
+
+        await fetchQuery(environment, Component.query, variables);
+
+        return {
+          variables,
+          relayData: await relaySSR.getCache(),
+        };
+      }
+    } catch (e) {
+      console.log(e);
     }
 
     return {
       variables,
-      relayData: relaySSR ? await relaySSR.getCache() : undefined
     }
   };
 
   render () {
     const { Component, variables = {}, relayData } = this.props
+    const environment = createEnvironment(
+      relayData,
+      JSON.stringify({
+        queryID: Component.query ? Component.query().name : undefined,
+        variables,
+      }),
+    );
 
     return (
       <Container>
         <QueryRenderer
-          environment={createEnvironment(relayData)}
+          environment={environment}
           query={Component.query}
           variables={variables}
           render={({ error, props }) => {
