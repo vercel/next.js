@@ -120,7 +120,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     module: {
       rules
     },
-    devtool: dev ? 'nosources-inline-source-map' : 'source-map',
+    devtool: dev ? 'inline-source-map' : 'source-map',
 
     optimization: {
       namedModules: !dev,
