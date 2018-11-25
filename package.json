@@ -25,7 +25,7 @@
   },
   "scripts": {
     "build": "yarn build:babel && yarn build:package",
-    "build:babel": "yarn babel --out-dir node/babel  --plugins=@babel/plugin-transform-modules-commonjs babel",
+    "build:babel": "yarn babel --out-dir node/babel  --source-maps=inline --plugins=@babel/plugin-transform-modules-commonjs babel",
     "build:package": "node ./node/babel/build-package.js",
     "release": "yarn build",
     "pretest": "npm run lint",

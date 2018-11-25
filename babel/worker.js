@@ -8,7 +8,7 @@ import Crypto from 'crypto'
 import Path, { resolve } from 'path'
 import Chokidar from 'chokidar'
 import slash from 'slash'
-import babelLoader from 'babel-loader'
+import babelLoader from './loader'
 import findCacheDir from 'find-cache-dir'
 import outputFileSync from 'output-file-sync'
 import readdirRecursive from 'fs-readdir-recursive'
@@ -32,7 +32,7 @@ process.on('message', (message) => {
     })
 })
 
-export async function handleMessage ({cmd, filenames, options}, response) {
+export async function handleMessage ({ cmd, filenames, options }, response) {
   if (cmd === 'watch' || cmd === 'build') {
     let compiledFiles = 0
     for (let filename of filenames) {
@@ -153,7 +153,6 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
       filename,
       {
         sourceFileName: slash(relative),
-        sourceMaps: 'inline',
         sourceRoot: Path.relative(Path.dirname(dest), options.base),
         ...options.babelOptions
       }
@@ -198,45 +197,17 @@ async function write (filename, dest, base, rootFile, options, response, onBuilt
 
     return locals + 1
   } catch (err) {
-    response({cmd: 'error', message: `${filename}: ${err.message}`, stack: `${filename}: ${err.stack}`})
+    response({ cmd: 'error', message: `${filename}: ${err.message}`, stack: `${filename}: ${err.stack}` })
     return 0
   }
 }
 function compile (filename, babelOptions) {
   return new Promise((resolve, reject) => {
-    let metadata
-    const context = {
-      resourcePath: filename,
-      query: {
-        ...babelOptions,
-        plugins: [
-          require.resolve('./plugins/track-imports'),
-          ...(babelOptions.plugins || [])
-        ],
-        cacheDirectory: findCacheDir({ name: 'babel-loader-next-server' }),
-        cacheCompression: false,
-        metadataSubscribers: ['metadata']
-      },
-      metadata (_metadata) {
-        metadata = _metadata
-      },
-      addDependency () {},
-      async () {
-        return context.callback
-      },
-      callback (err, code, map) {
-        if (err) {
-          reject(err)
-        } else {
-          resolve({code, metadata})
-        }
-      }
-    }
     FS.readFile(filename, 'utf8', (err, data) => {
       if (err) {
         reject(err)
       } else {
-        babelLoader.call(context, data)
+        resolve(babelLoader(filename, data, babelOptions))
       }
     })
   })
