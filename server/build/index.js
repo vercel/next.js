@@ -60,7 +60,7 @@ async function writeBuildStats (dir, stats) {
   const entrypoints = {}
   Object.keys(stats.entrypoints).forEach(name => {
     entrypoints[name] = {
-      files: stats.entrypoints[name].assets.filter(name => !/\.map$/.test(name))
+      chunks: stats.entrypoints[name].assets.filter(name => !/\.map$/.test(name))
     }
   })
 
