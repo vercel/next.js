@@ -1,7 +1,7 @@
 import React from 'react'
 import { connect } from 'react-redux'
 
-const CharacterInfo = ({character, error, fetchCharacter, isFetchedOnServer = false}) => (
+const CharacterInfo = ({ character, error, fetchCharacter, isFetchedOnServer = false }) => (
   <div className='CharacterInfo'>
     {
       error ? <p>We encountered and error.</p>
@@ -15,7 +15,7 @@ const CharacterInfo = ({character, error, fetchCharacter, isFetchedOnServer = fa
 
     }
     <p>
-      ( was character fetched on server? -
+      (was character fetched on server? -{' '}
       <b>{isFetchedOnServer.toString()})</b>
     </p>
     <style jsx>{`
@@ -39,5 +39,5 @@ export default connect(
     character: state.character,
     error: state.error,
     isFetchedOnServer: state.isFetchedOnServer
-  }),
+  })
 )(CharacterInfo)

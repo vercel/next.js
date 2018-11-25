@@ -92,8 +92,8 @@ export default class Index extends Component {
     return <div>
       {
         user
-        ? <button onClick={this.handleLogout}>Logout</button>
-        : <button onClick={this.handleLogin}>Login</button>
+          ? <button onClick={this.handleLogout}>Logout</button>
+          : <button onClick={this.handleLogin}>Login</button>
       }
       {
         user &&

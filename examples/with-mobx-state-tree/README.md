@@ -4,11 +4,23 @@
 
 ## How to use
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx
-cd with-mobx
+npx create-next-app --example with-mobx-state-tree with-mobx-state-tree-app
+# or
+yarn create next-app --example with-mobx-state-tree with-mobx-state-tree-app
+```
+
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx-state-tree
+cd with-mobx-state-tree
 ```
 
 Install it and run:
@@ -16,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
@@ -23,21 +38,20 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 ```bash
 now
 ```
+
 ## Notes
+
 This example is a mobx port of the [with-redux](https://github.com/zeit/next.js/tree/master/examples/with-redux) example. Decorator support is activated by adding a `.babelrc` file at the root of the project:
 
 ```json
 {
-  "presets": [
-    "next/babel"
-  ],
-  "plugins": [
-    "transform-decorators-legacy"
-  ]
+  "presets": ["next/babel"],
+  "plugins": ["transform-decorators-legacy"]
 }
 ```
 
 ### Rehydrating with server data
+
 After initializing the store (and possibly making changes such as fetching data), `getInitialProps` must stringify the store in order to pass it as props to the client. `mobx-state-tree` comes out of the box with a handy method for doing this called `getSnapshot`. The snapshot is sent to the client as `props.initialState` where the pages's `constructor()` may use it to rehydrate the client store.
 
 ## The idea behind the example
@@ -55,5 +69,3 @@ To pass the initial timestamp from the server to the client we pass it as a prop
 The trick here for supporting universal mobx is to separate the cases for the client and the server. When we are on the server we want to create a new store every time, otherwise different users data will be mixed up. If we are in the client we want to use always the same store. That's what we accomplish on `store.js`
 
 The clock, under `components/Clock.js`, has access to the state using the `inject` and `observer` functions from `mobx-react`. In this case Clock is a direct child from the page but it could be deep down the render tree.
-
-As far as how this example differs from the `with-mobx` example, `mobx-state-tree` requires that any changes to the observable data are sent as actions, which are defined on the model in `server.js`. The snapshot feature, while not very useful in this particular case, makes client-side rehydration of the state amazingly easy. Any changes that are made to the store in `getInitialProps` will be refreshed instantly when that page is loaded on the client.

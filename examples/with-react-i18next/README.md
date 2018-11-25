@@ -1,20 +1,51 @@
-# Getting started
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-i18next)
 
-Example with [react-i18next](https://github.com/i18next/react-i18next).
+# Internationalization with [react-i18next](https://github.com/i18next/react-i18next).
+
+## How to use
+
+### Using `create-next-app`
+
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-# npm install
-# npm run dev
+npx create-next-app --example with-react-i18next with-react-i18next-app
+# or
+yarn create next-app --example with-react-i18next with-react-i18next-app
 ```
 
-**open:**
+### Download manually
+
+Download the example:
+
+```bash
+curl https://codeload.github.com/zeit/next.js/tar.gz/master | tar -xz --strip=2 next.js-master/examples/with-react-i18next
+cd with-react-i18next
+```
+
+Install it and run:
+
+```bash
+npm install
+npm run dev
+# or
+yarn
+yarn dev
+```
+
+Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+
+```bash
+now
+```
+
+### Testing the app
 
 auto detecting user language: [http://localhost:3000](http://localhost:3000)
 
 german: [http://localhost:3000/?lng=de](http://localhost:3000/?lng=de)
 
 english: [http://localhost:3000/?lng=en](http://localhost:3000/?lng=en)
-
 
 ## The idea behind the example
 

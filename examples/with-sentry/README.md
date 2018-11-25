@@ -6,16 +6,17 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-sentry with-sentry-app
+```bash
+npx create-next-app --example with-sentry with-sentry-app
+# or
+yarn create next-app --example with-sentry with-sentry-app
 ```
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 Install it and run:
 
@@ -23,6 +24,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 **yarn**
@@ -42,3 +46,4 @@ now
 This example show you how to add Sentry to catch errors in next.js
 
 You will need a Sentry DSN for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.
+Note that if you are using a custom server, there is logging available for common platforms: https://docs.sentry.io/platforms/

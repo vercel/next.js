@@ -1,3 +1,4 @@
 bs
 .merlin
 lib/
+*.bs.js

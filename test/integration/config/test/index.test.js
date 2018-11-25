@@ -1,5 +1,5 @@
-/* global jasmine, describe, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -19,11 +19,12 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('Configuration', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort, true)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(context.appPort, '/next-config'),
+      renderViaHTTP(context.appPort, '/build-id'),
       renderViaHTTP(context.appPort, '/webpack-css')
     ])
   })

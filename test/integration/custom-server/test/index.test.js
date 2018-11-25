@@ -1,5 +1,5 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import getPort from 'get-port'
 import clone from 'clone'
@@ -70,7 +70,7 @@ describe('Custom Server', () => {
       expect($dynamic('img').attr('src')).toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
     })
 
-    it('should support next/asset in client side', async() => {
+    it('should support next/asset in client side', async () => {
       const browser = await webdriver(context.appPort, '/')
       await browser
         .elementByCss('#go-asset').click()

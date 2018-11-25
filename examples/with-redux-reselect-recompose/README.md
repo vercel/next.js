@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux-reselect-recompose)
 
 # Redux with reselect and recompose example
 
@@ -6,16 +6,17 @@
 
 ### Using `create-next-app`
 
-Download [`create-next-app`](https://github.com/segmentio/create-next-app) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
-```
-npm i -g create-next-app
-create-next-app --example with-redux-reselect-recompose with-redux-reselect-recompose-app
+```bash
+npx create-next-app --example with-redux-reselect-recompose with-redux-reselect-recompose-app
+# or
+yarn create next-app --example with-redux-reselect-recompose with-redux-reselect-recompose-app
 ```
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-reselect-recompose
@@ -27,6 +28,9 @@ Install it and run:
 ```bash
 npm install
 npm run dev
+# or
+yarn
+yarn dev
 ```
 
 OR
@@ -44,4 +48,4 @@ now
 ```
 
 ## The idea behind the example
-This example is based on the great work of [with-redux](https://github.com/zeit/next.js/tree/v3-beta/examples/with-redux) example with the addition of [reselect](https://github.com/reactjs/reselect) and [recompose](https://github.com/acdlite/recompose)
+This example is based on the great work of [with-redux](https://github.com/zeit/next.js/blob/master/examples/with-redux/) example with the addition of [reselect](https://github.com/reactjs/reselect) and [recompose](https://github.com/acdlite/recompose)
