@@ -1,1 +1,1 @@
-module.exports = require('./dist/lib/router')
+module.exports = require('next-server/router')

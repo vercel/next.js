@@ -1,19 +1,17 @@
-// @flow
 import { join } from 'path'
 import promisify from '../../../lib/promisify'
 import fs from 'fs'
-import { IS_BUNDLED_PAGE_REGEX } from '../../../lib/constants'
+import { IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const unlink = promisify(fs.unlink)
 
 // Makes sure removed pages are removed from `.next` in development
 export default class UnlinkFilePlugin {
-  prevAssets: any
   constructor () {
     this.prevAssets = {}
   }
 
-  apply (compiler: any) {
+  apply (compiler) {
     compiler.hooks.afterEmit.tapAsync('NextJsUnlinkRemovedPages', (compilation, callback) => {
       const removed = Object.keys(this.prevAssets)
         .filter((a) => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a])

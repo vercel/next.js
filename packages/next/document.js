@@ -1,1 +1,1 @@
-module.exports = require('./dist/server/document')
+module.exports = require('./dist/pages/_document')

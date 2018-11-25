@@ -1,16 +1,10 @@
-// @flow
 import { relative } from 'path'
 import loaderUtils from 'loader-utils'
 
-type Options = {|
-  extensions: RegExp,
-  include: Array<string>
-|}
-
-module.exports = function (content: string, sourceMap: any) {
+module.exports = function (content, sourceMap) {
   this.cacheable()
 
-  const options: Options = loaderUtils.getOptions(this)
+  const options = loaderUtils.getOptions(this)
   if (!options.extensions) {
     throw new Error('extensions is not provided to hot-self-accept-loader. Please upgrade all next-plugins to the latest version.')
   }
@@ -44,7 +38,7 @@ module.exports = function (content: string, sourceMap: any) {
   `, sourceMap)
 }
 
-function getRoute (resourcePath: string, options: Options) {
+function getRoute (resourcePath, options) {
   const dir = options.include.find((d) => resourcePath.indexOf(d) === 0)
 
   if (!dir) {

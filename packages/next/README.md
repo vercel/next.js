@@ -1,12 +1,10 @@
-<img alt="Next.js" src="https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png">
+[![Next.js](https://assets.zeit.co/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
-[![Build status](https://ci.appveyor.com/api/projects/status/g2e75cnkv0k925bc?svg=true)](https://ci.appveyor.com/project/zeit/next-js)
+[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
-
-Next.js is a minimalistic framework for server-rendered React applications.
 
 **Visit [nextjs.org/learn](https://nextjs.org/learn) to get started with Next.js.**
 
@@ -145,7 +143,7 @@ export default () => (
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/basic-css">Basic css</a></li>
+    <li><a href="/examples/basic-css">Basic css</a></li>
   </ul>
 </details>
 
@@ -189,12 +187,12 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
     <b>Examples</b>
   </summary>
   <ul>
-    <li><a href="./examples/with-styled-components">Styled components</a></li>
-    <li><a href="./examples/with-styletron">Styletron</a></li>
-    <li><a href="./examples/with-glamor">Glamor</a></li>
-    <li><a href="./examples/with-glamorous">Glamorous</a></li>
-    <li><a href="./examples/with-cxs">Cxs</a></li><li><a href="./examples/with-aphrodite">Aphrodite</a></li>
-    <li><a href="./examples/with-fela">Fela</a></li>
+    <li><a href="/examples/with-styled-components">Styled components</a></li>
+    <li><a href="/examples/with-styletron">Styletron</a></li>
+    <li><a href="/examples/with-glamor">Glamor</a></li>
+    <li><a href="/examples/with-cxs">Cxs</a></li>
+    <li><a href="/examples/with-aphrodite">Aphrodite</a></li>
+    <li><a href="/examples/with-fela">Fela</a></li>
   </ul>
 </details>
 
@@ -232,8 +230,8 @@ _Note: Don't name the `static` directory anything else. The name is required and
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/head-elements">Head elements</a></li>
-    <li><a href="./examples/layout-component">Layout component</a></li>
+    <li><a href="/examples/head-elements">Head elements</a></li>
+    <li><a href="/examples/layout-component">Layout component</a></li>
   </ul>
 </details>
 
@@ -283,7 +281,7 @@ _Note: The contents of `<head>` get cleared upon unmounting the component, so ma
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/data-fetch">Data fetch</a></li>
+    <li><a href="/examples/data-fetch">Data fetch</a></li>
   </ul>
 </details>
 
@@ -359,7 +357,7 @@ export default Page
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/hello-world">Hello World</a></li>
+    <li><a href="/examples/hello-world">Hello World</a></li>
   </ul>
 </details>
 
@@ -402,7 +400,7 @@ To inject the `pathname`, `query` or `asPath` in your component, you can use [wi
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-url-object-routing">With URL Object Routing</a></li>
+    <li><a href="/examples/with-url-object-routing">With URL Object Routing</a></li>
   </ul>
 </details>
 
@@ -497,8 +495,8 @@ The default behaviour of `<Link>` is to scroll to the top of the page. When ther
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/using-router">Basic routing</a></li>
-    <li><a href="./examples/with-loading">With a page loading indicator</a></li>
+    <li><a href="/examples/using-router">Basic routing</a></li>
+    <li><a href="/examples/with-loading">With a page loading indicator</a></li>
   </ul>
 </details>
 
@@ -537,7 +535,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a falsy value from `beforePopState`, `Router` will not handle `popstate`;
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -620,7 +618,7 @@ Router.events.on('routeChangeError', (err, url) => {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-shallow-routing">Shallow Routing</a></li>
+    <li><a href="/examples/with-shallow-routing">Shallow Routing</a></li>
   </ul>
 </details>
 
@@ -664,7 +662,7 @@ componentDidUpdate(prevProps) {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/using-with-router">Using the `withRouter` utility</a></li>
+    <li><a href="/examples/using-with-router">Using the `withRouter` utility</a></li>
   </ul>
 </details>
 
@@ -678,7 +676,7 @@ import { withRouter } from 'next/router'
 const ActiveLink = ({ children, router, href }) => {
   const style = {
     marginRight: 10,
-    color: router.pathname === href? 'red' : 'black'
+    color: router.pathname === href ? 'red' : 'black'
   }
 
   const handleClick = (e) => {
@@ -705,7 +703,7 @@ The above `router` object comes with an API similar to [`next/router`](#imperati
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-prefetching">Prefetching</a></li>
+    <li><a href="/examples/with-prefetching">Prefetching</a></li>
   </ul>
 </details>
 
@@ -777,16 +775,16 @@ class MyLink extends React.Component {
     const { router } = this.props
     router.prefetch('/dynamic')
   }
-  
+
   render() {
     const { router } = this.props
-    
+
     return (
        <div>
         <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
-      </div>   
+      </div>
     )
   }
 }
@@ -799,12 +797,12 @@ export default withRouter(MyLink)
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/custom-server">Basic custom server</a></li>
-    <li><a href="./examples/custom-server-express">Express integration</a></li>
-    <li><a href="./examples/custom-server-hapi">Hapi integration</a></li>
-    <li><a href="./examples/custom-server-koa">Koa integration</a></li>
-    <li><a href="./examples/parameterized-routing">Parameterized routing</a></li>
-    <li><a href="./examples/ssr-caching">SSR caching</a></li>
+    <li><a href="/examples/custom-server">Basic custom server</a></li>
+    <li><a href="/examples/custom-server-express">Express integration</a></li>
+    <li><a href="/examples/custom-server-hapi">Hapi integration</a></li>
+    <li><a href="/examples/custom-server-koa">Koa integration</a></li>
+    <li><a href="/examples/parameterized-routing">Parameterized routing</a></li>
+    <li><a href="/examples/ssr-caching">SSR caching</a></li>
   </ul>
 </details>
 
@@ -900,14 +898,14 @@ Here's an example usage of it:
 
 ```js
 const next = require('next')
-const micro = require('micro')
+const http = require('http')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
     // Add assetPrefix support based on the hostname
     if (req.headers.host === 'my-app.com') {
       app.setAssetPrefix('http://cdn.com/myapp')
@@ -934,7 +932,7 @@ app.prepare().then(() => {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-dynamic-import">With Dynamic Import</a></li>
+    <li><a href="/examples/with-dynamic-import">With Dynamic Import</a></li>
   </ul>
 </details>
 
@@ -1032,8 +1030,8 @@ export default () => <HelloBundle title="Dynamic Bundle" />
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-app-layout">Using `_app.js` for layout</a></li>
-    <li><a href="./examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li>
+    <li><a href="/examples/with-app-layout">Using `_app.js` for layout</a></li>
+    <li><a href="/examples/with-componentdidcatch">Using `_app.js` to override `componentDidCatch`</a></li>
   </ul>
 </details>
 
@@ -1080,8 +1078,8 @@ export default class MyApp extends App {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-styled-components">Styled components custom document</a></li>
-    <li><a href="./examples/with-amp">Google AMP</a></li>
+    <li><a href="/examples/with-styled-components">Styled components custom document</a></li>
+    <li><a href="/examples/with-amp">Google AMP</a></li>
   </ul>
 </details>
 
@@ -1089,7 +1087,7 @@ export default class MyApp extends App {
 
 - Is rendered on the server side
 - Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](./examples/with-styled-components), [glamorous](./examples/with-glamorous) or [emotion](with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -1122,6 +1120,8 @@ export default class MyDocument extends Document {
 }
 ```
 
+All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
+
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
@@ -1131,6 +1131,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 ### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
+
+⚠️ The default `error.js` component is only used in production ⚠️
 
 ```jsx
 import React from 'react'
@@ -1185,7 +1187,7 @@ export default class Page extends React.Component {
 }
 ```
 
-> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
 
 ### Custom configuration
 
@@ -1212,7 +1214,7 @@ module.exports = (phase, {defaultConfig}) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](./lib/constants.js)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.js)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -1299,7 +1301,7 @@ module.exports = {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li>
+    <li><a href="/examples/with-webpack-bundle-analyzer">Custom webpack bundle analyzer</a></li>
   </ul>
 </details>
 
@@ -1348,7 +1350,7 @@ module.exports = {
 }
 ```
 
-The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+The second argument to `webpack` is an object containing properties useful when customizing its configuration:
 
 - `buildId` - `String` the build id used as a unique identifier between builds
 - `dev` - `Boolean` shows if the compilation is done in development mode
@@ -1357,11 +1359,11 @@ The second argument to `webpack` is an object containing properties useful when 
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
   - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
 
-Example usage of `defaultLoaders.babel`: 
+Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source: 
+// This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
   webpack: (config, {}) => {
@@ -1386,7 +1388,7 @@ module.exports = {
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-custom-babel-config">Custom babel configuration</a></li>
+    <li><a href="/examples/with-custom-babel-config">Custom babel configuration</a></li>
   </ul>
 </details>
 
@@ -1483,6 +1485,14 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
+If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can extend _document.js and specify the `crossOrigin` attribute on Head and NextScripts which is then used for all Next.js asset tags.
+```js
+<Head crossOrigin="anonymous">...</Head>
+<body>
+   <Main/>
+   <NextScript crossOrigin="anonymous"/>
+</body>
+```
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -1518,7 +1528,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
@@ -1527,7 +1537,7 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-static-export">Static export</a></li>
+    <li><a href="/examples/with-static-export">Static export</a></li>
   </ul>
 </details>
 
@@ -1553,7 +1563,7 @@ next build
 next export
 ```
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below. 
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below.
 
 If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
 This function is asynchronous and gets the default `exportPathMap` as a parameter.
@@ -1615,7 +1625,7 @@ now
 ### Copying custom files
 
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
+`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
 - `dir` - Absolute path to the project directory
@@ -1655,7 +1665,7 @@ The `req` and `res` fields of the `context` object passed to `getInitialProps` a
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="./examples/with-zones">With Zones</a></li>
+    <li><a href="/examples/with-zones">With Zones</a></li>
   </ul>
 </details>
 
@@ -1694,7 +1704,7 @@ You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local pro
 }
 ```
 
-For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as show above.
+For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as shown above.
 
 ## Recipes
 
@@ -1758,7 +1768,7 @@ Next.js bundles [styled-jsx](https://github.com/zeit/styled-jsx) supporting scop
 
 We track V8. Since V8 has wide support for ES6 and `async` and `await`, we transpile those. Since V8 doesn’t support class decorators, we don’t transpile those.
 
-See the  documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](./build/babel/preset.js) for more information.
+See the  documentation about [customizing the babel config](#customizing-babel-config) and [next/preset](/packages/next/build/babel/preset.js) for more information.
 
 </details>
 
@@ -1805,7 +1815,7 @@ It’s up to you. `getInitialProps` is an `async` function (or a regular functio
 <details>
   <summary>Can I use it with GraphQL?</summary>
 
-Yes! Here's an example with [Apollo](./examples/with-apollo).
+Yes! Here's an example with [Apollo](/examples/with-apollo).
 
 </details>
 
@@ -1814,7 +1824,7 @@ Yes! Here's an example with [Apollo](./examples/with-apollo).
 <details>
 <summary>Can I use it with Redux?</summary>
 
-Yes! Here's an [example](./examples/with-redux)
+Yes! Here's an [example](/examples/with-redux)
 </details>
 
 <p></p>
@@ -1822,7 +1832,7 @@ Yes! Here's an [example](./examples/with-redux)
 <details>
 <summary>Can I use Next with my favorite Javascript library or toolkit?</summary>
 
-Since our first release we've had **many** example contributions, you can check them out in the [examples](./examples) directory
+Since our first release we've had **many** example contributions, you can check them out in the [examples](/examples) directory
 </details>
 
 <p></p>
@@ -1844,7 +1854,7 @@ As we were researching options for server-rendering React that didn’t involve 
 
 ## Contributing
 
-Please see our [contributing.md](./contributing.md)
+Please see our [contributing.md](/contributing.md)
 
 ## Authors
 

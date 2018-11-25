@@ -1,12 +1,11 @@
-// @flow
 import { ConcatSource } from 'webpack-sources'
 import {
   IS_BUNDLED_PAGE_REGEX,
   ROUTE_NAME_REGEX
-} from '../../../lib/constants'
+} from 'next-server/constants'
 
 export default class PagesPlugin {
-  apply (compiler: any) {
+  apply (compiler) {
     compiler.hooks.compilation.tap('PagesPlugin', (compilation) => {
       // This hook is triggered right before a module gets wrapped into it's initializing function,
       // For example when you look at the source of a bundle you'll see an object holding `'pages/_app.js': function(module, etc, etc)`
@@ -41,10 +40,10 @@ export default class PagesPlugin {
         routeName = `/${routeName.replace(/(^|\/)index$/, '')}`
 
         const source = new ConcatSource(
-          `__NEXT_REGISTER_PAGE('${routeName}', function() {\n`,
+          `(window.__NEXT_P=window.__NEXT_P||[]).push(['${routeName}', function() {\n`,
           moduleSourcePostModule,
           '\nreturn { page: module.exports.default }',
-          '});'
+          '}]);'
         )
 
         return source

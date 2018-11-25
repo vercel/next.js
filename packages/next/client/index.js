@@ -1,14 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
-import { createRouter } from '../lib/router'
-import EventEmitter from '../lib/EventEmitter'
-import { loadGetInitialProps, getURL } from '../lib/utils'
+import { createRouter } from 'next-server/dist/lib/router'
+import EventEmitter from 'next-server/dist/lib/EventEmitter'
+import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from '../lib/page-loader'
-import * as asset from '../lib/asset'
-import * as envConfig from '../lib/runtime-config'
+import * as asset from 'next-server/asset'
+import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
-import Loadable from '../lib/loadable'
+import Loadable from 'next-server/dist/lib/loadable'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -19,19 +19,19 @@ if (!window.Promise) {
   window.Promise = Promise
 }
 
+const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    page,
-    pathname,
-    query,
-    buildId,
-    assetPrefix,
-    runtimeConfig,
-    dynamicIds
-  }
-} = window
+  props,
+  err,
+  page,
+  query,
+  buildId,
+  assetPrefix,
+  runtimeConfig,
+  dynamicIds
+} = data
 
 const prefix = assetPrefix || ''
 
@@ -49,11 +49,12 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
-  pageLoader.registerPage(r, f)
-})
-delete window.__NEXT_LOADED_PAGES__
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
+const register = ([r, f]) => pageLoader.registerPage(r, f)
+if (window.__NEXT_P) {
+  window.__NEXT_P.map(register)
+}
+window.__NEXT_P = []
+window.__NEXT_P.push = register
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')
@@ -83,7 +84,7 @@ export default async ({
     Component = await pageLoader.loadPage(page)
 
     if (typeof Component !== 'function') {
-      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+      throw new Error(`The default export is not a React Component in page: "${page}"`)
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module
@@ -92,7 +93,7 @@ export default async ({
 
   await Loadable.preloadReady(dynamicIds || [])
 
-  router = createRouter(pathname, query, asPath, {
+  router = createRouter(page, query, asPath, {
     initialProps: props,
     pageLoader,
     App,
@@ -141,7 +142,7 @@ export async function renderError (props) {
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
   const initProps = props.props
     ? props.props
-    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname, query, asPath}})
+    : await loadGetInitialProps(App, {Component: ErrorComponent, router, ctx: {err, pathname: page, query, asPath}})
 
   await doRender({...props, err, Component: ErrorComponent, props: initProps})
 }

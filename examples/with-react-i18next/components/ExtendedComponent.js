@@ -1,10 +1,10 @@
 import React from 'react'
-import { translate } from 'react-i18next'
+import { withNamespaces } from 'react-i18next'
 
 function MyComponent ({ t }) {
   return <p>{t('extendedComponent')}</p>
 }
 
-const Extended = translate('common')(MyComponent)
+const Extended = withNamespaces('common')(MyComponent)
 
 export default Extended

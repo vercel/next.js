@@ -1,10 +1,7 @@
-// @flow
-import type {NextConfig} from '../server/config'
 import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
-import WriteFilePlugin from 'write-file-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
@@ -17,33 +14,78 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import {SERVER_DIRECTORY, NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from '../lib/constants'
+import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
+import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
+import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 
 // The externals config makes sure that
 // on the server side when modules are
 // in node_modules they don't get compiled by webpack
-function externalsConfig (dir, isServer) {
+function externalsConfig (dir, isServer, lambdas) {
   const externals = []
 
   if (!isServer) {
     return externals
   }
 
+  // When lambdas mode is enabled all node_modules will be compiled into the server bundles
+  // So that all dependencies can be devDependencies and are not required to be installed
+  if (lambdas) {
+    return [
+      (context, request, callback) => {
+        resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+          if (err) {
+            return callback()
+          }
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]head/)) {
+            return callback(null, `commonjs next-server/dist/lib/head.js`)
+          }
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]asset/)) {
+            return callback(null, `commonjs next-server/dist/lib/asset.js`)
+          }
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]runtime-config/)) {
+            return callback(null, `commonjs next-server/dist/lib/runtime-config.js`)
+          }
+          // Default pages have to be transpiled
+          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]loadable/)) {
+            return callback(null, `commonjs next-server/dist/lib/loadable.js`)
+          }
+          callback()
+        })
+      }
+    ]
+  }
+
+  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
+
   externals.push((context, request, callback) => {
-    resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
+    if (notExternalModules.indexOf(request) !== -1) {
+      return callback()
+    }
+
+    resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
       if (err) {
         return callback()
       }
 
       // Default pages have to be transpiled
-      if (res.match(/node_modules[/\\]next[/\\]dist[/\\]pages/)) {
+      if (res.match(/next[/\\]dist[/\\]pages/)) {
+        return callback()
+      }
+
+      if (res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)) {
         return callback()
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
+        return callback()
+      }
+
+      // styled-jsx has to be transpiled
+      if (res.match(/node_modules[/\\]styled-jsx/)) {
         return callback()
       }
 
@@ -58,7 +100,28 @@ function externalsConfig (dir, isServer) {
   return externals
 }
 
-function optimizationConfig ({dir, dev, isServer, totalPages}) {
+function optimizationConfig ({ dir, dev, isServer, totalPages, lambdas }) {
+  const terserPluginConfig = {
+    parallel: true,
+    sourceMap: false,
+    cache: true,
+    cacheKeys: (keys) => {
+      // path changes per build because we add buildId
+      // because the input is already hashed the path is not needed
+      delete keys.path
+      return keys
+    }
+  }
+
+  if (isServer && lambdas) {
+    return {
+      splitChunks: false,
+      minimizer: [
+        new TerserPlugin(terserPluginConfig)
+      ]
+    }
+  }
+
   if (isServer) {
     return {
       splitChunks: false,
@@ -66,7 +129,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
     }
   }
 
-  const config: any = {
+  const config = {
     runtimeChunk: {
       name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
     },
@@ -83,11 +146,9 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   }
 
   // Terser is a better uglifier
-  config.minimizer = [new TerserPlugin({
-    parallel: true,
-    sourceMap: false,
-    cache: true
-  })]
+  config.minimizer = [
+    new TerserPlugin(terserPluginConfig)
+  ]
 
   // Only enabled in production
   // This logic will create a commons bundle
@@ -107,14 +168,7 @@ function optimizationConfig ({dir, dev, isServer, totalPages}) {
   return config
 }
 
-type BaseConfigContext = {|
-  dev: boolean,
-  isServer: boolean,
-  buildId: string,
-  config: NextConfig
-|}
-
-export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config}: BaseConfigContext) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, lambdas = false}) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -151,7 +205,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   } : {}
 
   const resolveConfig = {
-    extensions: ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    // Disable .mjs for node_modules bundling
+    extensions: ['.wasm', !lambdas && '.mjs', '.js', '.jsx', '.json'].filter(Boolean),
     modules: [
       NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
@@ -170,8 +225,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     name: isServer ? 'server' : 'client',
     cache: true,
     target: isServer ? 'node' : 'web',
-    externals: externalsConfig(dir, isServer),
-    optimization: optimizationConfig({dir, dev, isServer, totalPages}),
+    externals: externalsConfig(dir, isServer, lambdas),
+    optimization: optimizationConfig({dir, dev, isServer, totalPages, lambdas}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
@@ -196,7 +251,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
-      strictModuleExceptionHandling: true
+      strictModuleExceptionHandling: true,
+      webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
     },
     performance: { hints: false },
     resolve: resolveConfig,
@@ -249,16 +305,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
         name: isServer ? 'server' : 'client'
       }),
       dev && !isServer && new FriendlyErrorsWebpackPlugin(),
-      new webpack.IgnorePlugin(/(precomputed)/, /node_modules.+(elliptic)/),
-      // This removes prop-types-exact in production, as it's not used there.
-      !dev && new webpack.IgnorePlugin({
-        checkResource: (resource) => {
-          return /prop-types-exact/.test(resource)
-        },
-        checkContext: (context) => {
-          return context.indexOf(NEXT_PROJECT_ROOT_DIST) !== -1
-        }
-      }),
       // Even though require.cache is server only we have to clear assets from both compilations
       // This is because the client compilation generates the build manifest that's used on the server side
       dev && new NextJsRequireCacheHotReloader(),
@@ -266,12 +312,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      dev && new WriteFilePlugin({
-        exitOnErrors: false,
-        log: false,
-        // required not to cache removed files
-        useHashIndex: false
-      }),
+      !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
         'process.browser': JSON.stringify(!isServer)
@@ -284,7 +325,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       isServer && new NextJsSsrImportPlugin(),
-      isServer && new NextJsSSRModuleCachePlugin({outputPath})
+      isServer && new NextJsSSRModuleCachePlugin({outputPath}),
+      !isServer && !dev && new AssetsSizePlugin({buildId, distDir})
     ].filter(Boolean)
   }
 
@@ -295,7 +337,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   // Backwards compat for `main.js` entry key
   const originalEntry = webpackConfig.entry
   webpackConfig.entry = async () => {
-    const entry: any = {...await originalEntry()}
+    const entry = {...await originalEntry()}
 
     // Server compilation doesn't have main.js
     if (typeof entry['main.js'] !== 'undefined') {

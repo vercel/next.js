@@ -2,7 +2,7 @@
 import { join } from 'path'
 import { spawn } from 'cross-spawn'
 import pkg from '../../package.json'
-import {CONFIG_FILE} from '../lib/constants'
+import {CONFIG_FILE} from 'next-server/constants'
 
 if (pkg.peerDependencies) {
   Object.keys(pkg.peerDependencies).forEach(dependency => {

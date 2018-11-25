@@ -1,0 +1,40 @@
+pool:
+  vmImage: 'vs2017-win2016'
+
+strategy:
+  maxParallel: 10
+  matrix:
+    node-10:
+      node_version: ^10.10.0
+    node-8:
+      node_version: ^8.12.0
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: $(node_version)
+  displayName: 'Install Node.js'
+
+- script: |
+    yarn install
+  displayName: 'Install dependencies'
+
+- script: |
+    yarn bootstrap
+  displayName: 'Lerna bootstrap'
+  
+- script: |
+    yarn test
+  displayName: 'Run tests'
+
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFiles: '**junit*.xml'
+    testRunTitle: TestRun ${{ parameters.name }} $(node_version)
+
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish code coverage results'
+  inputs: 
+    codeCoverageTool: 'cobertura'
+    summaryFileLocation: '**/coverage/cobertura-coverage.xml'
