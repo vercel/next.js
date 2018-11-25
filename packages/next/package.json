@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "7.0.2-canary.26",
+  "version": "7.0.2-canary.27",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -28,7 +28,6 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "flow": "flow check",
     "prepublish": "npm run release"
   },
   "taskr": {
@@ -51,7 +50,7 @@
     "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.2",
-    "babel-plugin-react-require": "3.0.1",
+    "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.15",
     "case-sensitive-paths-webpack-plugin": "2.1.2",
     "cross-spawn": "5.1.0",
@@ -67,7 +66,7 @@
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "nanoid": "1.2.1",
-    "next-server": "^7.0.2-canary.26",
+    "next-server": "^7.0.2-canary.27",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "4.0.0",
@@ -75,10 +74,10 @@
     "resolve": "1.5.0",
     "strip-ansi": "3.0.1",
     "styled-jsx": "3.1.1",
-    "terser-webpack-plugin": "1.0.2",
+    "terser-webpack-plugin": "1.1.0",
     "unfetch": "3.0.0",
     "url": "0.11.0",
-    "webpack": "4.25.1",
+    "webpack": "4.26.0",
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
@@ -89,10 +88,12 @@
     "react-dom": "^16.0.0"
   },
   "devDependencies": {
-    "@babel/preset-flow": "7.0.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
     "taskr": "1.1.0"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
   }
 }

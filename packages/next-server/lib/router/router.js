@@ -3,7 +3,6 @@
 import { parse, format } from 'url'
 import EventEmitter from '../EventEmitter'
 import shallowEquals from '../shallow-equals'
-import PQueue from '../p-queue'
 import { loadGetInitialProps, getURL } from '../utils'
 import { _rewriteUrlForNextExport } from './'
 
@@ -30,7 +29,6 @@ export default class Router {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.prefetchQueue = new PQueue({ concurrency: 2 })
     this.ErrorComponent = ErrorComponent
     this.pathname = pathname
     this.query = query
@@ -359,7 +357,7 @@ export default class Router {
 
     const { pathname } = parse(url)
     const route = toRoute(pathname)
-    return this.prefetchQueue.add(() => this.fetchRoute(route))
+    return this.pageLoader.prefetch(route)
   }
 
   async fetchComponent (route, as) {
