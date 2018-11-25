@@ -17,19 +17,19 @@ export default {
             url: req => process.env.RELAY_ENDPOINT
           }),
           relaySSR.getMiddleware()
-        ]),
-      }),
-    };
+        ])
+      })
+    }
   },
   createEnvironment: (relayData, key) => {
-    const source = new RecordSource();
-    const store = new Store(source);
+    const source = new RecordSource()
+    const store = new Store(source)
 
     return new Environment({
       store,
       network: Network.create(
-        () => relayData.find(([dataKey]) => dataKey === key)[1],
-      ),
-    });
+        () => relayData.find(([dataKey]) => dataKey === key)[1]
+      )
+    })
   }
 }

@@ -1,7 +1,7 @@
 import {
   RelayNetworkLayer,
   cacheMiddleware,
-  urlMiddleware,
+  urlMiddleware
 } from 'react-relay-network-modern/node8'
 import RelaySSR from 'react-relay-network-modern-ssr/node8/client'
 import { Environment, RecordSource, Store } from 'relay-runtime'
@@ -27,7 +27,7 @@ export default {
         }),
         urlMiddleware({
           url: req => process.env.RELAY_ENDPOINT
-        }),
+        })
       ])
     })
 

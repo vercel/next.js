@@ -1,11 +1,10 @@
 import React from 'react'
-import ReactDOMServer from 'react-dom/server'
 import { QueryRenderer, fetchQuery } from 'react-relay'
 import NextApp, { Container } from 'next/app'
 
 import {
   initEnvironment,
-  createEnvironment,
+  createEnvironment
 } from '../lib/createEnvironment'
 
 export default class App extends NextApp {
@@ -14,21 +13,21 @@ export default class App extends NextApp {
 
     try {
       if (initEnvironment) {
-        const { environment, relaySSR } = initEnvironment();
+        const { environment, relaySSR } = initEnvironment()
 
-        await fetchQuery(environment, Component.query, variables);
+        await fetchQuery(environment, Component.query, variables)
 
         return {
           variables,
-          relayData: await relaySSR.getCache(),
-        };
+          relayData: await relaySSR.getCache()
+        }
       }
     } catch (e) {
-      console.log(e);
+      console.log(e)
     }
 
     return {
-      variables,
+      variables
     }
   };
 
@@ -38,9 +37,9 @@ export default class App extends NextApp {
       relayData,
       JSON.stringify({
         queryID: Component.query ? Component.query().name : undefined,
-        variables,
-      }),
-    );
+        variables
+      })
+    )
 
     return (
       <Container>
