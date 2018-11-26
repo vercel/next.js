@@ -210,15 +210,15 @@ describe('Production Usage', () => {
       browser.close()
     })
 
-    it('should add prefetch tags when Link prefetch prop is used', async () => {
+    it('should add preload tags when Link prefetch prop is used', async () => {
       const browser = await webdriver(appPort, '/prefetch')
-      const elements = await browser.elementsByCss('link[rel=prefetch]')
-      expect(elements.length).toBe(4)
+      const elements = await browser.elementsByCss('link[rel=preload]')
+      expect(elements.length).toBe(10)
       await Promise.all(
         elements.map(async (element) => {
           const rel = await element.getAttribute('rel')
           const as = await element.getAttribute('as')
-          expect(rel).toBe('prefetch')
+          expect(rel).toBe('preload')
           expect(as).toBe('script')
         })
       )
