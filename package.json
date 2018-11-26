@@ -12,7 +12,7 @@
     "testall": "npm run testonly -- --coverage --forceExit --runInBand --reporters=default --reporters=jest-junit",
     "pretest": "npm run lint",
     "test": "npm run testall || npm run testall",
-    "bundlesize": "bundlesize",
+    "bundlesize": "bundlesize --debug",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "standard",
     "prepublish": "lerna run prepublish",
