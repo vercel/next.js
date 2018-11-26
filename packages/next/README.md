@@ -190,7 +190,6 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
     <li><a href="/examples/with-styled-components">Styled components</a></li>
     <li><a href="/examples/with-styletron">Styletron</a></li>
     <li><a href="/examples/with-glamor">Glamor</a></li>
-    <li><a href="/examples/with-glamorous">Glamorous</a></li>
     <li><a href="/examples/with-cxs">Cxs</a></li>
     <li><a href="/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="/examples/with-fela">Fela</a></li>
@@ -536,7 +535,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a `false` value from `beforePopState`, `Router` will not handle `popstate`;
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -776,16 +775,16 @@ class MyLink extends React.Component {
     const { router } = this.props
     router.prefetch('/dynamic')
   }
-  
+
   render() {
     const { router } = this.props
-    
+
     return (
        <div>
         <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
-      </div>   
+      </div>
     )
   }
 }
@@ -899,14 +898,14 @@ Here's an example usage of it:
 
 ```js
 const next = require('next')
-const micro = require('micro')
+const http = require('http')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
     // Add assetPrefix support based on the hostname
     if (req.headers.host === 'my-app.com') {
       app.setAssetPrefix('http://cdn.com/myapp')
@@ -1088,7 +1087,7 @@ export default class MyApp extends App {
 
 - Is rendered on the server side
 - Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components), [glamorous](/examples/with-glamorous) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -1132,6 +1131,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 ### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
+
+⚠️ The default `error.js` component is only used in production ⚠️
 
 ```jsx
 import React from 'react'
@@ -1358,11 +1359,11 @@ The second argument to `webpack` is an object containing properties useful when 
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
   - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
 
-Example usage of `defaultLoaders.babel`: 
+Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source: 
+// This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
   webpack: (config, {}) => {
@@ -1527,7 +1528,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
@@ -1562,7 +1563,7 @@ next build
 next export
 ```
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below. 
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below.
 
 If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
 This function is asynchronous and gets the default `exportPathMap` as a parameter.
@@ -1624,7 +1625,7 @@ now
 ### Copying custom files
 
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
+`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
 - `dir` - Absolute path to the project directory

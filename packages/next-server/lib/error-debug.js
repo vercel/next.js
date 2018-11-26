@@ -1,11 +1,10 @@
-// @flow
 import React from 'react'
 import ansiHTML from 'ansi-html'
 import Head from 'next-server/head'
 
 // This component is rendered through dev-error-overlay on the client side.
 // On the server side it's rendered directly
-export default function ErrorDebug ({error, info}: any) {
+export default function ErrorDebug ({error, info}) {
   const { name, message, module } = error
   return (
     <div style={styles.errorDebug}>
@@ -22,7 +21,7 @@ export default function ErrorDebug ({error, info}: any) {
   )
 }
 
-const StackTrace = ({ error: { name, message, stack }, info }: any) => (
+const StackTrace = ({ error: { name, message, stack }, info }) => (
   <div>
     <div style={styles.heading}>{message || name}</div>
     <pre style={styles.stack}>
