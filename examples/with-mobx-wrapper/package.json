@@ -1,0 +1,26 @@
+{
+  "name": "with-mobx-wrapper",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "cross-env NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "express": "4.16.4",
+    "mobx": "5.6.0",
+    "mobx-react": "5.4.2",
+    "next": "7.0.2",
+    "next-mobx-wrapper": "0.2.0",
+    "nprogress": "0.2.0",
+    "prop-types": "15.6.2",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.1.0",
+    "@babel/plugin-proposal-decorators": "^7.1.0",
+    "cross-env": "5.2.0"
+  },
+  "license": "ISC"
+}
