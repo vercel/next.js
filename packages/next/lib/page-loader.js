@@ -148,7 +148,7 @@ export default class PageLoader {
     } else {
       return new Promise((resolve, reject) => {
         window.addEventListener('load', () => {
-          this.loadPage(route).then(resolve, reject)
+          this.loadPage(route).then(() => resolve(), reject)
         })
       })
     }
