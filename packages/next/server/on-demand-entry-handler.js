@@ -1,9 +1,9 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
-import { parse } from 'url'
 import fs from 'fs'
 import promisify from '../lib/promisify'
+import WebSocket from 'ws'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
 import {createEntry} from '../build/webpack/utils'
@@ -15,6 +15,7 @@ const BUILT = Symbol('built')
 
 const glob = promisify(globModule)
 const access = promisify(fs.access)
+const wss = new WebSocket.Server({ noServer: true })
 
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
 function addEntry (compilation, context, name, entry) {
@@ -239,32 +240,36 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         } else {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
-          const { query } = parse(req.url, true)
-          const page = normalizePage(query.page)
-          const entryInfo = entries[page]
+          wss.handleUpgrade(req, req.socket, '', function done (ws) {
+            ws.onmessage = ({ data }) => {
+              const page = normalizePage(data)
+              const entryInfo = entries[page]
 
-          // If there's no entry.
-          // Then it seems like an weird issue.
-          if (!entryInfo) {
-            const message = `Client pings, but there's no entry for page: ${page}`
-            console.error(message)
-            sendJson(res, { invalid: true })
-            return
-          }
+              // If there's no entry.
+              // Then it seems like an weird issue.
+              if (!entryInfo) {
+                const message = `Client pings, but there's no entry for page: ${page}`
+                console.error(message)
+                return sendJson(ws, { invalid: true })
+              }
 
-          sendJson(res, { success: true })
+              sendJson(ws, { success: true })
 
-          // We don't need to maintain active state of anything other than BUILT entries
-          if (entryInfo.status !== BUILT) return
+              // We don't need to maintain active state of anything other than BUILT entries
+              if (entryInfo.status !== BUILT) return
 
-          // If there's an entryInfo
-          if (!lastAccessPages.includes(page)) {
-            lastAccessPages.unshift(page)
+              // If there's an entryInfo
+              if (!lastAccessPages.includes(page)) {
+                lastAccessPages.unshift(page)
 
-            // Maintain the buffer max length
-            if (lastAccessPages.length > pagesBufferLength) lastAccessPages.pop()
-          }
-          entryInfo.lastActiveTime = Date.now()
+                // Maintain the buffer max length
+                if (lastAccessPages.length > pagesBufferLength) {
+                  lastAccessPages.pop()
+                }
+              }
+              entryInfo.lastActiveTime = Date.now()
+            }
+          })
         }
       }
     }
@@ -310,10 +315,8 @@ export function normalizePage (page) {
   return unixPagePath.replace(/\/index$/, '')
 }
 
-function sendJson (res, payload) {
-  res.setHeader('Content-Type', 'application/json')
-  res.status = 200
-  res.end(JSON.stringify(payload))
+function sendJson (ws, data) {
+  ws.send(JSON.stringify(data))
 }
 
 // Make sure only one invalidation happens at a time
