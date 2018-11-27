@@ -42,7 +42,8 @@ export default class HotReloader {
       setEntry: (name, pathname) => {
         return watch([pathname], {
           base: this.dir,
-          outDir: join(this.dir, '.next', 'server')
+          outDir: join(this.dir, '.next', 'server'),
+          staticDir: join(this.dir, '.next', 'bundles', '_static')
         })
       }
     }
