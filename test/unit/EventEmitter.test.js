@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import EventEmitter from 'next/dist/client/event-emitter'
+import EventEmitter from 'next-server/dist/lib/event-emitter'
 
 describe('EventEmitter', () => {
   describe('With listeners', () => {
