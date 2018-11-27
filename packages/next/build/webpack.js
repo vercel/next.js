@@ -58,7 +58,7 @@ function externalsConfig (dir, isServer, lambdas) {
     ]
   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash', 'ansi-html']
+  const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'ansi-html']
 
   externals.push((context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
@@ -71,7 +71,7 @@ function externalsConfig (dir, isServer, lambdas) {
       }
 
       // Default pages have to be transpiled
-      if (res.match(/next[/\\]dist[/\\]pages/)) {
+      if (res.match(/next[/\\]dist[/\\]pages/) || res.match(/next[/\\]dist[/\\]client/)) {
         return callback()
       }
 

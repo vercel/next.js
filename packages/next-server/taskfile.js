@@ -11,7 +11,7 @@ export async function lib (task, opts) {
 }
 
 export async function server (task, opts) {
-  await task.source(opts.src || 'server/**/*.js').babel().target('dist/server')
+  await task.source(opts.src || 'server/**/*.js').typescript({module: 'commonjs'}).target('dist/server')
   notify('Compiled server files')
 }
 

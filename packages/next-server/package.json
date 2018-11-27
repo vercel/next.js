@@ -22,7 +22,8 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-babel.js"
+      "./taskfile-babel.js",
+      "./taskfile-typescript.js"
     ]
   },
   "dependencies": {
@@ -51,7 +52,8 @@
     "@babel/preset-react": "7.0.0",
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
-    "taskr": "1.1.0"
+    "taskr": "1.1.0",
+    "typescript": "3.1.6"
   },
   "engines": {
     "node": ">= 8.0.0"

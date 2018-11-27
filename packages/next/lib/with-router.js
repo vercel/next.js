@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import hoistStatics from 'hoist-non-react-statics'
-import { getDisplayName } from '../utils'
+import { getDisplayName } from 'next-server/dist/lib/utils'
 
 export default function withRouter (ComposedComponent) {
   const displayName = getDisplayName(ComposedComponent)
@@ -14,12 +14,10 @@ export default function withRouter (ComposedComponent) {
     static displayName = `withRouter(${displayName})`
 
     render () {
-      const props = {
-        router: this.context.router,
-        ...this.props
-      }
-
-      return <ComposedComponent {...props} />
+      return <ComposedComponent
+        router={this.context.router}
+        {...this.props}
+      />
     }
   }
 

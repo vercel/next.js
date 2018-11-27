@@ -1,6 +1,5 @@
 /* global window */
-import _Router from './router'
-import { execOnce } from '../utils'
+import _Router from 'next-server/dist/lib/router/router'
 
 const SingletonRouter = {
   router: null, // holds the actual router instance
@@ -62,18 +61,6 @@ routerEvents.forEach((event) => {
   })
 })
 
-const warnAboutRouterOnAppUpdated = execOnce(() => {
-  console.warn(`Router.onAppUpdated is removed - visit https://err.sh/zeit/next.js/no-on-app-updated-hook for more information.`)
-})
-
-Object.defineProperty(SingletonRouter, 'onAppUpdated', {
-  get () { return null },
-  set () {
-    warnAboutRouterOnAppUpdated()
-    return null
-  }
-})
-
 function throwIfNoRouter () {
   if (!SingletonRouter.router) {
     const message = 'No router instance found.\n' +
@@ -86,7 +73,7 @@ function throwIfNoRouter () {
 export default SingletonRouter
 
 // Reexport the withRoute HOC
-export { default as withRouter } from './with-router'
+export { default as withRouter } from '../lib/with-router'
 
 // INTERNAL APIS
 // -------------
@@ -105,30 +92,6 @@ export const createRouter = function (...args) {
 
 // Export the actual Router class, which is usually used inside the server
 export const Router = _Router
-
-export function _rewriteUrlForNextExport (url) {
-  const [, hash] = url.split('#')
-  url = url.replace(/#.*/, '')
-
-  let [path, qs] = url.split('?')
-  path = path.replace(/\/$/, '')
-
-  let newPath = path
-  // Append a trailing slash if this path does not have an extension
-  if (!/\.[^/]+\/?$/.test(path)) {
-    newPath = `${path}/`
-  }
-
-  if (qs) {
-    newPath = `${newPath}?${qs}`
-  }
-
-  if (hash) {
-    newPath = `${newPath}#${hash}`
-  }
-
-  return newPath
-}
 
 // This function is used to create the `withRouter` router instance
 export function makePublicRouterInstance (router) {
