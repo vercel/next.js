@@ -1,3 +1,5 @@
+import { parse as parseQs } from 'querystring'
+
 export function execOnce (fn) {
   let used = false
   return (...args) => {
@@ -17,6 +19,11 @@ export function getURL () {
   const { href } = window.location
   const origin = getLocationOrigin()
   return href.substring(origin.length)
+}
+
+export function getQuery () {
+  const { search } = window.location
+  return parseQs(search.replace(/^\?/, ''))
 }
 
 export function getDisplayName (Component) {

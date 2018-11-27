@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from 'next-server/dist/lib/router'
 import EventEmitter from 'next-server/dist/lib/EventEmitter'
-import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
+import {loadGetInitialProps, getURL, getQuery} from 'next-server/dist/lib/utils'
 import PageLoader from '../lib/page-loader'
 import * as asset from 'next-server/asset'
 import * as envConfig from 'next-server/config'
@@ -30,7 +30,8 @@ const {
   buildId,
   assetPrefix,
   runtimeConfig,
-  dynamicIds
+  dynamicIds,
+  nextExport
 } = data
 
 const prefix = assetPrefix || ''
@@ -93,14 +94,18 @@ export default async ({
 
   await Loadable.preloadReady(dynamicIds || [])
 
-  router = createRouter(page, query, asPath, {
-    initialProps: props,
-    pageLoader,
-    App,
-    Component,
-    ErrorComponent,
-    err: initialErr
-  })
+  router = createRouter(
+    page,
+    nextExport ? getQuery() : query,
+    asPath, {
+      initialProps: props,
+      pageLoader,
+      App,
+      Component,
+      ErrorComponent,
+      err: initialErr
+    }
+  )
 
   router.subscribe(({ App, Component, props, err }) => {
     render({ App, Component, props, err, emitter })
