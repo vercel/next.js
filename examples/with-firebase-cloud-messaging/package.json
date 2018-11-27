@@ -1,0 +1,20 @@
+{
+	"name": "with-firebase-cloud-messaging",
+	"version": "1.0.0",
+	"scripts": {
+		"dev": "node server.js",
+		"build": "next build",
+		"start": "NODE_ENV=production node server.js"
+	},
+	"dependencies": {
+		"express": "^4.14.0",
+		"firebase": "^5.5.8",
+		"localforage": "^1.7.3",
+		"next": "latest",
+		"react": "^16.0.0",
+		"react-dom": "^16.0.0"
+	},
+	"devDependencies": {
+		"next-offline": "^3.0.10"
+	}
+}

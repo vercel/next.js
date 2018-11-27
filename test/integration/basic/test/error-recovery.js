@@ -3,7 +3,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
-export default (context, render) => {
+export default (context) => {
   describe('Error Recovery', () => {
     it('should recover from 404 after a page has been added', async () => {
       let browser
