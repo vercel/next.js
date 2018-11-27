@@ -22,7 +22,6 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-babel.js",
       "./taskfile-typescript.js"
     ]
   },
