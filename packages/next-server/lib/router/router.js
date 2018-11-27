@@ -2,7 +2,7 @@
 
 import { parse, format } from 'url'
 import EventEmitter from '../EventEmitter'
-import shallowEquals from '../shallow-equals'
+import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
 
 export default class Router {
