@@ -1,2 +1,2 @@
-export {getCounterStore} from './counter';
-export {getUserStore} from './user';
+export { getCounterStore } from './counter'
+export { getUserStore } from './user'

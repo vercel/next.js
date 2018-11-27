@@ -1,61 +1,61 @@
-import {BaseStore, getOrCreateStore} from 'next-mobx-wrapper';
-import {observable, action, flow} from 'mobx';
+import {BaseStore, getOrCreateStore} from 'next-mobx-wrapper'
+import {observable, flow} from 'mobx'
 
-import {delay} from '../utils';
-import {getUsers, getUser, getUserRepositories} from '../api';
+import {delay} from '../utils'
+import {getUsers, getUser, getUserRepositories} from '../api'
 
 class Store extends BaseStore {
-  @observable users = [];
-  @observable userRegistry = new Map();
-  @observable userRepositoryRegistry = new Map();
+  @observable users = []
+  @observable userRegistry = new Map()
+  @observable userRepositoryRegistry = new Map()
 
-  fetchUsers = flow(function*() {
+  fetchUsers = flow(function * () {
     if (this.users.length) {
-      return;
+      return
     }
 
-    yield delay(3000);
+    yield delay(2000)
 
-    const usersPromise = yield getUsers();
+    const usersPromise = yield getUsers()
 
-    this.users.replace(usersPromise);
-  });
+    this.users.replace(usersPromise)
+  })
 
-  fetchUser = flow(function*(id) {
+  fetchUser = flow(function * (id) {
     if (this.userRegistry.has(id)) {
-      return;
+      return
     }
 
-    yield delay(3000);
+    yield delay(2000)
 
-    const userPromise = yield getUser(id);
+    const userPromise = yield getUser(id)
 
-    this.userRegistry.set(id, userPromise);
-  });
+    this.userRegistry.set(id, userPromise)
+  })
 
-  fetchUserRepositories = flow(function*(id) {
+  fetchUserRepositories = flow(function * (id) {
     if (this.userRepositoryRegistry.has(id)) {
-      return;
+      return
     }
 
-    yield delay(3000);
+    yield delay(2000)
 
-    const userRepositoriesPromise = yield getUserRepositories(id);
+    const userRepositoriesPromise = yield getUserRepositories(id)
 
-    this.userRepositoryRegistry.set(id, userRepositoriesPromise);
-  });
+    this.userRepositoryRegistry.set(id, userRepositoriesPromise)
+  })
 
   getUserById = id => {
-    return this.userRegistry.get(id);
-  };
+    return this.userRegistry.get(id)
+  }
 
   getUserRepositoriesById = id => {
-    return this.userRepositoryRegistry.get(id);
-  };
+    return this.userRepositoryRegistry.get(id)
+  }
 }
 
 // Make sure the store’s unique name
 // AND getCounterStore, counterStore must be same formula
 // Example: getUserStore => userStore
 // Example: getProductStore => productStore
-export const getUserStore = getOrCreateStore('userStore', Store);
+export const getUserStore = getOrCreateStore('userStore', Store)

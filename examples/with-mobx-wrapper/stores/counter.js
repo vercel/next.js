@@ -1,15 +1,15 @@
-import {BaseStore, getOrCreateStore} from 'next-mobx-wrapper';
-import {observable, action, computed} from 'mobx';
+import {BaseStore, getOrCreateStore} from 'next-mobx-wrapper'
+import {observable, action} from 'mobx'
 
 class Store extends BaseStore {
-  @observable count = 10;
+  @observable count = 10
 
-  @action.bound increment() {
-    this.count++;
+  @action.bound increment () {
+    this.count++
   }
 
-  @action.bound decrement() {
-    this.count--;
+  @action.bound decrement () {
+    this.count--
   }
 }
 
@@ -17,4 +17,4 @@ class Store extends BaseStore {
 // AND getCounterStore, counterStore must be same formula
 // Example: getUserStore => userStore
 // Example: getProductStore => productStore
-export const getCounterStore = getOrCreateStore('counterStore', Store);
+export const getCounterStore = getOrCreateStore('counterStore', Store)

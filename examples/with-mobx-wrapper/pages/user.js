@@ -1,35 +1,33 @@
-import React from 'react';
-import Head from 'next/head';
-import Link from 'next/link';
-import {inject, observer} from 'mobx-react';
+import React from 'react'
+import Head from 'next/head'
 
-import Nav from '../components/Nav';
-import Repositories from '../components/Repositories';
+import Nav from '../components/Nav'
+import Repositories from '../components/Repositories'
 
 class User extends React.Component {
-  static async getInitialProps({store: {userStore}, query}) {
-    const {id} = query;
-    const userPromise = userStore.fetchUser(id);
-    const userRepositoriesPromise = userStore.fetchUserRepositories(id);
+  static async getInitialProps ({ store: { userStore }, query }) {
+    const { id } = query
+    const userPromise = userStore.fetchUser(id)
+    const userRepositoriesPromise = userStore.fetchUserRepositories(id)
 
-    await userPromise;
-    await userRepositoriesPromise;
+    await userPromise
+    await userRepositoriesPromise
 
-    const user = userStore.getUserById(id);
+    const user = userStore.getUserById(id)
 
     if (!user) {
       return {
-        statusCode: 404,
-      };
+        statusCode: 404
+      }
     }
 
     return {
-      user,
-    };
+      user
+    }
   }
 
-  render() {
-    const {user} = this.props;
+  render () {
+    const { user } = this.props
 
     return (
       <div>
@@ -37,8 +35,8 @@ class User extends React.Component {
         <Head>
           <title>{user.name}</title>
         </Head>
-        <section className="wrapper-detail">
-          <div className="basic">
+        <section className='wrapper-detail'>
+          <div className='basic'>
             <img src={user.image} alt={user.id} />
             <h3>
               <div>{user.name}</div>
@@ -52,13 +50,13 @@ class User extends React.Component {
             <div>🏡 {user.location}</div>
             <div>✉️ {user.email}</div>
           </div>
-          <div className="repositories">
+          <div className='repositories'>
             <Repositories id={user.id} />
           </div>
         </section>
       </div>
-    );
+    )
   }
 }
 
-export default User;
+export default User

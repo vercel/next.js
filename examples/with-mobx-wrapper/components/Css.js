@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 
 const Css = () => (
   <div>
@@ -149,6 +149,6 @@ const Css = () => (
       `}
     </style>
   </div>
-);
+)
 
-export default Css;
+export default Css

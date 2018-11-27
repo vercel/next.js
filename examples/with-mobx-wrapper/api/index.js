@@ -1,12 +1,12 @@
 import {
   coreContributorListJSON,
   userProfileJSON,
-  userRepositoriesListJSON,
-} from './data';
+  userRepositoriesListJSON
+} from './data'
 
-export const getUsers = () => Promise.resolve(coreContributorListJSON);
+export const getUsers = () => Promise.resolve(coreContributorListJSON)
 
-export const getUser = id => Promise.resolve(userProfileJSON[id]);
+export const getUser = id => Promise.resolve(userProfileJSON[id])
 
 export const getUserRepositories = id =>
-  Promise.resolve(userRepositoriesListJSON[id]);
+  Promise.resolve(userRepositoriesListJSON[id])

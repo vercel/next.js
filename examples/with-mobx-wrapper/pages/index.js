@@ -1,20 +1,20 @@
-import React from 'react';
-import Link from 'next/link';
+import React from 'react'
+import Link from 'next/link'
 
-import Nav from '../components/Nav';
-import Counter from '../components/Counter';
+import Nav from '../components/Nav'
+import Counter from '../components/Counter'
 
 export default class Index extends React.Component {
-  static async getInitialProps({store: {userStore}}) {
-    await userStore.fetchUsers();
+  static async getInitialProps ({ store: { userStore } }) {
+    await userStore.fetchUsers()
 
     return {
-      users: userStore.users,
-    };
+      users: userStore.users
+    }
   }
 
-  render() {
-    const {users} = this.props;
+  render () {
+    const { users } = this.props
     return (
       <div>
         <Nav />
@@ -32,13 +32,13 @@ export default class Index extends React.Component {
           <legend>
             <h1>React Core Team</h1>
           </legend>
-          <div className="users">
-            {users.map(({id, name}) => (
+          <div className='users'>
+            {users.map(({ id, name }) => (
               <section key={id}>
                 <Link
                   href={{
                     pathname: '/user',
-                    query: {id},
+                    query: { id }
                   }}
                   as={`/user/${id}`}>
                   <a>
@@ -51,6 +51,6 @@ export default class Index extends React.Component {
           </div>
         </fieldset>
       </div>
-    );
+    )
   }
 }
