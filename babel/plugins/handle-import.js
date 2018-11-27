@@ -16,7 +16,7 @@ const buildImport = (args) => (template(`
           } catch(error) {
             reject(error)
           }
-        }, reject, 'chunks/${args.name}.js');
+        }, reject, 'chunks/${args.name}');
       })
   )
 `))
@@ -42,7 +42,7 @@ export default () => ({
         const { opts } = path.hub.file
 
         const arg = path.node.arguments[0]
-        const chunknameComment = arg.leadingComments && arg.leadingComments.map(({value}) => value.trim()).filter((value) => /webpackChunkName:/.test(value))[0]
+        const chunknameComment = arg.leadingComments && arg.leadingComments.map(({ value }) => value.trim()).filter((value) => /webpackChunkName:/.test(value))[0]
         const moduleRequest = arg.value
 
         let chunkName

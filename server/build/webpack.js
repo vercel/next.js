@@ -35,7 +35,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
 
     const entries = {}
     for (const p of entryPages) {
-      entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1.js')] = base.concat(`${loader}${p}`)
+      entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = base.concat(`${loader}${p}`)
     }
 
     return entries
@@ -91,10 +91,9 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     output: {
       pathinfo: !!dev,
       path: join(dir, '.next', 'bundles'),
-      filename: '[name]',
-      publicPath: `/_next/${buildId}/`,
+      publicPath: `/_next/`,
       strictModuleExceptionHandling: true,
-      // This saves chunks with the name given via require.ensure()
+      filename: `${buildId}/[name]`,
       chunkFilename: !dev ? '[name]-[chunkhash:5].js' : '[name].js'
     },
     resolve: {

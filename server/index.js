@@ -77,7 +77,8 @@ export default class Server {
       dev,
       dir: this.dir,
       hotReloader: this.hotReloader,
-      publicPath: `${assetPrefix}/_next/${buildId}/`,
+      publicPath: `${assetPrefix}/_next/`,
+      buildId,
       entrypoints: !dev ? this.readEntrypoints() : undefined
     }
 
@@ -124,7 +125,7 @@ export default class Server {
       '/_next/:hash/pages/:path*': async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
-        const filename = `pages/${page.replace(/\.js$/, '')}.js`
+        const filename = `${params.hash}/pages${page.replace(/\.js$/, '')}.js`
 
         if (this.dev && page !== '/_error.js') {
           try {

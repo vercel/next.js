@@ -14,8 +14,7 @@ export default async function build (dir, server) {
   if (!pages) {
     return buildServer([server], {
       base: dir,
-      outDir: join(buildDir, 'server'),
-      staticDir: join(buildDir, 'static')
+      outDir: join(buildDir, 'server')
     })
   }
 
@@ -24,8 +23,7 @@ export default async function build (dir, server) {
       runCompiler(compiler),
       await buildServer([pages, server].filter(Boolean), {
         base: dir,
-        outDir: join(buildDir, 'server'),
-        staticDir: join(buildDir, 'static')
+        outDir: join(buildDir, 'server')
       })
     ])
 
