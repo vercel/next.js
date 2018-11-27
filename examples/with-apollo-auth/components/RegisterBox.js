@@ -47,7 +47,7 @@ const RegisterBox = ({ client }) => {
 
           name.value = email.value = password.value = ''
         }}>
-          {error && <p>Issue occured while registering :(</p>}
+          {error && <p>Issue occurred while registering :(</p>}
           <input name='name' placeholder='Name' ref={node => { name = node }} /><br />
           <input name='email' placeholder='Email' ref={node => { email = node }} /><br />
           <input name='password' placeholder='Password' ref={node => { password = node }} type='password' /><br />
