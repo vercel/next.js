@@ -122,7 +122,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     devtool: dev ? 'inline-source-map' : 'source-map',
 
     optimization: {
-      namedModules: !dev,
+      namedModules: !!dev,
       minimize: !dev,
       splitChunks: { // CommonsChunkPlugin()
         name: true,
