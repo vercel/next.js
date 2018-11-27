@@ -58,7 +58,7 @@ function externalsConfig (dir, isServer, lambdas) {
     ]
   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'ansi-html', 'hoist-non-react-statics']
+  const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'ansi-html', 'hoist-non-react-statics', 'htmlescape']
 
   externals.push((context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
