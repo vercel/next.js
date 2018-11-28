@@ -2,6 +2,7 @@ import babelLoader from 'babel-loader'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../../babel/preset'), {type: 'preset'})
+  const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), {type: 'plugin'})
 
   const configs = new Set()
 
@@ -35,6 +36,16 @@ module.exports = babelLoader.custom(babel => {
         // Add our default preset if the no "babelrc" found.
         options.presets = [...options.presets, presetItem]
       }
+
+      options.overrides = [
+        ...(options.overrides || []),
+        {
+          test: /next-server[\\/]dist[\\/]lib/,
+          plugins: [
+            commonJsItem
+          ]
+        }
+      ]
 
       return options
     }
