@@ -1,4 +1,5 @@
+# with-next-i18next - internationalization using i18next
 
-# with-i18next example
+The next-i18next module is the simplest way to add internationalization based on i18next to your next.js application providing all the benefits of react-i18next.
 
-The `with-i18next` example is maintained within the `react-i18next` repository and [can be found here](https://github.com/i18next/react-i18next/tree/master/example/nextjs).
+Learn more on [next-i18next](https://github.com/isaachinman/next-i18next).
