@@ -5,19 +5,19 @@
     "start": "NODE_ENV=production node .next/production-server/index.js"
   },
   "dependencies": {
-    "@babel/core": "^7.0.0-rc.1",
-    "@zeit/next-typescript": "1.1.0",
-    "babel-loader": "^7.1.4",
+    "@babel/core": "^7.1.2",
+    "@zeit/next-typescript": "1.1.1",
+    "babel-loader": "^8.0.4",
     "next": "latest",
-    "react": "^16.4.0",
-    "react-dom": "^16.4.0",
+    "react": "^16.5.2",
+    "react-dom": "^16.5.2",
     "typescript": "latest",
     "typescript-babel-jest": "^1.0.5"
   },
   "devDependencies": {
-    "@types/next": "^2.4.11",
-    "@types/react": "^16.0.36",
-    "nodemon": "^1.17.5",
-    "ts-node": "^4.1.0"
+    "@types/next": "^7.0.1",
+    "@types/react": "^16.4.16",
+    "nodemon": "^1.18.4",
+    "ts-node": "^7.0.1"
   }
 }

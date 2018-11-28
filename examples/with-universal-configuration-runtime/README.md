@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-runtime)
 
 # With universal runtime configuration
 
@@ -41,4 +41,6 @@ now
 
 ## The idea behind the example
 
-This example show how to set custom environment variables for your application at runtime
+This example show how to set custom environment variables for your application at runtime using the `publicRuntimeConfig` key in `next.config.js`
+
+For documentation see: https://github.com/zeit/next.js#exposing-configuration-to-the-server--client-side

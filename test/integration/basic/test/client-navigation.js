@@ -1,9 +1,9 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import webdriver from 'next-webdriver'
 import {waitFor, getReactErrorOverlayContent} from 'next-test-utils'
 
-export default (context, render) => {
+export default (context) => {
   describe('Client Navigation', () => {
     describe('with <Link/>', () => {
       it('should navigate the page', async () => {
@@ -56,7 +56,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        browser.close()
+        browser.quit()
       })
 
       it('should not navigate if the <a/> tag has a target', async () => {
@@ -279,6 +279,33 @@ export default (context, render) => {
               .eval('window.pageYOffset')
 
             expect(scrollPosition).toBe(7258)
+
+            // Scrolls back to top when scrolling to `#` with no value.
+            const scrollPositionAfterEmptyHash = await browser
+              .elementByCss('#via-empty-hash').click()
+              .eval('window.pageYOffset')
+
+            expect(scrollPositionAfterEmptyHash).toBe(0)
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+
+        it('should scroll to the specified position on the same page with a name property', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+            // Scrolls to item 400 with name="name-item-400" on the page
+            const scrollPosition = await browser
+              .elementByCss('#scroll-to-name-item-400').click()
+              .eval('window.pageYOffset')
+
+            console.log(scrollPosition)
+
+            expect(scrollPosition).toBe(16258)
 
             // Scrolls back to top when scrolling to `#` with no value.
             const scrollPositionAfterEmptyHash = await browser
@@ -606,6 +633,28 @@ export default (context, render) => {
           browser.close()
         })
       })
+
+      describe('with next/link', () => {
+        it('should use pushState with same href and different asPath', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/as-path-pushstate')
+            await browser.elementByCss('#hello').click().waitForElementByCss('#something-hello')
+            const queryOne = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryOne.something).toBe('hello')
+            await browser.elementByCss('#same-query').click().waitForElementByCss('#something-same-query')
+            const queryTwo = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryTwo.something).toBe('hello')
+            await browser.back().waitForElementByCss('#something-hello')
+            const queryThree = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryThree.something).toBe('hello')
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
+      })
     })
 
     describe('runtime errors', () => {
@@ -615,7 +664,7 @@ export default (context, render) => {
           browser = await webdriver(context.appPort, '/error-inside-browser-page')
           await waitFor(3000)
           const text = await getReactErrorOverlayContent(browser)
-          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
         } finally {
           if (browser) {
@@ -630,7 +679,7 @@ export default (context, render) => {
           browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
           await waitFor(3000)
           const text = await getReactErrorOverlayContent(browser)
-          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
         } finally {
           if (browser) {
@@ -663,6 +712,24 @@ export default (context, render) => {
           expect(src.includes('/non-existent')).toBeFalsy()
         }
         browser.close()
+      })
+    })
+
+    describe('updating head while client routing', () => {
+      it('should update head during client routing', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/head-1')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+          await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head Two')
+          await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1')
+          expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
       })
     })
   })

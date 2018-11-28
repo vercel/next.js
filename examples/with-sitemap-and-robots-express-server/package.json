@@ -5,7 +5,6 @@
   "scripts": {
     "build": "next build",
     "start": "node server/app.js",
-    "dev": "nodemon server/app.js --watch server",
     "now": "now && now alias"
   },
   "dependencies": {
@@ -14,13 +13,5 @@
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
     "sitemap": "^1.13.0"
-  },
-  "devDependencies": {
-    "eslint": "^4.15.0",
-    "eslint-config-airbnb": "^16.1.0",
-    "eslint-plugin-import": "^2.8.0",
-    "eslint-plugin-jsx-a11y": "^6.0.3",
-    "eslint-plugin-react": "^7.5.1",
-    "nodemon": "^1.14.11"
   }
 }

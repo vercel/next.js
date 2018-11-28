@@ -1,7 +1,20 @@
 {
   "name": "with-reasonml",
-  "sources": ["components", "pages"],
-  "bs-dependencies": ["reason-react", "bs-next"],
+  "sources": [
+    {
+      "dir": "components",
+      "subdirs": true
+    },
+    {
+      "dir": "pages",
+      "subdirs": true
+    },
+    {
+      "dir": "bindings",
+      "subdirs": true
+    }
+  ],
+  "bs-dependencies": ["reason-react"],
   "reason": { "react-jsx": 2 },
   "package-specs": {
     "module": "commonjs",

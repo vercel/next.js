@@ -6,7 +6,6 @@ export default class MyDocument extends Document {
     return (
       <html>
         <Head>
-          <title>With babel-macros</title>
           <style dangerouslySetInnerHTML={{__html: this.props.css}} />
         </Head>
         <body>

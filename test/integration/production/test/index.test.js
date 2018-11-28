@@ -1,5 +1,5 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
@@ -13,9 +13,10 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
-import dynamicImportTests from '../../basic/test/dynamic'
+import dynamicImportTests from './dynamic'
+import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -54,6 +55,27 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should render 404 for _next routes that do not exist', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const res = await fetch(url)
+      expect(res.status).toBe(404)
+    })
+
+    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const methods = ['POST', 'PUT', 'DELETE']
+      for (const method of methods) {
+        const res = await fetch(url, {method})
+        expect(res.status).toBe(501)
+      }
+    })
+
+    it('should set Content-Length header', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetch(url)
+      expect(res.headers.get('Content-Length')).toBeDefined()
+    })
+
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
       const buildManifest = require(join('../.next', BUILD_MANIFEST))
@@ -83,6 +105,14 @@ describe('Production Usage', () => {
           throw err
         }
       })
+    })
+
+    it('should set correct Cache-Control header for static 404s', async () => {
+      // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
+      const res = await fetch(`http://localhost:${appPort}/_next//static/common/bad-static.js`)
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0, must-revalidate')
     })
 
     it('should block special pages', async () => {
@@ -180,6 +210,21 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    it('should add preload tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const elements = await browser.elementsByCss('link[rel=preload]')
+      expect(elements.length).toBe(10)
+      await Promise.all(
+        elements.map(async (element) => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('preload')
+          expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
@@ -190,7 +235,14 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
-      expect(browserLogs[0].message).toMatch(/\/no-such-page.js - Failed to load resource/)
+      let foundLog = false
+      browserLogs.forEach((log) => {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+          foundLog = true
+        }
+      })
+
+      expect(foundLog).toBe(true)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
@@ -247,7 +299,28 @@ describe('Production Usage', () => {
     })
   })
 
+  it('should not expose the compiled page file in development', async () => {
+    const url = `http://localhost:${appPort}`
+    await fetch(`${url}/stateless`) // make sure the stateless page is built
+    const clientSideJsRes = await fetch(`${url}/_next/development/static/development/pages/stateless.js`)
+    expect(clientSideJsRes.status).toBe(404)
+    const clientSideJsBody = await clientSideJsRes.text()
+    expect(clientSideJsBody).toMatch(/404/)
+
+    const serverSideJsRes = await fetch(`${url}/_next/development/server/static/development/pages/stateless.js`)
+    expect(serverSideJsRes.status).toBe(404)
+    const serverSideJsBody = await serverSideJsRes.text()
+    expect(serverSideJsBody).toMatch(/404/)
+  })
+
+  it('should handle failed param decoding', async () => {
+    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    expect(html).toMatch(/400/)
+    expect(html).toMatch(/Bad Request/)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
+  processEnv(context)
   security(context)
 })

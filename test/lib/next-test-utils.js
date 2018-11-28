@@ -13,7 +13,7 @@ import fkill from 'fkill'
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
 import build from 'next/dist/build'
-import _export from 'next/dist/server/export'
+import _export from 'next/dist/export'
 import _pkg from 'next/package.json'
 
 export const nextServer = server
@@ -71,7 +71,7 @@ export function findPort () {
 
 // Launch the app in dev mode.
 export function launchApp (dir, port) {
-  const cwd = path.resolve(__dirname, '../../')
+  const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', dir, '-p', port], { cwd })
 
@@ -152,18 +152,25 @@ export async function startStaticServer (dir) {
 
 export async function check (contentFn, regex) {
   let found = false
-  setTimeout(() => {
+  const timeout = setTimeout(async () => {
     if (found) {
       return
     }
-    console.error('TIMED OUT CHECK: ', regex)
-    throw new Error('TIMED OUT')
+    let content
+    try {
+      content = await contentFn()
+    } catch (err) {
+      console.error('Error while getting content', {regex})
+    }
+    console.error('TIMED OUT CHECK: ', {regex, content})
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }, 1000 * 30)
   while (!found) {
     try {
       const newContent = await contentFn()
       if (regex.test(newContent)) {
         found = true
+        clearTimeout(timeout)
         break
       }
       await waitFor(1000)
@@ -210,6 +217,8 @@ export async function getReactErrorOverlayContent (browser) {
   }, 1000 * 30)
   while (!found) {
     try {
+      await browser.waitForElementByCss('iframe', 10000)
+
       const hasIframe = await browser.hasElementByCssSelector('iframe')
       if (!hasIframe) {
         throw new Error('Waiting for iframe')
@@ -222,4 +231,8 @@ export async function getReactErrorOverlayContent (browser) {
     }
   }
   return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+}
+
+export function getBrowserBodyText (browser) {
+  return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }

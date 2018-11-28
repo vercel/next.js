@@ -1,6 +1,8 @@
-/* global describe, test, it, expect */
+/* eslint-env jest */
 
 import cheerio from 'cheerio'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
+import { join } from 'path'
 
 export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
@@ -20,10 +22,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
-    test('renders a stateful component', async () => {
-      const $ = await get$('/stateful')
-      const answer = $('#answer')
-      expect(answer.text()).toBe('The answer is 42')
+    // default-head contains an empty <Head />.
+    test('header renders default charset', async () => {
+      const html = await (render('/default-head'))
+      expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
+      expect(html.includes('next-head, but only once.')).toBeTruthy()
     })
 
     test('header helper renders header information', async () => {
@@ -122,6 +125,24 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(res.headers.get('Content-Type')).toMatch('text/html; charset=iso-8859-2')
     })
 
+    test('should render 404 for _next routes that do not exist', async () => {
+      const res = await fetch('/_next/abcdef')
+      expect(res.status).toBe(404)
+    })
+
+    test('should expose the compiled page file in development', async () => {
+      await fetch('/stateless') // make sure the stateless page is built
+      const clientSideJsRes = await fetch('/_next/development/static/development/pages/stateless.js')
+      expect(clientSideJsRes.status).toBe(200)
+      const clientSideJsBody = await clientSideJsRes.text()
+      expect(clientSideJsBody).toMatch(/My component!/)
+
+      const serverSideJsRes = await fetch('/_next/development/server/static/development/pages/stateless.js')
+      expect(serverSideJsRes.status).toBe(200)
+      const serverSideJsBody = await serverSideJsRes.text()
+      expect(serverSideJsBody).toMatch(/My component!/)
+    })
+
     test('allows to import .json files', async () => {
       const html = await render('/json')
       expect(html.includes('Zeit')).toBeTruthy()
@@ -143,6 +164,43 @@ export default function ({ app }, suiteName, render, fetch) {
       const $ = await get$('/error-in-the-global-scope')
       expect($('pre').text()).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
+    })
+
+    it('should set Cache-Control header', async () => {
+      const buildId = 'development'
+
+      // build dynamic page
+      await fetch('/dynamic/ssr')
+
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
+      const resources = []
+
+      // test a regular page
+      resources.push(`/_next/static/${buildId}/pages/index.js`)
+
+      // test dynamic chunk
+      resources.push('/_next/' + reactLoadableManifest['../../components/hello1'][0].publicPath)
+
+      // test main.js runtime etc
+      for (const item of buildManifest.pages['/dynamic/ssr']) {
+        resources.push('/_next/' + item)
+      }
+
+      for (const item of buildManifest.devFiles) {
+        resources.push('/_next/' + item)
+      }
+
+      const responses = await Promise.all(resources.map((resource) => fetch(resource)))
+
+      responses.forEach((res) => {
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('no-store, must-revalidate')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
+      })
     })
 
     test('asPath', async () => {

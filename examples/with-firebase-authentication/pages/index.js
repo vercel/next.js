@@ -59,6 +59,8 @@ export default class Index extends Component {
     firebase.database().ref('messages').on('value', snap => {
       const messages = snap.val()
       if (messages) this.setState({ messages })
+    }, (error) => {
+      console.error(error)
     })
   }
 

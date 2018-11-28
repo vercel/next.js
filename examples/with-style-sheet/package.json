@@ -1,0 +1,19 @@
+{
+  "name": "with-style-sheet",
+  "version": "1.0.0",
+  "description": "This example features: style-sheet a CSS in JS library with static CSS extraction support.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
+    "style-sheet": "^3.0.1"
+  },
+  "author": "Giuseppe Gurgone",
+  "license": "ISC"
+}
