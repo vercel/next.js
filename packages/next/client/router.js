@@ -73,7 +73,7 @@ function throwIfNoRouter () {
 export default SingletonRouter
 
 // Reexport the withRoute HOC
-export { default as withRouter } from '../lib/with-router'
+export { default as withRouter } from './with-router'
 
 // INTERNAL APIS
 // -------------

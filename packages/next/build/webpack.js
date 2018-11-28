@@ -273,9 +273,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         },
         {
           test: /\.(js|jsx)$/,
-          include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR],
+          include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR, /next-server[\\/]dist[\\/]lib/],
           exclude: (path) => {
-            if (path.indexOf(NEXT_PROJECT_ROOT_DIST_CLIENT) === 0 || path.indexOf(DEFAULT_PAGES_DIR) === 0) {
+            if (path.indexOf(NEXT_PROJECT_ROOT_DIST_CLIENT) === 0 || path.indexOf(DEFAULT_PAGES_DIR) === 0 || /next-server[\\/]dist[\\/]lib/.exec(path)) {
               return false
             }
 
