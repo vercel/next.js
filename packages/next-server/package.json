@@ -22,17 +22,13 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-babel.js"
+      "./taskfile-typescript.js"
     ]
   },
   "dependencies": {
-    "@babel/runtime-corejs2": "7.1.2",
-    "ansi-html": "0.0.7",
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
-    "hoist-non-react-statics": "3.0.1",
-    "htmlescape": "1.1.1",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
     "send": "0.16.1",
@@ -43,16 +39,10 @@
     "react-dom": "^16.0.0"
   },
   "devDependencies": {
-    "@babel/core": "7.1.2",
-    "@babel/plugin-proposal-class-properties": "7.1.0",
-    "@babel/plugin-proposal-object-rest-spread": "7.0.0",
-    "@babel/plugin-syntax-dynamic-import": "7.0.0",
-    "@babel/plugin-transform-runtime": "7.1.0",
-    "@babel/preset-env": "7.1.0",
-    "@babel/preset-react": "7.0.0",
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
-    "taskr": "1.1.0"
+    "taskr": "1.1.0",
+    "typescript": "3.1.6"
   },
   "engines": {
     "node": ">= 8.0.0"

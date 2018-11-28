@@ -52,8 +52,8 @@
     "fkill": "5.1.0",
     "flatten": "1.0.2",
     "get-port": "3.2.0",
-    "jest-junit": "^5.0.0",
     "jest-cli": "23.6.0",
+    "jest-junit": "^5.0.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
     "mkdirp": "0.5.1",
@@ -67,7 +67,8 @@
     "standard": "11.0.1",
     "taskr": "1.1.0",
     "wait-port": "0.2.2",
-    "wd": "1.10.3"
+    "wd": "1.10.3",
+    "webpack-bundle-analyzer": "3.0.3"
   },
   "engines": {
     "node": ">= 8.0.0"

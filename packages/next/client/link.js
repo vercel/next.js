@@ -3,8 +3,8 @@
 import { resolve, format, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
-import Router, { _rewriteUrlForNextExport } from './router'
-import {execOnce, getLocationOrigin} from './utils'
+import Router, {Router as _Router} from 'next/router'
+import {execOnce, getLocationOrigin} from 'next-server/dist/lib/utils'
 
 function isLocal (href) {
   const url = parse(href, false, true)
@@ -145,7 +145,7 @@ class Link extends Component {
       typeof __NEXT_DATA__ !== 'undefined' &&
       __NEXT_DATA__.nextExport
     ) {
-      props.href = _rewriteUrlForNextExport(props.href)
+      props.href = _Router._rewriteUrlForNextExport(props.href)
     }
 
     return React.cloneElement(child, props)

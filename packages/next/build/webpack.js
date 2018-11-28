@@ -15,7 +15,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
-import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST, DEFAULT_PAGES_DIR} from '../lib/constants'
+import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, NEXT_PROJECT_ROOT_DIST_SERVER, DEFAULT_PAGES_DIR} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
 import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
@@ -58,7 +58,7 @@ function externalsConfig (dir, isServer, lambdas) {
     ]
   }
 
-  const notExternalModules = ['next/app', 'next/document', 'next/error', 'http-status', 'string-hash']
+  const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'ansi-html', 'hoist-non-react-statics', 'htmlescape']
 
   externals.push((context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
@@ -71,11 +71,7 @@ function externalsConfig (dir, isServer, lambdas) {
       }
 
       // Default pages have to be transpiled
-      if (res.match(/next[/\\]dist[/\\]pages/)) {
-        return callback()
-      }
-
-      if (res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)) {
+      if (res.match(/next[/\\]dist[/\\]pages/) || res.match(/next[/\\]dist[/\\]client/) || res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)) {
         return callback()
       }
 
@@ -200,8 +196,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     // Backwards compatibility
     'main.js': [],
     [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      path.join(NEXT_PROJECT_ROOT_DIST, 'client', (dev ? `next-dev` : 'next'))
+      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
+  } : {}
+  const devServerEntries = dev && isServer ? {
+    'error-debug.js': path.join(NEXT_PROJECT_ROOT_DIST_SERVER, 'error-debug.js')
   } : {}
 
   const resolveConfig = {
@@ -233,6 +232,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     entry: async () => {
       return {
         ...clientEntries,
+        ...devServerEntries,
         // Only _error and _document when in development. The rest is handled by on-demand-entries
         ...pagesEntries
       }
@@ -273,8 +273,14 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         },
         {
           test: /\.(js|jsx)$/,
-          include: [dir],
-          exclude: /node_modules/,
+          include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR],
+          exclude: (path) => {
+            if (path.indexOf(NEXT_PROJECT_ROOT_DIST_CLIENT) === 0 || path.indexOf(DEFAULT_PAGES_DIR) === 0) {
+              return false
+            }
+
+            return /node_modules/.exec(path)
+          },
           use: defaultLoaders.babel
         }
       ].filter(Boolean)

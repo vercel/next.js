@@ -19,12 +19,6 @@ export default function ({ types: t, template }) {
         if (source === 'next/head') {
           path.node.source.value = 'next-server/head'
         }
-        if (source === 'next/link') {
-          path.node.source.value = 'next-server/link'
-        }
-        if (source === 'next/router') {
-          path.node.source.value = 'next-server/router'
-        }
       }
     }
   }

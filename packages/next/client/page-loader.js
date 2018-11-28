@@ -1,5 +1,5 @@
 /* global document */
-import EventEmitter from 'next-server/dist/lib/EventEmitter'
+import EventEmitter from 'next-server/dist/lib/event-emitter'
 
 // smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
 function supportsPreload (list) {

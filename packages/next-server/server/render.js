@@ -5,10 +5,9 @@ import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
 import requirePage, {normalizePagePath} from './require'
-import { Router } from '../lib/router'
+import Router from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
-import ErrorDebug from '../lib/error-debug'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
@@ -137,6 +136,7 @@ async function doRender (req, res, pathname, query, {
 
     try {
       if (err && dev) {
+        const ErrorDebug = require(join(distDir, SERVER_DIRECTORY, 'error-debug')).default
         html = render(<ErrorDebug error={err} />)
       } else {
         html = render(app)
