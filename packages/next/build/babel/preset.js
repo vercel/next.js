@@ -54,7 +54,7 @@ module.exports = (context, opts = {}) => ({
       corejs: 2,
       helpers: true,
       regenerator: true,
-      useESModules: true,
+      useESModules: !isTest,
       ...opts['transform-runtime']
     }],
     [require('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],
