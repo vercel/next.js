@@ -1,7 +1,7 @@
 const notifier = require('node-notifier')
 
 export async function lib (task, opts) {
-  await task.source(opts.src || 'lib/**/*.js').typescript({module: 'commonjs', target: 'ES5'}).target('dist/lib')
+  await task.source(opts.src || 'lib/**/*.js').typescript({module: 'commonjs'}).target('dist/lib')
   notify('Compiled lib files')
 }
 
