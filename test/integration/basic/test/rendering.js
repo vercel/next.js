@@ -4,7 +4,7 @@ import cheerio from 'cheerio'
 import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
 import { join } from 'path'
 
-export default function ({ app }, suiteName, render, fetch, appPort) {
+export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
