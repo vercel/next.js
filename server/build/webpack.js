@@ -33,7 +33,9 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       : (await glob('./pages/**/*.js', { cwd: dir }))
         .filter((p) => !p.includes('pages/_') && !/\.test\.js/.test(p) && !/__tests__/.test(p))
 
-    const entries = {}
+    const entries = {
+      'pages/_error.js': base
+    }
     for (const p of entryPages) {
       entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = base.concat(`${loader}${p}`)
     }
