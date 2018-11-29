@@ -14,6 +14,7 @@
     "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "standard",
+    "lint:fix": "standard --fix",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish",
     "lint-staged": "lint-staged"
