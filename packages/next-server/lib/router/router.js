@@ -318,6 +318,7 @@ export default class Router {
 
   onlyAHashChange (as) {
     if (!this.asPath) return false
+    if (!as) return false
     const [ oldUrlNoHash, oldHash ] = this.asPath.split('#')
     const [ newUrlNoHash, newHash ] = as.split('#')
 
