@@ -40,7 +40,8 @@ export class Head extends Component {
   }
 
   static propTypes = {
-    nonce: PropTypes.string
+    nonce: PropTypes.string,
+    crossOrigin: PropTypes.string
   }
 
   getCssLinks () {
@@ -48,7 +49,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .css files here
       if(!/\.css$/.exec(file)) {
@@ -60,6 +61,7 @@ export class Head extends Component {
         nonce={this.props.nonce}
         rel='stylesheet'
         href={`${assetPrefix}/_next/${file}`}
+        crossOrigin={this.props.crossOrigin}
       />
     })
   }
@@ -73,6 +75,7 @@ export class Head extends Component {
         href={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
         nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin}
       />
     })
   }
@@ -82,7 +85,7 @@ export class Head extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
@@ -95,6 +98,7 @@ export class Head extends Component {
         rel='preload'
         href={`${assetPrefix}/_next/${file}`}
         as='script'
+        crossOrigin={this.props.crossOrigin}
       />
     })
   }
@@ -117,9 +121,9 @@ export class Head extends Component {
 
     return <head {...this.props}>
       {head}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} />}
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} />
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} />
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />}
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
@@ -148,7 +152,8 @@ export class NextScript extends Component {
   }
 
   static propTypes = {
-    nonce: PropTypes.string
+    nonce: PropTypes.string,
+    crossOrigin: PropTypes.string
   }
 
   getDynamicChunks () {
@@ -158,7 +163,8 @@ export class NextScript extends Component {
         async
         key={bundle.file}
         src={`${assetPrefix}/_next/${bundle.file}`}
-            nonce={this.props.nonce}
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin}
       />
     })
   }
@@ -168,7 +174,7 @@ export class NextScript extends Component {
     if(!files || files.length === 0) {
       return null
     }
-  
+
     return files.map((file) => {
       // Only render .js files here
       if(!/\.js$/.exec(file)) {
@@ -180,14 +186,14 @@ export class NextScript extends Component {
         src={`${assetPrefix}/_next/${file}`}
         nonce={this.props.nonce}
         async
+        crossOrigin={this.props.crossOrigin}
       />
     })
   }
 
   static getInlineScriptSource (documentProps) {
     const { __NEXT_DATA__ } = documentProps
-    const { page } = __NEXT_DATA__
-    return `__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};__NEXT_LOADED_PAGES__=[];__NEXT_REGISTER_PAGE=function(r,f){__NEXT_LOADED_PAGES__.push([r, f])}`
+    return htmlescape(__NEXT_DATA__)
   }
 
   render () {
@@ -196,13 +202,13 @@ export class NextScript extends Component {
     const pagePathname = getPagePathname(page)
 
     return <Fragment>
-      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} />) : null}
-      {staticMarkup ? null : <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />) : null}
+      {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} />
-      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} />
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />}
+      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />
+      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>

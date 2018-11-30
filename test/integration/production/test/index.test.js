@@ -1,5 +1,5 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
@@ -210,6 +210,21 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    it('should add preload tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const elements = await browser.elementsByCss('link[rel=preload]')
+      expect(elements.length).toBe(10)
+      await Promise.all(
+        elements.map(async (element) => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('preload')
+          expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
@@ -220,7 +235,14 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
-      expect(browserLogs[0].message).toMatch(/\/no-such-page.js - Failed to load resource/)
+      let foundLog = false
+      browserLogs.forEach((log) => {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+          foundLog = true
+        }
+      })
+
+      expect(foundLog).toBe(true)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
@@ -289,6 +311,12 @@ describe('Production Usage', () => {
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
     expect(serverSideJsBody).toMatch(/404/)
+  })
+
+  it('should handle failed param decoding', async () => {
+    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    expect(html).toMatch(/400/)
+    expect(html).toMatch(/Bad Request/)
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

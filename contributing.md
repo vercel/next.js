@@ -3,11 +3,12 @@
 Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
-2. Install the dependencies: `npm install`
-3. Run `npm run bootstrap`, which will link all repositories locally
-4. Run `npm run dev` to build and watch for code changes
+2. Install yarn: `npm install -g yarn`
+3. Install the dependencies: `yarn`
+4. Run `yarn run bootstrap`, which will link all repositories locally
+5. Run `yarn run dev` to build and watch for code changes
 
-### To run tests
+## To run tests
 
 Running all tests:
 
@@ -27,26 +28,30 @@ Running just one test in the `production` test suite:
 yarn testonly --testPathPattern "production" -t "should allow etag header support"
 ```
 
-### Running the integration test apps without running tests
+## Running the integration test apps without running tests
 
 ```
 ./node_modules/.bin/next ./test/integration/basic
 ```
 
-### Testing in your own app
+## Testing in your own app
 
-You only have to link the package once:
-
-```
-cd packages/next
-```
+First `next-server` needs to be linked:
 
 ```
+cd packages/next-server
 npm link
 ```
 
+Then `next` needs to link to `next-server`, and be linked itself:
 
-Then link the `next` package inside your app:
+```
+cd packages/next
+npm link
+npm link next-server
+```
+
+And finally, link the `next` package inside your app:
 
 ```
 npm link next

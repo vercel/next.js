@@ -51,8 +51,10 @@ module.exports = (context, opts = {}) => ({
     [require('@babel/plugin-proposal-class-properties'), opts['class-properties'] || {}],
     require('@babel/plugin-proposal-object-rest-spread'),
     [require('@babel/plugin-transform-runtime'), {
-      helpers: false,
+      corejs: 2,
+      helpers: true,
       regenerator: true,
+      useESModules: !isTest,
       ...opts['transform-runtime']
     }],
     [require('styled-jsx/babel'), styledJsxOptions(opts['styled-jsx'])],

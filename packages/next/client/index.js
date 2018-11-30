@@ -1,10 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
-import { createRouter } from 'next-server/dist/lib/router'
-import EventEmitter from 'next-server/dist/lib/EventEmitter'
+import { createRouter } from 'next/router'
+import EventEmitter from 'next-server/dist/lib/event-emitter'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
-import PageLoader from '../lib/page-loader'
+import PageLoader from './page-loader'
 import * as asset from 'next-server/asset'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
@@ -19,18 +19,19 @@ if (!window.Promise) {
   window.Promise = Promise
 }
 
+const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
+window.__NEXT_DATA__ = data
+
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    page,
-    query,
-    buildId,
-    assetPrefix,
-    runtimeConfig,
-    dynamicIds
-  }
-} = window
+  props,
+  err,
+  page,
+  query,
+  buildId,
+  assetPrefix,
+  runtimeConfig,
+  dynamicIds
+} = data
 
 const prefix = assetPrefix || ''
 
@@ -48,11 +49,12 @@ envConfig.setConfig({
 const asPath = getURL()
 
 const pageLoader = new PageLoader(buildId, prefix)
-window.__NEXT_LOADED_PAGES__.forEach(([r, f]) => {
-  pageLoader.registerPage(r, f)
-})
-delete window.__NEXT_LOADED_PAGES__
-window.__NEXT_REGISTER_PAGE = pageLoader.registerPage.bind(pageLoader)
+const register = ([r, f]) => pageLoader.registerPage(r, f)
+if (window.__NEXT_P) {
+  window.__NEXT_P.map(register)
+}
+window.__NEXT_P = []
+window.__NEXT_P.push = register
 
 const headManager = new HeadManager()
 const appContainer = document.getElementById('__next')

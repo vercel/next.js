@@ -27,7 +27,6 @@ export default class MyDocument extends Document {
     return (
       <html style={{ height: '100%' }}>
         <Head>
-          <title>react-native-web</title>
           <meta name='viewport' content='width=device-width, initial-scale=1' />
         </Head>
         <body style={{ height: '100%', overflow: 'hidden' }}>

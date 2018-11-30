@@ -1,4 +1,4 @@
-/* global describe, test, expect */
+/* eslint-env jest */
 
 import cheerio from 'cheerio'
 

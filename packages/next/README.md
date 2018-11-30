@@ -2,6 +2,7 @@
 
 [![NPM version](https://img.shields.io/npm/v/next.svg)](https://www.npmjs.com/package/next)
 [![Build Status](https://travis-ci.org/zeit/next.js.svg?branch=master)](https://travis-ci.org/zeit/next.js)
+[![Build Status](https://dev.azure.com/nextjs/next.js/_apis/build/status/zeit.next.js)](https://dev.azure.com/nextjs/next.js/_build/latest?definitionId=3)
 [![Coverage Status](https://coveralls.io/repos/zeit/next.js/badge.svg?branch=master)](https://coveralls.io/r/zeit/next.js?branch=master)
 [![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/next-js)
 
@@ -190,7 +191,6 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
     <li><a href="/examples/with-styled-components">Styled components</a></li>
     <li><a href="/examples/with-styletron">Styletron</a></li>
     <li><a href="/examples/with-glamor">Glamor</a></li>
-    <li><a href="/examples/with-glamorous">Glamorous</a></li>
     <li><a href="/examples/with-cxs">Cxs</a></li>
     <li><a href="/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="/examples/with-fela">Fela</a></li>
@@ -536,7 +536,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a falsy value from `beforePopState`, `Router` will not handle `popstate`;
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -677,7 +677,7 @@ import { withRouter } from 'next/router'
 const ActiveLink = ({ children, router, href }) => {
   const style = {
     marginRight: 10,
-    color: router.pathname === href? 'red' : 'black'
+    color: router.pathname === href ? 'red' : 'black'
   }
 
   const handleClick = (e) => {
@@ -776,16 +776,16 @@ class MyLink extends React.Component {
     const { router } = this.props
     router.prefetch('/dynamic')
   }
-  
+
   render() {
     const { router } = this.props
-    
+
     return (
        <div>
         <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
-      </div>   
+      </div>
     )
   }
 }
@@ -899,14 +899,14 @@ Here's an example usage of it:
 
 ```js
 const next = require('next')
-const micro = require('micro')
+const http = require('http')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
     // Add assetPrefix support based on the hostname
     if (req.headers.host === 'my-app.com') {
       app.setAssetPrefix('http://cdn.com/myapp')
@@ -1088,7 +1088,7 @@ export default class MyApp extends App {
 
 - Is rendered on the server side
 - Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components), [glamorous](/examples/with-glamorous) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -1132,6 +1132,8 @@ __Note: React-components outside of `<Main />` will not be initialised by the br
 ### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
+
+⚠️ The default `error.js` component is only used in production ⚠️
 
 ```jsx
 import React from 'react'
@@ -1186,7 +1188,7 @@ export default class Page extends React.Component {
 }
 ```
 
-> If you have created a custom error page you have to import your own `_error` component instead of `next/error`
+> If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
 
 ### Custom configuration
 
@@ -1213,7 +1215,7 @@ module.exports = (phase, {defaultConfig}) => {
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/lib/constants.js)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.js)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -1349,7 +1351,7 @@ module.exports = {
 }
 ```
 
-The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+The second argument to `webpack` is an object containing properties useful when customizing its configuration:
 
 - `buildId` - `String` the build id used as a unique identifier between builds
 - `dev` - `Boolean` shows if the compilation is done in development mode
@@ -1358,11 +1360,11 @@ The second argument to `webpack` is an object containing properties useful when 
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
   - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
 
-Example usage of `defaultLoaders.babel`: 
+Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source: 
+// This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
   webpack: (config, {}) => {
@@ -1443,11 +1445,11 @@ The `next/config` module gives your app access to runtime configuration stored i
 // next.config.js
 module.exports = {
   serverRuntimeConfig: { // Will only be available on the server side
-    mySecret: 'secret'
+    mySecret: 'secret',
+    secondSecret: process.env.SECOND_SECRET // Pass through env variables
   },
   publicRuntimeConfig: { // Will be available on both server and client
     staticFolder: '/static',
-    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```
@@ -1484,6 +1486,14 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
+If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can extend _document.js and specify the `crossOrigin` attribute on Head and NextScripts which is then used for all Next.js asset tags.
+```js
+<Head crossOrigin="anonymous">...</Head>
+<body>
+   <Main/>
+   <NextScript crossOrigin="anonymous"/>
+</body>
+```
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -1519,7 +1529,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
@@ -1554,7 +1564,7 @@ next build
 next export
 ```
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below. 
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below.
 
 If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
 This function is asynchronous and gets the default `exportPathMap` as a parameter.
@@ -1616,7 +1626,7 @@ now
 ### Copying custom files
 
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
+`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
 - `dir` - Absolute path to the project directory
@@ -1707,7 +1717,7 @@ You can use [micro proxy](https://github.com/zeit/micro-proxy) as your local pro
 }
 ```
 
-For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as show above.
+For the production deployment, you can use the [path alias](https://zeit.co/docs/features/path-aliases) feature if you are using [ZEIT now](https://zeit.co/now). Otherwise, you can configure your existing proxy server to route HTML pages using a set of rules as shown above.
 
 ## Recipes
 
