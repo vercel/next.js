@@ -1,12 +1,12 @@
 const notifier = require('node-notifier')
 
 export async function lib (task, opts) {
-  await task.source(opts.src || 'lib/**/*.js').typescript({module: 'commonjs'}).target('dist/lib')
+  await task.source(opts.src || 'lib/**/*.+(js|ts)').typescript({module: 'commonjs'}).target('dist/lib')
   notify('Compiled lib files')
 }
 
 export async function server (task, opts) {
-  await task.source(opts.src || 'server/**/*.js').typescript({module: 'commonjs'}).target('dist/server')
+  await task.source(opts.src || 'server/**/*.+(js|ts)').typescript({module: 'commonjs'}).target('dist/server')
   notify('Compiled server files')
 }
 
@@ -15,9 +15,10 @@ export async function build (task) {
 }
 
 export default async function (task) {
+  await task.clear('dist')
   await task.start('build')
-  await task.watch('server/**/*.js', 'server')
-  await task.watch('lib/**/*.js', 'lib')
+  await task.watch('server/**/*.+(js|ts)', 'server')
+  await task.watch('lib/**/*.+(js|ts)', 'lib')
 }
 
 export async function release (task) {
