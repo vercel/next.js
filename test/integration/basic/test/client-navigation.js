@@ -732,5 +732,17 @@ export default (context) => {
         }
       })
     })
+
+    it('should not error on module.exports + polyfills', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/read-only-object-error')
+        expect(await browser.elementByCss('body').text()).toBe('this is just a placeholder component')
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
+    })
   })
 }
