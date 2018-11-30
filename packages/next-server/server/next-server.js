@@ -231,7 +231,7 @@ export default class Server {
     try {
       return await serveStatic(req, res, path)
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (err.code === 'ENOENT' || err.statusCode === 404) {
         this.render404(req, res)
       } else {
         throw err
