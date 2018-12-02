@@ -1,8 +1,11 @@
+import {PluginObj} from '@babel/core'
+import {NodePath} from '@babel/traverse'
+import {ImportDeclaration} from '@babel/types'
 // Rewrite imports using next/<something> to next-server/<something>
-export default function ({ types: t, template }) {
+export default function NextToNextServer (): PluginObj {
   return {
     visitor: {
-      ImportDeclaration (path) {
+      ImportDeclaration (path: NodePath<ImportDeclaration>) {
         const source = path.node.source.value
         if (source === 'next/asset') {
           path.node.source.value = 'next-server/asset'

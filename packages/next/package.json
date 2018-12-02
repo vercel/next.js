@@ -94,6 +94,12 @@
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
+    "@types/babel__core": "7.0.4",
+    "@types/babel__traverse": "7.0.3",
+    "@types/nanoid": "1.2.0",
+    "@types/babel-types": "7.0.4",
+    "@types/babel__generator": "7.0.1",
+    "@types/babel__template": "7.0.1",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
   },
