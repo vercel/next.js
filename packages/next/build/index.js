@@ -6,23 +6,10 @@ import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
 import { PHASE_PRODUCTION_BUILD, BUILD_ID_FILE } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack'
+import {generateBuildId} from './generate-build-id'
 
 const access = promisify(fs.access)
 const writeFile = promisify(fs.writeFile)
-
-async function generateBuildId (generate, fallback) {
-  let buildId = await generate()
-  // If there's no buildId defined we'll fall back
-  if (buildId === null) {
-    buildId = fallback()
-  }
-
-  if (typeof buildId !== 'string') {
-    throw new Error('generateBuildId did not return a string. https://err.sh/zeit/next.js/generatebuildid-not-a-string')
-  }
-
-  return buildId.trim()
-}
 
 async function ensureProjectDirectoryIsWriteAble (dir) {
   try {
