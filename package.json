@@ -13,14 +13,15 @@
     "pretest": "npm run lint",
     "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
-    "lint": "standard",
+    "lint": "standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "*.js": "standard",
+    "*.js": "standard --fix",
+    "*.ts": "standard --parser typescript-eslint-parser --plugin typescript --fix",
     "packages/**/bin/*": "standard"
   },
   "standard": {
@@ -48,6 +49,7 @@
     "chromedriver": "2.42.0",
     "clone": "2.1.1",
     "coveralls": "3.0.2",
+    "eslint-plugin-typescript": "0.14.0",
     "express": "4.16.3",
     "fkill": "5.1.0",
     "flatten": "1.0.2",
@@ -66,6 +68,7 @@
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",
+    "typescript-eslint-parser": "21.0.1",
     "wait-port": "0.2.2",
     "wd": "1.10.3",
     "webpack-bundle-analyzer": "3.0.3"
