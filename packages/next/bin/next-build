@@ -46,5 +46,6 @@ if (!existsSync(join(dir, 'pages'))) {
 
 build(dir, null, lambdas)
   .catch((err) => {
+    console.error('> Build error occured')
     printAndExit(err)
   })

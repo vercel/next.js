@@ -1,50 +1,34 @@
 import { join } from 'path'
-import promisify from '../lib/promisify'
-import fs from 'fs'
 import webpack from 'webpack'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
-import { PHASE_PRODUCTION_BUILD, BUILD_ID_FILE } from 'next-server/constants'
+import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack'
 import {generateBuildId} from './generate-build-id'
-
-const access = promisify(fs.access)
-const writeFile = promisify(fs.writeFile)
-
-async function ensureProjectDirectoryIsWriteAble (dir) {
-  try {
-    await access(dir, (fs.constants || fs).W_OK)
-  } catch (err) {
-    throw new Error('Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
-  }
-}
+import {writeBuildId} from './write-build-id'
+import {isWriteable} from './is-writeable'
 
 export default async function build (dir, conf = null, lambdas = false) {
+  if (!await isWriteable(dir)) {
+    throw new Error('Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
+  }
+
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const lambdasOption = config.lambdas ? config.lambdas : lambdas
   const distDir = join(dir, config.distDir)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
+  const configs = await Promise.all([
+    getBaseWebpackConfig(dir, { buildId, isServer: false, config, lambdas: lambdasOption }),
+    getBaseWebpackConfig(dir, { buildId, isServer: true, config, lambdas: lambdasOption })
+  ])
 
-  await ensureProjectDirectoryIsWriteAble(dir)
-
-  try {
-    const configs = await Promise.all([
-      getBaseWebpackConfig(dir, { buildId, isServer: false, config, lambdas: lambdasOption }),
-      getBaseWebpackConfig(dir, { buildId, isServer: true, config, lambdas: lambdasOption })
-    ])
-
-    await runCompiler(configs)
-
-    await writeBuildId(distDir, buildId)
-  } catch (err) {
-    console.error(`> Failed to build`)
-    throw err
-  }
+  await runCompiler(configs)
+  await writeBuildId(distDir, buildId)
 }
 
-function runCompiler (compiler) {
+function runCompiler (config) {
   return new Promise(async (resolve, reject) => {
-    const webpackCompiler = await webpack(await compiler)
+    const webpackCompiler = await webpack(config)
     webpackCompiler.run((err, stats) => {
       if (err) {
         console.log({...err})
@@ -72,9 +56,4 @@ function runCompiler (compiler) {
       resolve()
     })
   })
-}
-
-async function writeBuildId (distDir, buildId) {
-  const buildIdPath = join(distDir, BUILD_ID_FILE)
-  await writeFile(buildIdPath, buildId, 'utf8')
 }
