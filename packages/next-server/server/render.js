@@ -66,7 +66,8 @@ async function doRender (req, res, pathname, query, {
   dir,
   dev = false,
   staticMarkup = false,
-  nextExport
+  nextExport,
+  spa
 } = {}) {
   page = page || pathname
 
@@ -89,7 +90,7 @@ async function doRender (req, res, pathname, query, {
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname: page, query, asPath }
+  const ctx = { err, req, res, pathname: page, query, asPath, nextExport }
   const router = new Router(page, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
@@ -167,7 +168,8 @@ async function doRender (req, res, pathname, query, {
       runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
       nextExport, // If this is a page exported by `next export`
       dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
+      err: (err) ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+      spa
     },
     dev,
     dir,

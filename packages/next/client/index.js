@@ -30,7 +30,8 @@ const {
   buildId,
   assetPrefix,
   runtimeConfig,
-  dynamicIds
+  dynamicIds,
+  spa
 } = data
 
 const prefix = assetPrefix || ''
@@ -107,6 +108,12 @@ export default async ({
   })
 
   render({ App, Component, props, err: initialErr, emitter })
+
+  if (spa) {
+    const ctx = { pathname: page, query, asPath }
+    const _props = await loadGetInitialProps(App, {Component, router, ctx})
+    render({ App, Component, props: _props, err: initialErr, emitter })
+  }
 
   return emitter
 }

@@ -11,10 +11,11 @@ const argv = parseArgs(process.argv.slice(2), {
     s: 'silent',
     o: 'outdir'
   },
-  boolean: ['h'],
+  boolean: ['h', 'spa'],
   default: {
     s: false,
-    o: null
+    o: null,
+    spa: false
   }
 })
 
@@ -54,7 +55,8 @@ if (!existsSync(join(dir, 'pages'))) {
 
 const options = {
   silent: argv.silent,
-  outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
+  outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out'),
+  spa: argv.spa
 }
 
 exportApp(dir, options)

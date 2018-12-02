@@ -77,6 +77,11 @@ export default async function (dir, options, configuration) {
     }
   }
 
+  const spa = !!options.spa
+  if (spa) {
+    console.log('> Exporting for Single-Page Application (spa) usage')
+  }
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -86,7 +91,8 @@ export default async function (dir, options, configuration) {
     distDir,
     dev: false,
     staticMarkup: false,
-    hotReloader: null
+    hotReloader: null,
+    spa: !!options.spa
   }
 
   const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
