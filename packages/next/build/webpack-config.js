@@ -213,7 +213,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     ],
     alias: {
       next: NEXT_PROJECT_ROOT
-    }
+    },
+    mainFields: [!isServer && 'browser', !isServer && 'module', 'main'].filter(Boolean)
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -266,6 +267,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     },
     module: {
       rules: [
+        {
+          parser: { amd: false }
+        },
         dev && !isServer && {
           test: defaultLoaders.hotSelfAccept.options.extensions,
           include: defaultLoaders.hotSelfAccept.options.include,
