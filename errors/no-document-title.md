@@ -6,7 +6,7 @@ Adding `<title>` in `pages/_document.js` will lead to unexpected results with `n
 
 #### Possible Ways to Fix It
 
-Set `<title>` in `pages/_app.js` instead :
+Set `<title>` in `pages/_app.js` instead:
 
 ```js
 // pages/_app.js
@@ -22,17 +22,20 @@ export default class MyApp extends App {
       pageProps = await Component.getInitialProps(ctx)
     }
 
-    return {pageProps}
+    return { pageProps }
   }
 
   render () {
-    const {Component, pageProps} = this.props
-    return <Container>
-      <Head>
-        <title>My new cool app</title>
-      </Head>
-      <Component {...pageProps} />
-    </Container>
+    const { Component, pageProps } = this.props
+
+    return (
+      <Container>
+        <Head>
+          <title>My new cool app</title>
+        </Head>
+        <Component {...pageProps} />
+      </Container>
+    )
   }
 }
 ```
