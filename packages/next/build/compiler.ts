@@ -13,7 +13,7 @@ export function runCompiler (config: webpack.Configuration[]): Promise<CompilerR
         return reject(err)
       }
 
-      const result: CompilerResult = multiStats.stats.reduce((result: CompilerResult, stat: webpack.Stats) => {
+      const result: CompilerResult = multiStats.stats.reduce((result: CompilerResult, stat: webpack.Stats): CompilerResult => {
         if (stat.compilation.errors.length > 0) {
           result.errors.push(...stat.compilation.errors)
         }
@@ -21,6 +21,8 @@ export function runCompiler (config: webpack.Configuration[]): Promise<CompilerR
         if (stat.compilation.warnings.length > 0) {
           result.warnings.push(...stat.compilation.warnings)
         }
+
+        return result
       }, {errors: [], warnings: []})
 
       resolve(result)
