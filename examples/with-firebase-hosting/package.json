@@ -2,6 +2,9 @@
   "name": "with-firebase-hosting",
   "version": "4.0.1",
   "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
+  "engines": {
+    "node": "8"
+  },
   "scripts": {
     "dev": "next \"src/app/\"",
     "preserve": "npm run build-public && npm run build-funcs && npm run build-app && npm run copy-deps && npm run install-deps",
