@@ -42,7 +42,7 @@ export function getPagePath (page, {distDir}) {
     throw pageNotFoundError(page)
   }
 
-  return join(serverBuildPath, pagesManifest[page].replace(/(\/|\\)/, sep))
+  return join(serverBuildPath, pagesManifest[page].replace(/(\/|\\)/g, sep))
 }
 
 export default async function requirePage (page, {distDir}) {
