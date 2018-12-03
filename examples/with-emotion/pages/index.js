@@ -53,25 +53,30 @@ const Animated = styled.div`
 
 export default () => {
   return (
-    <>'     '<Global
-      styles={css`
-          html, body {
-          padding: 3rem 1rem;
-          margin: 0;
-          background: papayawhip;
-          min-height: 100%;
-          font-family: Helvetica, Arial, sans-serif;
-          font-size: 24px;
+    <React.fragment>
+      <Global
+        styles={css`
+          html,
+          body {
+            padding: 3rem 1rem;
+            margin: 0;
+            background: papayawhip;
+            min-height: 100%;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 24px;
           }
         `}
-    />'     '<Head>
-      <title>With Emotion</title>
-    </Head>'     '<div>
-      <Basic>Cool Styles</Basic>
-      <Combined>
+      />
+      <Head>
+        <title>With Emotion</title>
+      </Head>
+      <div>
+        <Basic>Cool Styles</Basic>
+        <Combined>
           With <code>:hover</code>.
-      </Combined>
-      <Animated animation={bounce}>Let's bounce.</Animated>
-    </div>'   '</>
+        </Combined>
+        <Animated animation={bounce}>Let's bounce.</Animated>
+      </div>
+    </React.fragment>
   )
 }
