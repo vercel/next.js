@@ -33,7 +33,7 @@ export default function ({ app }, suiteName, render, fetch) {
       const html = await (render('/head'))
       expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
       expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
-      expect(html.includes('I can haz meta tags')).toBeTruthy()
+      expect(html.includes('I can have meta tags')).toBeTruthy()
     })
 
     test('header helper dedupes tags', async () => {
@@ -65,7 +65,8 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag1" class="next-head"/>')
       expect(html).toContain('<meta property="og:image:secure_url" content="ogImageSecureUrlTag2" class="next-head"/>')
       expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag1" class="next-head"/>')
-      expect(html).toContain('<meta property="og:image:url" content="ogImageUrlTag2" class="next-head"/>')
+      expect(html).toContain('<meta property="fb:pages" content="fbpages1" class="next-head"/>')
+      expect(html).toContain('<meta property="fb:pages" content="fbpages2" class="next-head"/>')
     })
 
     test('header helper renders Fragment children', async () => {
