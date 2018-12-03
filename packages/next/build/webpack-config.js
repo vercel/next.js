@@ -267,9 +267,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     },
     module: {
       rules: [
-        {
-          parser: { amd: false }
-        },
         dev && !isServer && {
           test: defaultLoaders.hotSelfAccept.options.extensions,
           include: defaultLoaders.hotSelfAccept.options.include,
