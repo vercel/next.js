@@ -24,7 +24,7 @@ export default class PagesManifestPlugin {
         }
 
         const {name} = entry
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = name
+        pages[`/${pagePath.replace(/\\/g, '/')}`] = name.replace(/\\/g, '/')
       }
 
       if (typeof pages['/index'] !== 'undefined') {

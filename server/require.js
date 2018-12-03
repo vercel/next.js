@@ -1,4 +1,4 @@
-import {join, posix} from 'path'
+import {join, posix, sep} from 'path'
 import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
 
 export function pageNotFoundError (page) {
@@ -42,7 +42,7 @@ export function getPagePath (page, {distDir}) {
     throw pageNotFoundError(page)
   }
 
-  return join(serverBuildPath, pagesManifest[page])
+  return join(serverBuildPath, pagesManifest[page].replace(/\//, sep))
 }
 
 export default async function requirePage (page, {distDir}) {
