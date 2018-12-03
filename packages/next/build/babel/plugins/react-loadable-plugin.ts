@@ -43,7 +43,7 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
         const bindingName = defaultSpecifier.node.local.name
         const binding = path.scope.getBinding(bindingName)
 
-        if(!binding) {
+        if (!binding) {
           return
         }
 
@@ -106,7 +106,7 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
             loader = propertiesMap.modules.get('value')
           }
 
-          if(!loader || Array.isArray(loader)) {
+          if (!loader || Array.isArray(loader)) {
             return
           }
           const dynamicImports: BabelTypes.StringLiteral[] = []
@@ -114,14 +114,14 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
           loader.traverse({
             Import (path) {
               const args = path.parentPath.get('arguments')
-              if(!Array.isArray(args)) return
+              if (!Array.isArray(args)) return
               const node: any = args[0].node
               dynamicImports.push(node)
             }
           })
 
           if (!dynamicImports.length) return
-          
+
           options.node.properties.push(t.objectProperty(
             t.identifier('loadableGenerated'),
             t.objectExpression([
