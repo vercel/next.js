@@ -1,8 +1,9 @@
+import { promisify } from 'util'
 import del from 'del'
 import { cpus } from 'os'
 import { fork } from 'child_process'
 import cp from 'recursive-copy'
-import mkdirp from 'mkdirp-then'
+import _mkdirp from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
@@ -10,6 +11,8 @@ import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_F
 import { setAssetPrefix } from 'next-server/asset'
 import * as envConfig from 'next-server/config'
 import createProgress from 'tty-aware-progress'
+
+const mkdirp = promisify(_mkdirp)
 
 export default async function (dir, options, configuration) {
   function log (message) {

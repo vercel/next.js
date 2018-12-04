@@ -19,6 +19,9 @@ import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIS
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
 import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
+import findCacheDir from 'find-cache-dir'
+import { version as NEXT_VERSION } from 'next/package.json'
+import babelPkg from '@babel/core/package.json'
 
 // The externals config makes sure that
 // on the server side when modules are
@@ -173,7 +176,17 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: {dev, isServer, cwd: dir}
+      options: {
+        dev,
+        isServer,
+        cwd: dir,
+        cacheIdentifier: JSON.stringify({
+          config,
+          'next': NEXT_VERSION,
+          '@babel/core': babelPkg.version
+        }),
+        cacheDirectory: config.babelCache === false ? null : findCacheDir({ name: 'next-babel-loader' })
+      }
     },
     hotSelfAccept: {
       loader: 'hot-self-accept-loader',

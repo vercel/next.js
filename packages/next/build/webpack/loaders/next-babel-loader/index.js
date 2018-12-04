@@ -1,8 +1,8 @@
-import babelLoader from 'babel-loader'
+import { makeLoader } from './babel-loader'
 
-module.exports = babelLoader.custom(babel => {
-  const presetItem = babel.createConfigItem(require('../../babel/preset'), {type: 'preset'})
-  const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), {type: 'plugin'})
+module.exports = makeLoader(babel => {
+  const presetItem = babel.createConfigItem(require('../../../babel/preset'), {type: 'preset'})
+  const applyCommonJs = babel.createConfigItem(require('../../../babel/plugins/commonjs'), {type: 'plugin'})
   const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), {type: 'plugin'})
 
   const configs = new Set()
