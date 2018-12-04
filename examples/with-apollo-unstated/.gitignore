@@ -1,0 +1,16 @@
+# See https://help.github.com/ignore-files/ for more about ignoring files.
+
+# dependencies
+node_modules/
+
+# production
+.next/
+
+# misc
+.DS_Store
+
+# environment
+.config/
+
+# example
+example/
