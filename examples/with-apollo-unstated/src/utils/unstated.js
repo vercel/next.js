@@ -1,6 +1,6 @@
 import { Container } from 'unstated'
 
-class dataContainer extends Container {
+class DataContainer extends Container {
   state = {}
   insertData = (data) => {
     this.setState(data)
@@ -8,4 +8,4 @@ class dataContainer extends Container {
   getData = () => this.state
 }
 
-export { dataContainer }
+export { DataContainer }

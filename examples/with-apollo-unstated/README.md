@@ -37,7 +37,7 @@ now
 
 ## The idea behind the example
 
-This simple example show you how to:   
+This simple example shows you how to:   
 1. How to Apollo in Next.
 2. How to SSR Apollo in Next.
 3. How to use Unstated to share state across pages.

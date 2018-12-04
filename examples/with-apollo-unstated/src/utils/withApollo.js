@@ -6,7 +6,7 @@ import { getDataFromTree } from 'react-apollo'
 export default (App) => {
   return class Apollo extends Component {
     static displayName = 'withApollo(App)'
-    static async getInitialProps(ctx) {
+    static async getInitialProps (ctx) {
       const { Component, router } = ctx
 
       let appProps = {}
@@ -14,12 +14,9 @@ export default (App) => {
       if (App.getInitialProps) {
         appProps = await App.getInitialProps(ctx)
       }
-      //cant find documentation of this code, but seem to be standard
-      //marked as to ask in forum #1
 
       // run all graphql queries in the component tree
       // and extract the resulting data
-
       const apolloClient = initApollo()
       if (!process.browser) {
         try {
@@ -39,9 +36,9 @@ export default (App) => {
           console.error('Error while running `getDataFromTree`', error)
         }
 
-        // getDataFromTree does not call componentWillUnmount (source? #2)
-        // head side effect therefore need to be cleared manually (source? #3)
-        Head.rewind() //unknown method #4
+        // getDataFromTree does not call componentWillUnmount 
+        // head side effect therefore need to be cleared manually 
+        Head.rewind() 
       }
 
       // Extract query data from Apollo store
@@ -49,14 +46,14 @@ export default (App) => {
 
       return {
         ...appProps,
-        apolloState,
+        apolloState
       }
     }
-    constructor(props) {
-      super(props)
+    constructor (props) {
+      super (props)
       this.apolloClient = initApollo(props.apolloState)
     }
-    render() {
+    render () {
       return <App {...this.props} apolloClient={this.apolloClient} />
     }
   }

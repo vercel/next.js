@@ -21,10 +21,10 @@ const ExchangeRateList = (props) => {
             <p>{`${currency}: ${rate}`}</p>
           </Fragment>
         ))) || (
-        <Fragment>
-          <p>you will see data after you update state in index</p>
-        </Fragment>
-      )}
+          <Fragment>
+            <p>you will see data after you update state in index</p>
+          </Fragment>
+        )}
     </Fragment>
   )
 }
