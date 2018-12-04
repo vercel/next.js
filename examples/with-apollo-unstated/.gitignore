@@ -11,6 +11,3 @@ node_modules/
 
 # environment
 .config/
-
-# example
-example/
