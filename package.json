@@ -20,9 +20,9 @@
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "*.js": "standard --fix",
-    "*.ts": "standard --parser typescript-eslint-parser --plugin typescript --fix",
-    "packages/**/bin/*": "standard"
+    "*.js": ["standard --fix", "git add"],
+    "*.ts": ["standard --parser typescript-eslint-parser --plugin typescript --fix", "git add"],
+    "packages/**/bin/*": ["standard --fix", "git add"]
   },
   "standard": {
     "parser": "babel-eslint",
