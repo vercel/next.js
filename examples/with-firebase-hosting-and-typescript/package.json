@@ -17,21 +17,21 @@
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.1.0",
-    "firebase-admin": "~5.12.1",
-    "firebase-functions": "^1.0.1",
-    "next": "^6.0.3",
-    "react": "^16.3.2",
-    "react-dom": "^16.3.2"
+    "@zeit/next-typescript": "^1.1.1",
+    "firebase-admin": "~6.3.0",
+    "firebase-functions": "^2.0.1",
+    "next": "^7.0.2",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3"
   },
   "devDependencies": {
-    "@types/next": "^2.4.10",
-    "@types/react": "^16.3.14",
-    "cpx": "1.5.0",
-    "firebase-tools": "3.18.4",
-    "rimraf": "2.6.2",
-    "tslint": "^5.8.0",
-    "tslint-react": "3.6.0",
-    "typescript": "^2.5.3"
+    "@types/next": "^7.0.5",
+    "@types/react": "^16.7.13",
+    "cpx": "^1.5.0",
+    "firebase-tools": "^6.1.2",
+    "rimraf": "^2.6.2",
+    "tslint": "^5.11.0",
+    "tslint-react": "^3.6.0",
+    "typescript": "^3.2.1"
   }
 }
