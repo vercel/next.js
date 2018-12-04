@@ -213,7 +213,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     ],
     alias: {
       next: NEXT_PROJECT_ROOT
-    }
+    },
+    mainFields: [!isServer && 'browser', !isServer && 'module', 'main'].filter(Boolean)
   }
 
   const webpackMode = dev ? 'development' : 'production'
