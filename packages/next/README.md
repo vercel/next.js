@@ -624,7 +624,7 @@ Router.events.on('routeChangeError', (err, url) => {
 
 <p></p>
 
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected using [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -1444,11 +1444,11 @@ The `next/config` module gives your app access to runtime configuration stored i
 // next.config.js
 module.exports = {
   serverRuntimeConfig: { // Will only be available on the server side
-    mySecret: 'secret'
+    mySecret: 'secret',
+    secondSecret: process.env.SECOND_SECRET // Pass through env variables
   },
   publicRuntimeConfig: { // Will be available on both server and client
     staticFolder: '/static',
-    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```

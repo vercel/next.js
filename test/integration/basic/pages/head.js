@@ -13,8 +13,8 @@ export default () => <div>
     {/* allow duplicates for specific tags */}
     <meta property='article:tag' content='tag1' key='tag1key' />
     <meta property='article:tag' content='tag2' key='tag2key' />
-    <meta property='dedupe:tag' content='tag3' key='tag3key' />
-    <meta property='dedupe:tag' content='tag4' key='tag4key' />
+    <meta property='dedupe:tag' content='tag3' key='same-key' />
+    <meta property='dedupe:tag' content='tag4' key='same-key' />
     <meta property='og:image' content='ogImageTag1' key='ogImageTag1Key' />
     <meta property='og:image' content='ogImageTag2' key='ogImageTag2Key' />
     <meta property='og:image:alt' content='ogImageAltTag1' key='ogImageAltTag1Key' />
@@ -30,6 +30,9 @@ export default () => <div>
     <meta property='og:image:url' content='ogImageUrlTag1' key='ogImageUrlTag1Key' />
     <meta property='og:image:url' content='ogImageUrlTag2' key='ogImageUrlTag2Key' />
 
+    <meta property='fb:pages' content='fbpages1' />
+    <meta property='fb:pages' content='fbpages2' />
+
     <React.Fragment>
       <title>Fragment title</title>
       <meta content='meta fragment' />
@@ -43,5 +46,5 @@ export default () => <div>
     <link rel='stylesheet' href='dedupe-style.css' key='my-style' />
     <link rel='stylesheet' href='dedupe-style.css' key='my-style' />
   </Head>
-  <h1>I can haz meta tags</h1>
+  <h1>I can have meta tags</h1>
 </div>

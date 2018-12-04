@@ -1,1 +1,1 @@
-module.exports = require('next-server/link')
+export {default} from './dist/client/link'

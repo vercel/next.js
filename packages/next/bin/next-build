@@ -14,7 +14,7 @@ const argv = parseArgs(process.argv.slice(2), {
 })
 
 if (argv.help) {
-  console.log(`
+  printAndExit(`
     Description
       Compiles the application for production deployment
 
@@ -24,8 +24,7 @@ if (argv.help) {
     <dir> represents where the compiled dist folder should go.
     If no directory is provided, the dist folder will be created in the current directory.
     You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
-  `)
-  process.exit(0)
+  `, 0)
 }
 
 const dir = resolve(argv._[0] || '.')
@@ -46,5 +45,6 @@ if (!existsSync(join(dir, 'pages'))) {
 
 build(dir, null, lambdas)
   .catch((err) => {
+    console.error('> Build error occured')
     printAndExit(err)
   })

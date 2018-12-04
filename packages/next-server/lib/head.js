@@ -52,8 +52,7 @@ function onStateChange (head) {
   }
 }
 
-const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp', 'property']
-const ALLOWED_DUPLICATES = ['article:tag', 'og:image', 'og:image:alt', 'og:image:width', 'og:image:height', 'og:image:type', 'og:image:secure_url', 'og:image:url']
+const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
  returns a function for filtering head child elements
@@ -71,6 +70,7 @@ function unique () {
     if (h.key && h.key.indexOf('.$') === 0) {
       if (keys.has(h.key)) return false
       keys.add(h.key)
+      return true
     }
     switch (h.type) {
       case 'title':
@@ -89,7 +89,7 @@ function unique () {
           } else {
             const category = h.props[metatype]
             const categories = metaCategories[metatype] || new Set()
-            if (categories.has(category) && ALLOWED_DUPLICATES.indexOf(category) === -1) return false
+            if (categories.has(category)) return false
             categories.add(category)
             metaCategories[metatype] = categories
           }
