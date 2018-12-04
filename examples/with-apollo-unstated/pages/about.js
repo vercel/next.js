@@ -9,7 +9,7 @@ const about = () => {
       {(exchangeRate) => {
         return (
           <Fragment>
-            <Link href="./index">
+            <Link href='./index'>
               <button>go to Index</button>
             </Link>
             <ExchangeRateList data={exchangeRate.getData()} />

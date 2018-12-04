@@ -15,12 +15,12 @@ const Index = () => {
           <Head>
             <title>USD Exchange Rate</title>
             <meta
-              name="viewport"
-              content="initial-scale=1.0, width=device-width"
-              key="viewport"
+              name='viewport'
+              content='initial-scale=1.0, width=device-width'
+              key='viewport'
             />
           </Head>
-          <Link href="about">
+          <Link href='about'>
             <button>go to About</button>
           </Link>
           <h1>USD To</h1>
