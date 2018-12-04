@@ -53,7 +53,7 @@ const Animated = styled.div`
 
 export default () => {
   return (
-    <React.fragment>
+    <React.Fragment>
       <Global
         styles={css`
           html,
@@ -77,6 +77,6 @@ export default () => {
         </Combined>
         <Animated animation={bounce}>Let's bounce.</Animated>
       </div>
-    </React.fragment>
+    </React.Fragment>
   )
 }
