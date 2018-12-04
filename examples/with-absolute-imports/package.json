@@ -8,8 +8,5 @@
     "next": "latest",
     "react": "^16.1.1",
     "react-dom": "^16.1.1"
-  },
-  "devDependencies": {
-    "babel-plugin-module-resolver": "^3.1.1"
   }
 }

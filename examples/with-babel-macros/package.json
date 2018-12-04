@@ -15,8 +15,8 @@
   "author": "Kent C. Dodds <kent@doddsfamily.us> (http://kentcdodds.com/)",
   "license": "MIT",
   "devDependencies": {
-    "babel-macros": "^0.5.1",
+    "babel-plugin-macros": "^2.4.2",
     "babel-preset-react": "^6.24.1",
-    "preval.macro": "^1.0.1"
+    "preval.macro": "^3.0.0"
   }
 }

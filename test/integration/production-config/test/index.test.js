@@ -1,5 +1,5 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import {
   nextServer,
@@ -9,51 +9,53 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-const appDir = join(__dirname, '../')
-let server
-let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-const context = {}
+let appPort
+let server
 
 describe('Production Config Usage', () => {
   beforeAll(async () => {
+    const appDir = join(__dirname, '../')
     await nextBuild(appDir)
-    app = nextServer({
+    const app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
       quiet: true
     })
-
     server = await startApp(app)
-    context.appPort = server.address().port
+    appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
-  const openBrowser = (args) => webdriver(context.appPort, ...args)
-
   describe('with next-css', () => {
     it('should load styles', async () => {
-      let browser
+      // Try 3 times as the breaking happens intermittently
+      await testBrowser()
+      await testBrowser()
+      await testBrowser()
+    })
+  })
 
-      async function testBrowser () {
-        browser = await openBrowser('/')
-        const element = await browser.elementByCss('#mounted')
-        const text = await element.text()
-        expect(text).toMatch(/ComponentDidMount executed on client\./)
-        expect(await element.getComputedCss('font-size')).toBe('40px')
-        expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
-      }
-      try {
-        // Try 3 times as the breaking happens intermittently
-        await testBrowser()
-        await testBrowser()
-        await testBrowser()
-      } finally {
-        if (browser) {
-          browser.close()
-        }
-      }
+  describe('with generateBuildId', () => {
+    it('should add the custom buildid', async () => {
+      const browser = await webdriver(appPort, '/')
+      const text = await browser.elementByCss('#mounted').text()
+      expect(text).toMatch(/ComponentDidMount executed on client\./)
+
+      const html = await browser.elementByCss('html').getAttribute('innerHTML')
+      expect(html).toMatch('custom-buildid')
+      return browser.close()
     })
   })
 })
+
+async function testBrowser () {
+  const browser = await webdriver(appPort, '/')
+  const element = await browser.elementByCss('#mounted')
+  const text = await element.text()
+  expect(text).toMatch(/ComponentDidMount executed on client\./)
+  expect(await element.getComputedCss('font-size')).toBe('40px')
+  expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
+  return browser.close()
+}

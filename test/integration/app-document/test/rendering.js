@@ -1,4 +1,4 @@
-/* global describe, test, expect */
+/* eslint-env jest */
 
 import cheerio from 'cheerio'
 
@@ -23,6 +23,24 @@ export default function ({ app }, suiteName, render, fetch) {
       test('It passes props from Document.getInitialProps to Document', async () => {
         const $ = await get$('/')
         expect($('#custom-property').text() === 'Hello Document')
+      })
+
+      test('It adds nonces to all scripts and preload links', async () => {
+        const $ = await get$('/')
+        const nonce = 'test-nonce'
+        let noncesAdded = true
+        $('script, link[rel=preload]').each((index, element) => {
+          if ($(element).attr('nonce') !== nonce) noncesAdded = false
+        })
+        expect(noncesAdded).toBe(true)
+      })
+
+      test('It adds crossOrigin to all scripts and preload links', async () => {
+        const $ = await get$('/')
+        const crossOrigin = 'anonymous'
+        $('script, link[rel=preload]').each((index, element) => {
+          expect($(element).attr('crossorigin') === crossOrigin).toBeTruthy()
+        })
       })
 
       test('It renders ctx.renderPage with enhancer correctly', async () => {
