@@ -1206,8 +1206,6 @@ Or use a function:
 
 ```js
 module.exports = (phase, {defaultConfig}) => {
-  //
-  // https://github.com/zeit/
   return {
     /* config options here */
   }
@@ -1292,6 +1290,21 @@ module.exports = {
   generateBuildId: async () => {
     // For example get the latest git commit hash here
     return 'my-build-id'
+  }
+}
+```
+
+To fall back to the default of generating a unique id return `null` from the function:
+
+```js
+module.exports = {
+  generateBuildId: async () => {
+    // When process.env.YOUR_BUILD_ID is undefined we fall back to the default
+    if(process.env.YOUR_BUILD_ID) {
+      return process.env.YOUR_BUILD_ID
+    }
+
+    return null
   }
 }
 ```
