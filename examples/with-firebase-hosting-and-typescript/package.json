@@ -4,7 +4,7 @@
   "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
   "scripts": {
     "dev": "next src/app",
-    "serve": "NODE_ENV=production firebase serve --only functions,hosting",
+    "serve": "cross-env NODE_ENV=production firebase serve --only functions,hosting",
     "deploy": "firebase deploy",
     "clean": "rimraf \"dist/functions\" && rimraf \"dist/public\"",
     "build-app": "next build \"src/app\"",
@@ -28,6 +28,7 @@
     "@types/next": "^7.0.5",
     "@types/react": "^16.7.13",
     "cpx": "^1.5.0",
+    "cross-env": "^5.2.0",
     "firebase-tools": "^6.1.2",
     "rimraf": "^2.6.2",
     "tslint": "^5.11.0",
