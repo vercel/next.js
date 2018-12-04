@@ -6,13 +6,13 @@ let apolloClient = null
 // create apollo client
 const getClient = (initialState) =>
   new ApolloClient({
-    link: new HttpLink ({
+    link: new HttpLink({
       uri: 'https://w5xlvm3vzz.lp.gql.zone/graphql', // Server URL (must be absolute)
       credentials: 'same-origin' // Additional fetch() options like `credential` or `headers`
     }),
     ssrMode: !process.browser, // Disables forceFetch on the server (so queries are only run once)
     connectToDevTools: process.browser,
-    cache: new InMemoryCache().restore(initialState || {}),
+    cache: new InMemoryCache().restore(initialState || {})
   })
 
 export const initApollo = (initialState) => {

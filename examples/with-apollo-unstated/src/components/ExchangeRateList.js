@@ -22,7 +22,7 @@ const ExchangeRateList = (props) => {
           </Fragment>
         ))) || (
           <Fragment>
-            <p>you will see data after you update state in index</p>
+            <p>you will see the data after you update state in Index</p>
           </Fragment>
         )}
     </Fragment>
