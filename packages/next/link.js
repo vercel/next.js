@@ -1,1 +1,1 @@
-export {default} from './dist/client/link'
+module.exports = require('./dist/client/link')
