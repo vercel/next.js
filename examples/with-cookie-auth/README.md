@@ -1,5 +1,5 @@
 [![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-cookie-auth)
-# Example app utilizing cookie-based authentication
+# Example with cookie authentication
 
 ## How to use
 
