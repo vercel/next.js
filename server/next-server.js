@@ -214,10 +214,9 @@ export default class Server {
           const customCode = this.errorCodeMapper(err)
           res.statusCode = Number.isInteger(customCode) ? customCode : 500
           return this.renderErrorToHTML(err, req, res, pathname, query)
-        } else {
-          res.statusCode = 500
-          return this.renderErrorToHTML(err, req, res, pathname, query)
         }
+        res.statusCode = 500
+        return this.renderErrorToHTML(err, req, res, pathname, query)
       }
     }
   }
