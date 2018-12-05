@@ -1,7 +1,7 @@
 import App, {Container} from 'next/app'
 import React from 'react'
 import { Provider } from 'unstated'
-import { ClockContainer, CounterContainer } from '../containers'
+import { CounterContainer } from '../containers'
 
 const counter = new CounterContainer()
 
