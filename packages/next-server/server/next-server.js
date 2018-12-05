@@ -34,6 +34,7 @@ export default class Server {
     this.renderOpts = {
       staticMarkup,
       distDir: this.distDir,
+      crossOrigin: this.nextConfig.crossOrigin,
       buildId: this.buildId,
       generateEtags
     }
