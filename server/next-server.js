@@ -18,13 +18,14 @@ import * as envConfig from '../lib/runtime-config'
 import { isResSent } from '../lib/utils'
 
 export default class Server {
-  constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
+  constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null, errorCodeMapper = null } = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     this.router = new Router()
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    this.errorCodeMapper = errorCodeMapper
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -72,6 +73,11 @@ export default class Server {
     return this.run(req, res, parsedUrl)
       .catch((err) => {
         if (!this.quiet) console.error(err)
+        if (this.errorCodeMapper) {
+          const customCode = this.errorCodeMapper(err)
+          res.statusCode = Number.isInteger(customCode) ? customCode : 500
+          res.end(err)
+        }
         res.statusCode = 500
         res.end('Internal Server Error')
       })
@@ -204,8 +210,14 @@ export default class Server {
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
         if (!this.quiet) console.error(err)
-        res.statusCode = 500
-        return this.renderErrorToHTML(err, req, res, pathname, query)
+        if (this.errorCodeMapper) {
+          const customCode = this.errorCodeMapper(err)
+          res.statusCode = Number.isInteger(customCode) ? customCode : 500
+          return this.renderErrorToHTML(err, req, res, pathname, query)
+        } else {
+          res.statusCode = 500
+          return this.renderErrorToHTML(err, req, res, pathname, query)
+        }
       }
     }
   }
