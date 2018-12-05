@@ -1,20 +1,17 @@
 {
   "compilerOptions": {
+    "strict": true,
     "allowJs": true,
     "noEmit": true,
     "module": "esnext",
     "target": "ES2017",
     "esModuleInterop": true,
+    "moduleResolution": "node",
     "jsx": "react",
-    "strictNullChecks": true,
-    "noImplicitAny": true,
     "baseUrl": "../..",
     "paths": {
       "@babel/types": [
-        "babel-types/index.d.ts",
-        "@types/babel-types/index.d.ts",
-        "node_modules/@types/babel-types/index.d.ts",
-        "packages/next/node_modules/@types/babel-types/index.d.ts"
+        "@types/babel-types/index.d.ts"
       ]
     }
   }

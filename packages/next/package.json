@@ -28,7 +28,8 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release"
+    "prepublish": "npm run release",
+    "typescript": "tsc --noEmit"
   },
   "taskr": {
     "requires": [
@@ -91,6 +92,7 @@
     "react-dom": "^16.0.0"
   },
   "devDependencies": {
+    "@babel/parser": "7.2.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -100,6 +102,7 @@
     "@types/babel__template": "7.0.1",
     "@types/babel__traverse": "7.0.3",
     "@types/nanoid": "1.2.0",
+    "@types/node-fetch": "2.1.4",
     "@types/webpack": "4.4.20",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
