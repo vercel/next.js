@@ -3,6 +3,7 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
+import css from 'styled-jsx/css'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
@@ -15,6 +16,17 @@ export default class Document extends Component {
 
   static getInitialProps ({ renderPage, csp }) {
     const { html, head, buildManifest } = renderPage()
+    css.global`
+      .__next_error__ {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        z-index: 2147483647;
+      }
+    `
     const styles = flush({ nonce: csp.styleNonce })
     return { html, head, styles, buildManifest }
   }
@@ -30,17 +42,6 @@ export default class Document extends Component {
         <Main />
         <NextScript />
       </body>
-      <style jsx global>{`
-        .__next_error__ {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          border: none;
-          z-index: 2147483647;
-        }
-      `}</style>
     </html>
   }
 }
