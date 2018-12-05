@@ -70,7 +70,8 @@ export default function connect (options) {
   ErrorOverlay.startReportingRuntimeErrors({
     onError: function () {
       hadRuntimeError = true
-    }
+    },
+    className: '__next_error__'
   })
 
   if (module.hot && typeof module.hot.dispose === 'function') {
