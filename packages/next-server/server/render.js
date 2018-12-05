@@ -62,6 +62,8 @@ async function doRender (req, res, pathname, query, {
   buildId,
   assetPrefix,
   csp,
+  styleNonce,
+  scriptNonce,
   runtimeConfig,
   distDir,
   dir,
@@ -90,7 +92,7 @@ async function doRender (req, res, pathname, query, {
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname: page, query, asPath, csp }
+  const ctx = { err, req, res, pathname: page, query, asPath, csp, styleNonce, scriptNonce }
   const router = new Router(page, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
@@ -173,6 +175,8 @@ async function doRender (req, res, pathname, query, {
     dev,
     dir,
     csp,
+    styleNonce,
+    scriptNonce,
     staticMarkup,
     buildManifest,
     devFiles,

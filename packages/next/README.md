@@ -1244,12 +1244,12 @@ module.exports = {
 
 #### Content Security Policy
 
-Next.js supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) out of the box. It uses `strict-dynamic` to protect you from XSS without configuration. It will block `object-src` by default. You can override this policy in your Next.js configuration:
+Next.js supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) out of the box. It uses `strict-dynamic` to protect you from XSS without configuration. It will block `object-src` by default. And a `base-uri` of "none". You can strengthen this policy in your Next.js configuration:
 
 ```js
 // next.config.js
 module.exports = {
-  contentSecurityPolicy: "object-src 'none'; script-src 'self'; style-src 'self' 'nonce-{style-src}';"
+  contentSecurityPolicy: "object-src 'none'; base-uri 'none'; script-src 'self'; style-src 'self' 'nonce-{style-src}';"
 }
 ```
 

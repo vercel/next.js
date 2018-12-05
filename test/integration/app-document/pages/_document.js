@@ -21,7 +21,7 @@ export default class MyDocument extends Document {
     }
 
     const result = ctx.renderPage(options)
-    const styles = flush({ nonce: ctx.csp.styleNonce })
+    const styles = flush({ nonce: ctx.styleNonce })
 
     return { ...result, styles, customProperty: 'Hello Document', withViolation: ctx.query.withViolation }
   }
