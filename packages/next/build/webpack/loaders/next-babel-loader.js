@@ -2,6 +2,7 @@ import babelLoader from 'babel-loader'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../../babel/preset'), {type: 'preset'})
+  const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), {type: 'plugin'})
   const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), {type: 'plugin'})
 
   const configs = new Set()
@@ -37,11 +38,14 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...options.presets, presetItem]
       }
 
-      if (source.match(/module\.exports/)) {
+      // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
+      // That break webpack, since webpack doesn't support combining commonjs and esmodules
+      if (source.indexOf('module.exports') !== -1) {
         options.plugins = options.plugins || []
-        options.plugins.push(commonJsItem)
+        options.plugins.push(applyCommonJs)
       }
 
+      // As next-server/lib has stateful modules we have to transpile commonjs
       options.overrides = [
         ...(options.overrides || []),
         {
