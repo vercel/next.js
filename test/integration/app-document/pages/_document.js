@@ -29,7 +29,7 @@ export default class MyDocument extends Document {
   render () {
     return (
       <html>
-        <Head />
+        <Head crossOrigin='anonymous' />
         <body className='custom_class'>
           <style jsx>{`p { color: blue }`}</style>
           { this.props.withViolation ? (<style>{`p { color: red }`}</style>) : '' }
