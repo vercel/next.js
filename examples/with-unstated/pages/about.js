@@ -4,7 +4,7 @@ import { Subscribe } from 'unstated'
 import { ClockContainer, CounterContainer } from '../containers'
 import { Clock, Counter } from '../components'
 
-class Index extends React.Component {
+class About extends React.Component {
   componentWillUnmount () {
     clearInterval(this.timer)
   }
@@ -16,9 +16,9 @@ class Index extends React.Component {
             this.timer = clock.interval
             return (
               <div>
-                <Link href='/about'>
+                <Link href='/index'>
                   <button>
-                    go to About
+                    go to Index
                   </button>
                 </Link>
                 <div>
@@ -34,4 +34,4 @@ class Index extends React.Component {
   }
 }
 
-export default Index
+export default About
