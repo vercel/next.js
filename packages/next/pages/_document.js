@@ -67,7 +67,7 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { dynamicImports, assetPrefix, scriptNonce,  __NEXT_DATA__: { crossOrigin } } = this.context._documentProps
+    const { dynamicImports, assetPrefix, scriptNonce, __NEXT_DATA__: { crossOrigin } } = this.context._documentProps
     return dynamicImports.map((bundle) => {
       return <link
         rel='preload'
@@ -81,7 +81,7 @@ export class Head extends Component {
   }
 
   getPreloadMainLinks () {
-    const { assetPrefix, files, scriptNonce,  __NEXT_DATA__: { crossOrigin } } = this.context._documentProps
+    const { assetPrefix, files, scriptNonce, __NEXT_DATA__: { crossOrigin } } = this.context._documentProps
     if(!files || files.length === 0) {
       return null
     }
@@ -170,7 +170,7 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { dynamicImports, assetPrefix, scriptNonce,  __NEXT_DATA__: { crossOrigin } } = this.context._documentProps
+    const { dynamicImports, assetPrefix, scriptNonce, __NEXT_DATA__: { crossOrigin } } = this.context._documentProps
     return dynamicImports.map((bundle) => {
       return <script
         async
