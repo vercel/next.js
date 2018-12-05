@@ -58,6 +58,7 @@
   - [Reusing the built-in error page](#reusing-the-built-in-error-page)
   - [Custom configuration](#custom-configuration)
     - [Setting a custom build directory](#setting-a-custom-build-directory)
+    - [Content Security Policy](#content-security-policy)
     - [Disabling etag generation](#disabling-etag-generation)
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
@@ -1240,6 +1241,28 @@ module.exports = {
   distDir: 'build'
 }
 ```
+
+#### Content Security Policy
+
+Next.js supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) out of the box. It uses `strict-dynamic` to protect you from XSS without configuration. It will block `object-src` by default. You can override this policy in your Next.js configuration:
+
+```js
+// next.config.js
+module.exports = {
+  contentSecurityPolicy: "object-src 'none'; script-src 'self'; style-src 'self' 'nonce-{style-src}';"
+}
+```
+
+Styles are inserted inline, so must use a nonce to be secure. Use `style-src 'self' 'nonce-{style-nonce}' 'unsafe-inline';` to allow these inline styles (`unsafe-inline` is for backwards compatibility). This will not work for static rendering and you have to use `style-src 'self' 'unsafe-inline';`.
+
+Interestingly, due to the way error handling works in Next.js, if you are using `'nonce-{style-nonce}'`, you will have to use [custom error handling](#custom-error-handling) to avoid an inline style violation, but this is very easy to do.
+
+If you cannot whitelist the scripts that you use in your app, you can use:
+
+```
+script-src 'nonce-{script-nonce}' 'unsafe-inline' 'strict-dynamic' https: http:;
+```
+This should be used as a last resort.
 
 #### Disabling etag generation
 

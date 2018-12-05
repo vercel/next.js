@@ -1,11 +1,5 @@
-import crypto from 'crypto'
+import flush from 'styled-jsx/server'
 import Document, { Head, Main, NextScript } from 'next/document'
-
-const cspHashOf = (text) => {
-  const hash = crypto.createHash('sha256')
-  hash.update(text)
-  return `'sha256-${hash.digest('base64')}'`
-}
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
@@ -27,32 +21,22 @@ export default class MyDocument extends Document {
     }
 
     const result = ctx.renderPage(options)
+    const styles = flush({ nonce: ctx.csp.styleNonce })
 
-    return { ...result, customProperty: 'Hello Document', withCSP: ctx.query.withCSP }
+    return { ...result, styles, customProperty: 'Hello Document', withViolation: ctx.query.withViolation }
   }
 
   render () {
-    let csp
-    switch (this.props.withCSP) {
-      case 'hash':
-        csp = `default-src 'self'; script-src 'self' ${cspHashOf(NextScript.getInlineScriptSource(this.props))}; style-src 'self' 'unsafe-inline'`
-        break
-      case 'nonce':
-        csp = `default-src 'self'; script-src 'self' 'nonce-test-nonce'; style-src 'self' 'unsafe-inline'`
-        break
-    }
-
     return (
       <html>
-        <Head nonce='test-nonce' crossOrigin='anonymous'>
-          {csp ? <meta httpEquiv='Content-Security-Policy' content={csp} /> : null}
-          <style>{`body { margin: 0 } /* custom! */`}</style>
-        </Head>
+        <Head />
         <body className='custom_class'>
+          <style jsx>{`p { color: blue }`}</style>
+          { this.props.withViolation ? (<style>{`p { color: red }`}</style>) : '' }
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
-          <NextScript nonce='test-nonce' crossOrigin='anonymous' />
+          <NextScript crossOrigin='anonymous' />
         </body>
       </html>
     )

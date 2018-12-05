@@ -61,6 +61,7 @@ async function doRender (req, res, pathname, query, {
   page,
   buildId,
   assetPrefix,
+  csp,
   runtimeConfig,
   distDir,
   dir,
@@ -89,7 +90,7 @@ async function doRender (req, res, pathname, query, {
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname: page, query, asPath }
+  const ctx = { err, req, res, pathname: page, query, asPath, csp }
   const router = new Router(page, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
@@ -171,6 +172,7 @@ async function doRender (req, res, pathname, query, {
     },
     dev,
     dir,
+    csp,
     staticMarkup,
     buildManifest,
     devFiles,
@@ -200,7 +202,11 @@ export async function renderScriptError (req, res, page, error) {
 
 export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
-  const etag = generateEtags && generateETag(html)
+  const etag = generateEtags && generateETag(
+    html
+      .replace(/<meta property="csp-nonce" content=".+"/gi, '<meta property="csp-nonce" content=""')
+      .replace(/nonce=".+"/gi, 'nonce=""')
+  )
 
   if (fresh(req.headers, { etag })) {
     res.statusCode = 304

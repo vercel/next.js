@@ -3,6 +3,7 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
 import { parse as parseQs } from 'querystring'
 import fs from 'fs'
+import nanoid from 'nanoid'
 import {
   renderToHTML,
   renderErrorToHTML,
@@ -32,6 +33,7 @@ export default class Server {
     this.buildId = this.readBuildId()
     this.renderOpts = {
       staticMarkup,
+      csp: {},
       distDir: this.distDir,
       buildId: this.buildId,
       generateEtags
@@ -173,6 +175,19 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
+    if (!this.renderOpts.staticMarkup) {
+      if (this.nextConfig.contentSecurityPolicy) {
+        this.renderOpts.csp.value = this.nextConfig.contentSecurityPolicy
+          .replace(/\{script-nonce}/gi, () => (this.renderOpts.csp.scriptNonce = this.genNonce()))
+          .replace(/\{style-nonce}/gi, () => (this.renderOpts.csp.styleNonce = this.genNonce()))
+      } else {
+        this.renderOpts.csp.value = `object-src 'none'; script-src 'nonce-${this.renderOpts.csp.scriptNonce = this.genNonce()}' 'unsafe-inline' 'strict-dynamic' https: http:;`
+      }
+      res.setHeader('Content-Security-Policy', this.renderOpts.csp.value)
+    } else {
+      this.renderOpts.csp.value = this.nextConfig.contentSecurityPolicy
+    }
+
     if (isInternalUrl(req.url)) {
       return this.handleRequest(req, res, parsedUrl)
     }
@@ -257,5 +272,9 @@ export default class Server {
       throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
     }
     return fs.readFileSync(join(this.distDir, BUILD_ID_FILE), 'utf8').trim()
+  }
+
+  genNonce () {
+    return Buffer.from(nanoid(32)).toString('base64')
   }
 }

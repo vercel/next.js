@@ -18,6 +18,13 @@ async function checkInjected (browser) {
 
 module.exports = (context) => {
   describe('With Security Related Issues', () => {
+    it('CSP should load without violations', async () => {
+      const browser = await webdriver(context.appPort, '/about')
+      const errLog = await browser.log('browser')
+      expect(errLog.filter((e) => e.source === 'security')).toEqual([])
+      browser.close()
+    })
+
     it('should only access files inside .next directory', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
 
