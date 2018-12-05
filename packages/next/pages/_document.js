@@ -16,17 +16,6 @@ export default class Document extends Component {
 
   static getInitialProps ({ renderPage, styleNonce }) {
     const { html, head, buildManifest } = renderPage()
-    css.global`
-      .__next_error__ {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border: none;
-        z-index: 2147483647;
-      }
-    `
     const styles = flush({ nonce: styleNonce })
     return { html, head, styles, buildManifest }
   }
@@ -92,7 +81,7 @@ export class Head extends Component {
   }
 
   getPreloadMainLinks () {
-    const { assetPrefix, files, cspNonce } = this.context._documentProps
+    const { assetPrefix, files, scriptNonce } = this.context._documentProps
     if(!files || files.length === 0) {
       return null
     }
@@ -105,7 +94,7 @@ export class Head extends Component {
 
       return <link
         key={file}
-        nonce={this.props.nonce ? this.props.nonce : cspNonce }
+        nonce={this.props.nonce ? this.props.nonce : scriptNonce }
         rel='preload'
         href={`${assetPrefix}/_next/${file}`}
         as='script'
@@ -141,6 +130,17 @@ export class Head extends Component {
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
       {styles || null}
+      { process.env.NODE_ENV !== 'production' && <style nonce={styleNonce}>{`
+        .__next_error__ {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          border: none;
+          z-index: 2147483647;
+        }
+      `}</style> }
       {children}
     </head>
   }

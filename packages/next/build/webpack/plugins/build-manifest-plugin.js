@@ -12,13 +12,6 @@ export default class BuildManifestPlugin {
       const mainJsChunk = chunks.find((c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN)
       const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []
 
-      for (const filePath of Object.keys(compilation.assets)) {
-        const path = filePath.replace(/\\/g, '/')
-        if (/^static\/development\/dll\//.test(path)) {
-          assetMap.devFiles.push(path)
-        }
-      }
-
       // compilation.entrypoints is a Map object, so iterating over it 0 is the key and 1 is the value
       for (const [, entrypoint] of compilation.entrypoints.entries()) {
         const result = ROUTE_NAME_REGEX.exec(entrypoint.name)
