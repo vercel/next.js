@@ -9,10 +9,10 @@ const handle = app.getRequestHandler()
 
 // This is where we cache our rendered HTML pages
 const ssrCache = new LRUCache({
-  length: function(n, key) {
-    return n.toString().length + key.toString().length;
+  length: function (n, key) {
+    return n.toString().length + key.toString().length
   },
-  max: 100 * 1000 * 1000,// 100MB cache soft limit
+  max: 100 * 1000 * 1000, // 100MB cache soft limit
   maxAge: 1000 * 60 * 60 // 1hour
 })
 
