@@ -39,7 +39,6 @@ async function doRender (req, res, pathname, query, {
   assetPrefix,
   runtimeConfig,
   distDir,
-  dir,
   dev = false,
   staticMarkup = false,
   nextExport
@@ -145,10 +144,7 @@ async function doRender (req, res, pathname, query, {
       dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
       err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
     },
-    dev,
-    dir,
     staticMarkup,
-    buildManifest,
     devFiles,
     files,
     dynamicImports,
@@ -171,7 +167,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
 
   if (dev) {
     // In dev, we should not cache pages for any reason.
-    // That's why we do this.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
