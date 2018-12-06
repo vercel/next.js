@@ -13,7 +13,8 @@
     "pretest": "npm run lint",
     "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
-    "lint": "standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
+    "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
+    "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish",
     "lint-staged": "lint-staged"
@@ -27,6 +28,7 @@
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
+      "**/*.d.ts",
       "**/node_modules/**",
       "examples/with-ioc/**",
       "examples/with-kea/**",

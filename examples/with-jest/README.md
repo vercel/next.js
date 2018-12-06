@@ -46,5 +46,3 @@ yarn test
 This example features:
 
 * An app with jest tests
-
-> A very important part of this example is the `.babelrc` file which configures the `test` environment to use `babel-preset-env` and configures it to transpile modules to `commonjs`). [Learn more](https://github.com/zeit/next.js/issues/2895).

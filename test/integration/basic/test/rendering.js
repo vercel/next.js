@@ -131,6 +131,11 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(res.status).toBe(404)
     })
 
+    test('should render page that has module.exports anywhere', async () => {
+      const res = await fetch('/exports')
+      expect(res.status).toBe(200)
+    })
+
     test('should expose the compiled page file in development', async () => {
       await fetch('/stateless') // make sure the stateless page is built
       const clientSideJsRes = await fetch('/_next/development/static/development/pages/stateless.js')
