@@ -6,7 +6,7 @@ import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 
-export async function doPageRender (req, res, pathname, query, {
+export async function doPageRender (req, res, pathname, query, initialProps, {
   dev,
   err,
   publicPath,
@@ -27,7 +27,7 @@ export async function doPageRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   const asPath = req.url
-  const props = await Component.getInitialProps({ err, req, res, pathname, query, asPath })
+  const props = initialProps || await Component.getInitialProps({ err, req, res, pathname, query, asPath })
 
   if (overloadCheck()) {
     return {
