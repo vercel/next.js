@@ -26,16 +26,10 @@ function captureException (err, { req, res, errorInfo, query, pathname }) {
       scope.setExtra('statusCode', res.statusCode)
     }
 
-    if(query){
-      scope.setExtra('query', query)
-    }
-
-    if(pathname){
-      scope.setExtra('pathname', pathname)
-    }
-
     if (process.browser) {
       scope.setTag('ssr', false)
+      scope.setExtra('query', query)
+      scope.setExtra('pathname', pathname)
 
       // On client-side we use js-cookie package to fetch it
       const sessionId = Cookie.get('sid')
@@ -47,6 +41,8 @@ function captureException (err, { req, res, errorInfo, query, pathname }) {
       scope.setExtra('url', req.url)
       scope.setExtra('method', req.method)
       scope.setExtra('headers', req.headers)
+      scope.setExtra('params', req.params)
+      scope.setExtra('query', req.query)
 
       // On server-side we take session cookie directly from request
       if (req.cookies.sid) {
