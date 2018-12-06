@@ -10,7 +10,7 @@
     "body-parser": "^1.17.1",
     "express": "^4.14.0",
     "express-session": "^1.15.2",
-    "firebase": "^4.9.1",
+    "firebase": "^5.6.0",
     "firebase-admin": "^5.8.2",
     "isomorphic-unfetch": "2.0.0",
     "next": "latest",
