@@ -1,7 +1,6 @@
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
 import requirePage, {normalizePagePath} from './require'
@@ -11,33 +10,10 @@ import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
-
-// Based on https://github.com/jamiebuilds/react-loadable/pull/132
-function getDynamicImportBundles (manifest, moduleIds) {
-  return moduleIds.reduce((bundles, moduleId) => {
-    if (typeof manifest[moduleId] === 'undefined') {
-      return bundles
-    }
-
-    return bundles.concat(manifest[moduleId])
-  }, [])
-}
-
-// since send doesn't support wasm yet
-send.mime.define({ 'application/wasm': ['wasm'] })
-
-export async function render (req, res, pathname, query, opts) {
-  const html = await renderToHTML(req, res, pathname, query, opts)
-  sendHTML(req, res, html, req.method, opts)
-}
+import {getDynamicImportBundles} from './get-dynamic-import-bundles'
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
-}
-
-export async function renderError (err, req, res, pathname, query, opts) {
-  const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(req, res, html, req.method, opts)
 }
 
 export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
@@ -83,6 +59,8 @@ async function doRender (req, res, pathname, query, {
     require(documentPath),
     require(appPath)
   ])
+
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   Component = Component.default || Component
 
@@ -152,10 +130,8 @@ async function doRender (req, res, pathname, query, {
     return { html, head, buildManifest }
   }
 
-  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
+  const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
   if (isResSent(res)) return
@@ -189,21 +165,6 @@ async function doRender (req, res, pathname, query, {
   }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export async function renderScriptError (req, res, page, error) {
-  // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
-
-  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-    return
-  }
-
-  console.error(error.stack)
-  res.statusCode = 500
-  res.end('500 - Internal Error')
 }
 
 export function sendHTML (req, res, html, method, { dev, generateEtags }) {
@@ -256,19 +217,4 @@ function serializeError (dev, err) {
   }
 
   return { message: '500 - Internal Server Error.' }
-}
-
-export function serveStatic (req, res, path) {
-  return new Promise((resolve, reject) => {
-    send(req, path)
-      .on('directory', () => {
-      // We don't allow directories to be read.
-        const err = new Error('No directory access')
-        err.code = 'ENOENT'
-        reject(err)
-      })
-      .on('error', reject)
-      .pipe(res)
-      .on('finish', resolve)
-  })
 }

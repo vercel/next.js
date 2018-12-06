@@ -8,7 +8,21 @@ import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
 import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
 import {route} from 'next-server/dist/server/router'
-import {renderScriptError} from 'next-server/dist/server/render'
+
+export async function renderScriptError (res, error) {
+  // Asks CDNs and others to not to cache the errored page
+  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
+
+  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
+    res.statusCode = 404
+    res.end('404 - Not Found')
+    return
+  }
+
+  console.error(error.stack)
+  res.statusCode = 500
+  res.end('500 - Internal Error')
+}
 
 function addCorsSupport (req, res) {
   if (!req.headers.origin) {
@@ -116,13 +130,13 @@ export default class HotReloader {
         try {
           await this.ensurePage(page)
         } catch (error) {
-          await renderScriptError(req, res, page, error)
+          await renderScriptError(res, error)
           return {finished: true}
         }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
-          await renderScriptError(req, res, page, errors[0])
+          await renderScriptError(res, errors[0])
           return {finished: true}
         }
       }

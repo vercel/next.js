@@ -7,9 +7,9 @@ import nanoid from 'nanoid'
 import {
   renderToHTML,
   renderErrorToHTML,
-  sendHTML,
-  serveStatic
+  sendHTML
 } from './render'
+import {serveStatic} from './serve-static'
 import Router, {route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
@@ -268,10 +268,16 @@ export default class Server {
   }
 
   readBuildId () {
-    if (!fs.existsSync(resolve(this.distDir, BUILD_ID_FILE))) {
-      throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
+    const buildIdFile = join(this.distDir, BUILD_ID_FILE)
+    try {
+      return fs.readFileSync(buildIdFile, 'utf8').trim()
+    } catch (err) {
+      if (!fs.existsSync(buildIdFile)) {
+        throw new Error(`Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`)
+      }
+
+      throw err
     }
-    return fs.readFileSync(join(this.distDir, BUILD_ID_FILE), 'utf8').trim()
   }
 
   genNonce () {
