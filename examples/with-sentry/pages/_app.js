@@ -24,7 +24,7 @@ class MyApp extends App {
 
   // This reports errors thrown while rendering components
   componentDidCatch (error, errorInfo) {
-    captureException(error, { extra: errorInfo })
+    captureException(error, { errorInfo })
     super.componentDidCatch(error, errorInfo)
   }
 }
