@@ -10,7 +10,7 @@ if (process.env.SENTRY_DSN) {
   })
 }
 
-function captureException (err, { req, res, errorInfo }) {
+function captureException (err, { req, res, errorInfo, query, pathname }) {
   Sentry.configureScope(scope => {
     if (err.message) {
       // De-duplication currently doesn't work correctly for SSR / browser errors
@@ -24,6 +24,14 @@ function captureException (err, { req, res, errorInfo }) {
 
     if (res && res.statusCode) {
       scope.setExtra('statusCode', res.statusCode)
+    }
+
+    if(query){
+      scope.setExtra('query', query)
+    }
+
+    if(pathname){
+      scope.setExtra('pathname', pathname)
     }
 
     if (process.browser) {
