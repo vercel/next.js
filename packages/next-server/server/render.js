@@ -1,7 +1,6 @@
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
 import requirePage, {normalizePagePath} from './require'
@@ -22,9 +21,6 @@ function getDynamicImportBundles (manifest, moduleIds) {
     return bundles.concat(manifest[moduleId])
   }, [])
 }
-
-// since send doesn't support wasm yet
-send.mime.define({ 'application/wasm': ['wasm'] })
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
@@ -219,19 +215,4 @@ function serializeError (dev, err) {
   }
 
   return { message: '500 - Internal Server Error.' }
-}
-
-export function serveStatic (req, res, path) {
-  return new Promise((resolve, reject) => {
-    send(req, path)
-      .on('directory', () => {
-      // We don't allow directories to be read.
-        const err = new Error('No directory access')
-        err.code = 'ENOENT'
-        reject(err)
-      })
-      .on('error', reject)
-      .pipe(res)
-      .on('finish', resolve)
-  })
 }

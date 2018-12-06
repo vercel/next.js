@@ -6,9 +6,9 @@ import fs from 'fs'
 import {
   renderToHTML,
   renderErrorToHTML,
-  sendHTML,
-  serveStatic
+  sendHTML
 } from './render'
+import {serveStatic} from './serve-static'
 import Router, {route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
