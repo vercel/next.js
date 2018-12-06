@@ -173,21 +173,6 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-export async function renderScriptError (req, res, page, error) {
-  // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
-
-  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-    return
-  }
-
-  console.error(error.stack)
-  res.statusCode = 500
-  res.end('500 - Internal Error')
-}
-
 export function sendHTML (req, res, html, method, { dev, generateEtags }) {
   if (isResSent(res)) return
   const etag = generateEtags && generateETag(html)
