@@ -10,17 +10,7 @@ import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
-
-// Based on https://github.com/jamiebuilds/react-loadable/pull/132
-function getDynamicImportBundles (manifest, moduleIds) {
-  return moduleIds.reduce((bundles, moduleId) => {
-    if (typeof manifest[moduleId] === 'undefined') {
-      return bundles
-    }
-
-    return bundles.concat(manifest[moduleId])
-  }, [])
-}
+import {getDynamicImportBundles} from './get-dynamic-import-bundles'
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
@@ -137,7 +127,7 @@ async function doRender (req, res, pathname, query, {
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
+  const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
   if (isResSent(res)) return
