@@ -243,7 +243,7 @@ describe('Production Usage', () => {
       const browserLogs = await browser.log('browser')
       let foundLog = false
       browserLogs.forEach((log) => {
-        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+        if (log.message.match(/\/no-such-page\.js\/? - Failed to load resource/)) {
           foundLog = true
         }
       })
