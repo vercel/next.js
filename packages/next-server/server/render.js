@@ -16,6 +16,7 @@ export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
 }
 
+// _pathname is for backwards compatibility
 export function renderErrorToHTML (err, req, res, _pathname, query, opts = {}) {
   return doRender(req, res, '/_error', query, { ...opts, err })
 }
