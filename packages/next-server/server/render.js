@@ -56,6 +56,8 @@ async function doRender (req, res, pathname, query, {
     require(appPath)
   ])
 
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
+
   Component = Component.default || Component
 
   if (typeof Component !== 'function') {
@@ -123,8 +125,6 @@ async function doRender (req, res, pathname, query, {
 
     return { html, head, buildManifest }
   }
-
-  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
