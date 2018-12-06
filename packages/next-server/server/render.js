@@ -16,8 +16,9 @@ export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
 }
 
-export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
+// _pathname is for backwards compatibility
+export function renderErrorToHTML (err, req, res, _pathname, query, opts = {}) {
+  return doRender(req, res, '/_error', query, { ...opts, err })
 }
 
 function getPageFiles (buildManifest, page) {
@@ -34,24 +35,20 @@ function getPageFiles (buildManifest, page) {
 
 async function doRender (req, res, pathname, query, {
   err,
-  page,
   buildId,
   assetPrefix,
   runtimeConfig,
   distDir,
-  dir,
   dev = false,
   staticMarkup = false,
   nextExport
 } = {}) {
-  page = page || pathname
-
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(page, {distDir}),
+    requirePage(pathname, {distDir}),
     require(documentPath),
     require(appPath)
   ])
@@ -61,19 +58,19 @@ async function doRender (req, res, pathname, query, {
   Component = Component.default || Component
 
   if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${page}"`)
+    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
   }
 
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname: page, query, asPath }
-  const router = new Router(page, query, asPath)
+  const ctx = { err, req, res, pathname, query, asPath }
+  const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, pathname),
       ...getPageFiles(buildManifest, '/_app'),
       ...getPageFiles(buildManifest, '/_error')
     ])
@@ -136,7 +133,7 @@ async function doRender (req, res, pathname, query, {
   const doc = <Document {...{
     __NEXT_DATA__: {
       props, // The result of getInitialProps
-      page, // The rendered page
+      page: pathname, // The rendered page
       query, // querystring parsed / passed by the user
       buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
@@ -145,10 +142,7 @@ async function doRender (req, res, pathname, query, {
       dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
       err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
     },
-    dev,
-    dir,
     staticMarkup,
-    buildManifest,
     devFiles,
     files,
     dynamicImports,
@@ -171,7 +165,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
 
   if (dev) {
     // In dev, we should not cache pages for any reason.
-    // That's why we do this.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
