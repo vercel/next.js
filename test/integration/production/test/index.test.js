@@ -241,9 +241,10 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
+      console.log(browserLogs) // Only here to debug Azure
       let foundLog = false
       browserLogs.forEach((log) => {
-        if (log.message.match(/\/no-such-page\.js\/? - Failed to load resource/)) {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
           foundLog = true
         }
       })
