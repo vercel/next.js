@@ -95,11 +95,11 @@ async function doRender (req, res, pathname, query, {
       } else {
         html = render(
           <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
-            <EnhancedApp {...{
-              Component: EnhancedComponent,
-              router,
-              ...props
-            }} />
+            <EnhancedApp
+              Component={EnhancedComponent}
+              router={router}
+              {...props}
+            />
           </LoadableCapture>
         )
       }
