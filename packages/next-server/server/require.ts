@@ -1,13 +1,13 @@
 import {join, posix} from 'path'
 import {PAGES_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
 
-export function pageNotFoundError (page) {
-  const err = new Error(`Cannot find module for page: ${page}`)
+export function pageNotFoundError (page: string): Error {
+  const err: any = new Error(`Cannot find module for page: ${page}`)
   err.code = 'ENOENT'
   return err
 }
 
-export function normalizePagePath (page) {
+export function normalizePagePath (page: string): string {
   // If the page is `/` we need to append `/index`, otherwise the returned directory root will be bundles instead of pages
   if (page === '/') {
     page = '/index'
@@ -27,7 +27,7 @@ export function normalizePagePath (page) {
   return page
 }
 
-export function getPagePath (page, {distDir}) {
+export function getPagePath (page: string, distDir: string): string {
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
@@ -45,7 +45,7 @@ export function getPagePath (page, {distDir}) {
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export default async function requirePage (page, {distDir}) {
-  const pagePath = getPagePath(page, {distDir})
+export async function requirePage (page: string, distDir: string): Promise<any> {
+  const pagePath = getPagePath(page, distDir)
   return require(pagePath)
 }
