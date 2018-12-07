@@ -1,7 +1,6 @@
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import send from 'send'
 import generateETag from 'etag'
 import fresh from 'fresh'
 import requirePage, {normalizePagePath} from './require'
@@ -11,37 +10,15 @@ import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
-
-// Based on https://github.com/jamiebuilds/react-loadable/pull/132
-function getDynamicImportBundles (manifest, moduleIds) {
-  return moduleIds.reduce((bundles, moduleId) => {
-    if (typeof manifest[moduleId] === 'undefined') {
-      return bundles
-    }
-
-    return bundles.concat(manifest[moduleId])
-  }, [])
-}
-
-// since send doesn't support wasm yet
-send.mime.define({ 'application/wasm': ['wasm'] })
-
-export async function render (req, res, pathname, query, opts) {
-  const html = await renderToHTML(req, res, pathname, query, opts)
-  sendHTML(req, res, html, req.method, opts)
-}
+import {getDynamicImportBundles} from './get-dynamic-import-bundles'
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
 }
 
-export async function renderError (err, req, res, pathname, query, opts) {
-  const html = await renderErrorToHTML(err, req, res, query, opts)
-  sendHTML(req, res, html, req.method, opts)
-}
-
-export function renderErrorToHTML (err, req, res, pathname, query, opts = {}) {
-  return doRender(req, res, pathname, query, { ...opts, err, page: '/_error' })
+// _pathname is for backwards compatibility
+export function renderErrorToHTML (err, req, res, _pathname, query, opts = {}) {
+  return doRender(req, res, '/_error', query, { ...opts, err })
 }
 
 function getPageFiles (buildManifest, page) {
@@ -58,44 +35,42 @@ function getPageFiles (buildManifest, page) {
 
 async function doRender (req, res, pathname, query, {
   err,
-  page,
   buildId,
   assetPrefix,
   runtimeConfig,
   distDir,
-  dir,
   dev = false,
   staticMarkup = false,
   nextExport
 } = {}) {
-  page = page || pathname
-
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(page, {distDir}),
+    requirePage(pathname, {distDir}),
     require(documentPath),
     require(appPath)
   ])
 
+  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
+
   Component = Component.default || Component
 
   if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${page}"`)
+    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
   }
 
   App = App.default || App
   Document = Document.default || Document
   const asPath = req.url
-  const ctx = { err, req, res, pathname: page, query, asPath }
-  const router = new Router(page, query, asPath)
+  const ctx = { err, req, res, pathname, query, asPath }
+  const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
-      ...getPageFiles(buildManifest, page),
+      ...getPageFiles(buildManifest, pathname),
       ...getPageFiles(buildManifest, '/_app'),
       ...getPageFiles(buildManifest, '/_error')
     ])
@@ -148,10 +123,8 @@ async function doRender (req, res, pathname, query, {
     return { html, head, buildManifest }
   }
 
-  await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  const dynamicImports = [...(new Set(getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)))]
+  const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
   if (isResSent(res)) return
@@ -160,7 +133,7 @@ async function doRender (req, res, pathname, query, {
   const doc = <Document {...{
     __NEXT_DATA__: {
       props, // The result of getInitialProps
-      page, // The rendered page
+      page: pathname, // The rendered page
       query, // querystring parsed / passed by the user
       buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
@@ -169,10 +142,7 @@ async function doRender (req, res, pathname, query, {
       dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
       err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
     },
-    dev,
-    dir,
     staticMarkup,
-    buildManifest,
     devFiles,
     files,
     dynamicImports,
@@ -181,21 +151,6 @@ async function doRender (req, res, pathname, query, {
   }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export async function renderScriptError (req, res, page, error) {
-  // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
-
-  if (error.code === 'ENOENT' || error.message === 'INVALID_BUILD_ID') {
-    res.statusCode = 404
-    res.end('404 - Not Found')
-    return
-  }
-
-  console.error(error.stack)
-  res.statusCode = 500
-  res.end('500 - Internal Error')
 }
 
 export function sendHTML (req, res, html, method, { dev, generateEtags }) {
@@ -210,7 +165,6 @@ export function sendHTML (req, res, html, method, { dev, generateEtags }) {
 
   if (dev) {
     // In dev, we should not cache pages for any reason.
-    // That's why we do this.
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
@@ -244,19 +198,4 @@ function serializeError (dev, err) {
   }
 
   return { message: '500 - Internal Server Error.' }
-}
-
-export function serveStatic (req, res, path) {
-  return new Promise((resolve, reject) => {
-    send(req, path)
-      .on('directory', () => {
-      // We don't allow directories to be read.
-        const err = new Error('No directory access')
-        err.code = 'ENOENT'
-        reject(err)
-      })
-      .on('error', reject)
-      .pipe(res)
-      .on('finish', resolve)
-  })
 }

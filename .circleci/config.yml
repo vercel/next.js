@@ -8,6 +8,7 @@ jobs:
       - checkout
       - run: yarn install
       - run: yarn bootstrap
+      - run: yarn lint
       - run: yarn test
   publish-stable:
     docker:

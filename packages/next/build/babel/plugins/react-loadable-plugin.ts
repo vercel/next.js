@@ -52,10 +52,12 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
 
           if (
             callExpression.isMemberExpression() &&
-            callExpression.node.computed === false &&
-            callExpression.get('property').isIdentifier({ name: 'Map' })
+            callExpression.node.computed === false
           ) {
-            callExpression = callExpression.parentPath
+            const property = callExpression.get('property')
+            if (!Array.isArray(property) && property.isIdentifier({ name: 'Map' })) {
+              callExpression = callExpression.parentPath
+            }
           }
 
           if (!callExpression.isCallExpression()) return
