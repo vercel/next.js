@@ -1,8 +1,6 @@
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import generateETag from 'etag'
-import fresh from 'fresh'
 import {requirePage} from './require'
 import Router from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
@@ -140,32 +138,6 @@ async function doRender (req, res, pathname, query, {
   }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export function sendHTML (req, res, html, method, { dev, generateEtags }) {
-  if (isResSent(res)) return
-  const etag = generateEtags && generateETag(html)
-
-  if (fresh(req.headers, { etag })) {
-    res.statusCode = 304
-    res.end()
-    return
-  }
-
-  if (dev) {
-    // In dev, we should not cache pages for any reason.
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  }
-
-  if (etag) {
-    res.setHeader('ETag', etag)
-  }
-
-  if (!res.getHeader('Content-Type')) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  }
-  res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(method === 'HEAD' ? null : html)
 }
 
 function errorToJSON (err) {
