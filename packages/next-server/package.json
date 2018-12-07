@@ -18,7 +18,8 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release"
+    "prepublish": "npm run release",
+    "typescript": "tsc --noEmit"
   },
   "taskr": {
     "requires": [
