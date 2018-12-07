@@ -35,6 +35,11 @@ function externalsConfig (dir, isServer, lambdas) {
   if (lambdas) {
     return [
       (context, request, callback) => {
+        // Make react/react-dom external until we bundle the server/renderer.
+        if (request === 'react' || request === 'react-dom') {
+          return callback(null, `commonjs ${request}`)
+        }
+
         resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
           if (err) {
             return callback()

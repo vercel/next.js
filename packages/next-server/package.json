@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "7.0.2-canary.40",
+  "version": "7.0.2-canary.41",
   "main": "./index.js",
   "license": "MIT",
   "files": [
@@ -18,7 +18,8 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release"
+    "prepublish": "npm run release",
+    "typescript": "tsc --noEmit"
   },
   "taskr": {
     "requires": [
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
+    "@types/send": "0.14.4",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
   },
