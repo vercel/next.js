@@ -1,9 +1,7 @@
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import generateETag from 'etag'
-import fresh from 'fresh'
-import requirePage, {normalizePagePath} from './require'
+import {requirePage} from './require'
 import Router from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
@@ -11,6 +9,7 @@ import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import {getDynamicImportBundles} from './get-dynamic-import-bundles'
+import {getPageFiles} from './get-page-files'
 
 export function renderToHTML (req, res, pathname, query, opts) {
   return doRender(req, res, pathname, query, opts)
@@ -19,18 +18,6 @@ export function renderToHTML (req, res, pathname, query, opts) {
 // _pathname is for backwards compatibility
 export function renderErrorToHTML (err, req, res, _pathname, query, opts = {}) {
   return doRender(req, res, '/_error', query, { ...opts, err })
-}
-
-function getPageFiles (buildManifest, page) {
-  const normalizedPage = normalizePagePath(page)
-  const files = buildManifest.pages[normalizedPage]
-
-  if (!files) {
-    console.warn(`Could not find files for ${normalizedPage} in .next/build-manifest.json`)
-    return []
-  }
-
-  return files
 }
 
 async function doRender (req, res, pathname, query, {
@@ -48,7 +35,7 @@ async function doRender (req, res, pathname, query, {
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(pathname, {distDir}),
+    requirePage(pathname, distDir),
     require(documentPath),
     require(appPath)
   ])
@@ -151,32 +138,6 @@ async function doRender (req, res, pathname, query, {
   }} />
 
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
-}
-
-export function sendHTML (req, res, html, method, { dev, generateEtags }) {
-  if (isResSent(res)) return
-  const etag = generateEtags && generateETag(html)
-
-  if (fresh(req.headers, { etag })) {
-    res.statusCode = 304
-    res.end()
-    return
-  }
-
-  if (dev) {
-    // In dev, we should not cache pages for any reason.
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  }
-
-  if (etag) {
-    res.setHeader('ETag', etag)
-  }
-
-  if (!res.getHeader('Content-Type')) {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  }
-  res.setHeader('Content-Length', Buffer.byteLength(html))
-  res.end(method === 'HEAD' ? null : html)
 }
 
 function errorToJSON (err) {

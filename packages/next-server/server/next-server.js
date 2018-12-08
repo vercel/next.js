@@ -5,9 +5,9 @@ import { parse as parseQs } from 'querystring'
 import fs from 'fs'
 import {
   renderToHTML,
-  renderErrorToHTML,
-  sendHTML
+  renderErrorToHTML
 } from './render'
+import {sendHTML} from './send-html'
 import {serveStatic} from './serve-static'
 import Router, {route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
@@ -189,7 +189,7 @@ export default class Server {
     if (this.nextConfig.poweredByHeader) {
       res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
     }
-    return sendHTML(req, res, html, req.method, this.renderOpts)
+    return sendHTML(req, res, html, this.renderOpts)
   }
 
   async renderToHTML (req, res, pathname, query) {
@@ -210,7 +210,7 @@ export default class Server {
   async renderError (err, req, res, pathname, query) {
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(req, res, html, req.method, this.renderOpts)
+    return sendHTML(req, res, html, this.renderOpts)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
