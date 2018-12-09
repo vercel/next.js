@@ -70,7 +70,7 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
   }
 }
 
-export async function doDocRender (page, initialProps, { dev, dir, publicPath, entrypoints, hotReloader }) {
+export async function doDocRender (page, initialProps, { dev, dir, publicPath, entrypoints, hotReloader, buildId }) {
   const pageDir = join(dir, '.next', 'server', 'pages')
 
   let Document = require(join(pageDir, '_document'))
@@ -79,6 +79,7 @@ export async function doDocRender (page, initialProps, { dev, dir, publicPath, e
   const docProps = await Document.getInitialProps({ initialProps, renderPage: () => page })
   const doc = createElement(Document, {
     __NEXT_DATA__: {
+      buildId,
       props: docProps.props,
       pathname: docProps.pathname,
       query: docProps.query,

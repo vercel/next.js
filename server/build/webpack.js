@@ -17,6 +17,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   const mainJS = dev
     ? require.resolve('../../../browser/client/next-dev') : require.resolve('../../../browser/client/next')
 
+  console.log('loaded!', config)
   const entry = async () => {
     const loader = 'page-loader!'
     const base = [
@@ -38,6 +39,10 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     }
     for (const p of entryPages) {
       entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = base.concat(`${loader}${p}`)
+    }
+
+    if (config.polyfill) {
+      entries['polyfill.js'] = config.polyfill
     }
 
     return entries
@@ -106,7 +111,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       alias: {
         'next/page-loader': require.resolve('../../../browser/lib/page-loader'),
         'html-entities': require.resolve('../../../browser/lib/html-entities'),
-        'object-assign': 'core-js/fn/object/assign',
         'strip-ansi': require.resolve('../../../browser/client/strip-ansi.stub')
       }
     },

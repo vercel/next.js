@@ -1,6 +1,3 @@
-// Fucking IE11
-import 'core-js/es6/promise'
-
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import { createRouter } from '../lib/router'
