@@ -5,7 +5,7 @@ const internalPrefixes = [
   /^\/static\//
 ]
 
-export function isInternalUrl (url) {
+export function isInternalUrl (url: string): boolean {
   for (const prefix of internalPrefixes) {
     if (prefix.test(url)) {
       return true
@@ -15,6 +15,6 @@ export function isInternalUrl (url) {
   return false
 }
 
-export function isBlockedPage (pathname) {
+export function isBlockedPage (pathname: string): boolean {
   return (BLOCKED_PAGES.indexOf(pathname) !== -1)
 }

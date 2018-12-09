@@ -3,7 +3,7 @@ import generateETag from 'etag'
 import fresh from 'fresh'
 import { isResSent } from '../lib/utils'
 
-export function sendHTML (req: IncomingMessage, res: ServerResponse, html: string, { dev, generateEtags }: {dev: boolean, generateEtags: boolean}) {
+export function sendHTML (req: IncomingMessage, res: ServerResponse, html: string, { generateEtags }: {generateEtags: boolean}) {
   if (isResSent(res)) return
   const etag = generateEtags ? generateETag(html) : undefined
 
@@ -11,11 +11,6 @@ export function sendHTML (req: IncomingMessage, res: ServerResponse, html: strin
     res.statusCode = 304
     res.end()
     return
-  }
-
-  if (dev) {
-    // In dev, we should not cache pages for any reason.
-    res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
 
   if (etag) {

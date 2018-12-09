@@ -64,7 +64,7 @@ async function doRender (req, res, pathname, query, {
   ]
 
   // the response might be finshed on the getinitialprops call
-  if (isResSent(res)) return
+  if (isResSent(res)) return null
 
   let reactLoadableModules = []
   const renderPage = (options = Page => Page) => {
@@ -114,7 +114,7 @@ async function doRender (req, res, pathname, query, {
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
-  if (isResSent(res)) return
+  if (isResSent(res)) return null
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
