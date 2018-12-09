@@ -229,7 +229,9 @@ export default class Server {
 
   public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery): Promise<string|null> {
     try {
-      return renderToHTML(req, res, pathname, query, this.renderOpts)
+      // To make sure the try/catch is executed
+      const html = await renderToHTML(req, res, pathname, query, this.renderOpts)
+      return html
     } catch (err) {
       if (err.code === 'ENOENT') {
         return this.renderErrorToHTML(null, req, res, pathname, query)
