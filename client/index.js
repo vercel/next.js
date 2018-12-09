@@ -7,7 +7,7 @@ import { createRouter } from '../lib/router'
 import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { getURL } from '../lib/utils'
-import { loadPage } from '../lib/page-loader'
+import { waitForPage } from '../lib/page-loader'
 
 const {
   __NEXT_DATA__: {
@@ -35,8 +35,8 @@ export const emitter = new EventEmitter()
 
 export default () => {
   return Promise.all([
-    loadPage('/_error'),
-    loadPage(pathname).catch(console.error)
+    waitForPage('/_error'),
+    waitForPage(pathname).catch(console.error)
   ])
     .then(([_ErrorComponent, Component]) => {
       ErrorComponent = _ErrorComponent
