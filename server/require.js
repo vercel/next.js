@@ -42,6 +42,7 @@ export function getPagePath (page, {distDir}) {
     throw pageNotFoundError(page)
   }
 
+  // Replace any separators with the current platform separator
   return join(serverBuildPath, pagesManifest[page].replace(/(\/|\\)/g, sep))
 }
 
