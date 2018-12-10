@@ -16,7 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next/constants'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST} from 'next/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -274,6 +274,17 @@ describe('Production Usage', () => {
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
     expect(serverSideJsBody).toMatch(/404/)
+  })
+
+  it('should not put backslashes in pages-manifest.json', () => {
+    // Whatever platform you build on, pages-manifest.json should use forward slash (/)
+    // See: https://github.com/zeit/next.js/issues/4920
+    const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
+
+    for (let key of Object.keys(pagesManifest)) {
+      expect(key).not.toMatch(/\\/)
+      expect(pagesManifest[key]).not.toMatch(/\\/)
+    }
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
