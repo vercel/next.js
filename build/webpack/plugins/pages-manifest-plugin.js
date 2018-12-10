@@ -24,7 +24,8 @@ export default class PagesManifestPlugin {
         }
 
         const {name} = entry
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = name
+        // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
+        pages[`/${pagePath.replace(/\\/g, '/')}`] = name.replace(/\\/g, '/')
       }
 
       if (typeof pages['/index'] !== 'undefined') {
