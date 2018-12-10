@@ -14,6 +14,7 @@
     "test": "npm run testall || npm run testall",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
+    "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish",
