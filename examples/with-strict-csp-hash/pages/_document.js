@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import Document, { Head, Main, NextScript } from 'next/document'
 
-const cspHashOf = (text) => {
+const cspHashOf = text => {
   const hash = crypto.createHash('sha256')
   hash.update(text)
   return `'sha256-${hash.digest('base64')}'`
@@ -9,7 +9,9 @@ const cspHashOf = (text) => {
 
 export default class extends Document {
   render () {
-    const csp = `default-src 'self'; script-src 'self' ${cspHashOf(NextScript.getInlineScriptSource(this.props))}`
+    const csp = `default-src 'self'; script-src 'self' ${cspHashOf(
+      NextScript.getInlineScriptSource(this.props)
+    )}`
 
     return (
       <html>

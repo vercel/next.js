@@ -21,13 +21,11 @@ class Counter extends React.Component {
   }
 
   render () {
-    return (
-      <Page title='Index Page' linkTo='/other' />
-    )
+    return <Page title='Index Page' linkTo='/other' />
   }
 }
 
-const mapDispatchToProps = (dispatch) => {
+const mapDispatchToProps = dispatch => {
   return {
     addCount: bindActionCreators(addCount, dispatch),
     startClock: bindActionCreators(startClock, dispatch)

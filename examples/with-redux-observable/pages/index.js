@@ -34,17 +34,16 @@ class Counter extends React.Component {
         <CharacterInfo />
         <br />
         <nav>
-          <Link href='/other'><a>Navigate to "/other"</a></Link>
+          <Link href='/other'>
+            <a>Navigate to "/other"</a>
+          </Link>
         </nav>
       </div>
     )
   }
 }
 
-export default connect(
-  null,
-  {
-    startFetchingCharacters: actions.startFetchingCharacters,
-    stopFetchingCharacters: actions.stopFetchingCharacters
-  }
-)(Counter)
+export default connect(null, {
+  startFetchingCharacters: actions.startFetchingCharacters,
+  stopFetchingCharacters: actions.stopFetchingCharacters
+})(Counter)

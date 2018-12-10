@@ -6,7 +6,7 @@ const SENTRY_PUBLIC_DSN = ''
 export default class MyApp extends App {
   constructor (...args) {
     super(...args)
-    Sentry.init({dsn: SENTRY_PUBLIC_DSN})
+    Sentry.init({ dsn: SENTRY_PUBLIC_DSN })
   }
 
   componentDidCatch (error, errorInfo) {

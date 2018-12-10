@@ -1,9 +1,6 @@
 import React from 'react'
 import Document, { Head, Main, NextScript } from 'next/document'
-import {
-  SheetsRegistry,
-  JssProvider
-} from 'react-jss'
+import { SheetsRegistry, JssProvider } from 'react-jss'
 
 export default class JssDocument extends Document {
   static getInitialProps (ctx) {

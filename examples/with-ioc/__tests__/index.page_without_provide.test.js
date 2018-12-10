@@ -13,7 +13,12 @@ import App from '../pages/index.js'
 describe('With Enzyme', () => {
   it('App shows "Menu"', () => {
     const app = shallow(<App />)
-    expect(app.find('li a').first().text()).toEqual('Blog: Hello world')
+    expect(
+      app
+        .find('li a')
+        .first()
+        .text()
+    ).toEqual('Blog: Hello world')
   })
 })
 

@@ -1,5 +1,5 @@
-import admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
+import admin from 'firebase-admin'
+import * as functions from 'firebase-functions'
 
-export { functions };
-export const firebase = admin.initializeApp();
+export { functions }
+export const firebase = admin.initializeApp()

@@ -1,5 +1,5 @@
-import React, {Component} from 'react'
-import {UserAgent} from '@quentin-sommer/react-useragent'
+import React, { Component } from 'react'
+import { UserAgent } from '@quentin-sommer/react-useragent'
 
 class Index extends Component {
   render () {

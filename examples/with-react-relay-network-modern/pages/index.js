@@ -19,7 +19,7 @@ export default class Index extends Component {
         ...BlogPosts_viewer
       }
     }
-  `;
+  `
 
   render () {
     return (

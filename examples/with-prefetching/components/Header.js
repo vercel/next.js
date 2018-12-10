@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default () => (
   <div>
-    { /* Prefetch using the declarative API */ }
+    {/* Prefetch using the declarative API */}
     <Link prefetch href='/'>
       <a>Home</a>
     </Link>
@@ -12,13 +12,22 @@ export default () => (
       <a>Features</a>
     </Link>
 
-    { /* we imperatively prefetch on hover */ }
+    {/* we imperatively prefetch on hover */}
     <Link href='/about'>
-      <a onMouseEnter={() => { Router.prefetch('/about'); console.log('prefetching /about!') }}>About</a>
+      <a
+        onMouseEnter={() => {
+          Router.prefetch('/about')
+          console.log('prefetching /about!')
+        }}
+      >
+        About
+      </a>
     </Link>
 
     <Link href='/contact'>
-      <a>Contact (<small>NO-PREFETCHING</small>)</a>
+      <a>
+        Contact (<small>NO-PREFETCHING</small>)
+      </a>
     </Link>
 
     <style jsx>{`

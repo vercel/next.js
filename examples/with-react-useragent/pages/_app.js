@@ -1,6 +1,6 @@
 import React from 'react'
-import App, {Container} from 'next/app'
-import {UserAgentProvider} from '@quentin-sommer/react-useragent'
+import App, { Container } from 'next/app'
+import { UserAgentProvider } from '@quentin-sommer/react-useragent'
 
 const PageWrapper = Comp =>
   class extends React.Component {
@@ -18,7 +18,7 @@ const PageWrapper = Comp =>
     }
 
     render () {
-      const {ua, ...props} = this.props
+      const { ua, ...props } = this.props
       return (
         <UserAgentProvider ua={ua}>
           <Comp {...props} />
@@ -29,7 +29,7 @@ const PageWrapper = Comp =>
 
 class MyApp extends App {
   render () {
-    const {Component, pageProps} = this.props
+    const { Component, pageProps } = this.props
     return (
       <Container>
         <Component {...pageProps} />

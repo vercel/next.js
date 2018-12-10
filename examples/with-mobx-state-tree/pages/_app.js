@@ -10,7 +10,7 @@ export default class MyApp extends App {
     // Use getInitialProps as a step in the lifecycle when
     // we can initialize our store
     //
-    const isServer = (typeof window === 'undefined')
+    const isServer = typeof window === 'undefined'
     const store = initializeStore(isServer)
     //
     // Check whether the page being rendered by the App has a
