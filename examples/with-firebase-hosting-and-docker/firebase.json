@@ -1,0 +1,16 @@
+{
+  "hosting": {
+    "public": "dist/public",
+    "rewrites": [
+      {
+        "source": "**/**",
+        "function": "app"
+      }
+    ],
+    "predeploy": "yarn build-public"
+  },
+  "functions": {
+    "source": "dist/functions",
+    "predeploy": "yarn build-funcs && yarn build-app && yarn copy-deps"
+  }
+}
