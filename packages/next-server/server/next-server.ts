@@ -1,7 +1,8 @@
-/* eslint-disable import/first, no-return-await */
+/* eslint-disable import/first */
+import {IncomingMessage, ServerResponse} from 'http'
 import { resolve, join, sep } from 'path'
-import { parse as parseUrl } from 'url'
-import { parse as parseQs } from 'querystring'
+import { parse as parseUrl, UrlWithParsedQuery } from 'url'
+import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import fs from 'fs'
 import {
   renderToHTML,
@@ -9,16 +10,39 @@ import {
 } from './render'
 import {sendHTML} from './send-html'
 import {serveStatic} from './serve-static'
-import Router, {route} from './router'
+import Router, {route, Route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
 import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
-import { isResSent } from '../lib/utils'
+
+type NextConfig = any
+
+type ServerConstructor = {
+  dir?: string,
+  staticMarkup?: boolean,
+  quiet?: boolean,
+  conf?: NextConfig
+}
 
 export default class Server {
-  constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null } = {}) {
+  dir: string
+  quiet: boolean
+  nextConfig: NextConfig
+  distDir: string
+  buildId: string
+  renderOpts: {
+    staticMarkup: boolean,
+    distDir: string,
+    buildId: string,
+    generateEtags: boolean,
+    runtimeConfig?: {[key: string]: any},
+    assetPrefix?: string
+  }
+  router: Router
+
+  public constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -54,14 +78,15 @@ export default class Server {
     this.setAssetPrefix(assetPrefix)
   }
 
-  currentPhase () {
+  private currentPhase (): string {
     return PHASE_PRODUCTION_SERVER
   }
 
-  handleRequest (req, res, parsedUrl) {
+  private handleRequest (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
-      parsedUrl = parseUrl(req.url, true)
+      const url: any = req.url
+      parsedUrl = parseUrl(url, true)
     }
 
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
@@ -78,30 +103,30 @@ export default class Server {
       })
   }
 
-  getRequestHandler () {
+  public getRequestHandler () {
     return this.handleRequest.bind(this)
   }
 
-  setAssetPrefix (prefix) {
+  public setAssetPrefix (prefix?: string) {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
     asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
   // Backwards compatibility
-  async prepare () {}
+  public async prepare (): Promise<void> {}
 
   // Backwards compatibility
-  async close () {}
+  private async close (): Promise<void> {}
 
-  setImmutableAssetCacheControl (res) {
+  private setImmutableAssetCacheControl (res: ServerResponse) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  generateRoutes () {
-    const routes = [
+  private generateRoutes (): Route[] {
+    const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
-        fn: async (req, res, params) => {
+        fn: async (req, res, params, parsedUrl) => {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
           // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
@@ -109,13 +134,13 @@ export default class Server {
             this.setImmutableAssetCacheControl(res)
           }
           const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
-          await this.serveStatic(req, res, p)
+          await this.serveStatic(req, res, p, parsedUrl)
         }
       },
       {
         match: route('/_next/:path*'),
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
-        fn: async (req, res, params, parsedUrl) => {
+        fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
         }
       },
@@ -125,9 +150,9 @@ export default class Server {
         // Otherwise this will lead to a pretty simple DOS attack.
         // See more: https://github.com/zeit/next.js/issues/2617
         match: route('/static/:path*'),
-        fn: async (req, res, params) => {
+        fn: async (req, res, params, parsedUrl) => {
           const p = join(this.dir, 'static', ...(params.path || []))
-          await this.serveStatic(req, res, p)
+          await this.serveStatic(req, res, p, parsedUrl)
         }
       }
     ]
@@ -139,8 +164,11 @@ export default class Server {
       // See more: https://github.com/zeit/next.js/issues/2617
       routes.push({
         match: route('/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
+        fn: async (req, res, _params, parsedUrl) => {
           const { pathname, query } = parsedUrl
+          if(!pathname) {
+            throw new Error('pathname is undefined')
+          }
           await this.render(req, res, pathname, query, parsedUrl)
         }
       })
@@ -149,7 +177,7 @@ export default class Server {
     return routes
   }
 
-  async run (req, res, parsedUrl) {
+  private async run (req: IncomingMessage, res: ServerResponse, parsedUrl: UrlWithParsedQuery) {
     try {
       const fn = this.router.match(req, res, parsedUrl)
       if (fn) {
@@ -172,32 +200,40 @@ export default class Server {
     }
   }
 
-  async render (req, res, pathname, query, parsedUrl) {
-    if (isInternalUrl(req.url)) {
+  private async sendHTML(req: IncomingMessage, res: ServerResponse, html: string) {
+    const {generateEtags} = this.renderOpts
+    return sendHTML(req, res, html, {generateEtags})
+  }
+
+  public async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, parsedUrl: UrlWithParsedQuery): Promise<void> {
+    const url: any = req.url
+    if (isInternalUrl(url)) {
       return this.handleRequest(req, res, parsedUrl)
     }
 
     if (isBlockedPage(pathname)) {
-      return await this.render404(req, res, parsedUrl)
+      return this.render404(req, res, parsedUrl)
     }
 
     const html = await this.renderToHTML(req, res, pathname, query)
-    if (isResSent(res)) {
+    // Request was ended by the user
+    if (html === null) {
       return
     }
 
     if (this.nextConfig.poweredByHeader) {
       res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
     }
-    return sendHTML(req, res, html, this.renderOpts)
+    return this.sendHTML(req, res, html)
   }
 
-  async renderToHTML (req, res, pathname, query) {
+  public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery): Promise<string|null> {
     try {
-      return await renderToHTML(req, res, pathname, query, this.renderOpts)
+      // To make sure the try/catch is executed
+      const html = await renderToHTML(req, res, pathname, query, this.renderOpts)
+      return html
     } catch (err) {
       if (err.code === 'ENOENT') {
-        res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
         if (!this.quiet) console.error(err)
@@ -207,39 +243,43 @@ export default class Server {
     }
   }
 
-  async renderError (err, req, res, pathname, query) {
+  public async renderError (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery): Promise<void> {
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    return sendHTML(req, res, html, this.renderOpts)
+    return this.sendHTML(req, res, html)
   }
 
-  async renderErrorToHTML (err, req, res, pathname, query) {
+  public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery) {
     return renderErrorToHTML(err, req, res, pathname, query, this.renderOpts)
   }
 
-  async render404 (req, res, parsedUrl = parseUrl(req.url, true)) {
-    const { pathname, query } = parsedUrl
+  public async render404 (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+    const url: any = req.url
+    const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
+    if(!pathname) {
+      throw new Error('pathname is undefined')
+    }
     res.statusCode = 404
     return this.renderError(null, req, res, pathname, query)
   }
 
-  async serveStatic (req, res, path) {
+  public async serveStatic (req: IncomingMessage, res: ServerResponse, path: string, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     if (!this.isServeableUrl(path)) {
-      return this.render404(req, res)
+      return this.render404(req, res, parsedUrl)
     }
 
     try {
-      return await serveStatic(req, res, path)
+      await serveStatic(req, res, path)
     } catch (err) {
       if (err.code === 'ENOENT' || err.statusCode === 404) {
-        this.render404(req, res)
+        this.render404(req, res, parsedUrl)
       } else {
         throw err
       }
     }
   }
 
-  isServeableUrl (path) {
+  private isServeableUrl (path: string): boolean {
     const resolved = resolve(path)
     if (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
@@ -252,7 +292,7 @@ export default class Server {
     return true
   }
 
-  readBuildId () {
+  private readBuildId (): string {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()

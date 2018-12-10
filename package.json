@@ -28,6 +28,7 @@
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
+      "packages/next-server/server/next-server.ts",
       "**/*.d.ts",
       "**/node_modules/**",
       "examples/with-ioc/**",

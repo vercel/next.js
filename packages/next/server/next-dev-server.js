@@ -120,6 +120,12 @@ export default class DevServer extends Server {
     }
   }
 
+  sendHTML (req, res, html) {
+    // In dev, we should not cache pages for any reason.
+    res.setHeader('Cache-Control', 'no-store, must-revalidate')
+    return super.sendHTML(req, res, html)
+  }
+
   setImmutableAssetCacheControl (res) {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
   }
