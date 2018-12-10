@@ -1122,6 +1122,8 @@ export default class MyDocument extends Document {
 
 All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
+__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
+
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
@@ -1153,28 +1155,6 @@ export default MyDocument extends Document {
   }
 }
 ```
-
-- It also can take a function instead of an object as argument. This would be the equivalent of using the `enhanceComponent` property in the options object previously mentioned.
-
-**⚠️ This usage is kept for backwards compatibility only, you should use the options object instead.** 
-
-```js
-import Document from 'next/document'
-
-export default MyDocument extends Document {
-  static async getInitialProps(ctx) {
-    const originalRenderPage = ctx.renderPage
-
-    ctx.renderPage = () => originalRenderPage(Component => Component)
-
-    const initialProps = await Document.getInitialProps(ctx)
-
-    return initialProps
-  }
-}
-```
-
-__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
 
 ### Custom error handling
 
