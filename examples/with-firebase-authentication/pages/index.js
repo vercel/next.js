@@ -1,5 +1,7 @@
 import React, { Component } from 'react'
-import firebase from 'firebase'
+import firebase from 'firebase/app'
+import 'firebase/auth'
+import 'firebase/firestore'
 import 'isomorphic-unfetch'
 import clientCredentials from '../credentials/client'
 
@@ -7,8 +9,9 @@ export default class Index extends Component {
   static async getInitialProps ({req, query}) {
     const user = req && req.session ? req.session.decodedToken : null
     // don't fetch anything from firebase if the user is not found
-    const snap = user && await req.firebaseServer.database().ref('messages').once('value')
-    const messages = snap && snap.val()
+    // const snap = user && await req.firebaseServer.database().ref('messages').once('value')
+    // const messages = snap && snap.val()
+    const messages = null
     return { user, messages }
   }
 
@@ -21,6 +24,7 @@ export default class Index extends Component {
     }
 
     this.addDbListener = this.addDbListener.bind(this)
+    this.removeDbListener = this.removeDbListener.bind(this)
     this.handleChange = this.handleChange.bind(this)
     this.handleSubmit = this.handleSubmit.bind(this)
   }
@@ -50,18 +54,32 @@ export default class Index extends Component {
         fetch('/api/logout', {
           method: 'POST',
           credentials: 'same-origin'
-        }).then(() => firebase.database().ref('messages').off())
+        }).then(() => this.removeDbListener())
       }
     })
   }
 
   addDbListener () {
-    firebase.database().ref('messages').on('value', snap => {
-      const messages = snap.val()
+    var db = firebase.firestore()
+    // Disable deprecated features
+    db.settings({
+      timestampsInSnapshots: true
+    })
+    let unsubscribe = db.collection('messages').onSnapshot(querySnapshot => {
+      var messages = {}
+      querySnapshot.forEach(function (doc) {
+        messages[doc.id] = doc.data()
+      })
       if (messages) this.setState({ messages })
     }, (error) => {
       console.error(error)
     })
+    this.setState({ unsubscribe })
+  }
+
+  removeDbListener () {
+    // firebase.database().ref('messages').off()
+    if (this.state.unsubscribe) { this.state.unsubscribe() }
   }
 
   handleChange (event) {
@@ -70,8 +88,13 @@ export default class Index extends Component {
 
   handleSubmit (event) {
     event.preventDefault()
+    var db = firebase.firestore()
+    // Disable deprecated features
+    db.settings({
+      timestampsInSnapshots: true
+    })
     const date = new Date().getTime()
-    firebase.database().ref(`messages/${date}`).set({
+    db.collection('messages').doc(`${date}`).set({
       id: date,
       text: this.state.value
     })
@@ -102,7 +125,7 @@ export default class Index extends Component {
             <input
               type={'text'}
               onChange={this.handleChange}
-              placeholder={'add message'}
+              placeholder={'add message...'}
               value={value}
             />
           </form>
