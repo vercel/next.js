@@ -58,16 +58,16 @@ export default class Index extends Component {
       }
     })
   }
-  
+
   addDbListener () {
     var db = firebase.firestore()
     // Disable deprecated features
     db.settings({
       timestampsInSnapshots: true
     })
-    let unsubscribe = db.collection('messages').onSnapshot( querySnapshot => {
+    let unsubscribe = db.collection('messages').onSnapshot(querySnapshot => {
       var messages = {}
-      querySnapshot.forEach(function(doc) {
+      querySnapshot.forEach(function (doc) {
         messages[doc.id] = doc.data()
       })
       if (messages) this.setState({ messages })
@@ -94,7 +94,7 @@ export default class Index extends Component {
       timestampsInSnapshots: true
     })
     const date = new Date().getTime()
-    db.collection("messages").doc(`${date}`).set({
+    db.collection('messages').doc(`${date}`).set({
       id: date,
       text: this.state.value
     })
