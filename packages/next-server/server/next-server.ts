@@ -205,7 +205,7 @@ export default class Server {
     return sendHTML(req, res, html, {generateEtags})
   }
 
-  public async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, parsedUrl: UrlWithParsedQuery): Promise<void> {
+  public async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     const url: any = req.url
     if (isInternalUrl(url)) {
       return this.handleRequest(req, res, parsedUrl)
@@ -227,7 +227,7 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery): Promise<string|null> {
+  public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
     try {
       // To make sure the try/catch is executed
       const html = await renderToHTML(req, res, pathname, query, this.renderOpts)
@@ -243,13 +243,13 @@ export default class Server {
     }
   }
 
-  public async renderError (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery): Promise<void> {
+  public async renderError (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<void> {
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
     return this.sendHTML(req, res, html)
   }
 
-  public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery) {
+  public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}) {
     return renderErrorToHTML(err, req, res, pathname, query, this.renderOpts)
   }
 
