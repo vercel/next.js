@@ -21,9 +21,28 @@
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "*.js": ["standard --fix", "git add"],
-    "*.ts": ["standard --parser typescript-eslint-parser --plugin typescript --fix", "git add"],
-    "packages/**/bin/*": ["standard --fix", "git add"]
+    "*.js": [
+      "standard --fix",
+      "git add"
+    ],
+    "*.ts": [
+      "standard --parser typescript-eslint-parser --plugin typescript --fix",
+      "git add"
+    ],
+    "examples/**/*.js": [
+      "standard --fix",
+      "prettier-standard",
+      "git add"
+    ],
+    "examples/**/*.ts": [
+      "standard --parser typescript-eslint-parser --plugin typescript --fix",
+      "prettier-standard",
+      "git add"
+    ],
+    "packages/**/bin/*": [
+      "standard --fix",
+      "git add"
+    ]
   },
   "standard": {
     "parser": "babel-eslint",
@@ -67,6 +86,7 @@
     "node-notifier": "5.1.2",
     "node-sass": "4.9.2",
     "pre-commit": "1.2.2",
+    "prettier-standard": "8.0.1",
     "react": "16.4.2",
     "react-dom": "16.4.2",
     "rimraf": "2.6.2",
