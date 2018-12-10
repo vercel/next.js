@@ -9,7 +9,7 @@ function fetchQuery (
   operation,
   variables,
   cacheConfig,
-  uploadables,
+  uploadables
 ) {
   // Because we implement the graphql server, the client must to point to the same host
   const relayServer = process.browser ? '' : process.env.RELAY_SERVER
