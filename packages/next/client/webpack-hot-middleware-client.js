@@ -1,6 +1,6 @@
 import 'event-source-polyfill'
 import connect from './dev-error-overlay/hot-dev-client'
-import Router from 'next-server/router'
+import Router from 'next/router'
 
 const handlers = {
   reload (route) {

@@ -1,0 +1,11 @@
+version: '3.5'
+services:
+  server:
+    volumes:
+      - .:/app
+    command: sh -c "yarn --production=false && yarn clean && yarn deploy --project "$FB_PROJECTID""
+    environment:
+      NODE_ENV: '${NODE_ENV}'
+      GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}'
+      FIREBASE_TOKEN: '${FIREBASE_TOKEN}'
+

@@ -1,40 +1,9 @@
-// @flow
-import type {ElementType} from 'react'
-
 import React from 'react'
 import Loadable from './loadable'
 
-type ImportedComponent = Promise<null|ElementType>
-
-type ComponentMapping = {[componentName: string]: ImportedComponent}
-
-type NextDynamicOptions = {
-  loader?: ComponentMapping | () => ImportedComponent,
-  loading: ElementType,
-  timeout?: number,
-  delay?: number,
-  ssr?: boolean,
-  render?: (props: any, loaded: {[componentName: string]: ElementType}) => ElementType,
-  modules?: () => ComponentMapping,
-  loadableGenerated?: {
-    webpack?: any,
-    modules?: any
-  }
-}
-
-type LoadableOptions = {
-  loader?: ComponentMapping | () => ImportedComponent,
-  loading: ElementType,
-  timeout?: number,
-  delay?: number,
-  render?: (props: any, loaded: {[componentName: string]: ElementType}) => ElementType,
-  webpack?: any,
-  modules?: any
-}
-
 const isServerSide = typeof window === 'undefined'
 
-export function noSSR (LoadableInitializer: (loadableOptions: LoadableOptions) => ElementType, loadableOptions: LoadableOptions) {
+export function noSSR (LoadableInitializer, loadableOptions) {
   // Removing webpack and modules means react-loadable won't try preloading
   delete loadableOptions.webpack
   delete loadableOptions.modules
@@ -52,9 +21,9 @@ function DefaultLoading () {
   return <p>loading...</p>
 }
 
-export default function dynamic (dynamicOptions: any, options: NextDynamicOptions) {
+export default function dynamic (dynamicOptions, options) {
   let loadableFn = Loadable
-  let loadableOptions: NextDynamicOptions = {
+  let loadableOptions = {
     // A loading component is not required, so we default it
     loading: ({error, isLoading}) => {
       if (process.env.NODE_ENV === 'development') {

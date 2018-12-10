@@ -7,7 +7,7 @@ const path = require('path')
 // Where your antd-custom.less file lives
 const themeVariables = lessToJS(
   fs.readFileSync(
-    path.resolve(__dirname, './asserts/antd-custom.less'),
+    path.resolve(__dirname, './assets/antd-custom.less'),
     'utf8'
   )
 )

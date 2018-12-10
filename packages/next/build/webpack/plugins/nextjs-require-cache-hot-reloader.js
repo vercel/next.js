@@ -1,16 +1,13 @@
-// @flow
-
-function deleteCache (path: string) {
+function deleteCache (path) {
   delete require.cache[path]
 }
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
 export default class NextJsRequireCacheHotReloader {
-  prevAssets: null | {[string]: {existsAt: string}}
   constructor () {
     this.prevAssets = null
   }
-  apply (compiler: any) {
+  apply (compiler) {
     compiler.hooks.afterEmit.tapAsync('NextJsRequireCacheHotReloader', (compilation, callback) => {
       const { assets } = compilation
 

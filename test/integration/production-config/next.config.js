@@ -19,5 +19,8 @@ module.exports = withCSS(withSass({
     }
 
     return config
+  },
+  async generateBuildId () {
+    return 'custom-buildid'
   }
 }))

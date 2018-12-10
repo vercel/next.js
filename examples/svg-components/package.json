@@ -12,6 +12,6 @@
     "react-dom": "latest"
   },
   "devDependencies": {
-    "babel-plugin-inline-react-svg": "^0.2.0"
+    "babel-plugin-inline-react-svg": "^1.0.1"
   }
 }

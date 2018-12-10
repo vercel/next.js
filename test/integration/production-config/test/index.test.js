@@ -11,6 +11,7 @@ import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
+let appPort
 let server
 
 describe('Production Config Usage', () => {
@@ -23,6 +24,7 @@ describe('Production Config Usage', () => {
       quiet: true
     })
     server = await startApp(app)
+    appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
@@ -34,10 +36,22 @@ describe('Production Config Usage', () => {
       await testBrowser()
     })
   })
+
+  describe('with generateBuildId', () => {
+    it('should add the custom buildid', async () => {
+      const browser = await webdriver(appPort, '/')
+      const text = await browser.elementByCss('#mounted').text()
+      expect(text).toMatch(/ComponentDidMount executed on client\./)
+
+      const html = await browser.elementByCss('html').getAttribute('innerHTML')
+      expect(html).toMatch('custom-buildid')
+      return browser.close()
+    })
+  })
 })
 
 async function testBrowser () {
-  const browser = await webdriver(server.address().port, '/')
+  const browser = await webdriver(appPort, '/')
   const element = await browser.elementByCss('#mounted')
   const text = await element.text()
   expect(text).toMatch(/ComponentDidMount executed on client\./)
