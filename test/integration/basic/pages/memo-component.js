@@ -1,3 +1,3 @@
-import { memo } from 'react'
+import React from 'react'
 
-export default memo((props) => <span {...props}>Memo component</span>)
+export default React.memo((props) => <span {...props}>Memo component</span>)
