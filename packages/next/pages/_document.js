@@ -122,6 +122,7 @@ export class Head extends Component {
     return <head {...this.props}>
       { (staticMarkup && csp) ? <meta http-equiv="Content-Security-Policy" content={csp} /> : null }
       { styleNonce ? <meta property="csp-nonce" content={styleNonce} /> : null }
+      {children}
       {head}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || crossOrigin} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || crossOrigin} />
@@ -141,7 +142,6 @@ export class Head extends Component {
           z-index: 2147483647;
         }
       `}</style> }
-      {children}
     </head>
   }
 }
