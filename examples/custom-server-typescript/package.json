@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "dev": "nodemon server/index.ts",
+    "dev": "nodemon",
     "build": "next build && tsc --project tsconfig.server.json",
     "start": "NODE_ENV=production node .next/production-server/index.js"
   },
