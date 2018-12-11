@@ -6,8 +6,7 @@
     "outDir": "../../dist/functions",
     "sourceMap": true,
     "target": "es6",
-    "baseUrl": "./src"
+    "baseUrl": "./"
   },
-  "compileOnSave": true,
-  "include": ["src"]
+  "compileOnSave": true
 }
