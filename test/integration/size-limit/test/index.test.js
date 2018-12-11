@@ -66,6 +66,6 @@ describe('Production response size', () => {
     console.log(`Response Sizes:\n${responseSizes.map(obj => ` ${obj.url}: ${obj.bytes} (bytes)`).join('\n')} \nOverall: ${responseSizeKilobytes} KB`)
 
     // These numbers are without gzip compression!
-    expect(responseSizeKilobytes).toBeLessThanOrEqual(210) // Kilobytes
+    expect(responseSizeKilobytes).toBeLessThanOrEqual(212) // Kilobytes
   })
 })
