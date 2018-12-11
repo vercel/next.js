@@ -6,7 +6,7 @@ import getBaseWebpackConfig from './webpack-config'
 import {generateBuildId} from './generate-build-id'
 import {writeBuildId} from './write-build-id'
 import {isWriteable} from './is-writeable'
-import {runCompiler} from './compiler'
+import {runCompiler, CompilerResult} from './compiler'
 
 export default async function build (dir: string, conf = null, lambdas: boolean = false): Promise<void> {
   if (!await isWriteable(dir)) {
@@ -17,12 +17,21 @@ export default async function build (dir: string, conf = null, lambdas: boolean 
   const lambdasOption = config.lambdas ? config.lambdas : lambdas
   const distDir = join(dir, config.distDir)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
+
   const configs: any = await Promise.all([
     getBaseWebpackConfig(dir, { buildId, isServer: false, config, lambdas: lambdasOption }),
     getBaseWebpackConfig(dir, { buildId, isServer: true, config, lambdas: lambdasOption })
   ])
 
-  const result = await runCompiler(configs)
+  let result: CompilerResult = {warnings: [], errors: []}
+  if (lambdasOption) {
+    const clientResult = await runCompiler([configs[0]])
+    const serverResult = await runCompiler([configs[1]])
+    result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
+  } else {
+    result = await runCompiler(configs)
+  }
+
   if (result.warnings.length > 0) {
     console.warn('> Emitted warnings from webpack')
     console.warn(...result.warnings)
