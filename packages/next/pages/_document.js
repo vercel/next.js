@@ -3,7 +3,6 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
-import css from 'styled-jsx/css'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
