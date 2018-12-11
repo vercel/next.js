@@ -1,7 +1,7 @@
 {
-  "name": "with-firebase-hosting",
+  "name": "with-firebase-hosting-and-typescript",
   "version": "1.0.0",
-  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
+  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects. Built with typescript.",
   "scripts": {
     "dev": "next src/app",
     "serve": "NODE_ENV=production firebase serve --only functions,hosting",
