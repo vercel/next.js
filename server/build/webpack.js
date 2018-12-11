@@ -2,7 +2,6 @@ import { resolve, join } from 'path'
 import webpack from 'webpack'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import glob from 'glob-promise'
-import WebpackPolyfillInjector from 'webpack-polyfill-injector'
 import getConfig from '../config'
 
 const nextNodeModulesDir = join(__dirname, '../../../node_modules')
@@ -18,7 +17,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
   const mainJS = dev
     ? require.resolve('../../../browser/client/next-dev') : require.resolve('../../../browser/client/next')
 
-  console.log('loaded!', config)
   const entry = async () => {
     const loader = ''
     const base = [
@@ -37,7 +35,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
 
     function buildEntry (modules) {
       if (config.polyfill) {
-        return `${require.resolve('webpack-polyfill-injector/src/loader')}?${JSON.stringify({ modules: modules })}!`
+        return `polyfill-loader?${JSON.stringify({ modules: modules, test: config.polyfill.test, buildId })}!`
       } else {
         return modules
       }
@@ -48,6 +46,9 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
     }
     for (const p of entryPages) {
       entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = buildEntry(base.concat(`${loader}${p}`))
+    }
+    if (config.polyfill) {
+      entries['polyfill.js'] = config.polyfill.entry
     }
 
     return entries
@@ -61,10 +62,6 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       useHashIndex: false
     })
   ]
-
-  if (config.polyfill) {
-    plugins.push(new WebpackPolyfillInjector({ polyfills: config.polyfill, singleFile: true }))
-  }
 
   if (dev) {
     plugins.push(
