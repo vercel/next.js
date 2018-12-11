@@ -2,7 +2,7 @@
   "compilerOptions": {
     "lib": ["es2017"],
     "module": "commonjs",
-    "noImplicitReturns": true,
+    "strict": true,
     "outDir": "../../dist/functions",
     "sourceMap": true,
     "target": "es2017",
