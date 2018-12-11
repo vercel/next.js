@@ -29,7 +29,7 @@ export default function ({ app }, suiteName, render, fetch) {
 
     test('renders when component is a memo instance', async () => {
       const html = await render('/memo-component')
-      expect(html).toStrictEqual('')
+      expect(html.includes('Memo component')).toBeTruthy()
     })
 
     // default-head contains an empty <Head />.
