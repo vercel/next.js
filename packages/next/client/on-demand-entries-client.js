@@ -4,9 +4,8 @@ import Router from 'next/router'
 import fetch from 'unfetch'
 
 const { hostname } = location
-const retryTimeout = 5000
+const retryTime = 5000
 let ws = null
-let port = null
 let lastHref = null
 
 export default async ({ assetPrefix }) => {
@@ -14,32 +13,23 @@ export default async ({ assetPrefix }) => {
     Router.events.on('routeChangeComplete', ping)
   })
 
-  const getPort = async () => {
-    try {
-      const portRes = await fetch(`${assetPrefix}/_next/on-demand-entries-ping`)
-      port = portRes.headers.get('port')
-      if (!port) throw new Error('port header missing')
-    } catch (err) {
-      console.error('failed to get dynamic entries port')
-      await new Promise(resolve => setTimeout(resolve, retryTimeout))
-      await getPort()
-    }
-  }
-
-  const setup = async () => {
+  const setup = async (reconnect) => {
     if (ws && ws.readyState === ws.OPEN) {
       return Promise.resolve()
     }
-    await getPort()
 
     return new Promise(resolve => {
-      ws = new WebSocket(`ws://${hostname}:${port}`)
+      ws = new WebSocket(`ws://${hostname}:${process.env.NEXT_WS_PORT}`)
       ws.onopen = () => resolve()
       ws.onclose = () => {
         setTimeout(async () => {
-          await setup()
+          // check if next restarted and we have to reload to get new port
+          await fetch(`${assetPrefix}/_next/on-demand-entries-ping`)
+            .then(res => res.status === 200 && location.reload())
+            .catch(() => {})
+          await setup(true)
           resolve()
-        }, retryTimeout)
+        }, retryTime)
       }
       ws.onmessage = async ({ data }) => {
         const payload = JSON.parse(data)

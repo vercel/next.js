@@ -3,7 +3,6 @@ import { EventEmitter } from 'events'
 import { join } from 'path'
 import fs from 'fs'
 import promisify from '../lib/promisify'
-import WebSocket from 'ws'
 import globModule from 'glob'
 import {normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
 import {createEntry} from '../build/webpack/utils'
@@ -12,6 +11,7 @@ import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
+
 const glob = promisify(globModule)
 const access = promisify(fs.access)
 
@@ -33,7 +33,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   reload,
   pageExtensions,
   maxInactiveAge = 1000 * 60,
-  pagesBufferLength = 2
+  pagesBufferLength = 2,
+  wsPort
 }) {
   const {compilers} = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
@@ -43,11 +44,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
-  let port = null
-  // create websocket on random port for dynamic entries pinging
-  const wss = new WebSocket.Server({ port: 0 }, () => {
-    port = wss.address().port
-  })
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
@@ -159,37 +155,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     reloadCallbacks = null
   }
 
-  wss.on('connection', ws => {
-    ws.onmessage = ({ data }) => {
-      const page = normalizePage(data)
-      const entryInfo = entries[page]
-
-      // If there's no entry.
-      // Then it seems like an weird issue.
-      if (!entryInfo) {
-        const message = `Client pings, but there's no entry for page: ${page}`
-        console.error(message)
-        return sendJson(ws, { invalid: true })
-      }
-
-      sendJson(ws, { success: true })
-
-      // We don't need to maintain active state of anything other than BUILT entries
-      if (entryInfo.status !== BUILT) return
-
-      // If there's an entryInfo
-      if (!lastAccessPages.includes(page)) {
-        lastAccessPages.unshift(page)
-
-        // Maintain the buffer max length
-        if (lastAccessPages.length > pagesBufferLength) {
-          lastAccessPages.pop()
-        }
-      }
-      entryInfo.lastActiveTime = Date.now()
-    }
-  })
-
   return {
     waitUntilReloaded () {
       if (!reloading) return Promise.resolve(true)
@@ -253,6 +218,37 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
+    wsConnection (ws) {
+      ws.onmessage = ({ data }) => {
+        const page = normalizePage(data)
+        const entryInfo = entries[page]
+
+        // If there's no entry.
+        // Then it seems like an weird issue.
+        if (!entryInfo) {
+          const message = `Client pings, but there's no entry for page: ${page}`
+          console.error(message)
+          return sendJson(ws, { invalid: true })
+        }
+
+        sendJson(ws, { success: true })
+
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) return
+
+        // If there's an entryInfo
+        if (!lastAccessPages.includes(page)) {
+          lastAccessPages.unshift(page)
+
+          // Maintain the buffer max length
+          if (lastAccessPages.length > pagesBufferLength) {
+            lastAccessPages.pop()
+          }
+        }
+        entryInfo.lastActiveTime = Date.now()
+      }
+    },
+
     middleware () {
       return (req, res, next) => {
         if (stopped) {
@@ -274,8 +270,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         } else {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
-          // catch fetch request getting current port since port is random
-          res.setHeader('port', port)
+          res.statusCode = 200
+          res.setHeader('port', wsPort)
           res.end('200')
         }
       }
