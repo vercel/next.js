@@ -1337,6 +1337,40 @@ module.exports = {
 }
 ```
 
+#### Configuring ESM to use import/export statements in next.config.js
+Install esm dependency
+
+```bash
+npm install --save-dev esm
+```
+
+`package.json`
+```json
+{
+  "scripts": {
+    "dev": "next --node-args=\"-r esm\"",
+    "build": "next build --node-args=\"-r esm\"",
+    "start": "next start --node-args=\"-r esm\""
+  }
+}
+```
+
+`next.config.js`
+```js
+// import whatever from './whatever'
+
+export default {
+  async webpack(cfg) {
+    // const foo = await import('./foo')
+    return cfg
+  },
+  async exportPathMap() {
+    // const bar = await import('./bar')
+    return {}
+  },
+}
+```
+
 ### Customizing webpack config
 
 <details>

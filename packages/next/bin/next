@@ -38,6 +38,16 @@ if (inspectArg) {
   nodeArgs.push(inspectArg)
 }
 
+const nodeExtraArgs = process.argv.find(arg => arg.includes('--node-args'))
+
+if (nodeExtraArgs) {
+  const args = nodeExtraArgs.replace(/--node-args=(.+)/, '$1').split(' ')
+
+  if (args.length) {
+    nodeArgs.push(...args)
+  }
+}
+
 if (new Set(['--help', '-h']).has(cmd)) {
   console.log(`
     Usage
