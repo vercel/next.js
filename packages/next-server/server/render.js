@@ -44,8 +44,11 @@ async function doRender (req, res, pathname, query, {
 
   Component = Component.default || Component
 
-  if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+    const { isValidElementType } = require('react-is')
+    if (!isValidElementType(Component)) {
+      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    }
   }
 
   App = App.default || App
