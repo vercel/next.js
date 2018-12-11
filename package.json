@@ -87,6 +87,7 @@
     "webpack": "4.26.0",
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.24.3",
+    "webpack-polyfill-injector": "2.0.2",
     "write-file-webpack-plugin": "4.5.0"
   },
   "devDependencies": {

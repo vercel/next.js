@@ -2,6 +2,7 @@ import { resolve, join } from 'path'
 import webpack from 'webpack'
 import WriteFilePlugin from 'write-file-webpack-plugin'
 import glob from 'glob-promise'
+import WebpackPolyfillInjector from 'webpack-polyfill-injector'
 import getConfig from '../config'
 
 const nextNodeModulesDir = join(__dirname, '../../../node_modules')
@@ -19,7 +20,7 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
 
   console.log('loaded!', config)
   const entry = async () => {
-    const loader = 'page-loader!'
+    const loader = ''
     const base = [
       ...defaultEntries,
       ...config.clientBootstrap || [],
@@ -34,15 +35,19 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       : (await glob('./pages/**/*.js', { cwd: dir }))
         .filter((p) => !p.includes('pages/_') && !/\.test\.js/.test(p) && !/__tests__/.test(p))
 
-    const entries = {
-      'pages/_error.js': base
-    }
-    for (const p of entryPages) {
-      entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = base.concat(`${loader}${p}`)
+    function buildEntry (modules) {
+      if (config.polyfill) {
+        return `${require.resolve('webpack-polyfill-injector/src/loader')}?${JSON.stringify({ modules: modules })}!`
+      } else {
+        return modules
+      }
     }
 
-    if (config.polyfill) {
-      entries['polyfill.js'] = config.polyfill
+    const entries = {
+      'pages/_error.js': buildEntry(base)
+    }
+    for (const p of entryPages) {
+      entries[p.replace(/^.*?\/pages\//, 'pages/').replace(/^(pages\/.*)\/index.js$/, '$1')] = buildEntry(base.concat(`${loader}${p}`))
     }
 
     return entries
@@ -56,6 +61,10 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
       useHashIndex: false
     })
   ]
+
+  if (config.polyfill) {
+    plugins.push(new WebpackPolyfillInjector({ polyfills: config.polyfill, singleFile: true }))
+  }
 
   if (dev) {
     plugins.push(
@@ -87,6 +96,10 @@ export default async function createCompiler (dir, { buildId = '-', dev = false,
         return /node_modules/.test(str)
       },
       options: mainBabelOptions
+    }, {
+      test: /\.js(\?[^?]*)?$/,
+      loader: 'page-loader',
+      include: [join(dir, 'pages')]
     }])
 
   let webpackConfig = {
