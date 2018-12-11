@@ -13,7 +13,7 @@
     "lint-app": "tslint --project src/app",
     "typecheck-app": "tsc --project src/app",
     "lint-functions": "tslint --project src/functions",
-    "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\"",
+    "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\" -C",
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
