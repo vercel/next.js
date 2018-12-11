@@ -11,7 +11,7 @@ module.exports = function (content, sourceMap) {
 function main() {${modules.map(module => `\n    require(${stringifyRequest(this, module)});`).join('') + '\n'}}
 if (require(${stringifyRequest(this, options.test)})) {
     var js = document.createElement('script');
-    js.src = __webpack_public_path__ + '${buildId}/polyfill.js';
+    js.src = __NEXT_DATA__.publicPath + '${buildId}/polyfill.js';
     js.onload = main;
     js.onerror = function onError(message) {
         console.error('Could not load the polyfills: ' + message);
