@@ -2,6 +2,9 @@
   "name": "with-firebase-hosting-and-typescript",
   "version": "1.0.0",
   "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects. Built with typescript.",
+  "engines": {
+    "node": "8"
+  },
   "scripts": {
     "dev": "next src/app",
     "preserve": "npm run build-public && npm run build-functions && npm run build-app && npm run copy-deps && npm run install-deps",
