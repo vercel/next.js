@@ -64,7 +64,7 @@ async function doRender (req, res, pathname, query, {
   ]
 
   // the response might be finshed on the getinitialprops call
-  if (isResSent(res)) return
+  if (isResSent(res)) return null
 
   let reactLoadableModules = []
   const renderPage = (options = Page => Page) => {
@@ -83,14 +83,6 @@ async function doRender (req, res, pathname, query, {
       }
     }
 
-    const app = <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
-      <EnhancedApp {...{
-        Component: EnhancedComponent,
-        router,
-        ...props
-      }} />
-    </LoadableCapture>
-
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
     let html
@@ -101,7 +93,15 @@ async function doRender (req, res, pathname, query, {
         const ErrorDebug = require(join(distDir, SERVER_DIRECTORY, 'error-debug')).default
         html = render(<ErrorDebug error={err} />)
       } else {
-        html = render(app)
+        html = render(
+          <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
+            <EnhancedApp
+              Component={EnhancedComponent}
+              router={router}
+              {...props}
+            />
+          </LoadableCapture>
+        )
       }
     } finally {
       head = Head.rewind() || defaultHead()
@@ -114,7 +114,7 @@ async function doRender (req, res, pathname, query, {
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
-  if (isResSent(res)) return
+  if (isResSent(res)) return null
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
