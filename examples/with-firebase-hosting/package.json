@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next \"src/app/\"",
     "preserve": "npm run build-public && npm run build-funcs && npm run build-app && npm run copy-deps && npm run install-deps",
-    "serve": "NODE_ENV=production firebase serve",
+    "serve": "cross-env NODE_ENV=production firebase serve",
     "predeploy": "npm run build-public && npm run build-funcs && npm run build-app && npm run copy-deps",
     "deploy": "firebase deploy",
     "clean": "rimraf \"dist/functions/**\" && rimraf \"dist/public\"",
@@ -25,6 +25,7 @@
   "devDependencies": {
     "@babel/cli": "^7.2.0",
     "cpx": "^1.5.0",
+    "cross-env": "^5.2.0",
     "firebase-tools": "^6.1.0",
     "rimraf": "^2.6.0"
   }
