@@ -624,7 +624,7 @@ Router.events.on('routeChangeError', (err, url) => {
 
 <p></p>
 
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected using [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -1122,11 +1122,39 @@ export default class MyDocument extends Document {
 
 All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
+__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
+
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
+#### Customizing `renderPage`
+🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with css-in-js libraries
+that need to wrap the application to properly work with server-rendering. 🚧
+
+- It takes as argument an options object for further customization
+
+```js
+import Document from 'next/document'
+
+export default MyDocument extends Document {
+  static async getInitialProps(ctx) {
+    const originalRenderPage = ctx.renderPage
+
+    ctx.renderPage = () => originalRenderPage({
+      // useful for wrapping the whole react tree
+      enhanceApp: App => App,
+      // userful for wrapping in a per-page basis
+      enhanceComponent: Component => Component
+    })
+
+    // Run the parent `getInitialProps` using `ctx` that now includes our custom `renderPage`
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return initialProps
+  }
+}
+```
 
 ### Custom error handling
 
@@ -1206,8 +1234,6 @@ Or use a function:
 
 ```js
 module.exports = (phase, {defaultConfig}) => {
-  //
-  // https://github.com/zeit/
   return {
     /* config options here */
   }
@@ -1292,6 +1318,21 @@ module.exports = {
   generateBuildId: async () => {
     // For example get the latest git commit hash here
     return 'my-build-id'
+  }
+}
+```
+
+To fall back to the default of generating a unique id return `null` from the function:
+
+```js
+module.exports = {
+  generateBuildId: async () => {
+    // When process.env.YOUR_BUILD_ID is undefined we fall back to the default
+    if(process.env.YOUR_BUILD_ID) {
+      return process.env.YOUR_BUILD_ID
+    }
+
+    return null
   }
 }
 ```
@@ -1444,11 +1485,11 @@ The `next/config` module gives your app access to runtime configuration stored i
 // next.config.js
 module.exports = {
   serverRuntimeConfig: { // Will only be available on the server side
-    mySecret: 'secret'
+    mySecret: 'secret',
+    secondSecret: process.env.SECOND_SECRET // Pass through env variables
   },
   publicRuntimeConfig: { // Will be available on both server and client
     staticFolder: '/static',
-    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```

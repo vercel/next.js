@@ -34,8 +34,7 @@ export function isResSent (res) {
 export async function loadGetInitialProps (Component, ctx) {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
-      const compName = getDisplayName(Component)
-      const message = `"${compName}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
+      const message = `"${getDisplayName(Component)}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
   }
@@ -49,8 +48,7 @@ export async function loadGetInitialProps (Component, ctx) {
   }
 
   if (!props) {
-    const compName = getDisplayName(Component)
-    const message = `"${compName}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
+    const message = `"${getDisplayName(Component)}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
     throw new Error(message)
   }
 

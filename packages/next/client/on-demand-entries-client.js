@@ -1,6 +1,6 @@
 /* global location, WebSocket */
 
-import Router from 'next-server/router'
+import Router from 'next/router'
 import fetch from 'unfetch'
 
 const { protocol, hostname, port } = location
