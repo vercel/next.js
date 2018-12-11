@@ -14,6 +14,7 @@ module.exports = withCSS(withSass({
   publicRuntimeConfig: {
     staticFolder: '/static'
   },
+  contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'nonce-{style-nonce}' 'unsafe-inline';connect-src 'self';img-src 'self';",
   webpack (config, {buildId}) {
     // When next-css is `npm link`ed we have to solve loaders from the project root
     const nextLocation = path.join(require.resolve('next/package.json'), '../')

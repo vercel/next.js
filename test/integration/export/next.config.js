@@ -2,6 +2,7 @@ const {PHASE_DEVELOPMENT_SERVER} = require('next-server/constants')
 
 module.exports = (phase) => {
   return {
+    contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'nonce-{style-nonce}' 'unsafe-inline';connect-src 'self';img-src 'self';",
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
     exportPathMap: function () {
       return {

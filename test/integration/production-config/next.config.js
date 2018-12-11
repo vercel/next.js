@@ -6,6 +6,7 @@ module.exports = withCSS(withSass({
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
   },
+  contentSecurityPolicy: "default-src 'none'; script-src 'self'; style-src 'nonce-{style-nonce}' 'unsafe-inline';connect-src 'self';img-src 'self';",
   webpack (config, {buildId}) {
     // When next-css is `npm link`ed we have to solve loaders from the project root
     const nextLocation = path.join(require.resolve('next/package.json'), '../')

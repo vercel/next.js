@@ -13,8 +13,15 @@ export default (context, render) => {
       browser.close()
     })
 
-    it('CSP should fail when violations', async () => {
+    it('CSP should fail with inline styles', async () => {
       const browser = await webdriver(context.appPort, '/?withViolation=true')
+      const errLog = await browser.log('browser')
+      expect(errLog.filter((e) => e.source === 'security')[0].level).toEqual('SEVERE')
+      browser.close()
+    })
+
+    it('CSP should fail when inline script', async () => {
+      const browser = await webdriver(context.appPort, '/inline')
       const errLog = await browser.log('browser')
       expect(errLog.filter((e) => e.source === 'security')[0].level).toEqual('SEVERE')
       browser.close()

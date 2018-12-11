@@ -19,7 +19,7 @@ async function checkInjected (browser) {
 module.exports = (context) => {
   describe('With Security Related Issues', () => {
     it('CSP should load without violations', async () => {
-      const browser = await webdriver(context.appPort, '/about')
+      const browser = await webdriver(context.appPort, '/')
       const errLog = await browser.log('browser')
       expect(errLog.filter((e) => e.source === 'security')).toEqual([])
       browser.close()

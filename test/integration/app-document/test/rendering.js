@@ -25,10 +25,10 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('#custom-property').text() === 'Hello Document')
       })
 
-      test('It adds nonces to all scripts and preload links', async () => {
+      test('It adds nonces to all styles and preload links', async () => {
         const $ = await get$('/')
         let noncesAdded = true
-        $('script, link[rel=preload]').each((index, element) => {
+        $('stlyes, script, link[rel=preload]').each((index, element) => {
           if (!/^\w+=$/.test($(element).attr('nonce')) && $(element).attr('id') !== '__NEXT_DATA__') noncesAdded = false
         })
         expect(noncesAdded).toBe(true)

@@ -7,20 +7,26 @@ const inlineScript = (body, nonce) => (
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
     const initialProps = await Document.getInitialProps(ctx)
-    const { nonce } = ctx.res.locals
-    return { ...initialProps, nonce }
+    const { scriptNonce, styleNonce } = ctx
+    return { ...initialProps, scriptNonce, styleNonce }
   }
 
   render () {
-    const { nonce } = this.props
+    const { scriptNonce, styleNonce } = this.props
     return (
       <html>
-        <Head nonce={nonce}>
-          {inlineScript(`console.log('Inline script with nonce')`, nonce)}
+        <Head>
+          <style nonce={styleNonce}>{`
+            body {
+              background: black;
+              color: white;
+            }
+          `}</style>
+          {inlineScript(`console.log('Inline script with nonce')`, scriptNonce)}
         </Head>
         <body>
           <Main />
-          <NextScript nonce={nonce} />
+          <NextScript />
         </body>
       </html>
     )

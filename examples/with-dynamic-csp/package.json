@@ -1,6 +1,6 @@
 {
-  "name": "with-strict-csp-hash",
-  "version": "1.0.0",
+  "name": "with-dynamic-csp",
+  "version": "2.0.0",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -10,6 +10,5 @@
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
-  },
-  "license": "ISC"
+  }
 }

@@ -20,10 +20,12 @@ export default class MyDocument extends Document {
       }
     }
 
-    const result = ctx.renderPage(options)
-    const styles = flush({ nonce: ctx.styleNonce })
+    const { styleNonce, scriptNonce } = ctx
 
-    return { ...result, styles, customProperty: 'Hello Document', withViolation: ctx.query.withViolation }
+    const result = ctx.renderPage(options)
+    const styles = flush({ nonce: styleNonce })
+
+    return { ...result, styles, styleNonce, scriptNonce, customProperty: 'Hello Document', withViolation: ctx.query.withViolation }
   }
 
   render () {
@@ -31,6 +33,8 @@ export default class MyDocument extends Document {
       <html>
         <Head crossOrigin='anonymous' />
         <body className='custom_class'>
+          <script type='text/javascript' dangerouslySetInnerHTML={{ __html: "console.log('logged')" }} nonce={this.props.scriptNonce} crossOrigin='anonymous' />
+          <style nonce={this.props.styleNonce}>{`p { font-size: 50px;}`}</style>
           <style jsx>{`p { color: blue }`}</style>
           { this.props.withViolation ? (<style>{`p { color: red }`}</style>) : '' }
           <p id='custom-property'>{this.props.customProperty}</p>

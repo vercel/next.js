@@ -1244,25 +1244,74 @@ module.exports = {
 
 #### Content Security Policy
 
-Next.js supports [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) out of the box. It uses `strict-dynamic` to protect you from XSS without configuration. It will block `object-src` by default. And a `base-uri` of "none". You can strengthen this policy in your Next.js configuration:
+Next.js supports the use of [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) out of the box. CSP allows us to whitelist the domains that our app can communicate with to help prevent XSS attacks and minimize the damage that a rouge package might do.
+
+This is the policy Next.js is tested against:
+```
+default-src 'none';
+connect-src 'self';
+img-src 'self';
+script-src 'self';
+style-src 'nonce-{style-nonce}' 'unsafe-inline';
+```
+
+##### Whitelisting Tips
+
+When whitelisting, it's important to whitelist to a point of control. For example, you wouldn't want to whitelist `cdn.tld` because other users might have control over the assets served over this domain. You would want to be more specific like `cdn.tld/yourZoneOfControl`. Obviosuly not all external assets can be whitelisted in this way, so you always want to put some thought into how specific you should be, for instance if you were using a script called `helper` and you could find the asset at `example.com/helper/0.1.0.js` then maybe `example.com/helper` would make sense as a whitelist. This of course depends on the entity who controls the site to serve the expected files, so you should make sure all origins you whitelist are trustworthy.
+
+##### Applying a CSP to Next.js
+
+You can add a CSP to your app by adding a config option. You will have to test your site to ensure all your assets load, if any fail you just need to tweak your policy to support it (see [directives](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy)).
 
 ```js
 // next.config.js
 module.exports = {
-  contentSecurityPolicy: "object-src 'none'; base-uri 'none'; script-src 'self'; style-src 'self' 'nonce-{style-src}';"
+  contentSecurityPolicy: "default-src 'none'; connect-src 'self' img-src 'self'; script-src 'self'; style-src 'nonce-{style-nonce}' 'unsafe-inline';"
 }
 ```
+This policy will work on a fresh Next.js install, but if you have added any external assets, you will have to add some origins to this policy. You will also have to use [custom error handling](#custom-error-handling), but this isn't too difficult.
 
-Styles are inserted inline, so must use a nonce to be secure. Use `style-src 'self' 'nonce-{style-nonce}' 'unsafe-inline';` to allow these inline styles (`unsafe-inline` is for backwards compatibility). This will not work for static rendering and you have to use `style-src 'self' 'unsafe-inline';`.
+If you can't do custom error handling or are using static rendering, leave off the `'nonce-{style-nonce}`.
 
-Interestingly, due to the way error handling works in Next.js, if you are using `'nonce-{style-nonce}'`, you will have to use [custom error handling](#custom-error-handling) to avoid an inline style violation, but this is very easy to do.
+##### Whitelisting Styles (`style-src`)
 
-If you cannot whitelist the scripts that you use in your app, you can use:
+Styles are inserted inline with `styled-jsx`, so must use a nonce to be secure. This is done automatically when you use `style-src 'nonce-{style-nonce}' 'unsafe-inline';` although you can only use `styled-jsx` to add styles to the page (`unsafe-inline` is for backwards compatibility).
+
+If you pull in any other stylesheets, you can whitelist them by adding them to the policy by using:
+```
+style-src https://cdn.tld/controlled 'nonce-{style-nonce}' 'unsafe-inline';
+```
+
+It is posible to use nonces with other CSS-in-JS libraries like [Material-UI](https://material-ui.com/css-in-js/advanced/#content-security-policy-csp) or [JSS](https://github.com/cssinjs/jss/blob/master/docs/csp.md) (See next code snippet to see where to get the generated nonce).
+
+##### Whitelisting Scripts (`script-src`)
+
+Next.js doesn't use any inline-scripts, and neither should you. If you need to use external scripts, then you can whitelist them in your policy.
+```
+script-src https://cdn.tld/controlled 'self';
+```
+
+However, if you cannot whitelist the scripts that you use in your app or you must use inline scripts, you can use:
 
 ```
 script-src 'nonce-{script-nonce}' 'unsafe-inline' 'strict-dynamic' https: http:;
 ```
-This should be used as a last resort.
+This should be used as a last resort and all scripts you import must have the nonce appended to it, which you can access like this:
+
+```js
+// pages/_document.js
+export default class MyDocument extends Document {
+  static async getInitialProps (ctx) {
+    const initialProps = await Document.getInitialProps(ctx)
+    const { scriptNonce, styleNonce } = ctx
+    return { ...initialProps, scriptNonce, styleNonce }
+  }
+
+  render () {
+    const { scriptNonce, styleNonce } = this.props
+  }
+}
+```
 
 #### Disabling etag generation
 

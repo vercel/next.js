@@ -175,17 +175,16 @@ export default class Server {
   }
 
   async render (req, res, pathname, query, parsedUrl) {
-    if (!this.renderOpts.staticMarkup) {
-      if (this.nextConfig.contentSecurityPolicy) {
+    if (this.nextConfig.contentSecurityPolicy) {
+      if (!this.renderOpts.staticMarkup) {
         this.renderOpts.csp = this.nextConfig.contentSecurityPolicy
           .replace(/{script-nonce}/gi, () => (this.renderOpts.scriptNonce = this.genNonce()))
           .replace(/{style-nonce}/gi, () => (this.renderOpts.styleNonce = this.genNonce()))
+
+        res.setHeader('Content-Security-Policy', this.renderOpts.csp)
       } else {
-        this.renderOpts.csp = `object-src 'none';base-uri 'none';script-src 'nonce-${this.renderOpts.scriptNonce = this.genNonce()}' 'strict-dynamic' https: http:;`
+        this.renderOpts.csp = this.nextConfig.contentSecurityPolicy
       }
-      res.setHeader('Content-Security-Policy', this.renderOpts.csp)
-    } else {
-      this.renderOpts.csp = this.nextConfig.contentSecurityPolicy
     }
 
     if (isInternalUrl(req.url)) {
