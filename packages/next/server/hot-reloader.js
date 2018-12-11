@@ -101,12 +101,6 @@ export default class HotReloader {
   }
 
   async run (req, res, parsedUrl) {
-    // catch dynamic entries websocket upgrade
-    if (!res.setHeader) {
-      this.onDemandEntries.middleware()(req, res, () => {})
-      return { finished: true }
-    }
-
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.

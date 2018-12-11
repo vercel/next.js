@@ -6,6 +6,7 @@ import webdriver from 'next-webdriver'
 import WebSocket from 'ws'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
@@ -31,10 +32,13 @@ describe('On Demand Entries', () => {
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
     await new Promise(resolve => {
-      context.ws = new WebSocket(
-        `ws://localhost:${context.appPort}/_next/on-demand-entries-ping`
-      )
-      context.ws.on('open', () => resolve())
+      fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping').then(res => {
+        const wsPort = res.headers.get('port')
+        context.ws = new WebSocket(
+          `ws://localhost:${wsPort}`
+        )
+        context.ws.on('open', () => resolve())
+      })
     })
   })
   afterAll(() => {
