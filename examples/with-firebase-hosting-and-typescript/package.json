@@ -29,7 +29,6 @@
     "@types/react": "^16.3.14",
     "cpx": "1.5.0",
     "firebase-tools": "3.18.4",
-    "prettier": "1.12.1",
     "rimraf": "2.6.2",
     "tslint": "^5.8.0",
     "tslint-react": "3.6.0",
