@@ -30,7 +30,6 @@ const {
   buildId,
   assetPrefix,
   runtimeConfig,
-  crossOrigin,
   dynamicIds
 } = data
 
@@ -49,7 +48,7 @@ envConfig.setConfig({
 
 const asPath = getURL()
 
-const pageLoader = new PageLoader(buildId, prefix, crossOrigin)
+const pageLoader = new PageLoader(buildId, prefix)
 const register = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   window.__NEXT_P.map(register)

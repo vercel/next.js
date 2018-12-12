@@ -17,10 +17,9 @@ const hasPreload = supportsPreload(document.createElement('link').relList)
 const webpackModule = module
 
 export default class PageLoader {
-  constructor (buildId, assetPrefix, crossOrigin) {
+  constructor (buildId, assetPrefix) {
     this.buildId = buildId
     this.assetPrefix = assetPrefix
-    this.crossOrigin = crossOrigin
 
     this.pageCache = {}
     this.prefetchCache = new Set()
@@ -84,7 +83,7 @@ export default class PageLoader {
 
     const script = document.createElement('script')
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
-    script.crossOrigin = this.crossOrigin
+    script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
       const error = new Error(`Error when loading route: ${route}`)
@@ -139,7 +138,7 @@ export default class PageLoader {
     if (hasPreload) {
       const link = document.createElement('link')
       link.rel = 'preload'
-      link.crossOrigin = this.crossOrigin
+      link.crossOrigin = process.crossOrigin
       link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
       link.as = 'script'
       document.head.appendChild(link)

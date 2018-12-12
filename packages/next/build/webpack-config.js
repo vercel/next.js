@@ -328,6 +328,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
+        'process.crossOrigin': JSON.stringify(config.crossOrigin),
         'process.browser': JSON.stringify(!isServer)
       }),
       // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
