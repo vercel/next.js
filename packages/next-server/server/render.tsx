@@ -13,25 +13,6 @@ import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATI
 import {getDynamicImportBundles} from './get-dynamic-import-bundles'
 import {getPageFiles} from './get-page-files'
 
-type RenderToHTMLOpts = {
-  staticMarkup: boolean,
-  distDir: string,
-  buildId: string,
-  runtimeConfig?: {[key: string]: any},
-  assetPrefix?: string,
-  nextExport?: boolean,
-  dev?: boolean
-}
-
-export function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, opts: RenderToHTMLOpts) {
-  return doRender(req, res, pathname, query, opts)
-}
-
-// _pathname is for backwards compatibility
-export function renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery, opts: RenderToHTMLOpts) {
-  return doRender(req, res, '/_error', query, { ...opts, err })
-}
-
 type RenderOpts = {
   staticMarkup: boolean,
   distDir: string,
@@ -47,7 +28,7 @@ function interoptDefault(mod: any) {
   return mod.default || mod
 }
 
-async function doRender (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, {
+export async function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, {
   err,
   buildId,
   assetPrefix,
