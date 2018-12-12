@@ -199,9 +199,12 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
 
 <p></p>
 
-It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
+It's possible to use any existing CSS-in-JS solution. 
+
+Inline styles should only be used for javascript animations (which should be replaced with CSS animations if possible).
 
 ```jsx
+// Never use inline styles for something as simple as this
 export default () => <p style={{ color: 'red' }}>hi there</p>
 ```
 
@@ -675,19 +678,24 @@ If you want to access the `router` object inside any component in your app, you 
 import { withRouter } from 'next/router'
 
 const ActiveLink = ({ children, router, href }) => {
-  const style = {
-    marginRight: 10,
-    color: router.pathname === href ? 'red' : 'black'
-  }
-
   const handleClick = (e) => {
     e.preventDefault()
     router.push(href)
   }
 
   return (
-    <a href={href} onClick={handleClick} style={style}>
+    <a href={href} onClick={handleClick} className={router.pathname === href ? 'alive' : ''}>
       {children}
+      <style>{`
+        a {
+          margin-right: 10px;
+          color: black;
+        }
+
+        a.alive {
+          color: red;
+        }
+      `}</style>
     </a>
   )
 }
