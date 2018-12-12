@@ -37,6 +37,10 @@ describe('Custom Server', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
+    it('should handle render with undefined query', async () => {
+      expect(await renderViaHTTP(appPort, '/no-query')).toMatch(/"query":/)
+    })
+
     it('should set the assetPrefix dynamically', async () => {
       const normalUsage = await renderViaHTTP(appPort, '/asset')
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)

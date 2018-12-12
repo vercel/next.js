@@ -1,0 +1,31 @@
+{
+  "extends": ["airbnb"],
+  "parser": "babel-eslint",
+  "rules": {
+    "import/prefer-default-export": "off",
+    "react/jsx-boolean-value": 0,
+    "react/require-default-props": 0,
+    "react/no-array-index-key": 0,
+    "react/jsx-filename-extension": [1, { "extensions": [".js", ".jsx"] }],
+    "jsx-a11y/anchor-is-valid": 0,
+    "jsx-a11y/label-has-for": [
+      2,
+      {
+        "components": ["Label"],
+        "required": {
+          "every": ["nesting", "id"]
+        },
+        "allowChildren": true
+      }
+    ]
+  },
+  "globals": {
+    "window": true,
+    "document": true,
+    "navigator": true
+  },
+  "env": {
+    "es6": true,
+    "node": true
+  }
+}

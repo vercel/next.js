@@ -120,6 +120,7 @@ export class Head extends Component {
     }
 
     return <head {...this.props}>
+      {children}
       {head}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin} />
@@ -128,7 +129,6 @@ export class Head extends Component {
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
       {styles || null}
-      {children}
     </head>
   }
 }
