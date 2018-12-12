@@ -23,17 +23,17 @@ export default class MyApp extends App {
     // In the browser, use the same values that the server serialized.
     const { req } = ctx
     const { locale, messages } = req || window.__NEXT_DATA__.props
+    const initialNow = Date.now()
 
-    return { pageProps, locale, messages }
+    return { pageProps, locale, messages, initialNow }
   }
 
   render () {
-    const { Component, pageProps, locale, messages } = this.props
-    const now = Date.now()
+    const { Component, pageProps, locale, messages, initialNow } = this.props
 
     return (
       <Container>
-        <IntlProvider locale={locale} messages={messages} initialNow={now}>
+        <IntlProvider locale={locale} messages={messages} initialNow={initialNow}>
           <Component {...pageProps} />
         </IntlProvider>
       </Container>

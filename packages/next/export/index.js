@@ -1,13 +1,15 @@
 import del from 'del'
+import { cpus } from 'os'
+import { fork } from 'child_process'
 import cp from 'recursive-copy'
 import mkdirp from 'mkdirp-then'
-import { extname, resolve, join, dirname, sep } from 'path'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { resolve, join } from 'path'
+import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import {PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
-import { renderToHTML } from 'next-server/dist/server/render'
+import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import { setAssetPrefix } from 'next-server/asset'
 import * as envConfig from 'next-server/config'
+import createProgress from 'tty-aware-progress'
 
 export default async function (dir, options, configuration) {
   function log (message) {
@@ -17,6 +19,8 @@ export default async function (dir, options, configuration) {
 
   dir = resolve(dir)
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
+  const concurrency = options.concurrency || 10
+  const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
 
   log(`> using build directory: ${distDir}`)
@@ -108,35 +112,48 @@ export default async function (dir, options, configuration) {
     nextExport: true
   }
 
+  log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
   const exportPaths = Object.keys(exportPathMap)
 
-  for (const path of exportPaths) {
-    log(`> exporting path: ${path}`)
-    if (!path.startsWith('/')) {
-      throw new Error(`path "${path}" doesn't start with a backslash`)
+  const progress = !options.silent && createProgress(exportPaths.length)
+
+  const chunks = exportPaths.reduce((result, route, i) => {
+    const worker = i % threads
+    if (!result[worker]) {
+      result[worker] = { paths: [], pathMap: {} }
     }
+    result[worker].pathMap[route] = exportPathMap[route]
+    result[worker].paths.push(route)
+    return result
+  }, [])
 
-    const { page, query = {} } = exportPathMap[path]
-    const req = { url: path }
-    const res = {}
-
-    let htmlFilename = `${path}${sep}index.html`
-    if (extname(path) !== '') {
-      // If the path has an extension, use that as the filename instead
-      htmlFilename = path
-    } else if (path === '/') {
-      // If the path is the root, just use index.html
-      htmlFilename = 'index.html'
-    }
-    const baseDir = join(outDir, dirname(htmlFilename))
-    const htmlFilepath = join(outDir, htmlFilename)
-
-    await mkdirp(baseDir)
-
-    const html = await renderToHTML(req, res, page, query, renderOpts)
-    writeFileSync(htmlFilepath, html, 'utf8')
-  }
+  await Promise.all(
+    chunks.map(
+      chunk =>
+        new Promise((resolve, reject) => {
+          const worker = fork(require.resolve('./worker'), [], {
+            env: process.env
+          })
+          worker.send({
+            exportPaths: chunk.paths,
+            exportPathMap: chunk.pathMap,
+            outDir,
+            renderOpts,
+            concurrency
+          })
+          worker.on('message', ({ type, payload }) => {
+            if (type === 'progress' && progress) {
+              progress()
+            } else if (type === 'error') {
+              reject(payload)
+            } else if (type === 'done') {
+              resolve()
+            }
+          })
+        })
+    )
+  )
 
   // Add an empty line to the console for the better readability.
   log('')
