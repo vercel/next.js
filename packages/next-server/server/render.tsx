@@ -16,7 +16,10 @@ import {getPageFiles} from './get-page-files'
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer = {enhanceApp?: Enhancer, enhanceComponent?: Enhancer}|Enhancer
 
-function enhanceComponents(options: ComponentsEnhancer, App: React.ComponentType, Component: React.ComponentType) {
+function enhanceComponents(options: ComponentsEnhancer, App: React.ComponentType, Component: React.ComponentType): {
+  App: React.ComponentType,
+  Component: React.ComponentType
+} {
   // For backwards compatibility
   if(typeof options === 'function') {
     return {
@@ -33,6 +36,19 @@ function enhanceComponents(options: ComponentsEnhancer, App: React.ComponentType
 
 function interoptDefault(mod: any) {
   return mod.default || mod
+}
+
+function render(renderElementToString: (element: React.ReactElement<any>) => string, element: React.ReactElement<any>): {html: string, head: any} {
+  let html
+  let head
+
+  try {
+    html = renderElementToString(element)
+  } finally {
+    head = Head.rewind() || defaultHead()
+  }
+
+  return { html, head }
 }
 
 type RenderOpts = {
@@ -71,6 +87,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   if (typeof Component !== 'function') {
     throw new Error(`The default export is not a React Component in page: "${pathname}"`)
   }
+  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
 
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
@@ -90,33 +107,24 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   ]
 
   let reactLoadableModules: string[] = []
-  const renderPage = (options: ComponentsEnhancer = {}) => {
+  const renderPage = (options: ComponentsEnhancer = {}): {html: string, head: any} => {
     const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
-    const render = staticMarkup ? renderToStaticMarkup : renderToString
+    const renderElementToString = staticMarkup ? renderToStaticMarkup : renderToString
 
-    let html
-    let head
-
-    try {
-      if (err && dev) {
-        const ErrorDebug = require(join(distDir, SERVER_DIRECTORY, 'error-debug')).default
-        html = render(<ErrorDebug error={err} />)
-      } else {
-        html = render(
-          <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
-          </LoadableCapture>
-        )
-      }
-    } finally {
-      head = Head.rewind() || defaultHead()
+    if(err && dev) {
+      const ErrorDebug = require(join(distDir, SERVER_DIRECTORY, 'error-debug')).default
+      return render(renderElementToString, <ErrorDebug error={err} />)
     }
 
-    return { html, head }
+    return render(renderElementToString, 
+      <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
+        <EnhancedApp
+          Component={EnhancedComponent}
+          router={router}
+          {...props}
+        />
+      </LoadableCapture>  
+    )
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -126,7 +134,6 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
 
-  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
     __NEXT_DATA__: {
       props, // The result of getInitialProps
