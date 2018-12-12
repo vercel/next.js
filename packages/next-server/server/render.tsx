@@ -1,3 +1,5 @@
+import {IncomingMessage, ServerResponse} from 'http'
+import { ParsedUrlQuery } from 'querystring'
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
@@ -11,16 +13,41 @@ import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATI
 import {getDynamicImportBundles} from './get-dynamic-import-bundles'
 import {getPageFiles} from './get-page-files'
 
-export function renderToHTML (req, res, pathname, query, opts) {
+type RenderToHTMLOpts = {
+  staticMarkup: boolean,
+  distDir: string,
+  buildId: string,
+  runtimeConfig?: {[key: string]: any},
+  assetPrefix?: string,
+  nextExport?: boolean,
+  dev?: boolean
+}
+
+export function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, opts: RenderToHTMLOpts) {
   return doRender(req, res, pathname, query, opts)
 }
 
 // _pathname is for backwards compatibility
-export function renderErrorToHTML (err, req, res, _pathname, query, opts = {}) {
+export function renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery, opts: RenderToHTMLOpts) {
   return doRender(req, res, '/_error', query, { ...opts, err })
 }
 
-async function doRender (req, res, pathname, query, {
+type RenderOpts = {
+  staticMarkup: boolean,
+  distDir: string,
+  buildId: string,
+  runtimeConfig?: {[key: string]: any},
+  assetPrefix?: string,
+  err?: Error|null,
+  nextExport?: boolean,
+  dev?: boolean
+}
+
+function interoptDefault(mod: any) {
+  return mod.default || mod
+}
+
+async function doRender (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, {
   err,
   buildId,
   assetPrefix,
@@ -29,27 +56,23 @@ async function doRender (req, res, pathname, query, {
   dev = false,
   staticMarkup = false,
   nextExport
-} = {}) {
+}: RenderOpts): Promise<string|null> {
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(pathname, distDir),
-    require(documentPath),
-    require(appPath)
+    interoptDefault(requirePage(pathname, distDir)),
+    interoptDefault(require(documentPath)),
+    interoptDefault(require(appPath))
   ])
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
-
-  Component = Component.default || Component
 
   if (typeof Component !== 'function') {
     throw new Error(`The default export is not a React Component in page: "${pathname}"`)
   }
 
-  App = App.default || App
-  Document = Document.default || Document
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
@@ -66,8 +89,8 @@ async function doRender (req, res, pathname, query, {
   // the response might be finshed on the getinitialprops call
   if (isResSent(res)) return null
 
-  let reactLoadableModules = []
-  const renderPage = (options = Page => Page) => {
+  let reactLoadableModules: string[] = []
+  const renderPage = (options: any = (Page: React.ComponentType) => Page) => {
     let EnhancedApp = App
     let EnhancedComponent = Component
 
@@ -94,7 +117,7 @@ async function doRender (req, res, pathname, query, {
         html = render(<ErrorDebug error={err} />)
       } else {
         html = render(
-          <LoadableCapture report={moduleName => reactLoadableModules.push(moduleName)}>
+          <LoadableCapture report={(moduleName: string) => reactLoadableModules.push(moduleName)}>
             <EnhancedApp
               Component={EnhancedComponent}
               router={router}
@@ -140,20 +163,18 @@ async function doRender (req, res, pathname, query, {
   return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
 }
 
-function errorToJSON (err) {
-  const { name, message, stack } = err
-  const json = { name, message, stack }
-
-  if (err.module) {
-    // rawRequest contains the filename of the module which has the error.
-    const { rawRequest } = err.module
-    json.module = { rawRequest }
-  }
-
-  return json
+type SerializedError = {
+  message: string,
+  name?: string
+  stack?: string
 }
 
-function serializeError (dev, err) {
+function errorToJSON (err: Error): SerializedError {
+  const { name, message, stack } = err
+  return { name, message, stack }
+}
+
+function serializeError (dev: boolean, err: Error): SerializedError {
   if (dev) {
     return errorToJSON(err)
   }

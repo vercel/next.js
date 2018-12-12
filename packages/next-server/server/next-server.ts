@@ -246,6 +246,9 @@ export default class Server {
   public async renderError (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<void> {
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+    if(html === null) {
+      return
+    }
     return this.sendHTML(req, res, html)
   }
 
