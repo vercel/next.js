@@ -1,4 +1,4 @@
-const { send, createError } = require('micro')
+const { send, createError, run } = require('micro')
 const fetch = require('isomorphic-unfetch')
 
 const profile = async (req, res) => {
@@ -28,4 +28,4 @@ const profile = async (req, res) => {
   }
 }
 
-module.exports = profile
+module.exports = (req, res) => run(req, res, profile)

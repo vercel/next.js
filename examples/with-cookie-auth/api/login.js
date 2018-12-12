@@ -1,4 +1,4 @@
-const { json, send, createError } = require('micro')
+const { json, send, createError, run } = require('micro')
 const fetch = require('isomorphic-unfetch')
 
 const login = async (req, res) => {
@@ -10,8 +10,8 @@ const login = async (req, res) => {
   try {
     const response = await fetch(url)
     if (response.ok) {
-      const js = await response.json()
-      send(res, 200, js)
+      const { id } = await response.json()
+      send(res, 200, { token: id })
     } else {
       send(res, response.status, response.statusText)
     }
@@ -20,4 +20,4 @@ const login = async (req, res) => {
   }
 }
 
-module.exports = login
+module.exports = (req, res) => run(req, res, login)

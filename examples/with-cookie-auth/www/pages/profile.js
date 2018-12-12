@@ -1,3 +1,4 @@
+import Router from 'next/router'
 import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import auth, { withAuthSync } from '../utils/auth'
@@ -41,7 +42,14 @@ const Profile = withAuthSync(props => {
 
 Profile.getInitialProps = async ctx => {
   const token = auth(ctx)
-  const apiUrl = `https://${ctx.req.headers.host}/api/profile.js`
+  const apiUrl = process.browser
+    ? `https://${window.location.host}/api/profile.js`
+    : `https://${ctx.req.headers.host}/api/profile.js`
+
+  const redirectOnError = () =>
+    process.browser
+      ? Router.push('/login')
+      : ctx.res.writeHead(301, { Location: '/login' })
 
   try {
     const response = await fetch(apiUrl, {
@@ -52,18 +60,15 @@ Profile.getInitialProps = async ctx => {
       }
     })
 
-    console.log('apiurl: ', apiUrl)
-    console.log(response)
-
     if (response.ok) {
       return await response.json()
     } else {
       // https://github.com/developit/unfetch#caveats
-      return ctx.res.writeHead(302, { Location: '/login' })
+      return redirectOnError()
     }
   } catch (error) {
     // Implementation or Network error
-    throw new Error(error)
+    return redirectOnError()
   }
 }
 

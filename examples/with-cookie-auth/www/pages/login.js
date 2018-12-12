@@ -3,8 +3,10 @@ import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
 class Login extends Component {
-  getInitialProps ({ req }) {
-    const apiUrl = `https://${req.headers.host}/api/profile.js`
+  static getInitialProps ({ req }) {
+    const apiUrl = process.browser
+      ? `https://${window.location.host}/api/login.js`
+      : `https://${req.headers.host}/api/login.js`
 
     return { apiUrl }
   }
