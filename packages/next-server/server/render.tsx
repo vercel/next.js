@@ -43,12 +43,10 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    requirePage(pathname, distDir),
+    interoptDefault(requirePage(pathname, distDir)),
     interoptDefault(require(documentPath)),
     interoptDefault(require(appPath))
   ])
-
-  Component = interoptDefault(Component)
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
