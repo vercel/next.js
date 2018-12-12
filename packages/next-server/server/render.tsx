@@ -13,6 +13,28 @@ import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATI
 import {getDynamicImportBundles} from './get-dynamic-import-bundles'
 import {getPageFiles} from './get-page-files'
 
+type Enhancer = (Component: React.ComponentType) => React.ComponentType
+type ComponentsEnhancer = {enhanceApp?: Enhancer, enhanceComponent?: Enhancer}|Enhancer
+
+function enhanceComponents(options: ComponentsEnhancer, App: React.ComponentType, Component: React.ComponentType) {
+  // For backwards compatibility
+  if(typeof options === 'function') {
+    return {
+      App: App,
+      Component: options(Component)
+    }
+  }
+
+  return {
+    App: options.enhanceApp ? options.enhanceApp(App) : App,
+    Component: options.enhanceComponent ? options.enhanceComponent(Component) : Component
+  }
+}
+
+function interoptDefault(mod: any) {
+  return mod.default || mod
+}
+
 type RenderOpts = {
   staticMarkup: boolean,
   distDir: string,
@@ -22,10 +44,6 @@ type RenderOpts = {
   err?: Error|null,
   nextExport?: boolean,
   dev?: boolean
-}
-
-function interoptDefault(mod: any) {
-  return mod.default || mod
 }
 
 export async function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, {
@@ -58,6 +76,10 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
+
+  // the response might be finshed on the getInitialProps call
+  if (isResSent(res)) return null
+
   const devFiles = buildManifest.devFiles
   const files = [
     ...new Set([
@@ -67,26 +89,9 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
     ])
   ]
 
-  // the response might be finshed on the getinitialprops call
-  if (isResSent(res)) return null
-
   let reactLoadableModules: string[] = []
-  const renderPage = (options: any = (Page: React.ComponentType) => Page) => {
-    let EnhancedApp = App
-    let EnhancedComponent = Component
-
-    // For backwards compatibility
-    if (typeof options === 'function') {
-      EnhancedComponent = options(Component)
-    } else if (typeof options === 'object') {
-      if (options.enhanceApp) {
-        EnhancedApp = options.enhanceApp(App)
-      }
-      if (options.enhanceComponent) {
-        EnhancedComponent = options.enhanceComponent(Component)
-      }
-    }
-
+  const renderPage = (options: ComponentsEnhancer = {}) => {
+    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
     const render = staticMarkup ? renderToStaticMarkup : renderToString
 
     let html
@@ -98,7 +103,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
         html = render(<ErrorDebug error={err} />)
       } else {
         html = render(
-          <LoadableCapture report={(moduleName: string) => reactLoadableModules.push(moduleName)}>
+          <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
             <EnhancedApp
               Component={EnhancedComponent}
               router={router}
@@ -115,10 +120,11 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  // the response might be finshed on the getInitialProps call
+  if (isResSent(res)) return null
+
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
   const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
-
-  if (isResSent(res)) return null
 
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
   const doc = <Document {...{
