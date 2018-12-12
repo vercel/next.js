@@ -2,13 +2,10 @@ import fetch from 'isomorphic-unfetch'
 import Layout from '../components/layout'
 import auth, { withAuthSync } from '../utils/auth'
 
-const Profile = withAuthSync((props) => {
-  const {
-    name,
-    login,
-    bio,
-    avatarUrl
-  } = props.data
+const Profile = withAuthSync(props => {
+  const { name, login, bio, avatarUrl } = props.data
+
+  console.log(props.data)
 
   return (
     <Layout>
@@ -20,7 +17,7 @@ const Profile = withAuthSync((props) => {
       <style jsx>{`
         img {
           max-width: 200px;
-          border-radius: .5rem;
+          border-radius: 0.5rem;
         }
 
         h1 {
@@ -42,18 +39,21 @@ const Profile = withAuthSync((props) => {
   )
 })
 
-Profile.getInitialProps = async (ctx) => {
+Profile.getInitialProps = async ctx => {
   const token = auth(ctx)
+  const apiUrl = `https://${ctx.req.headers.host}/api/profile.js`
 
   try {
-    // const response = await fetch('https://with-cookie-api.now.sh/profile', {
-    const response = await fetch('http://localhost:3001', {
+    const response = await fetch(apiUrl, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Authorization: JSON.stringify({ token })
       }
     })
+
+    console.log('apiurl: ', apiUrl)
+    console.log(response)
 
     if (response.ok) {
       return await response.json()

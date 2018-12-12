@@ -1,14 +1,28 @@
 import Link from 'next/link'
 import { logout } from '../utils/auth'
 
-const Header = (props) => (
+const Header = props => (
   <header>
     <nav>
       <ul>
-        <li><Link href='/'><a>Home</a></Link></li>
-        <li><Link href='/login'><a>Login</a></Link></li>
-        <li><Link href='/profile'><a>Profile</a></Link></li>
-        <li><button onClick={logout}>Logout</button></li>
+        <li>
+          <Link href='/'>
+            <a>Home</a>
+          </Link>
+        </li>
+        <li>
+          <Link href='/login'>
+            <a>Login</a>
+          </Link>
+        </li>
+        <li>
+          <Link href='/profile'>
+            <a>Profile</a>
+          </Link>
+        </li>
+        <li>
+          <button onClick={logout}>Logout</button>
+        </li>
       </ul>
     </nav>
     <style jsx>{`
@@ -33,7 +47,7 @@ const Header = (props) => (
       }
 
       header {
-        padding: .2rem;
+        padding: 0.2rem;
         color: #fff;
         background-color: #333;
       }

@@ -3,6 +3,12 @@ import Layout from '../components/layout'
 import { login } from '../utils/auth'
 
 class Login extends Component {
+  getInitialProps ({ req }) {
+    const apiUrl = `https://${req.headers.host}/api/profile.js`
+
+    return { apiUrl }
+  }
+
   constructor (props) {
     super(props)
 
@@ -18,9 +24,10 @@ class Login extends Component {
   async handleSubmit (event) {
     event.preventDefault()
     const username = this.state.username
-    login({ username })
-      .catch(() =>
-        this.setState({ error: 'Login failed.' }))
+    const url = this.props.apiUrl
+    login({ username, url }).catch(() =>
+      this.setState({ error: 'Login failed.' })
+    )
   }
 
   render () {
@@ -65,13 +72,13 @@ class Login extends Component {
 
           input {
             padding: 8px;
-            margin: .3rem 0 1rem;
+            margin: 0.3rem 0 1rem;
             border: 1px solid #ccc;
             border-radius: 4px;
           }
 
           .error {
-            margin: .5rem 0 0;
+            margin: 0.5rem 0 0;
             display: none;
             color: brown;
           }

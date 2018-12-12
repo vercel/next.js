@@ -4,9 +4,8 @@ import nextCookie from 'next-cookies'
 import cookie from 'js-cookie'
 import fetch from 'isomorphic-unfetch'
 
-export const login = async ({ username }) => {
+export const login = async ({ username, url }) => {
   try {
-    const url = 'https://with-cookie-api.now.sh/login'
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -24,7 +23,10 @@ export const login = async ({ username }) => {
       return Promise.reject(error)
     }
   } catch (error) {
-    console.error('You have an error in your code or there are Network issues.', error)
+    console.error(
+      'You have an error in your code or there are Network issues.',
+      error
+    )
     throw new Error(error)
   }
 }
@@ -65,7 +67,7 @@ export function withAuthSync (WrappedComponent) {
   }
 }
 
-export default (ctx) => {
+export default ctx => {
   const { token } = nextCookie(ctx)
 
   if (ctx.req && !token) {
