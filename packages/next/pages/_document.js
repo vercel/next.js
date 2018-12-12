@@ -117,7 +117,7 @@ export class Head extends Component {
         }
         return child
       })
-      if (this.props.crossOrigin) console.warn('<Head crossOrigin=""> is deprecated, use next.config.js option: crossOrigin')
+      if (this.props.crossOrigin) console.warn('Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated')
     }
 
     return <head {...this.props}>
@@ -203,7 +203,7 @@ export class NextScript extends Component {
     const pagePathname = getPagePathname(page)
 
     if (process.env.NODE_ENV !== 'production') {
-      if (this.props.crossOrigin) console.warn('<NextScript crossOrigin=""> is deprecated, use next.config.js option: crossOrigin')
+      if (this.props.crossOrigin) console.warn('Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated')
     }
 
     return <Fragment>
