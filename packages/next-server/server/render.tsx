@@ -106,7 +106,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
     ])
   ]
 
-  let reactLoadableModules: string[] = []
+  const reactLoadableModules: string[] = []
   const renderPage = (options: ComponentsEnhancer = {}): {html: string, head: any} => {
     const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
     const renderElementToString = staticMarkup ? renderToStaticMarkup : renderToString
