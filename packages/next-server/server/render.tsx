@@ -10,7 +10,7 @@ import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
-import {getDynamicImportBundles} from './get-dynamic-import-bundles'
+import {getDynamicImportBundles, ManifestItem} from './get-dynamic-import-bundles'
 import {getPageFiles} from './get-page-files'
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
@@ -62,16 +62,63 @@ type RenderOpts = {
   dev?: boolean
 }
 
-export async function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, {
-  err,
+function renderDocument(Document: React.ComponentType, {
+  props,
+  docProps,
+  pathname,
+  query,
   buildId,
   assetPrefix,
   runtimeConfig,
-  distDir,
-  dev = false,
-  staticMarkup = false,
-  nextExport
-}: RenderOpts): Promise<string|null> {
+  nextExport,
+  dynamicImportsIds,
+  err,
+  dev,
+  staticMarkup,
+  devFiles,
+  files,
+  dynamicImports,
+}: RenderOpts & {
+  props: any,
+  docProps: any,
+  pathname: string,
+  query: ParsedUrlQuery,
+  dynamicImportsIds: string[],
+  dynamicImports: ManifestItem[],
+  files: string[]
+  devFiles: string[],
+}): string {
+  return '<!DOCTYPE html>' + renderToStaticMarkup(
+    <Document
+      __NEXT_DATA__={{
+        props, // The result of getInitialProps
+        page: pathname, // The rendered page
+        query, // querystring parsed / passed by the user
+        buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+        assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+        runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+        nextExport, // If this is a page exported by `next export`
+        dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+        err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
+      }}
+      staticMarkup={staticMarkup}
+      devFiles={devFiles}
+      files={files}
+      dynamicImports={dynamicImports}
+      assetPrefix={assetPrefix}
+      {...docProps} 
+    />
+  )
+}
+
+export async function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, renderOpts: RenderOpts): Promise<string|null> {
+  const {
+    err,
+    buildId,
+    distDir,
+    dev = false,
+    staticMarkup = false
+  } = renderOpts
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
   let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
@@ -132,46 +179,30 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   if (isResSent(res)) return null
 
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
-  const dynamicImportsIds = dynamicImports.map((bundle) => bundle.id)
+  const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
 
-  const doc = <Document {...{
-    __NEXT_DATA__: {
-      props, // The result of getInitialProps
-      page: pathname, // The rendered page
-      query, // querystring parsed / passed by the user
-      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-      nextExport, // If this is a page exported by `next export`
-      dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
-    },
-    staticMarkup,
-    devFiles,
-    files,
+  return renderDocument(Document, {
+    ...renderOpts,
+    props,
+    docProps,
+    pathname,
+    query,
+    dynamicImportsIds,
     dynamicImports,
-    assetPrefix, // We always pass assetPrefix as a top level property since _document needs it to render, even though the client side might not need it
-    ...docProps
-  }} />
-
-  return '<!DOCTYPE html>' + renderToStaticMarkup(doc)
+    files,
+    devFiles
+  })
 }
 
-type SerializedError = {
-  message: string,
-  name?: string
-  stack?: string
-}
-
-function errorToJSON (err: Error): SerializedError {
+function errorToJSON (err: Error): Error {
   const { name, message, stack } = err
   return { name, message, stack }
 }
 
-function serializeError (dev: boolean, err: Error): SerializedError {
+function serializeError (dev: boolean|undefined, err: Error): Error & {statusCode?: number} {
   if (dev) {
     return errorToJSON(err)
   }
 
-  return { message: '500 - Internal Server Error.' }
+  return { name: 'Internal Server Error.', message: '500 - Internal Server Error.', statusCode: 500 }
 }
