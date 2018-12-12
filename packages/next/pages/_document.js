@@ -14,9 +14,9 @@ export default class Document extends Component {
   }
 
   static getInitialProps ({ renderPage }) {
-    const { html, head, buildManifest } = renderPage()
+    const { html, head } = renderPage()
     const styles = flush()
-    return { html, head, styles, buildManifest }
+    return { html, head, styles }
   }
 
   getChildContext () {

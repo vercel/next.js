@@ -116,7 +116,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
       head = Head.rewind() || defaultHead()
     }
 
-    return { html, head, buildManifest }
+    return { html, head }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
