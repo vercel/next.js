@@ -1,3 +1,7 @@
+global.__NEXT_DATA__ = {
+  nextExport: true
+}
+
 const { extname, join, dirname, sep } = require('path')
 const mkdirp = require('mkdirp-then')
 const { renderToHTML } = require('next-server/dist/server/render')
