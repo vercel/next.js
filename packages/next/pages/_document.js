@@ -117,6 +117,7 @@ export class Head extends Component {
         }
         return child
       })
+      if (this.props.crossOrigin) console.warn('<Head crossOrigin=""> is deprecated, use next.config.js option: crossOrigin')
     }
 
     return <head {...this.props}>
@@ -200,6 +201,10 @@ export class NextScript extends Component {
     const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { page, buildId, crossOrigin } = __NEXT_DATA__
     const pagePathname = getPagePathname(page)
+
+    if (process.env.NODE_ENV !== 'production') {
+      if (this.props.crossOrigin) console.warn('<NextScript crossOrigin=""> is deprecated, use next.config.js option: crossOrigin')
+    }
 
     return <Fragment>
       {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || crossOrigin} />) : null}
