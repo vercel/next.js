@@ -12,9 +12,7 @@ export const login = async ({ username, url }) => {
       body: JSON.stringify({ username })
     })
     if (response.ok) {
-      console.log(response)
       const { token } = await response.json()
-      console.log('token: ', token)
       cookie.set('token', token, { expires: 1 })
       Router.push('/profile')
     } else {

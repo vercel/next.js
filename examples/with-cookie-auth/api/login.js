@@ -5,8 +5,6 @@ const login = async (req, res) => {
   const { username } = await json(req)
   const url = `https://api.github.com/users/${username}`
 
-  console.log(url)
-
   try {
     const response = await fetch(url)
     if (response.ok) {

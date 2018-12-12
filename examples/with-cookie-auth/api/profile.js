@@ -10,8 +10,6 @@ const profile = async (req, res) => {
   const { token } = JSON.parse(auth)
   const url = `https://api.github.com/user/${token}`
 
-  console.log(url)
-
   try {
     const response = await fetch(url)
 

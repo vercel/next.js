@@ -6,8 +6,6 @@ import auth, { withAuthSync } from '../utils/auth'
 const Profile = withAuthSync(props => {
   const { name, login, bio, avatarUrl } = props.data
 
-  console.log(props.data)
-
   return (
     <Layout>
       <img src={avatarUrl} alt='Avatar' />
