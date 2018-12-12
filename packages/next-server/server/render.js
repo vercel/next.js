@@ -25,6 +25,7 @@ async function doRender (req, res, pathname, query, {
   buildId,
   assetPrefix,
   runtimeConfig,
+  crossOrigin,
   distDir,
   dev = false,
   staticMarkup = false,
@@ -125,6 +126,7 @@ async function doRender (req, res, pathname, query, {
       buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
       runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+      crossOrigin, // This has to be applied to scripts that are loaded
       nextExport, // If this is a page exported by `next export`
       dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
       err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML

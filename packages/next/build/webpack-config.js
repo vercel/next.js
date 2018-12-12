@@ -258,6 +258,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
+      crossOriginLoading: config.crossOrigin,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
     },
     performance: { hints: false },

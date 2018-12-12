@@ -38,6 +38,7 @@ export default class Server {
     buildId: string,
     generateEtags: boolean,
     runtimeConfig?: {[key: string]: any},
+    crossOrigin?: string,
     assetPrefix?: string
   }
   router: Router
@@ -51,13 +52,14 @@ export default class Server {
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags, crossOrigin} = this.nextConfig
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
       staticMarkup,
       distDir: this.distDir,
       buildId: this.buildId,
+      crossOrigin,
       generateEtags
     }
 
