@@ -54,6 +54,8 @@ if (!existsSync(join(dir, 'pages'))) {
 
 const options = {
   silent: argv.silent,
+  threads: argv.threads,
+  concurrency: argv.concurrency,
   outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
 }
 
