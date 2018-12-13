@@ -3,6 +3,7 @@ import { join } from 'path'
 import { spawn } from 'cross-spawn'
 import pkg from '../../package.json'
 import {CONFIG_FILE} from 'next-server/constants'
+import arg from 'arg'
 
 if (pkg.peerDependencies) {
   Object.keys(pkg.peerDependencies).forEach(dependency => {
@@ -16,45 +17,52 @@ if (pkg.peerDependencies) {
 }
 
 const defaultCommand = 'dev'
-const commands = new Set([
+const commands = [
   'init',
   'build',
   'start',
   'export',
   defaultCommand
-])
+]
 
-let cmd = process.argv[2]
-let args = []
-let nodeArgs = []
+const args = arg({
+  // Types
+  '--version': Boolean,
+  '--help': Boolean,
+  '--node-args': String,
 
-if (new Set(['--version', '-v']).has(cmd)) {
+  // Aliases
+  '-v': '--version',
+  '-h': '--help'
+}, {
+  // To forward args
+  permissive: true
+})
+
+// Defaults
+const {
+  '--version': version = false,
+  '--help': help = false,
+  '--node-args': nodeArgs = ''
+} = args
+
+if (version) {
   console.log(`next.js v${pkg.version}`)
   process.exit(0)
 }
 
-const inspectArg = process.argv.find(arg => arg.includes('--inspect'))
-if (inspectArg) {
-  nodeArgs.push(inspectArg)
-}
-
-const nodeExtraArgs = process.argv.find(arg => arg.includes('--node-args'))
-
-if (nodeExtraArgs) {
-  const args = nodeExtraArgs.replace(/--node-args=(.+)/, '$1').split(' ')
-
-  if (args.length) {
-    nodeArgs.push(...args)
-  }
-}
-
-if (new Set(['--help', '-h']).has(cmd)) {
+if (help) {
   console.log(`
     Usage
       $ next <command>
 
     Available commands
-      ${Array.from(commands).join(', ')}
+      ${commands.join(', ')}
+      
+    Options
+      --version, -p   Version number
+      --node-args     Node arguments applied to the process
+      --help, -h      Displays this message  
 
     For more information run a command with the --help flag
       $ next init --help
@@ -62,20 +70,16 @@ if (new Set(['--help', '-h']).has(cmd)) {
   process.exit(0)
 }
 
-if (commands.has(cmd)) {
-  args = process.argv.slice(3)
-} else {
-  cmd = defaultCommand
-  args = process.argv.slice(2)
-}
+const command = args._.find(cmd => commands.includes(cmd)) || defaultCommand
+const forwardedArgs = args._.filter(arg => arg !== command)
 
-const defaultEnv = cmd === 'dev' ? 'development' : 'production'
+const defaultEnv = command === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-const bin = join(__dirname, 'next-' + cmd)
+const bin = join(__dirname, 'next-' + command)
 
 const startProcess = () => {
-  const proc = spawn('node', [...nodeArgs, ...[bin], ...args], { stdio: 'inherit', customFds: [0, 1, 2] })
+  const proc = spawn('node', [...nodeArgs.split(' '), bin, ...forwardedArgs], { stdio: 'inherit', customFds: [0, 1, 2] })
   proc.on('close', (code, signal) => {
     if (code !== null) {
       process.exit(code)
@@ -107,7 +111,7 @@ process.on('SIGINT', wrapper)
 process.on('SIGTERM', wrapper)
 process.on('exit', wrapper)
 
-if (cmd === 'dev') {
+if (command === 'dev') {
   const {watchFile} = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur, prev) => {
     if (cur.size > 0 || prev.size > 0) {
