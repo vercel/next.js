@@ -62,6 +62,7 @@
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
     - [Configuring the build ID](#configuring-the-build-id)
+    - [Configuring Next process script](#configuring-next-process-script)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
@@ -1337,38 +1338,15 @@ module.exports = {
 }
 ```
 
-#### Configuring ESM to use import/export statements in next.config.js
-Install esm dependency
+#### Configuring next process script
+
+You can pass any node arguments to `next` cli command.
+
 
 ```bash
-npm install --save-dev esm
-```
-
-`package.json`
-```json
-{
-  "scripts": {
-    "dev": "next --node-args=\"-r esm\"",
-    "build": "next build --node-args=\"-r esm\"",
-    "start": "next start --node-args=\"-r esm\""
-  }
-}
-```
-
-`next.config.js`
-```js
-// import whatever from './whatever'
-
-export default {
-  async webpack(cfg) {
-    // const foo = await import('./foo')
-    return cfg
-  },
-  async exportPathMap() {
-    // const bar = await import('./bar')
-    return {}
-  },
-}
+next --node-args="--throw-deprecation"
+next start --node-args="--inspect"
+next build --node-args="-r esm"
 ```
 
 ### Customizing webpack config
