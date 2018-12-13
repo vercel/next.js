@@ -4,10 +4,7 @@ import { resolve, join, sep } from 'path'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import fs from 'fs'
-import {
-  renderToHTML,
-  renderErrorToHTML
-} from './render'
+import {renderToHTML} from './render'
 import {sendHTML} from './send-html'
 import {serveStatic} from './serve-static'
 import Router, {route, Route} from './router'
@@ -246,11 +243,14 @@ export default class Server {
   public async renderError (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<void> {
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+    if(html === null) {
+      return
+    }
     return this.sendHTML(req, res, html)
   }
 
   public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}) {
-    return renderErrorToHTML(err, req, res, pathname, query, this.renderOpts)
+    return renderToHTML(req, res, '/_error', query, {...this.renderOpts, err})
   }
 
   public async render404 (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {

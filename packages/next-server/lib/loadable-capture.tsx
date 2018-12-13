@@ -23,7 +23,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 import React from 'react'
 import PropTypes from 'prop-types'
 
-export default class Capture extends React.Component {
+type Props = {
+  report: (moduleName: string) => void
+}
+
+export default class Capture extends React.Component<Props> {
   static propTypes = {
     report: PropTypes.func.isRequired
   };

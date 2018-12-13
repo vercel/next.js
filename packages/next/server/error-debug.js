@@ -5,13 +5,12 @@ import Head from 'next-server/head'
 // This component is rendered through dev-error-overlay on the client side.
 // On the server side it's rendered directly
 export default function ErrorDebug ({error, info}) {
-  const { name, message, module } = error
+  const { name, message } = error
   return (
     <div style={styles.errorDebug}>
       <Head>
         <meta name='viewport' content='width=device-width, initial-scale=1.0' />
       </Head>
-      {module ? <h1 style={styles.heading}>Error in {module.rawRequest}</h1> : null}
       {
         name === 'ModuleBuildError' && message
           ? <pre style={styles.stack} dangerouslySetInnerHTML={{ __html: ansiHTML(encodeHtml(message)) }} />

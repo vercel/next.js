@@ -45,7 +45,7 @@ export function getPagePath (page: string, distDir: string): string {
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export async function requirePage (page: string, distDir: string): Promise<any> {
+export function requirePage (page: string, distDir: string): any {
   const pagePath = getPagePath(page, distDir)
   return require(pagePath)
 }
