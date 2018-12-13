@@ -1,4 +1,4 @@
-type ManifestItem = {
+export type ManifestItem = {
   id: number|string,
   name: string,
   file: string,
