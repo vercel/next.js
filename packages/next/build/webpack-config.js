@@ -228,7 +228,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
-    cache: dev, // https://webpack.js.org/configuration/other-options/#cache only enable in dev/watch mode
+    cache: true,
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(dir, isServer, lambdas),
     optimization: optimizationConfig({dir, dev, isServer, totalPages, lambdas}),
