@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps } from 'next-server/dist/lib/utils'
-import { makePublicRouterInstance } from 'next-server/router'
+import { makePublicRouterInstance } from 'next/router'
 
 export default class App extends Component {
   static childContextTypes = {

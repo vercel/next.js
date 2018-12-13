@@ -1,4 +1,4 @@
-const micro = require('micro')
+const http = require('http')
 const next = require('next')
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -9,7 +9,11 @@ const app = next({ dev, dir })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
+    if (req.url === '/no-query') {
+      return app.render(req, res, '/no-query')
+    }
+
     if (/setAssetPrefix/.test(req.url)) {
       app.setAssetPrefix(`http://127.0.0.1:${port}`)
     } else if (/setEmptyAssetPrefix/.test(req.url)) {

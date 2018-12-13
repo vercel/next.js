@@ -7,13 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "babel-plugin-emotion": "^8.0.4",
-    "emotion": "^8.0.5",
-    "emotion-server": "^8.0.5",
+    "@emotion/core": "^10.0.0",
+    "@emotion/styled": "^10.0.0",
+    "babel-plugin-emotion": "^10.0.0",
     "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0",
-    "react-emotion": "^8.0.5"
+    "react": "^16.3.0",
+    "react-dom": "^16.3.0"
   },
   "license": "ISC"
 }

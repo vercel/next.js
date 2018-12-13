@@ -13,7 +13,6 @@ export default class MyDocument extends Document {
     return (
       <html>
         <Head>
-          <title>My page</title>
           {this.props.stylesheets.map((sheet, i) => (
             <style
               className='_styletron_hydrate_'

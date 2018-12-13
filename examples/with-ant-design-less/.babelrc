@@ -3,8 +3,7 @@
   "plugins": [
     ["@babel/plugin-proposal-decorators", { "decoratorsBeforeExport": true }],
     [
-      "import",
-      {
+      "import", {
         "libraryName": "antd",
         "style": true
       }

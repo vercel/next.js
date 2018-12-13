@@ -190,7 +190,6 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
     <li><a href="/examples/with-styled-components">Styled components</a></li>
     <li><a href="/examples/with-styletron">Styletron</a></li>
     <li><a href="/examples/with-glamor">Glamor</a></li>
-    <li><a href="/examples/with-glamorous">Glamorous</a></li>
     <li><a href="/examples/with-cxs">Cxs</a></li>
     <li><a href="/examples/with-aphrodite">Aphrodite</a></li>
     <li><a href="/examples/with-fela">Fela</a></li>
@@ -536,7 +535,7 @@ Router.beforePopState(({ url, as, options }) => {
 });
 ```
 
-If you return a `false` value from `beforePopState`, `Router` will not handle `popstate`;
+If the function you pass into `beforePopState` returns `false`, `Router` will not handle `popstate`;
 you'll be responsible for handling it, in that case.
 See [Disabling File-System Routing](#disabling-file-system-routing).
 
@@ -625,7 +624,7 @@ Router.events.on('routeChangeError', (err, url) => {
 
 <p></p>
 
-Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `url` prop of the same page that's loaded, without losing state.
+Shallow routing allows you to change the URL without running `getInitialProps`. You'll receive the updated `pathname` and the `query` via the `router` prop (injected using [`withRouter`](#using-a-higher-order-component)), without losing state.
 
 You can do this by invoking either `Router.push` or `Router.replace` with the `shallow: true` option. Here's an example:
 
@@ -776,16 +775,16 @@ class MyLink extends React.Component {
     const { router } = this.props
     router.prefetch('/dynamic')
   }
-  
+
   render() {
     const { router } = this.props
-    
+
     return (
        <div>
         <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
-      </div>   
+      </div>
     )
   }
 }
@@ -899,14 +898,14 @@ Here's an example usage of it:
 
 ```js
 const next = require('next')
-const micro = require('micro')
+const http = require('http')
 
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
-  const server = micro((req, res) => {
+  const server = new http.Server((req, res) => {
     // Add assetPrefix support based on the hostname
     if (req.headers.host === 'my-app.com') {
       app.setAssetPrefix('http://cdn.com/myapp')
@@ -1088,7 +1087,7 @@ export default class MyApp extends App {
 
 - Is rendered on the server side
 - Is used to change the initial server side rendered document markup
-- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components), [glamorous](/examples/with-glamorous) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
+- Commonly used to implement server side rendering for css-in-js libraries like [styled-components](/examples/with-styled-components) or [emotion](/examples/with-emotion). [styled-jsx](https://github.com/zeit/styled-jsx) is included with Next.js by default.
 
 Pages in `Next.js` skip the definition of the surrounding document's markup. For example, you never include `<html>`, `<body>`, etc. To override that default behavior, you must create a file at `./pages/_document.js`, where you can extend the `Document` class:
 
@@ -1123,15 +1122,45 @@ export default class MyDocument extends Document {
 
 All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
 
+__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
+
 The `ctx` object is equivalent to the one received in all [`getInitialProps`](#fetching-data-and-component-lifecycle) hooks, with one addition:
 
 - `renderPage` (`Function`) a callback that executes the actual React rendering logic (synchronously). It's useful to decorate this function in order to support server-rendering wrappers like Aphrodite's [`renderStatic`](https://github.com/Khan/aphrodite#server-side-rendering)
 
-__Note: React-components outside of `<Main />` will not be initialised by the browser. Do _not_ add application logic here. If you need shared components in all your pages (like a menu or a toolbar), take a look at the `App` component instead.__
+#### Customizing `renderPage`
+🚧 It should be noted that the only reason you should be customizing `renderPage` is for usage with css-in-js libraries
+that need to wrap the application to properly work with server-rendering. 🚧
+
+- It takes as argument an options object for further customization
+
+```js
+import Document from 'next/document'
+
+export default MyDocument extends Document {
+  static async getInitialProps(ctx) {
+    const originalRenderPage = ctx.renderPage
+
+    ctx.renderPage = () => originalRenderPage({
+      // useful for wrapping the whole react tree
+      enhanceApp: App => App,
+      // userful for wrapping in a per-page basis
+      enhanceComponent: Component => Component
+    })
+
+    // Run the parent `getInitialProps` using `ctx` that now includes our custom `renderPage`
+    const initialProps = await Document.getInitialProps(ctx)
+
+    return initialProps
+  }
+}
+```
 
 ### Custom error handling
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
+
+⚠️ The default `error.js` component is only used in production ⚠️
 
 ```jsx
 import React from 'react'
@@ -1205,15 +1234,13 @@ Or use a function:
 
 ```js
 module.exports = (phase, {defaultConfig}) => {
-  //
-  // https://github.com/zeit/
   return {
     /* config options here */
   }
 }
 ```
 
-`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next/lib/constants.js)
+`phase` is the current context in which the configuration is loaded. You can see all phases here: [constants](/packages/next-server/lib/constants.js)
 Phases can be imported from `next/constants`:
 
 ```js
@@ -1295,6 +1322,21 @@ module.exports = {
 }
 ```
 
+To fall back to the default of generating a unique id return `null` from the function:
+
+```js
+module.exports = {
+  generateBuildId: async () => {
+    // When process.env.YOUR_BUILD_ID is undefined we fall back to the default
+    if(process.env.YOUR_BUILD_ID) {
+      return process.env.YOUR_BUILD_ID
+    }
+
+    return null
+  }
+}
+```
+
 ### Customizing webpack config
 
 <details>
@@ -1349,7 +1391,7 @@ module.exports = {
 }
 ```
 
-The second argument to `webpack` is an object containing properties useful when customing the WebPack configuration:
+The second argument to `webpack` is an object containing properties useful when customizing its configuration:
 
 - `buildId` - `String` the build id used as a unique identifier between builds
 - `dev` - `Boolean` shows if the compilation is done in development mode
@@ -1358,11 +1400,11 @@ The second argument to `webpack` is an object containing properties useful when 
   - `babel` - `Object` the `babel-loader` configuration for Next.js.
   - `hotSelfAccept` - `Object` the `hot-self-accept-loader` configuration. This loader should only be used for advanced use cases. For example [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript) adds it for top-level typescript pages.
 
-Example usage of `defaultLoaders.babel`: 
+Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source: 
+// This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
   webpack: (config, {}) => {
@@ -1443,11 +1485,11 @@ The `next/config` module gives your app access to runtime configuration stored i
 // next.config.js
 module.exports = {
   serverRuntimeConfig: { // Will only be available on the server side
-    mySecret: 'secret'
+    mySecret: 'secret',
+    secondSecret: process.env.SECOND_SECRET // Pass through env variables
   },
   publicRuntimeConfig: { // Will be available on both server and client
     staticFolder: '/static',
-    mySecret: process.env.MY_SECRET // Pass through env variables
   }
 }
 ```
@@ -1484,6 +1526,14 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
+If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
+
+```js
+// next.config.js
+module.exports = {
+  crossOrigin: 'anonymous'
+}
+```
 ## Production deployment
 
 To deploy, instead of running `next`, you want to build for production usage ahead of time. Therefore, building and starting are separate commands:
@@ -1519,7 +1569,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
 
 ## Browser support
 
-Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills. 
+Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
@@ -1554,7 +1604,7 @@ next build
 next export
 ```
 
-By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below. 
+By default `next export` doesn't require any configuration. It will generate a default `exportPathMap` containing the routes to pages inside the `pages` directory. This default mapping is available as `defaultPathMap` in the example below.
 
 If your application has dynamic routes you can add a dynamic `exportPathMap` in `next.config.js`.
 This function is asynchronous and gets the default `exportPathMap` as a parameter.
@@ -1616,7 +1666,7 @@ now
 ### Copying custom files
 
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
-`exportPathMap` gets a few contextual parameter to aid you with creating/copying files: 
+`exportPathMap` gets a few contextual parameter to aid you with creating/copying files:
 
 - `dev` - `true` when `exportPathMap` is being called in development. `false` when running `next export`. In development `exportPathMap` is used to define routes and behavior like copying files is not required.
 - `dir` - Absolute path to the project directory

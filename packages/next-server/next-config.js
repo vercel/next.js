@@ -1,1 +1,1 @@
-module.exports = require('./dist/server/config')
+module.exports = require('./dist/server/config').default

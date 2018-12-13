@@ -5,6 +5,7 @@ class PageLoader {
   constructor (options = {}) {
     this.options = options
     this.loaded = {}
+    this.prefetched = {}
   }
 
   loadPage (route) {
@@ -13,6 +14,10 @@ class PageLoader {
     if (this.options.delay) {
       return new Promise((resolve) => setTimeout(resolve, this.options.delay))
     }
+  }
+
+  prefetch (route) {
+    this.prefetched[route] = true
   }
 }
 
@@ -26,10 +31,10 @@ describe('Router', () => {
       const route = '/routex'
       await router.prefetch(route)
 
-      expect(pageLoader.loaded['/routex']).toBeTruthy()
+      expect(pageLoader.prefetched['/routex']).toBeTruthy()
     })
 
-    it('should only run two jobs at a time', async () => {
+    it('should call prefetch correctly', async () => {
       global.__NEXT_DATA__ = {}
       // delay loading pages for an hour
       const pageLoader = new PageLoader({ delay: 1000 * 3600 })
@@ -40,11 +45,8 @@ describe('Router', () => {
       router.prefetch('route3')
       router.prefetch('route4')
 
-      // Wait for a bit
-      await new Promise((resolve) => setTimeout(resolve, 50))
-
-      expect(Object.keys(pageLoader.loaded).length).toBe(2)
-      expect(Object.keys(pageLoader.loaded)).toEqual(['route1', 'route2'])
+      expect(Object.keys(pageLoader.prefetched).length).toBe(4)
+      expect(Object.keys(pageLoader.prefetched)).toEqual(['route1', 'route2', 'route3', 'route4'])
     })
 
     it('should run all the jobs', async () => {
@@ -60,7 +62,7 @@ describe('Router', () => {
       await router.prefetch(routes[2])
       await router.prefetch(routes[3])
 
-      expect(Object.keys(pageLoader.loaded)).toEqual(routes)
+      expect(Object.keys(pageLoader.prefetched)).toEqual(routes)
     })
   })
 })

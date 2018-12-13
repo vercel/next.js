@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 
-export default (context, render) => {
+export default (context) => {
   describe('process.env', () => {
     it('should set process.env.NODE_ENV in development', async () => {
       const browser = await webdriver(context.appPort, '/process-env')

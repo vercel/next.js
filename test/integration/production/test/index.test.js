@@ -16,7 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST} from 'next-server/constants'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -57,6 +57,12 @@ describe('Production Usage', () => {
 
     it('should render 404 for _next routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
+      const res = await fetch(url)
+      expect(res.status).toBe(404)
+    })
+
+    it('should render 404 for dotfiles in /static', async () => {
+      const url = `http://localhost:${appPort}/static/.env`
       const res = await fetch(url)
       expect(res.status).toBe(404)
     })
@@ -210,6 +216,21 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    it('should add preload tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const elements = await browser.elementsByCss('link[rel=preload]')
+      expect(elements.length).toBe(10)
+      await Promise.all(
+        elements.map(async (element) => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('preload')
+          expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
@@ -220,7 +241,14 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
-      expect(browserLogs[0].message).toMatch(/\/no-such-page.js - Failed to load resource/)
+      let foundLog = false
+      browserLogs.forEach((log) => {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+          foundLog = true
+        }
+      })
+
+      expect(foundLog).toBe(true)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
@@ -289,6 +317,17 @@ describe('Production Usage', () => {
     expect(serverSideJsRes.status).toBe(404)
     const serverSideJsBody = await serverSideJsRes.text()
     expect(serverSideJsBody).toMatch(/404/)
+  })
+
+  it('should not put backslashes in pages-manifest.json', () => {
+    // Whatever platform you build on, pages-manifest.json should use forward slash (/)
+    // See: https://github.com/zeit/next.js/issues/4920
+    const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
+
+    for (let key of Object.keys(pagesManifest)) {
+      expect(key).not.toMatch(/\\/)
+      expect(pagesManifest[key]).not.toMatch(/\\/)
+    }
   })
 
   it('should handle failed param decoding', async () => {

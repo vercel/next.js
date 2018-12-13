@@ -6,6 +6,7 @@ dist
 node_modules
 package-lock.json
 yarn.lock
+!/yarn.lock
 test/node_modules
 
 # logs & pids
@@ -19,3 +20,6 @@ coverage
 # test output
 test/**/out
 .DS_Store
+
+# Editors
+**/.idea

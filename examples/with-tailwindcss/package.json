@@ -2,13 +2,12 @@
   "name": "with-tailwindcss",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next & yarn dev:css",
-    "dev:css": "postcss styles/index.css --watch -c styles/config/postcss.config.js -o static/css/bundle.css",
-    "build": "next build & yarn build:css",
-    "build:css": "postcss styles/index.css -c styles/config/postcss.config.js -o static/css/bundle.css",
+    "dev": "next",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@zeit/next-css": "^1.0.1",
     "next": "latest",
     "react": "^16.0.0",
     "react-dom": "^16.0.0"
@@ -16,8 +15,7 @@
   "devDependencies": {
     "autoprefixer": "^7.1.6",
     "cssnano": "^3.10.0",
-    "postcss-cli": "^4.1.1",
     "postcss-easy-import": "^3.0.0",
-    "tailwindcss": "^0.2.2"
+    "tailwindcss": "^0.6.6"
   }
 }

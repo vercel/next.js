@@ -1,11 +1,9 @@
 /* global __NEXT_DATA__ */
 
 import { parse, format } from 'url'
-import EventEmitter from '../EventEmitter'
-import shallowEquals from '../shallow-equals'
-import PQueue from '../p-queue'
+import EventEmitter from '../event-emitter'
+import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
-import { _rewriteUrlForNextExport } from './'
 
 export default class Router {
   static events = new EventEmitter()
@@ -30,7 +28,6 @@ export default class Router {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.prefetchQueue = new PQueue({ concurrency: 2 })
     this.ErrorComponent = ErrorComponent
     this.pathname = pathname
     this.query = query
@@ -46,6 +43,30 @@ export default class Router {
 
       window.addEventListener('popstate', this.onPopState)
     }
+  }
+
+  static _rewriteUrlForNextExport (url) {
+    const [, hash] = url.split('#')
+    url = url.replace(/#.*/, '')
+
+    let [path, qs] = url.split('?')
+    path = path.replace(/\/$/, '')
+
+    let newPath = path
+    // Append a trailing slash if this path does not have an extension
+    if (!/\.[^/]+\/?$/.test(path)) {
+      newPath = `${path}/`
+    }
+
+    if (qs) {
+      newPath = `${newPath}?${qs}`
+    }
+
+    if (hash) {
+      newPath = `${newPath}#${hash}`
+    }
+
+    return newPath
   }
 
   onPopState = e => {
@@ -149,7 +170,7 @@ export default class Router {
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly for the SSR page.
     if (__NEXT_DATA__.nextExport) {
-      as = _rewriteUrlForNextExport(as)
+      as = Router._rewriteUrlForNextExport(as)
     }
 
     this.abortComponentLoad(as)
@@ -359,7 +380,7 @@ export default class Router {
 
     const { pathname } = parse(url)
     const route = toRoute(pathname)
-    return this.prefetchQueue.add(() => this.fetchRoute(route))
+    return this.pageLoader.prefetch(route)
   }
 
   async fetchComponent (route, as) {

@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 import { Subscribe } from 'unstated'
 import { ClockContainer, CounterContainer } from '../containers'
 import { Clock, Counter } from '../components'
@@ -15,8 +16,15 @@ class Index extends React.Component {
             this.timer = clock.interval
             return (
               <div>
-                <Clock clock={clock} />
-                <Counter counter={counter} />
+                <Link href='/about'>
+                  <button>
+                    go to About
+                  </button>
+                </Link>
+                <div>
+                  <Clock clock={clock} />
+                  <Counter counter={counter} />
+                </div>
               </div>
             )
           }
