@@ -35,7 +35,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     staticMarkup: boolean,
-    crossOrigin?: string,
     csp?: string,
     scriptNonce?: string,
     styleNonce?: string,
@@ -62,7 +61,6 @@ export default class Server {
     this.renderOpts = {
       staticMarkup,
       distDir: this.distDir,
-      crossOrigin: this.nextConfig.crossOrigin,
       buildId: this.buildId,
       generateEtags
     }
