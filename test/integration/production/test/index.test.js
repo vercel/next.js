@@ -56,7 +56,7 @@ describe('Production Usage', () => {
     })
 
     it('should render 404 for routes that do not exist', async () => {
-      const url = `http://localhost:${appPort}/abcdefigfgfjhgjfd`
+      const url = `http://localhost:${appPort}/abcdefghijklmno`
       const res = await fetch(url)
       const text = await res.text()
       const $html = cheerio.load(text)
