@@ -132,6 +132,14 @@ export default class PageLoader {
     }
     this.prefetchCache.add(scriptRoute)
 
+    // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
+    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
+    if ('connection' in navigator) {
+      if ((navigator.connection.effectiveType || '').indexOf('2g') !== -1 || navigator.connection.saveData) {
+        return
+      }
+    }
+
     // Feature detection is used to see if preload is supported
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
