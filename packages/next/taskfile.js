@@ -1,7 +1,7 @@
 const notifier = require('node-notifier')
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
+  await task.parallel(['copyStatic', 'bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
 }
 
 export async function bin (task, opts) {
@@ -37,6 +37,10 @@ export async function nextbuildstatic (task, opts) {
 
 export async function pages (task, opts) {
   await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript().target('dist/pages')
+}
+
+export async function copyStatic (task, opts) {
+  await task.source(opts.src || 'static/**/*').target('dist/static')
 }
 
 export async function build (task) {

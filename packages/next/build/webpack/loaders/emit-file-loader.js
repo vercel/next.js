@@ -25,7 +25,7 @@ module.exports = function (content, sourceMap) {
   const interpolatedName = interpolateName(loaderUtils.interpolateName(this, name, opts), {name, opts})
   const emit = (code, map) => {
     this.emitFile(interpolatedName, code, map)
-    callback(null, code, map)
+    query.importPath ? callback(null, `module.exports = '${interpolatedName}';`) : callback(null, code, map)
   }
 
   if (query.transform) {

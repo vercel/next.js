@@ -15,7 +15,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
-import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, NEXT_PROJECT_ROOT_DIST_SERVER, DEFAULT_PAGES_DIR} from '../lib/constants'
+import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, NEXT_PROJECT_ROOT_DIST_SERVER, NEXT_PROJECT_ROOT_DIST_STATIC, DEFAULT_PAGES_DIR} from '../lib/constants'
 import TerserPlugin from 'terser-webpack-plugin'
 import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 
@@ -276,6 +276,19 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
           test: defaultLoaders.hotSelfAccept.options.extensions,
           include: defaultLoaders.hotSelfAccept.options.include,
           use: defaultLoaders.hotSelfAccept
+        },
+        // TODO: putting !isServer here causes problems?
+        {
+          include: [NEXT_PROJECT_ROOT_DIST_STATIC],
+          use: [
+            {
+              loader: 'emit-file-loader',
+              options: {
+                name: `static/runtime/${dev ? '[name]-[hash].[ext]' : '[name]-[hash].[ext]'}`,
+                importPath: true
+              }
+            }
+          ]
         },
         {
           test: /\.(js|jsx)$/,

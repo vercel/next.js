@@ -1,0 +1,34 @@
+.errorDebug {
+  background: #ffffff;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 24px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 9999;
+  color: #000000;
+}
+
+.stack {
+  font-family: "SF Mono", "Roboto Mono", "Fira Mono", consolas, menlo-regular, monospace;
+  font-size: 13px;
+  line-height: 18px;
+  color: #777;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin-top: 16px;
+}
+
+.heading {
+  font-family: -apple-system, system-ui, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 28px;
+  color: #000000;
+  margin-bottom: 0px;
+  margin-top: 0px;
+}
