@@ -14,9 +14,9 @@ export default class Document extends Component {
   }
 
   static getInitialProps ({ renderPage, styleNonce }) {
-    const { html, head, buildManifest } = renderPage()
+    const { html, head } = renderPage()
     const styles = flush({ nonce: styleNonce })
-    return { html, head, styles, buildManifest }
+    return { html, head, styles }
   }
 
   getChildContext () {
@@ -60,7 +60,7 @@ export class Head extends Component {
         key={file}
         rel='stylesheet'
         href={`${assetPrefix}/_next/${file}`}
-        crossOrigin={this.props.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
     })
   }
@@ -74,7 +74,7 @@ export class Head extends Component {
         href={`${assetPrefix}/_next/${bundle.file}`}
         as='script'
         nonce={this.props.nonce || scriptNonce}
-        crossOrigin={this.props.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
     })
   }
@@ -97,7 +97,7 @@ export class Head extends Component {
         rel='preload'
         href={`${assetPrefix}/_next/${file}`}
         as='script'
-        crossOrigin={this.props.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
     })
   }
@@ -116,6 +116,7 @@ export class Head extends Component {
         }
         return child
       })
+      if (this.props.crossOrigin) console.warn('Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated')
     }
 
     return <head {...this.props}>
@@ -123,9 +124,9 @@ export class Head extends Component {
       { styleNonce ? <meta property="csp-nonce" content={styleNonce} /> : null }
       {children}
       {head}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />}
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} as='script' nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
@@ -176,7 +177,7 @@ export class NextScript extends Component {
         key={bundle.file}
         src={`${assetPrefix}/_next/${bundle.file}`}
         nonce={this.props.nonce || scriptNonce}
-        crossOrigin={this.props.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
     })
   }
@@ -198,7 +199,7 @@ export class NextScript extends Component {
         src={`${assetPrefix}/_next/${file}`}
         nonce={this.props.nonce || scriptNonce}
         async
-        crossOrigin={this.props.crossOrigin}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
     })
   }
@@ -213,14 +214,18 @@ export class NextScript extends Component {
     const { page, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(page)
 
+    if (process.env.NODE_ENV !== 'production') {
+      if (this.props.crossOrigin) console.warn('Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated')
+    }
+
     return <Fragment>
-      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />) : null}
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />) : null}
       {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />
-      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin} />
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
+      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js`} nonce={this.props.nonce || scriptNonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>

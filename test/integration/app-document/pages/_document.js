@@ -31,7 +31,7 @@ export default class MyDocument extends Document {
   render () {
     return (
       <html>
-        <Head crossOrigin='anonymous' />
+        <Head />
         <body className='custom_class'>
           <script type='text/javascript' dangerouslySetInnerHTML={{ __html: "console.log('logged')" }} nonce={this.props.scriptNonce} crossOrigin='anonymous' />
           <style nonce={this.props.styleNonce}>{`p { font-size: 50px;}`}</style>
@@ -40,7 +40,7 @@ export default class MyDocument extends Document {
           <p id='custom-property'>{this.props.customProperty}</p>
           <p id='document-hmr'>Hello Document HMR</p>
           <Main />
-          <NextScript crossOrigin='anonymous' />
+          <NextScript />
         </body>
       </html>
     )
