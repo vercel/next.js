@@ -17,14 +17,7 @@ const args = arg({
   '-H': '--hostname'
 })
 
-// Defaults
-const {
-  '--help': help = false,
-  '--port': port = 3000,
-  '--hostname': hostname
-} = args
-
-if (help) {
+if (args['--help']) {
   console.log(`
     Description
       Starts the application in development mode (hot-code reloading, error
@@ -60,9 +53,10 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-startServer({dir, dev: true}, port, hostname)
+const port = args['--port'] || 3000
+startServer({dir, dev: true}, port, args['--hostname'])
   .then(async () => {
-    console.log(`> Ready on http://${hostname}:${port}`)
+    console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
   })
   .catch((err) => {
     if (err.code === 'EADDRINUSE') {
