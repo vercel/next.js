@@ -30,6 +30,7 @@ const args = arg({
   '--version': Boolean,
   '--help': Boolean,
   '--node-args': String,
+  '--inspect': Boolean,
 
   // Aliases
   '-v': '--version',
@@ -43,7 +44,8 @@ const args = arg({
 const {
   '--version': version = false,
   '--help': help = false,
-  '--node-args': nodeArgs = ''
+  '--node-args': nodeArgs = '',
+  '--inspect': inspect = false
 } = args
 
 if (version) {
@@ -68,6 +70,10 @@ if (help) {
       $ next init --help
   `)
   process.exit(0)
+}
+
+if (inspect) {
+  nodeArgs.push('--inspect')
 }
 
 const command = args._.find(cmd => commands.includes(cmd)) || defaultCommand
