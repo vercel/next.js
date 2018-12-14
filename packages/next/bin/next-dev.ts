@@ -21,7 +21,7 @@ const args = arg({
 const {
   '--help': help = false,
   '--port': port = 3000,
-  '--hostname': hostname = 'localhost'
+  '--hostname': hostname
 } = args
 
 if (help) {
