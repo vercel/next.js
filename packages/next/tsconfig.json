@@ -7,12 +7,6 @@
     "target": "ES2017",
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "jsx": "react",
-    "baseUrl": "../..",
-    "paths": {
-      "@babel/types": [
-        "@types/babel-types/index.d.ts"
-      ]
-    }
+    "jsx": "react"
   }
 }
