@@ -17,7 +17,6 @@ try {
       }
 
       const ext = extname(file.base)
-      console.log(file.base, ext, stripExtension)
       // For example files without an extension don't have to be rewritten
       if (ext) {
         // Replace `.ts` with `.js`
