@@ -41,7 +41,7 @@ const args = arg({
 })
 
 // Defaults
-const {
+let {
   '--version': version = false,
   '--help': help = false,
   '--node-args': nodeArgs = '',
@@ -73,7 +73,7 @@ if (help) {
 }
 
 if (inspect) {
-  nodeArgs.push('--inspect')
+  nodeArgs += ' --inspect'
 }
 
 const command = args._.find(cmd => commands.includes(cmd)) || defaultCommand
@@ -85,7 +85,8 @@ process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 const bin = join(__dirname, 'next-' + command)
 
 const startProcess = () => {
-  const proc = spawn('node', [...nodeArgs.split(' '), bin, ...forwardedArgs], { stdio: 'inherit', customFds: [0, 1, 2] })
+  const procParams = [...nodeArgs.split(' ').filter(a => a), bin, ...forwardedArgs]
+  const proc = spawn('node', procParams, { stdio: 'inherit', customFds: [0, 1, 2] })
   proc.on('close', (code, signal) => {
     if (code !== null) {
       process.exit(code)
