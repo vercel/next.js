@@ -20,8 +20,7 @@ const args = arg({
 const {
   '--help': help = false,
   '--port': port = 3000,
-  '--hostname': hostname = '',
-  '_': [relativeDir] = ['.']
+  '--hostname': hostname = ''
 } = args
 
 if (help) {
@@ -46,7 +45,7 @@ if (help) {
   process.exit(0)
 }
 
-const dir = resolve(relativeDir)
+const dir = resolve(args._[0] || '.')
 
 startServer({dir}, port, hostname)
   .then(() => {

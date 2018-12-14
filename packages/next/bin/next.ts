@@ -14,7 +14,6 @@ import arg from 'arg'
 
 const defaultCommand = 'dev'
 const commands = [
-  'init',
   'build',
   'start',
   'export',
@@ -43,12 +42,18 @@ const {
   '--inspect': inspect = false
 } = args
 
+// Version is inlined into the file using taskr build pipeline
 if (version) {
   console.log(`next.js v${process.env.NEXT_VERSION}`)
   process.exit(0)
 }
 
-if (help) {
+// Check if we are running `next <subcommand>` or `next`
+const foundCommand = args._.find(cmd => commands.includes(cmd))
+
+// Makes sure the `next <subcommand> --help` case is covered
+// This help message is only showed for `next --help`
+if (!foundCommand && help) {
   console.log(`
     Usage
       $ next <command>
@@ -62,19 +67,25 @@ if (help) {
       --help, -h      Displays this message  
 
     For more information run a command with the --help flag
-      $ next init --help
+      $ next build --help
   `)
   process.exit(0)
 }
 
+// Add support for `--node-args` to send Node.js arguments to the spawned process
 const nodeArguments = nodeArgs !== '' ? nodeArgs.split(' ') : []
 if (inspect) {
   console.log('The `--inspect` option is deprecated in favor of `--node-args`')
   nodeArguments.push('--inspect')
 }
 
-const command = args._.find(cmd => commands.includes(cmd)) || defaultCommand
+const command = foundCommand || defaultCommand
 const forwardedArgs = args._.filter(arg => arg !== command)
+
+// Make sure the `next <subcommand> --help` case is covered
+if (help) {
+  forwardedArgs.push('--help')
+}
 
 const defaultEnv = command === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
