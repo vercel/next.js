@@ -6,20 +6,23 @@ try {
 
   module.exports = function (task) {
     task.plugin('typescript', { every: true }, function * (file, options) {
+      const {stripExtension} = options
       const opts = {
         fileName: file.base,
         compilerOptions: {
           ...config.compilerOptions,
-          ...options
+          ...options,
+          stripExtension: undefined // since it's an option of the typescript taskr plugin
         }
       }
 
       const ext = extname(file.base)
+      console.log(file.base, ext, stripExtension)
       // For example files without an extension don't have to be rewritten
       if (ext) {
         // Replace `.ts` with `.js`
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
-        file.base = file.base.replace(extRegex, '.js')
+        file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
       }
 
       // compile output
