@@ -34,12 +34,6 @@ const args = arg({
   permissive: true
 })
 
-// Defaults
-const {
-  '--node-args': nodeArgs = '',
-  '--inspect': inspect = false
-} = args
-
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
   console.log(`next.js v${process.env.NEXT_VERSION}`)
@@ -71,8 +65,8 @@ if (!foundCommand && args['--help']) {
 }
 
 // Add support for `--node-args` to send Node.js arguments to the spawned process
-const nodeArguments = args['--node-args'] !== '' ? nodeArgs.split(' ') : []
-if (inspect) {
+const nodeArguments = args['--node-args'] && args['--node-args'] !== '' ? args['--node-args'].split(' ') : []
+if (args['--inspect']) {
   console.log('The `--inspect` option is deprecated in favor of `--node-args`')
   nodeArguments.push('--inspect')
 }

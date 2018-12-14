@@ -1907,10 +1907,10 @@ are-we-there-yet@~1.1.2:
     delegates "^1.0.0"
     readable-stream "^2.0.6"
 
-arg@2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/arg/-/arg-2.0.1.tgz#ded3abf645efd3b5f7e446035b75aad6fd68aa71"
-  integrity sha512-cvmPpB9OWbIP0pG3ov/11PMd/z+nBG+nY4eynzHxX/+pxJg7f5r02rFeJr8NwosJpxHIujA2jJpB+c3xR21vig==
+arg@3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/arg/-/arg-3.0.0.tgz#386c20035dfbeb13e280ca8a1e6868aa17942def"
+  integrity sha512-C5Scb477yHhNck9AFzW5RwAzS2Eqn0HR+Fv0pmcZBXBT8g/g7OOuZTr0upVSSUGWZQH+XWdAKIw2OfC86EuggQ==
 
 argparse@^1.0.7:
   version "1.0.10"
