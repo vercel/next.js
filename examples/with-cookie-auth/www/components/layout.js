@@ -29,13 +29,11 @@ const Layout = props => (
         padding-right: 1rem;
       }
     `}</style>
-    <React.Fragment>
-      <Header />
+    <Header />
 
-      <main>
-        <div className='container'>{props.children}</div>
-      </main>
-    </React.Fragment>
+    <main>
+      <div className='container'>{props.children}</div>
+    </main>
   </React.Fragment>
 )
 
