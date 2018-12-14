@@ -83,6 +83,7 @@ export default class PageLoader {
 
     const script = document.createElement('script')
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
       const error = new Error(`Error when loading route: ${route}`)
@@ -131,12 +132,21 @@ export default class PageLoader {
     }
     this.prefetchCache.add(scriptRoute)
 
+    // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
+    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
+    if ('connection' in navigator) {
+      if ((navigator.connection.effectiveType || '').indexOf('2g') !== -1 || navigator.connection.saveData) {
+        return
+      }
+    }
+
     // Feature detection is used to see if preload is supported
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
       const link = document.createElement('link')
       link.rel = 'preload'
+      link.crossOrigin = process.crossOrigin
       link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
       link.as = 'script'
       document.head.appendChild(link)

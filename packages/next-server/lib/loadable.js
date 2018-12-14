@@ -315,4 +315,4 @@ Loadable.preloadReady = (webpackIds) => {
   })
 }
 
-module.exports = Loadable
+export default Loadable
