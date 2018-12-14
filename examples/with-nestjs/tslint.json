@@ -1,0 +1,74 @@
+{
+    "defaultSeverity": "error",
+    "extends": [
+        "tslint:recommended",
+        "tslint-eslint-rules"
+    ],
+    "jsRules": {
+        "no-unused-expression": true
+    },
+    "rules": {
+        "eofline": false,
+        "quotemark": [
+            true,
+            "single"
+        ],
+        "member-access": [
+            false
+        ],
+        "ordered-imports": [
+            false
+        ],
+        "max-line-length": [true, 120],
+        "member-ordering": [
+            false
+        ],
+        "curly": [true, "ignore-same-line"],
+        "interface-name": [
+            false
+        ],
+        "array-type": [
+            false
+        ],
+        "no-empty-interface": false,
+        "no-empty": false,
+        "arrow-parens": false,
+        "object-literal-sort-keys": false,
+        "no-unused-expression": false,
+        "max-classes-per-file": [false,],
+        "variable-name": [
+            false
+        ],
+        "one-line": [
+            false
+        ],
+        "one-variable-per-declaration": [
+            false
+        ],
+        "no-eval": false,
+        "no-var-requires": false,
+        "object-curly-spacing": [
+            true,
+            "always"
+        ],
+        "no-multi-spaces": [
+            true
+        ],
+        "block-spacing": [
+            true,
+            "always"
+        ],
+        "whitespace": [true,
+            "check-module",
+            "check-branch",
+            "check-decl",
+            "check-operator",
+            "check-separator",
+            "check-type",
+            "check-typecast"
+        ],
+        "indent": [true, "spaces", 4],
+        "no-return-await": true
+    },
+    "rulesDirectory": []
+}
