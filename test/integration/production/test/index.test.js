@@ -17,7 +17,7 @@ import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST} from 'next-server/constants'
-
+import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -53,6 +53,16 @@ describe('Production Usage', () => {
       const headers = { 'If-None-Match': etag }
       const res2 = await fetch(url, { headers })
       expect(res2.status).toBe(304)
+    })
+
+    it('should render 404 for routes that do not exist', async () => {
+      const url = `http://localhost:${appPort}/abcdefghijklmno`
+      const res = await fetch(url)
+      const text = await res.text()
+      const $html = cheerio.load(text)
+      expect($html('html').text()).toMatch(/404/)
+      expect(text).toMatch(/"statusCode":404/)
+      expect(res.status).toBe(404)
     })
 
     it('should render 404 for _next routes that do not exist', async () => {

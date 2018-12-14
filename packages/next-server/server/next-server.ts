@@ -231,6 +231,7 @@ export default class Server {
       return html
     } catch (err) {
       if (err.code === 'ENOENT') {
+        res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
         if (!this.quiet) console.error(err)
@@ -249,7 +250,7 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}) {
+  public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery = {}) {
     return renderToHTML(req, res, '/_error', query, {...this.renderOpts, err})
   }
 
