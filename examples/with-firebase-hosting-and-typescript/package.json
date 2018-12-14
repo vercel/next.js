@@ -1,10 +1,14 @@
 {
-  "name": "with-firebase-hosting",
+  "name": "with-firebase-hosting-and-typescript",
   "version": "1.0.0",
-  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects.",
+  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects. Built with typescript.",
+  "engines": {
+    "node": "8"
+  },
   "scripts": {
     "dev": "next src/app",
-    "serve": "NODE_ENV=production firebase serve --only functions,hosting",
+    "preserve": "npm run build-public && npm run build-functions && npm run build-app && npm run copy-deps && npm run install-deps",
+    "serve": "cross-env NODE_ENV=production firebase serve",
     "deploy": "firebase deploy",
     "clean": "rimraf \"dist/functions\" && rimraf \"dist/public\"",
     "build-app": "next build \"src/app\"",
@@ -13,26 +17,26 @@
     "lint-app": "tslint --project src/app",
     "typecheck-app": "tsc --project src/app",
     "lint-functions": "tslint --project src/functions",
-    "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\"",
+    "copy-deps": "cpx \"*{package.json,package-lock.json,yarn.lock}\" \"dist/functions\" -C",
     "install-deps": "cd \"dist/functions\" && npm i"
   },
   "dependencies": {
-    "@zeit/next-typescript": "1.1.0",
-    "firebase-admin": "~5.12.1",
-    "firebase-functions": "^1.0.1",
-    "next": "^6.0.3",
-    "react": "^16.3.2",
-    "react-dom": "^16.3.2"
+    "@zeit/next-typescript": "^1.1.0",
+    "firebase-admin": "^6.3.0",
+    "firebase-functions": "^2.1.0",
+    "next": "^7.0.0",
+    "react": "^16.6.0",
+    "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@types/next": "^2.4.10",
-    "@types/react": "^16.3.14",
+    "@types/next": "^7.0.0",
+    "@types/react": "^16.6.0",
     "cpx": "1.5.0",
-    "firebase-tools": "3.18.4",
-    "prettier": "1.12.1",
+    "cross-env": "5.2.0",
+    "firebase-tools": "^6.1.0",
     "rimraf": "2.6.2",
-    "tslint": "^5.8.0",
-    "tslint-react": "3.6.0",
-    "typescript": "^2.5.3"
+    "tslint": "^5.11.0",
+    "tslint-react": "^3.6.0",
+    "typescript": "^3.2.0"
   }
 }

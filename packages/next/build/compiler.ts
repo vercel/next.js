@@ -1,6 +1,6 @@
 import webpack from 'webpack'
 
-type CompilerResult = {
+export type CompilerResult = {
   errors: Error[],
   warnings: Error[]
 }
