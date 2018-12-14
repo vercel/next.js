@@ -3,27 +3,24 @@ import { ValidationPipe } from '@nestjs/common'
 import { ApplicationModule } from './src/app/app.module'
 import * as bodyParser from 'body-parser'
 import * as compression from 'compression'
+import { RenderModule } from 'nest-next';
 
-const server = require('express')
-// const next = require('next');
+async function bootstrap() {
+  const port = parseInt(process.env.PORT, 10) || 3000;
+  const nestApp = await NestFactory.create(ApplicationModule)
 
-async function bootstrap () {
-  const port = parseInt(process.env.PORT, 10) || 3000
-  const dev = process.env.NODE_ENV !== 'production'
-
-  // const nextApp = next({ dev });
-  // const nextRequestHandle = nextApp.getRequestHandler();
-  const expressServer = server()
-
-  const nestApp = await NestFactory.create(ApplicationModule, expressServer)
+  nestApp.setGlobalPrefix('api');
   nestApp.use(bodyParser.json())
   nestApp.useGlobalPipes(new ValidationPipe())
   nestApp.use(compression())
 
-  // await nextApp.prepare();
-  // expressServer.get('*', (req, res) => {
-  //   return nextRequestHandle(req, res)
-  // });
+  const next = require('next');
+  const dev = process.env.NODE_ENV !== 'production'
+  const nextApp = next({ dev });
+  await nextApp.prepare();
+
+  const renderer = nestApp.get(RenderModule);
+  renderer.register(nestApp, nextApp);
 
   await nestApp.listen(port)
 }
