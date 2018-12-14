@@ -9,7 +9,7 @@ const args = arg({
   // Types
   '--help': Boolean,
   '--silent': String,
-  '--outdir': Number,
+  '--outdir': String,
   '--threads': Number,
   '--concurrency': Number,
 
@@ -23,7 +23,7 @@ const args = arg({
 const {
   '--help': help = false,
   '--silent': silent = false,
-  '--outdir': [outdir] = ['.'],
+  '--outdir': outdir,
   '--threads': threads = 0,
   '--concurrency': concurrency = 0
 } = args
@@ -47,7 +47,7 @@ if (help) {
   process.exit(0)
 }
 
-const dir = resolve(outdir)
+const dir = resolve(args._[0] || '.')
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
@@ -66,7 +66,7 @@ const options = {
   silent,
   threads,
   concurrency,
-  outdir: outdir === '.' ? resolve(dir, 'out') : dir
+  outdir: outdir ? resolve(outdir) : join(dir, 'out')
 }
 
 exportApp(dir, options)
