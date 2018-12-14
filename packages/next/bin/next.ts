@@ -31,6 +31,8 @@ const args = arg({
   // Aliases
   '-v': '--version',
   '-h': '--help'
+}, {
+  permissive: true
 })
 
 // Defaults
