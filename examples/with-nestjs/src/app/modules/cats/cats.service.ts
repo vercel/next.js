@@ -10,6 +10,11 @@ export class CatsService {
   }
 
   findAll(): Cat[] {
+    this.cats.push({
+      name: 'Mufasa',
+      age: 3,
+      breed: '' 
+    });
     return this.cats;
   }
 }

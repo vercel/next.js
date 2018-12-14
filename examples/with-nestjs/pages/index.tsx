@@ -3,10 +3,6 @@ import fetch from 'isomorphic-unfetch'
 import Link from 'next/link'
 import Layout from '../components/Layout';
 
-// Import React Table
-import ReactTable from "react-table";
-import "react-table/react-table.css";
-
 interface IState {
   cats?: any[];
   pages?: number;
@@ -26,7 +22,7 @@ class App extends React.Component {
     this.state = {
       cats: []
     };
-    //this.fetchData();
+    this.fetchData();
   }
 
   fetchData = () => {
@@ -39,11 +35,11 @@ class App extends React.Component {
         }
         return response.json()
       })
-      .then(data => {
-        if (!data || data.length == 0) {
+      .then(response => {
+        if (!response || response.length == 0) {
           // message.error('I do not find any book with these terms', 3);
         } else {
-          this.setState({ cats: data });
+          this.setState({ cats: response.data });
         }
         // setTimeout(loading, 250);
       })
@@ -57,52 +53,9 @@ class App extends React.Component {
     return (
       <Layout title="Home | Next.js + TypeScript Example">
         <h1>Hello Next.js 👋</h1>
-
-         <ReactTable
-          data={cats}
-          columns={[
-            {
-              Header: "Name",
-              columns: [
-                {
-                  Header: "First Name",
-                  accessor: "firstName"
-                },
-                {
-                  Header: "Last Name",
-                  id: "lastName",
-                  accessor: d => d.lastName
-                }
-              ]
-            },
-            {
-              Header: "Info",
-              columns: [
-                {
-                  Header: "Age",
-                  accessor: "age"
-                },
-                {
-                  Header: "Status",
-                  accessor: "status"
-                }
-              ]
-            },
-            {
-              Header: 'Stats',
-              columns: [
-                {
-                  Header: "Visits",
-                  accessor: "visits"
-                }
-              ]
-            }
-          ]}
-          defaultPageSize={10}
-          className="-striped -highlight"
-        />
-
-
+        <div>
+           {cats.map(cat => <div> {cat.name} </div>)} 
+        </div>
         <p><Link href='/about'><a>About</a></Link></p>
       </Layout>
     );
