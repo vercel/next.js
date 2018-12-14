@@ -36,14 +36,12 @@ const args = arg({
 
 // Defaults
 const {
-  '--version': version = false,
-  '--help': help = false,
   '--node-args': nodeArgs = '',
   '--inspect': inspect = false
 } = args
 
 // Version is inlined into the file using taskr build pipeline
-if (version) {
+if (args['--version']) {
   console.log(`next.js v${process.env.NEXT_VERSION}`)
   process.exit(0)
 }
@@ -53,7 +51,7 @@ const foundCommand = args._.find(cmd => commands.includes(cmd))
 
 // Makes sure the `next <subcommand> --help` case is covered
 // This help message is only showed for `next --help`
-if (!foundCommand && help) {
+if (!foundCommand && args['--help']) {
   console.log(`
     Usage
       $ next <command>
@@ -73,7 +71,7 @@ if (!foundCommand && help) {
 }
 
 // Add support for `--node-args` to send Node.js arguments to the spawned process
-const nodeArguments = nodeArgs !== '' ? nodeArgs.split(' ') : []
+const nodeArguments = args['--node-args'] !== '' ? nodeArgs.split(' ') : []
 if (inspect) {
   console.log('The `--inspect` option is deprecated in favor of `--node-args`')
   nodeArguments.push('--inspect')
@@ -83,7 +81,7 @@ const command = foundCommand || defaultCommand
 const forwardedArgs = args._.filter(arg => arg !== command)
 
 // Make sure the `next <subcommand> --help` case is covered
-if (help) {
+if (args['--help']) {
   forwardedArgs.push('--help')
 }
 

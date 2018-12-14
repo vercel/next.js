@@ -19,16 +19,7 @@ const args = arg({
   '-o': '--outdir'
 })
 
-// Defaults
-const {
-  '--help': help = false,
-  '--silent': silent = false,
-  '--outdir': outdir,
-  '--threads': threads = 0,
-  '--concurrency': concurrency = 0
-} = args
-
-if (help) {
+if (args['--help']) {
   console.log(`
     Description
       Exports the application for production deployment
@@ -63,10 +54,10 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 const options = {
-  silent,
-  threads,
-  concurrency,
-  outdir: outdir ? resolve(outdir) : join(dir, 'out')
+  silent: args['--silent'] || false,
+  threads: args['--threads'],
+  concurrency: args['--concurrency'],
+  outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out')
 }
 
 exportApp(dir, options)

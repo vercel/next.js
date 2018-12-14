@@ -16,14 +16,7 @@ const args = arg({
   '-H': '--hostname'
 })
 
-// Defaults
-const {
-  '--help': help = false,
-  '--port': port = 3000,
-  '--hostname': hostname
-} = args
-
-if (help) {
+if (args['--help']) {
   console.log(`
     Description
       Starts the application in production mode.
@@ -46,10 +39,10 @@ if (help) {
 }
 
 const dir = resolve(args._[0] || '.')
-
-startServer({dir}, port, hostname)
+const port = args['--port'] || 3000
+startServer({dir}, port, args['--hostname'])
   .then(() => {
-    console.log(`> Ready on http://${hostname}:${port}`)
+    console.log(`> Ready on http://${args['--hostname']}:${port}`)
   })
   .catch((err) => {
     console.error(err)
