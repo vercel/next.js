@@ -1,20 +1,16 @@
 #!/usr/bin/env node
 import { join } from 'path'
-import { spawn } from 'cross-spawn'
-import pkg from '../../package.json'
-import {CONFIG_FILE} from 'next-server/constants'
+import spawn from 'cross-spawn'
 import arg from 'arg'
 
-if (pkg.peerDependencies) {
-  Object.keys(pkg.peerDependencies).forEach(dependency => {
-    try {
-      // When 'npm link' is used it checks the clone location. Not the project.
-      require.resolve(dependency)
-    } catch (err) {
-      console.warn(`The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install --save ${dependency}'`)
-    }
-  })
-}
+['react', 'react-dom'].forEach(dependency => {
+  try {
+    // When 'npm link' is used it checks the clone location. Not the project.
+    require.resolve(dependency)
+  } catch (err) {
+    console.warn(`The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install --save ${dependency}'`)
+  }
+})
 
 const defaultCommand = 'dev'
 const commands = [
@@ -35,13 +31,10 @@ const args = arg({
   // Aliases
   '-v': '--version',
   '-h': '--help'
-}, {
-  // To forward args
-  permissive: true
 })
 
 // Defaults
-let {
+const {
   '--version': version = false,
   '--help': help = false,
   '--node-args': nodeArgs = '',
@@ -49,7 +42,7 @@ let {
 } = args
 
 if (version) {
-  console.log(`next.js v${pkg.version}`)
+  console.log(`next.js v${process.env.NEXT_VERSION}`)
   process.exit(0)
 }
 
@@ -72,8 +65,10 @@ if (help) {
   process.exit(0)
 }
 
+const nodeArguments = nodeArgs !== '' ? nodeArgs.split(' ') : []
 if (inspect) {
-  nodeArgs += ' --inspect'
+  console.log('The `--inspect` option is deprecated in favor of `--node-args`')
+  nodeArguments.push('--inspect')
 }
 
 const command = args._.find(cmd => commands.includes(cmd)) || defaultCommand
@@ -85,8 +80,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 const bin = join(__dirname, 'next-' + command)
 
 const startProcess = () => {
-  const procParams = [...nodeArgs.split(' ').filter(a => a), bin, ...forwardedArgs]
-  const proc = spawn('node', procParams, { stdio: 'inherit', customFds: [0, 1, 2] })
+  const proc = spawn('node', [...nodeArguments, bin, ...forwardedArgs], { stdio: 'inherit' })
   proc.on('close', (code, signal) => {
     if (code !== null) {
       process.exit(code)
@@ -109,18 +103,20 @@ const startProcess = () => {
 
 let proc = startProcess()
 
-const wrapper = () => {
+function wrapper () {
   if (proc) {
     proc.kill()
   }
 }
+
 process.on('SIGINT', wrapper)
 process.on('SIGTERM', wrapper)
 process.on('exit', wrapper)
 
 if (command === 'dev') {
+  const {CONFIG_FILE} = require('next-server/constants')
   const {watchFile} = require('fs')
-  watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur, prev) => {
+  watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
       console.log(`\n> Found a change in ${CONFIG_FILE}, restarting the server...`)
       // Don't listen to 'close' now since otherwise parent gets killed by listener

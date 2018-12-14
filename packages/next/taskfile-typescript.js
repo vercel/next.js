@@ -35,7 +35,7 @@ try {
       }
 
       // update file's data
-      file.data = Buffer.from(result.outputText, 'utf8')
+      file.data = Buffer.from(result.outputText.replace(/process\.env\.NEXT_VERSION/, `"${require('./package.json').version}"`), 'utf8')
     })
   }
 } catch (err) {
