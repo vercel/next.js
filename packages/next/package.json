@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "7.0.2-canary.42",
+  "version": "7.0.2-canary.43",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -71,7 +71,7 @@
     "minimist": "1.2.0",
     "mkdirp-then": "1.2.0",
     "nanoid": "1.2.1",
-    "next-server": "^7.0.2-canary.42",
+    "next-server": "^7.0.2-canary.43",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "4.0.0",
