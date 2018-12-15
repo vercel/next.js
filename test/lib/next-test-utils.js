@@ -65,7 +65,7 @@ export function findPort () {
   return getPort()
 }
 
-export function runNextCommand (argv, options) {
+export function runNextCommand (argv, options = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
