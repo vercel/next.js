@@ -36,7 +36,7 @@ const args = arg({
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
-  console.log(`next.js v${process.env.NEXT_VERSION}`)
+  console.log(`Next.js v${process.env.NEXT_VERSION}`)
   process.exit(0)
 }
 
@@ -69,6 +69,10 @@ const nodeArguments = args['--node-args'] && args['--node-args'] !== '' ? args['
 if (args['--inspect']) {
   console.log('The `--inspect` option is deprecated in favor of `--node-args`')
   nodeArguments.push('--inspect')
+}
+
+if (nodeArguments.length > 0) {
+  console.log(`Passing arguments to Node.js: "${nodeArguments.join(' ')}"`)
 }
 
 const command = foundCommand || defaultCommand

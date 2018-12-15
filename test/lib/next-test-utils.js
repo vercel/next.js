@@ -65,14 +65,23 @@ export function findPort () {
   return getPort()
 }
 
-export function runNextCommand (argv) {
+export function runNextCommand (argv, options) {
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, stdio: 'inherit' })
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, stdio: options.stdout ? ['ignore', 'pipe', 'ignore'] : 'inherit' })
+
+    let stdoutOutput = ''
+    if (options.stdout) {
+      instance.stdout.on('data', function (chunk) {
+        stdoutOutput += chunk
+      })
+    }
 
     instance.on('close', () => {
-      resolve()
+      resolve({
+        stdout: stdoutOutput
+      })
     })
 
     instance.on('error', (err) => {
@@ -81,16 +90,15 @@ export function runNextCommand (argv) {
   })
 }
 
-// Launch the app in dev mode.
-export function launchApp (dir, port) {
+export function runNextCommandDev (argv, stdOut) {
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['dist/bin/next', dir, '-p', port], { cwd })
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd })
 
     function handleStdout (data) {
       const message = data.toString()
       if (/> Ready on/.test(message)) {
-        resolve(instance)
+        resolve(stdOut ? message : instance)
       }
       process.stdout.write(message)
     }
@@ -111,6 +119,11 @@ export function launchApp (dir, port) {
       reject(err)
     })
   })
+}
+
+// Launch the app in dev mode.
+export function launchApp (dir, port) {
+  return runNextCommandDev([dir, '-p', port])
 }
 
 export function nextBuild (dir) {
