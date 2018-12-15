@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
-import parseArgs from 'minimist'
+import arg from 'arg'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 
-const argv = parseArgs(process.argv.slice(2), {
-  alias: {
-    h: 'help',
-    H: 'hostname',
-    p: 'port'
-  },
-  boolean: ['h'],
-  string: ['H'],
-  default: { p: 3000 }
+const args = arg({
+  // Types
+  '--help': Boolean,
+  '--port': Number,
+  '--hostname': String,
+
+  // Aliases
+  '-h': '--help',
+  '-p': '--port',
+  '-H': '--hostname'
 })
 
-if (argv.help) {
+if (args['--help']) {
   console.log(`
     Description
       Starts the application in development mode (hot-code reloading, error
@@ -37,7 +38,7 @@ if (argv.help) {
   process.exit(0)
 }
 
-const dir = resolve(argv._[0] || '.')
+const dir = resolve(args._[0] || '.')
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
@@ -52,13 +53,14 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-startServer({dir, dev: true}, argv.port, argv.hostname)
+const port = args['--port'] || 3000
+startServer({dir, dev: true}, port, args['--hostname'])
   .then(async () => {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
   })
   .catch((err) => {
     if (err.code === 'EADDRINUSE') {
-      let errorMessage = `Port ${argv.port} is already in use.`
+      let errorMessage = `Port ${port} is already in use.`
       const pkgAppPath = require('find-up').sync('package.json', {
         cwd: dir
       })

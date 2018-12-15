@@ -1,26 +1,22 @@
 #!/usr/bin/env node
 
 import { resolve } from 'path'
-import parseArgs from 'minimist'
+import arg from 'arg'
 import startServer from '../server/lib/start-server'
 
-const argv = parseArgs(process.argv.slice(2), {
-  alias: {
-    h: 'help',
-    H: 'hostname',
-    p: 'port'
-  },
-  boolean: ['h'],
-  string: ['H'],
-  default: { p: 3000 }
+const args = arg({
+  // Types
+  '--help': Boolean,
+  '--port': Number,
+  '--hostname': String,
+
+  // Aliases
+  '-h': '--help',
+  '-p': '--port',
+  '-H': '--hostname'
 })
 
-if (argv.hostname === '') {
-  console.error(`> Provided hostname argument has no value`)
-  process.exit(1)
-}
-
-if (argv.help) {
+if (args['--help']) {
   console.log(`
     Description
       Starts the application in production mode.
@@ -42,11 +38,11 @@ if (argv.help) {
   process.exit(0)
 }
 
-const dir = resolve(argv._[0] || '.')
-
-startServer({dir}, argv.port, argv.hostname)
+const dir = resolve(args._[0] || '.')
+const port = args['--port'] || 3000
+startServer({dir}, port, args['--hostname'])
   .then(() => {
-    console.log(`> Ready on http://${argv.hostname ? argv.hostname : 'localhost'}:${argv.port}`)
+    console.log(`> Ready on http://${args['--hostname']}:${port}`)
   })
   .catch((err) => {
     console.error(err)
