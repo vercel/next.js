@@ -4,7 +4,7 @@ import http from 'http'
 import express from 'express'
 import path from 'path'
 import getPort from 'get-port'
-import { spawn } from 'child_process'
+import spawn from 'cross-spawn'
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import fkill from 'fkill'
 
@@ -12,13 +12,9 @@ import fkill from 'fkill'
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
-import build from 'next/dist/build'
-import _export from 'next/dist/export'
 import _pkg from 'next/package.json'
 
 export const nextServer = server
-export const nextBuild = build
-export const nextExport = _export
 export const pkg = _pkg
 
 export function initNextServerScript (scriptPath, successRegexp, env) {
@@ -69,6 +65,22 @@ export function findPort () {
   return getPort()
 }
 
+export function runNextCommand (argv) {
+  const cwd = path.dirname(require.resolve('next/package'))
+  return new Promise((resolve, reject) => {
+    console.log(`Running command "next ${argv.join(' ')}"`)
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, stdio: 'inherit' })
+
+    instance.on('close', () => {
+      resolve()
+    })
+
+    instance.on('error', (err) => {
+      reject(err)
+    })
+  })
+}
+
 // Launch the app in dev mode.
 export function launchApp (dir, port) {
   const cwd = path.dirname(require.resolve('next/package'))
@@ -99,6 +111,14 @@ export function launchApp (dir, port) {
       reject(err)
     })
   })
+}
+
+export function nextBuild (dir) {
+  return runNextCommand(['build', dir])
+}
+
+export function nextExport (dir, {outdir}) {
+  return runNextCommand(['export', dir, '--outdir', outdir])
 }
 
 // Kill a launched app
