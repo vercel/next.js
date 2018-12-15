@@ -1,19 +1,21 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
-import parseArgs from 'minimist'
+import arg from 'arg'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 
-const argv = parseArgs(process.argv.slice(2), {
-  alias: {
-    h: 'help',
-    l: 'lambdas'
-  },
-  boolean: ['h', 'l']
+const args = arg({
+  // Types
+  '--help': Boolean,
+  '--lambdas': Boolean,
+
+  // Aliases
+  '-h': '--help',
+  '-l': '--lambdas'
 })
 
-if (argv.help) {
+if (args['--help']) {
   printAndExit(`
     Description
       Compiles the application for production deployment
@@ -27,8 +29,8 @@ if (argv.help) {
   `, 0)
 }
 
-const dir = resolve(argv._[0] || '.')
-const lambdas = argv.lambdas
+const dir = resolve(args._[0] || '.')
+const lambdas = args['--lambdas']
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
