@@ -8,7 +8,7 @@ import { printAndExit } from '../server/lib/utils'
 const args = arg({
   // Types
   '--help': Boolean,
-  '--silent': String,
+  '--silent': Boolean,
   '--outdir': String,
   '--threads': Number,
   '--concurrency': Number,
