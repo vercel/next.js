@@ -87,7 +87,8 @@
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.22.3",
     "webpack-sources": "1.2.0",
-    "webpackbar": "2.6.3"
+    "webpackbar": "2.6.3",
+    "ws": "6.1.2"
   },
   "peerDependencies": {
     "react": "^16.0.0",
