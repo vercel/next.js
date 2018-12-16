@@ -1,6 +1,7 @@
 @import "./button.css";
 
 @tailwind preflight;
+@tailwind components;
 @tailwind utilities;
 
 .hero {
