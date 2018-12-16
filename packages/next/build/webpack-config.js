@@ -210,7 +210,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
-    extensions: ['.wasm', '.js', '.mjs', '.jsx', '.json'],
+    extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
     modules: [
       NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
@@ -219,7 +219,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     alias: {
       next: NEXT_PROJECT_ROOT
     },
-    mainFields: [!isServer && 'browser', !isServer && 'module', 'main'].filter(Boolean)
+    mainFields: isServer ? ['main'] : ['browser', 'module', 'main']
   }
 
   const webpackMode = dev ? 'development' : 'production'
