@@ -6,7 +6,7 @@ import { IntlProvider, addLocaleData } from 'react-intl'
 // locale data was added to the page by `pages/_document.js`. This only happens
 // once, on initial page load in the browser.
 if (typeof window !== 'undefined' && window.ReactIntlLocaleData) {
-  Object.keys(window.ReactIntlLocaleData).forEach((lang) => {
+  Object.keys(window.ReactIntlLocaleData).forEach(lang => {
     addLocaleData(window.ReactIntlLocaleData[lang])
   })
 }
@@ -33,7 +33,11 @@ export default class MyApp extends App {
 
     return (
       <Container>
-        <IntlProvider locale={locale} messages={messages} initialNow={initialNow}>
+        <IntlProvider
+          locale={locale}
+          messages={messages}
+          initialNow={initialNow}
+        >
           <Component {...pageProps} />
         </IntlProvider>
       </Container>

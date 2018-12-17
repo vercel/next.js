@@ -4,7 +4,7 @@ export default class extends Component {
   state = {
     input: '',
     message: null
-  }
+  };
 
   componentDidMount () {
     // start listening the channel message
@@ -19,26 +19,24 @@ export default class extends Component {
   handleMessage = (event, message) => {
     // receive a message from the main process and save it in the local state
     this.setState({ message })
-  }
+  };
 
   handleChange = event => {
     this.setState({ input: event.target.value })
-  }
+  };
 
   handleSubmit = event => {
     event.preventDefault()
     global.ipcRenderer.send('message', this.state.input)
     this.setState({ message: null })
-  }
+  };
 
   render () {
     return (
       <div>
         <h1>Hello Electron!</h1>
 
-        {this.state.message &&
-          <p>{this.state.message}</p>
-        }
+        {this.state.message && <p>{this.state.message}</p>}
 
         <form onSubmit={this.handleSubmit}>
           <input type='text' onChange={this.handleChange} />

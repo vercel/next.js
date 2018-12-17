@@ -3,7 +3,7 @@ import PropTypes from 'prop-types'
 import Link from 'next/link'
 
 class About extends React.Component {
-  static pageTransitionDelayEnter = true
+  static pageTransitionDelayEnter = true;
 
   constructor (props) {
     super(props)

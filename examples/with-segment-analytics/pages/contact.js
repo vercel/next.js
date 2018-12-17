@@ -2,7 +2,7 @@ import React, { Component } from 'react'
 import Header from '../components/Header'
 
 export default class extends Component {
-  state = { message: '' }
+  state = { message: '' };
 
   render () {
     return (
@@ -39,7 +39,7 @@ export default class extends Component {
 
   handleInput = e => {
     this.setState({ message: e.target.value })
-  }
+  };
 
   handleSubmit = e => {
     e.preventDefault()
@@ -47,5 +47,5 @@ export default class extends Component {
       message: this.state.message
     })
     this.setState({ message: '' })
-  }
+  };
 }

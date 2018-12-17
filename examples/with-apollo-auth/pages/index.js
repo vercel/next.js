@@ -28,7 +28,7 @@ export default class Index extends React.Component {
       // Redirect to a more useful page when signed out
       redirect({}, '/signin')
     })
-  }
+  };
 
   render () {
     return (
@@ -42,4 +42,4 @@ export default class Index extends React.Component {
       </ApolloConsumer>
     )
   }
-};
+}

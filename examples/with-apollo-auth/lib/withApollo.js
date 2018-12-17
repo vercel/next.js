@@ -15,16 +15,23 @@ function parseCookies (req, options = {}) {
 
 export default App => {
   return class WithData extends React.Component {
-    static displayName = `WithData(${App.displayName})`
+    static displayName = `WithData(${App.displayName})`;
     static propTypes = {
       apolloState: PropTypes.object.isRequired
-    }
+    };
 
     static async getInitialProps (ctx) {
-      const { Component, router, ctx: { req, res } } = ctx
-      const apollo = initApollo({}, {
-        getToken: () => parseCookies(req).token
-      })
+      const {
+        Component,
+        router,
+        ctx: { req, res }
+      } = ctx
+      const apollo = initApollo(
+        {},
+        {
+          getToken: () => parseCookies(req).token
+        }
+      )
 
       ctx.ctx.apolloClient = apollo
 

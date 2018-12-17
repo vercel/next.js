@@ -3,7 +3,7 @@ import React from 'react'
 class Index extends React.Component {
   state = {
     raiseError: false
-  }
+  };
 
   componentDidUpdate () {
     if (this.state.raiseError) {
@@ -11,7 +11,7 @@ class Index extends React.Component {
     }
   }
 
-  raiseError = () => this.setState({ raiseError: true })
+  raiseError = () => this.setState({ raiseError: true });
 
   render () {
     return (

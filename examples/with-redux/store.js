@@ -35,12 +35,13 @@ export const reducer = (state = exampleInitialState, action) => {
       return Object.assign({}, state, {
         count: exampleInitialState.count
       })
-    default: return state
+    default:
+      return state
   }
 }
 
 // ACTIONS
-export const serverRenderClock = (isServer) => dispatch => {
+export const serverRenderClock = isServer => dispatch => {
   return dispatch({ type: actionTypes.TICK, light: !isServer, ts: Date.now() })
 }
 
@@ -64,5 +65,9 @@ export const resetCount = () => dispatch => {
 }
 
 export function initializeStore (initialState = exampleInitialState) {
-  return createStore(reducer, initialState, composeWithDevTools(applyMiddleware(thunkMiddleware)))
+  return createStore(
+    reducer,
+    initialState,
+    composeWithDevTools(applyMiddleware(thunkMiddleware))
+  )
 }

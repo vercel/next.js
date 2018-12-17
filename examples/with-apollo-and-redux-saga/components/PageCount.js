@@ -1,19 +1,19 @@
 /* eslint-disable */
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
 
-import { countIncrease, countDecrease } from '../lib/count/actions'
+import { countIncrease, countDecrease } from '../lib/count/actions';
 
 class PageCount extends Component {
   increase = () => {
-    this.props.dispatch(countIncrease())
-  }
+    this.props.dispatch(countIncrease());
+  };
   decrease = () => {
-    this.props.dispatch(countDecrease())
-  }
+    this.props.dispatch(countDecrease());
+  };
 
-  render () {
-    const { count } = this.props
+  render() {
+    const { count } = this.props;
     return (
       <div>
         <style jsx>{`
@@ -27,9 +27,9 @@ class PageCount extends Component {
         <button onClick={this.increase}>Increase Count (+1)</button>
         <button onClick={this.decrease}>Decrease Count (-1)</button>
       </div>
-    )
+    );
   }
 }
 
-const mapStateToProps = ({ count }) => ({ count })
-export default connect(mapStateToProps)(PageCount)
+const mapStateToProps = ({ count }) => ({ count });
+export default connect(mapStateToProps)(PageCount);

@@ -4,12 +4,7 @@ import PropTypes from 'prop-types'
 import ThemeWrapper from '../components/ThemeWrapper'
 import getTheme from 'react-uwp/styles/getTheme'
 
-import {
-  Button,
-  ColorPicker,
-  DatePicker,
-  ProgressRing
-} from 'react-uwp'
+import { Button, ColorPicker, DatePicker, ProgressRing } from 'react-uwp'
 
 class Index extends Component {
   static async getInitialProps ({ req }) {
@@ -22,7 +17,7 @@ class Index extends Component {
 
     return { userAgent }
   }
-  static contextTypes = { theme: PropTypes.object }
+  static contextTypes = { theme: PropTypes.object };
 
   render () {
     const { userAgent } = this.props

@@ -13,7 +13,9 @@ export default connect(state => ({
       <Clock lastUpdate={lastUpdate} light={light} />
       <AddCount />
       <nav>
-        <Link href={linkTo}><a>Navigate</a></Link>
+        <Link href={linkTo}>
+          <a>Navigate</a>
+        </Link>
       </nav>
     </div>
   )

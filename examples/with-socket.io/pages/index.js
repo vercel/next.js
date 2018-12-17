@@ -12,7 +12,7 @@ class ChatOne extends Component {
 
   static defaultProps = {
     messages: []
-  }
+  };
 
   // init state with the prefetched messages
   state = {
@@ -21,7 +21,7 @@ class ChatOne extends Component {
     messages: this.props.messages,
     subscribe: false,
     subscribed: false
-  }
+  };
 
   subscribe = () => {
     if (this.state.subscribe && !this.state.subscribed) {
@@ -30,7 +30,7 @@ class ChatOne extends Component {
       this.props.socket.on('message.chat2', this.handleOtherMessage)
       this.setState({ subscribed: true })
     }
-  }
+  };
   componentDidMount () {
     this.subscribe()
   }
@@ -51,17 +51,17 @@ class ChatOne extends Component {
   }
 
   // add messages from server to the state
-  handleMessage = (message) => {
+  handleMessage = message => {
     this.setState(state => ({ messages: state.messages.concat(message) }))
-  }
+  };
 
   handleOtherMessage = () => {
-    this.setState((prevState) => ({ newMessage: (prevState.newMessage + 1) }))
-  }
+    this.setState(prevState => ({ newMessage: prevState.newMessage + 1 }))
+  };
 
   handleChange = event => {
     this.setState({ field: event.target.value })
-  }
+  };
 
   // send messages to server and add them to the state
   handleSubmit = event => {
@@ -69,7 +69,7 @@ class ChatOne extends Component {
 
     // create message object
     const message = {
-      id: (new Date()).getTime(),
+      id: new Date().getTime(),
       value: this.state.field
     }
 
@@ -81,21 +81,29 @@ class ChatOne extends Component {
       field: '',
       messages: state.messages.concat(message)
     }))
-  }
+  };
 
   render () {
     return (
       <main>
         <div>
-          <Link href={'/'}><a>{'Chat One'}</a></Link>
+          <Link href={'/'}>
+            <a>{'Chat One'}</a>
+          </Link>
           <br />
-          <Link href={'/clone'}><a>{`Chat Two ${this.state.newMessage > 0 ? `( ${this.state.newMessage} new message )` : ''}`}</a></Link>
+          <Link href={'/clone'}>
+            <a>{`Chat Two ${
+              this.state.newMessage > 0
+                ? `( ${this.state.newMessage} new message )`
+                : ''
+            }`}</a>
+          </Link>
           <ul>
-            {this.state.messages.map(message =>
+            {this.state.messages.map(message => (
               <li key={message.id}>{message.value}</li>
-            )}
+            ))}
           </ul>
-          <form onSubmit={(e) => this.handleSubmit(e)}>
+          <form onSubmit={e => this.handleSubmit(e)}>
             <input
               onChange={this.handleChange}
               type='text'

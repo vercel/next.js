@@ -4,7 +4,7 @@ import withData from '../lib/withData'
 import BlogPosts from '../components/BlogPosts'
 
 class Index extends Component {
-  static displayName = `Index`
+  static displayName = `Index`;
 
   render (props) {
     return (
@@ -17,10 +17,10 @@ class Index extends Component {
 
 export default withData(Index, {
   query: graphql`
-        query pages_indexQuery {
-            viewer {
-                ...BlogPosts_viewer
-            }
-        }
-    `
+    query pages_indexQuery {
+      viewer {
+        ...BlogPosts_viewer
+      }
+    }
+  `
 })

@@ -10,11 +10,11 @@ export class Modal extends React.Component {
 
   open = () => {
     this.setState({ opened: true })
-  }
+  };
 
   close = () => {
     this.setState({ opened: false })
-  }
+  };
 
   render () {
     return (

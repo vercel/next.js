@@ -3,13 +3,13 @@ import React, { Component } from 'react'
 class BuggyCounter extends Component {
   state = {
     counter: 0
-  }
+  };
 
   handleClick = () => {
     this.setState(({ counter }) => ({
       counter: counter + 1
     }))
-  }
+  };
 
   render () {
     if (this.state.counter === 5) {

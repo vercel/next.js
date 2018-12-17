@@ -1,4 +1,7 @@
-import { RelayNetworkLayer, urlMiddleware } from 'react-relay-network-modern/node8'
+import {
+  RelayNetworkLayer,
+  urlMiddleware
+} from 'react-relay-network-modern/node8'
 import RelaySSR from 'react-relay-network-modern-ssr/node8/server'
 import { Network, Environment, RecordSource, Store } from 'relay-runtime'
 

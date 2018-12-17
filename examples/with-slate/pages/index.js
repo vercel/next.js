@@ -31,7 +31,7 @@ class Index extends React.Component {
 
   onChange = ({ value }) => {
     this.setState({ value })
-  }
+  };
 }
 
 export default Index

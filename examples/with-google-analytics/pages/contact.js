@@ -4,11 +4,11 @@ import Page from '../components/Page'
 import * as gtag from '../lib/gtag'
 
 export default class extends Component {
-  state = { message: '' }
+  state = { message: '' };
 
   handleInput = e => {
     this.setState({ message: e.target.value })
-  }
+  };
 
   handleSubmit = e => {
     e.preventDefault()
@@ -20,7 +20,7 @@ export default class extends Component {
     })
 
     this.setState({ message: '' })
-  }
+  };
 
   render () {
     return (

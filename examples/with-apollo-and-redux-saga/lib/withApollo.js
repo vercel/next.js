@@ -13,10 +13,10 @@ export default ComposedComponent => {
   return class WithApollo extends React.Component {
     static displayName = `WithApollo(${getComponentDisplayName(
       ComposedComponent
-    )})`
+    )})`;
     static propTypes = {
       serverState: PropTypes.object.isRequired
-    }
+    };
 
     static async getInitialProps (ctx) {
       // Initial serverState with apollo (empty)
@@ -64,10 +64,9 @@ export default ComposedComponent => {
         const state = {}
 
         // Extract query data from the Apollo store
-        serverState = Object.assign(
-          state,
-          { apollo: { data: apollo.cache.extract() } }
-        )
+        serverState = Object.assign(state, {
+          apollo: { data: apollo.cache.extract() }
+        })
       }
 
       return {

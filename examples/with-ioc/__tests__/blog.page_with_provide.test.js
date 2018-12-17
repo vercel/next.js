@@ -13,23 +13,23 @@
  * is facing the same issue. Use `.debug()` or `mount()` instead
  */
 
-import { shallow } from 'enzyme'
-import React from 'react'
-import renderer from 'react-test-renderer'
+import { shallow } from 'enzyme';
+import React from 'react';
+import renderer from 'react-test-renderer';
 
-import App from '../pages/blog.js'
+import App from '../pages/blog.js';
 
 describe('With Enzyme', () => {
   it('Blog renders components', () => {
-    const app = shallow(<App post={{title: 'Hi There!'}} />).dive()
-    expect(app.find('h1').text()).toEqual('Hi There!')
-  })
-})
+    const app = shallow(<App post={{ title: 'Hi There!' }} />).dive();
+    expect(app.find('h1').text()).toEqual('Hi There!');
+  });
+});
 
 describe('With Snapshot Testing', () => {
   it('Blog renders components', () => {
-    const component = renderer.create(<App post={{title: 'Hi There!'}} />)
-    const tree = component.toJSON()
-    expect(tree).toMatchSnapshot()
-  })
-})
+    const component = renderer.create(<App post={{ title: 'Hi There!' }} />);
+    const tree = component.toJSON();
+    expect(tree).toMatchSnapshot();
+  });
+});
