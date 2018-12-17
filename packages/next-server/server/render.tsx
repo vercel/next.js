@@ -136,9 +136,15 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
     if (!isValidElementType(Component)) {
       throw new Error(`The default export is not a React Component in page: "${pathname}"`)
     }
-  }
 
-  if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
+    if (!isValidElementType(App)) {
+      throw new Error(`The default export is not a React Component in page: "/_app"`)
+    }
+
+    if (!isValidElementType(Document)) {
+      throw new Error(`The default export is not a React Component in page: "/_document"`)
+    }
+  }
 
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
