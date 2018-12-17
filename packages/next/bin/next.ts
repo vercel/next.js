@@ -24,7 +24,6 @@ const args = arg({
   // Types
   '--version': Boolean,
   '--help': Boolean,
-  '--node-args': String,
   '--inspect': Boolean,
 
   // Aliases
@@ -55,7 +54,7 @@ if (!foundCommand && args['--help']) {
       
     Options
       --version, -p   Version number
-      --node-args     Node arguments applied to the process
+      --inspect       Enable the Node.js inspector
       --help, -h      Displays this message  
 
     For more information run a command with the --help flag
@@ -64,15 +63,10 @@ if (!foundCommand && args['--help']) {
   process.exit(0)
 }
 
-// Add support for `--node-args` to send Node.js arguments to the spawned process
-const nodeArguments = args['--node-args'] && args['--node-args'] !== '' ? args['--node-args'].split(' ') : []
+const nodeArguments: string[] = []
 if (args['--inspect']) {
-  console.log('The `--inspect` option is deprecated in favor of `--node-args`')
+  console.log('Passing "--inspect" to Node.js')
   nodeArguments.push('--inspect')
-}
-
-if (nodeArguments.length > 0) {
-  console.log(`Passing arguments to Node.js: "${nodeArguments.join(' ')}"`)
 }
 
 const command = foundCommand || defaultCommand
