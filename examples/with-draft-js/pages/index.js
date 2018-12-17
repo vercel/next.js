@@ -8,7 +8,7 @@ import {
 } from 'draft-js'
 
 export default class App extends React.Component {
-  constructor(props) {
+  constructor (props) {
     super(props)
     this.state = {
       editorState: EditorState.createWithContent(convertFromRaw(initialData)),
@@ -165,7 +165,7 @@ export default class App extends React.Component {
     )
   }
 
-  render() {
+  render () {
     const { editorState } = this.state
     // Make sure we're not on the ssr
     if (typeof window !== 'undefined') {
@@ -201,7 +201,7 @@ export default class App extends React.Component {
             editorState={editorState}
             handleKeyCommand={this.handleKeyCommand}
             onChange={this.onChange}
-            placeholder="Tell a story..."
+            placeholder='Tell a story...'
             spellCheck={false}
             ref={element => {
               this.editor = element
@@ -243,7 +243,7 @@ const styleMap = {
 }
 
 class ToolbarButton extends React.Component {
-  constructor() {
+  constructor () {
     super()
     this.onToggle = e => {
       e.preventDefault()
@@ -251,7 +251,7 @@ class ToolbarButton extends React.Component {
     }
   }
 
-  render() {
+  render () {
     const buttonStyle = {
       padding: 10
     }

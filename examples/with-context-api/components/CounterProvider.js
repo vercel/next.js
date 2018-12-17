@@ -21,7 +21,7 @@ class CounterProvider extends Component {
     })
   }
 
-  render() {
+  render () {
     return (
       <CounterContext.Provider
         value={{

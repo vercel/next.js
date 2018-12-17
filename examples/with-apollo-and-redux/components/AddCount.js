@@ -8,7 +8,7 @@ class AddCount extends Component {
     this.props.addCount()
   }
 
-  render() {
+  render () {
     const { count } = this.props
     return (
       <div>

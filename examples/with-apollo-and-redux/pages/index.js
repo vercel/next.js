@@ -16,26 +16,26 @@ import PostList from '../components/PostList'
 import withApollo from '../lib/withApollo'
 
 class Index extends React.Component {
-  static getInitialProps({ store, isServer }) {
+  static getInitialProps ({ store, isServer }) {
     store.dispatch(serverRenderClock(isServer))
     store.dispatch(addCount())
 
     return { isServer }
   }
 
-  componentDidMount() {
+  componentDidMount () {
     this.timer = this.props.startClock()
   }
 
-  componentWillUnmount() {
+  componentWillUnmount () {
     clearInterval(this.timer)
   }
 
-  render() {
+  render () {
     return (
       <App>
         <Header />
-        <Page title="Index" />
+        <Page title='Index' />
         <Submit />
         <PostList />
       </App>

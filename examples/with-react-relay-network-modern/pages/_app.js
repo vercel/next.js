@@ -30,7 +30,7 @@ export default class App extends NextApp {
     }
   }
 
-  render() {
+  render () {
     const { Component, variables = {}, relayData } = this.props
     const environment = createEnvironment(
       relayData,

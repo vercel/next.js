@@ -56,7 +56,7 @@ export default class LinkWithData extends Link {
   })
 
   // our custom prefetch method
-  async prefetch() {
+  async prefetch () {
     // if the prefetch prop is not defined do nothing
     if (!this.props.prefetch) return
 

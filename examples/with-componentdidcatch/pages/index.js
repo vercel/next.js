@@ -11,7 +11,7 @@ class BuggyCounter extends Component {
     }))
   }
 
-  render() {
+  render () {
     if (this.state.counter === 5) {
       // Simulate a JS error
       throw new Error('I crashed!')
