@@ -131,7 +131,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+  if (dev) {
     const { isValidElementType } = require('react-is')
     if (!isValidElementType(Component)) {
       throw new Error(`The default export is not a React Component in page: "${pathname}"`)
@@ -145,7 +145,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
 
-  // the response might be finshed on the getInitialProps call
+  // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
   const devFiles = buildManifest.devFiles

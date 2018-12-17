@@ -260,7 +260,7 @@ export default class Router {
 
       const { Component } = routeInfo
 
-      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      if (process.env.NODE_ENV !== 'production') {
         const { isValidElementType } = require('react-is')
         if (!isValidElementType(Component)) {
           throw new Error(`The default export is not a React Component in page: "${pathname}"`)
