@@ -83,8 +83,11 @@ export default async ({
   try {
     Component = await pageLoader.loadPage(page)
 
-    if (typeof Component !== 'function') {
-      throw new Error(`The default export is not a React Component in page: "${page}"`)
+    if (process.env.NODE_ENV !== 'production') {
+      const { isValidElementType } = require('react-is')
+      if (!isValidElementType(Component)) {
+        throw new Error(`The default export is not a React Component in page: "${page}"`)
+      }
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module

@@ -106,7 +106,7 @@ function renderDocument(Document: React.ComponentType, {
       files={files}
       dynamicImports={dynamicImports}
       assetPrefix={assetPrefix}
-      {...docProps} 
+      {...docProps}
     />
   )
 }
@@ -131,9 +131,13 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
-  if (typeof Component !== 'function') {
-    throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+  if (dev) {
+    const { isValidElementType } = require('react-is')
+    if (!isValidElementType(Component)) {
+      throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+    }
   }
+
   if (!Document.prototype || !Document.prototype.isReactComponent) throw new Error('_document.js is not exporting a React component')
 
   const asPath = req.url
@@ -141,7 +145,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, {Component, router, ctx})
 
-  // the response might be finshed on the getInitialProps call
+  // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
   const devFiles = buildManifest.devFiles
@@ -163,14 +167,14 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
       return render(renderElementToString, <ErrorDebug error={err} />)
     }
 
-    return render(renderElementToString, 
+    return render(renderElementToString,
       <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
         <EnhancedApp
           Component={EnhancedComponent}
           router={router}
           {...props}
         />
-      </LoadableCapture>  
+      </LoadableCapture>
     )
   }
 

@@ -22,6 +22,16 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(html.includes('My component!')).toBeTruthy()
     })
 
+    test('renders when component is a forwardRef instance', async () => {
+      const html = await render('/forwardRef-component')
+      expect(html.includes('This is a component with a forwarded ref')).toBeTruthy()
+    })
+
+    test('renders when component is a memo instance', async () => {
+      const html = await render('/memo-component')
+      expect(html.includes('Memo component')).toBeTruthy()
+    })
+
     // default-head contains an empty <Head />.
     test('header renders default charset', async () => {
       const html = await (render('/default-head'))
