@@ -1,5 +1,5 @@
-import React from 'react';
-import Component2 from './component2';
+import React from 'react'
+import Component2 from './component2'
 
 export default () => (
   <div
@@ -9,4 +9,4 @@ export default () => (
     Knows nothing about any custom `Link` or `Router` components or prop
     <Component2 />
   </div>
-);
+)

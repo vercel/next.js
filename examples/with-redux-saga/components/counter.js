@@ -6,17 +6,17 @@ import { increment, decrement, reset } from '../actions'
 class Counter extends Component {
   increment = () => {
     this.props.dispatch(increment())
-  };
+  }
 
   decrement = () => {
     this.props.dispatch(decrement())
-  };
+  }
 
   reset = () => {
     this.props.dispatch(reset())
-  };
+  }
 
-  render () {
+  render() {
     const { count } = this.props
     return (
       <div>

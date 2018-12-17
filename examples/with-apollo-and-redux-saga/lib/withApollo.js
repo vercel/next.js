@@ -13,10 +13,10 @@ export default ComposedComponent => {
   return class WithApollo extends React.Component {
     static displayName = `WithApollo(${getComponentDisplayName(
       ComposedComponent
-    )})`;
+    )})`
     static propTypes = {
       serverState: PropTypes.object.isRequired
-    };
+    }
 
     static async getInitialProps (ctx) {
       // Initial serverState with apollo (empty)

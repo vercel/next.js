@@ -6,9 +6,9 @@ import { addCount } from '../lib/store'
 class AddCount extends Component {
   add = () => {
     this.props.addCount()
-  };
+  }
 
-  render () {
+  render() {
     const { count } = this.props
     return (
       <div>

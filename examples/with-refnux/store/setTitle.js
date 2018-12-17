@@ -1,5 +1,5 @@
 const setTitle = newTitle => ({ title }) => {
-  return { title: newTitle };
-};
+  return { title: newTitle }
+}
 
-export default setTitle;
+export default setTitle

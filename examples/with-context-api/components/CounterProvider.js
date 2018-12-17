@@ -7,21 +7,21 @@ const CounterContext = React.createContext()
 class CounterProvider extends Component {
   state = {
     count: 0
-  };
+  }
 
   increase = () => {
     this.setState({
       count: this.state.count + 1
     })
-  };
+  }
 
   decrease = () => {
     this.setState({
       count: this.state.count - 1
     })
-  };
+  }
 
-  render () {
+  render() {
     return (
       <CounterContext.Provider
         value={{

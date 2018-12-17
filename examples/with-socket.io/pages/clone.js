@@ -12,7 +12,7 @@ class ChatTwo extends Component {
 
   static defaultProps = {
     messages: []
-  };
+  }
 
   // init state with the prefetched messages
   state = {
@@ -21,7 +21,7 @@ class ChatTwo extends Component {
     messages: this.props.messages,
     subscribe: false,
     subscribed: false
-  };
+  }
 
   subscribe = () => {
     if (this.state.subscribe && !this.state.subscribed) {
@@ -30,7 +30,7 @@ class ChatTwo extends Component {
       this.props.socket.on('message.chat1', this.handleOtherMessage)
       this.setState({ subscribed: true })
     }
-  };
+  }
   componentDidMount () {
     this.subscribe()
   }
@@ -53,15 +53,15 @@ class ChatTwo extends Component {
   // add messages from server to the state
   handleMessage = message => {
     this.setState(state => ({ messages: state.messages.concat(message) }))
-  };
+  }
 
   handleOtherMessage = () => {
     this.setState(prevState => ({ newMessage: prevState.newMessage + 1 }))
-  };
+  }
 
   handleChange = event => {
     this.setState({ field: event.target.value })
-  };
+  }
 
   // send messages to server and add them to the state
   handleSubmit = event => {
@@ -81,7 +81,7 @@ class ChatTwo extends Component {
       field: '',
       messages: state.messages.concat(message)
     }))
-  };
+  }
 
   render () {
     return (

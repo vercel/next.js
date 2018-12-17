@@ -6,21 +6,18 @@ import Head from 'next/head'
 
 import initApollo from './initApollo'
 
-function parseCookies (req, options = {}) {
-  return cookie.parse(
-    req ? req.headers.cookie || '' : document.cookie,
-    options
-  )
+function parseCookies(req, options = {}) {
+  return cookie.parse(req ? req.headers.cookie || '' : document.cookie, options)
 }
 
 export default App => {
   return class WithData extends React.Component {
-    static displayName = `WithData(${App.displayName})`;
+    static displayName = `WithData(${App.displayName})`
     static propTypes = {
       apolloState: PropTypes.object.isRequired
-    };
+    }
 
-    static async getInitialProps (ctx) {
+    static async getInitialProps(ctx) {
       const {
         Component,
         router,
@@ -80,7 +77,7 @@ export default App => {
       }
     }
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       // `getDataFromTree` renders the component first, the client is passed off as a property.
       // After that rendering is done using Next's normal rendering pipeline
@@ -91,7 +88,7 @@ export default App => {
       })
     }
 
-    render () {
+    render() {
       return <App {...this.props} apolloClient={this.apolloClient} />
     }
   }

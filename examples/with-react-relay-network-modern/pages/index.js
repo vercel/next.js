@@ -19,9 +19,9 @@ export default class Index extends Component {
         ...BlogPosts_viewer
       }
     }
-  `;
+  `
 
-  render () {
+  render() {
     return (
       <div>
         <BlogPosts viewer={this.props.viewer} />

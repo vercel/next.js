@@ -8,7 +8,7 @@ import {
 } from 'draft-js'
 
 export default class App extends React.Component {
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       editorState: EditorState.createWithContent(convertFromRaw(initialData)),
@@ -40,7 +40,7 @@ export default class App extends React.Component {
   onClickEditor = () => {
     this.focus()
     this.checkSelectedText()
-  };
+  }
 
   // 1- Check if some text is selected
   checkSelectedText = () => {
@@ -56,7 +56,7 @@ export default class App extends React.Component {
         })
       }
     }
-  };
+  }
 
   // 2- Identify the selection coordinates
   setSelectionXY = () => {
@@ -77,7 +77,7 @@ export default class App extends React.Component {
       },
       () => this.showToolbar()
     )
-  };
+  }
 
   // 3- Show the toolbar
   showToolbar = () => {
@@ -87,7 +87,7 @@ export default class App extends React.Component {
       },
       () => this.measureToolbar()
     )
-  };
+  }
 
   // 4- The toolbar was hidden until now
   measureToolbar = () => {
@@ -101,7 +101,7 @@ export default class App extends React.Component {
       },
       () => this.setToolbarXY()
     )
-  };
+  }
 
   // 5- Now that we have all measures, define toolbar coordinates
   setToolbarXY = () => {
@@ -147,7 +147,7 @@ export default class App extends React.Component {
     this.setState({
       toolbarCoordinates: coordinates
     })
-  };
+  }
 
   handleKeyCommand = command => {
     const { editorState } = this.state
@@ -157,15 +157,15 @@ export default class App extends React.Component {
       return true
     }
     return false
-  };
+  }
 
   toggleToolbar = inlineStyle => {
     this.onChange(
       RichUtils.toggleInlineStyle(this.state.editorState, inlineStyle)
     )
-  };
+  }
 
-  render () {
+  render() {
     const { editorState } = this.state
     // Make sure we're not on the ssr
     if (typeof window !== 'undefined') {
@@ -201,7 +201,7 @@ export default class App extends React.Component {
             editorState={editorState}
             handleKeyCommand={this.handleKeyCommand}
             onChange={this.onChange}
-            placeholder='Tell a story...'
+            placeholder="Tell a story..."
             spellCheck={false}
             ref={element => {
               this.editor = element
@@ -243,7 +243,7 @@ const styleMap = {
 }
 
 class ToolbarButton extends React.Component {
-  constructor () {
+  constructor() {
     super()
     this.onToggle = e => {
       e.preventDefault()
@@ -251,7 +251,7 @@ class ToolbarButton extends React.Component {
     }
   }
 
-  render () {
+  render() {
     const buttonStyle = {
       padding: 10
     }

@@ -1,6 +1,6 @@
-import React from 'react';
-import { inject } from 'ioc';
-import PropTypes from 'prop-types';
+import React from 'react'
+import { inject } from 'ioc'
+import PropTypes from 'prop-types'
 
 @inject({
   // keep it `isRequired`-free to allow mock injection via props
@@ -10,10 +10,10 @@ export default class extends React.Component {
   static propTypes = {
     // you can add `isRequired` to the component's propTypes definition
     Link: PropTypes.func.isRequired
-  };
+  }
 
   render() {
-    const { Link } = this.props;
+    const { Link } = this.props
 
     return (
       <div
@@ -34,6 +34,6 @@ export default class extends React.Component {
           <a>go Home</a>
         </Link>
       </div>
-    );
+    )
   }
 }

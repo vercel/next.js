@@ -6,19 +6,19 @@ class Counter extends Component {
   increment = () => {
     const { dispatch } = this.props
     dispatch(incrementCount())
-  };
+  }
 
   decrement = () => {
     const { dispatch } = this.props
     dispatch(decrementCount())
-  };
+  }
 
   reset = () => {
     const { dispatch } = this.props
     dispatch(resetCount())
-  };
+  }
 
-  render () {
+  render() {
     const { count } = this.props
     return (
       <div>
@@ -33,7 +33,7 @@ class Counter extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps(state) {
   const { count } = state
   return { count }
 }

@@ -7,7 +7,7 @@ import getTheme from 'react-uwp/styles/getTheme'
 import { Button, ColorPicker, DatePicker, ProgressRing } from 'react-uwp'
 
 class Index extends Component {
-  static async getInitialProps ({ req }) {
+  static async getInitialProps({ req }) {
     let userAgent
     if (process.browser) {
       userAgent = navigator.userAgent
@@ -17,9 +17,9 @@ class Index extends Component {
 
     return { userAgent }
   }
-  static contextTypes = { theme: PropTypes.object };
+  static contextTypes = { theme: PropTypes.object }
 
-  render () {
+  render() {
     const { userAgent } = this.props
     return (
       <ThemeWrapper

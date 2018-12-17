@@ -11,27 +11,27 @@
  * expect anything from the context
  */
 
-import { shallow } from 'enzyme';
-import React from 'react';
-import renderer from 'react-test-renderer';
+import { shallow } from 'enzyme'
+import React from 'react'
+import renderer from 'react-test-renderer'
 
-import Component from '../components/endpoint.js';
+import Component from '../components/endpoint.js'
 
 describe('With Enzyme', () => {
   it('Component renders with props', () => {
     // no need to mock Link component much for shallow rendering
-    const injected = shallow(<Component Link={() => {}} />);
-    const component = injected.dive();
-    expect(component.find('h3').text()).toEqual('Endpoint');
+    const injected = shallow(<Component Link={() => {}} />)
+    const component = injected.dive()
+    expect(component.find('h3').text()).toEqual('Endpoint')
     expect(
       component
         .find('Link')
         .first()
         .find('a')
         .text()
-    ).toEqual('About: foo baz');
-  });
-});
+    ).toEqual('About: foo baz')
+  })
+})
 
 describe('With Snapshot Testing', () => {
   it('Blog renders components', () => {
@@ -41,8 +41,8 @@ describe('With Snapshot Testing', () => {
           <div comment={'mocked Link component'}>{props.children}</div>
         )}
       />
-    );
-    const tree = component.toJSON();
-    expect(tree).toMatchSnapshot();
-  });
-});
+    )
+    const tree = component.toJSON()
+    expect(tree).toMatchSnapshot()
+  })
+})

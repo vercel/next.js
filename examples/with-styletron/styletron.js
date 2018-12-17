@@ -8,9 +8,7 @@ export default function getStyletron () {
     styletron = new Styletron()
   } else if (!styletron) {
     const Styletron = require('styletron-engine-atomic').Client
-    const styleElements = document.getElementsByClassName(
-      '_styletron_hydrate_'
-    )
+    const styleElements = document.getElementsByClassName('_styletron_hydrate_')
     styletron = new Styletron(styleElements)
   }
   return styletron

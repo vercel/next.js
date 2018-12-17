@@ -138,9 +138,7 @@ exports['default'] = {
       },
 
       connectionRoomAndMessage: connection => {
-        return connection.localize(
-          'actionhero.errors.connectionRoomAndMessage'
-        )
+        return connection.localize('actionhero.errors.connectionRoomAndMessage')
       },
 
       connectionNotInRoom: (connection, room) => {

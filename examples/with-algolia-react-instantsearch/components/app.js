@@ -42,7 +42,7 @@ export default class extends React.Component {
     searchState: PropTypes.object,
     resultsState: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
     onSearchStateChange: PropTypes.func
-  };
+  }
 
   render () {
     return (

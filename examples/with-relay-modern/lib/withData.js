@@ -5,7 +5,7 @@ import RelayProvider from './RelayProvider'
 
 export default (ComposedComponent, options = {}) => {
   return class WithData extends React.Component {
-    static displayName = `WithData(${ComposedComponent.displayName})`;
+    static displayName = `WithData(${ComposedComponent.displayName})`
 
     static async getInitialProps (ctx) {
       // Evaluate the composed component's getInitialProps()

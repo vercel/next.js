@@ -1,6 +1,6 @@
-import React from 'react';
-import PropTypes from 'prop-types';
-import { kea } from 'kea';
+import React from 'react'
+import PropTypes from 'prop-types'
+import { kea } from 'kea'
 
 @kea({
   path: () => ['kea'],
@@ -38,6 +38,6 @@ export default class App extends React.Component {
           Decrement
         </button>
       </div>
-    );
+    )
   }
 }

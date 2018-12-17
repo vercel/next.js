@@ -42,7 +42,7 @@ const DynamicBundle = dynamic({
 })
 
 export default class Index extends React.Component {
-  static getInitialProps ({ query }) {
+  static getInitialProps({ query }) {
     return { showMore: Boolean(query.showMore) }
   }
 
@@ -54,9 +54,9 @@ export default class Index extends React.Component {
     }
 
     Router.push('/?showMore=1')
-  };
+  }
 
-  render () {
+  render() {
     const { showMore } = this.props
 
     return (

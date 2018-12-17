@@ -1,6 +1,6 @@
-import React from 'react';
-import Endpoint from './endpoint';
-import EndButton from './endbutton';
+import React from 'react'
+import Endpoint from './endpoint'
+import EndButton from './endbutton'
 
 export default () => (
   <div
@@ -11,4 +11,4 @@ export default () => (
     <Endpoint />
     <EndButton />
   </div>
-);
+)

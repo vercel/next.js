@@ -1,13 +1,13 @@
-import React from 'react';
-import { inject } from 'ioc';
-import PropTypes from 'prop-types';
+import React from 'react'
+import { inject } from 'ioc'
+import PropTypes from 'prop-types'
 
 @inject({
   Router: PropTypes.object
 })
 export default class extends React.Component {
   render() {
-    const { Router } = this.props;
+    const { Router } = this.props
 
     return (
       <div
@@ -26,6 +26,6 @@ export default class extends React.Component {
         <br />
         <button onClick={() => Router.pushRoute('/')}>go Home</button>
       </div>
-    );
+    )
   }
 }

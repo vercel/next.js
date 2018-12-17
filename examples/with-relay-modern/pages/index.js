@@ -4,7 +4,7 @@ import withData from '../lib/withData'
 import BlogPosts from '../components/BlogPosts'
 
 class Index extends Component {
-  static displayName = `Index`;
+  static displayName = `Index`
 
   render (props) {
     return (

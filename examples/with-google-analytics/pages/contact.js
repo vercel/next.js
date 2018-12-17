@@ -4,11 +4,11 @@ import Page from '../components/Page'
 import * as gtag from '../lib/gtag'
 
 export default class extends Component {
-  state = { message: '' };
+  state = { message: '' }
 
   handleInput = e => {
     this.setState({ message: e.target.value })
-  };
+  }
 
   handleSubmit = e => {
     e.preventDefault()
@@ -20,9 +20,9 @@ export default class extends Component {
     })
 
     this.setState({ message: '' })
-  };
+  }
 
-  render () {
+  render() {
     return (
       <Page>
         <h1>This is the Contact page</h1>
@@ -31,7 +31,7 @@ export default class extends Component {
             <span>Message:</span>
             <textarea onInput={this.handleInput} value={this.state.message} />
           </label>
-          <button type='submit'>submit</button>
+          <button type="submit">submit</button>
         </form>
       </Page>
     )

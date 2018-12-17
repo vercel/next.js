@@ -23,7 +23,7 @@
   "pre-commit": "lint-staged",
   "lint-staged": {
     "examples/**/*.js": [
-      "prettier --write --single-quote",
+      "prettier --write --single-quote --no-semi",
       "standard --fix",
       "git add"
     ],

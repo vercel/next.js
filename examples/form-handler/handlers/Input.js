@@ -9,7 +9,7 @@ class Input extends Component {
   inputChange = e => {
     const { inputChange, title, name } = this.props
     inputChange(title, name, e.target.value)
-  };
+  }
 
   render () {
     return (

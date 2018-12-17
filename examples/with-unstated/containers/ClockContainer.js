@@ -4,7 +4,7 @@ export default class ClockContainer extends Container {
   state = {
     lastUpdate: 0,
     light: false
-  };
+  }
   constructor () {
     super()
     this.interval = setInterval(() => {

@@ -3,37 +3,37 @@ import PropTypes from 'prop-types'
 import Link from 'next/link'
 
 class About extends React.Component {
-  static pageTransitionDelayEnter = true;
+  static pageTransitionDelayEnter = true
 
-  constructor (props) {
+  constructor(props) {
     super(props)
     this.state = {
       loaded: false
     }
   }
 
-  componentDidMount () {
+  componentDidMount() {
     this.timeoutId = setTimeout(() => {
       this.props.pageTransitionReadyToEnter()
       this.setState({ loaded: true })
     }, 2000)
   }
 
-  componentWillUnmount () {
+  componentWillUnmount() {
     if (this.timeoutId) clearTimeout(this.timeoutId)
   }
 
-  render () {
+  render() {
     if (!this.state.loaded) return null
     return (
-      <div className='container bg-success page'>
+      <div className="container bg-success page">
         <h1>About us</h1>
         <p>
           Notice how a loading spinner showed up while my content was "loading"?
           Pretty neat, huh?
         </p>
-        <Link href='/'>
-          <a className='btn btn-light'>Go back home</a>
+        <Link href="/">
+          <a className="btn btn-light">Go back home</a>
         </Link>
       </div>
     )

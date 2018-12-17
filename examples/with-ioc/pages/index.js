@@ -1,4 +1,4 @@
-import { Link, Router } from '../routes';
+import { Link, Router } from '../routes'
 
 export default () => (
   <ul>
@@ -28,4 +28,4 @@ export default () => (
       </button>
     </li>
   </ul>
-);
+)

@@ -1,24 +1,24 @@
-import React, { Component } from 'react';
-import { graphql } from 'react-relay';
-import withData from '../lib/withData';
-import BlogPosts from '../components/BlogPosts';
+import React, { Component } from 'react'
+import { graphql } from 'react-relay'
+import withData from '../lib/withData'
+import BlogPosts from '../components/BlogPosts'
 
 class Index extends Component {
-  static displayName = `Index`;
+  static displayName = `Index`
 
-  static async getInitialProps(context) {
-    let { after, before, first, last } = context.query;
+  static async getInitialProps (context) {
+    let { after, before, first, last } = context.query
 
     if (last === undefined) {
-      first = 2;
+      first = 2
     }
 
     return {
       relayVariables: { after, before, first, last }
-    };
+    }
   }
 
-  render(props) {
+  render (props) {
     return (
       <div>
         <BlogPosts
@@ -26,7 +26,7 @@ class Index extends Component {
           relayVariables={this.props.relayVariables}
         />
       </div>
-    );
+    )
   }
 }
 
@@ -43,4 +43,4 @@ export default withData(Index, {
       }
     }
   `
-});
+})

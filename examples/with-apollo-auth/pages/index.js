@@ -6,7 +6,7 @@ import redirect from '../lib/redirect'
 import checkLoggedIn from '../lib/checkLoggedIn'
 
 export default class Index extends React.Component {
-  static async getInitialProps (context, apolloClient) {
+  static async getInitialProps(context, apolloClient) {
     const { loggedInUser } = await checkLoggedIn(context.apolloClient)
 
     if (!loggedInUser.user) {
@@ -28,9 +28,9 @@ export default class Index extends React.Component {
       // Redirect to a more useful page when signed out
       redirect({}, '/signin')
     })
-  };
+  }
 
-  render () {
+  render() {
     return (
       <ApolloConsumer>
         {client => (
