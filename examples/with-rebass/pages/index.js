@@ -16,7 +16,9 @@ function HomePage () {
 
       <Container>
         <Toolbar bg='black'>
-          <NavLink href='https://github.com/zeit/next.js/' target='_blank'>Next.js</NavLink>
+          <NavLink href='https://github.com/zeit/next.js/' target='_blank'>
+            Next.js
+          </NavLink>
           <NavLink ml='auto' href='http://jxnblk.com/rebass/' target='_blank'>
             REBASS
           </NavLink>
@@ -25,12 +27,14 @@ function HomePage () {
         <Flex justify='center'>
           <Box width={1 / 2}>
             <Blockquote center fontSize={3} py={4}>
-              "Next.js is a minimalistic framework for server-rendered React applications."
+              "Next.js is a minimalistic framework for server-rendered React
+              applications."
             </Blockquote>
           </Box>
           <Box width={6 / 12}>
             <Blockquote center fontSize={3} py={4}>
-              "Functional React UI component library, built with styled-components"
+              "Functional React UI component library, built with
+              styled-components"
             </Blockquote>
           </Box>
         </Flex>

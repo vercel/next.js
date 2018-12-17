@@ -26,8 +26,6 @@ export default withRouter(({ router, children, title }) => (
         position: relative;
       }
     `}</style>
-    <WingBlank>
-      {children}
-    </WingBlank>
+    <WingBlank>{children}</WingBlank>
   </div>
 ))

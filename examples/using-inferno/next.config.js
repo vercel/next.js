@@ -7,7 +7,7 @@ module.exports = {
     }
 
     config.resolve.alias = {
-      'react': 'inferno-compat',
+      react: 'inferno-compat',
       'react-dom': 'inferno-compat'
     }
     return config

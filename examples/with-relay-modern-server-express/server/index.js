@@ -13,22 +13,24 @@ const schemaPath = path.join(__dirname, '/schema.graphql')
 const schemaContent = fs.readFileSync(schemaPath).toString()
 const graphqlSchema = buildSchema(schemaContent)
 
-app.prepare()
-  .then(() => {
-    const server = express()
+app.prepare().then(() => {
+  const server = express()
 
-    server.use('/graphql', graphqlHTTP({
+  server.use(
+    '/graphql',
+    graphqlHTTP({
       schema: graphqlSchema,
       graphiql: false,
       rootValue: rootValue
-    }))
-
-    server.get('*', (req, res) => {
-      return handle(req, res)
     })
+  )
 
-    server.listen(port, (err) => {
-      if (err) throw err
-      console.log(`> Ready on http://localhost:${port}`)
-    })
+  server.get('*', (req, res) => {
+    return handle(req, res)
   })
+
+  server.listen(port, err => {
+    if (err) throw err
+    console.log(`> Ready on http://localhost:${port}`)
+  })
+})

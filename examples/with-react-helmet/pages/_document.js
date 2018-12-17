@@ -27,26 +27,30 @@ export default class extends Document {
   }
 
   get helmetJsx () {
-    return (<Helmet
-      htmlAttributes={{lang: 'en'}}
-      title='Hello next.js!'
-      meta={[
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { property: 'og:title', content: 'Hello next.js!' }
-      ]}
-    />)
+    return (
+      <Helmet
+        htmlAttributes={{ lang: 'en' }}
+        title='Hello next.js!'
+        meta={[
+          { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+          { property: 'og:title', content: 'Hello next.js!' }
+        ]}
+      />
+    )
   }
 
   render () {
-    return (<html {...this.helmetHtmlAttrComponents}>
-      <Head>
-        { this.helmetJsx }
-        { this.helmetHeadComponents }
-      </Head>
-      <body {...this.helmetBodyAttrComponents}>
-        <Main />
-        <NextScript />
-      </body>
-    </html>)
+    return (
+      <html {...this.helmetHtmlAttrComponents}>
+        <Head>
+          {this.helmetJsx}
+          {this.helmetHeadComponents}
+        </Head>
+        <body {...this.helmetBodyAttrComponents}>
+          <Main />
+          <NextScript />
+        </body>
+      </html>
+    )
   }
 }

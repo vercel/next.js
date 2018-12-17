@@ -10,7 +10,8 @@ import ListItem from 'react-md/lib/Lists/ListItem'
 import NavigationDrawer from 'react-md/lib/NavigationDrawers'
 import SelectField from 'react-md/lib/SelectFields'
 
-const avatarSrc = 'https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png'
+const avatarSrc =
+  'https://cloud.githubusercontent.com/assets/13041/19686250/971bf7f8-9ac0-11e6-975c-188defd82df1.png'
 
 const drawerHeaderChildren = [
   <Avatar
@@ -18,7 +19,12 @@ const drawerHeaderChildren = [
     src={avatarSrc}
     role='presentation'
     iconSized
-    style={{ alignSelf: 'center', marginLeft: 16, marginRight: 16, flexShrink: 0 }}
+    style={{
+      alignSelf: 'center',
+      marginLeft: 16,
+      marginRight: 16,
+      flexShrink: 0
+    }}
   />,
   <SelectField
     id='account-switcher'
@@ -38,9 +44,12 @@ class NavigationLink extends PureComponent {
   render () {
     const { href, as, children, ..._props } = this.props
     return (
-      <div {..._props} style={{padding: 0}}>
+      <div {..._props} style={{ padding: 0 }}>
         <Link href={href} as={as}>
-          <a className='md-list-tile md-list-tile--mini' style={{width: '100%', overflow: 'hidden'}}>
+          <a
+            className='md-list-tile md-list-tile--mini'
+            style={{ width: '100%', overflow: 'hidden' }}
+          >
             {children}
           </a>
         </Link>
@@ -64,9 +73,18 @@ export default () => {
   return (
     <div>
       <Head>
-        <link rel='stylesheet' href='/static/react-md.light_blue-yellow.min.css' />
-        <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto:300,400,500' />
-        <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Material+Icons' />
+        <link
+          rel='stylesheet'
+          href='/static/react-md.light_blue-yellow.min.css'
+        />
+        <link
+          rel='stylesheet'
+          href='https://fonts.googleapis.com/css?family=Roboto:300,400,500'
+        />
+        <link
+          rel='stylesheet'
+          href='https://fonts.googleapis.com/css?family=Material+Icons'
+        />
       </Head>
       <NavigationDrawer
         navItems={[

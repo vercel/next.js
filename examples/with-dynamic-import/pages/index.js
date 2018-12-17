@@ -8,12 +8,12 @@ const DynamicComponent1 = dynamic(import('../components/hello1'))
 
 const DynamicComponent2WithCustomLoading = dynamic({
   loader: () => import('../components/hello2'),
-  loading: () => (<p>Loading caused by client page transition ...</p>)
+  loading: () => <p>Loading caused by client page transition ...</p>
 })
 
 const DynamicComponent3WithNoSSR = dynamic({
   loader: () => import('../components/hello3'),
-  loading: () => (<p>Loading ...</p>),
+  loading: () => <p>Loading ...</p>,
   ssr: false
 })
 
@@ -34,7 +34,7 @@ const DynamicBundle = dynamic({
     return components
   },
   render: (props, { Hello6, Hello7 }) => (
-    <div style={{padding: 10, border: '1px solid #888'}}>
+    <div style={{ padding: 10, border: '1px solid #888' }}>
       <Hello6 />
       <Hello7 />
     </div>

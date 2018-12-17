@@ -7,7 +7,7 @@ const Store = types
     lastUpdate: types.Date,
     light: false
   })
-  .actions((self) => {
+  .actions(self => {
     let timer
     function start () {
       timer = setInterval(() => {

@@ -1,5 +1,3 @@
 export default ({ children }) => {
-  return <main style={{ border: '4px dashed green' }}>
-    {children}
-  </main>
+  return <main style={{ border: '4px dashed green' }}>{children}</main>
 }

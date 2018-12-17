@@ -20,17 +20,18 @@ class Counter extends React.Component {
   }
 
   render () {
-    return (
-      <Page title='Other Page' linkTo='/' />
-    )
+    return <Page title='Other Page' linkTo='/' />
   }
 }
 
-const mapDispatchToProps = (dispatch) => {
+const mapDispatchToProps = dispatch => {
   return {
     addCount: bindActionCreators(addCount, dispatch),
     startClock: bindActionCreators(startClock, dispatch)
   }
 }
 
-export default connect(null, mapDispatchToProps)(Counter)
+export default connect(
+  null,
+  mapDispatchToProps
+)(Counter)

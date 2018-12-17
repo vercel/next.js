@@ -1,7 +1,11 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 
 const inlineScript = (body, nonce) => (
-  <script type='text/javascript' dangerouslySetInnerHTML={{ __html: body }} nonce={nonce} />
+  <script
+    type='text/javascript'
+    dangerouslySetInnerHTML={{ __html: body }}
+    nonce={nonce}
+  />
 )
 
 export default class MyDocument extends Document {

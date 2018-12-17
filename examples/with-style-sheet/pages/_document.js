@@ -6,7 +6,11 @@ export default class MyDocument extends Document {
       <html>
         <Head>
           <style>{`body { margin: 0 }`}</style>
-          <link id='__style_sheet_extracted__' rel='stylesheet' href='/_next/static/bundle.css' />
+          <link
+            id='__style_sheet_extracted__'
+            rel='stylesheet'
+            href='/_next/static/bundle.css'
+          />
         </Head>
         <body>
           <Main />

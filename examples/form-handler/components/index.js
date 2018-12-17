@@ -1,4 +1,4 @@
-import React, {Component} from 'react'
+import React, { Component } from 'react'
 import Head from 'next/head'
 import { Col, Row } from 'react-bootstrap'
 
@@ -14,7 +14,10 @@ class Main extends Component {
       <div>
         <Head>
           <title>Form Handler</title>
-          <link rel='stylesheet' href='https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css' />
+          <link
+            rel='stylesheet'
+            href='https://maxcdn.bootstrapcdn.com/bootstrap/latest/css/bootstrap.min.css'
+          />
         </Head>
         <Header />
         <DisplayForm />
