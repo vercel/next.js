@@ -5,7 +5,7 @@ export async function compile (task) {
 }
 
 export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').typescript({module: 'commonjs'}).target('dist/bin', {mode: '0755'})
+  await task.source(opts.src || 'bin/*').typescript({module: 'commonjs', stripExtension: true}).target('dist/bin', {mode: '0755'})
   notify('Compiled binaries')
 }
 

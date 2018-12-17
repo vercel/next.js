@@ -172,11 +172,18 @@ export default class HotReloader {
   async start () {
     await this.clean()
 
-    await new Promise(resolve => {
+    this.wsPort = await new Promise((resolve, reject) => {
       // create dynamic entries WebSocket
-      this.wss = new WebSocket.Server({ port: 0 }, () => {
-        this.wsPort = this.wss.address().port
-        resolve()
+      this.wss = new WebSocket.Server({ port: 0 }, function (err) {
+        if (err) {
+          return reject(err)
+        }
+
+        const {port} = this.address()
+        if (!port) {
+          return reject(new Error('No websocket port could be detected'))
+        }
+        resolve(port)
       })
     })
 

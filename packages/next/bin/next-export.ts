@@ -1,24 +1,25 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
-import parseArgs from 'minimist'
+import arg from 'arg'
 import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 
-const argv = parseArgs(process.argv.slice(2), {
-  alias: {
-    h: 'help',
-    s: 'silent',
-    o: 'outdir'
-  },
-  boolean: ['h'],
-  default: {
-    s: false,
-    o: null
-  }
+const args = arg({
+  // Types
+  '--help': Boolean,
+  '--silent': Boolean,
+  '--outdir': String,
+  '--threads': Number,
+  '--concurrency': Number,
+
+  // Aliases
+  '-h': '--help',
+  '-s': '--silent',
+  '-o': '--outdir'
 })
 
-if (argv.help) {
+if (args['--help']) {
   console.log(`
     Description
       Exports the application for production deployment
@@ -37,7 +38,7 @@ if (argv.help) {
   process.exit(0)
 }
 
-const dir = resolve(argv._[0] || '.')
+const dir = resolve(args._[0] || '.')
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
@@ -53,10 +54,10 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 const options = {
-  silent: argv.silent,
-  threads: argv.threads,
-  concurrency: argv.concurrency,
-  outdir: argv.outdir ? resolve(argv.outdir) : resolve(dir, 'out')
+  silent: args['--silent'] || false,
+  threads: args['--threads'],
+  concurrency: args['--concurrency'],
+  outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out')
 }
 
 exportApp(dir, options)

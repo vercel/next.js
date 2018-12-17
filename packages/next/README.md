@@ -62,6 +62,7 @@
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
     - [Configuring the build ID](#configuring-the-build-id)
+    - [Configuring Next process script](#configuring-next-process-script)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
@@ -1335,6 +1336,17 @@ module.exports = {
     return null
   }
 }
+```
+
+#### Configuring next process script
+
+You can pass any node arguments to `next` cli command.
+
+
+```bash
+next --node-args="--throw-deprecation"
+next start --node-args="--inspect"
+next build --node-args="-r esm"
 ```
 
 ### Customizing webpack config
