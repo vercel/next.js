@@ -41,8 +41,9 @@ if (args['--help']) {
 const dir = resolve(args._[0] || '.')
 const port = args['--port'] || 3000
 startServer({dir}, port, args['--hostname'])
-  .then(() => {
+  .then(async (app) => {
     console.log(`> Ready on http://${args['--hostname']}:${port}`)
+    await app.prepare()
   })
   .catch((err) => {
     console.error(err)

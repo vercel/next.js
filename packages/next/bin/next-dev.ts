@@ -55,8 +55,9 @@ if (!existsSync(join(dir, 'pages'))) {
 
 const port = args['--port'] || 3000
 startServer({dir, dev: true}, port, args['--hostname'])
-  .then(async () => {
+  .then(async (app) => {
     console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
+    await app.prepare()
   })
   .catch((err) => {
     if (err.code === 'EADDRINUSE') {
