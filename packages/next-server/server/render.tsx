@@ -165,7 +165,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
     const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
     const renderElementToString = staticMarkup ? renderToStaticMarkup : renderToString
 
-    if(err && dev && ErrorDebug) {
+    if(err && ErrorDebug) {
       return render(renderElementToString, <ErrorDebug error={err} />)
     }
 
