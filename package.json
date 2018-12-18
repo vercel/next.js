@@ -15,6 +15,7 @@
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
+    "prettier": "prettier --single-quote --no-semi --write examples/**/*.js && yarn lint-fix",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish",
@@ -22,9 +23,23 @@
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
-    "*.js": ["standard --fix", "git add"],
-    "*.ts": ["standard --parser typescript-eslint-parser --plugin typescript --fix", "git add"],
-    "packages/**/bin/*": ["standard --fix", "git add"]
+    "examples/**/*.js": [
+      "prettier --write --single-quote --no-semi",
+      "standard --fix",
+      "git add"
+    ],
+    "*.js": [
+      "standard --fix",
+      "git add"
+    ],
+    "*.ts": [
+      "standard --parser typescript-eslint-parser --plugin typescript --fix",
+      "git add"
+    ],
+    "packages/**/bin/*": [
+      "standard --fix",
+      "git add"
+    ]
   },
   "standard": {
     "parser": "babel-eslint",
@@ -68,6 +83,7 @@
     "node-notifier": "5.1.2",
     "node-sass": "4.9.2",
     "pre-commit": "1.2.2",
+    "prettier": "1.15.3",
     "react": "16.6.3",
     "react-dom": "16.6.3",
     "rimraf": "2.6.2",

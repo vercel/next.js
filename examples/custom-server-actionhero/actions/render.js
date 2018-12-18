@@ -1,5 +1,5 @@
 'use strict'
-const {Action, api} = require('actionhero')
+const { Action, api } = require('actionhero')
 
 module.exports = class CreateChatRoom extends Action {
   constructor () {

@@ -4,7 +4,7 @@ const os = require('os')
 
 exports['default'] = {
   servers: {
-    web: (api) => {
+    web: api => {
       return {
         enabled: true,
         // HTTP or HTTPS?
@@ -13,7 +13,9 @@ exports['default'] = {
         serverOptions: {},
         // Should we redirect all traffic to the first host in this array if hte request header doesn't match?
         // i.e.: [ 'https://www.site.com' ]
-        allowedRequestHosts: process.env.ALLOWED_HOSTS ? process.env.ALLOWED_HOSTS.split(',') : [],
+        allowedRequestHosts: process.env.ALLOWED_HOSTS
+          ? process.env.ALLOWED_HOSTS.split(',')
+          : [],
         // Port or Socket Path
         port: process.env.PORT || 8080,
         // Which IP to listen on (use '0.0.0.0' for all; '::' for all on ipv4 and ipv6)
@@ -23,7 +25,8 @@ exports['default'] = {
         httpHeaders: {
           'X-Powered-By': api.config.general.serverName,
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'HEAD, GET, POST, PUT, PATCH, DELETE, OPTIONS, TRACE',
+          'Access-Control-Allow-Methods':
+            'HEAD, GET, POST, PUT, PATCH, DELETE, OPTIONS, TRACE',
           'Access-Control-Allow-Headers': 'Content-Type'
         },
         // Route that actions will be served from; secondary route against this route will be treated as actions,
@@ -92,7 +95,7 @@ exports['default'] = {
 
 exports.production = {
   servers: {
-    web: (api) => {
+    web: api => {
       return {
         padding: null,
         metadataOptions: {
@@ -106,7 +109,7 @@ exports.production = {
 
 exports.test = {
   servers: {
-    web: (api) => {
+    web: api => {
       return {
         secure: false,
         port: process.env.PORT || 1000 + (process.pid % 64535),

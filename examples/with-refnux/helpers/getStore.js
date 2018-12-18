@@ -2,7 +2,7 @@ import { createStore } from 'refnux'
 
 let storeMemoized = null
 
-const getStore = (initialState) => {
+const getStore = initialState => {
   let store = null
   if (typeof window === 'undefined') {
     store = createStore(initialState)

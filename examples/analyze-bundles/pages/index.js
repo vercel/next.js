@@ -21,7 +21,9 @@ export default class Index extends React.Component {
         <h1>Home Page</h1>
         <p>Welcome, {name}</p>
         <div>
-          <Link href='/about'><a>About Page</a></Link>
+          <Link href='/about'>
+            <a>About Page</a>
+          </Link>
         </div>
       </div>
     )

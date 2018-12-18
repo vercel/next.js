@@ -6,11 +6,11 @@ export default class CounterContainer extends Container {
   }
 
   increment = () => {
-    this.setState((state) => ({ count: state.count + 1 }))
+    this.setState(state => ({ count: state.count + 1 }))
   }
 
   decrement = () => {
-    this.setState((state) => ({ count: state.count - 1 }))
+    this.setState(state => ({ count: state.count - 1 }))
   }
 
   reset = () => {

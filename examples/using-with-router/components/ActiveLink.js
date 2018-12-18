@@ -10,7 +10,7 @@ const ActiveLink = ({ children, router, href }) => {
     color: router.pathname === href ? 'red' : 'black'
   }
 
-  const handleClick = (e) => {
+  const handleClick = e => {
     e.preventDefault()
     router.push(href)
   }

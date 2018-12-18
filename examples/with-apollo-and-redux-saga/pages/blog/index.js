@@ -26,6 +26,4 @@ class BlogIndex extends React.Component {
   }
 }
 
-export default withReduxSaga(
-  withApollo(BlogIndex)
-)
+export default withReduxSaga(withApollo(BlogIndex))

@@ -28,4 +28,7 @@ const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   incrementBy3: () => increment(3)
 })
 
-export default connect(mapState, mapDispatch)(CounterDisplay)
+export default connect(
+  mapState,
+  mapDispatch
+)(CounterDisplay)

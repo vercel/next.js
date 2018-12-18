@@ -211,7 +211,7 @@ export default (context) => {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the about page.')
 
-        aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
+        aboutPage.replace('export default', 'export default {};\nexport const fn =')
 
         await check(
           () => getBrowserBodyText(browser),
@@ -250,7 +250,7 @@ export default (context) => {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the about page.')
 
-        aboutPage.replace('export default', 'export default () => /search/ \nexport const fn = ')
+        aboutPage.replace('export default', 'export default () => /search/;\nexport const fn =')
 
         await check(
           () => getBrowserBodyText(browser),

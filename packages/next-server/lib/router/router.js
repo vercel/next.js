@@ -260,8 +260,11 @@ export default class Router {
 
       const { Component } = routeInfo
 
-      if (typeof Component !== 'function') {
-        throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+      if (process.env.NODE_ENV !== 'production') {
+        const { isValidElementType } = require('react-is')
+        if (!isValidElementType(Component)) {
+          throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+        }
       }
 
       const ctx = { pathname, query, asPath: as }

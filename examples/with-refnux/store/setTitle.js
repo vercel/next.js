@@ -1,5 +1,4 @@
-
-const setTitle = (newTitle) => ({title}) => {
+const setTitle = newTitle => ({ title }) => {
   return { title: newTitle }
 }
 

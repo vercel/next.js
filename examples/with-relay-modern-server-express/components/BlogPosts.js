@@ -22,9 +22,9 @@ const BlogPosts = props => {
   return (
     <div>
       <h1>Blog posts</h1>
-      {props.viewer.allBlogPosts.edges.map(({ node }) =>
+      {props.viewer.allBlogPosts.edges.map(({ node }) => (
         <BlogPostPreview key={node.id} post={node} />
-      )}
+      ))}
       <br />
       <button disabled={!hasPrevPage} onClick={prevOnClick}>
         Previous Page

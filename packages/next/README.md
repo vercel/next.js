@@ -1196,15 +1196,15 @@ import fetch from 'isomorphic-unfetch'
 export default class Page extends React.Component {
   static async getInitialProps() {
     const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const errorCode = res.statusCode > 200 ? res.statusCode : false
     const json = await res.json()
 
-    return { statusCode, stars: json.stargazers_count }
+    return { errorCode, stars: json.stargazers_count }
   }
 
   render() {
-    if (this.props.statusCode) {
-      return <Error statusCode={this.props.statusCode} />
+    if (this.props.errorCode) {
+      return <Error statusCode={this.props.errorCode} />
     }
 
     return (
@@ -1340,13 +1340,17 @@ module.exports = {
 
 #### Configuring next process script
 
-You can pass any node arguments to `next` cli command.
-
+You can pass any node arguments to `next` CLI command.
 
 ```bash
-next --node-args="--throw-deprecation"
-next start --node-args="--inspect"
-next build --node-args="-r esm"
+NODE_OPTIONS="--throw-deprecation" next
+NODE_OPTIONS="-r esm" next
+```
+
+`--inspect` is a special case since it binds to a port and can't double-bind to the child process the `next` CLI creates.
+
+```
+next start --inspect
 ```
 
 ### Customizing webpack config

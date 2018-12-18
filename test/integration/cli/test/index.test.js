@@ -45,14 +45,7 @@ describe('CLI Usage', () => {
       const output = await runNextCommand(['build', dir, '--inspect'], {
         stdout: true
       })
-      expect(output.stdout).toMatch(/The `--inspect` option is deprecated/)
-    })
-
-    test('--node-args', async () => {
-      const output = await runNextCommand(['build', dir, '--node-args=--inspect'], {
-        stdout: true
-      })
-      expect(output.stdout).toMatch(/Passing arguments to Node\.js: "--inspect"/)
+      expect(output.stdout).toMatch(/Passing "--inspect" to Node\.js/)
     })
   })
   describe('build', () => {
