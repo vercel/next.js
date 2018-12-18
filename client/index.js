@@ -5,6 +5,7 @@ import EventEmitter from '../lib/EventEmitter'
 import App from '../lib/app'
 import { getURL } from '../lib/utils'
 import { waitForPage } from '../lib/page-loader'
+import { subscribe } from '../lib/router/router'
 
 const {
   __NEXT_DATA__: {
@@ -45,7 +46,7 @@ export default () => {
         err
       })
 
-      router.subscribe(({ Component, props, hash, err }) => {
+      subscribe(({ Component, props, hash, err }) => {
         render({ Component, props, err, hash, emitter })
       })
 
