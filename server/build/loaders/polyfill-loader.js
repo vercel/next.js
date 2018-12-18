@@ -10,12 +10,12 @@ module.exports = function (content, sourceMap) {
   // Webpack Polyfill Injector
 function main() {${modules.map(module => `\n    require(${stringifyRequest(this, module)});`).join('') + '\n'}}
 if (require(${stringifyRequest(this, options.test)})) {
+    window.afterPoly = main;
     var js = document.createElement('script');
-    js.src = __NEXT_DATA__.publicPath + '${buildId}/polyfill.js';
-    js.onload = main;
     js.onerror = function onError(message) {
-        console.error('Could not load the polyfills: ' + message);
+      Raven.captureException(new Error('Could not load the polyfills: ' + message));
     };
+    js.src = __NEXT_DATA__.publicPath + '${buildId}/polyfill.js';
     document.head.appendChild(js);
 } else {
     main();
