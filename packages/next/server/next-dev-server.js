@@ -3,11 +3,13 @@ import { join } from 'path'
 import HotReloader from './hot-reloader'
 import {route} from 'next-server/dist/server/router'
 import {PHASE_DEVELOPMENT_SERVER} from 'next-server/constants'
+import ErrorDebug from './error-debug'
 
 export default class DevServer extends Server {
   constructor (options) {
     super(options)
     this.renderOpts.dev = true
+    this.renderOpts.ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })

@@ -10,9 +10,10 @@ import {serveStatic} from './serve-static'
 import Router, {route, Route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
-import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
+import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME, BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
+import {loadComponents} from './load-components'
 
 type NextConfig = any
 
@@ -79,6 +80,11 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
+  private logError(...args: any): void {
+    if(this.quiet) return
+    console.error(...args)
+  }
+
   private handleRequest (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
@@ -94,7 +100,7 @@ export default class Server {
     res.statusCode = 200
     return this.run(req, res, parsedUrl)
       .catch((err) => {
-        if (!this.quiet) console.error(err)
+        this.logError(err)
         res.statusCode = 500
         res.end('Internal Server Error')
       })
@@ -224,17 +230,22 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
+  private async renderToHTMLWithComponents(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, opts: any) {
+    const result = await loadComponents(this.distDir, this.buildId, pathname)
+    return renderToHTML(req, res, pathname, query, {...result, ...opts})
+  }
+
   public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
     try {
       // To make sure the try/catch is executed
-      const html = await renderToHTML(req, res, pathname, query, this.renderOpts)
+      const html = await this.renderToHTMLWithComponents(req, res, pathname, query, this.renderOpts)
       return html
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {
-        if (!this.quiet) console.error(err)
+        this.logError(err)
         res.statusCode = 500
         return this.renderErrorToHTML(err, req, res, pathname, query)
       }
@@ -251,7 +262,7 @@ export default class Server {
   }
 
   public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery = {}) {
-    return renderToHTML(req, res, '/_error', query, {...this.renderOpts, err})
+    return this.renderToHTMLWithComponents(req, res, '/_error', query, {...this.renderOpts, err})
   }
 
   public async render404 (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {

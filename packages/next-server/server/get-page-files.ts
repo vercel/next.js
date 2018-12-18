@@ -1,6 +1,7 @@
 import {normalizePagePath} from './require'
 
-type BuildManifest = {
+export type BuildManifest = {
+  devFiles: string[],
   pages: {
     [page: string]: string[]
   }

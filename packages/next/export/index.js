@@ -136,6 +136,8 @@ export default async function (dir, options, configuration) {
             env: process.env
           })
           worker.send({
+            distDir,
+            buildId,
             exportPaths: chunk.paths,
             exportPathMap: chunk.pathMap,
             outDir,
