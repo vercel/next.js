@@ -1196,15 +1196,15 @@ import fetch from 'isomorphic-unfetch'
 export default class Page extends React.Component {
   static async getInitialProps() {
     const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const errorCode = res.statusCode > 200 ? res.statusCode : false
     const json = await res.json()
 
-    return { statusCode, stars: json.stargazers_count }
+    return { errorCode, stars: json.stargazers_count }
   }
 
   render() {
-    if (this.props.statusCode) {
-      return <Error statusCode={this.props.statusCode} />
+    if (this.props.errorCode) {
+      return <Error statusCode={this.props.errorCode} />
     }
 
     return (
