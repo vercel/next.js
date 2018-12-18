@@ -51,8 +51,7 @@ export default (context, opts = {}) => ({
           'next/head': isServer ? '@kpdecker/next/node/lib/head' : '@kpdecker/next/browser/lib/head',
           'next/document': isServer ? '@kpdecker/next/node/server/document' : undefined,
           'next/same-loop-promise': isServer ? '@kpdecker/next/node/lib/same-loop-promise' : '@kpdecker/next/browser/lib/same-loop-promise',
-          'next/router': isServer ? '@kpdecker/next/node/lib/router' : '@kpdecker/next/browser/lib/router',
-          'next/error': isServer ? '@kpdecker/next/node/lib/error' : '@kpdecker/next/browser/lib/error'
+          'next/router': isServer ? '@kpdecker/next/node/lib/router' : '@kpdecker/next/browser/lib/router'
         }
       }
     ]
