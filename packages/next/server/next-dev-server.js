@@ -8,6 +8,7 @@ export default class DevServer extends Server {
   constructor (options) {
     super(options)
     this.renderOpts.dev = true
+    this.renderOpts.ErrorDebug = require('./error-debug')
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
