@@ -162,12 +162,13 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
 
   const reactLoadableModules: string[] = []
   const renderPage = (options: ComponentsEnhancer = {}): {html: string, head: any} => {
-    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
     const renderElementToString = staticMarkup ? renderToStaticMarkup : renderToString
 
     if(err && ErrorDebug) {
       return render(renderElementToString, <ErrorDebug error={err} />)
     }
+
+    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
 
     return render(renderElementToString,
       <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
