@@ -230,7 +230,7 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async renderHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, opts: any) {
+  private async renderToHTMLWithComponents(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, opts: any) {
     const result = await loadComponents(this.distDir, this.buildId, pathname)
     return renderToHTML(req, res, pathname, query, {...result, ...opts})
   }
@@ -238,7 +238,7 @@ export default class Server {
   public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
     try {
       // To make sure the try/catch is executed
-      const html = await this.renderHTML(req, res, pathname, query, this.renderOpts)
+      const html = await this.renderToHTMLWithComponents(req, res, pathname, query, this.renderOpts)
       return html
     } catch (err) {
       if (err.code === 'ENOENT') {
@@ -262,7 +262,7 @@ export default class Server {
   }
 
   public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery = {}) {
-    return this.renderHTML(req, res, '/_error', query, {...this.renderOpts, err})
+    return this.renderToHTMLWithComponents(req, res, '/_error', query, {...this.renderOpts, err})
   }
 
   public async render404 (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
