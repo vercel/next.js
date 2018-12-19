@@ -245,7 +245,14 @@ export default class Router {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
-      window.history[method]({ url, as, options }, null, as)
+      const state = {url, as, options}
+
+      if (options.data) {
+        state.data = options.data
+        delete options.data
+      }
+
+      window.history[method]({...window.history.state, state}, null, as)
     }
   }
 
