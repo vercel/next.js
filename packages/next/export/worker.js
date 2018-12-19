@@ -3,11 +3,14 @@ global.__NEXT_DATA__ = {
 }
 
 const { extname, join, dirname, sep } = require('path')
-const mkdirp = require('mkdirp-then')
+const _mkdirp = require('mkdirp')
+const { promisify } = require('util')
 const { renderToHTML } = require('next-server/dist/server/render')
 const { writeFile } = require('fs')
 const Sema = require('async-sema')
 const {loadComponents} = require('next-server/dist/server/load-components')
+
+const mkdirp = promisify(_mkdirp)
 
 process.on(
   'message',
