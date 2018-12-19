@@ -5,7 +5,7 @@ export type ManifestItem = {
   publicPath: string
 }
 
-type Manifest = {[moduleId: string]: ManifestItem[]}
+export type Manifest = {[moduleId: string]: ManifestItem[]}
 
 type DynamicImportBundles = Set<ManifestItem>
 

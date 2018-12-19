@@ -3,15 +3,14 @@ import { ParsedUrlQuery } from 'querystring'
 import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import {requirePage} from './require'
 import Router from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
-import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
-import {getDynamicImportBundles, ManifestItem} from './get-dynamic-import-bundles'
-import {getPageFiles} from './get-page-files'
+import { SERVER_DIRECTORY } from 'next-server/constants'
+import {getDynamicImportBundles, Manifest as ReactLoadableManifest, ManifestItem} from './get-dynamic-import-bundles'
+import {getPageFiles, BuildManifest} from './get-page-files'
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer = {enhanceApp?: Enhancer, enhanceComponent?: Enhancer}|Enhancer
@@ -32,10 +31,6 @@ function enhanceComponents(options: ComponentsEnhancer, App: React.ComponentType
     App: options.enhanceApp ? options.enhanceApp(App) : App,
     Component: options.enhanceComponent ? options.enhanceComponent(Component) : Component
   }
-}
-
-function interoptDefault(mod: any) {
-  return mod.default || mod
 }
 
 function render(renderElementToString: (element: React.ReactElement<any>) => string, element: React.ReactElement<any>): {html: string, head: any} {
@@ -59,7 +54,13 @@ type RenderOpts = {
   assetPrefix?: string,
   err?: Error|null,
   nextExport?: boolean,
-  dev?: boolean
+  dev?: boolean,
+  buildManifest: BuildManifest, 
+  reactLoadableManifest: ReactLoadableManifest,
+  Component: React.ComponentType,
+  Document: React.ComponentType,
+  App: React.ComponentType,
+  ErrorDebug?: React.ComponentType<{error: Error}>
 }
 
 function renderDocument(Document: React.ComponentType, {
@@ -114,20 +115,16 @@ function renderDocument(Document: React.ComponentType, {
 export async function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, renderOpts: RenderOpts): Promise<string|null> {
   const {
     err,
-    buildId,
-    distDir,
     dev = false,
-    staticMarkup = false
+    staticMarkup = false,
+    App,
+    Document,
+    Component,
+    buildManifest,
+    reactLoadableManifest,
+    ErrorDebug
   } = renderOpts
-  const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
-  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
-  let [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
-    require(join(distDir, BUILD_MANIFEST)),
-    require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    interoptDefault(requirePage(pathname, distDir)),
-    interoptDefault(require(documentPath)),
-    interoptDefault(require(appPath))
-  ])
+
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -165,13 +162,13 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
 
   const reactLoadableModules: string[] = []
   const renderPage = (options: ComponentsEnhancer = {}): {html: string, head: any} => {
-    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
     const renderElementToString = staticMarkup ? renderToStaticMarkup : renderToString
 
-    if(err && dev) {
-      const ErrorDebug = require(join(distDir, SERVER_DIRECTORY, 'error-debug')).default
+    if(err && ErrorDebug) {
       return render(renderElementToString, <ErrorDebug error={err} />)
     }
+
+    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
 
     return render(renderElementToString,
       <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
