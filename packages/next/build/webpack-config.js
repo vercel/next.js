@@ -15,7 +15,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
-import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, NEXT_PROJECT_ROOT_DIST_SERVER, DEFAULT_PAGES_DIR} from '../lib/constants'
+import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
 import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
@@ -23,16 +23,16 @@ import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 // The externals config makes sure that
 // on the server side when modules are
 // in node_modules they don't get compiled by webpack
-function externalsConfig (dir, isServer, lambdas) {
+function externalsConfig (isServer, target) {
   const externals = []
 
-  if (!isServer) {
+  if (!isServer || target === 'serverless') {
     return externals
   }
 
   // When lambdas mode is enabled all node_modules will be compiled into the server bundles
   // So that all dependencies can be devDependencies and are not required to be installed
-  if (lambdas) {
+  if (target === 'lambdas') {
     return [
       (context, request, callback) => {
         // Make react/react-dom external until we bundle the server/renderer.
@@ -101,7 +101,7 @@ function externalsConfig (dir, isServer, lambdas) {
   return externals
 }
 
-function optimizationConfig ({ dir, dev, isServer, totalPages, lambdas }) {
+function optimizationConfig ({ dev, isServer, totalPages, target }) {
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
@@ -114,7 +114,7 @@ function optimizationConfig ({ dir, dev, isServer, totalPages, lambdas }) {
     }
   }
 
-  if (isServer && lambdas) {
+  if (isServer && (target === 'lambdas' || target === 'serverless')) {
     return {
       splitChunks: false,
       minimizer: [
@@ -169,7 +169,7 @@ function optimizationConfig ({ dir, dev, isServer, totalPages, lambdas }) {
   return config
 }
 
-export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, lambdas = false}) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints = false}) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -204,9 +204,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : {}
-  const devServerEntries = dev && isServer ? {
-    'error-debug.js': path.join(NEXT_PROJECT_ROOT_DIST_SERVER, 'error-debug.js')
-  } : {}
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -229,15 +226,17 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
-    externals: externalsConfig(dir, isServer, lambdas),
-    optimization: optimizationConfig({dir, dev, isServer, totalPages, lambdas}),
+    externals: externalsConfig(isServer, target),
+    optimization: optimizationConfig({dir, dev, isServer, totalPages, target}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
+      if (entrypoints) {
+        return entrypoints
+      }
       return {
         ...clientEntries,
-        ...devServerEntries,
         // Only _error and _document when in development. The rest is handled by on-demand-entries
         ...pagesEntries
       }

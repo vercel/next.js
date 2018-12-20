@@ -9,6 +9,7 @@ const args = arg({
   // Types
   '--help': Boolean,
   '--lambdas': Boolean,
+  '--target': String,
 
   // Aliases
   '-h': '--help',
@@ -30,7 +31,7 @@ if (args['--help']) {
 }
 
 const dir = resolve(args._[0] || '.')
-const lambdas = args['--lambdas']
+const target = args['--target'] ? args['--target'] : (args['--lambdas'] ? 'lambdas' : 'server')
 
 // Check if pages dir exists and warn if not
 if (!existsSync(dir)) {
@@ -45,8 +46,8 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-build(dir, null, lambdas)
+build(dir, null, target)
   .catch((err) => {
-    console.error('> Build error occured')
+    console.error('> Build error occurred')
     printAndExit(err)
   })
