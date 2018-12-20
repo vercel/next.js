@@ -32,7 +32,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     staticMarkup: boolean,
-    distDir: string,
     buildId: string,
     generateEtags: boolean,
     runtimeConfig?: {[key: string]: any},
