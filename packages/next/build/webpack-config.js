@@ -333,11 +333,11 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && dev && new webpack.DefinePlugin({
         'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
       }),
-      isServer && new PagesManifestPlugin(),
+      target !== 'serverless' && isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       !isServer && new PagesPlugin(),
       isServer && new NextJsSsrImportPlugin(),
-      isServer && new NextJsSSRModuleCachePlugin({outputPath}),
+      target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
       !isServer && !dev && new AssetsSizePlugin({buildId, distDir})
     ].filter(Boolean)
   }
