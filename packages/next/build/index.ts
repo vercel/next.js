@@ -9,6 +9,7 @@ import {isWriteable} from './is-writeable'
 import {runCompiler, CompilerResult} from './compiler'
 import globModule from 'glob'
 import {promisify} from 'util'
+import {stringify} from 'querystring'
 
 const glob = promisify(globModule)
 
@@ -22,6 +23,7 @@ export default async function build (dir: string, conf = null, target: string = 
   }
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const actualTarget = target || config.target
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = join(dir, config.distDir)
   const pagesDir = join(dir, 'pages')
@@ -36,24 +38,30 @@ export default async function build (dir: string, conf = null, target: string = 
   }, {})
 
   let entrypoints
-  if (target === 'serverless') {
+  if (actualTarget === 'serverless') {
     const serverlessEntrypoints: any = {}
     Object.keys(pages).forEach(async (page) => {
       const relativePagePath = pages[page]
       const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-      serverlessEntrypoints[join('serverless', bundleFile)] = `next-serverless-loader?page=${page}&absolutePagePath=${join(pagesDir, relativePagePath)}&distDir=${distDir}&buildId=${buildId}!`
+      const query = stringify({
+        page,
+        absolutePagePath: join(pagesDir, relativePagePath),
+        distDir,
+        buildId
+      })
+      serverlessEntrypoints[join('serverless', bundleFile)] = `next-serverless-loader?${query}!`
     })
 
     entrypoints = serverlessEntrypoints
   }
 
   const configs: any = await Promise.all([
-    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target }),
-    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target, entrypoints })
+    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: actualTarget }),
+    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: actualTarget, entrypoints })
   ])
 
   let result: CompilerResult = {warnings: [], errors: []}
-  if (target === 'lambdas' || target === 'serverless') {
+  if (actualTarget === 'serverless') {
     const clientResult = await runCompiler([configs[0]])
     const serverResult = await runCompiler([configs[1]])
     result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
