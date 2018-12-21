@@ -7,12 +7,25 @@ type Query = {
   page: string,
   distDir: string,
   absolutePagePath: string,
+  absoluteAppPath: string,
+  absoluteDocumentPath: string,
+  absoluteErrorPath: string,
   buildId: string,
   assetPrefix: string
 }
 
 const nextServerlessLoader: loader.Loader = function () {
-  const {distDir, absolutePagePath, page, buildId, assetPrefix}: Query = typeof this.query === 'string' ? parse(this.query) : this.query
+  const {
+    distDir,
+    absolutePagePath,
+    page,
+    buildId,
+    assetPrefix,
+    absoluteAppPath,
+    absoluteDocumentPath,
+    absoluteErrorPath
+  }: Query = typeof this.query === 'string' ? parse(this.query) : this.query
+
   const buildManifest = join(distDir, BUILD_MANIFEST)
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST)
   return `
@@ -20,9 +33,9 @@ const nextServerlessLoader: loader.Loader = function () {
     import {renderToHTML} from 'next-server/dist/server/render';
     import buildManifest from '${buildManifest}';
     import reactLoadableManifest from '${reactLoadableManifest}';
-    import Document from 'next/dist/pages/_document';
-    import Error from 'next/dist/pages/_error';
-    import App from 'next/dist/pages/_app';
+    import Document from '${absoluteDocumentPath}';
+    import Error from '${absoluteErrorPath}';
+    import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
     module.exports = async (req, res) => {
       try {
