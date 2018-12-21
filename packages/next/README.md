@@ -1138,7 +1138,7 @@ that need to wrap the application to properly work with server-rendering. 🚧
 ```js
 import Document from 'next/document'
 
-export default MyDocument extends Document {
+export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const originalRenderPage = ctx.renderPage
 
