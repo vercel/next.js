@@ -53,7 +53,6 @@ export default class Server {
     this.buildId = this.readBuildId()
     this.renderOpts = {
       staticMarkup,
-      distDir: this.distDir,
       buildId: this.buildId,
       generateEtags
     }
