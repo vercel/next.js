@@ -26,41 +26,10 @@ import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 function externalsConfig (isServer, target) {
   const externals = []
 
+  // When the serverless target is used all node_modules will be compiled into the output bundles
+  // So that the serverless bundles have 0 runtime dependencies
   if (!isServer || target === 'serverless') {
     return externals
-  }
-
-  // When lambdas mode is enabled all node_modules will be compiled into the server bundles
-  // So that all dependencies can be devDependencies and are not required to be installed
-  if (target === 'lambdas') {
-    return [
-      (context, request, callback) => {
-        // Make react/react-dom external until we bundle the server/renderer.
-        if (request === 'react' || request === 'react-dom') {
-          return callback(null, `commonjs ${request}`)
-        }
-
-        resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
-          if (err) {
-            return callback()
-          }
-          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]head/)) {
-            return callback(null, `commonjs next-server/dist/lib/head.js`)
-          }
-          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]asset/)) {
-            return callback(null, `commonjs next-server/dist/lib/asset.js`)
-          }
-          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]runtime-config/)) {
-            return callback(null, `commonjs next-server/dist/lib/runtime-config.js`)
-          }
-          // Default pages have to be transpiled
-          if (res.match(/next-server[/\\]dist[/\\]lib[/\\]loadable/)) {
-            return callback(null, `commonjs next-server/dist/lib/loadable.js`)
-          }
-          callback()
-        })
-      }
-    ]
   }
 
   const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'ansi-html', 'hoist-non-react-statics', 'htmlescape']
@@ -114,7 +83,7 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
     }
   }
 
-  if (isServer && (target === 'lambdas' || target === 'serverless')) {
+  if (isServer && target === 'serverless') {
     return {
       splitChunks: false,
       minimizer: [
@@ -194,7 +163,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .filter((p) => !!p)
 
   const distDir = path.join(dir, config.distDir)
-  const outputPath = path.join(distDir, isServer ? SERVER_DIRECTORY : '')
+  const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
+  const outputPath = path.join(distDir, isServer ? outputDir : '')
   const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
   const totalPages = Object.keys(pagesEntries).length
   const clientEntries = !isServer ? {

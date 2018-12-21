@@ -12,8 +12,7 @@ const args = arg({
   '--target': String,
 
   // Aliases
-  '-h': '--help',
-  '-l': '--lambdas'
+  '-h': '--help'
 })
 
 if (args['--help']) {
@@ -31,14 +30,16 @@ if (args['--help']) {
 }
 
 const dir = resolve(args._[0] || '.')
-const target = args['--target'] ? args['--target'] : (args['--lambdas'] ? 'lambdas' : 'server')
+const target = args['--target'] ? args['--target'] : 'server'
 
-// Check if pages dir exists and warn if not
+// Check if the provided directory exists
 if (!existsSync(dir)) {
   printAndExit(`> No such directory exists as the project root: ${dir}`)
 }
 
+// Check if the pages directory exists
 if (!existsSync(join(dir, 'pages'))) {
+  // Check one level down the tree to see if the pages directory might be there
   if (existsSync(join(dir, '..', 'pages'))) {
     printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
   }
