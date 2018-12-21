@@ -17,13 +17,13 @@ function collectPages (directory: string, pageExtensions: string[]): Promise<str
   return glob(`**/*.+(${pageExtensions.join('|')})`, {cwd: directory})
 }
 
-export default async function build (dir: string, conf = null, target: string = 'server'): Promise<void> {
+export default async function build (dir: string, conf = null, target: string|null = null): Promise<void> {
   if (!await isWriteable(dir)) {
     throw new Error('> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
   }
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const actualTarget = target || config.target
+  const actualTarget = target || config.target || 'server' // default to `server` when target is not defined in any way
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = join(dir, config.distDir)
   const pagesDir = join(dir, 'pages')

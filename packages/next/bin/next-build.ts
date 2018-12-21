@@ -30,7 +30,7 @@ if (args['--help']) {
 }
 
 const dir = resolve(args._[0] || '.')
-const target = args['--target'] ? args['--target'] : 'server'
+const target = args['--target'] ? args['--target'] : null // null means the default is used
 
 // Check if the provided directory exists
 if (!existsSync(dir)) {
