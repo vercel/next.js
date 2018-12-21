@@ -7,11 +7,12 @@ type Query = {
   page: string,
   distDir: string,
   absolutePagePath: string,
-  buildId: string
+  buildId: string,
+  assetPrefix: string
 }
 
 const nextServerlessLoader: loader.Loader = function () {
-  const {distDir, absolutePagePath, page, buildId}: Query = typeof this.query === 'string' ? parse(this.query) : this.query
+  const {distDir, absolutePagePath, page, buildId, assetPrefix}: Query = typeof this.query === 'string' ? parse(this.query) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST)
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST)
   return `
@@ -25,39 +26,36 @@ const nextServerlessLoader: loader.Loader = function () {
     import Component from '${absolutePagePath}';
     module.exports = async (req, res) => {
       try {
+        const options = {
+          App,
+          Document,
+          buildManifest,
+          reactLoadableManifest,
+          buildId: "${buildId}",
+          assetPrefix: "${assetPrefix}"
+        }
         const parsedUrl = parse(req.url, true)
         try {
           const result = await renderToHTML(req, res, "${page}", parsedUrl.query, {
-            App,
-            Document,
-            Component,
-            buildManifest,
-            reactLoadableManifest,
-            buildId: "${buildId}"
+            ...options,
+            Component
           })
           return result
         } catch (err) {
           if (err.code === 'ENOENT') {
             res.statusCode = 404
             const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
-              App,
-              Document,
-              Component: Error,
-              buildManifest,
-              reactLoadableManifest,
-              buildId: "${buildId}"
+              ...options,
+              Component: Error
             })
             return result
           } else {
             console.error(err)
             res.statusCode = 500
             const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
-              App,
-              Document,
+              ...options,
               Component: Error,
-              buildManifest,
-              reactLoadableManifest,
-              buildId: "${buildId}"
+              err
             })
             return result
           }

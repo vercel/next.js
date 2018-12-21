@@ -47,7 +47,8 @@ export default async function build (dir: string, conf = null, target: string = 
         page,
         absolutePagePath: join(pagesDir, relativePagePath),
         distDir,
-        buildId
+        buildId,
+        assetPrefix: config.assetPrefix
       })
       serverlessEntrypoints[join('serverless', bundleFile)] = `next-serverless-loader?${query}!`
     })
