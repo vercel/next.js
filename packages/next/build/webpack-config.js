@@ -184,7 +184,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
-      next: NEXT_PROJECT_ROOT
+      next: NEXT_PROJECT_ROOT,
+      '__private-next-pages': path.join(dir, 'pages')
     },
     mainFields: isServer ? ['main'] : ['browser', 'module', 'main']
   }

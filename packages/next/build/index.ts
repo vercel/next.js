@@ -40,20 +40,22 @@ export default async function build (dir: string, conf = null, target: string|nu
   let entrypoints
   if (actualTarget === 'serverless') {
     const serverlessEntrypoints: any = {}
-
-    const absoluteAppPath = pages['/_app'] ? join(pagesDir, pages['/_app']) : 'next/dist/pages/_app'
-    const absoluteDocumentPath = pages['/_document'] ? join(pagesDir, pages['/_document']) : 'next/dist/pages/_document'
-    const absoluteErrorPath = pages['/_error'] ? join(pagesDir, pages['/_error']) : 'next/dist/pages/_error'
+    // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
+    // we have to use a private alias
+    const pagesDirAlias = '__private-next-pages'
+    const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']) : 'next/dist/pages/_app'
+    const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']) : 'next/dist/pages/_document'
+    const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']) : 'next/dist/pages/_error'
     Object.keys(pages).forEach(async (page) => {
       if (page === '/_app' || page === '/_document') {
         return
       }
 
-      const relativePagePath = pages[page]
+      const absolutePagePath = join(pagesDirAlias, pages[page])
       const bundleFile = page === '/' ? '/index.js' : `${page}.js`
       const query = stringify({
         page,
-        absolutePagePath: join(pagesDir, relativePagePath),
+        absolutePagePath,
         absoluteAppPath,
         absoluteDocumentPath,
         absoluteErrorPath,
