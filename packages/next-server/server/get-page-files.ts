@@ -1,4 +1,4 @@
-import {normalizePagePath} from './require'
+import { normalizePagePath } from './normalize-page-path'
 
 export type BuildManifest = {
   devFiles: string[],

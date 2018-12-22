@@ -112,7 +112,6 @@
     "@types/glob": "7.1.1",
     "@types/mkdirp": "0.5.2",
     "@types/nanoid": "1.2.0",
-    "@types/node-fetch": "2.1.4",
     "@types/webpack": "4.4.20",
     "taskr": "1.1.0",
     "typescript": "3.1.6"

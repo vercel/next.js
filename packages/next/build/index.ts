@@ -86,11 +86,11 @@ export default async function build (dir: string, conf = null, target: string|nu
 
   if (result.warnings.length > 0) {
     console.warn('> Emitted warnings from webpack')
-    console.warn(...result.warnings)
+    result.warnings.forEach((warning) => console.warn(warning))
   }
 
   if (result.errors.length > 0) {
-    console.error(...result.errors)
+    result.errors.forEach((error) => console.error(error))
     throw new Error('> Build failed because of webpack errors')
   }
   await writeBuildId(distDir, buildId)
