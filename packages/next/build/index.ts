@@ -59,9 +59,10 @@ export default async function build (dir: string, conf = null, target: string|nu
         absoluteErrorPath,
         distDir,
         buildId,
-        assetPrefix: config.assetPrefix
+        assetPrefix: config.assetPrefix,
+        generateEtags: config.generateEtags
       })
-      serverlessEntrypoints[join('serverless', bundleFile)] = `next-serverless-loader?${query}!`
+      serverlessEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${query}!`
     })
 
     entrypoints = serverlessEntrypoints

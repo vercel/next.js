@@ -2,34 +2,24 @@
 /* global jasmine, test */
 import { join } from 'path'
 import {
-  nextServer,
   nextBuild,
-  startApp,
   stopApp,
   renderViaHTTP
 } from 'next-test-utils'
+import startServer from '../server'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
 let appPort
 let server
-let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-const context = {}
-
-describe('Lambdas', () => {
+describe('Serverless', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
-    app = nextServer({
-      dir: join(__dirname, '../'),
-      dev: false,
-      quiet: true
-    })
-
-    server = await startApp(app)
-    context.appPort = appPort = server.address().port
+    await nextBuild(appDir, ['--target', 'serverless'])
+    server = await startServer()
+    appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
@@ -58,5 +48,22 @@ describe('Lambdas', () => {
     } finally {
       browser.close()
     }
+  })
+
+  describe('With basic usage', () => {
+    it('should allow etag header support', async () => {
+      const url = `http://localhost:${appPort}/`
+      const etag = (await fetch(url)).headers.get('ETag')
+
+      const headers = { 'If-None-Match': etag }
+      const res2 = await fetch(url, { headers })
+      expect(res2.status).toBe(304)
+    })
+
+    it('should set Content-Length header', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetch(url)
+      expect(res.headers.get('Content-Length')).toBeDefined()
+    })
   })
 })

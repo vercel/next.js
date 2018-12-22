@@ -11,7 +11,8 @@ type Query = {
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
   buildId: string,
-  assetPrefix: string
+  assetPrefix: string,
+  generateEtags: string
 }
 
 const nextServerlessLoader: loader.Loader = function () {
@@ -23,56 +24,61 @@ const nextServerlessLoader: loader.Loader = function () {
     assetPrefix,
     absoluteAppPath,
     absoluteDocumentPath,
-    absoluteErrorPath
-  }: Query = typeof this.query === 'string' ? parse(this.query) : this.query
-
+    absoluteErrorPath,
+    generateEtags
+  }: Query = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST)
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST)
   return `
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';
+    import {sendHTML} from 'next-server/dist/server/send-html';
     import buildManifest from '${buildManifest}';
     import reactLoadableManifest from '${reactLoadableManifest}';
     import Document from '${absoluteDocumentPath}';
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
-    module.exports = async (req, res) => {
+    async function render(req, res) {
+      const options = {
+        App,
+        Document,
+        buildManifest,
+        reactLoadableManifest,
+        buildId: "${buildId}",
+        assetPrefix: "${assetPrefix}"
+      }
+      const parsedUrl = parse(req.url, true)
       try {
-        const options = {
-          App,
-          Document,
-          buildManifest,
-          reactLoadableManifest,
-          buildId: "${buildId}",
-          assetPrefix: "${assetPrefix}"
-        }
-        const parsedUrl = parse(req.url, true)
-        try {
-          const result = await renderToHTML(req, res, "${page}", parsedUrl.query, {
+        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, {
+          ...options,
+          Component
+        })
+        return result
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          res.statusCode = 404
+          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
             ...options,
-            Component
+            Component: Error
           })
           return result
-        } catch (err) {
-          if (err.code === 'ENOENT') {
-            res.statusCode = 404
-            const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
-              ...options,
-              Component: Error
-            })
-            return result
-          } else {
-            console.error(err)
-            res.statusCode = 500
-            const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
-              ...options,
-              Component: Error,
-              err
-            })
-            return result
-          }
+        } else {
+          console.error(err)
+          res.statusCode = 500
+          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
+            ...options,
+            Component: Error,
+            err
+          })
+          return result
         }
+      }
+    }
+    export default async (req, res) => {
+      try {
+        const html = await render(req, res)
+        sendHTML(req, res, html, {generateEtags: ${generateEtags}})
       } catch(err) {
         console.error(err)
         res.statusCode = 500
