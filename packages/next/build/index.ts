@@ -43,6 +43,7 @@ export default async function build (dir: string, conf = null, target: string|nu
     // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
     // we have to use a private alias
     const pagesDirAlias = '__private-next-pages'
+    const dotNextDirAlias = '__private-dot-next'
     const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']) : 'next/dist/pages/_app'
     const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']) : 'next/dist/pages/_document'
     const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']) : 'next/dist/pages/_error'
@@ -59,7 +60,7 @@ export default async function build (dir: string, conf = null, target: string|nu
         absoluteAppPath,
         absoluteDocumentPath,
         absoluteErrorPath,
-        distDir,
+        distDir: dotNextDirAlias,
         buildId,
         assetPrefix: config.assetPrefix,
         generateEtags: config.generateEtags
