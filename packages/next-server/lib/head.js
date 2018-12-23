@@ -2,10 +2,10 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import sideEffect from './side-effect'
 
+export const HeadManagerContext = React.createContext()
+
 class Head extends React.Component {
-  static contextTypes = {
-    headManager: PropTypes.object
-  }
+  static contextType = HeadManagerContext
 
   render () {
     return null
@@ -47,8 +47,8 @@ function mapOnServer (head) {
 }
 
 function onStateChange (head) {
-  if (this.context && this.context.headManager) {
-    this.context.headManager.updateHead(head)
+  if (this.context) {
+    this.context.updateHead(head)
   }
 }
 
