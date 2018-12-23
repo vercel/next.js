@@ -33,7 +33,7 @@ export default async function build (dir: string, conf = null, target: string|nu
   const pages: Result = pagePaths.reduce((result: Result, pagePath): Result => {
     let page = `/${pagePath.replace(new RegExp(`\\.+(${config.pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
     page = page === '' ? '/' : page
-    result[page] = pagePath
+    result[page] = pagePath.replace(/\\/g, '/')
     return result
   }, {})
 
