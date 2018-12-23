@@ -63,6 +63,8 @@ type RenderOpts = {
   ErrorDebug?: React.ComponentType<{error: Error}>
 }
 
+export const DocumentPropsContext = React.createContext({})
+
 function renderDocument(Document: React.ComponentType, {
   props,
   docProps,
@@ -89,26 +91,30 @@ function renderDocument(Document: React.ComponentType, {
   files: string[]
   devFiles: string[],
 }): string {
+  const documentProps = {
+    __NEXT_DATA__: {
+      props, // The result of getInitialProps
+      page: pathname, // The rendered page
+      query, // querystring parsed / passed by the user
+      buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+      assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+      nextExport, // If this is a page exported by `next export`
+      dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+      err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
+    },
+    renderToStaticMarkup,
+    devFiles,
+    dynamicImports,
+    files,
+    assetPrefix,
+    ...docProps
+  };
+
   return '<!DOCTYPE html>' + renderToStaticMarkup(
-    <Document
-      __NEXT_DATA__={{
-        props, // The result of getInitialProps
-        page: pathname, // The rendered page
-        query, // querystring parsed / passed by the user
-        buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-        assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-        runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-        nextExport, // If this is a page exported by `next export`
-        dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-        err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
-      }}
-      staticMarkup={staticMarkup}
-      devFiles={devFiles}
-      files={files}
-      dynamicImports={dynamicImports}
-      assetPrefix={assetPrefix}
-      {...docProps}
-    />
+    <DocumentPropsContext.Provider value={documentProps}>
+      <Document {...documentProps} />
+    </DocumentPropsContext.Provider>
   )
 }
 

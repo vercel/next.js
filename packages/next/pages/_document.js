@@ -3,12 +3,11 @@ import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 import flush from 'styled-jsx/server'
+import { DocumentPropsContext } from 'next-server/dist/server/render';
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
 }
-
-const DocumentPropsContext = React.createContext();
 
 export default class Document extends Component {
 
@@ -19,15 +18,13 @@ export default class Document extends Component {
   }
 
   render () {
-    return <DocumentPropsContext.Provider value={this.props}>
-      <html>
-        <Head />
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </html>
-    </DocumentPropsContext.Provider>
+    return <html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </html>
   }
 }
 
@@ -149,7 +146,7 @@ export class NextScript extends Component {
   }
 
   getDynamicChunks () {
-    const { dynamicImports, assetPrefix } = this.context._documentProps
+    const { dynamicImports, assetPrefix } = this.context
     return dynamicImports.map((bundle) => {
       return <script
         async
@@ -162,7 +159,7 @@ export class NextScript extends Component {
   }
 
   getScripts () {
-    const { assetPrefix, files } = this.context._documentProps
+    const { assetPrefix, files } = this.context
     if(!files || files.length === 0) {
       return null
     }
@@ -189,7 +186,7 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context
     const { page, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(page)
 
@@ -200,7 +197,7 @@ export class NextScript extends Component {
     return <Fragment>
       {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />) : null}
       {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} dangerouslySetInnerHTML={{
-        __html: NextScript.getInlineScriptSource(this.context._documentProps)
+        __html: NextScript.getInlineScriptSource(this.context)
       }} />}
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
