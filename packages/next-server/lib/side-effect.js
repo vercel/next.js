@@ -36,7 +36,9 @@ export default function withSideEffect (reduceComponentsToState, handleStateChan
       // Expose canUseDOM so tests can monkeypatch it
       static canUseDOM = typeof window !== 'undefined'
 
+      // Both of these are needed for React 16/17 interop
       static contextTypes = WrappedComponent.contextTypes
+      static contextType = WrappedComponent.contextType
 
       // Try to use displayName of wrapped component
       static displayName = `SideEffect(${getDisplayName(WrappedComponent)})`
