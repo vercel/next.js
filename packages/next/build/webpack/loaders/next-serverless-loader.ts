@@ -27,8 +27,8 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteErrorPath,
     generateEtags
   }: Query = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
-  const buildManifest = join(distDir, BUILD_MANIFEST)
-  const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST)
+  const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
+  const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(/\\/g, '/')
   return `
     import {parse} from 'url'
     import {renderToHTML} from 'next-server/dist/server/render';

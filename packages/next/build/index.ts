@@ -33,7 +33,7 @@ export default async function build (dir: string, conf = null, target: string|nu
   const pages: Result = pagePaths.reduce((result: Result, pagePath): Result => {
     let page = `/${pagePath.replace(new RegExp(`\\.+(${config.pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
     page = page === '' ? '/' : page
-    result[page] = pagePath.replace(/\\/g, '/')
+    result[page] = pagePath
     return result
   }, {})
 
@@ -44,15 +44,15 @@ export default async function build (dir: string, conf = null, target: string|nu
     // we have to use a private alias
     const pagesDirAlias = 'private-next-pages'
     const dotNextDirAlias = 'private-dot-next'
-    const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']) : 'next/dist/pages/_app'
-    const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']) : 'next/dist/pages/_document'
-    const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']) : 'next/dist/pages/_error'
+    const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
+    const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
+    const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
     Object.keys(pages).forEach(async (page) => {
       if (page === '/_app' || page === '/_document') {
         return
       }
 
-      const absolutePagePath = join(pagesDirAlias, pages[page])
+      const absolutePagePath = join(pagesDirAlias, pages[page]).replace(/\\/g, '/')
       const bundleFile = page === '/' ? '/index.js' : `${page}.js`
       const query = stringify({
         page,
