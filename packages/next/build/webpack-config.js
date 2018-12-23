@@ -185,8 +185,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
-      '__private-next-pages': path.join(dir, 'pages'),
-      '__private-dot-next': distDir
+      'private-next-pages': path.join(dir, 'pages'),
+      'private-dot-next': distDir
     },
     mainFields: isServer ? ['main'] : ['browser', 'module', 'main']
   }
