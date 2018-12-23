@@ -8,10 +8,9 @@ const Fragment = React.Fragment || function Fragment ({ children }) {
   return <div>{children}</div>
 }
 
+const DocumentPropsContext = React.createContext();
+
 export default class Document extends Component {
-  static childContextTypes = {
-    _documentProps: PropTypes.any
-  }
 
   static getInitialProps ({ renderPage }) {
     const { html, head } = renderPage()
@@ -19,25 +18,21 @@ export default class Document extends Component {
     return { html, head, styles }
   }
 
-  getChildContext () {
-    return { _documentProps: this.props }
-  }
-
   render () {
-    return <html>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </html>
+    return <DocumentPropsContext.Provider value={this.props}>
+      <html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </html>
+    </DocumentPropsContext.Provider>
   }
 }
 
 export class Head extends Component {
-  static contextTypes = {
-    _documentProps: PropTypes.any
-  }
+  static contextType = DocumentPropsContext
 
   static propTypes = {
     nonce: PropTypes.string,
@@ -45,7 +40,7 @@ export class Head extends Component {
   }
 
   getCssLinks () {
-    const { assetPrefix, files } = this.context._documentProps
+    const { assetPrefix, files } = this.context
     if(!files || files.length === 0) {
       return null
     }
@@ -67,7 +62,7 @@ export class Head extends Component {
   }
 
   getPreloadDynamicChunks () {
-    const { dynamicImports, assetPrefix } = this.context._documentProps
+    const { dynamicImports, assetPrefix } = this.context
     return dynamicImports.map((bundle) => {
       return <link
         rel='preload'
@@ -81,7 +76,7 @@ export class Head extends Component {
   }
 
   getPreloadMainLinks () {
-    const { assetPrefix, files } = this.context._documentProps
+    const { assetPrefix, files } = this.context
     if(!files || files.length === 0) {
       return null
     }
@@ -104,7 +99,7 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context
     const { page, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(page)
 
@@ -135,12 +130,10 @@ export class Head extends Component {
 }
 
 export class Main extends Component {
-  static contextTypes = {
-    _documentProps: PropTypes.any
-  }
+  static contextType = DocumentPropsContext
 
   render () {
-    const { html } = this.context._documentProps
+    const { html } = this.context
     return (
       <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
     )
@@ -148,9 +141,7 @@ export class Main extends Component {
 }
 
 export class NextScript extends Component {
-  static contextTypes = {
-    _documentProps: PropTypes.any
-  }
+  static contextType = DocumentPropsContext
 
   static propTypes = {
     nonce: PropTypes.string,
