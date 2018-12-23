@@ -1,0 +1,19 @@
+{
+  "name": "with-jest-react-testing-library",
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "react-testing-library": "^5.4.2",
+    "jest": "^23.6.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}
