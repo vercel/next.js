@@ -19,10 +19,10 @@
     "@types/react-dom": "^16.0.4",
     "@zeit/next-typescript": "1.1.0",
     "babel-core": "^7.0.0-bridge.0",
-    "babel-jest": "23.0.1",
+    "babel-jest": "^23.6.0",
     "enzyme": "^3.3.0",
     "enzyme-adapter-react-16": "^1.1.1",
-    "jest": "^23.1.0",
+    "jest": "^23.6.0",
     "react-addons-test-utils": "^15.6.2",
     "react-test-renderer": "^16.2.0",
     "typescript": "^2.7.2"
