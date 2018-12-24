@@ -11,7 +11,8 @@ const defaultConfig = {
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
   generateEtags: true,
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['jsx', 'js'],
+  target: 'server'
 }
 
 export default function loadConfig (phase, dir, customConfig) {

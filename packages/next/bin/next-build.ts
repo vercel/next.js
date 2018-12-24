@@ -8,9 +8,6 @@ import { printAndExit } from '../server/lib/utils'
 const args = arg({
   // Types
   '--help': Boolean,
-  '--lambdas': Boolean,
-  '--target': String,
-
   // Aliases
   '-h': '--help'
 })
@@ -30,7 +27,6 @@ if (args['--help']) {
 }
 
 const dir = resolve(args._[0] || '.')
-const target = args['--target'] ? args['--target'] : null // null means the default is used
 
 // Check if the provided directory exists
 if (!existsSync(dir)) {
@@ -47,7 +43,7 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-build(dir, null, target)
+build(dir)
   .catch((err) => {
     console.error('> Build error occurred')
     printAndExit(err)

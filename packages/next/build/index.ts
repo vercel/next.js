@@ -17,13 +17,12 @@ function collectPages (directory: string, pageExtensions: string[]): Promise<str
   return glob(`**/*.+(${pageExtensions.join('|')})`, {cwd: directory})
 }
 
-export default async function build (dir: string, conf = null, target: string|null = null): Promise<void> {
+export default async function build (dir: string, conf = null): Promise<void> {
   if (!await isWriteable(dir)) {
     throw new Error('> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
   }
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const actualTarget = target || config.target || 'server' // default to `server` when target is not defined in any way
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
   const distDir = join(dir, config.distDir)
   const pagesDir = join(dir, 'pages')
@@ -38,7 +37,7 @@ export default async function build (dir: string, conf = null, target: string|nu
   }, {})
 
   let entrypoints
-  if (actualTarget === 'serverless') {
+  if (config.target === 'serverless') {
     const serverlessEntrypoints: any = {}
     // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
     // we have to use a private alias
@@ -72,12 +71,12 @@ export default async function build (dir: string, conf = null, target: string|nu
   }
 
   const configs: any = await Promise.all([
-    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: actualTarget }),
-    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: actualTarget, entrypoints })
+    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: config.target }),
+    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: config.target, entrypoints })
   ])
 
   let result: CompilerResult = {warnings: [], errors: []}
-  if (actualTarget === 'serverless') {
+  if (config.target === 'serverless') {
     const clientResult = await runCompiler([configs[0]])
     const serverResult = await runCompiler([configs[1]])
     result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
