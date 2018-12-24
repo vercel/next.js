@@ -37,6 +37,7 @@ export default function withSideEffect (reduceComponentsToState, handleStateChan
       static canUseDOM = typeof window !== 'undefined'
 
       static contextTypes = WrappedComponent.contextTypes
+      static contextType = WrappedComponent.contextType
 
       // Try to use displayName of wrapped component
       static displayName = `SideEffect(${getDisplayName(WrappedComponent)})`
