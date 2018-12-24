@@ -27,9 +27,9 @@ export default class App extends Component {
   }
 
   render () {
-    const {router, Component, pageProps} = this.props
+    const {router, Component, pageProps, headManager} = this.props
     const url = createUrl(router)
-    return <HeadManagerContext.Provider value={this.props.headManager}>
+    return <HeadManagerContext.Provider value={headManager}>
       <Container>
         <Component {...pageProps} url={url} />
       </Container>
