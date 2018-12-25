@@ -17,7 +17,7 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('Serverless', () => {
   beforeAll(async () => {
-    await nextBuild(appDir, ['--target', 'serverless'])
+    await nextBuild(appDir)
     server = await startServer()
     appPort = server.address().port
   })
