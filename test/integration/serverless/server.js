@@ -16,6 +16,9 @@ module.exports = function start (port = 0) {
     app.get('/fetch', (req, res) => {
       require('./.next/serverless/pages/fetch.js').default(req, res)
     })
+    app.get('/dynamic', (req, res) => {
+      require('./.next/serverless/pages/dynamic.js').default(req, res)
+    })
     const server = new http.Server(app)
 
     server.listen(port, (err) => {
