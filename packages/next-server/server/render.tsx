@@ -1,6 +1,5 @@
 import {IncomingMessage, ServerResponse} from 'http'
 import { ParsedUrlQuery } from 'querystring'
-import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import Router from '../lib/router/router'
@@ -8,7 +7,6 @@ import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
-import { SERVER_DIRECTORY } from 'next-server/constants'
 import {getDynamicImportBundles, Manifest as ReactLoadableManifest, ManifestItem} from './get-dynamic-import-bundles'
 import {getPageFiles, BuildManifest} from './get-page-files'
 
@@ -55,7 +53,7 @@ type RenderOpts = {
   err?: Error|null,
   nextExport?: boolean,
   dev?: boolean,
-  buildManifest: BuildManifest, 
+  buildManifest: BuildManifest,
   reactLoadableManifest: ReactLoadableManifest,
   Component: React.ComponentType,
   Document: React.ComponentType,
