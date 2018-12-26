@@ -84,11 +84,11 @@
     "tty-aware-progress": "1.0.3",
     "unfetch": "3.0.0",
     "url": "0.11.0",
-    "webpack": "4.26.0",
+    "webpack": "4.28.2",
     "webpack-dev-middleware": "3.4.0",
-    "webpack-hot-middleware": "2.22.3",
-    "webpack-sources": "1.2.0",
-    "webpackbar": "2.6.3",
+    "webpack-hot-middleware": "2.24.3",
+    "webpack-sources": "1.3.0",
+    "webpackbar": "3.1.4 ",
     "ws": "6.1.2"
   },
   "peerDependencies": {
@@ -110,7 +110,7 @@
     "@types/fresh": "0.5.0",
     "@types/nanoid": "1.2.0",
     "@types/node-fetch": "2.1.4",
-    "@types/webpack": "4.4.20",
+    "@types/webpack": "4.4.22",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
   },
