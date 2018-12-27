@@ -10,6 +10,7 @@ import {runCompiler, CompilerResult} from './compiler'
 import globModule from 'glob'
 import {promisify} from 'util'
 import {stringify} from 'querystring'
+import {ServerlessLoaderQuery} from './webpack/loaders/next-serverless-loader'
 
 const glob = promisify(globModule)
 
@@ -53,7 +54,7 @@ export default async function build (dir: string, conf = null): Promise<void> {
 
       const absolutePagePath = join(pagesDirAlias, pages[page]).replace(/\\/g, '/')
       const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-      const query = stringify({
+      const serverlessLoaderOptions: ServerlessLoaderQuery = {
         page,
         absolutePagePath,
         absoluteAppPath,
@@ -63,8 +64,8 @@ export default async function build (dir: string, conf = null): Promise<void> {
         buildId,
         assetPrefix: config.assetPrefix,
         generateEtags: config.generateEtags
-      })
-      serverlessEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${query}!`
+      }
+      serverlessEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
     })
 
     entrypoints = serverlessEntrypoints

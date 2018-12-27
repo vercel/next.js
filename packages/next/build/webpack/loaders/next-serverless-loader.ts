@@ -3,7 +3,7 @@ import {join} from 'path'
 import {parse} from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 
-type Query = {
+export type ServerlessLoaderQuery = {
   page: string,
   distDir: string,
   absolutePagePath: string,
@@ -26,7 +26,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteDocumentPath,
     absoluteErrorPath,
     generateEtags
-  }: Query = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
+  }: ServerlessLoaderQuery = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(/\\/g, '/')
   return `
