@@ -33,6 +33,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/Hello!/)
   })
 
+  it('should render the page with same dynamic import', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic-two')
+    expect(html).toMatch(/Hello!/)
+  })
+
   it('should render correctly when importing isomorphic-unfetch', async () => {
     const url = `http://localhost:${appPort}/fetch`
     const res = await fetch(url)

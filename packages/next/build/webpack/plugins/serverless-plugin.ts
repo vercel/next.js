@@ -1,4 +1,5 @@
 import {Compiler} from 'webpack'
+import GraphHelpers from 'webpack/lib/GraphHelpers'
 /**
  * Makes sure there are no dynamic chunks when the target is serverless
  * The dynamic chunks are integrated back into their parent chunk
@@ -16,7 +17,9 @@ export class ServerlessPlugin {
               const dynamicChunks = chunk.getAllAsyncChunks()
               if (dynamicChunks.size !== 0) {
                 for (const dynamicChunk of dynamicChunks) {
-                  chunk.integrate(dynamicChunk, 'nextserverless')
+                  for (const module of dynamicChunk.modulesIterable) {
+                    GraphHelpers.connectChunkAndModule(chunk, module)
+                  }
                 }
               }
             }
