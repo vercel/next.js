@@ -8,7 +8,7 @@ import GraphHelpers from 'webpack/lib/GraphHelpers'
 export class ServerlessPlugin {
   apply (compiler: Compiler) {
     compiler.hooks.compilation.tap('ServerlessPlugin', compilation => {
-      compilation.hooks.optimizeChunksAdvanced.tap(
+      compilation.hooks.optimizeChunksBasic.tap(
         'ServerlessPlugin',
         chunks => {
           chunks.forEach((chunk) => {
