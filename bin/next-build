@@ -3,7 +3,9 @@ const { resolve, join } = require('path')
 const { existsSync } = require('fs')
 const parseArgs = require('minimist')
 const del = require('del')
-const build = require('../node/server/build').default
+
+const { build } = require('@healthline/six-million')
+const createWebpack = require('../node/server/webpack').default
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
 
@@ -38,7 +40,7 @@ if (!existsSync(dir)) {
 }
 
 del(join(dir, '.next'), { force: true })
-  .then(() => build(dir, argv.s))
+  .then(() => build(dir, argv.s, createWebpack))
   .catch((err) => {
     console.error(err)
     process.exit(1)

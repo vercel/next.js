@@ -7,18 +7,14 @@ const defaultConfig = {
   configOrigin: 'default'
 }
 
-export default function getConfig (dir, customConfig) {
+export default function getConfig (dir) {
   if (!cache.has(dir)) {
-    cache.set(dir, loadConfig(dir, customConfig))
+    cache.set(dir, loadConfig(dir))
   }
   return cache.get(dir)
 }
 
-function loadConfig (dir, customConfig) {
-  if (customConfig && typeof customConfig === 'object') {
-    customConfig.configOrigin = 'server'
-    return withDefaults(customConfig)
-  }
+function loadConfig (dir) {
   const path = join(dir, 'next.config.js')
 
   let userConfig = {}

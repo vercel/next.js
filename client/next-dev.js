@@ -1,6 +1,6 @@
 import 'react-hot-loader/patch'
 import initNext, * as next from './'
-import initWebpackHMR from './webpack-hot-middleware-client'
+import initWebpackHMR from '@healthline/six-million/webpack-hot-middleware-client'
 
 window.next = next
 

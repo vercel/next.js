@@ -1,4 +1,2 @@
-const { build, watch } = require('./node/babel')
-
-exports.build = build
-exports.watch = watch
+// Legacy compatibility. Can be removed when hapi-server is updated.
+module.exports = require('@healthline/six-million').babel

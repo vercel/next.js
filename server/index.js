@@ -1,9 +1,10 @@
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
+import { HotReloader } from '@healthline/six-million'
 import fs from 'fs'
 import send from 'send'
-
 import Boom from 'boom'
+
 import Router from './router'
 import getConfig from './config'
 import { serializeError } from './render'
@@ -65,8 +66,8 @@ export default class Server {
     this.dev = dev
     this.quiet = quiet
     this.router = new Router()
-    this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, conf }) : null
     this.config = getConfig(this.dir, conf)
+    this.hotReloader = dev ? this.getHotReloader() : null
     if (!dev && !fs.existsSync(resolve(dir, '.next', 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${'.next'}' directory! Try building your app with 'next build' before starting the server.`)
       process.exit(1)
@@ -85,9 +86,9 @@ export default class Server {
     this.defineRoutes()
   }
 
-  getHotReloader (dir, options) {
-    const HotReloader = require('./hot-reloader').default
-    return new HotReloader(dir, options)
+  getHotReloader () {
+    const createWebpack = require('./webpack').default
+    return new HotReloader(this.dir, createWebpack, { query: this.quiet, config: this.config })
   }
 
   handleRequest (req, res, parsedUrl) {
@@ -110,7 +111,7 @@ export default class Server {
 
   async prepare () {
     if (this.hotReloader) {
-      await this.hotReloader.start()
+      await this.hotReloader.start(['_error', '_document'])
     }
   }
 
