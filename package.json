@@ -11,6 +11,7 @@
     "bin",
     "node",
     "browser",
+    "babel.js",
     "link.js",
     "head.js",
     "document.js",
