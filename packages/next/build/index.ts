@@ -47,6 +47,17 @@ export default async function build (dir: string, conf = null): Promise<void> {
     const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
     const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
     const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
+
+    const defaultOptions = {
+      absoluteAppPath,
+      absoluteDocumentPath,
+      absoluteErrorPath,
+      distDir: dotNextDirAlias,
+      buildId,
+      assetPrefix: config.assetPrefix,
+      generateEtags: config.generateEtags
+    }
+
     Object.keys(pages).forEach(async (page) => {
       if (page === '/_app' || page === '/_document') {
         return
@@ -54,19 +65,15 @@ export default async function build (dir: string, conf = null): Promise<void> {
 
       const absolutePagePath = join(pagesDirAlias, pages[page]).replace(/\\/g, '/')
       const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-      const serverlessLoaderOptions: ServerlessLoaderQuery = {
-        page,
-        absolutePagePath,
-        absoluteAppPath,
-        absoluteDocumentPath,
-        absoluteErrorPath,
-        distDir: dotNextDirAlias,
-        buildId,
-        assetPrefix: config.assetPrefix,
-        generateEtags: config.generateEtags
-      }
+      const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultOptions}
       serverlessEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
     })
+
+    const errorPage = join('pages', '/_error.js')
+    if (!serverlessEntrypoints[errorPage]) {
+      const serverlessLoaderOptions: ServerlessLoaderQuery = {page: '/_error', absolutePagePath: 'next/dist/pages/_error', ...defaultOptions}
+      serverlessEntrypoints[errorPage] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
+    }
 
     entrypoints = serverlessEntrypoints
   }

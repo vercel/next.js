@@ -22,6 +22,9 @@ module.exports = function start (port = 0) {
     app.get('/dynamic-two', (req, res) => {
       require('./.next/serverless/pages/dynamic-two.js').default(req, res)
     })
+    app.get('/404', (req, res) => {
+      require('./.next/serverless/pages/_error.js').default(req, res)
+    })
     const server = new http.Server(app)
 
     server.listen(port, (err) => {

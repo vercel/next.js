@@ -50,6 +50,7 @@ const nextServerlessLoader: loader.Loader = function () {
       }
       const parsedUrl = parse(req.url, true)
       try {
+        ${page === '/_error' ? `res.statusCode = 404` : ''}
         const result = await renderToHTML(req, res, "${page}", parsedUrl.query, {
           ...options,
           Component

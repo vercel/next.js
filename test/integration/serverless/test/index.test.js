@@ -38,6 +38,11 @@ describe('Serverless', () => {
     expect(html).toMatch(/Hello!/)
   })
 
+  it('should render 404', async () => {
+    const html = await renderViaHTTP(appPort, '/404')
+    expect(html).toMatch(/This page could not be found/)
+  })
+
   it('should render correctly when importing isomorphic-unfetch', async () => {
     const url = `http://localhost:${appPort}/fetch`
     const res = await fetch(url)
