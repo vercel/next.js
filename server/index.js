@@ -1,6 +1,5 @@
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl } from 'url'
-import { HotReloader } from '@healthline/six-million'
 import fs from 'fs'
 import send from 'send'
 import Boom from 'boom'
@@ -87,6 +86,7 @@ export default class Server {
   }
 
   getHotReloader () {
+    const { HotReloader } = require('@healthline/six-million')
     const createWebpack = require('./webpack').default
     return new HotReloader(this.dir, createWebpack, { query: this.quiet, config: this.config })
   }
