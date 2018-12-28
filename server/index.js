@@ -1,70 +1,13 @@
-import { resolve, join, sep } from 'path'
-import { parse as parseUrl } from 'url'
+import { resolve, join } from 'path'
 import fs from 'fs'
-import send from 'send'
-import Boom from 'boom'
 
-import Router from './router'
 import getConfig from './config'
-import { serializeError } from './render'
-
-function serveStatic (req, res, path) {
-  res.setHeader('Cache-Control', 'no-store, must-revalidate')
-
-  return new Promise((resolve, reject) => {
-    send(req, path)
-      .on('directory', () => {
-      // We don't allow directories to be read.
-        const err = new Error('No directory access')
-        err.code = 'ENOENT'
-        reject(err)
-      })
-      .on('error', reject)
-      .pipe(res)
-      .on('finish', resolve)
-  })
-}
-
-async function renderScriptError (req, res, page, error, customFields, { dev }) {
-  page = page.replace(/(\/index)?\.js/, '') || '/'
-
-  // Asks CDNs and others to not to cache the errored page
-  res.setHeader('Cache-Control', 'no-store, must-revalidate')
-  // prevent XSS attacks by filtering the page before printing it.
-  page = JSON.stringify(page)
-  res.setHeader('Content-Type', 'text/javascript')
-
-  if (error.code === 'ENOENT') {
-    res.end(`
-      window.__NEXT_REGISTER_PAGE(${page}, function() {
-        var error = new Error('Page does not exist: ${page}')
-        error.statusCode = 404
-
-        return { error: error }
-      })
-    `)
-    return
-  }
-
-  const errorJson = {
-    ...serializeError(dev, error),
-    ...customFields
-  }
-
-  res.end(`
-    window.__NEXT_REGISTER_PAGE('${page}', function() {
-      var error = ${JSON.stringify(errorJson)}
-      return { error: error }
-    })
-  `)
-}
 
 export default class Server {
   constructor ({ dir = '.', dev = false, quiet = false, conf = null } = {}) {
     this.dir = resolve(dir)
     this.dev = dev
     this.quiet = quiet
-    this.router = new Router()
     this.config = getConfig(this.dir, conf)
     this.hotReloader = dev ? this.getHotReloader() : null
     if (!dev && !fs.existsSync(resolve(dir, '.next', 'BUILD_ID'))) {
@@ -81,32 +24,12 @@ export default class Server {
       buildId,
       entrypoints: !dev ? this.readEntrypoints() : undefined
     }
-
-    this.defineRoutes()
   }
 
   getHotReloader () {
     const { HotReloader } = require('@healthline/six-million')
     const createWebpack = require('./webpack').default
     return new HotReloader(this.dir, createWebpack, { query: this.quiet, config: this.config })
-  }
-
-  handleRequest (req, res, parsedUrl) {
-    // Parse url if parsedUrl not provided
-    if (!parsedUrl || typeof parsedUrl !== 'object') {
-      parsedUrl = parseUrl(req.url, true)
-    }
-
-    res.statusCode = 200
-    return this.run(req, res, parsedUrl)
-      .catch((err) => {
-        if (!this.quiet) console.error(err)
-        throw err
-      })
-  }
-
-  getRequestHandler () {
-    return this.handleRequest.bind(this)
   }
 
   async prepare () {
@@ -121,87 +44,29 @@ export default class Server {
     }
   }
 
-  defineRoutes () {
-    const routes = {
-      '/_next/:hash/pages/:path*': async (req, res, params) => {
-        const paths = params.path || ['']
-        const page = `/${paths.join('/')}`
-        const filename = `${params.hash}/pages${page.replace(/\.js$/, '')}.js`
-
-        if (this.dev && page !== '/_error.js') {
-          try {
-            await this.hotReloader.ensurePage(page)
-          } catch (error) {
-            return renderScriptError(req, res, page, error, {}, this.renderOpts)
-          }
-
-          const compilationErr = await this.getCompilationError()
-          if (compilationErr) {
-            const customFields = { statusCode: 500 }
-            return renderScriptError(req, res, page, compilationErr, customFields, this.renderOpts)
-          }
-        }
-
-        try {
-          const realPath = join(this.dir, '.next', 'bundles', filename)
-          await serveStatic(req, res, realPath)
-        } catch (err) {
-          if (err.code === 'ENOENT') {
-            renderScriptError(req, res, page, err, {}, this.renderOpts)
-            return
-          }
-
-          throw err
-        }
-      }
-    }
-
-    for (const method of ['GET', 'HEAD']) {
-      for (const p of Object.keys(routes)) {
-        this.router.add(method, p, routes[p])
-      }
-    }
-  }
-
-  async run (req, res, parsedUrl) {
+  defineRoutes (server) {
     if (this.hotReloader) {
-      await this.hotReloader.run(req, res)
+      server.route({
+        method: 'GET',
+        path: '/_next/webpack-hmr',
+        handler: async ({ raw, url }, h) => {
+          const { req, res } = raw
+          res.statusCode = 200
+          await this.hotReloader.run(req, res)
+          return h.close
+        }
+      })
     } else {
-      throw new Error(`Don't use this in prod...`)
+      server.route({
+        method: 'GET',
+        path: '/_next/{path*}',
+        handler: {
+          directory: {
+            path: '.next/bundles/'
+          }
+        }
+      })
     }
-
-    const fn = this.router.match(req, res, parsedUrl)
-    if (fn) {
-      await fn()
-      return
-    }
-
-    if (req.method === 'GET' || req.method === 'HEAD') {
-      throw Boom.notFound()
-    } else {
-      throw Boom.notImplemented()
-    }
-  }
-
-  serveStatic (req, res, path) {
-    if (!this.isServeableUrl(path)) {
-      throw Boom.notFound()
-    }
-
-    return serveStatic(req, res, path)
-  }
-
-  isServeableUrl (path) {
-    const resolved = resolve(path)
-    if (
-      resolved.indexOf(join(this.dir, '.next') + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0
-    ) {
-      // Seems like the user is trying to traverse the filesystem.
-      return false
-    }
-
-    return true
   }
 
   readBuildId () {

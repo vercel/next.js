@@ -43,24 +43,19 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "boom": "7.2.2",
     "del": "3.0.0",
     "htmlescape": "1.1.1",
-    "loader-utils": "1.1.0",
     "minimist": "1.2.0",
-    "path-match": "1.2.4",
     "prop-types": "15.6.2",
     "querystring": "0.2.0",
-    "react-hot-loader": "4.3.12",
-    "send": "0.16.2",
-    "slash": "2.0.0",
-    "strip-ansi": "5.0.0",
-    "url": "0.11.0"
+    "react-hot-loader": "4.6.3",
+    "strip-ansi": "5.0.0"
   },
   "devDependencies": {
-    "@healthline/six-million": "1.0.0",
+    "@healthline/six-million": "1.0.3",
     "babel-eslint": "10.0.1",
-    "lint-staged": "4.2.3",
+    "lint-staged": "8.1.0",
+    "node-notifier": "5.3.0",
     "react": "16.2.0",
     "react-dom": "16.2.0",
     "standard": "12.0.1"
