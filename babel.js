@@ -15,7 +15,7 @@ module.exports = (context, opts = {}) => {
           'next/head': isServer ? '@kpdecker/next/node/lib/head' : '@kpdecker/next/browser/lib/head',
           'next/page-loader': isServer ? '@kpdecker/next/node/lib/page-loader' : '@kpdecker/next/browser/lib/page-loader',
           'next/document': isServer ? '@kpdecker/next/node/server/document' : undefined,
-          'next/router': isServer ? '@kpdecker/next/node/lib/router' : '@kpdecker/next/browser/lib/router'
+          'next/router': isServer ? '@kpdecker/next/node/server/router' : '@kpdecker/next/browser/client/router'
         }
       }
     ])

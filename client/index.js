@@ -1,11 +1,10 @@
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
-import { createRouter } from '../lib/router'
-import EventEmitter from '../lib/EventEmitter'
+import mitt from 'mitt'
 import App from '../lib/app'
 import { getURL } from '../lib/utils'
 import { waitForPage } from '../lib/page-loader'
-import { subscribe } from '../lib/router/router'
+import router, { createRouter } from './router'
 
 const {
   __NEXT_DATA__: {
@@ -26,10 +25,9 @@ const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
-export let router
 export let ErrorComponent
 
-export const emitter = new EventEmitter()
+export const emitter = mitt()
 
 export default () => {
   return Promise.all([
@@ -40,13 +38,10 @@ export default () => {
       ErrorComponent = _ErrorComponent
       Component = Component || ErrorComponent
 
-      router = createRouter(pathname, query, asPath, {
+      createRouter(pathname, query, asPath, {
         Component,
-        ErrorComponent,
         err
-      })
-
-      subscribe(({ Component, props, hash, err }) => {
+      }, ({ Component, props, hash, err }) => {
         render({ Component, props, err, hash, emitter })
       })
 

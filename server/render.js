@@ -2,9 +2,9 @@ import { join } from 'path'
 import { createElement } from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import stripAnsi from 'strip-ansi'
-import { Router } from '../lib/router'
 import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
+import RouterState from './router'
 
 export async function doPageRender (req, res, pathname, query, initialProps, {
   dev,
@@ -41,7 +41,7 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
   const app = createElement(App, {
     Component: enhancer(Component),
     props,
-    router: new Router(pathname, query, asPath)
+    router: new RouterState(pathname, query, asPath)
   })
 
   let html
