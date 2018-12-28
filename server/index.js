@@ -56,17 +56,26 @@ export default class Server {
           return h.close
         }
       })
-    } else {
-      server.route({
-        method: 'GET',
-        path: '/_next/{path*}',
-        handler: {
-          directory: {
-            path: '.next/bundles/'
-          }
-        }
-      })
     }
+
+    server.route({
+      method: 'GET',
+      path: '/_next/{path*}',
+      handler: {
+        directory: {
+          path: '.next/bundles/'
+        }
+      }
+    })
+    server.route({
+      method: 'GET',
+      path: '/_static/{path*}',
+      handler: {
+        directory: {
+          path: '.next/static/'
+        }
+      }
+    })
   }
 
   readBuildId () {
