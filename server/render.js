@@ -6,6 +6,8 @@ import Head, { defaultHead } from '../lib/head'
 import App from '../lib/app'
 import RouterState from './router'
 
+export const $HEAD = Symbol.for('head')
+
 export async function doPageRender (req, res, pathname, query, initialProps, {
   dev,
   err,
@@ -34,7 +36,7 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
       pathname,
       query,
       props,
-      head: renderToString(defaultHead)
+      head: props[$HEAD] || renderToString(defaultHead)
     }
   }
 
@@ -55,7 +57,7 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
       html = renderToString(app)
     }
   } finally {
-    head = Head.rewind() || defaultHead
+    head = props[$HEAD] || renderToString(Head.rewind() || defaultHead)
   }
 
   return {
@@ -63,7 +65,7 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
     pathname,
     query,
     props,
-    head: renderToString(head),
+    head,
     html,
     publicPath,
     errorHtml
