@@ -10,7 +10,7 @@ import {serveStatic} from './serve-static'
 import Router, {route, Route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
-import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME, BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
+import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
 import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import {loadComponents} from './load-components'
@@ -32,7 +32,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     staticMarkup: boolean,
-    distDir: string,
     buildId: string,
     generateEtags: boolean,
     runtimeConfig?: {[key: string]: any},
@@ -54,7 +53,6 @@ export default class Server {
     this.buildId = this.readBuildId()
     this.renderOpts = {
       staticMarkup,
-      distDir: this.distDir,
       buildId: this.buildId,
       generateEtags
     }
