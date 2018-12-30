@@ -8,6 +8,7 @@ import ErrorDebug from './error-debug'
 export default class DevServer extends Server {
   constructor (options) {
     super(options)
+    this.wsPort = options.wsPort
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
@@ -52,7 +53,7 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
-    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
+    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId, wsPort: this.wsPort })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
