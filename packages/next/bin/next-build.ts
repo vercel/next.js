@@ -12,7 +12,7 @@ const args = arg({
 
   // Aliases
   '-h': '--help',
-  '-l': '--lambdas'
+  '-l': '--lambdas',
 })
 
 if (args['--help']) {
@@ -47,6 +47,7 @@ if (!existsSync(join(dir, 'pages'))) {
 
 build(dir, null, lambdas)
   .catch((err) => {
+    // tslint:disable-next-line
     console.error('> Build error occured')
     printAndExit(err)
   })

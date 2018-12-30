@@ -4,7 +4,7 @@ import send from 'send'
 // since send doesn't support wasm yet
 send.mime.define({ 'application/wasm': ['wasm'] })
 
-export function serveStatic (req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
+export function serveStatic(req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
   return new Promise((resolve, reject) => {
     send(req, path)
       .on('directory', () => {
