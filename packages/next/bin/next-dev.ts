@@ -9,13 +9,11 @@ const args = arg({
   // Types
   '--help': Boolean,
   '--port': Number,
-  '--websocket': Number,
   '--hostname': String,
 
   // Aliases
   '-h': '--help',
   '-p': '--port',
-  '-w': '--websocket',
   '-H': '--hostname'
 })
 
@@ -33,10 +31,9 @@ if (args['--help']) {
     You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration.
 
     Options
-      --port, -p       A port number on which to start the application
-      --websocket, -w  A port number on which to start dynamic entries websocket
-      --hostname, -H   Hostname on which to start the application
-      --help, -h       Displays this message
+      --port, -p      A port number on which to start the application
+      --hostname, -H  Hostname on which to start the application
+      --help, -h      Displays this message
   `)
   process.exit(0)
 }
@@ -57,7 +54,7 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 const port = args['--port'] || 3000
-startServer({dir, dev: true, wsPort: args['--websocket']}, port, args['--hostname'])
+startServer({dir, dev: true}, port, args['--hostname'])
   .then(async (app) => {
     console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
     await app.prepare()

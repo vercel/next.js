@@ -84,9 +84,8 @@ function erroredPages (compilation, options = {enhanceName: (name) => name}) {
 }
 
 export default class HotReloader {
-  constructor (dir, { config, buildId, wsPort } = {}) {
+  constructor (dir, { config, buildId } = {}) {
     this.buildId = buildId
-    this.wsPort = wsPort
     this.dir = dir
     this.middlewares = []
     this.webpackDevMiddleware = null
@@ -174,8 +173,9 @@ export default class HotReloader {
     await this.clean()
 
     this.wsPort = await new Promise((resolve, reject) => {
+      const { devWebSocketPort } = this.config
       // create dynamic entries WebSocket
-      this.wss = new WebSocket.Server({ port: this.wsPort || 0 }, function (err) {
+      this.wss = new WebSocket.Server({ port: devWebSocketPort || 0 }, function (err) {
         if (err) {
           return reject(err)
         }
