@@ -46,7 +46,6 @@ function render(renderElementToString: (element: React.ReactElement<any>) => str
 
 type RenderOpts = {
   staticMarkup: boolean,
-  distDir: string,
   buildId: string,
   runtimeConfig?: {[key: string]: any},
   assetPrefix?: string,
