@@ -14,7 +14,8 @@ const defaultConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['jsx', 'js'],
-  target: 'server'
+  target: 'server',
+  devWebSocketPort: 0
 }
 
 function normalizeConfig (phase, config) {
