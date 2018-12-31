@@ -13,10 +13,11 @@ const args = arg({
   // Aliases
   '-h': '--help',
   '-p': '--port',
-  '-H': '--hostname'
+  '-H': '--hostname',
 })
 
 if (args['--help']) {
+  // tslint:disable-next-line
   console.log(`
     Description
       Starts the application in production mode.
@@ -42,10 +43,12 @@ const dir = resolve(args._[0] || '.')
 const port = args['--port'] || 3000
 startServer({dir}, port, args['--hostname'])
   .then(async (app) => {
+    // tslint:disable-next-line
     console.log(`> Ready on http://${args['--hostname']}:${port}`)
     await app.prepare()
   })
   .catch((err) => {
+    // tslint:disable-next-line
     console.error(err)
     process.exit(1)
   })

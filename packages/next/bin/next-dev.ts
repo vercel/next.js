@@ -14,10 +14,11 @@ const args = arg({
   // Aliases
   '-h': '--help',
   '-p': '--port',
-  '-H': '--hostname'
+  '-H': '--hostname',
 })
 
 if (args['--help']) {
+  // tslint:disable-next-line
   console.log(`
     Description
       Starts the application in development mode (hot-code reloading, error
@@ -56,6 +57,7 @@ if (!existsSync(join(dir, 'pages'))) {
 const port = args['--port'] || 3000
 startServer({dir, dev: true}, port, args['--hostname'])
   .then(async (app) => {
+    // tslint:disable-next-line
     console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
     await app.prepare()
   })
@@ -63,18 +65,19 @@ startServer({dir, dev: true}, port, args['--hostname'])
     if (err.code === 'EADDRINUSE') {
       let errorMessage = `Port ${port} is already in use.`
       const pkgAppPath = require('find-up').sync('package.json', {
-        cwd: dir
+        cwd: dir,
       })
       const appPackage = require(pkgAppPath)
       if (appPackage.scripts) {
-        const nextScript = Object.entries(appPackage.scripts).find(scriptLine => scriptLine[1] === 'next')
+        const nextScript = Object.entries(appPackage.scripts).find((scriptLine) => scriptLine[1] === 'next')
         if (nextScript) {
           errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
         }
       }
-
+      // tslint:disable-next-line
       console.error(errorMessage)
     } else {
+      // tslint:disable-next-line
       console.error(err)
     }
     process.nextTick(() => process.exit(1))

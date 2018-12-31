@@ -9,7 +9,7 @@ const args = arg({
   // Types
   '--help': Boolean,
   // Aliases
-  '-h': '--help'
+  '-h': '--help',
 })
 
 if (args['--help']) {
@@ -45,6 +45,7 @@ if (!existsSync(join(dir, 'pages'))) {
 
 build(dir)
   .catch((err) => {
+    // tslint:disable-next-line
     console.error('> Build error occurred')
     printAndExit(err)
   })
