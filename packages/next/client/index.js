@@ -5,7 +5,6 @@ import { createRouter } from 'next/router'
 import EventEmitter from 'next-server/dist/lib/event-emitter'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
-import * as asset from 'next-server/asset'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
@@ -38,8 +37,6 @@ const prefix = assetPrefix || ''
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
 __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
-// Initialize next/asset with the assetPrefix
-asset.setAssetPrefix(prefix)
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},

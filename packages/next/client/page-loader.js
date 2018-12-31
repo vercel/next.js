@@ -14,7 +14,6 @@ function supportsPreload (list) {
 }
 
 const hasPreload = supportsPreload(document.createElement('link').relList)
-const webpackModule = module
 
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
@@ -107,21 +106,24 @@ export default class PageLoader {
       }
     }
 
-    // Wait for webpack to become idle if it's not.
-    // More info: https://github.com/zeit/next.js/pull/1511
-    if (webpackModule && webpackModule.hot && webpackModule.hot.status() !== 'idle') {
-      console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
+    if (process.env.NODE_ENV !== 'production') {
+      // Wait for webpack to become idle if it's not.
+      // More info: https://github.com/zeit/next.js/pull/1511
+      if (module.hot && module.hot.status() !== 'idle') {
+        console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
 
-      const check = (status) => {
-        if (status === 'idle') {
-          webpackModule.hot.removeStatusHandler(check)
-          register()
+        const check = (status) => {
+          if (status === 'idle') {
+            module.hot.removeStatusHandler(check)
+            register()
+          }
         }
+        module.hot.status(check)
+        return
       }
-      webpackModule.hot.status(check)
-    } else {
-      register()
     }
+
+    register()
   }
 
   async prefetch (route) {
