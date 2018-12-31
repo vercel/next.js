@@ -16,10 +16,11 @@ const args = arg({
   // Aliases
   '-h': '--help',
   '-s': '--silent',
-  '-o': '--outdir'
+  '-o': '--outdir',
 })
 
 if (args['--help']) {
+  // tslint:disable-next-line
   console.log(`
     Description
       Exports the application for production deployment
@@ -57,7 +58,7 @@ const options = {
   silent: args['--silent'] || false,
   threads: args['--threads'],
   concurrency: args['--concurrency'],
-  outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out')
+  outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
 }
 
 exportApp(dir, options)

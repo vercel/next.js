@@ -21,7 +21,7 @@ type ServerConstructor = {
   dir?: string,
   staticMarkup?: boolean,
   quiet?: boolean,
-  conf?: NextConfig
+  conf?: NextConfig,
 }
 
 export default class Server {
@@ -35,11 +35,11 @@ export default class Server {
     buildId: string,
     generateEtags: boolean,
     runtimeConfig?: {[key: string]: any},
-    assetPrefix?: string
+    assetPrefix?: string,
   }
   router: Router
 
-  public constructor ({ dir = '.', staticMarkup = false, quiet = false, conf = null }: ServerConstructor = {}) {
+  public constructor({ dir = '.', staticMarkup = false, quiet = false, conf = null }: ServerConstructor = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -54,7 +54,7 @@ export default class Server {
     this.renderOpts = {
       staticMarkup,
       buildId: this.buildId,
-      generateEtags
+      generateEtags,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -66,7 +66,7 @@ export default class Server {
     // Initialize next/config with the environment configuration
     envConfig.setConfig({
       serverRuntimeConfig,
-      publicRuntimeConfig
+      publicRuntimeConfig,
     })
 
     const routes = this.generateRoutes()
@@ -74,16 +74,17 @@ export default class Server {
     this.setAssetPrefix(assetPrefix)
   }
 
-  private currentPhase (): string {
+  private currentPhase(): string {
     return PHASE_PRODUCTION_SERVER
   }
 
   private logError(...args: any): void {
-    if(this.quiet) return
+    if (this.quiet) return
+    // tslint:disable-next-line
     console.error(...args)
   }
 
-  private handleRequest (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+  private handleRequest(req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
       const url: any = req.url
@@ -104,26 +105,26 @@ export default class Server {
       })
   }
 
-  public getRequestHandler () {
+  public getRequestHandler() {
     return this.handleRequest.bind(this)
   }
 
-  public setAssetPrefix (prefix?: string) {
+  public setAssetPrefix(prefix?: string) {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
     asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
   // Backwards compatibility
-  public async prepare (): Promise<void> {}
+  public async prepare(): Promise<void> {}
 
   // Backwards compatibility
-  private async close (): Promise<void> {}
+  private async close(): Promise<void> {}
 
-  private setImmutableAssetCacheControl (res: ServerResponse) {
+  private setImmutableAssetCacheControl(res: ServerResponse) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private generateRoutes (): Route[] {
+  private generateRoutes(): Route[] {
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -136,14 +137,14 @@ export default class Server {
           }
           const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
           await this.serveStatic(req, res, p, parsedUrl)
-        }
+        },
       },
       {
         match: route('/_next/:path*'),
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
-        }
+        },
       },
       {
         // It's very important to keep this route's param optional.
@@ -154,8 +155,8 @@ export default class Server {
         fn: async (req, res, params, parsedUrl) => {
           const p = join(this.dir, 'static', ...(params.path || []))
           await this.serveStatic(req, res, p, parsedUrl)
-        }
-      }
+        },
+      },
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
@@ -167,18 +168,18 @@ export default class Server {
         match: route('/:path*'),
         fn: async (req, res, _params, parsedUrl) => {
           const { pathname, query } = parsedUrl
-          if(!pathname) {
+          if (!pathname) {
             throw new Error('pathname is undefined')
           }
           await this.render(req, res, pathname, query, parsedUrl)
-        }
+        },
       })
     }
 
     return routes
   }
 
-  private async run (req: IncomingMessage, res: ServerResponse, parsedUrl: UrlWithParsedQuery) {
+  private async run(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlWithParsedQuery) {
     try {
       const fn = this.router.match(req, res, parsedUrl)
       if (fn) {
@@ -206,7 +207,7 @@ export default class Server {
     return sendHTML(req, res, html, {generateEtags})
   }
 
-  public async render (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+  public async render(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     const url: any = req.url
     if (isInternalUrl(url)) {
       return this.handleRequest(req, res, parsedUrl)
@@ -233,7 +234,7 @@ export default class Server {
     return renderToHTML(req, res, pathname, query, {...result, ...opts})
   }
 
-  public async renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
+  public async renderToHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
     try {
       // To make sure the try/catch is executed
       const html = await this.renderToHTMLWithComponents(req, res, pathname, query, this.renderOpts)
@@ -250,30 +251,30 @@ export default class Server {
     }
   }
 
-  public async renderError (err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<void> {
+  public async renderError(err: Error|null, req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<void> {
     res.setHeader('Cache-Control', 'no-cache, no-store, max-age=0, must-revalidate')
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
-    if(html === null) {
+    if (html === null) {
       return
     }
     return this.sendHTML(req, res, html)
   }
 
-  public async renderErrorToHTML (err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery = {}) {
+  public async renderErrorToHTML(err: Error|null, req: IncomingMessage, res: ServerResponse, _pathname: string, query: ParsedUrlQuery = {}) {
     return this.renderToHTMLWithComponents(req, res, '/_error', query, {...this.renderOpts, err})
   }
 
-  public async render404 (req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+  public async render404(req: IncomingMessage, res: ServerResponse, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
-    if(!pathname) {
+    if (!pathname) {
       throw new Error('pathname is undefined')
     }
     res.statusCode = 404
     return this.renderError(null, req, res, pathname, query)
   }
 
-  public async serveStatic (req: IncomingMessage, res: ServerResponse, path: string, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+  public async serveStatic(req: IncomingMessage, res: ServerResponse, path: string, parsedUrl?: UrlWithParsedQuery): Promise<void> {
     if (!this.isServeableUrl(path)) {
       return this.render404(req, res, parsedUrl)
     }
@@ -289,7 +290,7 @@ export default class Server {
     }
   }
 
-  private isServeableUrl (path: string): boolean {
+  private isServeableUrl(path: string): boolean {
     const resolved = resolve(path)
     if (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
@@ -302,7 +303,7 @@ export default class Server {
     return true
   }
 
-  private readBuildId (): string {
+  private readBuildId(): string {
     const buildIdFile = join(this.distDir, BUILD_ID_FILE)
     try {
       return fs.readFileSync(buildIdFile, 'utf8').trim()
