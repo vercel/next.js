@@ -1,6 +1,3 @@
-
-const DEFAULT_TITLE = ''
-
 const DOMAttributeNames = {
   acceptCharset: 'accept-charset',
   className: 'class',
@@ -39,12 +36,10 @@ export default class HeadManager {
   }
 
   updateTitle (component) {
-    let title
+    let title = ''
     if (component) {
       const { children } = component.props
       title = typeof children === 'string' ? children : children.join('')
-    } else {
-      title = DEFAULT_TITLE
     }
     if (title !== document.title) document.title = title
   }
