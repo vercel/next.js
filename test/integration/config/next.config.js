@@ -5,9 +5,9 @@ const path = require('path')
 module.exports = withCSS(withSass({
   onDemandEntries: {
     // Make sure entries are not getting disposed.
-    maxInactiveAge: 1000 * 60 * 60
+    maxInactiveAge: 1000 * 60 * 60,
+    websocketPort: 3001
   },
-  devWebSocketPort: 3001,
   cssModules: true,
   serverRuntimeConfig: {
     mySecret: 'secret'

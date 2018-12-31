@@ -20,7 +20,7 @@ export default (context, render) => {
       browser.close()
     })
 
-    it('should use devWebSocketPort for on-demand-entries WebSocket', async () => {
+    it('should use websocketPort for on-demand-entries WebSocket', async () => {
       const res = await fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping')
       const wsPort = res.headers.get('port')
       expect(wsPort).toBe(context.devWebSocketPort + '')

@@ -173,9 +173,9 @@ export default class HotReloader {
     await this.clean()
 
     this.wsPort = await new Promise((resolve, reject) => {
-      const { devWebSocketPort } = this.config
-      // create dynamic entries WebSocket
-      this.wss = new WebSocket.Server({ port: devWebSocketPort }, function (err) {
+      const { websocketPort } = this.config.onDemandEntries
+      // create on-demand-entries WebSocket
+      this.wss = new WebSocket.Server({ port: websocketPort }, function (err) {
         if (err) {
           return reject(err)
         }

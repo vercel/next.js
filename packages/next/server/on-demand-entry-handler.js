@@ -33,8 +33,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   dev,
   reload,
   pageExtensions,
-  maxInactiveAge = 1000 * 60,
-  pagesBufferLength = 2,
+  maxInactiveAge,
+  pagesBufferLength,
   wsPort
 }) {
   const {compilers} = multiCompiler

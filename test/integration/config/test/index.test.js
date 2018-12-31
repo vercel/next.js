@@ -25,8 +25,8 @@ describe('Configuration', () => {
     // update next.config with found devWebSocketPort (must come before launchApp)
     context.nextConfig = new File(join(__dirname, '../next.config.js'))
     context.nextConfig.replace(
-      'devWebSocketPort: 3001,',
-      `devWebSocketPort: ${context.devWebSocketPort},`
+      'websocketPort: 3001',
+      `websocketPort: ${context.devWebSocketPort}`
     )
 
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
