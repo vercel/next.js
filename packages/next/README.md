@@ -1292,7 +1292,9 @@ module.exports = {
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
-  }
+    // optionally configure a port for the onDemandEntries WebSocket, not needed by default
+    websocketPort: 3001,
+  },
 }
 ```
 
