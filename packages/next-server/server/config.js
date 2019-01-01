@@ -14,7 +14,12 @@ const defaultConfig = {
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['jsx', 'js'],
-  target: 'server'
+  target: 'server',
+  onDemandEntries: {
+    maxInactiveAge: 60 * 1000,
+    pagesBufferLength: 2,
+    websocketPort: 0
+  }
 }
 
 function normalizeConfig (phase, config) {
@@ -39,6 +44,12 @@ export default function loadConfig (phase, dir, customConfig) {
     const userConfig = normalizeConfig(phase, userConfigModule.default || userConfigModule)
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
+    }
+    if (userConfig.onDemandEntries) {
+      userConfig.onDemandEntries = {
+        ...defaultConfig.onDemandEntries,
+        ...userConfig.onDemandEntries
+      }
     }
     return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfig}
   }

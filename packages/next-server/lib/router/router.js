@@ -39,7 +39,7 @@ export default class Router {
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
       // we have to register the initial route upon initialization
-      this.changeState('replaceState', format({ pathname, query }), getURL())
+      this.changeState('replaceState', format({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
     }

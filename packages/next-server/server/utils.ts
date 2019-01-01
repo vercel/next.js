@@ -2,10 +2,10 @@ import { BLOCKED_PAGES } from 'next-server/constants'
 
 const internalPrefixes = [
   /^\/_next\//,
-  /^\/static\//
+  /^\/static\//,
 ]
 
-export function isInternalUrl (url: string): boolean {
+export function isInternalUrl(url: string): boolean {
   for (const prefix of internalPrefixes) {
     if (prefix.test(url)) {
       return true
@@ -15,6 +15,6 @@ export function isInternalUrl (url: string): boolean {
   return false
 }
 
-export function isBlockedPage (pathname: string): boolean {
+export function isBlockedPage(pathname: string): boolean {
   return (BLOCKED_PAGES.indexOf(pathname) !== -1)
 }
