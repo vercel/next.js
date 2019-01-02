@@ -179,7 +179,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  // the response might be finshed on the getInitialProps call
+  // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]
