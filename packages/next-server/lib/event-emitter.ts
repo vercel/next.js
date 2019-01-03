@@ -1,4 +1,4 @@
-/**
+/*
 MIT License
 
 Copyright (c) Jason Miller (https://jasonformat.com/)
@@ -14,43 +14,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-export default function mitt (all) {
-  all = all || Object.create(null)
+type Handler = (...evts: any[]) => void
+
+export default function mitt() {
+  const all: { [s: string]: Handler[] } = Object.create(null)
 
   return {
-    /**
-     * Register an event handler for the given type.
-     *
-     * @param  {String} type  Type of event to listen for, or `"*"` for all events
-     * @param  {Function} handler Function to call in response to given event
-     * @memberOf mitt
-     */
-    on (type, handler) {
+    on(type: string, handler: Handler) {
       (all[type] || (all[type] = [])).push(handler)
     },
 
-    /**
-     * Remove an event handler for the given type.
-     *
-     * @param  {String} type  Type of event to unregister `handler` from, or `"*"`
-     * @param  {Function} handler Handler function to remove
-     * @memberOf mitt
-     */
-    off (type, handler) {
+    off(type: string, handler: Handler) {
       if (all[type]) {
+        // tslint:disable-next-line:no-bitwise
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
       }
     },
 
-    /**
-     * Invoke all handlers for the given type.
-     *
-     * @param {String} type  The event type to invoke
-     * @param {Any} [evt]  Any value (object is recommended and powerful), passed to each handler
-     * @memberOf mitt
-     */
-    emit (type, ...evts) {
-      (all[type] || []).slice().map((handler) => { handler(...evts) })
-    }
+    emit(type: string, ...evts: any[]) {
+      (all[type] || []).slice().map((handler: Handler) => { handler(...evts) })
+    },
   }
 }
