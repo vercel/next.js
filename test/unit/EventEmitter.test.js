@@ -60,41 +60,6 @@ describe('EventEmitter', () => {
       ev.emit('sample')
       expect(cnt).toBe(1)
     })
-
-    it('should throw when try to add the same listener multiple times', () => {
-      const ev = mitt()
-      const cb = () => {}
-
-      ev.on('sample', cb)
-
-      const run = () => ev.on('sample', cb)
-
-      expect(run).toThrow(/Listener already exists for router event: `sample`/)
-    })
-
-    it('should support chaining like the nodejs EventEmitter', () => {
-      const emitter = mitt()
-      let calledA = false
-      let calledB = false
-
-      emitter
-        .on('a', () => { calledA = true })
-        .on('b', () => { calledB = true })
-
-      emitter.emit('a')
-      emitter.emit('b')
-
-      expect(calledA).toEqual(true)
-      expect(calledB).toEqual(true)
-    })
-
-    it('should return an indication on emit if there were listeners', () => {
-      const emitter = mitt()
-      emitter.on('a', () => { })
-
-      expect(emitter.emit('a')).toEqual(true)
-      expect(emitter.emit('b')).toEqual(false)
-    })
   })
 
   describe('Without a listener', () => {
