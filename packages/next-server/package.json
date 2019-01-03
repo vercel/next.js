@@ -30,7 +30,6 @@
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
-    "mitt": "1.1.3",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
     "send": "0.16.1",

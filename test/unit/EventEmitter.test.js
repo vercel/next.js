@@ -1,16 +1,16 @@
 /* eslint-env jest */
-import mitt from 'mitt'
+import EventEmitter from 'next-server/dist/lib/event-emitter'
 
 describe('EventEmitter', () => {
   describe('With listeners', () => {
     it('should listen to a event', (done) => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       ev.on('sample', done)
       ev.emit('sample')
     })
 
     it('should listen to multiple listeners', () => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       let cnt = 0
 
       ev.on('sample', () => { cnt += 1 })
@@ -22,7 +22,7 @@ describe('EventEmitter', () => {
     })
 
     it('should listen to multiple events', () => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       const data = []
       const cb = (name) => { data.push(name) }
 
@@ -36,7 +36,7 @@ describe('EventEmitter', () => {
     })
 
     it('should support multiple arguments', () => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       let data
 
       ev.on('sample', (...args) => { data = args })
@@ -46,7 +46,7 @@ describe('EventEmitter', () => {
     })
 
     it('should possible to stop listening an event', () => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       let cnt = 0
       const cb = () => { cnt += 1 }
 
@@ -62,7 +62,7 @@ describe('EventEmitter', () => {
     })
 
     it('should throw when try to add the same listener multiple times', () => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       const cb = () => {}
 
       ev.on('sample', cb)
@@ -73,7 +73,7 @@ describe('EventEmitter', () => {
     })
 
     it('should support chaining like the nodejs EventEmitter', () => {
-      const emitter = mitt()
+      const emitter = new EventEmitter()
       let calledA = false
       let calledB = false
 
@@ -89,7 +89,7 @@ describe('EventEmitter', () => {
     })
 
     it('should return an indication on emit if there were listeners', () => {
-      const emitter = mitt()
+      const emitter = new EventEmitter()
       emitter.on('a', () => { })
 
       expect(emitter.emit('a')).toEqual(true)
@@ -99,7 +99,7 @@ describe('EventEmitter', () => {
 
   describe('Without a listener', () => {
     it('should not fail to emit', () => {
-      const ev = mitt()
+      const ev = new EventEmitter()
       ev.emit('aaaa', 10, 20)
     })
   })

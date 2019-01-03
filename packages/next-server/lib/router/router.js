@@ -1,12 +1,12 @@
 /* global __NEXT_DATA__ */
 
 import { parse, format } from 'url'
-import mitt from 'mitt'
+import EventEmitter from '../event-emitter'
 import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
 
 export default class Router {
-  static events = mitt()
+  static events = new EventEmitter()
 
   constructor (pathname, query, as, { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}) {
     // represents the current component key
@@ -131,7 +131,7 @@ export default class Router {
     // This makes sure we only use pathname + query + hash, to mirror `asPath` coming from the server.
     const as = window.location.pathname + window.location.search + window.location.hash
 
-    Router.events.emit('routeChangeStart', {url})
+    Router.events.emit('routeChangeStart', url)
     const routeInfo = await this.getRouteInfo(route, pathname, query, as)
     const { error } = routeInfo
 
@@ -142,11 +142,11 @@ export default class Router {
     this.notify(routeInfo)
 
     if (error) {
-      Router.events.emit('routeChangeError', {error, url})
+      Router.events.emit('routeChangeError', error, url)
       throw error
     }
 
-    Router.events.emit('routeChangeComplete', {url})
+    Router.events.emit('routeChangeComplete', url)
   }
 
   back () {
@@ -178,10 +178,10 @@ export default class Router {
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
     if (this.onlyAHashChange(as)) {
-      Router.events.emit('hashChangeStart', {as})
+      Router.events.emit('hashChangeStart', as)
       this.changeState(method, url, as)
       this.scrollToHash(as)
-      Router.events.emit('hashChangeComplete', {as})
+      Router.events.emit('hashChangeComplete', as)
       return true
     }
 
@@ -200,7 +200,7 @@ export default class Router {
     const { shallow = false } = options
     let routeInfo = null
 
-    Router.events.emit('routeChangeStart', {as})
+    Router.events.emit('routeChangeStart', as)
 
     // If shallow === false and other conditions met, we reuse the
     // existing routeInfo for this route.
@@ -217,18 +217,18 @@ export default class Router {
       return false
     }
 
-    Router.events.emit('beforeHistoryChange', {as})
+    Router.events.emit('beforeHistoryChange', as)
     this.changeState(method, url, as, options)
     const hash = window.location.hash.substring(1)
 
     this.set(route, pathname, query, as, { ...routeInfo, hash })
 
     if (error) {
-      Router.events.emit('routeChangeError', {error, as})
+      Router.events.emit('routeChangeError', error, as)
       throw error
     }
 
-    Router.events.emit('routeChangeComplete', {as})
+    Router.events.emit('routeChangeComplete', as)
     return true
   }
 
