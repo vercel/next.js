@@ -1,22 +1,19 @@
-// @flow
-// An event handler can take an optional event argument
-// and should not return a value
-// type EventHandler = (event?: any) => void;
-// type WildCardEventHandler = (type: string, event?: any) => void
+/**
+MIT License
 
-// An array of all currently registered event handlers for a type
-// type EventHandlerList = Array<EventHandler>;
-// type WildCardEventHandlerList = Array<WildCardEventHandler>;
-// A map of event types and their corresponding event handlers.
-// type EventHandlerMap = {
-//   '*'?: WildCardEventHandlerList,
-//   [type: string]: EventHandlerList,
-// };
+Copyright (c) Jason Miller (https://jasonformat.com/)
 
-/** Mitt: Tiny (~200b) functional event emitter / pubsub.
- *  @name mitt
- *  @returns {Mitt}
- */
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+// This file is based on https://github.com/developit/mitt/blob/v1.1.3/src/index.js
+// It's been edited for the needs of this script
+// See the LICENSE at the top of the file
+
 export default function mitt (all) {
   all = all || Object.create(null)
 
@@ -47,7 +44,6 @@ export default function mitt (all) {
 
     /**
      * Invoke all handlers for the given type.
-     * If present, `"*"` handlers are invoked after type-matched handlers.
      *
      * @param {String} type  The event type to invoke
      * @param {Any} [evt]  Any value (object is recommended and powerful), passed to each handler
