@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import mitt from 'next-server/dist/lib/event-emitter'
+import mitt from 'next-server/dist/lib/mitt'
 
 describe('EventEmitter', () => {
   describe('With listeners', () => {
