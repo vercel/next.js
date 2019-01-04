@@ -2,10 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from 'next/router'
-import EventEmitter from 'next-server/dist/lib/event-emitter'
+import mitt from 'next-server/dist/lib/mitt'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
-import * as asset from 'next-server/asset'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
@@ -38,8 +37,6 @@ const prefix = assetPrefix || ''
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
 __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
-// Initialize next/asset with the assetPrefix
-asset.setAssetPrefix(prefix)
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
@@ -66,7 +63,7 @@ export let ErrorComponent
 let Component
 let App
 
-export const emitter = new EventEmitter()
+export const emitter = mitt()
 
 export default async ({
   webpackHMR: passedWebpackHMR
@@ -83,8 +80,11 @@ export default async ({
   try {
     Component = await pageLoader.loadPage(page)
 
-    if (typeof Component !== 'function') {
-      throw new Error(`The default export is not a React Component in page: "${page}"`)
+    if (process.env.NODE_ENV !== 'production') {
+      const { isValidElementType } = require('react-is')
+      if (!isValidElementType(Component)) {
+        throw new Error(`The default export is not a React Component in page: "${page}"`)
+      }
     }
   } catch (error) {
     // This catches errors like throwing in the top level of a module

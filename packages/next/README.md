@@ -62,6 +62,7 @@
     - [Configuring the onDemandEntries](#configuring-the-ondemandentries)
     - [Configuring extensions looked for when resolving pages in `pages`](#configuring-extensions-looked-for-when-resolving-pages-in-pages)
     - [Configuring the build ID](#configuring-the-build-id)
+    - [Configuring Next process script](#configuring-next-process-script)
   - [Customizing webpack config](#customizing-webpack-config)
   - [Customizing babel config](#customizing-babel-config)
   - [Exposing configuration to the server / client side](#exposing-configuration-to-the-server--client-side)
@@ -1137,7 +1138,7 @@ that need to wrap the application to properly work with server-rendering. 🚧
 ```js
 import Document from 'next/document'
 
-export default MyDocument extends Document {
+export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const originalRenderPage = ctx.renderPage
 
@@ -1195,15 +1196,15 @@ import fetch from 'isomorphic-unfetch'
 export default class Page extends React.Component {
   static async getInitialProps() {
     const res = await fetch('https://api.github.com/repos/zeit/next.js')
-    const statusCode = res.statusCode > 200 ? res.statusCode : false
+    const errorCode = res.statusCode > 200 ? res.statusCode : false
     const json = await res.json()
 
-    return { statusCode, stars: json.stargazers_count }
+    return { errorCode, stars: json.stargazers_count }
   }
 
   render() {
-    if (this.props.statusCode) {
-      return <Error statusCode={this.props.statusCode} />
+    if (this.props.errorCode) {
+      return <Error statusCode={this.props.errorCode} />
     }
 
     return (
@@ -1291,7 +1292,9 @@ module.exports = {
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
     pagesBufferLength: 2,
-  }
+    // optionally configure a port for the onDemandEntries WebSocket, not needed by default
+    websocketPort: 3001,
+  },
 }
 ```
 
@@ -1335,6 +1338,21 @@ module.exports = {
     return null
   }
 }
+```
+
+#### Configuring next process script
+
+You can pass any node arguments to `next` CLI command.
+
+```bash
+NODE_OPTIONS="--throw-deprecation" next
+NODE_OPTIONS="-r esm" next
+```
+
+`--inspect` is a special case since it binds to a port and can't double-bind to the child process the `next` CLI creates.
+
+```
+next start --inspect
 ```
 
 ### Customizing webpack config
@@ -1526,13 +1544,13 @@ module.exports = {
 
 Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
 
-If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can extend _document.js and specify the `crossOrigin` attribute on Head and NextScripts which is then used for all Next.js asset tags.
+If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
+
 ```js
-<Head crossOrigin="anonymous">...</Head>
-<body>
-   <Main/>
-   <NextScript crossOrigin="anonymous"/>
-</body>
+// next.config.js
+module.exports = {
+  crossOrigin: 'anonymous'
+}
 ```
 ## Production deployment
 

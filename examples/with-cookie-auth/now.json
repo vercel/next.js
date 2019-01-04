@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "name": "with-cookie-auth",
+  "builds": [
+    { "src": "www/package.json", "use": "@now/next" },
+    { "src": "api/*.js", "use": "@now/node" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/www/$1" }
+  ]
+}

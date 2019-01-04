@@ -8,8 +8,9 @@ class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor (isServer, initialData = {}) {
-    this.lastUpdate = initialData.lastUpdate != null ? initialData.lastUpdate : Date.now()
+  constructor(isServer, initialData = {}) {
+    this.lastUpdate =
+      initialData.lastUpdate != null ? initialData.lastUpdate : Date.now()
     this.light = !!initialData.light
   }
 
@@ -23,9 +24,8 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-
 let store = null
-export function initializeStore (initialData) {
+export function initializeStore(initialData) {
   // Always make a new store if server, otherwise state is shared between requests
   if (isServer) {
     return new Store(isServer, initialData)

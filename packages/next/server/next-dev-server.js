@@ -3,12 +3,16 @@ import { join } from 'path'
 import HotReloader from './hot-reloader'
 import {route} from 'next-server/dist/server/router'
 import {PHASE_DEVELOPMENT_SERVER} from 'next-server/constants'
+import ErrorDebug from './error-debug'
 
 export default class DevServer extends Server {
   constructor (options) {
     super(options)
-    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     this.renderOpts.dev = true
+    this.renderOpts.ErrorDebug = ErrorDebug
+    this.devReady = new Promise(resolve => {
+      this.setDevReady = resolve
+    })
   }
 
   currentPhase () {
@@ -48,16 +52,21 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
+    this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
+    this.setDevReady()
   }
 
   async close () {
-    await this.hotReloader.stop()
+    if (this.hotReloader) {
+      await this.hotReloader.stop()
+    }
   }
 
   async run (req, res, parsedUrl) {
+    await this.devReady
     const {finished} = await this.hotReloader.run(req, res, parsedUrl)
     if (finished) {
       return

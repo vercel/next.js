@@ -1,5 +1,5 @@
 /* global document */
-import EventEmitter from 'next-server/dist/lib/event-emitter'
+import mitt from 'next-server/dist/lib/mitt'
 
 // smaller version of https://gist.github.com/igrigorik/a02f2359f3bc50ca7a9c
 function supportsPreload (list) {
@@ -14,7 +14,6 @@ function supportsPreload (list) {
 }
 
 const hasPreload = supportsPreload(document.createElement('link').relList)
-const webpackModule = module
 
 export default class PageLoader {
   constructor (buildId, assetPrefix) {
@@ -23,7 +22,7 @@ export default class PageLoader {
 
     this.pageCache = {}
     this.prefetchCache = new Set()
-    this.pageRegisterEvents = new EventEmitter()
+    this.pageRegisterEvents = mitt()
     this.loadingRoutes = {}
   }
 
@@ -83,6 +82,7 @@ export default class PageLoader {
 
     const script = document.createElement('script')
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
+    script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
       const error = new Error(`Error when loading route: ${route}`)
@@ -106,21 +106,24 @@ export default class PageLoader {
       }
     }
 
-    // Wait for webpack to become idle if it's not.
-    // More info: https://github.com/zeit/next.js/pull/1511
-    if (webpackModule && webpackModule.hot && webpackModule.hot.status() !== 'idle') {
-      console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
+    if (process.env.NODE_ENV !== 'production') {
+      // Wait for webpack to become idle if it's not.
+      // More info: https://github.com/zeit/next.js/pull/1511
+      if (module.hot && module.hot.status() !== 'idle') {
+        console.log(`Waiting for webpack to become "idle" to initialize the page: "${route}"`)
 
-      const check = (status) => {
-        if (status === 'idle') {
-          webpackModule.hot.removeStatusHandler(check)
-          register()
+        const check = (status) => {
+          if (status === 'idle') {
+            module.hot.removeStatusHandler(check)
+            register()
+          }
         }
+        module.hot.status(check)
+        return
       }
-      webpackModule.hot.status(check)
-    } else {
-      register()
     }
+
+    register()
   }
 
   async prefetch (route) {
@@ -131,12 +134,21 @@ export default class PageLoader {
     }
     this.prefetchCache.add(scriptRoute)
 
+    // Inspired by quicklink, license: https://github.com/GoogleChromeLabs/quicklink/blob/master/LICENSE
+    // Don't prefetch if the user is on 2G / Don't prefetch if Save-Data is enabled
+    if ('connection' in navigator) {
+      if ((navigator.connection.effectiveType || '').indexOf('2g') !== -1 || navigator.connection.saveData) {
+        return
+      }
+    }
+
     // Feature detection is used to see if preload is supported
     // If not fall back to loading script tags before the page is loaded
     // https://caniuse.com/#feat=link-rel-preload
     if (hasPreload) {
       const link = document.createElement('link')
       link.rel = 'preload'
+      link.crossOrigin = process.crossOrigin
       link.href = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
       link.as = 'script'
       document.head.appendChild(link)

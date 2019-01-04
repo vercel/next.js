@@ -14,8 +14,6 @@ export default class extends React.PureComponent {
     }
   }
   render () {
-    return (
-      <p>Check the console for the Service Worker registration status.</p>
-    )
+    return <p>Check the console for the Service Worker registration status.</p>
   }
 }

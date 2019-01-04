@@ -1,11 +1,11 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
-import { parse } from 'url'
 import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
-import {normalizePagePath, pageNotFoundError} from 'next-server/dist/server/require'
+import {pageNotFoundError} from 'next-server/dist/server/require'
+import {normalizePagePath} from 'next-server/dist/server/normalize-page-path'
 import {createEntry} from '../build/webpack/utils'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
@@ -33,8 +33,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   dev,
   reload,
   pageExtensions,
-  maxInactiveAge = 1000 * 60,
-  pagesBufferLength = 2
+  maxInactiveAge,
+  pagesBufferLength,
+  wsPort
 }) {
   const {compilers} = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
@@ -218,6 +219,37 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
+    wsConnection (ws) {
+      ws.onmessage = ({ data }) => {
+        const page = normalizePage(data)
+        const entryInfo = entries[page]
+
+        // If there's no entry.
+        // Then it seems like an weird issue.
+        if (!entryInfo) {
+          const message = `Client pings, but there's no entry for page: ${page}`
+          console.error(message)
+          return sendJson(ws, { invalid: true })
+        }
+
+        sendJson(ws, { success: true })
+
+        // We don't need to maintain active state of anything other than BUILT entries
+        if (entryInfo.status !== BUILT) return
+
+        // If there's an entryInfo
+        if (!lastAccessPages.includes(page)) {
+          lastAccessPages.unshift(page)
+
+          // Maintain the buffer max length
+          if (lastAccessPages.length > pagesBufferLength) {
+            lastAccessPages.pop()
+          }
+        }
+        entryInfo.lastActiveTime = Date.now()
+      }
+    },
+
     middleware () {
       return (req, res, next) => {
         if (stopped) {
@@ -239,32 +271,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         } else {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
-          const { query } = parse(req.url, true)
-          const page = normalizePage(query.page)
-          const entryInfo = entries[page]
-
-          // If there's no entry.
-          // Then it seems like an weird issue.
-          if (!entryInfo) {
-            const message = `Client pings, but there's no entry for page: ${page}`
-            console.error(message)
-            sendJson(res, { invalid: true })
-            return
-          }
-
-          sendJson(res, { success: true })
-
-          // We don't need to maintain active state of anything other than BUILT entries
-          if (entryInfo.status !== BUILT) return
-
-          // If there's an entryInfo
-          if (!lastAccessPages.includes(page)) {
-            lastAccessPages.unshift(page)
-
-            // Maintain the buffer max length
-            if (lastAccessPages.length > pagesBufferLength) lastAccessPages.pop()
-          }
-          entryInfo.lastActiveTime = Date.now()
+          res.statusCode = 200
+          res.setHeader('port', wsPort)
+          res.end('200')
         }
       }
     }
@@ -310,10 +319,8 @@ export function normalizePage (page) {
   return unixPagePath.replace(/\/index$/, '')
 }
 
-function sendJson (res, payload) {
-  res.setHeader('Content-Type', 'application/json')
-  res.status = 200
-  res.end(JSON.stringify(payload))
+function sendJson (ws, data) {
+  ws.send(JSON.stringify(data))
 }
 
 // Make sure only one invalidation happens at a time

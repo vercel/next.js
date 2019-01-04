@@ -4,22 +4,15 @@ import { compose, withState, setStatic } from 'recompose'
 // it needs to be at the top of the compose
 const enhance = compose(
   // set the static async method getInitialProps
-  setStatic(
-    'getInitialProps',
-    async ({ req }) => {
-      const isServer = !!req
-      // log if we're server or client side
-      if (isServer) console.log('from server')
-      else console.log('from client')
-      // return a prop to know if we're server or client side
-      return { isServer }
-    }
-  ),
-  withState(
-    'counter',
-    'setCounter',
-    0
-  )
+  setStatic('getInitialProps', async ({ req }) => {
+    const isServer = !!req
+    // log if we're server or client side
+    if (isServer) console.log('from server')
+    else console.log('from client')
+    // return a prop to know if we're server or client side
+    return { isServer }
+  }),
+  withState('counter', 'setCounter', 0)
 )
 
 // our enhanced page component

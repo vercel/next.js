@@ -1,12 +1,12 @@
 /* global __NEXT_DATA__ */
 
 import { parse, format } from 'url'
-import EventEmitter from '../event-emitter'
+import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
 
 export default class Router {
-  static events = new EventEmitter()
+  static events = mitt()
 
   constructor (pathname, query, as, { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}) {
     // represents the current component key
@@ -39,7 +39,7 @@ export default class Router {
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
       // we have to register the initial route upon initialization
-      this.changeState('replaceState', format({ pathname, query }), getURL())
+      this.changeState('replaceState', format({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
     }
@@ -265,8 +265,11 @@ export default class Router {
 
       const { Component } = routeInfo
 
-      if (typeof Component !== 'function') {
-        throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+      if (process.env.NODE_ENV !== 'production') {
+        const { isValidElementType } = require('react-is')
+        if (!isValidElementType(Component)) {
+          throw new Error(`The default export is not a React Component in page: "${pathname}"`)
+        }
       }
 
       const ctx = { pathname, query, asPath: as }

@@ -5,6 +5,7 @@ import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import del from 'del'
 import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
+import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
 import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
 import {route} from 'next-server/dist/server/router'
@@ -162,13 +163,36 @@ export default class HotReloader {
     return del(join(this.dir, this.config.distDir), { force: true })
   }
 
+  addWsPort (configs) {
+    configs[0].plugins.push(new webpack.DefinePlugin({
+      'process.env.NEXT_WS_PORT': this.wsPort
+    }))
+  }
+
   async start () {
     await this.clean()
+
+    this.wsPort = await new Promise((resolve, reject) => {
+      const { websocketPort } = this.config.onDemandEntries
+      // create on-demand-entries WebSocket
+      this.wss = new WebSocket.Server({ port: websocketPort }, function (err) {
+        if (err) {
+          return reject(err)
+        }
+
+        const {port} = this.address()
+        if (!port) {
+          return reject(new Error('No websocket port could be detected'))
+        }
+        resolve(port)
+      })
+    })
 
     const configs = await Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
     ])
+    this.addWsPort(configs)
 
     const multiCompiler = webpack(configs)
 
@@ -179,6 +203,7 @@ export default class HotReloader {
   }
 
   async stop (webpackDevMiddleware) {
+    this.wss.close()
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
@@ -199,6 +224,7 @@ export default class HotReloader {
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
     ])
+    this.addWsPort(configs)
 
     const compiler = webpack(configs)
 
@@ -215,6 +241,7 @@ export default class HotReloader {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
+    this.wss.on('connection', this.onDemandEntries.wsConnection)
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
@@ -357,6 +384,7 @@ export default class HotReloader {
       dev: true,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
+      wsPort: this.wsPort,
       ...this.config.onDemandEntries
     })
 

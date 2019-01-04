@@ -11,8 +11,5 @@ const reduxDevTools =
     : f => f
 
 export const initStore = () => {
-  return createStore(
-    reducers,
-    compose(reduxDevTools)
-  )
+  return createStore(reducers, compose(reduxDevTools))
 }

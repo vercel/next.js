@@ -16,7 +16,12 @@ const UserForm = () => {
           <Input controlLabel='Email' type='email' title='user' name='email' />
         </Col>
         <Col lg={8} lgOffset={4}>
-          <Input controlLabel='Password' type='password' title='user' name='password' />
+          <Input
+            controlLabel='Password'
+            type='password'
+            title='user'
+            name='password'
+          />
         </Col>
       </Row>
     </div>

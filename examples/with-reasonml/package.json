@@ -10,12 +10,13 @@
   "dependencies": {
     "babel-plugin-bucklescript": "^0.5.3",
     "next": "latest",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "reason-react": "^0.5.3"
   },
   "devDependencies": {
-    "bs-platform": "^4.0.5",
-    "concurrently": "^4.0.1"
+    "@babel/core": "^7.2.2",
+    "bs-platform": "^4.0.14",
+    "concurrently": "^4.1.0"
   }
 }

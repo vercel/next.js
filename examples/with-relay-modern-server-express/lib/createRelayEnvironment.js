@@ -5,18 +5,13 @@ let relayEnvironment = null
 
 // Define a function that fetches the results of an operation (query/mutation/etc)
 // and returns its results as a Promise:
-function fetchQuery (
-  operation,
-  variables,
-  cacheConfig,
-  uploadables
-) {
+function fetchQuery (operation, variables, cacheConfig, uploadables) {
   // Because we implement the graphql server, the client must to point to the same host
   const relayServer = process.browser ? '' : process.env.RELAY_SERVER
   return fetch(`${relayServer}/graphql`, {
     method: 'POST',
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json'
     }, // Add authentication and other headers here
     body: JSON.stringify({

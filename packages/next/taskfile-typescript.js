@@ -6,11 +6,13 @@ try {
 
   module.exports = function (task) {
     task.plugin('typescript', { every: true }, function * (file, options) {
+      const {stripExtension} = options
       const opts = {
         fileName: file.base,
         compilerOptions: {
           ...config.compilerOptions,
-          ...options
+          ...options,
+          stripExtension: undefined // since it's an option of the typescript taskr plugin
         }
       }
 
@@ -19,7 +21,7 @@ try {
       if (ext) {
         // Replace `.ts` with `.js`
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
-        file.base = file.base.replace(extRegex, '.js')
+        file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
       }
 
       // compile output
@@ -35,7 +37,7 @@ try {
       }
 
       // update file's data
-      file.data = Buffer.from(result.outputText, 'utf8')
+      file.data = Buffer.from(result.outputText.replace(/process\.env\.NEXT_VERSION/, `"${require('./package.json').version}"`), 'utf8')
     })
   }
 } catch (err) {

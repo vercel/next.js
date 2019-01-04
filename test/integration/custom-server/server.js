@@ -10,6 +10,10 @@ const handleNextRequests = app.getRequestHandler()
 
 app.prepare().then(() => {
   const server = new http.Server((req, res) => {
+    if (req.url === '/no-query') {
+      return app.render(req, res, '/no-query')
+    }
+
     if (/setAssetPrefix/.test(req.url)) {
       app.setAssetPrefix(`http://127.0.0.1:${port}`)
     } else if (/setEmptyAssetPrefix/.test(req.url)) {

@@ -13,4 +13,4 @@ export default function initStore (initialState) {
   epicMiddleware.run(rootEpic)
 
   return store
-};
+}

@@ -7,10 +7,7 @@ import Head from 'next/head'
 import initApollo from './initApollo'
 
 function parseCookies (req, options = {}) {
-  return cookie.parse(
-    req ? req.headers.cookie || '' : document.cookie,
-    options
-  )
+  return cookie.parse(req ? req.headers.cookie || '' : document.cookie, options)
 }
 
 export default App => {
@@ -21,10 +18,17 @@ export default App => {
     }
 
     static async getInitialProps (ctx) {
-      const { Component, router, ctx: { req, res } } = ctx
-      const apollo = initApollo({}, {
-        getToken: () => parseCookies(req).token
-      })
+      const {
+        Component,
+        router,
+        ctx: { req, res }
+      } = ctx
+      const apollo = initApollo(
+        {},
+        {
+          getToken: () => parseCookies(req).token
+        }
+      )
 
       ctx.ctx.apolloClient = apollo
 

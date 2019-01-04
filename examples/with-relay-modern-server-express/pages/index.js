@@ -21,7 +21,10 @@ class Index extends Component {
   render (props) {
     return (
       <div>
-        <BlogPosts viewer={this.props.viewer} relayVariables={this.props.relayVariables} />
+        <BlogPosts
+          viewer={this.props.viewer}
+          relayVariables={this.props.relayVariables}
+        />
       </div>
     )
   }
@@ -29,7 +32,12 @@ class Index extends Component {
 
 export default withData(Index, {
   query: graphql`
-    query pages_indexQuery($after: String, $before: String, $first: Int, $last: Int) {
+    query pages_indexQuery(
+      $after: String
+      $before: String
+      $first: Int
+      $last: Int
+    ) {
       viewer(after: $after, before: $before, first: $first, last: $last) {
         ...BlogPosts_viewer
       }

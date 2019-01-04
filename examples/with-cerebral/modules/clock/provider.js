@@ -2,7 +2,7 @@
 const SECOND = 1000
 let timer = null
 
-export default (context) => {
+export default context => {
   context.clock = {
     start (signalPath) {
       const signal = context.controller.getSignal(signalPath)
@@ -10,7 +10,7 @@ export default (context) => {
       function tick () {
         const now = Date.now()
 
-        signal({now})
+        signal({ now })
 
         timer = setTimeout(tick, SECOND - (now % SECOND))
       }
