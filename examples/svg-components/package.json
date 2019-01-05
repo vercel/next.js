@@ -1,17 +1,1 @@
-{
-  "name": "svg-components",
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
-  },
-  "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
-  },
-  "devDependencies": {
-    "babel-plugin-inline-react-svg": "^1.0.1"
-  }
-}
+{"name":"svg-components","version":"1.0.0","scripts":{"dev":"next","build":"next build","start":"next start"},"dependencies":{"next":"latest","react":"^16.7.0","react-dom":"^16.7.0"},"devDependencies":{"babel-plugin-inline-react-svg":"^1.0.1"}}

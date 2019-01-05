@@ -1,13 +1,1 @@
-{
-  "dependencies": {
-    "next": "canary",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2"
-  },
-  "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "build-rust": "rustc +nightly --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm",
-    "start": "NODE_ENV=production node server.js"
-  }
-}
+{"dependencies":{"next":"canary","react":"^16.7.0","react-dom":"^16.7.0"},"scripts":{"dev":"node server.js","build":"next build","build-rust":"rustc +nightly --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm","start":"NODE_ENV=production node server.js"}}
