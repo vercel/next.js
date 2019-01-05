@@ -340,19 +340,9 @@ export default class HotReloader {
 
         const rootDir = join(CLIENT_STATIC_FILES_PATH, this.buildId, 'pages')
 
-        for (const n of new Set([...added, ...succeeded, ...failed])) {
+        for (const n of new Set([...added, ...succeeded, ...removed, ...failed])) {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)
-        }
-
-        const disposedRoutes = new Set()
-
-        if (removed.size !== 0) {
-          for (const n of removed) {
-            const route = toRoute(relative(rootDir, n))
-            this.send('dispose', route)
-            disposedRoutes.add(route)
-          }
         }
 
         let changedPageRoutes = []
@@ -362,15 +352,12 @@ export default class HotReloader {
           if (this.prevChunkHashes.get(n) === hash) continue
 
           const route = toRoute(relative(rootDir, n))
-
-          if (disposedRoutes.get(route)) continue
-
           changedPageRoutes.push(route)
         }
 
         // This means `/_app` is most likely included in the list, or a page was added/deleted in this compilation run.
         // This means we should filter out `/_app` because `/_app` will be re-rendered with the page reload.
-        if (added.size !== 0 || changedPageRoutes.length > 1) {
+        if (added.size !== 0 || removed.size !== 0 || changedPageRoutes.length > 1) {
           changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app' && route !== '/_document')
         }
 
