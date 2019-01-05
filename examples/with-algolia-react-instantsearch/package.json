@@ -10,8 +10,8 @@
     "prop-types": "^15.5.10",
     "qs": "^6.4.0",
     "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-instantsearch": "beta",
     "react-instantsearch-theme-algolia": "beta",
     "style-loader": "^0.17.0"

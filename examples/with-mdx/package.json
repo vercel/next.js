@@ -10,8 +10,8 @@
     "@mdx-js/mdx": "0.16.5",
     "@zeit/next-mdx": "1.2.0",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {},
   "license": "ISC"

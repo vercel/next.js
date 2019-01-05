@@ -11,8 +11,8 @@
     "next": "latest",
     "next-redux-wrapper": "^2.0.0",
     "prop-types": "^15.6.0",
-    "react": "^16.1.0",
-    "react-dom": "^16.1.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-redux": "^5.0.6",
     "redux": "^4.0.0",
     "reselect": "^3.0.1"

@@ -22,8 +22,8 @@
     "firebase-admin": "^6.3.0",
     "firebase-functions": "^2.1.0",
     "next": "^7.0.0",
-    "react": "^16.6.0",
-    "react-dom": "^16.6.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.2.0",

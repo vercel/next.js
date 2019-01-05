@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "style-sheet": "^3.0.1"
   },
   "author": "Giuseppe Gurgone",

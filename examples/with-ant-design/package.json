@@ -11,8 +11,8 @@
     "antd": "^3.9.2",
     "babel-plugin-import": "^1.9.1",
     "next": "latest",
-    "react": "^16.5.2",
-    "react-dom": "^16.5.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "license": "ISC"
 }

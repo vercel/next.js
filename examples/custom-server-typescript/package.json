@@ -7,8 +7,8 @@
   "dependencies": {
     "@zeit/next-typescript": "^1.1.0",
     "next": "^7.0.0",
-    "react": "^16.6.0",
-    "react-dom": "^16.6.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "@types/next": "^7.0.0",

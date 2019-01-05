@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "dependencies": {
     "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "@babel/core": "^7.1.2",
