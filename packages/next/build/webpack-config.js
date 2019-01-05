@@ -204,11 +204,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
-      console.log({
-        entrypoints,
-        clientEntries,
-        pagesEntries
-      })
       if (entrypoints) {
         return {
           ...clientEntries,
