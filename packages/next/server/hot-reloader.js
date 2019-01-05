@@ -195,8 +195,6 @@ export default class HotReloader {
     serverEntryPoints[join('static', this.buildId, 'pages', '/_error.js')] = [absoluteErrorPath]
     serverEntryPoints[join('static', this.buildId, 'pages', '/_document.js')] = [absoluteDocumentPath]
 
-    console.log({clientEntrypoints, serverEntryPoints})
-
     return Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: clientEntrypoints }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: serverEntryPoints })
@@ -334,7 +332,6 @@ export default class HotReloader {
         // e.g, pages/index.js <-> pages/_error.js
         const added = diff(chunkNames, this.prevChunkNames)
         const removed = diff(this.prevChunkNames, chunkNames)
-        console.log('REMOVED', removed)
         const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
 
         // reload all failed chunks to replace the templace to the error ones,
