@@ -1,1 +1,14 @@
-{"name":"with-refnux","version":"1.0.0","scripts":{"next":"next"},"license":"ISC","dependencies":{"next":"latest","react":"^16.7.0","react-dom":"^16.7.0","refnux":"^1.3.0"}}
+{
+  "name": "with-refnux",
+  "version": "1.0.0",
+  "scripts": {
+    "next": "next"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "refnux": "^1.3.0"
+  }
+}

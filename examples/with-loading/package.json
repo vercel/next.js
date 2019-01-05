@@ -1,1 +1,18 @@
-{"name":"with-loading","version":"1.0.0","description":"This example features:","main":"index.js","scripts":{"dev":"next","build":"next build","start":"next start"},"dependencies":{"next":"latest","nprogress":"^0.2.0","react":"^16.7.0","react-dom":"^16.7.0"},"license":"ISC"}
+{
+  "name": "with-loading",
+  "version": "1.0.0",
+  "description": "This example features:",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "nprogress": "^0.2.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "license": "ISC"
+}

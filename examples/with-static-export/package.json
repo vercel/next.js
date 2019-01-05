@@ -1,1 +1,20 @@
-{"name":"with-static-export","main":"server.js","dependencies":{"express":"^4.15.3","isomorphic-unfetch":"^2.0.0","next":"latest","react":"^16.7.0","react-dom":"^16.7.0","serve":"9.4.0"},"scripts":{"dev":"node .","build":"next build","preexport":"npm run build","export":"next export","prestart":"npm run export","start":"serve out"}}
+{
+  "name": "with-static-export",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.15.3",
+    "isomorphic-unfetch": "^2.0.0",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "serve": "9.4.0"
+  },
+  "scripts": {
+    "dev": "node .",
+    "build": "next build",
+    "preexport": "npm run build",
+    "export": "next export",
+    "prestart": "npm run export",
+    "start": "serve out"
+  }
+}

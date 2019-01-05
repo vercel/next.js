@@ -1,1 +1,18 @@
-{"main":"server.js","scripts":{"dev":"micro-dev --watch server.js","build":"next build","start":"NODE_ENV=production micro"},"dependencies":{"micro":"^9.1.0","micro-route":"^2.4.0","next":"latest","react":"^16.7.0","react-dom":"^16.7.0"},"devDependencies":{"micro-dev":"^2.2.0"}}
+{
+  "main": "server.js",
+  "scripts": {
+    "dev": "micro-dev --watch server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production micro"
+  },
+  "dependencies": {
+    "micro": "^9.1.0",
+    "micro-route": "^2.4.0",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "micro-dev": "^2.2.0"
+  }
+}

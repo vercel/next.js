@@ -1,1 +1,14 @@
-{"name":"with-zones-blog","version":"1.0.0","scripts":{"build":"next build","start":"next start -p 5000"},"dependencies":{"next":"latest","react":"^16.7.0","react-dom":"^16.7.0"},"license":"ISC"}
+{
+  "name": "with-zones-blog",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "next build",
+    "start": "next start -p 5000"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "license": "ISC"
+}

@@ -1,1 +1,19 @@
-{"name":"with-custom-reverse-proxy","license":"ISC","dependencies":{"express":"^4.15.3","next":"latest","react":"^16.7.0","react-dom":"^16.7.0"},"devDependencies":{"cross-env":"^5.0.1","http-proxy-middleware":"^0.17.4"},"scripts":{"dev":"cross-env NODE_ENV=development PORT=3000 node server.js","build":"next build","prod":"cross-env NODE_ENV=production PORT=3000 node server.js"}}
+{
+  "name": "with-custom-reverse-proxy",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.15.3",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "cross-env": "^5.0.1",
+    "http-proxy-middleware": "^0.17.4"
+  },
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development PORT=3000 node server.js",
+    "build": "next build",
+    "prod": "cross-env NODE_ENV=production PORT=3000 node server.js"
+  }
+}
