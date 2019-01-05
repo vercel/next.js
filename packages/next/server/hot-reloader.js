@@ -115,7 +115,7 @@ export default class HotReloader {
     // we have to compile the page using on-demand-entries, this middleware will handle doing that
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
-    const handlePageBundleRequest = async (req, res, parsedUrl) => {
+    const handlePageBundleRequest = async (res, parsedUrl) => {
       const {pathname} = parsedUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
@@ -145,7 +145,7 @@ export default class HotReloader {
       return {}
     }
 
-    const {finished} = await handlePageBundleRequest(req, res, parsedUrl)
+    const {finished} = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
