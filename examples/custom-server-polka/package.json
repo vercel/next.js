@@ -9,7 +9,7 @@
   "dependencies": {
     "next": "latest",
     "polka": "0.5.1",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }
