@@ -37,17 +37,19 @@ export default async function build (dir: string, conf = null): Promise<void> {
     return result
   }, {})
 
-  let entrypoints
+  // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
+  // we have to use a private alias
+  const pagesDirAlias = 'private-next-pages'
+  const dotNextDirAlias = 'private-dot-next'
+
+  const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
+  const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
+  const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
+
+  let serverEntrypoints
+
   if (config.target === 'serverless') {
     const serverlessEntrypoints: any = {}
-    // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
-    // we have to use a private alias
-    const pagesDirAlias = 'private-next-pages'
-    const dotNextDirAlias = 'private-dot-next'
-    const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
-    const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
-    const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
-
     const defaultOptions = {
       absoluteAppPath,
       absoluteDocumentPath,
@@ -75,12 +77,28 @@ export default async function build (dir: string, conf = null): Promise<void> {
       serverlessEntrypoints[errorPage] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
     }
 
-    entrypoints = serverlessEntrypoints
+    serverEntrypoints = serverlessEntrypoints
   }
+  
+  const clientEntrypoints: any = {}
 
+  Object.keys(pages).forEach(async (page) => {
+    if (page === '/_app' || page === '/_document' || page === '/_error') {
+      return
+    }
+
+    const absolutePagePath = join(pagesDirAlias, pages[page]).replace(/\\/g, '/')
+    const bundleFile = page === '/' ? '/index.js' : `${page}.js`
+    const clientPagesLoaderOptions = {page, absolutePagePath}
+    clientEntrypoints[join('static', buildId, 'pages', bundleFile)] = `next-client-pages-loader?${stringify(clientPagesLoaderOptions)}!`
+  })
+
+  clientEntrypoints[join('static', buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: absoluteAppPath})}!`
+  clientEntrypoints[join('static', buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: absoluteErrorPath})}!`
+  
   const configs: any = await Promise.all([
-    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: config.target }),
-    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: config.target, entrypoints })
+    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: config.target, entrypoints: clientEntrypoints }),
+    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: config.target, entrypoints: serverEntrypoints })
   ])
 
   let result: CompilerResult = {warnings: [], errors: []}

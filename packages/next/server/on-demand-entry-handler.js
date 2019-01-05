@@ -6,8 +6,8 @@ import promisify from '../lib/promisify'
 import globModule from 'glob'
 import {pageNotFoundError} from 'next-server/dist/server/require'
 import {normalizePagePath} from 'next-server/dist/server/normalize-page-path'
-import {createEntry} from '../build/webpack/utils'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
+import {stringify} from 'querystring'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -30,7 +30,6 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
-  dev,
   reload,
   pageExtensions,
   maxInactiveAge,
@@ -51,20 +50,17 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       invalidator.startBuilding()
 
       const allEntries = Object.keys(entries).map(async (page) => {
-        const { name, entry } = entries[page]
-        const files = Array.isArray(entry) ? entry : [entry]
-        // Is just one item. But it's passed as an array.
-        for (const file of files) {
-          try {
-            await access(join(dir, file), (fs.constants || fs).W_OK)
-          } catch (err) {
-            console.warn('Page was removed', page)
-            delete entries[page]
-            return
-          }
+        const { name, absolutePagePath } = entries[page]
+        try {
+          await access(absolutePagePath, (fs.constants || fs).W_OK)
+        } catch (err) {
+          console.warn('Page was removed', page)
+          delete entries[page]
+          return
         }
+
         entries[page].status = BUILDING
-        return addEntry(compilation, compiler.context, name, entry)
+        return addEntry(compilation, compiler.context, name, [compiler.name === 'client' ? `next-client-pages-loader?${stringify({page, absolutePagePath})}!` : absolutePagePath])
       })
 
       return Promise.all(allEntries)
@@ -178,17 +174,19 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       }
 
       const extensions = pageExtensions.join('|')
-      const paths = await glob(`pages/{${normalizedPagePath}/index,${normalizedPagePath}}.+(${extensions})`, {cwd: dir})
+      const pagesDir = join(dir, 'pages')
+      const paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, {cwd: pagesDir})
 
       if (paths.length === 0) {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const relativePathToPage = paths[0]
-
-      const pathname = join(dir, relativePathToPage)
-
-      const {name, files} = createEntry(relativePathToPage, {buildId, pageExtensions: extensions})
+      const pagePath = paths[0]
+      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      pageUrl = pageUrl === '' ? '/' : pageUrl
+      const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
+      const name = join('static', buildId, 'pages', bundleFile)
+      const absolutePagePath = join(pagesDir, pagePath)
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
@@ -207,7 +205,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
         console.log(`> Building page: ${page}`)
 
-        entries[page] = { name, entry: files, pathname, status: ADDED }
+        entries[page] = { name, absolutePagePath, status: ADDED }
         doneCallbacks.once(page, handleCallback)
 
         invalidator.invalidate()

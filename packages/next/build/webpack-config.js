@@ -5,7 +5,6 @@ import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
 import {getPages} from './webpack/utils'
-import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -205,8 +204,16 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
+      console.log({
+        entrypoints,
+        clientEntries,
+        pagesEntries
+      })
       if (entrypoints) {
-        return entrypoints
+        return {
+          ...clientEntries,
+          ...entrypoints
+        }
       }
       return {
         ...clientEntries,
@@ -309,7 +316,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
-      !isServer && new PagesPlugin(),
       isServer && new NextJsSsrImportPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
       !isServer && !dev && new AssetsSizePlugin({buildId, distDir})

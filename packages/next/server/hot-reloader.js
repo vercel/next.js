@@ -9,6 +9,10 @@ import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
 import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
 import {route} from 'next-server/dist/server/router'
+import globModule from 'glob'
+import {promisify} from 'util'
+import {stringify} from 'querystring'
+const glob = promisify(globModule)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -169,6 +173,36 @@ export default class HotReloader {
     }))
   }
 
+  async getWebpackConfig () {
+    const extensions = this.config.pageExtensions.join('|')
+    const pagePaths = await glob(`pages/+(_app|_document|_error).+(${extensions})`, {cwd: this.dir})
+    const pages = pagePaths.reduce((result, pagePath) => {
+      let page = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      page = page === '' ? '/' : page
+      result[page] = pagePath
+      return result
+    }, {})
+    const pagesDirAlias = 'private-next-pages'
+    const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
+    const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
+    const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
+    const clientEntrypoints = {}
+    clientEntrypoints[join('static', this.buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: absoluteAppPath})}!`
+    clientEntrypoints[join('static', this.buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: absoluteErrorPath})}!`
+
+    const serverEntryPoints = {}
+    serverEntryPoints[join('static', this.buildId, 'pages', '/_app.js')] = [absoluteAppPath]
+    serverEntryPoints[join('static', this.buildId, 'pages', '/_error.js')] = [absoluteErrorPath]
+    serverEntryPoints[join('static', this.buildId, 'pages', '/_document.js')] = [absoluteDocumentPath]
+
+    console.log({clientEntrypoints, serverEntryPoints})
+
+    return Promise.all([
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: clientEntrypoints }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: serverEntryPoints })
+    ])
+  }
+
   async start () {
     await this.clean()
 
@@ -188,10 +222,7 @@ export default class HotReloader {
       })
     })
 
-    const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
-    ])
+    const configs = await this.getWebpackConfig()
     this.addWsPort(configs)
 
     const multiCompiler = webpack(configs)
@@ -220,10 +251,7 @@ export default class HotReloader {
 
     await this.clean()
 
-    const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
-    ])
+    const configs = await this.getWebpackConfig()
     this.addWsPort(configs)
 
     const compiler = webpack(configs)
@@ -306,6 +334,7 @@ export default class HotReloader {
         // e.g, pages/index.js <-> pages/_error.js
         const added = diff(chunkNames, this.prevChunkNames)
         const removed = diff(this.prevChunkNames, chunkNames)
+        console.log('REMOVED', removed)
         const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
 
         // reload all failed chunks to replace the templace to the error ones,
@@ -314,9 +343,19 @@ export default class HotReloader {
 
         const rootDir = join(CLIENT_STATIC_FILES_PATH, this.buildId, 'pages')
 
-        for (const n of new Set([...added, ...succeeded, ...removed, ...failed])) {
+        for (const n of new Set([...added, ...succeeded, ...failed])) {
           const route = toRoute(relative(rootDir, n))
           this.send('reload', route)
+        }
+
+        const disposedRoutes = new Set()
+
+        if (removed.size !== 0) {
+          for (const n of removed) {
+            const route = toRoute(relative(rootDir, n))
+            this.send('dispose', route)
+            disposedRoutes.add(route)
+          }
         }
 
         let changedPageRoutes = []
@@ -327,12 +366,14 @@ export default class HotReloader {
 
           const route = toRoute(relative(rootDir, n))
 
+          if (disposedRoutes.get(route)) continue
+
           changedPageRoutes.push(route)
         }
 
         // This means `/_app` is most likely included in the list, or a page was added/deleted in this compilation run.
         // This means we should filter out `/_app` because `/_app` will be re-rendered with the page reload.
-        if (added.size !== 0 || removed.size !== 0 || changedPageRoutes.length > 1) {
+        if (added.size !== 0 || changedPageRoutes.length > 1) {
           changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app' && route !== '/_document')
         }
 
@@ -381,7 +422,6 @@ export default class HotReloader {
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
-      dev: true,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
       wsPort: this.wsPort,
