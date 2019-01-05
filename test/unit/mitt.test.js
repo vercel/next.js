@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import mitt from 'next-server/dist/lib/mitt'
 
-describe('EventEmitter', () => {
+describe('mitt', () => {
   describe('With listeners', () => {
     it('should listen to a event', (done) => {
       const ev = mitt()
