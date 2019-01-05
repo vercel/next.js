@@ -4,7 +4,6 @@ import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
-import {getPages} from './webpack/utils'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -138,7 +137,10 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
   return config
 }
 
-export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints = false}) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}) {
+  if (!entrypoints) {
+    throw new Error('No entrypoints provided')
+  }
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -165,8 +167,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   const distDir = path.join(dir, config.distDir)
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
-  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
-  const totalPages = Object.keys(pagesEntries).length
+  const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
@@ -204,16 +205,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
-      if (entrypoints) {
-        return {
-          ...clientEntries,
-          ...entrypoints
-        }
-      }
       return {
         ...clientEntries,
-        // Only _error and _document when in development. The rest is handled by on-demand-entries
-        ...pagesEntries
+        ...entrypoints
       }
     },
     output: {
