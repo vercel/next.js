@@ -1,4 +1,4 @@
-import { join, relative, sep, normalize } from 'path'
+import { join, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
@@ -7,7 +7,7 @@ import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
 import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from 'next-server/constants'
 import {route} from 'next-server/dist/server/router'
 import globModule from 'glob'
 import {promisify} from 'util'
@@ -97,9 +97,6 @@ export default class HotReloader {
     this.initialized = false
     this.stats = null
     this.compilationErrors = null
-    this.prevChunkNames = null
-    this.prevFailedChunkNames = null
-    this.prevChunkHashes = null
     this.serverPrevDocumentHash = null
 
     this.config = config
@@ -175,7 +172,8 @@ export default class HotReloader {
 
   async getWebpackConfig () {
     const extensions = this.config.pageExtensions.join('|')
-    const pagePaths = await glob(`pages/+(_app|_document|_error).+(${extensions})`, {cwd: this.dir})
+    const pagePaths = await glob(`+(_app|_document|_error).+(${extensions})`, {cwd: join(this.dir, 'pages')})
+    console.log({pagePaths})
     const pages = pagePaths.reduce((result, pagePath) => {
       let page = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       page = page === '' ? '/' : page
@@ -306,8 +304,7 @@ export default class HotReloader {
       }
 
       // Notify reload to reload the page, as _document.js was changed (different hash)
-      this.send('reload', '/_document')
-
+      this.send('reloadPage')
       this.serverPrevDocumentHash = documentChunk.hash
     })
 
@@ -330,40 +327,29 @@ export default class HotReloader {
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
         // e.g, pages/index.js <-> pages/_error.js
-        const added = diff(chunkNames, this.prevChunkNames)
-        const removed = diff(this.prevChunkNames, chunkNames)
-        const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
+        const addedPages = diff(chunkNames, this.prevChunkNames)
+        const removedPages = diff(this.prevChunkNames, chunkNames)
+        // const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
 
         // reload all failed chunks to replace the templace to the error ones,
         // and to update error content
-        const failed = failedChunkNames
+        // const failed = failedChunkNames
 
-        const rootDir = join(CLIENT_STATIC_FILES_PATH, this.buildId, 'pages')
-
-        for (const n of new Set([...added, ...succeeded, ...removed, ...failed])) {
-          const route = toRoute(relative(rootDir, n))
-          this.send('reload', route)
+        if (addedPages.size > 0) {
+          for (const addedPage of addedPages) {
+            console.log('ADDED', addedPage)
+            const page = '/' + ROUTE_NAME_REGEX.exec(addedPage)[1]
+            this.send('addedPage', page)
+          }
         }
 
-        let changedPageRoutes = []
+        if (removedPages.size > 0) {
+          for (const removedPage of removedPages) {
+            console.log('REMOVED', removedPage)
 
-        for (const [n, hash] of chunkHashes) {
-          if (!this.prevChunkHashes.has(n)) continue
-          if (this.prevChunkHashes.get(n) === hash) continue
-
-          const route = toRoute(relative(rootDir, n))
-          changedPageRoutes.push(route)
-        }
-
-        // This means `/_app` is most likely included in the list, or a page was added/deleted in this compilation run.
-        // This means we should filter out `/_app` because `/_app` will be re-rendered with the page reload.
-        if (added.size !== 0 || removed.size !== 0 || changedPageRoutes.length > 1) {
-          changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app' && route !== '/_document')
-        }
-
-        for (const changedPageRoute of changedPageRoutes) {
-          // notify change to recover from runtime errors
-          this.send('change', changedPageRoute)
+            const page = '/' + ROUTE_NAME_REGEX.exec(removedPage)[1]
+            this.send('removedPage', page)
+          }
         }
       }
 
@@ -457,7 +443,7 @@ export default class HotReloader {
 
   async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (page === '/_error' || page === '/_document' || page === '/_app') {
+    if (BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
     await this.onDemandEntries.ensurePage(page)
@@ -468,7 +454,7 @@ function diff (a, b) {
   return new Set([...a].filter((v) => !b.has(v)))
 }
 
-function toRoute (file) {
-  const f = sep === '\\' ? file.replace(/\\/g, '/') : file
-  return ('/' + f).replace(/(\/index)?\.js$/, '') || '/'
-}
+// function toRoute (file) {
+//   const f = sep === '\\' ? file.replace(/\\/g, '/') : file
+//   return ('/' + f).replace(/(\/index)?\.js$/, '') || '/'
+// }

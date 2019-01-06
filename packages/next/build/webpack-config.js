@@ -145,17 +145,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     babel: {
       loader: 'next-babel-loader',
       options: {dev, isServer, cwd: dir}
-    },
-    hotSelfAccept: {
-      loader: 'hot-self-accept-loader',
-      options: {
-        include: [
-          path.join(dir, 'pages')
-        ],
-        // All pages are javascript files. So we apply hot-self-accept-loader here to facilitate hot reloading of pages.
-        // This makes sure plugins just have to implement `pageExtensions` instead of also implementing the loader
-        extensions: new RegExp(`\\.+(${config.pageExtensions.join('|')})$`)
-      }
     }
   }
 
@@ -240,11 +229,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     },
     module: {
       rules: [
-        dev && !isServer && {
-          test: defaultLoaders.hotSelfAccept.options.extensions,
-          include: defaultLoaders.hotSelfAccept.options.include,
-          use: defaultLoaders.hotSelfAccept
-        },
         {
           test: /\.(js|jsx)$/,
           include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR, /next-server[\\/]dist[\\/]lib/],
