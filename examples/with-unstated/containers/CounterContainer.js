@@ -18,7 +18,7 @@ export default class CounterContainer extends Container {
   }
 
   // this two methods are not setState as they work only before rendering
-  initState = (count) => {
+  initState = count => {
     this.state = { count }
   }
   resetState = () => {
@@ -26,5 +26,3 @@ export default class CounterContainer extends Container {
   }
 }
 export const counterStore = new CounterContainer()
-
-

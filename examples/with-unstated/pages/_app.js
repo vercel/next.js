@@ -3,7 +3,6 @@ import React from 'react'
 import { Provider } from 'unstated'
 import { counterStore } from '../containers/CounterContainer'
 
-
 class MyApp extends App {
   static async getInitialProps () {
     // do your server state here
@@ -12,12 +11,12 @@ class MyApp extends App {
       counterStore.resetState()
       // process state, in this case counter start with 999
       counterStore.initState(999)
-      return { serverState : counterStore.state }
+      return { serverState: counterStore.state }
     } else {
       return {}
     }
   }
-  constructor(props) {
+  constructor (props) {
     super(props)
     // pass the state to client store
     // serverState will be reset when client navigate with Link
