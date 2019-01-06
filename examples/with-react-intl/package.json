@@ -13,8 +13,8 @@
     "hoist-non-react-statics": "^3.0.0-rc.1",
     "intl": "^1.2.5",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-intl": "^2.2.3"
   },
   "license": "ISC"

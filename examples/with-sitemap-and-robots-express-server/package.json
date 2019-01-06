@@ -10,8 +10,8 @@
   "dependencies": {
     "express": "^4.16.2",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "sitemap": "^1.13.0"
   }
 }

@@ -10,8 +10,8 @@
     "express": "^4.14.0",
     "helmet": "3.13.0",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "uuid": "3.3.2"
   }
 }

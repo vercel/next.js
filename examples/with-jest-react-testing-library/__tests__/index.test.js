@@ -12,3 +12,11 @@ describe('With React Testing Library', () => {
     expect(getByText('Hello World!')).not.toBeNull()
   })
 })
+
+describe('With React Testing Library Snapshot', () => {
+  it('Should match Snapshot', () => {
+    const { asFragment } = render(<App />)
+
+    expect(asFragment()).toMatchSnapshot()
+  })
+})

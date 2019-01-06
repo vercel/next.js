@@ -1,12 +1,12 @@
 /* global __NEXT_DATA__ */
 
 import { parse, format } from 'url'
-import EventEmitter from '../event-emitter'
+import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
 
 export default class Router {
-  static events = new EventEmitter()
+  static events = mitt()
 
   constructor (pathname, query, as, { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}) {
     // represents the current component key

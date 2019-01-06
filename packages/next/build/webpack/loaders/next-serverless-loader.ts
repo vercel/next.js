@@ -39,7 +39,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
-    async function render(req, res) {
+    async function renderReqToHTML(req, res) {
       const options = {
         App,
         Document,
@@ -76,9 +76,9 @@ const nextServerlessLoader: loader.Loader = function () {
         }
       }
     }
-    export default async (req, res) => {
+    export async function render (req, res) {
       try {
-        const html = await render(req, res)
+        const html = await renderReqToHTML(req, res)
         sendHTML(req, res, html, {generateEtags: ${generateEtags}})
       } catch(err) {
         console.error(err)

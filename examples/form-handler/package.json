@@ -15,8 +15,8 @@
   "dependencies": {
     "express": "^4.15.4",
     "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "next-redux-wrapper": "^1.3.2",
     "react-bootstrap": "^0.31.3",
     "react-redux": "^5.0.6",

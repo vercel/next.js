@@ -7,8 +7,8 @@
   "dependencies": {
     "babel-plugin-styled-components": "^1.1.7",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "rebass": "1.0.0-1",
     "styled-components": "^2.1.1"
   }
