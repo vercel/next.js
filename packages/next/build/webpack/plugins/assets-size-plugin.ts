@@ -13,6 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 import { gzip as _gzip } from 'zlib'
 import { relative as pathRelative } from 'path'
+import { Compiler } from 'webpack'
 import promisify from '../../../lib/promisify'
 import {
   IS_BUNDLED_PAGE_REGEX,
@@ -26,7 +27,7 @@ const gzip = promisify(_gzip)
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 const UNITS = ['B', 'kB', 'MB']
-const prettyBytes = number => {
+function prettyBytes(number: number):string {
   const exponent = Math.min(
     Math.floor(Math.log10(number) / 3),
     UNITS.length - 1
@@ -37,12 +38,15 @@ const prettyBytes = number => {
 }
 
 export default class AssetsSizePlugin {
-  constructor ({ buildId, distDir }) {
+  buildId: string
+  distDir: string
+
+  constructor (buildId: string, distDir: string) {
     this.buildId = buildId
     this.distDir = distDir ? pathRelative(process.cwd(), distDir) + '/' : ''
   }
 
-  formatFilename (rawFilename) {
+  formatFilename (rawFilename: string) {
     // add distDir
     let filename = this.distDir + rawFilename
 
@@ -63,7 +67,7 @@ export default class AssetsSizePlugin {
     return filename
   }
 
-  async printAssetsSize (assets) {
+  async printAssetsSize (assets: any) {
     const sizes = await Promise.all(
       Object.keys(assets)
         .filter(
@@ -107,7 +111,7 @@ export default class AssetsSizePlugin {
     console.log(message)
   }
 
-  async apply (compiler) {
+  async apply (compiler: Compiler) {
     compiler.hooks.afterEmit.tapPromise('AssetsSizePlugin', compilation =>
       this.printAssetsSize(compilation.assets).catch(console.error)
     )
