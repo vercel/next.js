@@ -17,8 +17,7 @@ import { Compiler } from 'webpack'
 import promisify from '../../../lib/promisify'
 import {
   IS_BUNDLED_PAGE_REGEX,
-  BUILD_MANIFEST,
-  REACT_LOADABLE_MANIFEST
+  ROUTE_NAME_REGEX
 } from 'next-server/constants'
 
 const gzip = promisify(_gzip)
@@ -46,66 +45,32 @@ export default class AssetsSizePlugin {
     this.distDir = distDir ? pathRelative(process.cwd(), distDir) + '/' : ''
   }
 
-  formatFilename (rawFilename: string) {
-    // add distDir
-    let filename = this.distDir + rawFilename
-
-    // shorten buildId
-    if (this.buildId) {
-      filename = filename.replace(
-        this.buildId + '/',
-        this.buildId.substring(0, 4) + '****/'
-      )
-    }
-
-    // shorten hashes
-    filename = filename.replace(
-      /(.*[-.])([0-9a-f]{8,})(\.js|\.css)/,
-      (_, c1, hash, c2) => c1 + hash.substring(0, 4) + '****' + c2
-    )
-
-    return filename
-  }
-
   async printAssetsSize (assets: any) {
     const sizes = await Promise.all(
       Object.keys(assets)
-        .filter(
-          filename =>
-            filename !== REACT_LOADABLE_MANIFEST && filename !== BUILD_MANIFEST
-        )
-        .sort((a, b) => {
-          // put pages at the top, then the rest
-          const [pa, pb] = [a, b].map(x => IS_BUNDLED_PAGE_REGEX.exec(x))
-          if (pa && !pb) return -1
-          if (pb && !pa) return 1
-          if (a > b) return 1
-          return -1
-        })
+        .filter(filename => IS_BUNDLED_PAGE_REGEX.exec(filename))
         .map(async filename => {
+          const search = filename.match(ROUTE_NAME_REGEX)
+          let page = search ? search[1] : filename
+          if (page.slice(-5) === 'index') {
+            page = page.slice(0, -5)
+          }
           const asset = assets[filename]
           const size = (await gzip(asset.source())).length
 
           return {
             filename,
+            page,
             prettySize: prettyBytes(size)
           }
         })
     )
 
-    // find longest prettySize string size
-    const longestPrettySize = Math.max(
-      ...sizes.map(({ prettySize }) => prettySize.length)
-    )
+    let message = '\nPages sizes after gzip:\n\n'
 
-    let message = '\nBrowser assets sizes after gzip:\n\n'
-
-    for (let { filename, prettySize } of sizes) {
-      const padding = ' '.repeat(longestPrettySize - prettySize.length)
-      const formattedSize = prettySize
-      const formattedFilename = this.formatFilename(filename)
-
-      message += `   ${padding}${formattedSize}  ${formattedFilename}\n`
+    for (let i = 0; i < sizes.length; i++) {
+      const corner = i === 0 ? (sizes.length === 1 ? '─' : '┌') : i === sizes.length - 1 ? '└' : '├'
+      message += `${corner} /${sizes[i].page} (${sizes[i].prettySize})\n`
     }
 
     console.log(message)
