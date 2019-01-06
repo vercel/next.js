@@ -66,6 +66,11 @@ export default class AssetsSizePlugin {
         })
     )
 
+    sizes.sort((a, b) => {
+      if (a.page > b.page) return 1
+      return -1
+    })
+
     let message = '\nPages sizes after gzip:\n\n'
 
     for (let i = 0; i < sizes.length; i++) {
