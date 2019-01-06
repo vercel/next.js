@@ -8,9 +8,9 @@ class MyApp extends App {
   static async getInitialProps () {
     // do your server state here
     if (!process.browser) {
-      // reset state
+      // reset state for each request
       counterStore.resetState()
-      // process state
+      // process state, in this case counter start with 999
       counterStore.initState(999)
       return { serverState : counterStore.state }
     } else {
@@ -20,7 +20,7 @@ class MyApp extends App {
   constructor(props) {
     super(props)
     // pass the state to client store
-    // serverState will reset when client navigate with Link
+    // serverState will be reset when client navigate with Link
     if (process.browser) {
       counterStore.initState(props.serverState.count)
     }

@@ -17,7 +17,7 @@ export default class CounterContainer extends Container {
     this.setState({ count: 0 })
   }
 
-  // this two method is not setState as it work only before rendering
+  // this two methods are not setState as they work only before rendering
   initState = (count) => {
     this.state = { count }
   }
