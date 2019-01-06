@@ -15,10 +15,7 @@ import { gzip as _gzip } from 'zlib'
 import { relative as pathRelative } from 'path'
 import { Compiler } from 'webpack'
 import promisify from '../../../lib/promisify'
-import {
-  IS_BUNDLED_PAGE_REGEX,
-  ROUTE_NAME_REGEX
-} from 'next-server/constants'
+import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX } from 'next-server/constants'
 
 const gzip = promisify(_gzip)
 
@@ -26,7 +23,7 @@ const gzip = promisify(_gzip)
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 const UNITS = ['B', 'kB', 'MB']
-function prettyBytes(number: number):string {
+function prettyBytes(number: number): string {
   const exponent = Math.min(
     Math.floor(Math.log10(number) / 3),
     UNITS.length - 1
@@ -40,12 +37,12 @@ export default class AssetsSizePlugin {
   buildId: string
   distDir: string
 
-  constructor (buildId: string, distDir: string) {
+  constructor(buildId: string, distDir: string) {
     this.buildId = buildId
     this.distDir = distDir ? pathRelative(process.cwd(), distDir) + '/' : ''
   }
 
-  async printAssetsSize (assets: any) {
+  async printAssetsSize(assets: any) {
     const sizes = await Promise.all(
       Object.keys(assets)
         .filter(filename => IS_BUNDLED_PAGE_REGEX.exec(filename))
@@ -74,14 +71,22 @@ export default class AssetsSizePlugin {
     let message = '\nPages sizes after gzip:\n\n'
 
     for (let i = 0; i < sizes.length; i++) {
-      const corner = i === 0 ? (sizes.length === 1 ? '─' : '┌') : i === sizes.length - 1 ? '└' : '├'
-      message += `${corner} /${sizes[i].page} (${sizes[i].prettySize})\n`
+      const size = sizes[i]
+      const corner =
+        i === 0
+          ? sizes.length === 1
+            ? '─'
+            : '┌'
+          : i === sizes.length - 1
+          ? '└'
+          : '├'
+      message += `${corner} /${size.page} (${size.prettySize})\n`
     }
 
     console.log(message)
   }
 
-  async apply (compiler: Compiler) {
+  async apply(compiler: Compiler) {
     compiler.hooks.afterEmit.tapPromise('AssetsSizePlugin', compilation =>
       this.printAssetsSize(compilation.assets).catch(console.error)
     )
