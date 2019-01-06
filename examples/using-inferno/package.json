@@ -12,8 +12,8 @@
     "inferno-server": "^1.4.0",
     "module-alias": "^2.0.0",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "license": "MIT"
 }

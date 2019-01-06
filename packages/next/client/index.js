@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from 'next/router'
-import EventEmitter from 'next-server/dist/lib/event-emitter'
+import mitt from 'next-server/dist/lib/mitt'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
@@ -63,7 +63,7 @@ export let ErrorComponent
 let Component
 let App
 
-export const emitter = new EventEmitter()
+export const emitter = mitt()
 
 export default async ({
   webpackHMR: passedWebpackHMR
