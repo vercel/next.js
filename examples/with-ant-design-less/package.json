@@ -16,8 +16,5 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "license": "ISC",
-  "devDependencies": {
-    "@babel/plugin-proposal-decorators": "^7.1.0"
-  }
+  "license": "ISC"
 }
