@@ -16,9 +16,7 @@ const nextServerlessLoader: loader.Loader = function () {
       var page = require(${stringifiedAbsolutePagePath})
       if(module.hot) {
         module.hot.accept(${stringifiedAbsolutePagePath}, function() {
-          var currentValue = next.router.components[${stringifiedPage}]
-          console.log(currentValue)
-          if(!currentValue) return
+          if(!next.router.components[${stringifiedPage}]) return
           var updatedPage = require(${stringifiedAbsolutePagePath})
           next.router.update(${stringifiedPage}, updatedPage.default || updatedPage)
         })
