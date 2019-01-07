@@ -145,6 +145,10 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     babel: {
       loader: 'next-babel-loader',
       options: {dev, isServer, cwd: dir}
+    },
+    // Backwards compat
+    hotSelfAccept: {
+      loader: 'noop-loader'
     }
   }
 
