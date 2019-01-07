@@ -70,7 +70,7 @@ export default async function (dir, options, configuration) {
     await cp(
       join(distDir, CLIENT_STATIC_FILES_PATH),
       join(outDir, '_next', CLIENT_STATIC_FILES_PATH),
-      {filter: ['!.hot-update.json']}
+      { filter: ['!.hot-update.json'] }
     )
   }
 
