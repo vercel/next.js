@@ -173,7 +173,6 @@ export default class HotReloader {
   async getWebpackConfig () {
     const extensions = this.config.pageExtensions.join('|')
     const pagePaths = await glob(`+(_app|_document|_error).+(${extensions})`, {cwd: join(this.dir, 'pages')})
-    console.log({pagePaths})
     const pages = pagePaths.reduce((result, pagePath) => {
       let page = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       page = page === '' ? '/' : page
