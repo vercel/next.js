@@ -96,7 +96,6 @@ export default class HotReloader {
     this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
-    this.compilationErrors = null
     this.serverPrevDocumentHash = null
 
     this.config = config
@@ -315,24 +314,11 @@ export default class HotReloader {
           .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
       )
 
-      const failedChunkNames = new Set(Object.keys(erroredPages(compilation)))
-
-      const chunkHashes = new Map(
-        compilation.chunks
-          .filter(c => IS_BUNDLED_PAGE_REGEX.test(c.name))
-          .map((c) => [c.name, c.hash])
-      )
-
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
         // e.g, pages/index.js <-> pages/_error.js
         const addedPages = diff(chunkNames, this.prevChunkNames)
         const removedPages = diff(this.prevChunkNames, chunkNames)
-        // const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
-
-        // reload all failed chunks to replace the templace to the error ones,
-        // and to update error content
-        // const failed = failedChunkNames
 
         if (addedPages.size > 0) {
           for (const addedPage of addedPages) {
@@ -353,10 +339,7 @@ export default class HotReloader {
 
       this.initialized = true
       this.stats = stats
-      this.compilationErrors = null
       this.prevChunkNames = chunkNames
-      this.prevFailedChunkNames = failedChunkNames
-      this.prevChunkHashes = chunkHashes
     })
 
     // We don’t watch .git/ .next/ and node_modules for changes
