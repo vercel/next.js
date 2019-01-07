@@ -336,17 +336,17 @@ export default class HotReloader {
 
         if (addedPages.size > 0) {
           for (const addedPage of addedPages) {
-            console.log('ADDED', addedPage)
-            const page = '/' + ROUTE_NAME_REGEX.exec(addedPage)[1]
+            let page = '/' + ROUTE_NAME_REGEX.exec(addedPage)[1].replace(/\\/g, '/')
+            page = page === '/index' ? '/' : page
             this.send('addedPage', page)
           }
         }
 
         if (removedPages.size > 0) {
           for (const removedPage of removedPages) {
-            console.log('REMOVED', removedPage)
-
-            const page = '/' + ROUTE_NAME_REGEX.exec(removedPage)[1]
+            let page = '/' + ROUTE_NAME_REGEX.exec(removedPage)[1].replace(/\\/g, '/')
+            page = page === '/index' ? '/' : page
+            console.log('PAGE', page)
             this.send('removedPage', page)
           }
         }
@@ -452,8 +452,3 @@ export default class HotReloader {
 function diff (a, b) {
   return new Set([...a].filter((v) => !b.has(v)))
 }
-
-// function toRoute (file) {
-//   const f = sep === '\\' ? file.replace(/\\/g, '/') : file
-//   return ('/' + f).replace(/(\/index)?\.js$/, '') || '/'
-// }
