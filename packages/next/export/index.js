@@ -69,7 +69,8 @@ export default async function (dir, options, configuration) {
     log('  copying "static build" directory')
     await cp(
       join(distDir, CLIENT_STATIC_FILES_PATH),
-      join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+      join(outDir, '_next', CLIENT_STATIC_FILES_PATH),
+      {filter: ['!.hot-update.json']}
     )
   }
 
