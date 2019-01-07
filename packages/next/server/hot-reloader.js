@@ -346,7 +346,6 @@ export default class HotReloader {
           for (const removedPage of removedPages) {
             let page = '/' + ROUTE_NAME_REGEX.exec(removedPage)[1].replace(/\\/g, '/')
             page = page === '/index' ? '/' : page
-            console.log('PAGE', page)
             this.send('removedPage', page)
           }
         }
