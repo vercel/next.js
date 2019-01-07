@@ -69,11 +69,11 @@ export default async function build (dir: string, conf = null): Promise<void> {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
     if(config.target === 'serverless') {
-      if(page === '/_app' || page === '/_document') {
-        return
+      if(page !== '/_app' && page !== '/_document') {
+        const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultServerlessOptions}
+        serverEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
       }
-      const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultServerlessOptions}
-      serverEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
+      
     } else if (config.target === 'server') {
       serverEntrypoints[join('static', buildId, 'pages', bundleFile)] = [absolutePagePath]
     }
