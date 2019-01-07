@@ -43,9 +43,9 @@ export default async function build (dir: string, conf = null): Promise<void> {
     return result
   }, {})
 
-  const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app.js'
-  const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document.js'
-  const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error.js'
+  const absoluteAppPath = pages['/_app'] ? pages['/_app'] : 'next/dist/pages/_app.js'
+  const absoluteDocumentPath = pages['/_document'] ? pages['/_document'] : 'next/dist/pages/_document.js'
+  const absoluteErrorPath = pages['/_error'] ? pages['/_error'] : 'next/dist/pages/_error.js'
 
   pages['/_app'] = absoluteAppPath
   pages['/_document'] = absoluteDocumentPath
