@@ -177,12 +177,12 @@ export default class HotReloader {
     const pages = pagePaths.reduce((result, pagePath) => {
       let page = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       page = page === '' ? '/' : page
-      result[page] = pagePath
+      result[page] = result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
       return result
     }, {})
-    const absoluteAppPath = pages['/_app'] ? join(PAGES_DIR_ALIAS, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
-    const absoluteErrorPath = pages['/_error'] ? join(PAGES_DIR_ALIAS, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
-    const absoluteDocumentPath = pages['/_document'] ? join(PAGES_DIR_ALIAS, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
+    const absoluteAppPath = pages['/_app'] ? pages['/_app'] : 'next/dist/pages/_app'
+    const absoluteErrorPath = pages['/_error'] ? pages['/_error'] : 'next/dist/pages/_error'
+    const absoluteDocumentPath = pages['/_document'] ? pages['/_document'] : 'next/dist/pages/_document'
     const clientEntrypoints = {}
     clientEntrypoints[join('static', this.buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: absoluteAppPath})}!`
     clientEntrypoints[join('static', this.buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: absoluteErrorPath})}!`
