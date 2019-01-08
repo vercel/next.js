@@ -48,6 +48,7 @@
     "@babel/runtime": "7.1.2",
     "@babel/runtime-corejs2": "7.1.2",
     "@babel/template": "7.1.2",
+    "@types/loader-utils": "1.1.3",
     "@types/node-fetch": "2.1.4",
     "@types/rimraf": "2.0.2",
     "ansi-html": "0.0.7",

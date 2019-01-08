@@ -4,8 +4,6 @@ import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
 import WebpackBar from 'webpackbar'
-import {getPages} from './webpack/utils'
-import PagesPlugin from './webpack/plugins/pages-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -15,7 +13,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
-import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR} from '../lib/constants'
+import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
 import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
@@ -139,22 +137,15 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
   return config
 }
 
-export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints = false}) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
       options: {dev, isServer, cwd: dir}
     },
+    // Backwards compat
     hotSelfAccept: {
-      loader: 'hot-self-accept-loader',
-      options: {
-        include: [
-          path.join(dir, 'pages')
-        ],
-        // All pages are javascript files. So we apply hot-self-accept-loader here to facilitate hot reloading of pages.
-        // This makes sure plugins just have to implement `pageExtensions` instead of also implementing the loader
-        extensions: new RegExp(`\\.+(${config.pageExtensions.join('|')})$`)
-      }
+      loader: 'noop-loader'
     }
   }
 
@@ -166,8 +157,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
   const distDir = path.join(dir, config.distDir)
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
-  const pagesEntries = await getPages(dir, {nextPagesDir: DEFAULT_PAGES_DIR, dev, buildId, isServer, pageExtensions: config.pageExtensions.join('|')})
-  const totalPages = Object.keys(pagesEntries).length
+  const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
@@ -186,8 +176,8 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
-      'private-next-pages': path.join(dir, 'pages'),
-      'private-dot-next': distDir
+      [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
+      [DOT_NEXT_ALIAS]: distDir
     },
     mainFields: isServer ? ['main'] : ['browser', 'module', 'main']
   }
@@ -205,13 +195,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
-      if (entrypoints) {
-        return entrypoints
-      }
       return {
         ...clientEntries,
-        // Only _error and _document when in development. The rest is handled by on-demand-entries
-        ...pagesEntries
+        ...entrypoints
       }
     },
     output: {
@@ -244,11 +230,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     },
     module: {
       rules: [
-        dev && !isServer && {
-          test: defaultLoaders.hotSelfAccept.options.extensions,
-          include: defaultLoaders.hotSelfAccept.options.include,
-          use: defaultLoaders.hotSelfAccept
-        },
         {
           test: /\.(js|jsx)$/,
           include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR, /next-server[\\/]dist[\\/]lib/],
@@ -309,7 +290,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
-      !isServer && new PagesPlugin(),
       isServer && new NextJsSsrImportPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
       !isServer && !dev && new AssetsSizePlugin(buildId, distDir)
