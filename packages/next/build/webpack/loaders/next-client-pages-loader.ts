@@ -6,7 +6,7 @@ export type ClientPagesLoaderOptions = {
   page: string
 }
 
-const nextServerlessLoader: loader.Loader = function () {
+const nextClientPagesLoader: loader.Loader = function () {
   const {absolutePagePath, page}: any = loaderUtils.getOptions(this)
   const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
   const stringifiedPage = JSON.stringify(page)
