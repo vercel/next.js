@@ -177,7 +177,7 @@ export default class HotReloader {
     const pages = pagePaths.reduce((result, pagePath) => {
       let page = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       page = page === '' ? '/' : page
-      result[page] = result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
+      result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
       return result
     }, {})
     if (!pages['/_app']) {
@@ -191,13 +191,16 @@ export default class HotReloader {
     }
 
     const clientEntrypoints = {}
-    clientEntrypoints[join('static', this.buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: pages['/_app']})}!`
-    clientEntrypoints[join('static', this.buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: pages['/_error']})}!`
-
     const serverEntryPoints = {}
-    serverEntryPoints[join('static', this.buildId, 'pages', '/_app.js')] = [pages['/_app']]
-    serverEntryPoints[join('static', this.buildId, 'pages', '/_error.js')] = [pages['/_error']]
-    serverEntryPoints[join('static', this.buildId, 'pages', '/_document.js')] = [pages['/_document']]
+    Object.keys(pages).forEach((page) => {
+      const absolutePagePath = pages[page]
+      const bundleFile = page === '/' ? '/index.js' : `${page}.js`
+      serverEntryPoints[join('static', this.buildId, 'pages', bundleFile)] = [absolutePagePath]
+      if (page === '/_document') {
+        return
+      }
+      clientEntrypoints[join('static', this.buildId, 'pages', bundleFile)] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+    })
 
     return Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: clientEntrypoints }),
