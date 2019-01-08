@@ -11,8 +11,7 @@ import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from 'next-serve
 import {route} from 'next-server/dist/server/router'
 import globModule from 'glob'
 import {promisify} from 'util'
-import {stringify} from 'querystring'
-import {PAGES_DIR_ALIAS} from '../lib/constants'
+import {createPagesMapping, createEntrypoints} from '../build/entries'
 
 const glob = promisify(globModule)
 
@@ -172,39 +171,12 @@ export default class HotReloader {
   }
 
   async getWebpackConfig () {
-    const extensions = this.config.pageExtensions.join('|')
-    const pagePaths = await glob(`+(_app|_document|_error).+(${extensions})`, {cwd: join(this.dir, 'pages')})
-    const pages = pagePaths.reduce((result, pagePath) => {
-      let page = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
-      page = page === '' ? '/' : page
-      result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
-      return result
-    }, {})
-    if (!pages['/_app']) {
-      pages['/_app'] = 'next/dist/pages/_app'
-    }
-    if (!pages['/_error']) {
-      pages['/_error'] = 'next/dist/pages/_error'
-    }
-    if (!pages['/_document']) {
-      pages['/_document'] = 'next/dist/pages/_document'
-    }
-
-    const clientEntrypoints = {}
-    const serverEntryPoints = {}
-    Object.keys(pages).forEach((page) => {
-      const absolutePagePath = pages[page]
-      const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-      serverEntryPoints[join('static', this.buildId, 'pages', bundleFile)] = [absolutePagePath]
-      if (page === '/_document') {
-        return
-      }
-      clientEntrypoints[join('static', this.buildId, 'pages', bundleFile)] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
-    })
-
+    const pagePaths = await glob(`+(_app|_document|_error).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
+    const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
+    const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
     return Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: clientEntrypoints }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: serverEntryPoints })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: entrypoints.client }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
     ])
   }
 

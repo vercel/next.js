@@ -9,9 +9,7 @@ import {isWriteable} from './is-writeable'
 import {runCompiler, CompilerResult} from './compiler'
 import globModule from 'glob'
 import {promisify} from 'util'
-import {stringify} from 'querystring'
-import {ServerlessLoaderQuery} from './webpack/loaders/next-serverless-loader'
-import {PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
+import {createPagesMapping, createEntrypoints} from './entries'
 
 const glob = promisify(globModule)
 
@@ -30,61 +28,11 @@ export default async function build (dir: string, conf = null): Promise<void> {
   const pagesDir = join(dir, 'pages')
 
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
-  type Result = {[page: string]: string}
-
-  const pages: Result = pagePaths.reduce((result: Result, pagePath): Result => {
-    let page = `/${pagePath.replace(new RegExp(`\\.+(${config.pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
-    page = page === '' ? '/' : page
-    result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
-    return result
-  }, {})
-
-  const absoluteAppPath = pages['/_app'] ? pages['/_app'] : 'next/dist/pages/_app.js'
-  const absoluteDocumentPath = pages['/_document'] ? pages['/_document'] : 'next/dist/pages/_document.js'
-  const absoluteErrorPath = pages['/_error'] ? pages['/_error'] : 'next/dist/pages/_error.js'
-
-  pages['/_app'] = absoluteAppPath
-  pages['/_document'] = absoluteDocumentPath
-  pages['/_error'] = absoluteErrorPath
-
-
-  const defaultServerlessOptions = {
-    absoluteAppPath,
-    absoluteDocumentPath,
-    absoluteErrorPath,
-    distDir: DOT_NEXT_ALIAS,
-    buildId,
-    assetPrefix: config.assetPrefix,
-    generateEtags: config.generateEtags
-  }
-
-  const serverEntrypoints: any = {}
-  const clientEntrypoints: any = {}
-
-  Object.keys(pages).forEach((page) => {
-    const absolutePagePath = pages[page]
-    const bundleFile = page === '/' ? '/index.js' : `${page}.js`
-    if(config.target === 'serverless') {
-      if(page !== '/_app' && page !== '/_document') {
-        const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultServerlessOptions}
-        serverEntrypoints[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
-      }
-      
-    } else if (config.target === 'server') {
-      serverEntrypoints[join('static', buildId, 'pages', bundleFile)] = [absolutePagePath]
-    }
-
-    if(page === '/_document') {
-      return
-    }
-
-    const clientPagesLoaderOptions = {page, absolutePagePath}
-    clientEntrypoints[join('static', buildId, 'pages', bundleFile)] = `next-client-pages-loader?${stringify(clientPagesLoaderOptions)}!`
-  })
-
+  const pages = createPagesMapping(pagePaths, config.pageExtensions)
+  const entrypoints = createEntrypoints(pages, config.target, buildId, config)
   const configs: any = await Promise.all([
-    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: config.target, entrypoints: clientEntrypoints }),
-    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: config.target, entrypoints: serverEntrypoints })
+    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: config.target, entrypoints: entrypoints.client }),
+    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: config.target, entrypoints: entrypoints.server })
   ])
 
   let result: CompilerResult = {warnings: [], errors: []}
