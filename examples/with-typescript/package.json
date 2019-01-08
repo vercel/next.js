@@ -9,15 +9,17 @@
   },
   "dependencies": {
     "@zeit/next-typescript": "^1.1.1",
-    "next": "latest",
+    "lint": "^1.1.2",
+    "next": "^7.0.2",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "@types/next": "^7.0.1",
+    "@types/next": "^7.0.2",
     "@types/react": "^16.4.16",
     "@types/react-dom": "16.0.8",
-    "typescript": "3.1.1"
+    "eslint": "^5.12.0",
+    "typescript": "3.2.1"
   },
   "license": "ISC"
 }
