@@ -180,17 +180,24 @@ export default class HotReloader {
       result[page] = result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
       return result
     }, {})
-    const absoluteAppPath = pages['/_app'] ? pages['/_app'] : 'next/dist/pages/_app'
-    const absoluteErrorPath = pages['/_error'] ? pages['/_error'] : 'next/dist/pages/_error'
-    const absoluteDocumentPath = pages['/_document'] ? pages['/_document'] : 'next/dist/pages/_document'
+    if (!pages['/_app']) {
+      pages['/_app'] = 'next/dist/pages/_app'
+    }
+    if (!pages['/_error']) {
+      pages['/_error'] = 'next/dist/pages/_error'
+    }
+    if (!pages['/_document']) {
+      pages['/_document'] = 'next/dist/pages/_document'
+    }
+
     const clientEntrypoints = {}
-    clientEntrypoints[join('static', this.buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: absoluteAppPath})}!`
-    clientEntrypoints[join('static', this.buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: absoluteErrorPath})}!`
+    clientEntrypoints[join('static', this.buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: pages['/_app']})}!`
+    clientEntrypoints[join('static', this.buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: pages['/_error']})}!`
 
     const serverEntryPoints = {}
-    serverEntryPoints[join('static', this.buildId, 'pages', '/_app.js')] = [absoluteAppPath]
-    serverEntryPoints[join('static', this.buildId, 'pages', '/_error.js')] = [absoluteErrorPath]
-    serverEntryPoints[join('static', this.buildId, 'pages', '/_document.js')] = [absoluteDocumentPath]
+    serverEntryPoints[join('static', this.buildId, 'pages', '/_app.js')] = [pages['/_app']]
+    serverEntryPoints[join('static', this.buildId, 'pages', '/_error.js')] = [pages['/_error']]
+    serverEntryPoints[join('static', this.buildId, 'pages', '/_document.js')] = [pages['/_document']]
 
     return Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: clientEntrypoints }),
