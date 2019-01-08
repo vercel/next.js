@@ -11,6 +11,7 @@ import globModule from 'glob'
 import {promisify} from 'util'
 import {stringify} from 'querystring'
 import {ServerlessLoaderQuery} from './webpack/loaders/next-serverless-loader'
+import {PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 
 const glob = promisify(globModule)
 
@@ -31,15 +32,10 @@ export default async function build (dir: string, conf = null): Promise<void> {
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
   type Result = {[page: string]: string}
 
-  // Because on Windows absolute paths in the generated code can break because of numbers, eg 1 in the path,
-  // we have to use a private alias
-  const pagesDirAlias = 'private-next-pages'
-  const dotNextDirAlias = 'private-dot-next'
-
   const pages: Result = pagePaths.reduce((result: Result, pagePath): Result => {
     let page = `/${pagePath.replace(new RegExp(`\\.+(${config.pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
     page = page === '' ? '/' : page
-    result[page] = join(pagesDirAlias, pagePath).replace(/\\/g, '/')
+    result[page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
     return result
   }, {})
 
@@ -56,7 +52,7 @@ export default async function build (dir: string, conf = null): Promise<void> {
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
-    distDir: dotNextDirAlias,
+    distDir: DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags
