@@ -12,6 +12,8 @@ import {route} from 'next-server/dist/server/router'
 import globModule from 'glob'
 import {promisify} from 'util'
 import {stringify} from 'querystring'
+import {PAGES_DIR_ALIAS} from '../lib/constants'
+
 const glob = promisify(globModule)
 
 export async function renderScriptError (res, error) {
@@ -178,10 +180,9 @@ export default class HotReloader {
       result[page] = pagePath
       return result
     }, {})
-    const pagesDirAlias = 'private-next-pages'
-    const absoluteAppPath = pages['/_app'] ? join(pagesDirAlias, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
-    const absoluteErrorPath = pages['/_error'] ? join(pagesDirAlias, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
-    const absoluteDocumentPath = pages['/_document'] ? join(pagesDirAlias, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
+    const absoluteAppPath = pages['/_app'] ? join(PAGES_DIR_ALIAS, pages['/_app']).replace(/\\/g, '/') : 'next/dist/pages/_app'
+    const absoluteErrorPath = pages['/_error'] ? join(PAGES_DIR_ALIAS, pages['/_error']).replace(/\\/g, '/') : 'next/dist/pages/_error'
+    const absoluteDocumentPath = pages['/_document'] ? join(PAGES_DIR_ALIAS, pages['/_document']).replace(/\\/g, '/') : 'next/dist/pages/_document'
     const clientEntrypoints = {}
     clientEntrypoints[join('static', this.buildId, 'pages', '/_app.js')] = `next-client-pages-loader?${stringify({page: '/_app', absolutePagePath: absoluteAppPath})}!`
     clientEntrypoints[join('static', this.buildId, 'pages', '/_error.js')] = `next-client-pages-loader?${stringify({page: '/_error', absolutePagePath: absoluteErrorPath})}!`
