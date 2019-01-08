@@ -26,4 +26,4 @@ const nextServerlessLoader: loader.Loader = function () {
   `
 }
 
-export default nextServerlessLoader
+export default nextClientPagesLoader
