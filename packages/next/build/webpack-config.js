@@ -138,9 +138,6 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
 }
 
 export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}) {
-  if (!entrypoints) {
-    throw new Error('No entrypoints provided')
-  }
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
