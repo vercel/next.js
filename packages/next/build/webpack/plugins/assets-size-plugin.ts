@@ -33,23 +33,6 @@ function prettyBytes(number: number): string {
   return number + ' ' + unit
 }
 
-async function executePromiseByBatch<T>(promises: Array<Promise<T>>): Promise<Array<T>> {
-  const nbPromiseByBatch = 10
-  const nbPromise = promises.length
-  const nbBatch = Math.ceil(nbPromise / nbPromiseByBatch)
-  const results = []
-
-  for (let i = 0; i < nbBatch; i++) {
-    const batch = promises.slice(
-      i * nbPromiseByBatch,
-      Math.min((i + 1) * nbPromiseByBatch, nbPromise)
-    )
-    results.push(...(await Promise.all(batch)))
-  }
-
-  return results
-}
-
 export default class AssetsSizePlugin {
   buildId: string
   distDir: string
@@ -60,25 +43,38 @@ export default class AssetsSizePlugin {
   }
 
   async printAssetsSize(assets: any) {
-    const sizes = await executePromiseByBatch(
-      Object.keys(assets)
-        .filter(filename => IS_BUNDLED_PAGE_REGEX.exec(filename))
-        .map(async filename => {
-          const search = filename.match(ROUTE_NAME_REGEX)
-          let page = search ? search[1] : filename
-          if (page.slice(-5) === 'index') {
-            page = page.slice(0, -5)
-          }
-          const asset = assets[filename]
-          const size = (await gzip(asset.source())).length
+    const pages = Object.keys(assets)
+      .filter(filename => IS_BUNDLED_PAGE_REGEX.exec(filename))
 
-          return {
-            filename,
-            page,
-            prettySize: prettyBytes(size)
-          }
-        })
-    )
+    const sizes = []
+    const nbPageByBatch = 5
+    const nbPage = pages.length
+    const nbBatch = Math.ceil(nbPage / nbPageByBatch)
+
+    for (let i = 0; i < nbBatch; i++) {
+      const pageBatch = pages.slice(
+        i * nbPageByBatch,
+        Math.min((i + 1) * nbPageByBatch, nbPage)
+      )
+
+      const promises = pageBatch.map(async filename => {
+        const search = filename.match(ROUTE_NAME_REGEX)
+        let page = search ? search[1] : filename
+        if (page.slice(-5) === 'index') {
+          page = page.slice(0, -5)
+        }
+        const asset = assets[filename]
+        const size = (await gzip(asset.source())).length
+
+        return {
+          filename,
+          page,
+          prettySize: prettyBytes(size)
+        }
+      })
+
+      sizes.push(...(await Promise.all(promises)))
+    }
 
     sizes.sort((a, b) => {
       if (a.page > b.page) return 1
