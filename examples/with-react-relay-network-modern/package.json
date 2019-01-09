@@ -18,8 +18,8 @@
     "graphql": "^0.13.2",
     "isomorphic-fetch": "2.2.1",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-relay": "^1.5.0",
     "react-relay-network-modern": "2.4.0",
     "react-relay-network-modern-ssr": "1.2.1"

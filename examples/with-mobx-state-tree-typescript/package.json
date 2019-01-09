@@ -13,8 +13,8 @@
     "mobx-react": "5.2.5",
     "mobx-state-tree": "3.2.3",
     "next": "latest",
-    "react": "16.4.2",
-    "react-dom": "16.4.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "typescript": "^3.0.1"
   },
   "devDependencies": {

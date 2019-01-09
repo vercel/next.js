@@ -1,8 +1,7 @@
 {
   "name": "next-firebase-functions",
   "version": "3.0.0",
-  "description":
-    "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects and Docker.",
+  "description": "Host Next.js SSR app on Firebase Cloud Functions with Firebase Hosting redirects and Docker.",
   "scripts": {
     "dev": "next -p 5000 src/app",
     "preserve": "yarn build-public && yarn build-funcs && yarn copy-deps",
@@ -34,8 +33,8 @@
     "helmet": "^3.13.0",
     "next": "7.0.0",
     "prop-types": "^15.6.2",
-    "react": "16.5.2",
-    "react-dom": "16.5.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.1.0",

@@ -8,9 +8,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.0.0",
+    "react": "^16.7.0",
     "redux-devtools-extension": "^2.13.2",
-    "react-dom": "^16.0.0",
+    "react-dom": "^16.7.0",
     "react-redux": "^5.0.1",
     "redux": "^3.6.0",
     "redux-thunk": "^2.1.0"

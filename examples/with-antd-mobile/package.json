@@ -6,8 +6,8 @@
     "antd-mobile": "2.2.5",
     "babel-plugin-import": "^1.2.1",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "scripts": {
     "dev": "next",

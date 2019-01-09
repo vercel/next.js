@@ -7,8 +7,8 @@
   "dependencies": {
     "babel-plugin-lodash": "^3.2.11",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "recompose": "^0.24.0"
   }
 }

@@ -1,4 +1,4 @@
-import { join, relative, sep, normalize } from 'path'
+import { join, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
@@ -7,8 +7,13 @@ import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
 import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
+import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from 'next-server/constants'
 import {route} from 'next-server/dist/server/router'
+import globModule from 'glob'
+import {promisify} from 'util'
+import {createPagesMapping, createEntrypoints} from '../build/entries'
+
+const glob = promisify(globModule)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -92,10 +97,6 @@ export default class HotReloader {
     this.webpackHotMiddleware = null
     this.initialized = false
     this.stats = null
-    this.compilationErrors = null
-    this.prevChunkNames = null
-    this.prevFailedChunkNames = null
-    this.prevChunkHashes = null
     this.serverPrevDocumentHash = null
 
     this.config = config
@@ -115,7 +116,7 @@ export default class HotReloader {
     // we have to compile the page using on-demand-entries, this middleware will handle doing that
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
-    const handlePageBundleRequest = async (req, res, parsedUrl) => {
+    const handlePageBundleRequest = async (res, parsedUrl) => {
       const {pathname} = parsedUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
@@ -145,7 +146,7 @@ export default class HotReloader {
       return {}
     }
 
-    const {finished} = await handlePageBundleRequest(req, res, parsedUrl)
+    const {finished} = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
@@ -169,6 +170,16 @@ export default class HotReloader {
     }))
   }
 
+  async getWebpackConfig () {
+    const pagePaths = await glob(`+(_app|_document|_error).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
+    const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
+    const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
+    return Promise.all([
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: entrypoints.client }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
+    ])
+  }
+
   async start () {
     await this.clean()
 
@@ -188,10 +199,7 @@ export default class HotReloader {
       })
     })
 
-    const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
-    ])
+    const configs = await this.getWebpackConfig()
     this.addWsPort(configs)
 
     const multiCompiler = webpack(configs)
@@ -220,10 +228,7 @@ export default class HotReloader {
 
     await this.clean()
 
-    const configs = await Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId })
-    ])
+    const configs = await this.getWebpackConfig()
     this.addWsPort(configs)
 
     const compiler = webpack(configs)
@@ -280,8 +285,7 @@ export default class HotReloader {
       }
 
       // Notify reload to reload the page, as _document.js was changed (different hash)
-      this.send('reload', '/_document')
-
+      this.send('reloadPage')
       this.serverPrevDocumentHash = documentChunk.hash
     })
 
@@ -293,61 +297,32 @@ export default class HotReloader {
           .filter(name => IS_BUNDLED_PAGE_REGEX.test(name))
       )
 
-      const failedChunkNames = new Set(Object.keys(erroredPages(compilation)))
-
-      const chunkHashes = new Map(
-        compilation.chunks
-          .filter(c => IS_BUNDLED_PAGE_REGEX.test(c.name))
-          .map((c) => [c.name, c.hash])
-      )
-
       if (this.initialized) {
         // detect chunks which have to be replaced with a new template
         // e.g, pages/index.js <-> pages/_error.js
-        const added = diff(chunkNames, this.prevChunkNames)
-        const removed = diff(this.prevChunkNames, chunkNames)
-        const succeeded = diff(this.prevFailedChunkNames, failedChunkNames)
+        const addedPages = diff(chunkNames, this.prevChunkNames)
+        const removedPages = diff(this.prevChunkNames, chunkNames)
 
-        // reload all failed chunks to replace the templace to the error ones,
-        // and to update error content
-        const failed = failedChunkNames
-
-        const rootDir = join(CLIENT_STATIC_FILES_PATH, this.buildId, 'pages')
-
-        for (const n of new Set([...added, ...succeeded, ...removed, ...failed])) {
-          const route = toRoute(relative(rootDir, n))
-          this.send('reload', route)
+        if (addedPages.size > 0) {
+          for (const addedPage of addedPages) {
+            let page = '/' + ROUTE_NAME_REGEX.exec(addedPage)[1].replace(/\\/g, '/')
+            page = page === '/index' ? '/' : page
+            this.send('addedPage', page)
+          }
         }
 
-        let changedPageRoutes = []
-
-        for (const [n, hash] of chunkHashes) {
-          if (!this.prevChunkHashes.has(n)) continue
-          if (this.prevChunkHashes.get(n) === hash) continue
-
-          const route = toRoute(relative(rootDir, n))
-
-          changedPageRoutes.push(route)
-        }
-
-        // This means `/_app` is most likely included in the list, or a page was added/deleted in this compilation run.
-        // This means we should filter out `/_app` because `/_app` will be re-rendered with the page reload.
-        if (added.size !== 0 || removed.size !== 0 || changedPageRoutes.length > 1) {
-          changedPageRoutes = changedPageRoutes.filter((route) => route !== '/_app' && route !== '/_document')
-        }
-
-        for (const changedPageRoute of changedPageRoutes) {
-          // notify change to recover from runtime errors
-          this.send('change', changedPageRoute)
+        if (removedPages.size > 0) {
+          for (const removedPage of removedPages) {
+            let page = '/' + ROUTE_NAME_REGEX.exec(removedPage)[1].replace(/\\/g, '/')
+            page = page === '/index' ? '/' : page
+            this.send('removedPage', page)
+          }
         }
       }
 
       this.initialized = true
       this.stats = stats
-      this.compilationErrors = null
       this.prevChunkNames = chunkNames
-      this.prevFailedChunkNames = failedChunkNames
-      this.prevChunkHashes = chunkHashes
     })
 
     // We don’t watch .git/ .next/ and node_modules for changes
@@ -381,7 +356,6 @@ export default class HotReloader {
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
-      dev: true,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
       wsPort: this.wsPort,
@@ -433,7 +407,7 @@ export default class HotReloader {
 
   async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (page === '/_error' || page === '/_document' || page === '/_app') {
+    if (BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
     await this.onDemandEntries.ensurePage(page)
@@ -442,9 +416,4 @@ export default class HotReloader {
 
 function diff (a, b) {
   return new Set([...a].filter((v) => !b.has(v)))
-}
-
-function toRoute (file) {
-  const f = sep === '\\' ? file.replace(/\\/g, '/') : file
-  return ('/' + f).replace(/(\/index)?\.js$/, '') || '/'
 }

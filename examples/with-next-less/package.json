@@ -8,7 +8,7 @@
     "@zeit/next-less": "^1.0.1",
     "less": "^3.0.4",
     "next": "latest",
-    "react": "^16.4.0",
-    "react-dom": "^16.4.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }

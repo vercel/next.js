@@ -16,7 +16,7 @@
     "carbon-icons": "^7.0.7",
     "next": "latest",
     "next-images": "^0.10.6",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }
