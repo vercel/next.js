@@ -3,7 +3,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
-export default (context) => {
+export default (context, renderViaHTTP) => {
   describe('Error Recovery', () => {
     it('should recover from 404 after a page has been added', async () => {
       let browser
@@ -110,6 +110,8 @@ export default (context) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       let browser
       try {
+        await renderViaHTTP('/hmr/about')
+
         aboutPage.replace('</div>', 'div')
 
         browser = await webdriver(context.appPort, '/hmr/contact')
