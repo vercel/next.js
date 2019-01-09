@@ -25,7 +25,7 @@ export async function nextbuild (task, opts) {
 }
 
 export async function client (task, opts) {
-  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript().target('dist/client')
+  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/client')
   notify('Compiled client files')
 }
 
@@ -36,7 +36,7 @@ export async function nextbuildstatic (task, opts) {
 }
 
 export async function pages (task, opts) {
-  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript().target('dist/pages')
+  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/pages')
 }
 
 export async function build (task) {
