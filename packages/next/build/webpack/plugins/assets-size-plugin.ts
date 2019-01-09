@@ -33,6 +33,24 @@ function prettyBytes(number: number): string {
   return number + ' ' + unit
 }
 
+async function executeAsyncMap<T, U>(arr: Array<T>, fn: (el: T) => Promise<U>) {
+  const results = []
+  const nbElementByBatch = 5
+  const nbElement = arr.length
+  const nbBatch = Math.ceil(nbElement / nbElementByBatch)
+
+  for (let i = 0; i < nbBatch; i++) {
+    const elementBatch = arr.slice(
+      i * nbElementByBatch,
+      Math.min((i + 1) * nbElementByBatch, nbElement)
+    )
+
+    results.push(...(await Promise.all(elementBatch.map(fn))))
+  }
+
+  return results
+}
+
 export default class AssetsSizePlugin {
   buildId: string
   distDir: string
@@ -46,35 +64,21 @@ export default class AssetsSizePlugin {
     const pages = Object.keys(assets)
       .filter(filename => IS_BUNDLED_PAGE_REGEX.exec(filename))
 
-    const sizes = []
-    const nbPageByBatch = 5
-    const nbPage = pages.length
-    const nbBatch = Math.ceil(nbPage / nbPageByBatch)
+    const sizes = await executeAsyncMap(pages, async filename => {
+      const search = filename.match(ROUTE_NAME_REGEX)
+      let page = search ? search[1] : filename
+      if (page.slice(-5) === 'index') {
+        page = page.slice(0, -5)
+      }
+      const asset = assets[filename]
+      const size = (await gzip(asset.source())).length
 
-    for (let i = 0; i < nbBatch; i++) {
-      const pageBatch = pages.slice(
-        i * nbPageByBatch,
-        Math.min((i + 1) * nbPageByBatch, nbPage)
-      )
-
-      const promises = pageBatch.map(async filename => {
-        const search = filename.match(ROUTE_NAME_REGEX)
-        let page = search ? search[1] : filename
-        if (page.slice(-5) === 'index') {
-          page = page.slice(0, -5)
-        }
-        const asset = assets[filename]
-        const size = (await gzip(asset.source())).length
-
-        return {
-          filename,
-          page,
-          prettySize: prettyBytes(size)
-        }
-      })
-
-      sizes.push(...(await Promise.all(promises)))
-    }
+      return {
+        filename,
+        page,
+        prettySize: prettyBytes(size)
+      }
+    })
 
     sizes.sort((a, b) => {
       if (a.page > b.page) return 1
@@ -97,6 +101,11 @@ export default class AssetsSizePlugin {
     }
 
     console.log(message)
+
+    const used: any = process.memoryUsage();
+    for (let key in used) {
+      console.log(`${key} ${Math.round(used[key] / 1024 / 1024 * 100) / 100} MB`);
+    }
   }
 
   async apply(compiler: Compiler) {
