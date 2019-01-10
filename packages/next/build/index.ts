@@ -38,8 +38,13 @@ export default async function build (dir: string, conf = null): Promise<void> {
   let result: CompilerResult = {warnings: [], errors: []}
   if (config.target === 'serverless') {
     const clientResult = await runCompiler([configs[0]])
-    const serverResult = await runCompiler([configs[1]])
-    result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
+    // Fail build if clientResult contains errors
+    if(clientResult.errors.length > 0) {
+      result = {warnings: [...clientResult.warnings], errors: [...clientResult.errors]}
+    } else {
+      const serverResult = await runCompiler([configs[1]])
+      result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
+    }
   } else {
     result = await runCompiler(configs)
   }
