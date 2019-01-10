@@ -292,7 +292,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && new BuildManifestPlugin(),
       isServer && new NextJsSsrImportPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
-      !isServer && !dev && new AssetsSizePlugin(buildId, distDir)
+      target !== 'serverless' && !isServer && !dev && new AssetsSizePlugin(buildId, distDir)
     ].filter(Boolean)
   }
 
