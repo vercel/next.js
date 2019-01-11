@@ -129,3 +129,5 @@ export function makePublicRouterInstance (router) {
 
   return instance
 }
+
+module.exports = exports
