@@ -1,7 +1,7 @@
 import React from 'react'
 import hoistStatics from 'hoist-non-react-statics'
 import { getDisplayName } from 'next-server/dist/lib/utils'
-import { RouterContext } from 'next/router'
+import { RouterContext } from './router'
 
 export default function withRouter (ComposedComponent) {
   const displayName = getDisplayName(ComposedComponent)
