@@ -13,7 +13,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
-import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
+import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
 import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
@@ -232,9 +232,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       rules: [
         {
           test: /\.(js|jsx)$/,
-          include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, DEFAULT_PAGES_DIR, /next-server[\\/]dist[\\/]lib/],
+          include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path) => {
-            if (path.indexOf(NEXT_PROJECT_ROOT_DIST_CLIENT) === 0 || path.indexOf(DEFAULT_PAGES_DIR) === 0 || /next-server[\\/]dist[\\/]lib/.exec(path)) {
+            if (/next-server[\\/]dist[\\/]lib/.exec(path)) {
               return false
             }
 
