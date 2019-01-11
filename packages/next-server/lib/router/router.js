@@ -1,9 +1,12 @@
 /* global __NEXT_DATA__ */
 
+import React from 'react'
 import { parse, format } from 'url'
 import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
+
+export const RouterContext = React.createContext()
 
 export default class Router {
   static events = mitt()

@@ -1,8 +1,5 @@
 /* global window */
-import { createContext } from 'react'
 import _Router from 'next-server/dist/lib/router/router'
-
-export const RouterContext = createContext()
 
 const SingletonRouter = {
   router: null, // holds the actual router instance
@@ -77,6 +74,9 @@ export default SingletonRouter
 
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
+
+// Export RouterContext
+export { RouterContext } from 'next-server/dist/lib/router/router'
 
 // INTERNAL APIS
 // -------------
