@@ -36,7 +36,7 @@ export async function nextbuildstatic (task, opts) {
 }
 
 export async function pages (task, opts) {
-  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/pages')
+  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({module: 'commonjs', target: 'es5'}).target('dist/pages')
 }
 
 export async function build (task) {
