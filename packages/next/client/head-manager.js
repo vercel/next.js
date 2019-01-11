@@ -81,5 +81,3 @@ function reactElementToDOM ({ type, props }) {
   }
   return el
 }
-
-module.exports = exports

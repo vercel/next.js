@@ -114,5 +114,3 @@ export function createUrl (router) {
     }
   }
 }
-
-module.exports = exports

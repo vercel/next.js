@@ -200,5 +200,3 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
 
   emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
-
-module.exports = exports
