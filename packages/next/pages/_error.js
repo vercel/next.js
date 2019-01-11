@@ -77,3 +77,5 @@ const styles = {
     padding: 0
   }
 }
+
+module.exports = exports

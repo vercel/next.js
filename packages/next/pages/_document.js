@@ -227,3 +227,5 @@ function getPagePathname (page) {
 
   return `${page}.js`
 }
+
+module.exports = exports
