@@ -25,7 +25,7 @@ export async function nextbuild (task, opts) {
 }
 
 export async function client (task, opts) {
-  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/client')
+  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({module: 'commonjs', target: 'es5'}).target('dist/client')
   notify('Compiled client files')
 }
 
