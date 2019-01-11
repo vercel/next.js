@@ -180,7 +180,9 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
-      <App {...appProps} />
+      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+        <App {...appProps} />
+      </RouterContext.Provider>
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
