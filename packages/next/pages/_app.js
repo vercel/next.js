@@ -1,12 +1,10 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps } from 'next-server/dist/lib/utils'
-import { makePublicRouterInstance } from 'next/router'
 
 export default class App extends Component {
   static childContextTypes = {
-    headManager: PropTypes.object,
-    router: PropTypes.object
+    headManager: PropTypes.object
   }
 
   static async getInitialProps ({ Component, router, ctx }) {
@@ -17,8 +15,7 @@ export default class App extends Component {
   getChildContext () {
     const { headManager } = this.props
     return {
-      headManager,
-      router: makePublicRouterInstance(this.props.router)
+      headManager
     }
   }
 
