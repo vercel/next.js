@@ -86,7 +86,15 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
     return {
       splitChunks: false,
       minimizer: [
-        new TerserPlugin(terserPluginConfig)
+        new TerserPlugin({...terserPluginConfig,
+          terserOptions: {
+            compress: false,
+            mangle: false,
+            module: false,
+            keep_classnames: true,
+            keep_fnames: true
+          }
+        })
       ]
     }
   }
