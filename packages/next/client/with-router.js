@@ -6,13 +6,13 @@ import { RouterContext } from 'next/router'
 export default function withRouter (ComposedComponent) {
   const displayName = getDisplayName(ComposedComponent)
 
-  function WithRouteWrapper () {
+  function WithRouteWrapper (props) {
     return (
       <RouterContext.Consumer>
         {router => (
           <ComposedComponent
             router={router}
-            {...this.props}
+            {...props}
           />
         )}
       </RouterContext.Consumer>
