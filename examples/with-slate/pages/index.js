@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 import Plain from 'slate-plain-serializer'
 import { Editor } from 'slate-react'
 import { KeyUtils } from 'slate'
@@ -21,11 +22,16 @@ class Index extends React.Component {
 
   render () {
     return (
-      <Editor
-        placeholder='Enter some plain text...'
-        value={this.state.value}
-        onChange={this.onChange}
-      />
+      <React.Fragment>
+        <Link href='/multiple'>
+          <a>Go to multiple</a>
+        </Link>
+        <Editor
+          placeholder='Enter some plain text...'
+          value={this.state.value}
+          onChange={this.onChange}
+        />
+      </React.Fragment>
     )
   }
 
