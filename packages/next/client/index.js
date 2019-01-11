@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
-import { createRouter } from 'next/router'
+import { createRouter, makePublicRouterInstance, RouterContext } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
@@ -193,7 +193,9 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     }
     renderReactElement((
       <ErrorBoundary onError={onError}>
-        <App {...appProps} />
+        <RouterContext.Provider value={makePublicRouterInstance(router)}>
+          <App {...appProps} />
+        </RouterContext.Provider>
       </ErrorBoundary>
     ), appContainer)
   }

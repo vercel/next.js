@@ -1,5 +1,8 @@
 /* global window */
+import { createContext } from 'react'
 import _Router from 'next-server/dist/lib/router/router'
+
+export const RouterContext = createContext()
 
 const SingletonRouter = {
   router: null, // holds the actual router instance

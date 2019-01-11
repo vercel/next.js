@@ -1,21 +1,19 @@
 import React, { Component } from 'react'
-import PropTypes from 'prop-types'
 import hoistStatics from 'hoist-non-react-statics'
 import { getDisplayName } from 'next-server/dist/lib/utils'
+import { RouterContext } from 'next/router'
 
 export default function withRouter (ComposedComponent) {
   const displayName = getDisplayName(ComposedComponent)
 
   class WithRouteWrapper extends Component {
-    static contextTypes = {
-      router: PropTypes.object
-    }
-
     static displayName = `withRouter(${displayName})`
+
+    static contextType = RouterContext
 
     render () {
       return <ComposedComponent
-        router={this.context.router}
+        router={this.context}
         {...this.props}
       />
     }
