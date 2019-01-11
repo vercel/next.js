@@ -232,9 +232,9 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       rules: [
         {
           test: /\.(js|jsx)$/,
-          include: [dir, NEXT_PROJECT_ROOT_DIST_CLIENT, /next-server[\\/]dist[\\/]lib/],
+          include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path) => {
-            if (path.indexOf(NEXT_PROJECT_ROOT_DIST_CLIENT) === 0 || /next-server[\\/]dist[\\/]lib/.exec(path)) {
+            if (/next-server[\\/]dist[\\/]lib/.exec(path)) {
               return false
             }
 
