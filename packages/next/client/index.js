@@ -8,7 +8,7 @@ import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
-import { HeadManagerContext } from 'next-server/dist/lib/head'
+import HeadManagerContext from 'next-server/dist/lib/head-context'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code

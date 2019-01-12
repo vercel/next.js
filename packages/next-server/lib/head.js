@@ -1,8 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import sideEffect from './side-effect'
-
-export const HeadManagerContext = React.createContext()
+import HeadManagerContext from './head-context'
 
 class Head extends React.Component {
   static contextType = HeadManagerContext
@@ -107,5 +106,7 @@ if (process.env.NODE_ENV === 'development') {
     children: PropTypes.node.isRequired
   })
 }
+
+export { HeadManagerContext }
 
 export default sideEffect(reduceComponents, onStateChange, mapOnServer)(Head)
