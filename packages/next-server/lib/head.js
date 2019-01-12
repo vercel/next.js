@@ -107,6 +107,4 @@ if (process.env.NODE_ENV === 'development') {
   })
 }
 
-export { HeadManagerContext }
-
 export default sideEffect(reduceComponents, onStateChange, mapOnServer)(Head)
