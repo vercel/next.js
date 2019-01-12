@@ -3,8 +3,8 @@
 import { resolve, format, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
-import Router, {Router as _Router} from 'next/router'
-import {execOnce, getLocationOrigin} from 'next-server/dist/lib/utils'
+import Router, { Router as _Router } from 'next/router'
+import { execOnce, getLocationOrigin } from 'next-server/dist/lib/utils'
 
 function isLocal (href) {
   const url = parse(href, false, true)
@@ -102,7 +102,7 @@ class Link extends Component {
 
     // Prefetch the JSON page if asked (only in the client)
     const { pathname } = window.location
-    const {href: parsedHref} = this.formatUrls(this.props.href, this.props.as)
+    const { href: parsedHref } = this.formatUrls(this.props.href, this.props.as)
     const href = resolve(pathname, parsedHref)
     Router.prefetch(href)
   }

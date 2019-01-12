@@ -6,7 +6,7 @@ module.exports = withCSS(withSass({
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
   },
-  webpack (config, {buildId}) {
+  webpack (config, { buildId }) {
     // When next-css is `npm link`ed we have to solve loaders from the project root
     const nextLocation = path.join(require.resolve('next/package.json'), '../')
     const nextCssNodeModulesLocation = path.join(

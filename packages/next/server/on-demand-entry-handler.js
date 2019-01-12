@@ -4,10 +4,10 @@ import { join } from 'path'
 import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
-import {pageNotFoundError} from 'next-server/dist/server/require'
-import {normalizePagePath} from 'next-server/dist/server/normalize-page-path'
+import { pageNotFoundError } from 'next-server/dist/server/require'
+import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
-import {stringify} from 'querystring'
+import { stringify } from 'querystring'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -36,7 +36,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   pagesBufferLength,
   wsPort
 }) {
-  const {compilers} = multiCompiler
+  const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
   let lastAccessPages = ['']
@@ -60,7 +60,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         }
 
         entries[page].status = BUILDING
-        return addEntry(compilation, compiler.context, name, [compiler.name === 'client' ? `next-client-pages-loader?${stringify({page, absolutePagePath})}!` : absolutePagePath])
+        return addEntry(compilation, compiler.context, name, [compiler.name === 'client' ? `next-client-pages-loader?${stringify({ page, absolutePagePath })}!` : absolutePagePath])
       })
 
       return Promise.all(allEntries)
@@ -175,7 +175,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const extensions = pageExtensions.join('|')
       const pagesDir = join(dir, 'pages')
-      const paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, {cwd: pagesDir})
+      const paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, { cwd: pagesDir })
 
       if (paths.length === 0) {
         throw pageNotFoundError(normalizedPagePath)

@@ -1,4 +1,4 @@
-export default ({url}) => {
+export default ({ url }) => {
   return <div>
     <p id='pathname'>{url.pathname}</p>
     <p id='query'>{Object.keys(url.query).length}</p>

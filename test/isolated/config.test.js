@@ -1,8 +1,8 @@
 /* eslint-env jest */
 
-import {join} from 'path'
+import { join } from 'path'
 import loadConfig from 'next-server/next-config'
-import {PHASE_DEVELOPMENT_SERVER} from 'next-server/constants'
+import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -24,7 +24,7 @@ describe('config', () => {
   })
 
   it('Should pass the customConfig correctly', () => {
-    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {customConfig: true})
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { customConfig: true })
     expect(config.customConfig).toBe(true)
   })
 

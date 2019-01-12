@@ -87,7 +87,7 @@
     "react": "16.6.3",
     "react-dom": "16.6.3",
     "rimraf": "2.6.2",
-    "standard": "11.0.1",
+    "standard": "12.0.1",
     "taskr": "1.1.0",
     "tslint": "5.12.0",
     "typescript": "3.1.1",

@@ -93,7 +93,7 @@ export default async function (dir, options, configuration) {
     hotReloader: null
   }
 
-  const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
+  const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (publicRuntimeConfig) {
     renderOpts.runtimeConfig = publicRuntimeConfig
@@ -113,7 +113,7 @@ export default async function (dir, options, configuration) {
   }
 
   log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, { dev: false, dir, outDir, distDir, buildId })
   const exportPaths = Object.keys(exportPathMap)
 
   const progress = !options.silent && createProgress(exportPaths.length)

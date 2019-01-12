@@ -6,7 +6,7 @@ try {
 
   module.exports = function (task) {
     task.plugin('typescript', { every: true }, function * (file, options) {
-      const {stripExtension} = options
+      const { stripExtension } = options
       const opts = {
         fileName: file.base,
         compilerOptions: {
