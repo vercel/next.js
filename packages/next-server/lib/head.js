@@ -1,7 +1,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import sideEffect from './side-effect'
-import HeadManagerContext from './head-context'
+import { HeadManagerContext } from './head-manager-context'
 
 class Head extends React.Component {
   static contextType = HeadManagerContext
