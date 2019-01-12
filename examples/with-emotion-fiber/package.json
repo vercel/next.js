@@ -13,8 +13,8 @@
     "emotion": "^8.0.11",
     "emotion-server": "^8.0.11",
     "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-emotion": "^8.0.11"
   }
 }

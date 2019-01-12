@@ -33,7 +33,7 @@
       "git add"
     ],
     "*.ts": [
-      "standard --parser typescript-eslint-parser --plugin typescript --fix",
+      "tslint -c tslint.json 'packages/**/*.ts'",
       "git add"
     ],
     "packages/**/bin/*": [
@@ -44,7 +44,7 @@
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
-      "packages/next-server/server/next-server.ts",
+      "packages/**/*.ts",
       "**/*.d.ts",
       "**/node_modules/**",
       "examples/with-ioc/**",
@@ -89,6 +89,8 @@
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",
+    "tslint": "5.12.0",
+    "typescript": "3.1.1",
     "typescript-eslint-parser": "21.0.1",
     "wait-port": "0.2.2",
     "wd": "1.10.3",

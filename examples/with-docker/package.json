@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "isomorphic-unfetch": "^3.0.0"

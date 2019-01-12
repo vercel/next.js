@@ -5,8 +5,8 @@
     "express": "^4.15.3",
     "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "serve": "9.4.0"
   },
   "scripts": {

@@ -6,7 +6,7 @@ type Props = {
   title?: string
 }
 
-const Layout: React.SFC<Props> = ({ children, title = 'This is the default title' }) => (
+const Layout: React.FunctionComponent<Props> = ({ children, title = 'This is the default title' }) => (
   <div>
     <Head>
       <title>{title}</title>
@@ -15,13 +15,15 @@ const Layout: React.SFC<Props> = ({ children, title = 'This is the default title
     </Head>
     <header>
       <nav>
-        <Link href='/'><a>Home</a></Link> |{' '}
-        <Link href='/about'><a>About</a></Link>
+        <Link href='/'><a>Home</a></Link> | {' '}
+        <Link href='/list'><a>List</a></Link> | {' '}
+        <Link href='/about'><a>About</a></Link> | {' '}
       </nav>
     </header>
     {children}
     <footer>
-      I'm here to stay
+        <hr/>
+        <span>I'm here to stay (Footer)</span>
     </footer>
   </div>
 )

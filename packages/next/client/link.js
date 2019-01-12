@@ -83,11 +83,7 @@ class Link extends Component {
     }
 
     // replace state instead of push if prop is present
-    const { replace } = this.props
-    const changeMethod = replace ? 'replace' : 'push'
-
-    // straight up redirect
-    Router[changeMethod](href, as, { shallow: this.props.shallow })
+    Router[this.props.replace ? 'replace' : 'push'](href, as, { shallow: this.props.shallow })
       .then((success) => {
         if (!success) return
         if (scroll) {

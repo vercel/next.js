@@ -11,8 +11,8 @@
     "@emotion/styled": "^10.0.0",
     "babel-plugin-emotion": "^10.0.0",
     "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "license": "ISC"
 }

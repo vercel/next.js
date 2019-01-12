@@ -120,6 +120,12 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(link.text()).toBe('About')
     })
 
+    test('getInitialProps should be class method', async () => {
+      const $ = await get$('/instance-get-initial-props')
+      const expectedErrorMessage = '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+    })
+
     test('getInitialProps resolves to null', async () => {
       const $ = await get$('/empty-get-initial-props')
       const expectedErrorMessage = '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'

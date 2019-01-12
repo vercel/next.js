@@ -1,14 +1,12 @@
 import {IncomingMessage, ServerResponse} from 'http'
 import { ParsedUrlQuery } from 'querystring'
-import { join } from 'path'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import Router from '../lib/router/router'
+import Router, { RouterContext } from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
-import { SERVER_DIRECTORY } from 'next-server/constants'
 import {getDynamicImportBundles, Manifest as ReactLoadableManifest, ManifestItem} from './get-dynamic-import-bundles'
 import {getPageFiles, BuildManifest} from './get-page-files'
 
@@ -48,14 +46,13 @@ function render(renderElementToString: (element: React.ReactElement<any>) => str
 
 type RenderOpts = {
   staticMarkup: boolean,
-  distDir: string,
   buildId: string,
   runtimeConfig?: {[key: string]: any},
   assetPrefix?: string,
   err?: Error|null,
   nextExport?: boolean,
   dev?: boolean,
-  buildManifest: BuildManifest, 
+  buildManifest: BuildManifest,
   reactLoadableManifest: ReactLoadableManifest,
   Component: React.ComponentType,
   Document: React.ComponentType,
@@ -172,17 +169,19 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
 
     return render(renderElementToString,
       <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
-        <EnhancedApp
-          Component={EnhancedComponent}
-          router={router}
-          {...props}
-        />
+        <RouterContext.Provider value={router}>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </RouterContext.Provider>
       </LoadableCapture>
     )
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
-  // the response might be finshed on the getInitialProps call
+  // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
   const dynamicImports = [...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules)]

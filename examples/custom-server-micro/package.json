@@ -9,8 +9,8 @@
     "micro": "^9.1.0",
     "micro-route": "^2.4.0",
     "next": "latest",
-    "react": "^16.1.1",
-    "react-dom": "^16.1.1"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
     "micro-dev": "^2.2.0"

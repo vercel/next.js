@@ -2,7 +2,7 @@ import * as React from 'react'
 import Link from 'next/link'
 
 export default class About extends React.Component {
-  state = { name: '' };
+  state = { name: '' }
 
   async componentDidMount () {
     const name = await window.getName()

@@ -104,7 +104,7 @@ if (process.env.NODE_ENV === 'development') {
   const exact = require('prop-types-exact')
 
   Head.propTypes = exact({
-    children: PropTypes.oneOfType([PropTypes.element, PropTypes.arrayOf(PropTypes.element)]).isRequired
+    children: PropTypes.node.isRequired
   })
 }
 

@@ -10,8 +10,8 @@
     "@rematch/core": "0.6.0",
     "isomorphic-unfetch": "2.0.0",
     "next": "5.1.0",
-    "react": "16.3.0",
-    "react-dom": "16.3.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-redux": "5.0.7",
     "redux": "3.7.2"
   },

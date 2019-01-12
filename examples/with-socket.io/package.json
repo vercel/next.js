@@ -5,8 +5,8 @@
     "express": "^4.15.2",
     "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "socket.io": "^1.7.3",
     "socket.io-client": "^1.7.3"
   },
