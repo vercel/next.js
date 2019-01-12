@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
 import { execOnce, loadGetInitialProps } from 'next-server/dist/lib/utils'
-import { HeadManagerContext } from 'next-server/dist/lib/head'
 
 export default class App extends Component {
   static async getInitialProps ({ Component, router, ctx }) {
@@ -15,13 +14,13 @@ export default class App extends Component {
   }
 
   render () {
-    const {router, Component, pageProps, headManager} = this.props
+    const {router, Component, pageProps} = this.props
     const url = createUrl(router)
-    return <HeadManagerContext.Provider value={headManager}>
+    return (
       <Container>
         <Component {...pageProps} url={url} />
       </Container>
-    </HeadManagerContext.Provider>
+    )
   }
 }
 
