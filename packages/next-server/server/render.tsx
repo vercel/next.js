@@ -2,7 +2,7 @@ import {IncomingMessage, ServerResponse} from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import Router from '../lib/router/router'
+import Router, { RouterContext } from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
@@ -169,11 +169,13 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
 
     return render(renderElementToString,
       <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
-        <EnhancedApp
-          Component={EnhancedComponent}
-          router={router}
-          {...props}
-        />
+        <RouterContext.Provider value={router}>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </RouterContext.Provider>
       </LoadableCapture>
     )
   }

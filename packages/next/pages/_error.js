@@ -4,6 +4,8 @@ import HTTPStatus from 'http-status'
 import Head from 'next-server/head'
 
 export default class Error extends React.Component {
+  static displayName = 'ErrorPage'
+
   static getInitialProps ({ res, err }) {
     const statusCode = res ? res.statusCode : (err ? err.statusCode : null)
     return { statusCode }

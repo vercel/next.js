@@ -36,6 +36,9 @@ try {
         })
       }
 
+      // Workaround for noop.js loading
+      if (file.base === 'next-dev.js') result.outputText = result.outputText.replace('// REPLACE_NOOP_IMPORT', `import('./noop');`)
+
       // update file's data
       file.data = Buffer.from(result.outputText.replace(/process\.env\.NEXT_VERSION/, `"${require('./package.json').version}"`), 'utf8')
     })

@@ -1,9 +1,12 @@
 /* global __NEXT_DATA__ */
 
+import React from 'react'
 import { parse, format } from 'url'
 import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL } from '../utils'
+
+export const RouterContext = React.createContext()
 
 export default class Router {
   static events = mitt()
@@ -185,14 +188,14 @@ export default class Router {
       return true
     }
 
-    const { pathname: asPathname, query: asQuery } = parse(as, true)
     const { pathname, query } = parse(url, true)
 
     // If asked to change the current URL we should reload the current page
     // (not location.reload() but reload getInitialProps and other Next.js stuffs)
     // We also need to set the method = replaceState always
     // as this should not go into the history (That's how browsers work)
-    if (!this.urlIsNew(asPathname, asQuery)) {
+    // We should compare the new asPath to the current asPath, not the url
+    if (!this.urlIsNew(as)) {
       method = 'replaceState'
     }
 
@@ -363,8 +366,10 @@ export default class Router {
     }
   }
 
-  urlIsNew (pathname, query) {
-    return this.pathname !== pathname || !shallowEquals(query, this.query)
+  urlIsNew (asPath) {
+    const { pathname, query } = parse(asPath, true)
+    const { pathname: curPathname } = parse(this.asPath, true)
+    return curPathname !== pathname || !shallowEquals(query, this.query)
   }
 
   isShallowRoutingPossible (route) {
