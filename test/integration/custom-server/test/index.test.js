@@ -10,7 +10,6 @@ import {
   renderViaHTTP,
   fetchViaHTTP
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -64,34 +63,6 @@ describe('Custom Server', () => {
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
         expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
       }
-    })
-
-    it('should support next/asset in server side', async () => {
-      const $normal = cheerio.load(await renderViaHTTP(appPort, '/asset'))
-      expect($normal('img').attr('src')).toBe('/static/myimage.png')
-
-      const $dynamic = cheerio.load(await renderViaHTTP(appPort, '/asset?setAssetPrefix=1'))
-      expect($dynamic('img').attr('src')).toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
-    })
-
-    it('should support next/asset in client side', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      await browser
-        .elementByCss('#go-asset').click()
-        .waitForElementByCss('#asset-page')
-
-      expect(await browser.elementByCss('img').getAttribute('src'))
-        .toBe(`http://localhost:${context.appPort}/static/myimage.png`)
-      browser.close()
-
-      const browser2 = await webdriver(context.appPort, '/?setAssetPrefix=1')
-      await browser2
-        .elementByCss('#go-asset').click()
-        .waitForElementByCss('#asset-page')
-
-      expect(await browser2.elementByCss('img').getAttribute('src'))
-        .toBe(`http://127.0.0.1:${context.appPort}/static/myimage.png`)
-      browser2.close()
     })
   })
 
