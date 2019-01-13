@@ -7,9 +7,6 @@ export default function NextToNextServer (): PluginObj {
     visitor: {
       ImportDeclaration (path: NodePath<ImportDeclaration>) {
         const source = path.node.source.value
-        if (source === 'next/asset') {
-          path.node.source.value = 'next-server/asset'
-        }
         if (source === 'next/dynamic') {
           path.node.source.value = 'next-server/dynamic'
         }

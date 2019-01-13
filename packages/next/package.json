@@ -10,7 +10,6 @@
   "files": [
     "dist",
     "app.js",
-    "asset.js",
     "babel.js",
     "client.js",
     "config.js",
