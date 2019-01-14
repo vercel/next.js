@@ -1,12 +1,11 @@
 {
   "name": "next-server",
-  "version": "8.0.0-canary.4",
+  "version": "8.0.0-canary.6",
   "main": "./index.js",
   "license": "MIT",
   "files": [
     "dist",
     "index.js",
-    "asset.js",
     "config.js",
     "constants.js",
     "dynamic.js",
@@ -36,8 +35,8 @@
     "url": "0.11.0"
   },
   "peerDependencies": {
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "^16.6.0",
+    "react-dom": "^16.6.0"
   },
   "devDependencies": {
     "@taskr/clear": "1.1.0",

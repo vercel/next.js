@@ -1,13 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
-import { createRouter } from 'next/router'
+import { createRouter, makePublicRouterInstance, RouterContext } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
+import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -180,7 +181,11 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
-      <App {...appProps} />
+      <RouterContext.Provider value={makePublicRouterInstance(router)}>
+        <HeadManagerContext.Provider value={headManager}>
+          <App {...appProps} />
+        </HeadManagerContext.Provider>
+      </RouterContext.Provider>
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
@@ -193,7 +198,11 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     }
     renderReactElement((
       <ErrorBoundary onError={onError}>
-        <App {...appProps} />
+        <RouterContext.Provider value={makePublicRouterInstance(router)}>
+          <HeadManagerContext.Provider value={headManager}>
+            <App {...appProps} />
+          </HeadManagerContext.Provider>
+        </RouterContext.Provider>
       </ErrorBoundary>
     ), appContainer)
   }
