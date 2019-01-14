@@ -3,7 +3,6 @@
 import { join } from 'path'
 import getPort from 'get-port'
 import clone from 'clone'
-import cheerio from 'cheerio'
 import {
   initNextServerScript,
   killApp,
@@ -49,8 +48,8 @@ describe('Custom Server', () => {
     })
 
     it('should handle null assetPrefix accordingly', async () => {
-      const $normal = cheerio.load(await renderViaHTTP(appPort, '/asset?setEmptyAssetPrefix=1'))
-      expect($normal('img').attr('src')).toBe('/static/myimage.png')
+      const normalUsage = await renderViaHTTP(appPort, '/asset?setEmptyAssetPrefix=1')
+      expect(normalUsage).toMatch(/"\/_next/)
     })
 
     it('should set the assetPrefix to a given request', async () => {
