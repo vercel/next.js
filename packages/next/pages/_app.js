@@ -1,10 +1,22 @@
 import React, { Component } from 'react'
+import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps } from 'next-server/dist/lib/utils'
+import { makePublicRouterInstance } from 'next/router'
 
 export default class App extends Component {
+  static childContextTypes = {
+    router: PropTypes.object
+  }
+
   static async getInitialProps ({ Component, router, ctx }) {
     const pageProps = await loadGetInitialProps(Component, ctx)
     return {pageProps}
+  }
+
+  getChildContext () {
+    return {
+      router: makePublicRouterInstance(this.props.router)
+    }
   }
 
   // Kept here for backwards compatibility.
