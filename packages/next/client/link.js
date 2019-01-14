@@ -3,7 +3,7 @@
 import { resolve, format, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
-import Router, {Router as _Router} from 'next/router'
+import Router, {Router as _Router, withRouter} from 'next/router'
 import {execOnce, getLocationOrigin} from 'next-server/dist/lib/utils'
 
 function isLocal (href) {
@@ -108,7 +108,7 @@ class Link extends Component {
   }
 
   render () {
-    let { children } = this.props
+    let { children, router } = this.props
     let { href, as } = this.formatUrls(this.props.href, this.props.as)
     // Deprecated. Warning shown by propType check. If the childen provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
@@ -144,6 +144,11 @@ class Link extends Component {
       props.href = _Router._rewriteUrlForNextExport(props.href)
     }
 
+    const isCurrent = props.href === router.pathname
+    if (isCurrent) {
+      props['aria-current'] = 'page'
+    }
+
     return React.cloneElement(child, props)
   }
 }
@@ -161,6 +166,7 @@ if (process.env.NODE_ENV === 'development') {
     shallow: PropTypes.bool,
     passHref: PropTypes.bool,
     scroll: PropTypes.bool,
+    router: PropTypes.object,
     children: PropTypes.oneOfType([
       PropTypes.element,
       (props, propName) => {
@@ -176,4 +182,4 @@ if (process.env.NODE_ENV === 'development') {
   })
 }
 
-export default Link
+export default withRouter(Link)
