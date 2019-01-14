@@ -91,8 +91,8 @@
     "ws": "6.1.2"
   },
   "peerDependencies": {
-    "react": "^16.3.0",
-    "react-dom": "^16.3.0"
+    "react": "^16.6.0",
+    "react-dom": "^16.6.0"
   },
   "devDependencies": {
     "@types/loader-utils": "1.1.3",

@@ -8,6 +8,7 @@ import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
+import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -181,7 +182,9 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
-        <App {...appProps} />
+        <HeadManagerContext.Provider value={headManager}>
+          <App {...appProps} />
+        </HeadManagerContext.Provider>
       </RouterContext.Provider>
     ), appContainer)
   } else {
@@ -196,7 +199,9 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     renderReactElement((
       <ErrorBoundary onError={onError}>
         <RouterContext.Provider value={makePublicRouterInstance(router)}>
-          <App {...appProps} />
+          <HeadManagerContext.Provider value={headManager}>
+            <App {...appProps} />
+          </HeadManagerContext.Provider>
         </RouterContext.Provider>
       </ErrorBoundary>
     ), appContainer)
