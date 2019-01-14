@@ -4,17 +4,26 @@ import React from 'react'
 import { parse, format } from 'url'
 import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
+import hoistStatics from 'hoist-non-react-statics'
+import { getDisplayName } from 'next-server/dist/lib/utils'
 import { loadGetInitialProps, getURL } from '../utils'
 
 export const RouterContext = React.createContext()
 
-export const withRouterProvider = (Component, router) => {
-  return (props) => <RouterContext.Provider value={router}>
-    <Component
+export const withRouterProvider = (ComposedComponent, router) => {
+  const displayName = getDisplayName(ComposedComponent)
+
+  const WithRouteWrapper = (props) => <RouterContext.Provider value={router}>
+    <ComposedComponent
       {...props}
     />
   </RouterContext.Provider>
+
+  WithRouteWrapper.displayName = `withRouteProvider(${displayName})`
+
+  return hoistStatics(WithRouteWrapper, ComposedComponent)
 }
+
 export default class Router {
   static events = mitt()
 
