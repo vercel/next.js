@@ -4,7 +4,7 @@ import { execOnce, loadGetInitialProps } from 'next-server/dist/lib/utils'
 import { makePublicRouterInstance } from 'next/router'
 
 export default class App extends Component {
-  static contextTypes = {
+  static childContextTypes = {
     router: PropTypes.object
   }
 
