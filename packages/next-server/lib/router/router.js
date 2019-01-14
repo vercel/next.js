@@ -8,6 +8,13 @@ import { loadGetInitialProps, getURL } from '../utils'
 
 export const RouterContext = React.createContext()
 
+export const withRouterProvider = (Component, router) => {
+  return (props) => <RouterContext.Provider value={router}>
+    <Component
+      {...props}
+    />
+  </RouterContext.Provider>
+}
 export default class Router {
   static events = mitt()
 

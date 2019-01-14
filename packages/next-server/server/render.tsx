@@ -2,7 +2,7 @@ import {IncomingMessage, ServerResponse} from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import Router, { RouterContext } from '../lib/router/router'
+import Router, { withRouterProvider } from '../lib/router/router'
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
@@ -143,7 +143,7 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
-  const props = await loadGetInitialProps(App, {Component, router, ctx})
+  const props = await loadGetInitialProps(App, {Component: withRouterProvider(Component, router), router, ctx})
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
@@ -165,17 +165,15 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
       return render(renderElementToString, <ErrorDebug error={err} />)
     }
 
-    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
+    const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, withRouterProvider(Component, router))
 
     return render(renderElementToString,
       <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
-        <RouterContext.Provider value={router}>
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </RouterContext.Provider>
+        <EnhancedApp
+          Component={EnhancedComponent}
+          router={router}
+          {...props}
+        />
       </LoadableCapture>
     )
   }
