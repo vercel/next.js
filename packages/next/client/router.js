@@ -75,9 +75,6 @@ export default SingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
-// Export RouterContext
-export { RouterContext } from 'next-server/dist/lib/router/router'
-
 // INTERNAL APIS
 // -------------
 // (do not use following exports inside the app)
