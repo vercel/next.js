@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import asset from 'next/asset'
 import dynamic from 'next/dynamic'
 
 const Header = dynamic(import('../components/Header'))
@@ -18,6 +17,6 @@ export default () => (
         <a>About us</a>
       </Link>
     </div>
-    <img width={200} src={asset('/nextjs.png')} />
+    <img width={200} src='/static/nextjs.png' />
   </div>
 )

@@ -43,12 +43,6 @@ export default function (context) {
       expect(html).toMatch(/Query is: {}/)
     })
 
-    it('should handle next/asset properly', async () => {
-      const html = await renderViaHTTP(context.port, '/asset')
-      const $ = cheerio.load(html)
-      expect($('img').attr('src')).toBe('/static/myimage.png')
-    })
-
     it('should render _error on 404', async () => {
       const html = await renderViaHTTP(context.port, '/404')
       expect(html).toMatch(/404/)
