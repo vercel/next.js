@@ -13,7 +13,7 @@ Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [
 ```bash
 npx create-next-app --example with-typescript with-typescript-app
 # or
-yarn create next-app --example with-typescript with-typescript-app
+yarn create-next-app --example with-typescript with-typescript-app
 ```
 
 ### Download manually
