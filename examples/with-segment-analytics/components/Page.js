@@ -2,8 +2,7 @@ import React from 'react'
 import Router from 'next/router'
 import Header from './Header'
 
-// Track page views with Segment
-// No need to exclude localhost as this is can be done in Google Analytics console
+// Track client-side page views with Segment
 Router.events.on('routeChangeComplete', url => {
   if (typeof window !== 'undefined') {
     window.analytics.page(url)
