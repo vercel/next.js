@@ -11,7 +11,6 @@ import Router, {route, Route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
 import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
-import * as asset from '../lib/asset'
 import * as envConfig from '../lib/runtime-config'
 import {loadComponents} from './load-components'
 
@@ -111,7 +110,6 @@ export default class Server {
 
   public setAssetPrefix(prefix?: string) {
     this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
-    asset.setAssetPrefix(this.renderOpts.assetPrefix)
   }
 
   // Backwards compatibility
