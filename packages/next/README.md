@@ -1636,6 +1636,14 @@ Examples of automatically created Serverless deployments:
 
 - [Now v2 with `@now/next` builder](https://github.com/zeit/now-examples/tree/master/nextjs)
 
+To summarize:
+
+- Every page becomes a serverless function
+- The serverless function has 0 dependencies (they're all inlined)
+- Uses the req and res coming from Node.js
+- opt-in using target: 'serverless' in next.config.js
+- Does not load next.config.js when executing the function, note that this means `publicRuntimeConfig` / `serverRuntimeConfig` are not supported.
+
 ## Browser support
 
 Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
