@@ -1628,7 +1628,7 @@ const server = new http.Server((req, res) => page.render(req, res))
 server.listen(3000, () => console.log('Listening on http://localhost:3000'))
 ```
 
-Next.js provides low level APIs for serverless as platforms have different function signatures. The low level APIs allow the user to implement Next.js on any serverless platform.
+Next.js provides low-level APIs for serverless as platforms have different function signatures. These APIs allow the user to implement Next.js on any serverless platform.
 
 Generally you will want to wrap the Next.js serverless build output to interoperate between your deployment platform and the Next.js serverless function.
 
