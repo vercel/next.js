@@ -1617,7 +1617,7 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 
 - [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 - [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
-- void refers to the function not having a return value. Calling the function will finish the request.
+- `void` refers to the function not having a return value. Calling the function will finish the request.
 
 Example usage with [`http.Server`](https://nodejs.org/api/http.html#http_class_http_server):
 
