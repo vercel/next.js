@@ -69,6 +69,7 @@
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+  - [Serverless deployment](#serverless-deployment)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Limitation](#limitation)
@@ -1586,6 +1587,66 @@ Next.js can be deployed to other hosting solutions too. Please have a look at th
 Note: `NODE_ENV` is properly configured by the `next` subcommands, if absent, to maximize performance. if you’re using Next.js [programmatically](#custom-server-and-routing), it’s your responsibility to set `NODE_ENV=production` manually!
 
 Note: we recommend putting `.next`, or your [custom dist folder](https://github.com/zeit/next.js#custom-configuration), in `.gitignore` or `.npmignore`. Otherwise, use `files` or `now.files` to opt-into a whitelist of files you want to deploy, excluding `.next` or your custom dist folder.
+
+### Serverless deployment
+
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/zeit/now-examples/tree/master/nextjs">Now.sh</a></li>
+    <li>We encourage contributing more examples to this section</li>
+  </ul>
+</details>
+
+Serverless deployment dramatically improves reliability and scalability by splitting your application into many entrypoints. In case of Next.js an entrypoint is a page in the `pages` directory.
+
+To enable building serverless functions you have to enable the `serverless` build `target` in `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  target: 'serverless'
+}
+```
+
+The serverless target will output a single file per page, this file is completely standalone and doesn't require any dependencies to run:
+
+- `pages/index.js` => `.next/serverless/pages/index.js`
+- `pages/about.js` => `.next/serverless/pages/about.js`
+
+The signature of the Next.js Serverless function is similar to the Node.js HTTP server callback:
+
+```ts
+export function render(req: http.IncomingMessage, res: http.ServerResponse) => void
+```
+
+- [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
+- [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
+- `void` refers to the function not having a return value. Calling the function will finish the request.
+
+Next.js provides low-level APIs for Serverless as hosting platforms have different function signatures. In general you will want to wrap the output of a Next.js Serverless build with a compatability layer.
+
+For example if the platform supports the Node.js [`http.Server`](https://nodejs.org/api/http.html#http_class_http_server) class:
+
+```js
+const http = require('http')
+const page = require('./.next/serverless/about.js')
+const server = new http.Server((req, res) => page.render(req, res))
+server.listen(3000, () => console.log('Listening on http://localhost:3000'))
+```
+
+For specific platform examples see [the examples section above](#serverless-deployment).
+
+To summarize:
+
+- Low-level API for implementing Serverless deployment
+- Every page in the `pages` directory becomes a serverless function
+- Creates the smallest possible Serverless function (50Kb base zip size)
+- Optimized for fast cold start of the function
+- The serverless function has 0 dependencies (they are included in the function bundle)
+- Uses the [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage) and [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse) from Node.js
+- opt-in using `target: 'serverless'` in `next.config.js`
+- Does not load `next.config.js` when executing the function, note that this means `publicRuntimeConfig` / `serverRuntimeConfig` are not supported
 
 ## Browser support
 
