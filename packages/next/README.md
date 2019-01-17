@@ -69,6 +69,7 @@
   - [Starting the server on alternative hostname](#starting-the-server-on-alternative-hostname)
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
+  - [Serverless deployment](#serverless-deployment)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Limitation](#limitation)
