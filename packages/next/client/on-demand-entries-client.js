@@ -3,7 +3,10 @@
 import Router from 'next/router'
 import fetch from 'unfetch'
 
-const { hostname } = location
+const { hostname, protocol } = location
+const wsProtocol = protocol.includes('https') ? 'wss' : 'ws'
+const wsPort = process.env.NEXT_WS_PROXY_PORT || process.env.NEXT_WS_PORT
+const wsPath = process.env.NEXT_WS_PROXY_PATH || null
 const retryTime = 5000
 let ws = null
 let lastHref = null
@@ -19,7 +22,7 @@ export default async ({ assetPrefix }) => {
     }
 
     return new Promise(resolve => {
-      ws = new WebSocket(`ws://${hostname}:${process.env.NEXT_WS_PORT}`)
+      ws = new WebSocket(`${wsProtocol}://${hostname}:${wsPort}${wsPath ? `/${wsPath}` : ''}`)
       ws.onopen = () => resolve()
       ws.onclose = () => {
         setTimeout(async () => {

@@ -164,10 +164,18 @@ export default class HotReloader {
     return del(join(this.dir, this.config.distDir), { force: true })
   }
 
-  addWsPort (configs) {
-    configs[0].plugins.push(new webpack.DefinePlugin({
+  addWsConfig (configs) {
+    const opts = {
       'process.env.NEXT_WS_PORT': this.wsPort
-    }))
+    }
+    const { websocketProxyPath, websocketProxyPort } = this.config.onDemandEntries
+    if (websocketProxyPath) {
+      opts['process.env.NEXT_WS_PROXY_PATH'] = websocketProxyPath
+    }
+    if (websocketProxyPath) {
+      opts['process.env.NEXT_WS_PROXY_PORT'] = websocketProxyPort
+    }
+    configs[0].plugins.push(new webpack.DefinePlugin(opts))
   }
 
   async getWebpackConfig () {
@@ -200,7 +208,7 @@ export default class HotReloader {
     })
 
     const configs = await this.getWebpackConfig()
-    this.addWsPort(configs)
+    this.addWsConfig(configs)
 
     const multiCompiler = webpack(configs)
 
@@ -229,7 +237,7 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
-    this.addWsPort(configs)
+    this.addWsConfig(configs)
 
     const compiler = webpack(configs)
 
