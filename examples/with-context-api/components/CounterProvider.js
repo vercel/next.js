@@ -15,6 +15,14 @@ class CounterProvider extends Component {
     })
   }
 
+  increaseBy = (val) => {
+    this.setState({
+      count: this.state.count + val
+    })
+  }
+
+
+
   decrease = () => {
     this.setState({
       count: this.state.count - 1
@@ -27,7 +35,8 @@ class CounterProvider extends Component {
         value={{
           count: this.state.count,
           increase: this.increase,
-          decrease: this.decrease
+          decrease: this.decrease,
+          increaseBy: this.increaseBy
         }}
       >
         {this.props.children}
