@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 /* First we import the consumer */
 import { CounterConsumer } from '../components/CounterProvider'
-import Link from "next/link";
+import Link from 'next/link'
 
 export default class about extends Component {
   render () {
@@ -14,9 +14,9 @@ export default class about extends Component {
             <p>Counter: {count}</p>
             <button onClick={increase}>Increase</button>
             <button onClick={() => {
-              increaseBy(15);
+              increaseBy(15)
             }}>Increase By 15</button>
-            <p><Link href="/">
+            <p><Link href='/'>
               <a>Home</a>
             </Link></p>
           </div>
