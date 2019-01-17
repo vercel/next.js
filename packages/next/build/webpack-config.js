@@ -124,7 +124,11 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
 
   // Terser is a better uglifier
   config.minimizer = [
-    new TerserPlugin(terserPluginConfig)
+    new TerserPlugin({...terserPluginConfig,
+      terserOptions: {
+        safari10: true
+      }
+    })
   ]
 
   // Only enabled in production
