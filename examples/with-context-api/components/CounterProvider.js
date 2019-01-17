@@ -21,8 +21,6 @@ class CounterProvider extends Component {
     })
   }
 
-
-
   decrease = () => {
     this.setState({
       count: this.state.count - 1
