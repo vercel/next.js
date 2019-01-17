@@ -1593,6 +1593,7 @@ Note: we recommend putting `.next`, or your [custom dist folder](https://github.
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/zeit/now-examples/tree/master/nextjs">Now.sh</a></li>
+    <li>We encourage contributing more examples to this section</li>
   </ul>
 </details>
 
