@@ -32,7 +32,8 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-typescript.js"
+      "./taskfile-typescript.js",
+      "./taskfile-babel.js"
     ]
   },
   "dependencies": {
