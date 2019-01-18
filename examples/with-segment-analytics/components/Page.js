@@ -4,9 +4,7 @@ import Header from './Header'
 
 // Track client-side page views with Segment
 Router.events.on('routeChangeComplete', url => {
-  if (typeof window !== 'undefined') {
-    window.analytics.page(url)
-  }
+  window.analytics.page(url)
 })
 
 const Page = ({ children }) =>
