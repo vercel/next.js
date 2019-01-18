@@ -1,6 +1,7 @@
 version: '3.5'
 services:
   server:
+    user: 1000:1000
     volumes:
       - .:/app
     command: sh -c "yarn --production=false && yarn clean && yarn deploy --project "$FB_PROJECTID""
