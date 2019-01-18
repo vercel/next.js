@@ -19,7 +19,7 @@ const defaultConfig = {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
     websocketPort: 0,
-    websocketProxyPath: null,
+    websocketProxyPath: '/',
     websocketProxyPort: null
   }
 }
