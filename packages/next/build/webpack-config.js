@@ -291,6 +291,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && new UnlinkFilePlugin(),
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       !dev && new webpack.HashedModuleIdsPlugin(),
+      process.env.NODE_ENV === 'production' && new webpack.IgnorePlugin(/^react-is$/),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
         'process.crossOrigin': JSON.stringify(config.crossOrigin),
