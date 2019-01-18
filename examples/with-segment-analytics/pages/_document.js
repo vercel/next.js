@@ -17,7 +17,9 @@ export default class extends Document {
   renderSnippet () {
     const opts = {
       apiKey: ANALYTICS_WRITE_KEY,
-      page: true // Set this to `false` if you want to manually fire `analytics.page()` from within your pages.
+      // note: the page option only covers SSR tracking.
+      // Page.js is used to track other events using `window.analytics.page()`
+      page: true
     }
 
     if (NODE_ENV === 'development') {
