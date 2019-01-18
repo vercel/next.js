@@ -165,15 +165,12 @@ export default class HotReloader {
   }
 
   addWsConfig (configs) {
-    const opts = {
-      'process.env.NEXT_WS_PORT': this.wsPort
-    }
     const { websocketProxyPath, websocketProxyPort } = this.config.onDemandEntries
-    if (websocketProxyPath) {
-      opts['process.env.NEXT_WS_PROXY_PATH'] = websocketProxyPath
+    const opts = {
+      'process.env.NEXT_WS_PORT': websocketProxyPort || this.wsPort
     }
     if (websocketProxyPath) {
-      opts['process.env.NEXT_WS_PROXY_PORT'] = websocketProxyPort
+      opts['process.env.NEXT_WS_PROXY_PATH'] = JSON.stringify(websocketProxyPath)
     }
     configs[0].plugins.push(new webpack.DefinePlugin(opts))
   }
