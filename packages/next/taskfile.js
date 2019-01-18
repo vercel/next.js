@@ -1,4 +1,15 @@
 const notifier = require('node-notifier')
+const babelOpts = {
+  plugins: [
+    '@babel/plugin-transform-modules-commonjs',
+    ['@babel/plugin-transform-runtime', {
+      corejs: 2,
+      helpers: true,
+      regenerator: true,
+      useESModules: false
+    }]
+  ]
+}
 
 export async function compile (task) {
   await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
@@ -25,7 +36,7 @@ export async function nextbuild (task, opts) {
 }
 
 export async function client (task, opts) {
-  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({module: 'commonjs', target: 'es5'}).target('dist/client')
+  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).babel(babelOpts).target('dist/client')
   notify('Compiled client files')
 }
 
@@ -36,7 +47,7 @@ export async function nextbuildstatic (task, opts) {
 }
 
 export async function pages (task, opts) {
-  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({module: 'commonjs', target: 'es5'}).target('dist/pages')
+  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).babel(babelOpts).target('dist/pages')
 }
 
 export async function build (task) {
