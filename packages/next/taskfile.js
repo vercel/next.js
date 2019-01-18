@@ -2,7 +2,10 @@ const notifier = require('node-notifier')
 const babelOpts = {
   presets: [
     ['@babel/preset-env', {
-      modules: 'commonjs'
+      modules: 'commonjs',
+      'targets': {
+        'browsers': ['IE 11']
+      }
     }]
   ],
   plugins: [
