@@ -1,7 +1,11 @@
 const notifier = require('node-notifier')
 const babelOpts = {
+  presets: [
+    ['@babel/preset-env', {
+      modules: 'commonjs'
+    }]
+  ],
   plugins: [
-    '@babel/plugin-transform-modules-commonjs',
     ['@babel/plugin-transform-runtime', {
       corejs: 2,
       helpers: true,
