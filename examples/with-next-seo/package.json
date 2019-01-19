@@ -6,12 +6,11 @@
     "build": "next build",
     "start": "next start"
   },
-  "author": "Gary Meehan <garymeehan@outlook.com> (https://www.garymeehan.ie/)",
-  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "next-seo": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  }
+  },
+  "license": "ISC"
 }
