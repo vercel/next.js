@@ -6,6 +6,8 @@
     "build": "next build",
     "start": "next start"
   },
+  "author": "Gary Meehan <garymeehan@outlook.com> (https://www.garymeehan.ie/)",
+  "license": "MIT",
   "dependencies": {
     "next": "latest",
     "next-seo": "latest",
