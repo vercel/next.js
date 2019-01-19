@@ -13,7 +13,7 @@ export default class extends React.Component {
   static propTypes = {
     resultsState: PropTypes.object,
     searchState: PropTypes.object
-  };
+  }
 
   constructor (props) {
     super(props)
@@ -42,7 +42,7 @@ export default class extends React.Component {
       })
     }, updateAfter)
     this.setState({ searchState })
-  };
+  }
 
   componentDidMount () {
     this.setState({ searchState: qs.parse(window.location.search.slice(1)) })

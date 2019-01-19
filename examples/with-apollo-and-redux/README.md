@@ -15,7 +15,7 @@ yarn create next-app --example with-apollo-and-redux with-apollo-and-redux-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-apollo-and-redux
@@ -41,7 +41,7 @@ now
 ## The idea behind the example
 This example serves as a conduit if you were using Apollo 1.X with Redux, and are migrating to Apollo 2.x, however, you have chosen not to manage your entire application state within Apollo (`apollo-link-state`).
 
-In 2.0.0, Apollo severs out-of-the-box support for redux in favor of Apollo's state management. This example aims to be an amalgamation of the [`with-apollo`](https://github.com/zeit/next.js/tree/master/examples/with-apollo) and [`with-redux`](https://github.com/zeit/next.js/tree/master/examples/with-redux) examples.
+In 2.0.0, Apollo serves out-of-the-box support for redux in favor of Apollo's state management. This example aims to be an amalgamation of the [`with-apollo`](https://github.com/zeit/next.js/tree/master/examples/with-apollo) and [`with-redux`](https://github.com/zeit/next.js/tree/master/examples/with-redux) examples.
 
 Note that you can access the redux store like you normally would using `react-redux`'s `connect`. Here's a quick example:
 

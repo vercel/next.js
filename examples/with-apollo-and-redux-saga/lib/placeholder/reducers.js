@@ -5,7 +5,7 @@ export const initialState = {
   error: false
 }
 
-function reducer(state = initialState, action) {
+function reducer (state = initialState, action) {
   switch (action.type) {
     case actionTypes.LOAD_DATA_SUCCESS:
       return {

@@ -14,7 +14,11 @@ function Post ({ id, data: { error, Post } }) {
       <section>
         <div key={Post.id}>
           <h1>{Post.title}</h1>
-          <p>ID: {Post.id}<br />URL: {Post.url}</p>
+          <p>
+            ID: {Post.id}
+            <br />
+            URL: {Post.url}
+          </p>
           <span>
             <PostVoteUp id={Post.id} votes={Post.votes} />
             <PostVoteCount votes={Post.votes} />

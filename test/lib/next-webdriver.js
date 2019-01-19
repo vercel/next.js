@@ -37,9 +37,15 @@ function getBrowser (url, timeout) {
       reject(error)
     }, timeout)
 
-    browser.init({browserName: 'chrome'}).get(url, (err) => {
+    browser.init({browserName: 'chrome'}).get(url, err => {
       if (timeouted) {
-        browser.close()
+        try {
+          browser.close(() => {
+            // Ignore errors
+          })
+        } catch (err) {
+          // Ignore
+        }
         return
       }
 

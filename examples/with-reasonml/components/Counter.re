@@ -13,9 +13,9 @@ let make = (_children) => {
   render: (self) => {
     let countMsg = "Count: " ++ string_of_int(self.state);
     <div>
-      <p> (ReasonReact.stringToElement(countMsg)) </p>
-      <button onClick=(self.reduce((_event) => Add))>
-        (ReasonReact.stringToElement("Add"))
+      <p> (ReasonReact.string(countMsg)) </p>
+      <button onClick=(_event => self.send(Add))>
+        (ReasonReact.string("Add"))
       </button>
     </div>
   }

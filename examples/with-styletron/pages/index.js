@@ -1,5 +1,4 @@
 import { styled } from 'styletron-react'
-import Page from '../layout'
 
 const Title = styled('div', {
   color: 'red',
@@ -7,7 +6,7 @@ const Title = styled('div', {
 })
 
 export default () => (
-  <Page>
+  <div>
     <Title>My page</Title>
-  </Page>
+  </div>
 )

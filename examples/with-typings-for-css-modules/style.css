@@ -1,0 +1,10 @@
+.example {
+  font-size: 50px;
+  color: papayawhip;
+}
+
+.example__description > strong {
+  color: tomato;
+  text-transform: uppercase;
+  font-style: italic;
+}

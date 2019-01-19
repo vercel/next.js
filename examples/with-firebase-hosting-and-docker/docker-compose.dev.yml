@@ -1,0 +1,14 @@
+version: '3.5'
+services:
+  server:
+    user: 1000:1000
+    volumes:
+      - .:/app
+    command: sh -c "yarn --production=false && yarn dev"
+    environment:
+      NODE_ENV: '${NODE_ENV}'
+      GOOGLE_APPLICATION_CREDENTIALS: '${GOOGLE_APPLICATION_CREDENTIALS}'
+      FIREBASE_TOKEN: '${FIREBASE_TOKEN}'
+    ports:
+      - '3000:3000'
+      - '5000:5000'

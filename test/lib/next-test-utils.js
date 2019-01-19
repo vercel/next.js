@@ -4,18 +4,17 @@ import http from 'http'
 import express from 'express'
 import path from 'path'
 import getPort from 'get-port'
-import { spawn } from 'child_process'
+import spawn from 'cross-spawn'
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
 import fkill from 'fkill'
 
-import server from '../../dist/server/next'
-import build from '../../dist/server/build'
-import _export from '../../dist/server/export'
-import _pkg from '../../package.json'
+// `next` here is the symlink in `test/node_modules/next` which points to the root directory.
+// This is done so that requiring from `next` works.
+// The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
+import server from 'next/dist/server/next'
+import _pkg from 'next/package.json'
 
 export const nextServer = server
-export const nextBuild = build
-export const nextExport = _export
 export const pkg = _pkg
 
 export function initNextServerScript (scriptPath, successRegexp, env) {
@@ -66,16 +65,40 @@ export function findPort () {
   return getPort()
 }
 
-// Launch the app in dev mode.
-export function launchApp (dir, port) {
-  const cwd = path.resolve(__dirname, '../../')
+export function runNextCommand (argv, options = {}) {
+  const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['dist/bin/next', dir, '-p', port], { cwd })
+    console.log(`Running command "next ${argv.join(' ')}"`)
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, stdio: options.stdout ? ['ignore', 'pipe', 'ignore'] : 'inherit' })
+
+    let stdoutOutput = ''
+    if (options.stdout) {
+      instance.stdout.on('data', function (chunk) {
+        stdoutOutput += chunk
+      })
+    }
+
+    instance.on('close', () => {
+      resolve({
+        stdout: stdoutOutput
+      })
+    })
+
+    instance.on('error', (err) => {
+      reject(err)
+    })
+  })
+}
+
+export function runNextCommandDev (argv, stdOut) {
+  const cwd = path.dirname(require.resolve('next/package'))
+  return new Promise((resolve, reject) => {
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd })
 
     function handleStdout (data) {
       const message = data.toString()
       if (/> Ready on/.test(message)) {
-        resolve(instance)
+        resolve(stdOut ? message : instance)
       }
       process.stdout.write(message)
     }
@@ -98,6 +121,19 @@ export function launchApp (dir, port) {
   })
 }
 
+// Launch the app in dev mode.
+export function launchApp (dir, port) {
+  return runNextCommandDev([dir, '-p', port])
+}
+
+export function nextBuild (dir, args = []) {
+  return runNextCommand(['build', dir, ...args])
+}
+
+export function nextExport (dir, {outdir}) {
+  return runNextCommand(['export', dir, '--outdir', outdir])
+}
+
 // Kill a launched app
 export async function killApp (instance) {
   await fkill(instance.pid)
@@ -113,7 +149,7 @@ export async function startApp (app) {
   return server
 }
 
-export async function stopApp (app) {
+export async function stopApp (server) {
   if (server.__app) {
     await server.__app.close()
   }
@@ -148,10 +184,28 @@ export async function startStaticServer (dir) {
 }
 
 export async function check (contentFn, regex) {
-  while (true) {
+  let found = false
+  const timeout = setTimeout(async () => {
+    if (found) {
+      return
+    }
+    let content
+    try {
+      content = await contentFn()
+    } catch (err) {
+      console.error('Error while getting content', {regex})
+    }
+    console.error('TIMED OUT CHECK: ', {regex, content})
+    throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
+  }, 1000 * 30)
+  while (!found) {
     try {
       const newContent = await contentFn()
-      if (regex.test(newContent)) break
+      if (regex.test(newContent)) {
+        found = true
+        clearTimeout(timeout)
+        break
+      }
       await waitFor(1000)
     } catch (ex) {}
   }
@@ -182,4 +236,36 @@ export class File {
   restore () {
     this.write(this.originalContent)
   }
+}
+
+// react-error-overlay uses an iframe so we have to read the contents from the frame
+export async function getReactErrorOverlayContent (browser) {
+  let found = false
+  setTimeout(() => {
+    if (found) {
+      return
+    }
+    console.error('TIMED OUT CHECK FOR IFRAME')
+    throw new Error('TIMED OUT CHECK FOR IFRAME')
+  }, 1000 * 30)
+  while (!found) {
+    try {
+      await browser.waitForElementByCss('iframe', 10000)
+
+      const hasIframe = await browser.hasElementByCssSelector('iframe')
+      if (!hasIframe) {
+        throw new Error('Waiting for iframe')
+      }
+
+      found = true
+      return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+    } catch (ex) {
+      await waitFor(1000)
+    }
+  }
+  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
+}
+
+export function getBrowserBodyText (browser) {
+  return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }

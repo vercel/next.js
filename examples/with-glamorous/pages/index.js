@@ -10,7 +10,14 @@ if (typeof window !== 'undefined') {
 }
 
 export default () => {
-  css.global('html, body', { padding: '3rem 1rem', margin: 0, background: 'papayawhip', minHeight: '100%', fontFamily: 'Helvetica, Arial, sans-serif', fontSize: '24px' })
+  css.global('html, body', {
+    padding: '3rem 1rem',
+    margin: 0,
+    background: 'papayawhip',
+    minHeight: '100%',
+    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontSize: '24px'
+  })
 
   const basicStyles = {
     backgroundColor: 'white',
@@ -52,15 +59,11 @@ export default () => {
 
   return (
     <div>
-      <Basic>
-        Cool Styles
-      </Basic>
+      <Basic>Cool Styles</Basic>
       <Combined>
         With <code>:hover</code>.
       </Combined>
-      <Animated>
-        Let's bounce.
-      </Animated>
+      <Animated>Let's bounce.</Animated>
     </div>
   )
 }

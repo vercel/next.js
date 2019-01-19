@@ -13,12 +13,11 @@ export default class MyDocument extends Document {
     return (
       <html>
         <Head>
-          <title>My page</title>
           {this.props.stylesheets.map((sheet, i) => (
             <style
               className='_styletron_hydrate_'
-              dangerouslySetInnerHTML={{ __html: sheet.css }}
-              media={sheet.media || ''}
+              dangerouslySetInnerHTML={{ __html: sheet }}
+              media={sheet.attrs ? sheet.attrs.media : null}
               key={i}
             />
           ))}

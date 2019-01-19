@@ -1,5 +1,5 @@
-/* global jasmine, describe, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -15,7 +15,7 @@ import clientNavigation from './client-navigation'
 import hmr from './hmr'
 import errorRecovery from './error-recovery'
 import dynamic from './dynamic'
-import asset from './asset'
+import processEnv from './process-env'
 
 const context = {}
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -23,18 +23,18 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('Basic Features', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort, true)
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(context.appPort, '/async-props'),
+      renderViaHTTP(context.appPort, '/default-head'),
       renderViaHTTP(context.appPort, '/empty-get-initial-props'),
       renderViaHTTP(context.appPort, '/error'),
       renderViaHTTP(context.appPort, '/finish-response'),
       renderViaHTTP(context.appPort, '/head'),
       renderViaHTTP(context.appPort, '/json'),
       renderViaHTTP(context.appPort, '/link'),
-      renderViaHTTP(context.appPort, '/stateful'),
       renderViaHTTP(context.appPort, '/stateless'),
       renderViaHTTP(context.appPort, '/fragment-syntax'),
       renderViaHTTP(context.appPort, '/custom-extension'),
@@ -42,9 +42,11 @@ describe('Basic Features', () => {
       renderViaHTTP(context.appPort, '/with-cdm'),
       renderViaHTTP(context.appPort, '/url-prop'),
       renderViaHTTP(context.appPort, '/url-prop-override'),
+      renderViaHTTP(context.appPort, '/process-env'),
 
       renderViaHTTP(context.appPort, '/nav'),
       renderViaHTTP(context.appPort, '/nav/about'),
+      renderViaHTTP(context.appPort, '/nav/on-click'),
       renderViaHTTP(context.appPort, '/nav/querystring'),
       renderViaHTTP(context.appPort, '/nav/self-reload'),
       renderViaHTTP(context.appPort, '/nav/hash-changes'),
@@ -69,5 +71,5 @@ describe('Basic Features', () => {
   dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  asset(context)
+  processEnv(context)
 })

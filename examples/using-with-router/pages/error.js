@@ -1,4 +1,4 @@
-import {Component} from 'react'
+import { Component } from 'react'
 import Header from '../components/Header'
 import Router from 'next/router'
 

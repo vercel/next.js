@@ -8,10 +8,12 @@ export default class Index extends React.Component {
       techOrder: ['youtube'],
       autoplay: true,
       controls: true,
-      sources: [{
-        src: 'https://www.youtube.com/watch?v=jiLkBxw2pbs',
-        type: 'video/youtube'
-      }]
+      sources: [
+        {
+          src: 'https://www.youtube.com/watch?v=jiLkBxw2pbs',
+          type: 'video/youtube'
+        }
+      ]
     }
 
     return (

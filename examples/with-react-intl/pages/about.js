@@ -1,11 +1,10 @@
-import React, {Component} from 'react'
-import {FormattedRelative} from 'react-intl'
-import pageWithIntl from '../components/PageWithIntl'
+import React, { Component } from 'react'
+import { FormattedRelative } from 'react-intl'
 import Layout from '../components/Layout'
 
 class About extends Component {
-  static async getInitialProps ({req}) {
-    return {someDate: Date.now()}
+  static async getInitialProps ({ req }) {
+    return { someDate: Date.now() }
   }
 
   render () {
@@ -22,4 +21,4 @@ class About extends Component {
   }
 }
 
-export default pageWithIntl(About)
+export default About

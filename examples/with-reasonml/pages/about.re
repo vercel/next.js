@@ -5,7 +5,7 @@ let make = (_children) => {
   render: (_self) =>
     <div>
       <Header />
-      <p> (ReasonReact.stringToElement("This is the about page.")) </p>
+      <p> (ReasonReact.string("This is the about page.")) </p>
       <Counter />
     </div>
 };

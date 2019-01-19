@@ -16,15 +16,15 @@ export default class extends Component {
     return { getInitialPropsRunCount }
   }
 
+  getCurrentCounter () {
+    const { url } = this.props
+    return url.query.counter ? parseInt(url.query.counter) : 0
+  }
+
   increase () {
     const counter = this.getCurrentCounter()
     const href = `/nav/shallow-routing?counter=${counter + 1}`
     Router.push(href, href, { shallow: true })
-  }
-
-  getCurrentCounter () {
-    const { url } = this.props
-    return url.query.counter ? parseInt(url.query.counter) : 0
   }
 
   render () {

@@ -16,7 +16,7 @@ const posts = [
   Router
 })
 export default class extends React.Component {
-  static async getInitialProps ({ query, res }) {
+  static async getInitialProps({ query, res }) {
     const post = posts.find(post => post.slug === query.slug)
 
     if (!post && res) {
@@ -26,7 +26,7 @@ export default class extends React.Component {
     return { post }
   }
 
-  render () {
+  render() {
     const { post } = this.props
 
     if (!post) return <h1>Post not found</h1>

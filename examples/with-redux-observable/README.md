@@ -14,7 +14,7 @@ yarn create next-app --example with-redux-observable with-redux-observable-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-observable
@@ -47,13 +47,14 @@ probably making initial requests on a server. That's because, the
 `getInitialProps` hook runs on the server-side before epics have been made available by just dispatching actions.
 
 However, we can access and execute epics directly. In order to do so, we need to
-pass them an Observable of an action and they will return an Observable:
+pass them an Observable of an action together with StateObservable and they will return an Observable:
 
 ```js
 static async getInitialProps({ store, isServer }) {
+  const state$ = new StateObservable(new Subject(), store.getState());
   const resultAction = await rootEpic(
     of(actions.fetchCharacter(isServer)),
-    store
+    state$
   ).toPromise(); // we need to convert Observable to Promise
   store.dispatch(resultAction)};
 ```
@@ -61,8 +62,8 @@ static async getInitialProps({ store, isServer }) {
 Note: we are not using `AjaxObservable` from the `rxjs` library; as of rxjs
 v5.5.6, it will not work on both the server- and client-side. Instead we call
 the default export from
-[universal-rx-request](https://www.npmjs.com/package/universal-rx-request) (as
-`ajax`).
+[universal-rxjs-ajax](https://www.npmjs.com/package/universal-rxjs-ajax) (as
+`request`).
 
 We transform the Observable we get from `ajax` into a Promise in order to await
 its resolution. That resolution should be a action (since the epic returns

@@ -11,8 +11,8 @@
     "fela-dom": "^7.0.5",
     "fela-preset-web": "^8.0.4",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-fela": "^7.0.1"
   }
 }

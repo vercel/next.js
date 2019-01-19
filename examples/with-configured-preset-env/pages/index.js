@@ -1,4 +1,4 @@
-import {Component} from 'react'
+import { Component } from 'react'
 
 function * generatorMethod () {
   yield 1

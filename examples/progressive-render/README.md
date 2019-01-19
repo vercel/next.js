@@ -15,7 +15,7 @@ yarn create next-app --example progressive-render progressive-render-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/progressive-render
@@ -48,5 +48,3 @@ This example features:
 
 * An app with a component that must only be rendered in the client
 * A loading component that will be displayed before rendering the client-only component
-
-**Example**: https://progressive-render-raceuevkqw.now.sh/

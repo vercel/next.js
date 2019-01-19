@@ -1,6 +1,4 @@
 import React from 'react'
-import { initStore } from '../store'
-import withRedux from 'next-redux-wrapper'
 import PropTypes from 'prop-types'
 import { kea } from 'kea'
 
@@ -28,16 +26,18 @@ import { kea } from 'kea'
     ]
   })
 })
-class App extends React.Component {
-  render () {
+export default class App extends React.Component {
+  render() {
     return (
       <div>
         <p>Double Counter: {this.props.doubleCounter}</p>
-        <button type='button' onClick={() => this.actions.increment(1)}>Increment</button>
-        <button type='button' onClick={() => this.actions.decrement(1)}>Decrement</button>
+        <button type="button" onClick={() => this.actions.increment(1)}>
+          Increment
+        </button>
+        <button type="button" onClick={() => this.actions.decrement(1)}>
+          Decrement
+        </button>
       </div>
     )
   }
 }
-
-export default withRedux(initStore)(App)

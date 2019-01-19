@@ -14,7 +14,7 @@ const withEmotion = ComposedComponent => {
     render () {
       return <ComposedComponent />
     }
-  };
+  }
 
   return HOC
 }

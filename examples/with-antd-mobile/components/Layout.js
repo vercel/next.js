@@ -1,16 +1,31 @@
-import React, { Component } from 'react'
-import { LocaleProvider } from 'antd-mobile'
-import enUS from 'antd-mobile/lib/locale-provider/en_US'
+import { NavBar, Icon, WingBlank } from 'antd-mobile'
+import { withRouter } from 'next/router'
+import Head from 'next/head'
 
-export default class Layout extends Component {
-  render () {
-    const { language, children } = this.props
-    const locale = language.substr(0, 2) === 'en' ? enUS : undefined
-
-    return (
-      <LocaleProvider locale={locale}>
-        {children}
-      </LocaleProvider>
-    )
-  }
-}
+export default withRouter(({ router, children, title }) => (
+  <div>
+    <Head>
+      <title>{title}</title>
+    </Head>
+    <NavBar
+      mode='light'
+      icon={<Icon type='left' />}
+      onLeftClick={() => router.back()}
+    >
+      Ant Design Mobile example
+    </NavBar>
+    <h1>{title}</h1>
+    <style jsx>{`
+      h1 {
+        padding: 15px 0 9px 15px;
+        color: #000;
+        font-size: 16px;
+        line-height: 16px;
+        height: 16px;
+        font-weight: bolder;
+        position: relative;
+      }
+    `}</style>
+    <WingBlank>{children}</WingBlank>
+  </div>
+))

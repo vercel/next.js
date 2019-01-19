@@ -1,5 +1,8 @@
 import App, {Container} from 'next/app'
 import React from 'react'
+import {setState} from '../shared-module'
+
+setState(typeof window === 'undefined' ? 'UPDATED' : 'UPDATED CLIENT')
 
 class Layout extends React.Component {
   state = {

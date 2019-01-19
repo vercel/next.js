@@ -1,0 +1,10 @@
+.build/
+.next/
+.vscode/
+node_modules/
+
+README.md
+
+.env
+.eslintrc.js
+.gitignore

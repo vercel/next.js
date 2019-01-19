@@ -1,12 +1,10 @@
 {
   "presets": ["next/babel"],
   "plugins": [
-    "transform-decorators-legacy",
     [
-      "import",
-      {
+      "import", {
         "libraryName": "antd",
-        "style": "less"
+        "style": true
       }
     ]
   ]

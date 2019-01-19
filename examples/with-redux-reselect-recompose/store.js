@@ -5,9 +5,5 @@ import reducer, { initialState } from 'reducers'
 
 export default (state = initialState) => {
   const middlewares = [thunkMiddleware, createLogger()]
-  return createStore(
-    reducer,
-    state,
-    compose(applyMiddleware(...middlewares))
-  )
+  return createStore(reducer, state, compose(applyMiddleware(...middlewares)))
 }

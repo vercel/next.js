@@ -3,7 +3,7 @@ export const actionTypes = {
   TICK_CLOCK: 'TICK_CLOCK'
 }
 
-export function startClock(isServer=true) {
+export function startClock (isServer = true) {
   return {
     type: actionTypes.START_CLOCK,
     light: isServer,
@@ -11,7 +11,7 @@ export function startClock(isServer=true) {
   }
 }
 
-export function tickClock(isServer) {
+export function tickClock (isServer) {
   return {
     type: actionTypes.TICK_CLOCK,
     light: !isServer,

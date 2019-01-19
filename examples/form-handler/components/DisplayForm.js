@@ -1,4 +1,4 @@
-import React, {Component} from 'react'
+import React, { Component } from 'react'
 import { Col, Row } from 'react-bootstrap'
 import { connect } from 'react-redux'
 
@@ -9,7 +9,7 @@ class DisplayForm extends Component {
       <div>
         <Row>
           <Col lg={8} lgOffset={2}>
-            <pre>{JSON.stringify(state, null, 2) }</pre>
+            <pre>{JSON.stringify(state, null, 2)}</pre>
           </Col>
         </Row>
       </div>

@@ -1,11 +1,11 @@
 import { Component } from 'react'
-import io from 'socket.io-client'
+import Link from 'next/link'
 import fetch from 'isomorphic-unfetch'
 
-class HomePage extends Component {
+class ChatOne extends Component {
   // fetch old messages data from the server
   static async getInitialProps ({ req }) {
-    const response = await fetch('http://localhost:3000/messages')
+    const response = await fetch('http://localhost:3000/messages/chat1')
     const messages = await response.json()
     return { messages }
   }
@@ -17,24 +17,46 @@ class HomePage extends Component {
   // init state with the prefetched messages
   state = {
     field: '',
-    messages: this.props.messages
+    newMessage: 0,
+    messages: this.props.messages,
+    subscribe: false,
+    subscribed: false
   }
 
-  // connect to WS server and listen event
+  subscribe = () => {
+    if (this.state.subscribe && !this.state.subscribed) {
+      // connect to WS server and listen event
+      this.props.socket.on('message.chat1', this.handleMessage)
+      this.props.socket.on('message.chat2', this.handleOtherMessage)
+      this.setState({ subscribed: true })
+    }
+  }
   componentDidMount () {
-    this.socket = io()
-    this.socket.on('message', this.handleMessage)
+    this.subscribe()
+  }
+
+  componentDidUpdate () {
+    this.subscribe()
+  }
+
+  static getDerivedStateFromProps (props, state) {
+    if (props.socket && !state.subscribe) return { subscribe: true }
+    return null
   }
 
   // close socket connection
   componentWillUnmount () {
-    this.socket.off('message', this.handleMessage)
-    this.socket.close()
+    this.props.socket.off('message.chat1', this.handleMessage)
+    this.props.socket.off('message.chat2', this.handleOtherMessage)
   }
 
   // add messages from server to the state
-  handleMessage = (message) => {
+  handleMessage = message => {
     this.setState(state => ({ messages: state.messages.concat(message) }))
+  }
+
+  handleOtherMessage = () => {
+    this.setState(prevState => ({ newMessage: prevState.newMessage + 1 }))
   }
 
   handleChange = event => {
@@ -47,12 +69,12 @@ class HomePage extends Component {
 
     // create message object
     const message = {
-      id: (new Date()).getTime(),
+      id: new Date().getTime(),
       value: this.state.field
     }
 
     // send object to WS server
-    this.socket.emit('message', message)
+    this.props.socket.emit('message.chat1', message)
 
     // add it to state and clean current input value
     this.setState(state => ({
@@ -65,12 +87,23 @@ class HomePage extends Component {
     return (
       <main>
         <div>
+          <Link href={'/'}>
+            <a>{'Chat One'}</a>
+          </Link>
+          <br />
+          <Link href={'/clone'}>
+            <a>{`Chat Two ${
+              this.state.newMessage > 0
+                ? `( ${this.state.newMessage} new message )`
+                : ''
+            }`}</a>
+          </Link>
           <ul>
-            {this.state.messages.map(message =>
+            {this.state.messages.map(message => (
               <li key={message.id}>{message.value}</li>
-            )}
+            ))}
           </ul>
-          <form onSubmit={this.handleSubmit}>
+          <form onSubmit={e => this.handleSubmit(e)}>
             <input
               onChange={this.handleChange}
               type='text'
@@ -85,4 +118,4 @@ class HomePage extends Component {
   }
 }
 
-export default HomePage
+export default ChatOne

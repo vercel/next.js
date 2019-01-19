@@ -8,27 +8,18 @@
     }
   },
   language: "node_js",
-  node_js: ["6"],
+  node_js: ["8", "10"],
   cache: {
     directories: ["node_modules"]
   },
   before_install: [
-    "rm yarn.lock",
     "export DISPLAY=:99.0",
     "sh -e /etc/init.d/xvfb start",
     "sleep 3"
   ],
-  after_script: ["npm run coveralls"],
-  deploy: {
-    provider: "npm",
-    email: "leo@zeit.co",
-    tag: "canary",
-    api_key: {
-      secure: "rtfolrLprf1or4HkorLic8eVGOvJ6CHla8PNVS0JPVfXIwnqfn9c3OzkKJEcjD+rXLJlmbYfww8mz47cNtjREJVCax6Lc8PEXivhF9rfVCd/zrIslnhxIV6lDSehbm/ZlSItNyGVove+HpgD9G1ky9VGbGoSk0vYHRWriwwfwzfljXgnlJOFzdeJZpbLNEOqbMnjd9/TaaT2CCvInFydp78mx//dG34Qo5Hm6Le6lijEw/Ys6PL0LSJdZ+uP9HUz0of4Pu76IlD+SDPiMdpghidfMbD6s4UJoyeMN4JzX6R8xRHo0Q10yzM1KgbmFvJqXrGZuiVvTv9GviZUIPqowUonqIp6rdAgjLt7B4ng8YoPKCP6xOkjjaGgd6yaNuzbdqiZLRrPYFN6jwD9p4dMirCb3pccEWuDYwkTzJidwH58Isz7B8J2cinMAJbg3DVNlwS5tki9Soydk+n/0d+2Z4euzw+EZ1qd2aFhaLCkDZoLih8AIK6XrvjQTwMJEoRyg6tjhOeXbPNqPpH/k0QvheCeRmwIqXO2Pj8FHY4dgPGgU8PL6wdNJ0WQ+etpWYkuCAGA1SXHcNY2VFhkFTkuC+jFxJWWOfpMlBPdGOYTW31f3OAmp2lMJT2vQkPDqq91RRVorw7Lwf943RSLgULzl4fDuhe9/ORtvHjisqHp+RY="
-    },
-    skip_cleanup: true,
-    on: {
-      tags: true
-    }
-  }
+  before_cache: [
+    "rm -rf node_modules/.cache"
+  ],
+  before_script: ["npm run bootstrap"],
+  after_script: ["npm run coveralls"]
 }

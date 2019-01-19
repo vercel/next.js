@@ -16,7 +16,7 @@ yarn create next-app --example with-segment-analytics with-segment-analytics-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-segment-analytics
@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to use Next.js along with [Segment Analytics](https://segment.com). A custom document is used in inject the [Segment snippet](https://github.com/segmentio/snippet) into the `<head>` and components fire ["track"](https://segment.com/docs/spec/track/) events based on user actions.
+This example shows how to use Next.js along with [Segment Analytics](https://segment.com). A custom document is used in inject the [Segment snippet](https://github.com/segmentio/snippet) into the `<head>`. Page views are tracked on both the server and client side and components fire ["track"](https://segment.com/docs/spec/track/) events based on user actions (see `contact.js` for example).

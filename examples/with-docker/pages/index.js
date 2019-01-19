@@ -11,8 +11,6 @@ export default class extends React.Component {
   }
 
   render () {
-    return <div>
-            The API_URL is {API_URL}
-    </div>
+    return <div>The API_URL is {API_URL}</div>
   }
 }

@@ -3,7 +3,7 @@
 const path = require('path')
 
 exports['default'] = {
-  general: (api) => {
+  general: api => {
     const packageJSON = require(api.projectRoot + path.sep + 'package.json')
 
     return {
@@ -46,16 +46,16 @@ exports['default'] = {
       cliIncludeInternal: true,
       // configuration for your actionhero project structure
       paths: {
-        'action': [path.join(__dirname, '/../actions')],
-        'task': [path.join(__dirname, '/../tasks')],
-        'public': [path.join(__dirname, '/../static')],
-        'pid': [path.join(__dirname, '/../pids')],
-        'log': [path.join(__dirname, '/../log')],
-        'server': [path.join(__dirname, '/../servers')],
-        'cli': [path.join(__dirname, '/../bin')],
-        'initializer': [path.join(__dirname, '/../initializers')],
-        'plugin': [path.join(__dirname, '/../node_modules')],
-        'locale': [path.join(__dirname, '/../locales')]
+        action: [path.join(__dirname, '/../actions')],
+        task: [path.join(__dirname, '/../tasks')],
+        public: [path.join(__dirname, '/../static')],
+        pid: [path.join(__dirname, '/../pids')],
+        log: [path.join(__dirname, '/../log')],
+        server: [path.join(__dirname, '/../servers')],
+        cli: [path.join(__dirname, '/../bin')],
+        initializer: [path.join(__dirname, '/../initializers')],
+        plugin: [path.join(__dirname, '/../node_modules')],
+        locale: [path.join(__dirname, '/../locales')]
       },
       // hash containing chat rooms you wish to be created at server boot
       startingChatRooms: {
@@ -67,17 +67,17 @@ exports['default'] = {
 }
 
 exports.test = {
-  general: (api) => {
+  general: api => {
     return {
       id: 'test-server-' + process.pid,
       serverToken: 'serverToken-' + process.pid,
       developmentMode: true,
       startingChatRooms: {
-        'defaultRoom': {},
-        'otherRoom': {}
+        defaultRoom: {},
+        otherRoom: {}
       },
       paths: {
-        'locale': [
+        locale: [
           // require('os').tmpdir() + require('path').sep + 'locales',
           path.join(__dirname, '/../locales')
         ]
@@ -88,7 +88,7 @@ exports.test = {
 }
 
 exports.production = {
-  general: (api) => {
+  general: api => {
     return {
       fileRequestLogLevel: 'debug',
       developmentMode: false

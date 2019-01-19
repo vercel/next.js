@@ -5,9 +5,7 @@ import Loading from '../components/Loading'
 export default () => (
   <main>
     <section>
-      <h1>
-        This section is server-side rendered.
-      </h1>
+      <h1>This section is server-side rendered.</h1>
     </section>
 
     <NoSSR onSSR={<Loading />}>

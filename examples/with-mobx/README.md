@@ -16,7 +16,7 @@ yarn create next-app --example with-mobx with-mobx-app
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-mobx
@@ -47,7 +47,8 @@ This example is a mobx port of the [with-redux](https://github.com/zeit/next.js/
     "next/babel"
   ],
   "plugins": [
-    "transform-decorators-legacy"
+    ["@babel/plugin-proposal-decorators", { "legacy": true }],
+    ["@babel/plugin-proposal-class-properties", { "loose": true }]
   ]
 }
 ```

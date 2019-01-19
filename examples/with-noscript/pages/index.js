@@ -17,18 +17,16 @@ class Index extends React.Component {
   render () {
     return (
       <div style={{ textAlign: 'center' }}>
-        {
-          images.map((item, index) =>
-            <div key={index}>
-              <LazyLoad height={700} offset={100}>
-                <img width={700} height={700} src={item} alt={`image_${index}`} />
-              </LazyLoad>
-              <Noscript>
-                <img width={700} height={700} src={item} alt={`image_${index}`} />
-              </Noscript>
-            </div>
-          )
-        }
+        {images.map((item, index) => (
+          <div key={index}>
+            <LazyLoad height={700} offset={100}>
+              <img width={700} height={700} src={item} alt={`image_${index}`} />
+            </LazyLoad>
+            <Noscript>
+              <img width={700} height={700} src={item} alt={`image_${index}`} />
+            </Noscript>
+          </div>
+        ))}
       </div>
     )
   }

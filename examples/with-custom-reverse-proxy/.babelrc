@@ -1,7 +1,5 @@
 {
   "presets": [
-    "next/babel",
-    "latest",
-    "stage-0"
+    "next/babel"
   ]
 }

@@ -12,17 +12,27 @@ export default class extends React.Component {
     Link: PropTypes.func.isRequired
   }
 
-  render () {
+  render() {
     const { Link } = this.props
 
     return (
-      <div style={{ marginTop: '5px', border: '1px dashed #00ff00', padding: '10px' }}>
+      <div
+        style={{
+          marginTop: '5px',
+          border: '1px dashed #00ff00',
+          padding: '10px'
+        }}
+      >
         <h3>Endpoint</h3>
         Uses injected `Link` component without direct dependency on one
         <br />
-        <Link route='about' params={{ foo: 'baz' }}><a>About: foo baz</a></Link>
+        <Link route="about" params={{ foo: 'baz' }}>
+          <a>About: foo baz</a>
+        </Link>
         <br />
-        <Link route='/'><a>go Home</a></Link>
+        <Link route="/">
+          <a>go Home</a>
+        </Link>
       </div>
     )
   }

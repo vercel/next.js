@@ -1,0 +1,51 @@
+{
+  "extends": [
+    "tslint-config-standard",
+    "tslint:latest", 
+    "tslint-react"
+  ],
+  "rules": {
+    "indent": [true, "spaces"],
+    "jsx-no-lambda": false,
+    "jsx-no-multiline-js": false,
+    "max-line-length": false,
+    "no-console": false,
+    "no-object-literal-type-assertion": false,
+    "no-submodule-imports": [
+      true, 
+      "next"
+    ],
+    "no-unused-variable": false,
+    "space-before-function-paren": false,
+    "ter-indent": [true, 2],
+    "typedef-whitespace": [
+      true,
+      {
+        "call-signature": "nospace",
+        "index-signature": "nospace",
+        "parameter": "nospace",
+        "property-declaration": "nospace",
+        "variable-declaration": "nospace"
+      },
+      {
+        "call-signature": "nospace",
+        "index-signature": "nospace",
+        "parameter": "nospace",
+        "property-declaration": "nospace",
+        "variable-declaration": "nospace"
+      }
+    ],
+    "whitespace": [
+      true,
+      "check-branch",
+      "check-decl",
+      "check-operator",
+      "check-module",
+      "check-preblock",
+      "check-rest-spread",
+      "check-separator",
+      "check-typecast",
+      "check-type-operator"
+    ]
+  }
+}

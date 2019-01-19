@@ -1,0 +1,35 @@
+type Query {
+  viewer(after: String, before: String, first: Int, last: Int): Viewer!
+  node(id: ID!): Node
+}
+
+type Viewer {
+  allBlogPosts(after: String, before: String, first: Int, last: Int): BlogPostConnection!
+}
+
+interface Node {
+  id: ID!
+}
+
+type BlogPostConnection {
+  pageInfo: PageInfo!
+  edges: [BlogPostEdge]
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type BlogPostEdge {
+  node: BlogPost!
+  cursor: String!
+}
+
+type BlogPost implements Node {
+  content: String!
+  id: ID!
+  title: String!
+}

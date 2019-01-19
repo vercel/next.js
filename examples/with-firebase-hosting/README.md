@@ -15,7 +15,7 @@ yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 <details>
 <summary><b>Download manually</b></summary>
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-firebase-hosting
@@ -80,7 +80,10 @@ If you're having issues, feel free to tag @jthegedus in the [issue you create on
 
 * The empty `placeholder.html` file is so Firebase Hosting does not error on an empty `public/` folder and still hosts at the Firebase project URL.
 * `firebase.json` outlines the catchall rewrite rule for our Cloud Function.
-* The [Firebase predeploy](https://firebase.google.com/docs/cli/#predeploy_and_postdeploy_hooks) hooks run most of the npm scripts when `npm run deploy` runs `firebase deploy`. The only scripts you should need are `clean`, `dev`, `serve` and `deploy`.
+* Specifying [`"engines": {"node": "8"}`](package.json#L5-L7) in the `package.json` is required for firebase functions
+  to be deployed on Node 8 rather than Node 6
+  ([Firebase Blog Announcement](https://firebase.googleblog.com/2018/08/cloud-functions-for-firebase-config-node-8-timeout-memory-region.html))
+  . This is matched in [`src/functions/.babelrc`](src/functions/.babelrc) so that babel output somewhat compacter and moderner code.
 
 ### Customization
 

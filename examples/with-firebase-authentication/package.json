@@ -10,12 +10,12 @@
     "body-parser": "^1.17.1",
     "express": "^4.14.0",
     "express-session": "^1.15.2",
-    "firebase": "^4.9.1",
+    "firebase": "^5.6.0",
     "firebase-admin": "^5.8.2",
     "isomorphic-unfetch": "2.0.0",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "session-file-store": "^1.0.0"
   }
 }

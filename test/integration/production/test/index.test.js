@@ -1,5 +1,5 @@
-/* global jasmine, describe, it, expect, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
@@ -13,9 +13,11 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
-import dynamicImportTests from '../../basic/test/dynamic'
+import dynamicImportTests from './dynamic'
+import processEnv from './process-env'
 import security from './security'
-
+import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST} from 'next-server/constants'
+import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -53,29 +55,80 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should render 404 for routes that do not exist', async () => {
+      const url = `http://localhost:${appPort}/abcdefghijklmno`
+      const res = await fetch(url)
+      const text = await res.text()
+      const $html = cheerio.load(text)
+      expect($html('html').text()).toMatch(/404/)
+      expect(text).toMatch(/"statusCode":404/)
+      expect(res.status).toBe(404)
+    })
+
+    it('should render 404 for _next routes that do not exist', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const res = await fetch(url)
+      expect(res.status).toBe(404)
+    })
+
+    it('should render 404 for dotfiles in /static', async () => {
+      const url = `http://localhost:${appPort}/static/.env`
+      const res = await fetch(url)
+      expect(res.status).toBe(404)
+    })
+
+    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
+      const url = `http://localhost:${appPort}/_next/abcdef`
+      const methods = ['POST', 'PUT', 'DELETE']
+      for (const method of methods) {
+        const res = await fetch(url, {method})
+        expect(res.status).toBe(501)
+      }
+    })
+
+    it('should set Content-Length header', async () => {
+      const url = `http://localhost:${appPort}`
+      const res = await fetch(url)
+      expect(res.headers.get('Content-Length')).toBeDefined()
+    })
+
     it('should set Cache-Control header', async () => {
       const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
-      const buildManifest = require('../.next/build-manifest.json')
+      const buildManifest = require(join('../.next', BUILD_MANIFEST))
+      const reactLoadableManifest = require(join('../.next', REACT_LOADABLE_MANIFEST))
       const url = `http://localhost:${appPort}/_next/`
 
       const resources = []
 
       // test a regular page
-      resources.push(`${url}${buildId}/page/index.js`)
+      resources.push(`${url}static/${buildId}/pages/index.js`)
 
       // test dynamic chunk
-      const chunkKey = Object.keys(buildManifest).find((x) => x.includes('chunks/'))
-      resources.push(url + 'webpack/' + buildManifest[chunkKey])
+      resources.push(url + reactLoadableManifest['../../components/hello1'][0].publicPath)
 
-      // test main.js
-      const mainJsKey = Object.keys(buildManifest).find((x) => x === 'main.js')
-      resources.push(url + buildManifest[mainJsKey])
+      // test main.js runtime etc
+      for (const item of buildManifest.pages['/']) {
+        resources.push(url + item)
+      }
 
       const responses = await Promise.all(resources.map((resource) => fetch(resource)))
 
       responses.forEach((res) => {
-        expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        try {
+          expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+        } catch (err) {
+          err.message = res.url + ' ' + err.message
+          throw err
+        }
       })
+    })
+
+    it('should set correct Cache-Control header for static 404s', async () => {
+      // this is to fix where 404 headers are set to 'public, max-age=31536000, immutable'
+      const res = await fetch(`http://localhost:${appPort}/_next//static/common/bad-static.js`)
+
+      expect(res.status).toBe(404)
+      expect(res.headers.get('Cache-Control')).toBe('no-cache, no-store, max-age=0, must-revalidate')
     })
 
     it('should block special pages', async () => {
@@ -110,6 +163,7 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
+      browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -117,6 +171,15 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
+      browser.close()
+    })
+
+    it('should call getInitialProps on _error page during a client side component error', async () => {
+      const browser = await webdriver(appPort, '/error-in-browser-render-status-code')
+      await waitFor(2000)
+      const text = await browser.elementByCss('body').text()
+      expect(text).toMatch(/This page could not be found\./)
+      browser.close()
     })
   })
 
@@ -163,6 +226,21 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    it('should add preload tags when Link prefetch prop is used', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const elements = await browser.elementsByCss('link[rel=preload]')
+      expect(elements.length).toBe(10)
+      await Promise.all(
+        elements.map(async (element) => {
+          const rel = await element.getAttribute('rel')
+          const as = await element.getAttribute('as')
+          expect(rel).toBe('preload')
+          expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
@@ -173,7 +251,14 @@ describe('Production Usage', () => {
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
       const browserLogs = await browser.log('browser')
-      expect(browserLogs[0].message).toMatch(/\/no-such-page.js - Failed to load resource/)
+      let foundLog = false
+      browserLogs.forEach((log) => {
+        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+          foundLog = true
+        }
+      })
+
+      expect(foundLog).toBe(true)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
@@ -230,7 +315,39 @@ describe('Production Usage', () => {
     })
   })
 
+  it('should not expose the compiled page file in development', async () => {
+    const url = `http://localhost:${appPort}`
+    await fetch(`${url}/stateless`) // make sure the stateless page is built
+    const clientSideJsRes = await fetch(`${url}/_next/development/static/development/pages/stateless.js`)
+    expect(clientSideJsRes.status).toBe(404)
+    const clientSideJsBody = await clientSideJsRes.text()
+    expect(clientSideJsBody).toMatch(/404/)
+
+    const serverSideJsRes = await fetch(`${url}/_next/development/server/static/development/pages/stateless.js`)
+    expect(serverSideJsRes.status).toBe(404)
+    const serverSideJsBody = await serverSideJsRes.text()
+    expect(serverSideJsBody).toMatch(/404/)
+  })
+
+  it('should not put backslashes in pages-manifest.json', () => {
+    // Whatever platform you build on, pages-manifest.json should use forward slash (/)
+    // See: https://github.com/zeit/next.js/issues/4920
+    const pagesManifest = require(join('..', '.next', 'server', PAGES_MANIFEST))
+
+    for (let key of Object.keys(pagesManifest)) {
+      expect(key).not.toMatch(/\\/)
+      expect(pagesManifest[key]).not.toMatch(/\\/)
+    }
+  })
+
+  it('should handle failed param decoding', async () => {
+    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    expect(html).toMatch(/400/)
+    expect(html).toMatch(/Bad Request/)
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
+  processEnv(context)
   security(context)
 })

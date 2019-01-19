@@ -17,7 +17,7 @@ yarn create next-app --example with-redux-code-splitting with-redux-code-splitti
 
 ### Download manually
 
-Download the example [or clone the repo](https://github.com/zeit/next.js):
+Download the example:
 
 ```bash
 curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-code-splitting

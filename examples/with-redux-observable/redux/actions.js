@@ -6,7 +6,7 @@ export const startFetchingCharacters = () => ({
 export const stopFetchingCharacters = () => ({
   type: types.STOP_FETCHING_CHARACTERS
 })
-export const fetchCharacter = isServer => ({
+export const fetchCharacter = (isServer = false) => ({
   type: types.FETCH_CHARACTER,
   payload: { isServer }
 })

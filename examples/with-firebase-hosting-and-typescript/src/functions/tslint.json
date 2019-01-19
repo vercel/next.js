@@ -107,9 +107,6 @@
     // Warns if function overloads could be unified into a single function with optional or rest parameters.
     "unified-signatures": {"severity": "warning"},
 
-    // Warns if code has an import or variable that is unused.
-    "no-unused-variable": {"severity": "warning"},
-
     // Prefer const for values that will not change. This better documents code.
     "prefer-const": {"severity": "warning"},
 

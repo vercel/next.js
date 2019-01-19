@@ -17,10 +17,10 @@ class Index extends Component {
 
 export default withData(Index, {
   query: graphql`
-        query pages_indexQuery {
-            viewer {
-                ...BlogPosts_viewer
-            }
-        }
-    `
+    query pages_indexQuery {
+      viewer {
+        ...BlogPosts_viewer
+      }
+    }
+  `
 })

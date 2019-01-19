@@ -1,4 +1,4 @@
-import React, {Component} from 'react'
+import React, { Component } from 'react'
 import { FormGroup, ControlLabel, FormControl } from 'react-bootstrap'
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux'
@@ -6,7 +6,7 @@ import { bindActionCreators } from 'redux'
 import { inputChange } from '../actions'
 
 class Input extends Component {
-  inputChange = (e) => {
+  inputChange = e => {
     const { inputChange, title, name } = this.props
     inputChange(title, name, e.target.value)
   }
@@ -35,4 +35,7 @@ const mapDispatchToProps = dispatch => {
   }
 }
 
-export default connect(null, mapDispatchToProps)(Input)
+export default connect(
+  null,
+  mapDispatchToProps
+)(Input)

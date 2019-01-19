@@ -29,16 +29,15 @@ export default class extends React.Component {
     return (
       <content>
         <p>
-          /api/{this.props.queryString} routed to https://swapi.co/api/{this.props.queryString}
+          /api/{this.props.queryString} routed to https://swapi.co/api/
+          {this.props.queryString}
         </p>
         <p>
           <a href='?people/2'>Try</a>
           &nbsp;
           <a href='/'>Reset</a>
         </p>
-        <pre>
-          {this.state.response ? this.state.response : 'Loading...'}
-        </pre>
+        <pre>{this.state.response ? this.state.response : 'Loading...'}</pre>
       </content>
     )
   }

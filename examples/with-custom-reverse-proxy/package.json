@@ -4,13 +4,10 @@
   "dependencies": {
     "express": "^4.15.3",
     "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "babel-preset-latest": "^6.24.1",
-    "babel-preset-stage-0": "^6.24.1",
-    "babel-register": "^6.24.1",
     "cross-env": "^5.0.1",
     "http-proxy-middleware": "^0.17.4"
   },

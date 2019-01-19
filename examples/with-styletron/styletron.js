@@ -1,18 +1,16 @@
-
 const isServer = typeof window === 'undefined'
 
 let styletron
 
 export default function getStyletron () {
-  if (isServer) {
-    const Styletron = require('styletron-server')
+  if (isServer && !styletron) {
+    const Styletron = require('styletron-engine-atomic').Server
     styletron = new Styletron()
   } else if (!styletron) {
-    const Styletron = require('styletron-client')
+    const Styletron = require('styletron-engine-atomic').Client
     const styleElements = document.getElementsByClassName('_styletron_hydrate_')
     styletron = new Styletron(styleElements)
   }
-
   return styletron
 }
 

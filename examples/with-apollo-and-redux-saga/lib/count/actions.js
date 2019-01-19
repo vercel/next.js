@@ -3,10 +3,10 @@ export const actionTypes = {
   COUNT_DECREASE: 'COUNT_DECREASE'
 }
 
-export function countIncrease() {
+export function countIncrease () {
   return { type: actionTypes.COUNT_INCREASE }
 }
 
-export function countDecrease() {
+export function countDecrease () {
   return { type: actionTypes.COUNT_DECREASE }
 }

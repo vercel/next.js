@@ -1,7 +1,8 @@
 import React from 'react'
-import env from '../lib/env'
+import getConfig from 'next/config'
 
-const {API_URL} = env
+const { publicRuntimeConfig } = getConfig()
+const { API_URL } = publicRuntimeConfig
 
 export default class extends React.Component {
   static async getInitialProps () {
@@ -10,8 +11,6 @@ export default class extends React.Component {
   }
 
   render () {
-    return <div>
-            The API_URL is {API_URL}
-    </div>
+    return <div>The API_URL is {API_URL}</div>
   }
 }

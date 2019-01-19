@@ -1,4 +1,4 @@
-export default ({id, votes, onClickHandler, className}) => (
+export default ({ id, votes, onClickHandler, className }) => (
   <button className={className} onClick={() => onClickHandler()}>
     <style jsx>{`
       button {

@@ -1,0 +1,22 @@
+{
+  "name": "with-jest-react-testing-library",
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.1.2",
+    "babel-core": "^7.0.0-bridge",
+    "babel-jest": "^23.6.0",
+    "react-testing-library": "^5.4.2",
+    "jest": "^23.6.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  }
+}
