@@ -44,7 +44,7 @@ const port = args['--port'] || 3000
 startServer({dir}, port, args['--hostname'])
   .then(async (app) => {
     // tslint:disable-next-line
-    console.log(`> Ready on http://${args['--hostname']}:${port}`)
+    console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
     await app.prepare()
   })
   .catch((err) => {
