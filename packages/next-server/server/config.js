@@ -18,7 +18,9 @@ const defaultConfig = {
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
-    websocketPort: 0
+    websocketPort: 0,
+    websocketProxyPath: '/',
+    websocketProxyPort: null
   }
 }
 
