@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "hoist-non-react-statics": "3.2.1",
     "jss": "9.8.7",
     "lodash": "4.17.11",
     "next": "latest",
@@ -23,5 +24,8 @@
     "redux-saga": "0.16.0",
     "redux-saga-routines": "2.2.5",
     "reselect": "3.0.1"
+  },
+  "devDependencies": {
+    "babel-plugin-module-resolver": "3.1.2"
   }
 }

@@ -1,8 +1,10 @@
 import React from "react";
 
+import Example from 'containers/Example';
+
 class Index extends React.Component {
   render() {
-    return <spna>codea</spna>;
+    return <Example />;
   }
 }
 
