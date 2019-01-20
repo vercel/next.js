@@ -1,0 +1,27 @@
+{
+  "name": "with-redux-saga-redux-form-and-reselect",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next app",
+    "build": "next build app",
+    "start": "next start app"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "jss": "9.8.7",
+    "lodash": "4.17.11",
+    "next": "latest",
+    "react": "16.7.0",
+    "react-dom": "16.7.0",
+    "react-jss": "8.6.1",
+    "react-redux": "5.0.7",
+    "redux": "4.0.0",
+    "redux-form": "7.4.2",
+    "redux-saga": "0.16.0",
+    "redux-saga-routines": "2.2.5",
+    "reselect": "3.0.1"
+  }
+}
