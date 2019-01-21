@@ -3,16 +3,22 @@ import Document, { Head, Main, NextScript } from 'next/document'
 import { SheetsRegistry, JssProvider } from 'react-jss'
 
 export default class JssDocument extends Document {
-  static getInitialProps (ctx) {
+  static async getInitialProps (ctx) {
     const registry = new SheetsRegistry()
-    const page = ctx.renderPage(App => props => (
-      <JssProvider registry={registry}>
-        <App {...props} />
-      </JssProvider>
-    ))
+    const originalRenderPage = ctx.renderPage
+    ctx.renderPage = () =>
+      originalRenderPage({
+        enhanceApp: App => props => (
+          <JssProvider registry={registry}>
+            <App {...props} />
+          </JssProvider>
+        )
+      })
+
+    const initialProps = await Document.getInitialProps(ctx)
 
     return {
-      ...page,
+      ...initialProps,
       registry
     }
   }
