@@ -5,11 +5,11 @@ import Layout from '../components/Layout'
 import List from '../components/List'
 import IDataObject from '../interfaces'
 
-interface IListClassProps {
-  items: IDataObject[]
+type Props = {
+  items: IDataObject[],
 }
 
-class ListClass extends React.Component<IListClassProps> {
+class ListClass extends React.Component<Props> {
   static async getInitialProps({ pathname }: NextContext) {
     const dataArray: IDataObject[] =
       [{ id: 101, name: 'larry' }, { id: 102, name: 'sam' }, { id: 103, name: 'jill' }, { id: 104, name: pathname }]

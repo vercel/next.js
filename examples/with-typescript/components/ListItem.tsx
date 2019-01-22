@@ -1,11 +1,11 @@
 import * as React from 'react'
 import IDataObject from '../interfaces'
 
-export interface IProps {
-  data: IDataObject
+type Props = {
+  data: IDataObject,
 }
 
-const ListItem: React.FunctionComponent<IProps> = ({ data }) => (
+const ListItem: React.FunctionComponent<Props> = ({ data }) => (
   <React.Fragment>{data.id}:{data.name}</React.Fragment>
 );
 

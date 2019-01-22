@@ -3,11 +3,11 @@ import Layout from '../components/Layout'
 import List from '../components/List'
 import IDataObject from '../interfaces'
 
-interface IListComponentProps {
-  items: IDataObject[]
+type Props = {
+  items: IDataObject[],
 }
 
-const list: NextFunctionComponent<IListComponentProps> = ({ items }) => (
+const list: NextFunctionComponent<Props> = ({ items }) => (
   <Layout title="About | Next.js + TypeScript Example">
     <List items={items} />
   </Layout>
