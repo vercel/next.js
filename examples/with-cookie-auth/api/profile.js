@@ -26,4 +26,7 @@ const profile = async (req, res) => {
   }
 }
 
-module.exports = (req, res) => run(req, res, profile)
+module.exports = {
+  profile,
+  default: (req, res) => run(req, res, profile)
+}

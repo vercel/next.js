@@ -40,9 +40,11 @@ const Profile = withAuthSync(props => {
 
 Profile.getInitialProps = async ctx => {
   const token = auth(ctx)
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+
   const apiUrl = process.browser
-    ? `https://${window.location.host}/api/profile.js`
-    : `https://${ctx.req.headers.host}/api/profile.js`
+    ? `${protocol}://${window.location.host}/api/profile.js`
+    : `${protocol}://${ctx.req.headers.host}/api/profile.js`
 
   const redirectOnError = () =>
     process.browser
