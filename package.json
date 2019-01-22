@@ -18,7 +18,7 @@
     "prettier": "prettier --single-quote --no-semi --write examples/**/*.js && yarn lint-fix",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
-    "publish-canary": "lerna version prerelease --preid canary --force-publish",
+    "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
@@ -84,6 +84,7 @@
     "prettier": "1.15.3",
     "react": "16.6.3",
     "react-dom": "16.6.3",
+    "release": "5.0.3",
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",

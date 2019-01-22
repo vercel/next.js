@@ -216,7 +216,6 @@ function processMessage (e) {
 
       if (obj.warnings.length > 0) {
         handleWarnings(obj.warnings)
-        break
       }
 
       if (obj.errors.length > 0) {
