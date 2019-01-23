@@ -15,7 +15,7 @@
     "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "@types/next": "^7.0.2",
+    "@types/next": "^7.0.6",
     "@types/react": "^16.4.16",
     "@types/react-dom": "16.0.8",
     "eslint": "^5.12.0",
