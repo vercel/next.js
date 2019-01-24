@@ -55,8 +55,8 @@ const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
  returns a function for filtering head child elements
- which shouldn't be duplicated, like <title/>,
- except we explicit allow it in ALLOWED_DUPLICATES array
+ which shouldn't be duplicated, like <title/>
+ Also adds support for deduplicated `key` properties
 */
 
 function unique () {
