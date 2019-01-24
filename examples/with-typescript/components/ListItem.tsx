@@ -1,12 +1,12 @@
 import * as React from 'react'
-import {DataObject} from "./List";
+import IDataObject from '../interfaces'
 
-export interface Props {
-    data: DataObject
+type Props = {
+  data: IDataObject,
 }
 
 const ListItem: React.FunctionComponent<Props> = ({ data }) => (
   <React.Fragment>{data.id}:{data.name}</React.Fragment>
 );
 
-export default ListItem;
+export default ListItem

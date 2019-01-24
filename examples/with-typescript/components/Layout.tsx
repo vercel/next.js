@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Head from 'next/head'
 
 type Props = {
-  title?: string
+  title?: string,
 }
 
 const Layout: React.FunctionComponent<Props> = ({ children, title = 'This is the default title' }) => (
@@ -16,14 +16,15 @@ const Layout: React.FunctionComponent<Props> = ({ children, title = 'This is the
     <header>
       <nav>
         <Link href='/'><a>Home</a></Link> | {' '}
-        <Link href='/list'><a>List</a></Link> | {' '}
+        <Link href='/list-fc'><a>List as Functional Component</a></Link> | {' '}
+        <Link href='/list-class'><a>List As Class</a></Link> | {' '}
         <Link href='/about'><a>About</a></Link> | {' '}
       </nav>
     </header>
     {children}
     <footer>
-        <hr/>
-        <span>I'm here to stay (Footer)</span>
+      <hr />
+      <span>I'm here to stay (Footer)</span>
     </footer>
   </div>
 )
