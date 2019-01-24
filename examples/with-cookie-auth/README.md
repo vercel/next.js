@@ -26,7 +26,7 @@ cd with-cookie-auth
 
 The repository is setup as a [monorepo](https://zeit.co/examples/monorepo/) so you can deploy it easily running `now` inside the project folder. However, you can't run it the same way locally (yet).
 
-These files make it easier to run the application locally and aren't needed for production:
+These files make it easier to run the application locally and aren't needed for production if you are using Now to deploy:
 
 - `/api/index.js` runs the API server on port `3001` and imports the `login` and `profile` microservices.
 - `/www/server.js` runs the Next.js app with a custom server proxying the authentication requests to the API server. We use this so we don't modify the logic on the application and we don't have to deal with CORS if we use domains while testing.
@@ -65,4 +65,4 @@ The repo includes a minimal passwordless backend built with [Micro](https://www.
 
 Session is syncronized across tabs. If you logout your session gets logged out on all the windows as well. We use the HOC `withAuthSync` for this.
 
-The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
+The helper function `auth` helps to retrieve the token across pages and redirects the user if no token was found.
