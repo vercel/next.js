@@ -2,7 +2,7 @@ import Server from 'next-server/dist/server/next-server'
 import { join } from 'path'
 import HotReloader from './hot-reloader'
 import {route} from 'next-server/dist/server/router'
-import {PHASE_DEVELOPMENT_SERVER} from 'next-server/constants'
+import {PHASE_DEVELOPMENT_SERVER} from '../lib/constants'
 import ErrorDebug from './error-debug'
 
 export default class DevServer extends Server {

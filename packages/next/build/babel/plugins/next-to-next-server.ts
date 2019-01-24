@@ -10,9 +10,6 @@ export default function NextToNextServer (): PluginObj {
         if (source === 'next/dynamic') {
           path.node.source.value = 'next-server/dynamic'
         }
-        if (source === 'next/constants') {
-          path.node.source.value = 'next-server/constants'
-        }
         if (source === 'next/config') {
           path.node.source.value = 'next-server/config'
         }
