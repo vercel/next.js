@@ -1,15 +1,6 @@
 import React from 'react'
-import PropTypes from 'prop-types'
-import sideEffect from './side-effect'
+import withSideEffect from './side-effect'
 import { HeadManagerContext } from './head-manager-context'
-
-class Head extends React.Component {
-  static contextType = HeadManagerContext
-
-  render () {
-    return null
-  }
-}
 
 const NEXT_HEAD_IDENTIFIER = 'next-head'
 
@@ -39,16 +30,6 @@ function reduceComponents (components) {
       const key = c.key || i
       return React.cloneElement(c, { key, className })
     })
-}
-
-function mapOnServer (head) {
-  return head
-}
-
-function onStateChange (head) {
-  if (this.context) {
-    this.context.updateHead(head)
-  }
 }
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
@@ -99,12 +80,14 @@ function unique () {
   }
 }
 
-if (process.env.NODE_ENV === 'development') {
-  const exact = require('prop-types-exact')
+const Effect = withSideEffect()
 
-  Head.propTypes = exact({
-    children: PropTypes.node.isRequired
-  })
+function Head ({children}) {
+  return <HeadManagerContext.Consumer>
+    {(updateHead) => <Effect reduceComponentsToState={reduceComponents} handleStateChange={updateHead}>{children}</Effect>}
+  </HeadManagerContext.Consumer>
 }
 
-export default sideEffect(reduceComponents, onStateChange, mapOnServer)(Head)
+Head.rewind = Effect.rewind
+
+export default Head

@@ -4,58 +4,54 @@ const isServer = typeof window === 'undefined'
 
 type State = React.DetailedReactHTMLElement<any, any>[] | undefined
 
-export default function withSideEffect (
-  reduceComponentsToState: (components: React.ReactElement<any>[]) => React.DetailedReactHTMLElement<any, any>[],
-  handleStateChangeOnClient: (state: State) => void,
-  mapStateOnServer: (state: State) => State
-) {
-  return (WrappedComponent: React.ComponentClass<any>) => {
-    const mountedInstances: Set<any> = new Set()
-    let state: State
+type SideEffectProps = {
+  reduceComponentsToState: (components: React.ReactElement<any>[]) => State,
+  handleStateChange?: (state: State) => void
+}
 
-    function emitChange (component: React.ReactInstance) {
-      state = reduceComponentsToState([...mountedInstances])
+export default function withSideEffect () {
+  const mountedInstances: Set<any> = new Set()
+  let state: State
 
-      if (!isServer) {
-        handleStateChangeOnClient.call(component, state)
-      } else if (mapStateOnServer) {
-        state = mapStateOnServer(state)
-      }
+  function emitChange (component: React.Component<SideEffectProps>) {
+    state = component.props.reduceComponentsToState([...mountedInstances])
+    if(component.props.handleStateChange) {
+      component.props.handleStateChange(state)
+    }
+  }
+
+  class SideEffect extends Component<SideEffectProps> {
+    // Used when server rendering
+    static rewind () {
+      const recordedState = state
+      state = undefined
+      mountedInstances.clear()
+      return recordedState
     }
 
-    class SideEffect extends Component<any> {
-      static contextType = WrappedComponent.contextType
-      static rewind () {
-        const recordedState = state
-        state = undefined
-        mountedInstances.clear()
-        return recordedState
-      }
-
-      constructor (props: any) {
-        super(props)
-        if (isServer) {
-          mountedInstances.add(this)
-          emitChange(this)
-        }
-      }
-      componentDidMount () {
+    constructor (props: any) {
+      super(props)
+      if (isServer) {
         mountedInstances.add(this)
         emitChange(this)
       }
-      componentDidUpdate () {
-        emitChange(this)
-      }
-      componentWillUnmount () {
-        mountedInstances.delete(this)
-        emitChange(this)
-      }
-
-      render () {
-        return null
-      }
+    }
+    componentDidMount () {
+      mountedInstances.add(this)
+      emitChange(this)
+    }
+    componentDidUpdate () {
+      emitChange(this)
+    }
+    componentWillUnmount () {
+      mountedInstances.delete(this)
+      emitChange(this)
     }
 
-    return SideEffect
+    render () {
+      return null
+    }
   }
+
+  return SideEffect
 }

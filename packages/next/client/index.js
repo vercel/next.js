@@ -181,7 +181,7 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
-      <HeadManagerContext.Provider value={headManager}>
+      <HeadManagerContext.Provider value={headManager.updateHead}>
         <App {...appProps} />
       </HeadManagerContext.Provider>
     ), appContainer)
@@ -196,7 +196,7 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     }
     renderReactElement((
       <ErrorBoundary onError={onError}>
-        <HeadManagerContext.Provider value={headManager}>
+        <HeadManagerContext.Provider value={headManager.updateHead}>
           <App {...appProps} />
         </HeadManagerContext.Provider>
       </ErrorBoundary>
