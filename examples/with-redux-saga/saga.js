@@ -1,7 +1,6 @@
 /* global fetch */
 
-import { delay } from 'redux-saga/effects'
-import { all, call, put, take, takeLatest } from 'redux-saga/effects'
+import { all, call, delay, put, take, takeLatest } from 'redux-saga/effects'
 import es6promise from 'es6-promise'
 import 'isomorphic-unfetch'
 
