@@ -1,4 +1,4 @@
 export default interface IDataObject {
-  id: number,
+  id: number
   name: string
 }
