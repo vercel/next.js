@@ -14,6 +14,9 @@ const ListFunction: NextFunctionComponent<Props> = ({ items }) => (
 )
 
 ListFunction.getInitialProps = async ({ pathname }: NextContext) => {
+  // Example for including initial props in a Next.js function compnent page.
+  // Don't forget to include the respective types for any props passed into
+  // the component.
   const dataArray: IDataObject[] = [
     { id: 101, name: 'larry' },
     { id: 102, name: 'sam' },
