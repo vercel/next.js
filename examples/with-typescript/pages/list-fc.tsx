@@ -8,7 +8,7 @@ type Props = {
 }
 
 const ListFunction: NextFunctionComponent<Props> = ({ items }) => (
-  <Layout title="About | Next.js + TypeScript Example">
+  <Layout title="List Example (with Function Components) | Next.js + TypeScript Example">
     <List items={items} />
   </Layout>
 )

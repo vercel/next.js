@@ -26,7 +26,7 @@ class ListClass extends React.Component<Props> {
 
   render() {
     return (
-      <Layout title="About | Next.js + TypeScript Example">
+      <Layout title="List Example | Next.js + TypeScript Example">
         <List items={this.props.items} />
       </Layout>
     )
