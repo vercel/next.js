@@ -17,6 +17,17 @@ function collectPages (directory: string, pageExtensions: string[]): Promise<str
   return glob(`**/*.+(${pageExtensions.join('|')})`, {cwd: directory})
 }
 
+function printTreeView(list: string[]) {
+  list
+    .sort((a, b) => a > b ? 1 : -1)
+    .forEach((item, i) => {
+      const corner = i === 0 ? list.length === 1 ? '─' : '┌' : i === list.length - 1 ? '└' : '├'
+      console.log(` \x1b[90m${corner}\x1b[39m ${item}`)
+    })
+
+  console.log()
+}
+
 export default async function build (dir: string, conf = null): Promise<void> {
   if (!await isWriteable(dir)) {
     throw new Error('> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
@@ -58,5 +69,8 @@ export default async function build (dir: string, conf = null): Promise<void> {
     result.errors.forEach((error) => console.error(error))
     throw new Error('> Build failed because of webpack errors')
   }
+
+  printTreeView(Object.keys(pages))
+
   await writeBuildId(distDir, buildId)
 }
