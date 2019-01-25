@@ -16,7 +16,6 @@ import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_W
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
-import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
 
 // The externals config makes sure that
@@ -182,7 +181,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     // Disable .mjs for node_modules bundling
     extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
     modules: [
-      NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
       ...nodePathList // Support for NODE_PATH environment variable
     ],
@@ -305,7 +303,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && new BuildManifestPlugin(),
       isServer && new NextJsSsrImportPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
-      target !== 'serverless' && !isServer && !dev && new AssetsSizePlugin(buildId, distDir),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource) => {
           return /react-is/.test(resource)
