@@ -181,7 +181,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     // Disable .mjs for node_modules bundling
     extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
     modules: [
-      NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
       ...nodePathList // Support for NODE_PATH environment variable
     ],
