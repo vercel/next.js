@@ -17,7 +17,7 @@ function collectPages (directory: string, pageExtensions: string[]): Promise<str
   return glob(`**/*.+(${pageExtensions.join('|')})`, {cwd: directory})
 }
 
-function printTreeView(list) {
+function printTreeView(list: string[]) {
   list
     .sort((a, b) => a > b ? 1 : -1)
     .forEach((item, i) => {
