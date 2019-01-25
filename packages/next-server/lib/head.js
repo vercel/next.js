@@ -1,15 +1,6 @@
 import React from 'react'
-import PropTypes from 'prop-types'
-import sideEffect from './side-effect'
+import withSideEffect from './side-effect'
 import { HeadManagerContext } from './head-manager-context'
-
-class Head extends React.Component {
-  static contextType = HeadManagerContext
-
-  render () {
-    return null
-  }
-}
 
 const NEXT_HEAD_IDENTIFIER = 'next-head'
 
@@ -41,22 +32,12 @@ function reduceComponents (components) {
     })
 }
 
-function mapOnServer (head) {
-  return head
-}
-
-function onStateChange (head) {
-  if (this.context) {
-    this.context.updateHead(head)
-  }
-}
-
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
  returns a function for filtering head child elements
- which shouldn't be duplicated, like <title/>,
- except we explicit allow it in ALLOWED_DUPLICATES array
+ which shouldn't be duplicated, like <title/>
+ Also adds support for deduplicated `key` properties
 */
 
 function unique () {
@@ -99,12 +80,14 @@ function unique () {
   }
 }
 
-if (process.env.NODE_ENV === 'development') {
-  const exact = require('prop-types-exact')
+const Effect = withSideEffect()
 
-  Head.propTypes = exact({
-    children: PropTypes.node.isRequired
-  })
+function Head ({children}) {
+  return <HeadManagerContext.Consumer>
+    {(updateHead) => <Effect reduceComponentsToState={reduceComponents} handleStateChange={updateHead}>{children}</Effect>}
+  </HeadManagerContext.Consumer>
 }
 
-export default sideEffect(reduceComponents, onStateChange, mapOnServer)(Head)
+Head.rewind = Effect.rewind
+
+export default Head
