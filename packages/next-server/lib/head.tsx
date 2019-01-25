@@ -10,12 +10,17 @@ export function defaultHead (className = NEXT_HEAD_IDENTIFIER) {
   ]
 }
 
-function reduceComponents (components) {
+function reduceComponents (components: React.ReactElement<any>[]) {
   return components
     .map((component) => React.Children.toArray(component.props.children))
-    .reduce((a, b) => a.concat(b), [])
-    .reduce((a, b) => {
-      if (React.Fragment && b.type === React.Fragment) {
+    .reduce((a: React.ReactChild[], b: React.ReactChild[]) => a.concat(b), [])
+    .reduce((a: React.ReactChild[], b: React.ReactChild) => {
+      // React children can be "string" or "number" in this case we ignore them for backwards compat
+      if(typeof b === 'string' || typeof b === 'number') {
+        return a
+      }
+      // Adds support for React.Fragment
+      if (b.type === React.Fragment) {
         return a.concat(React.Children.toArray(b.props.children))
       }
       return a.concat(b)
@@ -44,7 +49,7 @@ function unique () {
   const keys = new Set()
   const tags = new Set()
   const metaTypes = new Set()
-  const metaCategories = {}
+  const metaCategories: {[metatype: string]: Set<string>} = {}
 
   return (h) => {
     if (h.key && h.key.indexOf('.$') === 0) {
@@ -82,7 +87,7 @@ function unique () {
 
 const Effect = withSideEffect()
 
-function Head ({children}) {
+function Head ({children}: {children: React.ReactNode}) {
   return <HeadManagerContext.Consumer>
     {(updateHead) => <Effect reduceComponentsToState={reduceComponents} handleStateChange={updateHead}>{children}</Effect>}
   </HeadManagerContext.Consumer>
