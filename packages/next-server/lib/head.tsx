@@ -2,7 +2,7 @@ import React from "react";
 import withSideEffect from "./side-effect";
 import { HeadManagerContext } from "./head-manager-context";
 
-export function defaultHead(className? = 'next-head') {
+export function defaultHead(className = 'next-head') {
   return [
     <meta key="charSet" charSet="utf-8" className={className} />,
   ];
