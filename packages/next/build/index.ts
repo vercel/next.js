@@ -1,7 +1,7 @@
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
-import { PHASE_PRODUCTION_BUILD } from '../lib/constants'
+import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack-config'
 import {generateBuildId} from './generate-build-id'
 import {writeBuildId} from './write-build-id'
@@ -15,6 +15,17 @@ const glob = promisify(globModule)
 
 function collectPages (directory: string, pageExtensions: string[]): Promise<string[]> {
   return glob(`**/*.+(${pageExtensions.join('|')})`, {cwd: directory})
+}
+
+function printTreeView(list: string[]) {
+  list
+    .sort((a, b) => a > b ? 1 : -1)
+    .forEach((item, i) => {
+      const corner = i === 0 ? list.length === 1 ? '─' : '┌' : i === list.length - 1 ? '└' : '├'
+      console.log(` \x1b[90m${corner}\x1b[39m ${item}`)
+    })
+
+  console.log()
 }
 
 export default async function build (dir: string, conf = null): Promise<void> {
@@ -58,5 +69,8 @@ export default async function build (dir: string, conf = null): Promise<void> {
     result.errors.forEach((error) => console.error(error))
     throw new Error('> Build failed because of webpack errors')
   }
+
+  printTreeView(Object.keys(pages))
+
   await writeBuildId(distDir, buildId)
 }
