@@ -1,3 +1,7 @@
+export const PHASE_EXPORT = 'phase-export'
+export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
+export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
+export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
