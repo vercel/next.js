@@ -1,7 +1,7 @@
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
-import { PHASE_PRODUCTION_BUILD } from '../lib/constants'
+import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack-config'
 import {generateBuildId} from './generate-build-id'
 import {writeBuildId} from './write-build-id'
