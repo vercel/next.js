@@ -98,7 +98,7 @@ const startProcess = () => {
       }
       // tslint:disable-next-line
       console.log(`got signal ${signal}, exiting`)
-      process.exit(signal === 'SIGINT' ? 0 : 1)
+      process.exit(signal === 'SIGINT' || signal === 'SIGTERM' ? 0 : 1)
     }
     process.exit(0)
   })
