@@ -16,7 +16,6 @@ import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_W
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from 'terser-webpack-plugin'
-import AssetsSizePlugin from './webpack/plugins/assets-size-plugin'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
 
 // The externals config makes sure that
@@ -124,7 +123,11 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
 
   // Terser is a better uglifier
   config.minimizer = [
-    new TerserPlugin(terserPluginConfig)
+    new TerserPlugin({...terserPluginConfig,
+      terserOptions: {
+        safari10: true
+      }
+    })
   ]
 
   // Only enabled in production
@@ -178,7 +181,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     // Disable .mjs for node_modules bundling
     extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
     modules: [
-      NEXT_PROJECT_ROOT_NODE_MODULES,
       'node_modules',
       ...nodePathList // Support for NODE_PATH environment variable
     ],
@@ -224,6 +226,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       chunkFilename: isServer ? `${dev ? '[name]' : '[name].[contenthash]'}.js` : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: config.crossOrigin,
+      futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
     },
     performance: { hints: false },
@@ -300,7 +303,14 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && new BuildManifestPlugin(),
       isServer && new NextJsSsrImportPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
-      target !== 'serverless' && !isServer && !dev && new AssetsSizePlugin(buildId, distDir)
+      !dev && new webpack.IgnorePlugin({
+        checkResource: (resource) => {
+          return /react-is/.test(resource)
+        },
+        checkContext: (context) => {
+          return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
+        }
+      })
     ].filter(Boolean)
   }
 

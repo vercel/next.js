@@ -51,27 +51,24 @@ const nextServerlessLoader: loader.Loader = function () {
       const parsedUrl = parse(req.url, true)
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, {
-          ...options,
+        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign({}, options, {
           Component
-        })
+        }))
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
-            ...options,
+          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             Component: Error
-          })
+          }))
           return result
         } else {
           console.error(err)
           res.statusCode = 500
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, {
-            ...options,
+          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
             Component: Error,
             err
-          })
+          }))
           return result
         }
       }

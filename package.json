@@ -18,7 +18,7 @@
     "prettier": "prettier --single-quote --no-semi --write examples/**/*.js && yarn lint-fix",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
-    "publish-canary": "lerna version prerelease --preid canary --force-publish",
+    "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
@@ -33,7 +33,11 @@
       "git add"
     ],
     "*.ts": [
-      "tslint -c tslint.json 'packages/**/*.ts'",
+      "tslint -c tslint.json 'packages/**/*.ts' --fix",
+      "git add"
+    ],
+    "*.tsx": [
+      "tslint -c tslint.json 'packages/**/*.ts' --fix",
       "git add"
     ],
     "packages/**/bin/*": [
@@ -62,7 +66,6 @@
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "9.0.0",
     "babel-jest": "23.6.0",
-    "babel-plugin-transform-define": "1.3.0",
     "benchmark": "2.1.4",
     "cheerio": "0.22.0",
     "chromedriver": "2.42.0",
@@ -71,7 +74,6 @@
     "eslint-plugin-typescript": "0.14.0",
     "express": "4.16.3",
     "fkill": "5.1.0",
-    "flatten": "1.0.2",
     "get-port": "3.2.0",
     "isomorphic-unfetch": "3.0.0",
     "jest-cli": "23.6.0",
@@ -86,6 +88,7 @@
     "prettier": "1.15.3",
     "react": "16.6.3",
     "react-dom": "16.6.3",
+    "release": "5.0.3",
     "rimraf": "2.6.2",
     "standard": "11.0.1",
     "taskr": "1.1.0",
