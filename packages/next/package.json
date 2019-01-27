@@ -66,7 +66,6 @@
     "friendly-errors-webpack-plugin": "1.7.0",
     "glob": "7.1.2",
     "hoist-non-react-statics": "3.2.0",
-    "htmlescape": "1.1.1",
     "http-status": "1.0.1",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
