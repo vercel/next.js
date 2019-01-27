@@ -1,4 +1,6 @@
 /* eslint-env jest */
+// These tests are based on https://github.com/zertosh/htmlescape/blob/3e6cf0614dd0f778fd0131e69070b77282150c15/test/htmlescape-test.js
+// License: https://github.com/zertosh/htmlescape/blob/0527ca7156a524d256101bb310a9f970f63078ad/LICENSE
 import {htmlEscapeJsonString} from 'next/dist/server/htmlescape'
 import vm from 'vm'
 
