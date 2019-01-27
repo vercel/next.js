@@ -55,7 +55,7 @@ const matchNextPageBundleRequest = route('/_next/static/:buildId/pages/:path*.js
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule (issuer) {
-  if (issuer.issuer) {
+  if (issuer && issuer.issuer) {
     return findEntryModule(issuer.issuer)
   }
 
