@@ -6,7 +6,7 @@ module.exports = {
   },
   webpack (config) {
     config.module.rules.push({
-      test: /pages[\\/]hmr/,
+      test: /pages[\\/]hmr[\\/]about/,
       loader: path.join(__dirname, 'warning-loader.js')
     })
 
