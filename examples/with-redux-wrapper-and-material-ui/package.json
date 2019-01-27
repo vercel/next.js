@@ -1,0 +1,26 @@
+{
+  "name": "with-redux-wrapper-and-material-ui",
+  "version": "1.0.0",
+  "dependencies": {
+    "@material-ui/core": "3.7.1",
+    "@material-ui/icons": "3.0.2",
+    "jss": "9.8.7",
+    "next": "latest",
+    "next-redux-wrapper": "latest",
+    "react": "16.7.0",
+    "react-dom": "16.7.0",
+    "react-jss": "8.6.1",
+    "react-redux": "6.0.0",
+    "redux": "4.0.1",
+    "redux-thunk": "2.3.0"
+  },
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "devDependencies": {
+    "redux-devtools-extension": "2.13.7"
+  },
+  "license": "ISC"
+}
