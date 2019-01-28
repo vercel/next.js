@@ -1,8 +1,6 @@
 import 'semantic-ui-css/semantic.min.css'
 import { Modal,
-  Header,
   Button,
-  List,
   Icon
 } from 'semantic-ui-react'
 
@@ -35,7 +33,7 @@ export default () => (
                 A small image should be loaded as data url: <em>{SmallImage.substr(0, 100)}...</em>
               </p>
             </div>
-            
+
             <div className='row'>
               <img src={LargeImage} />
               <p>
