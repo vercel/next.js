@@ -1,28 +1,29 @@
-import { takeLatest, put, call } from 'redux-saga/effects';
+import 'isomorphic-fetch'
+import { takeLatest, put, call } from 'redux-saga/effects'
 
-import { getDataGraphs } from './actions';
+import { getDataUsers } from './actions'
 
-export function getDataApi() {
-    return fetch('https://pokeapi.co/api/v2/pokemon/ditto/')
-    .then( (response) => {
-        return response.json();
-    })
+export function getDataApi () {
+  // eslint-disable-next-line
+  return fetch("https://reqres.in/api/users").then(response => {
+    return response.json()
+  })
 }
 
-export function* getDataRequest() {
-    try {
-        yield put(getDataGraphs.request());
+export function * getDataRequest () {
+  try {
+    yield put(getDataUsers.request())
 
-        const data = yield call(getDataApi, {})
+    const data = yield call(getDataApi, {})
 
-        yield put(getDataGraphs.success(data));
-    } catch (err) {
-        yield put(getDataGraphs.failure(err));
-    } finally {
-        yield put(getDataGraphs.fulfill());
-    }
+    yield put(getDataUsers.success(data))
+  } catch (err) {
+    yield put(getDataUsers.failure(err))
+  } finally {
+    yield put(getDataUsers.fulfill())
+  }
 }
 
-export default function* dataExample() {
-    yield takeLatest(getDataGraphs.TRIGGER, getDataRequest);
+export default function * dataExample () {
+  yield takeLatest(getDataUsers.TRIGGER, getDataRequest)
 }

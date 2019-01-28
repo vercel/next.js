@@ -1,10 +1,10 @@
 const initialState = {
-    loading: false,
-    error: false,
-};
-
-function appReducer(state = initialState) {
-    return state;
+  loading: false,
+  error: false
 }
 
-export default appReducer;
+function appReducer (state = initialState) {
+  return state
+}
+
+export default appReducer

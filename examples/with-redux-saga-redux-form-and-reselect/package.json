@@ -1,17 +1,16 @@
 {
   "name": "with-redux-saga-redux-form-and-reselect",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "next app",
     "build": "next build app",
     "start": "next start app"
   },
-  "author": "",
   "license": "ISC",
   "dependencies": {
     "hoist-non-react-statics": "3.2.1",
+    "isomorphic-unfetch": "3.0.0",
     "jss": "9.8.7",
     "lodash": "4.17.11",
     "next": "latest",

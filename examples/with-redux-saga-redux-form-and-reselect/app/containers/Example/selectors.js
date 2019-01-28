@@ -1,8 +1,8 @@
-import { createSelector } from 'reselect';
+import { createSelector } from 'reselect'
 
-export const selectGraphsDomain = state => state.example;
+export const selectUsersDomain = state => state.example
 
 export const selectData = createSelector(
-    selectGraphsDomain,
-    subState => (subState && subState.data) || []
-);
+  selectUsersDomain,
+  subState => subState || []
+)

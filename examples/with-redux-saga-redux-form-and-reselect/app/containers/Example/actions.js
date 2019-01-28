@@ -1,5 +1,5 @@
-import { createRoutine } from 'redux-saga-routines';
+import { createRoutine } from 'redux-saga-routines'
 
-import { GET_DATA_GRAPHS } from './constants';
+import { GET_DATA_USERS } from './constants'
 
-export const getDataGraphs = createRoutine(GET_DATA_GRAPHS);
+export const getDataUsers = createRoutine(GET_DATA_USERS)

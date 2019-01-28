@@ -1,62 +1,68 @@
-import React from 'react';
+import React from 'react'
 
-import { compose } from 'redux';
-import { connect } from 'react-redux';
-import { createStructuredSelector } from 'reselect';
+import { compose } from 'redux'
+import { connect } from 'react-redux'
+import { createStructuredSelector } from 'reselect'
 
-import injectSaga from 'utils/injectSaga';
-import injectReducer from 'utils/injectReducer';
+import injectSaga from 'utils/injectSaga'
+import injectReducer from 'utils/injectReducer'
 
-import saga from './saga';
-import reducer from './reducer';
-import { getDataGraphs } from './actions';
+import saga from './saga'
+import reducer from './reducer'
+import { getDataUsers } from './actions'
 import {
   selectData
-} from './selectors';
+} from './selectors'
 
 export class Example extends React.Component {
+  componentDidMount () {
+    const { getDataUsers } = this.props
 
-  componentDidMount() {
-    const { getDataGraphs } = this.props;
-
-    getDataGraphs();
+    getDataUsers()
   }
 
-  render() {
-    const { data } = this.props;
+  render () {
+    const { dataUsers } = this.props
 
     return (
       <div>
-        <pre>
-          Text in a pre element
-          is displayed in a fixed-width
-          font, and it preserves
-          both      spaces and
-          line breaks
-</pre>
+        {dataUsers.loading ? <span>Loading...</span>
+          : dataUsers.loadend && dataUsers.users.data.map(user => (
+            <div key={user.id} style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '10px'
+            }}>
+              <img src={user.avatar} alt='' style={{ borderRadius: '50%' }} />
+              <span>{`Full Name: ${user.first_name} ${user.last_name}`}</span>
+            </div>
+          ))
+        }
       </div>
-    );
+    )
   }
 }
 
 const mapStateToProps = createStructuredSelector({
-  data: selectData,
-});
+  dataUsers: selectData
+})
 
-export function mapDispatchToProps(dispatch) {
-  return { getDataGraphs: () => dispatch(getDataGraphs()) };
+export function mapDispatchToProps (dispatch) {
+  return { getDataUsers: () => dispatch(getDataUsers()) }
 }
 
 const withConnect = connect(
   mapStateToProps,
   mapDispatchToProps
-);
+)
 
-const withSaga = injectSaga({ key: 'example', saga });
-const withReducer = injectReducer({ key: 'example', reducer });
+const withSaga = injectSaga({ key: 'example', saga })
+const withReducer = injectReducer({ key: 'example', reducer })
 
 export default compose(
   withReducer,
   withSaga,
   withConnect
-)(Example);
+)(Example)

@@ -1,1 +1,1 @@
-export const GET_DATA_GRAPHS = 'app/Example/GET_DATA_GRAPHS';
+export const GET_DATA_USERS = 'app/Example/GET_DATA_USERS'
