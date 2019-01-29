@@ -5,7 +5,6 @@ import { makePublicRouterInstance } from 'next/router'
 
 export default class App extends Component {
   static childContextTypes = {
-    headManager: PropTypes.object,
     router: PropTypes.object
   }
 
@@ -15,9 +14,7 @@ export default class App extends Component {
   }
 
   getChildContext () {
-    const { headManager } = this.props
     return {
-      headManager,
       router: makePublicRouterInstance(this.props.router)
     }
   }
@@ -31,9 +28,11 @@ export default class App extends Component {
   render () {
     const {router, Component, pageProps} = this.props
     const url = createUrl(router)
-    return <Container>
-      <Component {...pageProps} url={url} />
-    </Container>
+    return (
+      <Container>
+        <Component {...pageProps} url={url} />
+      </Container>
+    )
   }
 }
 

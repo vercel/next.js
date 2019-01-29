@@ -10,8 +10,8 @@
   "dependencies": {
     "next": "latest",
     "next-redux-wrapper": "^2.0.0-beta.6",
-    "react": "^16.5.2",
-    "react-dom": "^16.5.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-redux": "^5.0.7",
     "redux": "^4.0.0",
     "redux-logger": "^3.0.6",

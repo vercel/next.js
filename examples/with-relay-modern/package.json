@@ -18,8 +18,8 @@
     "graphql": "^0.13.2",
     "isomorphic-unfetch": "^2.0.0",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-relay": "^1.5.0"
   },
   "devDependencies": {

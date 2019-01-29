@@ -9,8 +9,8 @@
   "dependencies": {
     "immutable": "^3.8.2",
     "next": "6.1.1",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "slate": "^0.37.0",
     "slate-plain-serializer": "^0.5.27",
     "slate-react": "^0.15.0"

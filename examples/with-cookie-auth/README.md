@@ -44,4 +44,4 @@ The repo includes a minimal passwordless backend built with [Micro](https://www.
 
 Session is syncronized across tabs. If you logout your session gets logged out on all the windows as well. We use the HOC `withAuthSync` for this.
 
-The helper function `auth` helps to retrieve the token across pages and redirects the user if not token was found.
+The helper function `auth` helps to retrieve the token across pages and redirects the user if no token was found.

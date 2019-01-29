@@ -8,9 +8,9 @@
   "dependencies": {
     "next": "latest",
     "next-plugin-transpile-modules": "^0.1.3",
-    "react": "^16.5.2",
+    "react": "^16.7.0",
     "react-art": "^16.5.2",
-    "react-dom": "^16.5.2",
+    "react-dom": "^16.7.0",
     "react-native-web": "^0.9.3"
   }
 }

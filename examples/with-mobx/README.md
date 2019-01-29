@@ -47,7 +47,8 @@ This example is a mobx port of the [with-redux](https://github.com/zeit/next.js/
     "next/babel"
   ],
   "plugins": [
-    "transform-decorators-legacy"
+    ["@babel/plugin-proposal-decorators", { "legacy": true }],
+    ["@babel/plugin-proposal-class-properties", { "loose": true }]
   ]
 }
 ```

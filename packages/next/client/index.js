@@ -2,13 +2,13 @@ import React from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
 import { createRouter } from 'next/router'
-import EventEmitter from 'next-server/dist/lib/event-emitter'
+import mitt from 'next-server/dist/lib/mitt'
 import {loadGetInitialProps, getURL} from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
-import * as asset from 'next-server/asset'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
+import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -38,8 +38,6 @@ const prefix = assetPrefix || ''
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
 __webpack_public_path__ = `${prefix}/_next/` //eslint-disable-line
-// Initialize next/asset with the assetPrefix
-asset.setAssetPrefix(prefix)
 // Initialize next/config with the environment configuration
 envConfig.setConfig({
   serverRuntimeConfig: {},
@@ -66,7 +64,7 @@ export let ErrorComponent
 let Component
 let App
 
-export const emitter = new EventEmitter()
+export const emitter = mitt()
 
 export default async ({
   webpackHMR: passedWebpackHMR
@@ -183,7 +181,9 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
-      <App {...appProps} />
+      <HeadManagerContext.Provider value={headManager.updateHead}>
+        <App {...appProps} />
+      </HeadManagerContext.Provider>
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
@@ -196,7 +196,9 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     }
     renderReactElement((
       <ErrorBoundary onError={onError}>
-        <App {...appProps} />
+        <HeadManagerContext.Provider value={headManager.updateHead}>
+          <App {...appProps} />
+        </HeadManagerContext.Provider>
       </ErrorBoundary>
     ), appContainer)
   }

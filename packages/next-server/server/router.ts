@@ -8,20 +8,20 @@ type Params = {[param: string]: string}
 
 export type Route = {
   match: (pathname: string|undefined) => false|Params,
-  fn: (req: IncomingMessage, res: ServerResponse, params: Params, parsedUrl: UrlWithParsedQuery) => void
+  fn: (req: IncomingMessage, res: ServerResponse, params: Params, parsedUrl: UrlWithParsedQuery) => void,
 }
 
 export default class Router {
   routes: Route[]
-  constructor (routes: Route[] = []) {
+  constructor(routes: Route[] = []) {
     this.routes = routes
   }
 
-  add (route: Route) {
+  add(route: Route) {
     this.routes.unshift(route)
   }
 
-  match (req: IncomingMessage, res: ServerResponse, parsedUrl: UrlWithParsedQuery) {
+  match(req: IncomingMessage, res: ServerResponse, parsedUrl: UrlWithParsedQuery) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return
     }

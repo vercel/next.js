@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils' /* check, File */
+import { waitFor, fetchViaHTTP } from 'next-test-utils' /* check, File */
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
@@ -18,6 +18,12 @@ export default (context, render) => {
       expect(serverText).toBe('')
       expect(serverClientText).toBe('/static')
       browser.close()
+    })
+
+    it('should use websocketPort for on-demand-entries WebSocket', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping')
+      const wsPort = res.headers.get('port')
+      expect(wsPort).toBe(context.devWebSocketPort + '')
     })
 
     it('should update css styles using hmr', async () => {

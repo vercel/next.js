@@ -7,39 +7,70 @@ import {generateBuildId} from './generate-build-id'
 import {writeBuildId} from './write-build-id'
 import {isWriteable} from './is-writeable'
 import {runCompiler, CompilerResult} from './compiler'
+import globModule from 'glob'
+import {promisify} from 'util'
+import {createPagesMapping, createEntrypoints} from './entries'
 
-export default async function build (dir: string, conf = null, lambdas: boolean = false): Promise<void> {
+const glob = promisify(globModule)
+
+function collectPages (directory: string, pageExtensions: string[]): Promise<string[]> {
+  return glob(`**/*.+(${pageExtensions.join('|')})`, {cwd: directory})
+}
+
+function printTreeView(list: string[]) {
+  list
+    .sort((a, b) => a > b ? 1 : -1)
+    .forEach((item, i) => {
+      const corner = i === 0 ? list.length === 1 ? '─' : '┌' : i === list.length - 1 ? '└' : '├'
+      console.log(` \x1b[90m${corner}\x1b[39m ${item}`)
+    })
+
+  console.log()
+}
+
+export default async function build (dir: string, conf = null): Promise<void> {
   if (!await isWriteable(dir)) {
     throw new Error('> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable')
   }
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const lambdasOption = config.lambdas ? config.lambdas : lambdas
-  const distDir = join(dir, config.distDir)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
+  const distDir = join(dir, config.distDir)
+  const pagesDir = join(dir, 'pages')
 
+  const pagePaths = await collectPages(pagesDir, config.pageExtensions)
+  const pages = createPagesMapping(pagePaths, config.pageExtensions)
+  const entrypoints = createEntrypoints(pages, config.target, buildId, config)
   const configs: any = await Promise.all([
-    getBaseWebpackConfig(dir, { buildId, isServer: false, config, lambdas: lambdasOption }),
-    getBaseWebpackConfig(dir, { buildId, isServer: true, config, lambdas: lambdasOption })
+    getBaseWebpackConfig(dir, { buildId, isServer: false, config, target: config.target, entrypoints: entrypoints.client }),
+    getBaseWebpackConfig(dir, { buildId, isServer: true, config, target: config.target, entrypoints: entrypoints.server })
   ])
 
   let result: CompilerResult = {warnings: [], errors: []}
-  if (lambdasOption) {
+  if (config.target === 'serverless') {
     const clientResult = await runCompiler([configs[0]])
-    const serverResult = await runCompiler([configs[1]])
-    result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
+    // Fail build if clientResult contains errors
+    if(clientResult.errors.length > 0) {
+      result = {warnings: [...clientResult.warnings], errors: [...clientResult.errors]}
+    } else {
+      const serverResult = await runCompiler([configs[1]])
+      result = {warnings: [...clientResult.warnings, ...serverResult.warnings], errors: [...clientResult.errors, ...serverResult.errors]}
+    }
   } else {
     result = await runCompiler(configs)
   }
 
   if (result.warnings.length > 0) {
     console.warn('> Emitted warnings from webpack')
-    console.warn(...result.warnings)
+    result.warnings.forEach((warning) => console.warn(warning))
   }
 
   if (result.errors.length > 0) {
-    console.error(...result.errors)
+    result.errors.forEach((error) => console.error(error))
     throw new Error('> Build failed because of webpack errors')
   }
+
+  printTreeView(Object.keys(pages))
+
   await writeBuildId(distDir, buildId)
 }
