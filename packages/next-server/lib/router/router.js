@@ -17,7 +17,7 @@ export default class Router {
     // We should not keep the cache, if there's an error
     // Otherwise, this cause issues when when going back and
     // come again to the errored page.
-    if (pathname !== '/_error')
+    if (pathname !== '/_error') {
       this.components[this.route] = { Component, props: initialProps, err }
     }
 
