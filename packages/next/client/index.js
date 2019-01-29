@@ -105,7 +105,7 @@ export default async ({
     render({ App, Component, props, err, emitter })
   })
 
-  render({ App, Component, props, err: initialErr, emitter, router })
+  render({ App, Component, props, err: initialErr, emitter })
 
   return emitter
 }
