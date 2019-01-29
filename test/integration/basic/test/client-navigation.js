@@ -456,6 +456,24 @@ export default (context) => {
         browser.close()
       })
     })
+    
+    describe('with history state', () => {
+      it('should set state and restore it when going back', async () => {
+        const browser = await webdriver(context.appPort, '/nav/history-state')
+        let counter = await browser
+          .elementByCss('#increase').click()
+          .elementByCss('#increase').click()
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 2')
+
+        counter = await browser
+          .back()
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 1')
+
+        browser.close()
+      })
+    })
 
     describe('with URL objects', () => {
       it('should work with <Link/>', async () => {
