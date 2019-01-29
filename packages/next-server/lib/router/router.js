@@ -248,10 +248,11 @@ export default class Router {
       const stateUpdate = { url, as, options }
 
       if (!options.state) {
-        options.state = window.history.state &&
+        const previousState = window.history.state &&
           window.history.state.options &&
-          window.history.state.options.state ||
-          undefined
+          window.history.state.options.state
+
+        options.state = previousState || undefined
       }
 
       window.history[method](stateUpdate, null, as)

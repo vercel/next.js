@@ -1,4 +1,3 @@
-import { Component } from 'react'
 import Link from 'next/link'
 import { withRouter } from 'next/router'
 
