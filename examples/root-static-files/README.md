@@ -19,8 +19,8 @@ yarn create next-app --example root-static-files root-static-files-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-server
-cd custom-server
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/root-static-files
+cd root-static-files
 ```
 
 Install it and run:
