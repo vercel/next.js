@@ -8,8 +8,8 @@ const linkStyle = {
 
 export default withRouter(({router}) => {
   const increase = () => {
-    const current = window.history.state
-      && window.history.state.options.state
+    const current = window.history.state &&
+      window.history.state.options.state
     const href = `/nav/history-state?i=${current}`
 
     router.push(href, href, { state: (current || 0) + 1 })
@@ -17,8 +17,8 @@ export default withRouter(({router}) => {
 
   const getCount = () => {
     if (typeof window !== 'undefined') {
-      return window.history.state
-        && window.history.state.options.state
+      return window.history.state &&
+        window.history.state.options.state
     }
   }
 

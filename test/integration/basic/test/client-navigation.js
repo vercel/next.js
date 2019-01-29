@@ -456,7 +456,7 @@ export default (context) => {
         browser.close()
       })
     })
-    
+
     describe('with history state', () => {
       it('should set state and restore it when going back', async () => {
         const browser = await webdriver(context.appPort, '/nav/history-state')
