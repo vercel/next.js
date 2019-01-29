@@ -291,7 +291,7 @@ export default class Router {
         return { error: err }
       }
 
-      const Component = this.ErrorComponent
+      const Component = await this.fetchComponent('/_error')
       routeInfo = { Component, err }
       const ctx = { err, pathname, query }
       try {
