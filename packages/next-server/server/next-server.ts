@@ -47,7 +47,9 @@ export default class Server {
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags, target} = this.nextConfig
+
+    if (process.env.NODE_ENV === 'production' && target !== 'server') throw new Error('Cannot start server when target is not server. https://err.sh/zeit/next.js/next-start-serverless')
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
