@@ -43,7 +43,7 @@ function externalsConfig (isServer, target) {
       }
 
       // Default pages have to be transpiled
-      if (res.match(/next[/\\]dist[/\\]pages/) || res.match(/next[/\\]dist[/\\]client/) || res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)) {
+      if (res.match(/next[/\\]dist[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)) {
         return callback()
       }
 
