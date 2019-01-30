@@ -1164,7 +1164,7 @@ export default class MyDocument extends Document {
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
-⚠️ The default `error.js` component is only used in production ⚠️
+⚠️ The `pages/_error.js` component is only used in production. In development you get an error with call stack to know where the error originated from. ⚠️
 
 ```jsx
 import React from 'react'
@@ -1639,7 +1639,7 @@ For example if the platform supports the Node.js [`http.Server`](https://nodejs.
 
 ```js
 const http = require("http");
-const page = require("./.next/serverless/about.js");
+const page = require("./.next/serverless/pages/about.js");
 const server = new http.Server((req, res) => page.render(req, res));
 server.listen(3000, () => console.log("Listening on http://localhost:3000"));
 ```

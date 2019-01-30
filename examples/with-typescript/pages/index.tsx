@@ -1,8 +1,8 @@
-import * as React from "react"
+import * as React from 'react'
 import Link from 'next/link'
 import Layout from '../components/Layout'
 
-const index: React.FunctionComponent = () => {
+const IndexPage: React.FunctionComponent = () => {
   return (
     <Layout title="Home | Next.js + TypeScript Example">
       <h1>Hello Next.js 👋</h1>
@@ -11,4 +11,4 @@ const index: React.FunctionComponent = () => {
   )
 }
 
-export default index;
+export default IndexPage;

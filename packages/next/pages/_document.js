@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import htmlescape from 'htmlescape'
+import {htmlEscapeJsonString} from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 
 const Fragment = React.Fragment || function Fragment ({ children }) {
@@ -193,8 +193,16 @@ export class NextScript extends Component {
   }
 
   static getInlineScriptSource (documentProps) {
-    const { __NEXT_DATA__ } = documentProps
-    return htmlescape(__NEXT_DATA__)
+    const {__NEXT_DATA__} = documentProps
+    try {
+      const data = JSON.stringify(__NEXT_DATA__)
+      return htmlEscapeJsonString(data)
+    } catch(err) {
+      if(err.message.indexOf('circular structure')) {
+        throw new Error(`Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/zeit/next.js/circular-structure`)
+      }
+      throw err
+    }
   }
 
   render () {

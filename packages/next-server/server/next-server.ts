@@ -10,7 +10,7 @@ import {serveStatic} from './serve-static'
 import Router, {route, Route} from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from 'next-server/next-config'
-import {BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
+import {PHASE_PRODUCTION_SERVER, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_FILES_RUNTIME} from 'next-server/constants'
 import * as envConfig from '../lib/runtime-config'
 import {loadComponents} from './load-components'
 
@@ -47,7 +47,9 @@ export default class Server {
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags} = this.nextConfig
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags, target} = this.nextConfig
+
+    if (process.env.NODE_ENV === 'production' && target !== 'server') throw new Error('Cannot start server when target is not server. https://err.sh/zeit/next.js/next-start-serverless')
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
@@ -74,7 +76,7 @@ export default class Server {
   }
 
   private currentPhase(): string {
-    return 'phase-production-server'
+    return PHASE_PRODUCTION_SERVER
   }
 
   private logError(...args: any): void {
