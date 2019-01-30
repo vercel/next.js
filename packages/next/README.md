@@ -1164,7 +1164,7 @@ export default class MyDocument extends Document {
 
 404 or 500 errors are handled both client and server side by a default component `error.js`. If you wish to override it, define a `_error.js` in the pages folder:
 
-⚠️ The default `error.js` component is only used in production ⚠️
+⚠️ The `pages/_error.js` component is only used in production. In development you get an error with call stack to know where the error originated from. ⚠️
 
 ```jsx
 import React from 'react'
