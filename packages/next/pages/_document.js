@@ -44,6 +44,10 @@ export class Head extends Component {
     crossOrigin: PropTypes.string
   }
 
+  // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+  preloadTagInvalidator = process.env.NODE_ENV !== 'production' ? '?t=' + Date.now() : ''
+
   getCssLinks () {
     const { assetPrefix, files } = this.context._documentProps
     if(!files || files.length === 0) {
@@ -72,7 +76,7 @@ export class Head extends Component {
       return <link
         rel='preload'
         key={bundle.file}
-        href={`${assetPrefix}/_next/${bundle.file}`}
+        href={`${assetPrefix}/_next/${bundle.file}${preloadTagInvalidator}`}
         as='script'
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -96,7 +100,7 @@ export class Head extends Component {
         key={file}
         nonce={this.props.nonce}
         rel='preload'
-        href={`${assetPrefix}/_next/${file}`}
+        href={`${assetPrefix}/_next/${file}${preloadTagInvalidator}`}
         as='script'
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
@@ -123,8 +127,8 @@ export class Head extends Component {
     return <head {...this.props}>
       {children}
       {head}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${preloadTagInvalidator}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${preloadTagInvalidator}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
