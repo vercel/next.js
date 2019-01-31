@@ -14,7 +14,12 @@ class Index extends Component {
     }
 
     return {
-      relayVariables: { after, before, first, last }
+      relayVariables: {
+        after,
+        before,
+        first: parseInt(first, 10),
+        last: parseInt(last, 10)
+      }
     }
   }
 
