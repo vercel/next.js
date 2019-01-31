@@ -52,7 +52,7 @@ export default async ({ assetPrefix }) => {
   await setup()
 
   async function ping () {
-    if (Router.pathname !== '/_error' && ws.readyState === ws.OPEN) {
+    if (ws.readyState === ws.OPEN) {
       ws.send(Router.pathname)
     }
   }
