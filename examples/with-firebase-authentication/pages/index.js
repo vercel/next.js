@@ -3,7 +3,7 @@ import firebase from 'firebase/app'
 import 'firebase/auth'
 import 'firebase/firestore'
 import 'isomorphic-unfetch'
-import clientCredentials from '../credentials/client'
+import {AuthContext} from '../env/auth-context'
 
 export default class Index extends Component {
   static async getInitialProps ({ req, query }) {
@@ -18,7 +18,6 @@ export default class Index extends Component {
   constructor (props) {
     super(props)
     this.state = {
-      user: this.props.user,
       value: '',
       messages: this.props.messages
     }
@@ -30,35 +29,12 @@ export default class Index extends Component {
   }
 
   componentDidMount () {
-    firebase.initializeApp(clientCredentials)
+    this.props.user &&
+      this.addDbListener()
+  }
 
-    if (this.state.user) this.addDbListener()
-
-    firebase.auth().onAuthStateChanged(user => {
-      if (user) {
-        this.setState({ user: user })
-        return user
-          .getIdToken()
-          .then(token => {
-            // eslint-disable-next-line no-undef
-            return fetch('/api/login', {
-              method: 'POST',
-              // eslint-disable-next-line no-undef
-              headers: new Headers({ 'Content-Type': 'application/json' }),
-              credentials: 'same-origin',
-              body: JSON.stringify({ token })
-            })
-          })
-          .then(res => this.addDbListener())
-      } else {
-        this.setState({ user: null })
-        // eslint-disable-next-line no-undef
-        fetch('/api/logout', {
-          method: 'POST',
-          credentials: 'same-origin'
-        }).then(() => this.removeDbListener())
-      }
-    })
+  componentWillUnmount() {
+    this.removeDbListener()
   }
 
   addDbListener () {
@@ -110,43 +86,40 @@ export default class Index extends Component {
     this.setState({ value: '' })
   }
 
-  handleLogin () {
-    firebase.auth().signInWithPopup(new firebase.auth.GoogleAuthProvider())
-  }
-
-  handleLogout () {
-    firebase.auth().signOut()
-  }
 
   render () {
-    const { user, value, messages } = this.state
+    const { value, messages } = this.state
 
     return (
-      <div>
-        {user ? (
-          <button onClick={this.handleLogout}>Logout</button>
-        ) : (
-          <button onClick={this.handleLogin}>Login</button>
-        )}
-        {user && (
+      <AuthContext.Consumer>
+        {({handleLogin, handleLogout, user}) => (
           <div>
-            <form onSubmit={this.handleSubmit}>
-              <input
-                type={'text'}
-                onChange={this.handleChange}
-                placeholder={'add message...'}
-                value={value}
-              />
-            </form>
-            <ul>
-              {messages &&
-                Object.keys(messages).map(key => (
-                  <li key={key}>{messages[key].text}</li>
-                ))}
-            </ul>
-          </div>
+          {user ? (
+            <button onClick={handleLogout}>Logout</button>
+          ) : (
+            <button onClick={handleLogin}>Login</button>
+          )}
+          {user && (
+            <div>
+              <form onSubmit={this.handleSubmit}>
+                <input
+                  type={'text'}
+                  onChange={this.handleChange}
+                  placeholder={'add message...'}
+                  value={value}
+                />
+              </form>
+              <ul>
+                {messages &&
+                  Object.keys(messages).map(key => (
+                    <li key={key}>{messages[key].text}</li>
+                  ))}
+              </ul>
+            </div>
+          )}
+        </div>
         )}
-      </div>
+      </AuthContext.Consumer>
     )
   }
 }
