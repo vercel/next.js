@@ -8,18 +8,18 @@
     "start": "next start"
   },
   "dependencies": {
-    "es6-promise": "4.2.5",
-    "isomorphic-unfetch": "3.0.0",
+    "es6-promise": "4.1.1",
+    "isomorphic-unfetch": "2.0.0",
     "next": "latest",
     "next-redux-saga": "3.0.0",
-    "next-redux-wrapper": "2.1.0",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-redux": "6.0.0",
-    "redux": "4.0.1",
-    "redux-saga": "1.0.0"
+    "next-redux-wrapper": "2.0.0",
+    "react": "^16.0.0",
+    "react-dom": "^16.0.0",
+    "react-redux": "5.0.7",
+    "redux": "4.0.0",
+    "redux-saga": "0.16.0"
   },
   "devDependencies": {
-    "redux-devtools-extension": "2.13.7"
+    "redux-devtools-extension": "2.13.2"
   }
 }
