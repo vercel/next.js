@@ -16,7 +16,15 @@ export default class Document extends Component {
   static getInitialProps ({ renderPage }) {
     const { html, head } = renderPage()
     const styles = flush()
-    return { html, head, styles, timestamp: Date.now() }
+    const initialProps = { html, head, styles }
+
+    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    if (process.env.NODE_ENV !== 'production') {
+      initialProps.timestamp = Date.now()
+    }
+
+    return initialProps
   }
 
   getChildContext () {
@@ -225,14 +233,8 @@ export class NextScript extends Component {
       {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
-<<<<<<< HEAD
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
-=======
       {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${this.preloadLinkTagInvalidate}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${this.preloadLinkTagInvalidate}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
-      <script async id={`__NEXT_PAGE__/_error`} src={`${assetPrefix}/_next/static/${buildId}/pages/_error.js${this.preloadLinkTagInvalidate}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
->>>>>>> Add timeout to scripts src too
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>
