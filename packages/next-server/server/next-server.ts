@@ -29,6 +29,7 @@ export default class Server {
   nextConfig: NextConfig
   distDir: string
   buildId: string
+  cachedAssets: [string]
   renderOpts: {
     staticMarkup: boolean,
     buildId: string,
@@ -47,7 +48,7 @@ export default class Server {
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
-    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags, target} = this.nextConfig
+    const {serverRuntimeConfig = {}, publicRuntimeConfig, assetPrefix, generateEtags, target, cachedAssets = []} = this.nextConfig
 
     if (process.env.NODE_ENV === 'production' && target !== 'server') throw new Error('Cannot start server when target is not server. https://err.sh/zeit/next.js/next-start-serverless')
 
@@ -73,6 +74,7 @@ export default class Server {
     const routes = this.generateRoutes()
     this.router = new Router(routes)
     this.setAssetPrefix(assetPrefix)
+    this.cachedAssets = cachedAssets
   }
 
   private currentPhase(): string {
@@ -132,7 +134,8 @@ export default class Server {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
           // The buildId folder holds pages and potentially other assets. As buildId changes per build it can be long-term cached.
-          if (params.path[0] === CLIENT_STATIC_FILES_RUNTIME || params.path[0] === 'chunks' || params.path[0] === this.buildId) {
+          // User defined folders via cachedAssets option defined in next config for cached static assets
+          if ([CLIENT_STATIC_FILES_RUNTIME, 'chunks', this.buildId, ...this.cachedAssets].includes(params.path[0])) {
             this.setImmutableAssetCacheControl(res)
           }
           const p = join(this.distDir, CLIENT_STATIC_FILES_PATH, ...(params.path || []))
