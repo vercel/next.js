@@ -113,6 +113,8 @@ export default class DevServer extends Server {
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
+    await this.hotReloader.ensurePage('/_error')
+
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500

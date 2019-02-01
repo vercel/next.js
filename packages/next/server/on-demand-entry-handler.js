@@ -175,7 +175,13 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const extensions = pageExtensions.join('|')
       const pagesDir = join(dir, 'pages')
-      const paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, {cwd: pagesDir})
+
+      let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, {cwd: pagesDir})
+
+      // Default the /_error route to the Next.js provided default page
+      if (page === '/_error' && paths.length === 0) {
+        paths = ['next/dist/pages/_error']
+      }
 
       if (paths.length === 0) {
         throw pageNotFoundError(normalizedPagePath)
@@ -186,7 +192,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       pageUrl = pageUrl === '' ? '/' : pageUrl
       const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
       const name = join('static', buildId, 'pages', bundleFile)
-      const absolutePagePath = join(pagesDir, pagePath)
+      const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
