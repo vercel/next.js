@@ -10,25 +10,24 @@ const Fragment = React.Fragment || function Fragment ({ children }) {
 
 export default class Document extends Component {
   static childContextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
   static getInitialProps ({ renderPage }) {
     const { html, head } = renderPage()
     const styles = flush()
-    const initialProps = { html, head, styles }
-
-    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-    if (process.env.NODE_ENV !== 'production') {
-      initialProps.timestamp = Date.now()
-    }
-
-    return initialProps
+    return { html, head, styles }
   }
 
   getChildContext () {
-    return { _documentProps: this.props }
+    return {
+      _documentProps: this.props,
+      // In dev we invalidate the cache by appending a timestamp to the resource URL.
+      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+      _devOnlyInvalidateCacheQueryString: process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : ''
+    }
   }
 
   render () {
@@ -44,17 +43,14 @@ export default class Document extends Component {
 
 export class Head extends Component {
   static contextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
   static propTypes = {
     nonce: PropTypes.string,
     crossOrigin: PropTypes.string
   }
-
-  // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  preloadLinkTagInvalidate = process.env.NODE_ENV !== 'production' ? '?ts=' + this.context._documentProps.timestamp : ''
 
   getCssLinks () {
     const { assetPrefix, files } = this.context._documentProps
@@ -80,11 +76,13 @@ export class Head extends Component {
 
   getPreloadDynamicChunks () {
     const { dynamicImports, assetPrefix } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
+
     return dynamicImports.map((bundle) => {
       return <link
         rel='preload'
         key={bundle.file}
-        href={`${assetPrefix}/_next/${bundle.file}${this.preloadLinkTagInvalidate}`}
+        href={`${assetPrefix}/_next/${bundle.file}${_devOnlyInvalidateCacheQueryString}`}
         as='script'
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -94,9 +92,10 @@ export class Head extends Component {
 
   getPreloadMainLinks () {
     const { assetPrefix, files } = this.context._documentProps
-    if(!files || files.length === 0) {
+    if (!files || files.length === 0) {
       return null
     }
+    const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return files.map((file) => {
       // Only render .js files here
@@ -108,7 +107,7 @@ export class Head extends Component {
         key={file}
         nonce={this.props.nonce}
         rel='preload'
-        href={`${assetPrefix}/_next/${file}${this.preloadLinkTagInvalidate}`}
+        href={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
         as='script'
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
@@ -117,6 +116,7 @@ export class Head extends Component {
 
   render () {
     const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(page)
 
@@ -134,8 +134,8 @@ export class Head extends Component {
     return <head {...this.props}>
       {children}
       {head}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${this.preloadLinkTagInvalidate}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
-      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${this.preloadLinkTagInvalidate}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
@@ -146,7 +146,8 @@ export class Head extends Component {
 
 export class Main extends Component {
   static contextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
   render () {
@@ -159,7 +160,8 @@ export class Main extends Component {
 
 export class NextScript extends Component {
   static contextTypes = {
-    _documentProps: PropTypes.any
+    _documentProps: PropTypes.any,
+    _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
   static propTypes = {
@@ -167,17 +169,15 @@ export class NextScript extends Component {
     crossOrigin: PropTypes.string
   }
 
-  // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  preloadLinkTagInvalidate = process.env.NODE_ENV !== 'production' ? '?ts=' + this.context._documentProps.timestamp : ''
-
   getDynamicChunks () {
     const { dynamicImports, assetPrefix } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
+
     return dynamicImports.map((bundle) => {
       return <script
         async
         key={bundle.file}
-        src={`${assetPrefix}/_next/${bundle.file}${this.preloadLinkTagInvalidate}`}
+        src={`${assetPrefix}/_next/${bundle.file}${_devOnlyInvalidateCacheQueryString}`}
         nonce={this.props.nonce}
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
       />
@@ -186,9 +186,10 @@ export class NextScript extends Component {
 
   getScripts () {
     const { assetPrefix, files } = this.context._documentProps
-    if(!files || files.length === 0) {
+    if (!files || files.length === 0) {
       return null
     }
+    const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return files.map((file) => {
       // Only render .js files here
@@ -198,7 +199,7 @@ export class NextScript extends Component {
 
       return <script
         key={file}
-        src={`${assetPrefix}/_next/${file}${this.preloadLinkTagInvalidate}`}
+        src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
         nonce={this.props.nonce}
         async
         crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -221,6 +222,7 @@ export class NextScript extends Component {
 
   render () {
     const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
+    const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
     const pagePathname = getPagePathname(page)
 
@@ -229,12 +231,12 @@ export class NextScript extends Component {
     }
 
     return <Fragment>
-      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}${this.preloadLinkTagInvalidate}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />) : null}
+      {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />) : null}
       {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${this.preloadLinkTagInvalidate}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
-      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${this.preloadLinkTagInvalidate}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
     </Fragment>
