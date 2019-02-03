@@ -1,5 +1,5 @@
 import React from 'react'
-import injectSheet from 'react-jss'
+import withStyles from 'react-jss'
 
 const styles = {
   container: {
@@ -23,4 +23,6 @@ function Index (props) {
   )
 }
 
-export default injectSheet(styles)(Index)
+const StyledIndex = withStyles(styles)(Index)
+
+export default () => <StyledIndex />

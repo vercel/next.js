@@ -1,12 +1,13 @@
 import React from 'react'
 import Document, { Head, Main, NextScript } from 'next/document'
-import { SheetsRegistry, JssProvider } from 'react-jss'
+import { SheetsRegistry, JssProvider, createGenerateId } from 'react-jss'
 
 export default class JssDocument extends Document {
   static getInitialProps (ctx) {
     const registry = new SheetsRegistry()
+    const generateId = createGenerateId()
     const page = ctx.renderPage(App => props => (
-      <JssProvider registry={registry}>
+      <JssProvider registry={registry} generateId={generateId}>
         <App {...props} />
       </JssProvider>
     ))
