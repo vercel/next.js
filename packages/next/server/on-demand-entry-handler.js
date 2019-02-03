@@ -236,7 +236,12 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           return sendJson(ws, { invalid: true })
         }
 
-        sendJson(ws, { success: true })
+        // 404 is an on demand entry but when a new page is added we have to refresh the page
+        if (page === '/_error') {
+          sendJson(ws, { invalid: true })
+        } else {
+          sendJson(ws, { success: true })
+        }
 
         // We don't need to maintain active state of anything other than BUILT entries
         if (entryInfo.status !== BUILT) return
