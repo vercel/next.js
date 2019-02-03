@@ -23,6 +23,4 @@ function Index (props) {
   )
 }
 
-const StyledIndex = withStyles(styles)(Index)
-
-export default () => <StyledIndex />
+export default withStyles(styles)(Index)
