@@ -7,7 +7,9 @@ function scriptsForEntry (pathname, entrypoints) {
   const entry = entrypoints.get(`pages${pathname}.js`)
 
   if (entry) {
-    return entry.chunks.reduce((prev, { files }) => prev.concat(files), [])
+    return entry.chunks
+      .reduce((prev, { files }) => prev.concat(files), [])
+      .filter(name => !/hot-update/.test(name))
   } else {
     return ['vendor.js']
   }
