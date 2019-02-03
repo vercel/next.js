@@ -5,11 +5,14 @@
     "packages/*"
   ],
   "command": {
+    "version": {
+      "exact": true
+    },
     "publish": {
       "npmClient": "npm",
       "allowBranch": "canary",
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "8.0.0-canary.9"
+  "version": "8.0.0-canary.18"
 }

@@ -8,7 +8,7 @@ import { loadGetInitialProps, getURL } from '../utils'
 export default class Router {
   static events = mitt()
 
-  constructor (pathname, query, as, { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}) {
+  constructor (pathname, query, as, { initialProps, pageLoader, App, Component, err } = {}) {
     // represents the current component key
     this.route = toRoute(pathname)
 
@@ -17,7 +17,7 @@ export default class Router {
     // We should not keep the cache, if there's an error
     // Otherwise, this cause issues when when going back and
     // come again to the errored page.
-    if (Component !== ErrorComponent) {
+    if (pathname !== '/_error') {
       this.components[this.route] = { Component, props: initialProps, err }
     }
 
@@ -28,7 +28,6 @@ export default class Router {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.ErrorComponent = ErrorComponent
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -291,7 +290,7 @@ export default class Router {
         return { error: err }
       }
 
-      const Component = this.ErrorComponent
+      const Component = await this.fetchComponent('/_error')
       routeInfo = { Component, err }
       const ctx = { err, pathname, query }
       try {

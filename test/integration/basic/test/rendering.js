@@ -120,6 +120,12 @@ export default function ({ app }, suiteName, render, fetch) {
       expect(link.text()).toBe('About')
     })
 
+    test('getInitialProps circular structure', async () => {
+      const $ = await get$('/circular-json-error')
+      const expectedErrorMessage = 'Circular structure in "getInitialProps" result of page "/circular-json-error".'
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
+    })
+
     test('getInitialProps should be class method', async () => {
       const $ = await get$('/instance-get-initial-props')
       const expectedErrorMessage = '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.'
