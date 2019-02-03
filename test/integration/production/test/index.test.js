@@ -241,6 +241,27 @@ describe('Production Usage', () => {
       browser.close()
     })
 
+    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('It does not add a timestamp to link tags with preload attribute', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const links = await browser.elementsByCss('link[rel=preload]')
+      await Promise.all(
+        links.map(async (element) => {
+          const href = await element.getAttribute('href')
+          expect(href).not.toMatch(/\?ts=/)
+        })
+      )
+      const scripts = await browser.elementsByCss('script[src]')
+      await Promise.all(
+        scripts.map(async (element) => {
+          const src = await element.getAttribute('src')
+          expect(src).not.toMatch(/\?ts=/)
+        })
+      )
+      browser.close()
+    })
+
     it('should reload the page on page script error with prefetch', async () => {
       const browser = await webdriver(appPort, '/counter')
       const counter = await browser
