@@ -54,6 +54,7 @@
     - [4. With Multiple Modules At Once](#4-with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
+    - [Customizing `renderPage`](#customizing-renderpage)
   - [Custom error handling](#custom-error-handling)
   - [Reusing the built-in error page](#reusing-the-built-in-error-page)
   - [Custom configuration](#custom-configuration)
@@ -70,8 +71,12 @@
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
   - [Serverless deployment](#serverless-deployment)
+    - [One Level Lower](#one-level-lower)
+    - [Summary](#summary)
+- [Browser support](#browser-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
+  - [Copying custom files](#copying-custom-files)
   - [Limitation](#limitation)
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
@@ -356,6 +361,8 @@ export default Page
 
 ### Routing
 
+Next.js does not ship a routes manifest with every possible route in the application, so the current page is not aware of any other pages on the client side. All subsequent routes get lazy-loaded, for scalability sake.
+
 #### With `<Link>`
 
 <details>
@@ -367,7 +374,11 @@ export default Page
 
 <p></p>
 
-Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
+Client-side transitions between routes can be enabled via a `<Link>` component.
+
+**Basic Example**
+
+Consider these two pages:
 
 ```jsx
 // pages/index.js
@@ -388,6 +399,42 @@ export default () => (
 // pages/about.js
 export default () => <p>Welcome to About!</p>
 ```
+
+**Custom routes (using props from URL)**
+
+ `<Link>` component has two main props:
+
+* `href`: the path inside `pages` directory + query string.
+* `as`: the path that will be renderer on browser URL bar.
+
+Example:
+
+1. Consider you have the URL `/post/:slug`.
+
+2. You created the `pages/post.js`
+
+    ```jsx
+    export default class extends React.Component {
+      static async getInitialProps({query}) {
+        console.log('SLUG', query.slug)
+        return {}
+      }
+      render() {
+        return <h1>My blog post</h1>
+      }
+    }
+    ```
+3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
+
+    ```jsx
+    server.get("/post/:slug", (req, res) => {
+      return app.render(req, res, "/post", { slug: req.params.slug })
+    })
+    ```
+4. For client side routing, use `next/link`:
+    ```jsx
+    <Link href="/post?slug=something" as="/post/something">
+    ```
 
 __Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
 
