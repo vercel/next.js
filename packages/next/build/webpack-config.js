@@ -241,6 +241,21 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     },
     module: {
       rules: [
+        ...isServer ? [{
+          test: /\.(m?js|node)$/,
+          // this may be a breaking change
+          // parser: { amd: false },
+          use: {
+            loader: '@zeit/webpack-asset-relocator-loader',
+            options: {
+              outputAssetBase: 'assets',
+              existingAssetNames: [],
+              // this may be a breaking change
+              wrapperCompatibility: false,
+              escapeNonAnalyzableRequires: true
+            }
+          }
+        }] : [],
         {
           test: /\.(js|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
