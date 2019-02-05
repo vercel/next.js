@@ -9,7 +9,7 @@ Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [
 ```bash
 npx create-next-app --example with-absolute-imports with-absolute-imports-app
 # or
-yarn create next-app --example with-absolute-imports with-absolute-imports-app
+yarn create-next-app --example with-absolute-imports with-absolute-imports-app
 ```
 
 ### Download manually
