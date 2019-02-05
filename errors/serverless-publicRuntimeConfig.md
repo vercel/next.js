@@ -6,13 +6,18 @@ Due to the way that Next.js seperates pages into their own lambdas, `publicRunti
 
 #### Possible Ways to Fix It
 
-Use config option `buildVars` to set build time variables like such:
+Use config option `env` to set **build time** variables like such:
 
 ```js
 // next.config.js
 module.exports = {
-  buildVars: {
-    'process.special': "'value'"
+  env: {
+    special: "value"
   }
 }
+```
+
+```js
+// index.js
+console.log(process.special) // value
 ```
