@@ -291,10 +291,10 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
-      new webpack.DefinePlugin({
+      new webpack.DefinePlugin(Object.assign({}, config.buildVars, {
         'process.crossOrigin': JSON.stringify(config.crossOrigin),
         'process.browser': JSON.stringify(!isServer)
-      }),
+      })),
       // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
       !isServer && dev && new webpack.DefinePlugin({
         'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
