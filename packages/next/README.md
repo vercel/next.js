@@ -1551,6 +1551,22 @@ The `modules` option on `"preset-env"` should be kept to `false` otherwise webpa
 
 ### Exposing configuration to the server / client side
 
+Configuration values can be replaced by webpack at build time.
+
+```js
+// next.config.js
+module.exports = {
+  env: {
+    customKey: "value"
+  }
+}
+```
+This will be set to `proccess.env.customKey`.
+
+#### When configuration must be dynamic
+
+This is not compatible with `target=serverless`
+
 The `next/config` module gives your app access to runtime configuration stored in your `next.config.js`. Place any server-only runtime config under a `serverRuntimeConfig` property and anything accessible to both client and server-side code under `publicRuntimeConfig`.
 
 ```js

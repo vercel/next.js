@@ -296,7 +296,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         config.env ? Object.keys(config.env)
           .reduce((acc, key) => ({
             ...acc,
-            ...{ [`process.${key}`]: JSON.stringify(config.env[key]) }
+            ...{ [`process.env.${key}`]: JSON.stringify(config.env[key]) }
           }), {}) : {},
         {
           'process.crossOrigin': JSON.stringify(config.crossOrigin),
