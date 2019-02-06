@@ -8,6 +8,7 @@ import {
   stopApp,
   renderViaHTTP
 } from 'next-test-utils'
+import cheerio from 'cheerio'
 import amphtmlValidator from 'amphtml-validator'
 const appDir = join(__dirname, '../')
 let appPort
@@ -63,6 +64,30 @@ describe('AMP Usage', () => {
     it('should render the page as valid AMP', async () => {
       const html = await renderViaHTTP(appPort, '/amp')
       await validateAMP(html)
+    })
+
+    it('should add link preload for amp script', async () => {
+      const html = await renderViaHTTP(appPort, '/amp')
+      await validateAMP(html)
+      const $ = cheerio.load(html)
+      expect($($('link[rel=preload]').toArray().find(i => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js')).attr('href')).toBe('https://cdn.ampproject.org/v0.js')
+    })
+
+    it('should add custom styles before amp boilerplate styles', async () => {
+      const html = await renderViaHTTP(appPort, '/amp')
+      await validateAMP(html)
+      const $ = cheerio.load(html)
+      const order = []
+      $('style').toArray().forEach((i) => {
+        if ($(i).attr('amp-custom') === '') {
+          order.push('amp-custom')
+        }
+        if ($(i).attr('amp-boilerplate') === '') {
+          order.push('amp-boilerplate')
+        }
+      })
+
+      expect(order).toEqual(['amp-custom', 'amp-boilerplate', 'amp-boilerplate'])
     })
   })
 })
