@@ -18,7 +18,4 @@ const login = async (req, res) => {
   }
 }
 
-module.exports = {
-  login,
-  default: (req, res) => run(req, res, login)
-}
+module.exports = (req, res) => run(req, res, login)

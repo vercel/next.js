@@ -15,13 +15,30 @@ export const logout = () => {
   Router.push('/login')
 }
 
-export function withAuthSync (WrappedComponent) {
-  return class extends Component {
+// Gets the display name of a JSX component for dev tools
+const getDisplayName = Component =>
+  Component.displayName || Component.name || 'Component'
+
+export const withAuthSync = WrappedComponent =>
+  class extends Component {
+    static displayName = `withAuthSync(${getDisplayName(WrappedComponent)})`
+
+    static async getInitialProps (ctx) {
+      const token = auth(ctx)
+
+      const componentProps =
+        WrappedComponent.getInitialProps &&
+        (await WrappedComponent.getInitialProps(ctx))
+
+      return { ...componentProps, token }
+    }
+
     constructor (props) {
       super(props)
 
       this.syncLogout = this.syncLogout.bind(this)
     }
+
     componentDidMount () {
       window.addEventListener('storage', this.syncLogout)
     }
@@ -42,9 +59,8 @@ export function withAuthSync (WrappedComponent) {
       return <WrappedComponent {...this.props} />
     }
   }
-}
 
-export default ctx => {
+export const auth = ctx => {
   const { token } = nextCookie(ctx)
 
   if (ctx.req && !token) {
