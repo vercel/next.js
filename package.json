@@ -32,8 +32,8 @@
       "standard --fix",
       "git add"
     ],
-    "*.ts": [
-      "tslint -c tslint.json 'packages/**/*.ts'",
+    "*.{ts,tsx}": [
+      "tslint -c tslint.json --fix",
       "git add"
     ],
     "packages/**/bin/*": [

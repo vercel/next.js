@@ -26,7 +26,7 @@ class HeaderNav extends React.Component {
 
   componentWillUnmount () {
     Router.onRouteChangeComplete = null
-    Router.events.on('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
+    Router.events.off('routeChangeComplete', this.handleRouteChangeTopLevelRouter)
     this.props.router.events.off('routeChangeComplete', this.handleRouteChange)
   }
 

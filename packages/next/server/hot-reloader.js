@@ -128,7 +128,7 @@ export default class HotReloader {
       }
 
       const page = `/${params.path.join('/')}`
-      if (BLOCKED_PAGES.indexOf(page) === -1) {
+      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
         } catch (error) {
@@ -174,7 +174,7 @@ export default class HotReloader {
   }
 
   async getWebpackConfig () {
-    const pagePaths = await glob(`+(_app|_document|_error).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
+    const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
     return Promise.all([
@@ -410,7 +410,7 @@ export default class HotReloader {
 
   async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (BLOCKED_PAGES.indexOf(page) !== -1) {
+    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
     await this.onDemandEntries.ensurePage(page)
