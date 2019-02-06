@@ -12,7 +12,8 @@
     "head.js",
     "link.js",
     "router.js",
-    "next-config.js"
+    "next-config.js",
+    "amp.js"
   ],
   "scripts": {
     "build": "taskr",

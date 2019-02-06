@@ -9,7 +9,7 @@ import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import {getDynamicImportBundles, Manifest as ReactLoadableManifest, ManifestItem} from './get-dynamic-import-bundles'
 import {getPageFiles, BuildManifest} from './get-page-files'
-import {IsAMPContext} from '../lib/amphtml-context'
+import {IsAmpContext} from '../lib/amphtml-context'
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer = {enhanceApp?: Enhancer, enhanceComponent?: Enhancer}|Enhancer
@@ -91,26 +91,28 @@ function renderDocument(Document: React.ComponentType, {
   devFiles: string[],
 }): string {
   return '<!DOCTYPE html>' + renderToStaticMarkup(
-    <Document
-      __NEXT_DATA__={{
-        props, // The result of getInitialProps
-        page: pathname, // The rendered page
-        query, // querystring parsed / passed by the user
-        buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-        assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-        runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-        nextExport, // If this is a page exported by `next export`
-        dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-        err: (err) ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-      }}
-      amphtml={amphtml}
-      staticMarkup={staticMarkup}
-      devFiles={devFiles}
-      files={files}
-      dynamicImports={dynamicImports}
-      assetPrefix={assetPrefix}
-      {...docProps}
-    />,
+    <IsAmpContext.Provider value={amphtml}>
+      <Document
+        __NEXT_DATA__={{
+          props, // The result of getInitialProps
+          page: pathname, // The rendered page
+          query, // querystring parsed / passed by the user
+          buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+          assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+          runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+          nextExport, // If this is a page exported by `next export`
+          dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+          err: (err) ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+        }}
+        amphtml={amphtml}
+        staticMarkup={staticMarkup}
+        devFiles={devFiles}
+        files={files}
+        dynamicImports={dynamicImports}
+        assetPrefix={assetPrefix}
+        {...docProps}
+      />
+    </IsAmpContext.Provider>,
   )
 }
 
@@ -173,7 +175,7 @@ export async function renderToHTML(req: IncomingMessage, res: ServerResponse, pa
     const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
 
     return render(renderElementToString,
-      <IsAMPContext.Provider value={amphtml}>
+      <IsAmpContext.Provider value={amphtml}>
         <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
           <EnhancedApp
             Component={EnhancedComponent}
@@ -181,7 +183,7 @@ export async function renderToHTML(req: IncomingMessage, res: ServerResponse, pa
             {...props}
           />
         </LoadableCapture>
-      </IsAMPContext.Provider>,
+      </IsAmpContext.Provider>,
     )
   }
 

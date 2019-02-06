@@ -90,4 +90,16 @@ describe('AMP Usage', () => {
       expect(order).toEqual(['amp-custom', 'amp-boilerplate', 'amp-boilerplate'])
     })
   })
+
+  describe('With AMP context', () => {
+    it('should render the normal page that uses the AMP hook', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook')
+      expect(html).toMatch(/Hello others/)
+    })
+
+    it('should render the AMP page that uses the AMP hook', async () => {
+      const html = await renderViaHTTP(appPort, '/amp/use-amp-hook')
+      expect(html).toMatch(/Hello AMP/)
+    })
+  })
 })
