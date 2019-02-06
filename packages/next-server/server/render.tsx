@@ -9,25 +9,26 @@ import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
 import {getDynamicImportBundles, Manifest as ReactLoadableManifest, ManifestItem} from './get-dynamic-import-bundles'
 import {getPageFiles, BuildManifest} from './get-page-files'
+import {IsAMPContext} from '../lib/amphtml-context'
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer = {enhanceApp?: Enhancer, enhanceComponent?: Enhancer}|Enhancer
 
 function enhanceComponents(options: ComponentsEnhancer, App: React.ComponentType, Component: React.ComponentType): {
   App: React.ComponentType,
-  Component: React.ComponentType
+  Component: React.ComponentType,
 } {
   // For backwards compatibility
-  if(typeof options === 'function') {
+  if (typeof options === 'function') {
     return {
-      App: App,
-      Component: options(Component)
+      App,
+      Component: options(Component),
     }
   }
 
   return {
     App: options.enhanceApp ? options.enhanceApp(App) : App,
-    Component: options.enhanceComponent ? options.enhanceComponent(Component) : Component
+    Component: options.enhanceComponent ? options.enhanceComponent(Component) : Component,
   }
 }
 
@@ -52,12 +53,13 @@ type RenderOpts = {
   err?: Error|null,
   nextExport?: boolean,
   dev?: boolean,
+  amphtml?: boolean,
   buildManifest: BuildManifest,
   reactLoadableManifest: ReactLoadableManifest,
   Component: React.ComponentType,
   Document: React.ComponentType,
   App: React.ComponentType,
-  ErrorDebug?: React.ComponentType<{error: Error}>
+  ErrorDebug?: React.ComponentType<{error: Error}>,
 }
 
 function renderDocument(Document: React.ComponentType, {
@@ -72,6 +74,7 @@ function renderDocument(Document: React.ComponentType, {
   dynamicImportsIds,
   err,
   dev,
+  amphtml,
   staticMarkup,
   devFiles,
   files,
@@ -81,6 +84,7 @@ function renderDocument(Document: React.ComponentType, {
   docProps: any,
   pathname: string,
   query: ParsedUrlQuery,
+  amphtml: boolean,
   dynamicImportsIds: string[],
   dynamicImports: ManifestItem[],
   files: string[]
@@ -97,31 +101,32 @@ function renderDocument(Document: React.ComponentType, {
         runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
         nextExport, // If this is a page exported by `next export`
         dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-        err: (err) ? serializeError(dev, err) : undefined // Error if one happened, otherwise don't sent in the resulting HTML
+        err: (err) ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
       }}
+      amphtml={amphtml}
       staticMarkup={staticMarkup}
       devFiles={devFiles}
       files={files}
       dynamicImports={dynamicImports}
       assetPrefix={assetPrefix}
       {...docProps}
-    />
+    />,
   )
 }
 
-export async function renderToHTML (req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, renderOpts: RenderOpts): Promise<string|null> {
+export async function renderToHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery, renderOpts: RenderOpts): Promise<string|null> {
   const {
     err,
     dev = false,
     staticMarkup = false,
+    amphtml = false,
     App,
     Document,
     Component,
     buildManifest,
     reactLoadableManifest,
-    ErrorDebug
+    ErrorDebug,
   } = renderOpts
-
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -153,28 +158,30 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
     ...new Set([
       ...getPageFiles(buildManifest, pathname),
       ...getPageFiles(buildManifest, '/_app'),
-      ...getPageFiles(buildManifest, '/_error')
-    ])
+      ...getPageFiles(buildManifest, '/_error'),
+    ]),
   ]
 
   const reactLoadableModules: string[] = []
   const renderPage = (options: ComponentsEnhancer = {}): {html: string, head: any} => {
     const renderElementToString = staticMarkup ? renderToStaticMarkup : renderToString
 
-    if(err && ErrorDebug) {
+    if (err && ErrorDebug) {
       return render(renderElementToString, <ErrorDebug error={err} />)
     }
 
     const {App: EnhancedApp, Component: EnhancedComponent} = enhanceComponents(options, App, Component)
 
     return render(renderElementToString,
-      <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
-        <EnhancedApp
-          Component={EnhancedComponent}
-          router={router}
-          {...props}
-        />
-      </LoadableCapture>
+      <IsAMPContext.Provider value={amphtml}>
+        <LoadableCapture report={(moduleName) => reactLoadableModules.push(moduleName)}>
+          <EnhancedApp
+            Component={EnhancedComponent}
+            router={router}
+            {...props}
+          />
+        </LoadableCapture>
+      </IsAMPContext.Provider>,
     )
   }
 
@@ -190,20 +197,21 @@ export async function renderToHTML (req: IncomingMessage, res: ServerResponse, p
     props,
     docProps,
     pathname,
+    amphtml,
     query,
     dynamicImportsIds,
     dynamicImports,
     files,
-    devFiles
+    devFiles,
   })
 }
 
-function errorToJSON (err: Error): Error {
+function errorToJSON(err: Error): Error {
   const { name, message, stack } = err
   return { name, message, stack }
 }
 
-function serializeError (dev: boolean|undefined, err: Error): Error & {statusCode?: number} {
+function serializeError(dev: boolean|undefined, err: Error): Error & {statusCode?: number} {
   if (dev) {
     return errorToJSON(err)
   }
