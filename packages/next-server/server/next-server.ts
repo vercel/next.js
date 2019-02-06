@@ -160,26 +160,28 @@ export default class Server {
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      // It's very important to keep this route's param optional.
-      // (but it should support as many params as needed, separated by '/')
-      // Otherwise this will lead to a pretty simple DOS attack.
-      // See more: https://github.com/zeit/next.js/issues/2617
-      routes.push({
-        match: route('/amp/:path*'),
-        fn: async (req, res, params, parsedUrl) => {
-          let pathname
-          if (!params.path) {
-            pathname = '/'
-          } else {
-            pathname = '/' + params.path.join('/')
-          }
-          const { query } = parsedUrl
-          if (!pathname) {
-            throw new Error('pathname is undefined')
-          }
-          await this.renderToAMP(req, res, pathname, query, parsedUrl)
-        },
-      })
+      if (this.nextConfig.experimental.amp) {
+        // It's very important to keep this route's param optional.
+        // (but it should support as many params as needed, separated by '/')
+        // Otherwise this will lead to a pretty simple DOS attack.
+        // See more: https://github.com/zeit/next.js/issues/2617
+        routes.push({
+          match: route('/amp/:path*'),
+          fn: async (req, res, params, parsedUrl) => {
+            let pathname
+            if (!params.path) {
+              pathname = '/'
+            } else {
+              pathname = '/' + params.path.join('/')
+            }
+            const { query } = parsedUrl
+            if (!pathname) {
+              throw new Error('pathname is undefined')
+            }
+            await this.renderToAMP(req, res, pathname, query, parsedUrl)
+          },
+        })
+      }
 
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -251,6 +253,9 @@ export default class Server {
   }
 
   public async renderToAMP(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+    if (!this.nextConfig.experimental.amp) {
+      throw new Error('"experimental.amp" is not enabled in "next.config.js"')
+    }
     const url: any = req.url
     if (isInternalUrl(url)) {
       return this.handleRequest(req, res, parsedUrl)
@@ -278,6 +283,9 @@ export default class Server {
   }
 
   public async renderToAMPHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
+    if (!this.nextConfig.experimental.amp) {
+      throw new Error('"experimental.amp" is not enabled in "next.config.js"')
+    }
     return this.renderToHTML(req, res, pathname, query, {amphtml: true})
   }
 
