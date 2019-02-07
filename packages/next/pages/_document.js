@@ -111,7 +111,7 @@ export class Head extends Component {
   }
 
   render () {
-    const { asPath, head, styles, amphtml, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { asPath, experimental, head, styles, amphtml, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
 
@@ -141,6 +141,7 @@ export class Head extends Component {
         <script async src="https://cdn.ampproject.org/v0.js"></script>
       </>}
       {!amphtml && <>
+      {experimental.amp && <link rel="amphtml" href={asPath === '/' ? '/amp' : (asPath.replace(/\/$/, '') + '/amp')} />}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(page)}${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {this.getPreloadDynamicChunks()}

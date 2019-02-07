@@ -56,14 +56,10 @@ describe('AMP Usage', () => {
   })
 
   describe('With basic AMP usage', () => {
-    it('should render the page', async () => {
-      const html = await renderViaHTTP(appPort, '/amp')
-      expect(html).toMatch(/Hello World/)
-    })
-
     it('should render the page as valid AMP', async () => {
       const html = await renderViaHTTP(appPort, '/amp')
       await validateAMP(html)
+      expect(html).toMatch(/Hello World/)
     })
 
     it('should add link preload for amp script', async () => {
@@ -99,7 +95,23 @@ describe('AMP Usage', () => {
 
     it('should render the AMP page that uses the AMP hook', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook/amp')
+      await validateAMP(html)
       expect(html).toMatch(/Hello AMP/)
+    })
+  })
+
+  describe('canonical amphtml', () => {
+    it('should render link rel amphtml', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook')
+      const $ = cheerio.load(html)
+      expect($('link[rel=amphtml]').first().attr('href')).toBe('/use-amp-hook/amp')
+    })
+
+    it('should render the AMP page that uses the AMP hook', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook/amp')
+      const $ = cheerio.load(html)
+      await validateAMP(html)
+      expect($('link[rel=canonical]').first().attr('href')).toBe('/use-amp-hook')
     })
   })
 })

@@ -46,6 +46,7 @@ function render(renderElementToString: (element: React.ReactElement<any>) => str
 }
 
 type RenderOpts = {
+  experimental: {[name: string]: boolean},
   staticMarkup: boolean,
   buildId: string,
   runtimeConfig?: {[key: string]: any},
@@ -63,6 +64,7 @@ type RenderOpts = {
 }
 
 function renderDocument(Document: React.ComponentType, {
+  experimental,
   props,
   docProps,
   pathname,
@@ -106,6 +108,7 @@ function renderDocument(Document: React.ComponentType, {
           dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
           err: (err) ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
         }}
+        experimental={experimental}
         asPath={encodeURI(asPath || '')}
         amphtml={amphtml}
         staticMarkup={staticMarkup}
