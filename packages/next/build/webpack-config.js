@@ -294,10 +294,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       new webpack.DefinePlugin(Object.assign(
         {},
         config.env ? Object.keys(config.env)
-          .reduce((acc, key) => ({
-            ...acc,
-            ...{ [`process.env.${key}`]: JSON.stringify(config.env[key]) }
-          }), {}) : {},
+          .reduce((acc, key) => {
+            const selector = key.match(/^(_?)(.+)$/)
+            return {
+              ...acc,
+              ...{ [`${selector[1] ? '' : 'process.env.'}${selector[2]}`]: JSON.stringify(config.env[key]) }
+            }
+          }, {}) : {},
         {
           'process.crossOrigin': JSON.stringify(config.crossOrigin),
           'process.browser': JSON.stringify(!isServer)
