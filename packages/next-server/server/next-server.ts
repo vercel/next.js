@@ -166,7 +166,7 @@ export default class Server {
         // Otherwise this will lead to a pretty simple DOS attack.
         // See more: https://github.com/zeit/next.js/issues/2617
         routes.push({
-          match: route('/amp/:path*'),
+          match: route('/:path*/amp'),
           fn: async (req, res, params, parsedUrl) => {
             let pathname
             if (!params.path) {

@@ -98,7 +98,7 @@ describe('AMP Usage', () => {
     })
 
     it('should render the AMP page that uses the AMP hook', async () => {
-      const html = await renderViaHTTP(appPort, '/amp/use-amp-hook')
+      const html = await renderViaHTTP(appPort, '/use-amp-hook/amp')
       expect(html).toMatch(/Hello AMP/)
     })
   })
