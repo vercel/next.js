@@ -30,7 +30,7 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
-    experimental: {[name: string]: boolean},
+    ampEnabled: boolean,
     staticMarkup: boolean,
     buildId: string,
     generateEtags: boolean,
@@ -54,7 +54,7 @@ export default class Server {
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
-      experimental: this.nextConfig.experimental,
+      ampEnabled: this.nextConfig.experimental.amp,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
