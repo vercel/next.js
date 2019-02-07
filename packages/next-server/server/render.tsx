@@ -66,6 +66,7 @@ function renderDocument(Document: React.ComponentType, {
   props,
   docProps,
   pathname,
+  asPath,
   query,
   buildId,
   assetPrefix,
@@ -83,6 +84,7 @@ function renderDocument(Document: React.ComponentType, {
   props: any,
   docProps: any,
   pathname: string,
+  asPath: string|undefined,
   query: ParsedUrlQuery,
   amphtml: boolean,
   dynamicImportsIds: string[],
@@ -104,6 +106,7 @@ function renderDocument(Document: React.ComponentType, {
           dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
           err: (err) ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
         }}
+        asPath={encodeURI(asPath || '')}
         amphtml={amphtml}
         staticMarkup={staticMarkup}
         devFiles={devFiles}
@@ -198,6 +201,7 @@ export async function renderToHTML(req: IncomingMessage, res: ServerResponse, pa
     ...renderOpts,
     props,
     docProps,
+    asPath,
     pathname,
     amphtml,
     query,
