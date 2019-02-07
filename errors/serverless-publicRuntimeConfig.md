@@ -19,5 +19,5 @@ module.exports = {
 
 ```js
 // index.js
-console.log(process.special) // value
+console.log(process.env.special) // value
 ```
