@@ -4,7 +4,6 @@ import {parse} from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 
 export type ServerlessLoaderQuery = {
-  ampEnabled: string,
   page: string,
   distDir: string,
   absolutePagePath: string,
