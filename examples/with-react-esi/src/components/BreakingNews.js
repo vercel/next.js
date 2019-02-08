@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 
 // functional component
 const BreakingNews = props => (
@@ -17,12 +17,12 @@ const BreakingNews = props => (
       <small>generated at {new Date().toISOString()}</small>
     </div>
   </section>
-);
+)
 
 BreakingNews.getInitialProps = async ({ props, req, res }) => {
   if (res) {
     // server-side, we always want to serve fresh data for this block!
-    res.set('Cache-Control', 's-maxage=0, maxage=0');
+    res.set('Cache-Control', 's-maxage=0, maxage=0')
   }
 
   return new Promise(resolve =>
@@ -44,7 +44,7 @@ BreakingNews.getInitialProps = async ({ props, req, res }) => {
         }),
       5000
     )
-  );
-};
+  )
+}
 
-export default BreakingNews;
+export default BreakingNews

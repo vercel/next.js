@@ -1,13 +1,13 @@
-import React from 'react';
+import React from 'react'
 
 /**
  * Return the weather. This component is not loaded on the homepage, to test that getInitialProps works client-side too.
  */
 export default class TopArticles extends React.Component {
-  static async getInitialProps({ props, req, res }) {
+  static async getInitialProps ({ props, req, res }) {
     // Fetch the weather from a remote API, it may take some time...
     return new Promise(resolve => {
-      console.log(process.browser ? 'client-side' : 'server-side');
+      console.log(process.browser ? 'client-side' : 'server-side')
       // Simulate a delay (slow network, huge computation...)
       setTimeout(
         () =>
@@ -16,12 +16,12 @@ export default class TopArticles extends React.Component {
             weather: 'sunny ☀️'
           }),
         2000
-      );
-    });
+      )
+    })
   }
 
-  render() {
-    console.log(process.browser ? 'client-side' : 'server-side');
+  render () {
+    console.log(process.browser ? 'client-side' : 'server-side')
 
     return (
       <section>
@@ -32,6 +32,6 @@ export default class TopArticles extends React.Component {
           <small>generated at {new Date().toISOString()}</small>
         </div>
       </section>
-    );
+    )
   }
 }

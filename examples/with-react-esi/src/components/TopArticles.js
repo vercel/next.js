@@ -1,13 +1,13 @@
-import React from 'react';
+import React from 'react'
 
 /**
  * Return the top articles of the month. Can be cached 1 hour.
  */
 export default class TopArticles extends React.Component {
-  static async getInitialProps({ props, req, res }) {
+  static async getInitialProps ({ props, req, res }) {
     if (res) {
       // server side, cache this fragment for 1 hour
-      res.set('Cache-Control', 'public, s-maxage=3600');
+      res.set('Cache-Control', 'public, s-maxage=3600')
     }
 
     // Fetch the articles from a remote API, it may take some time...
@@ -29,11 +29,11 @@ export default class TopArticles extends React.Component {
             ]
           }),
         2000
-      );
-    });
+      )
+    })
   }
 
-  render() {
+  render () {
     return (
       <section>
         <h1>Top articles</h1>
@@ -50,6 +50,6 @@ export default class TopArticles extends React.Component {
           <small>generated at {new Date().toISOString()}</small>
         </div>
       </section>
-    );
+    )
   }
 }
