@@ -1551,18 +1551,17 @@ The `modules` option on `"preset-env"` should be kept to `false` otherwise webpa
 
 ### Exposing configuration to the server / client side
 
-Configuration values can be replaced by Webpack at build time.
+Configuration values can be replaced by webpack at build time.
 
 ```js
 // next.config.js
 module.exports = {
   env: {
-    customKey: "value",
-    _globalVar: "value"
+    customKey: "value"
   }
 }
 ```
-This will be set to `proccess.env.customKey` and `globalVar`, respectively.
+This will be set to `proccess.env.customKey`.
 
 #### When configuration must be dynamic
 
