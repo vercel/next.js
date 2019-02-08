@@ -9,6 +9,5 @@ WORKDIR /usr/src/app
 
 COPY . ./
 RUN yarn install
-# RUN yarn upgrade
 RUN yarn build
 CMD yarn start

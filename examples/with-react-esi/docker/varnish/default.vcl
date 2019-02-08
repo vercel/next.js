@@ -16,11 +16,6 @@ sub vcl_backend_response {
 }
 
 sub vcl_recv {
-  # Prevent direct access fragments
-  #if (req.url ~ "^/_fragment") {
-  #  return(synth(404, "Not Found"));
-  #}
-
   # Remove cookies to prevent a cache miss, you maybe don't want to do this!
   unset req.http.cookie;
 
