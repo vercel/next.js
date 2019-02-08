@@ -16,8 +16,7 @@ module.exports = withCSS(withSass({
     staticFolder: '/static'
   },
   env: {
-    customVar: 'hello',
-    _globalVar: 'world'
+    customVar: 'hello'
   },
   webpack (config, {buildId}) {
     // When next-css is `npm link`ed we have to solve loaders from the project root
