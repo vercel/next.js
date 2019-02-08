@@ -1,8 +1,8 @@
 import withESI from 'react-esi'
 import React from 'react'
 import Link from 'next/link'
-import BreakingNews from 'components/BreakingNews'
-import TopArticles from 'components/TopArticles'
+import BreakingNews from '../components/BreakingNews'
+import TopArticles from '../components/TopArticles'
 
 const BreakingNewsESI = withESI(BreakingNews, 'BreakingNews')
 const TopArticlesESI = withESI(TopArticles, 'TopArticles')
