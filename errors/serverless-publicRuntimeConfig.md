@@ -2,8 +2,7 @@
 
 #### Why This Error Occurred
 
-Due to the way that Next.js seperates pages into their own lambdas, `publicRuntimeConfig` will not function when `target` is set to `serverless`.
-
+In the `serverless` target environment `next.config.js` is not loaded, so we don't support `publicRuntimeConfig`.
 #### Possible Ways to Fix It
 
 Use config option `env` to set **build time** variables like such:
@@ -18,6 +17,6 @@ module.exports = {
 ```
 
 ```js
-// index.js
+// pages/index.js
 console.log(process.env.special) // value
 ```
