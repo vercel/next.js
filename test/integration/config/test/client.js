@@ -14,9 +14,11 @@ export default (context, render) => {
 
       const serverText = await browser.elementByCss('#server-only').text()
       const serverClientText = await browser.elementByCss('#server-and-client').text()
+      const envValue = await browser.elementByCss('#env').text()
 
       expect(serverText).toBe('')
       expect(serverClientText).toBe('/static')
+      expect(envValue).toBe('hello')
       browser.close()
     })
 

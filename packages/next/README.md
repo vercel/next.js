@@ -1551,7 +1551,49 @@ The `modules` option on `"preset-env"` should be kept to `false` otherwise webpa
 
 ### Exposing configuration to the server / client side
 
-The `next/config` module gives your app access to runtime configuration stored in your `next.config.js`. Place any server-only runtime config under a `serverRuntimeConfig` property and anything accessible to both client and server-side code under `publicRuntimeConfig`.
+There is a common need in applications to provide configuration values.
+
+Next.js supports 2 ways of providing configuration:
+
+- Build-time configuration
+- Runtime configuration
+
+#### Build time configuration
+
+The way build-time configuration works is by inlining the provided values into the Javascript bundle.
+
+You can add the `env` key in `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  env: {
+    customKey: 'value'
+  }
+}
+```
+
+This will allow you to use `process.env.customKey` in your code. For example:
+
+```jsx
+// pages/index.js
+export default function Index() {
+  return <h1>The value of customEnv is: {process.env.customEnv}</h1>
+}
+```
+
+#### Runtime configuration
+
+> :warning: Note that this option is not available when using `target: 'serverless'`
+
+> :warning: Generally you want to use build-time configuration to provide your configuration. 
+The reason for this is that runtime configuration adds a small rendering / initialization overhead.
+
+The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`. 
+
+Place any server-only runtime config under a `serverRuntimeConfig` property.
+
+Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
 ```js
 // next.config.js
