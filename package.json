@@ -47,6 +47,7 @@
       "packages/**/*.ts",
       "**/*.d.ts",
       "**/node_modules/**",
+      "packages/next/build/webpack/plugins/terser-webpack-plugin/**",
       "examples/with-ioc/**",
       "examples/with-kea/**",
       "examples/with-mobx/**"
