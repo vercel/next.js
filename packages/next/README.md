@@ -405,7 +405,7 @@ export default () => <p>Welcome to About!</p>
  `<Link>` component has two main props:
 
 * `href`: the path inside `pages` directory + query string.
-* `as`: the path that will be renderer on browser URL bar.
+* `as`: the path that will be rendered in the browser URL bar.
 
 Example:
 
