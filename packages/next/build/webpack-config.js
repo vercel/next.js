@@ -15,7 +15,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
-import TerserPlugin from 'terser-webpack-plugin'
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
 
 // The externals config makes sure that
