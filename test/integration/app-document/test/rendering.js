@@ -67,6 +67,22 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('#render-page-enhance-app').text().includes(nonce)).toBe(true)
         expect($('#render-page-enhance-component').text().includes(nonce)).toBe(true)
       })
+
+      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+      test('It adds a timestamp to link tags with preload attribute to invalidate the cache (DEV only)', async () => {
+        const $ = await get$('/')
+        $('link[rel=preload]').each((index, element) => {
+          const href = $(element).attr('href')
+          expect(href.match(/\?/g)).toHaveLength(1)
+          expect(href).toMatch(/\?ts=/)
+        })
+        $('script[src]').each((index, element) => {
+          const src = $(element).attr('src')
+          expect(src.match(/\?/g)).toHaveLength(1)
+          expect(src).toMatch(/\?ts=/)
+        })
+      })
     })
 
     describe('_app', () => {

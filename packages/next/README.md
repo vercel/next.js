@@ -54,6 +54,7 @@
     - [4. With Multiple Modules At Once](#4-with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
+    - [Customizing `renderPage`](#customizing-renderpage)
   - [Custom error handling](#custom-error-handling)
   - [Reusing the built-in error page](#reusing-the-built-in-error-page)
   - [Custom configuration](#custom-configuration)
@@ -70,8 +71,12 @@
   - [CDN support with Asset Prefix](#cdn-support-with-asset-prefix)
 - [Production deployment](#production-deployment)
   - [Serverless deployment](#serverless-deployment)
+    - [One Level Lower](#one-level-lower)
+    - [Summary](#summary)
+- [Browser support](#browser-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
+  - [Copying custom files](#copying-custom-files)
   - [Limitation](#limitation)
 - [Multi Zones](#multi-zones)
   - [How to define a zone](#how-to-define-a-zone)
@@ -356,6 +361,8 @@ export default Page
 
 ### Routing
 
+Next.js does not ship a routes manifest with every possible route in the application, so the current page is not aware of any other pages on the client side. All subsequent routes get lazy-loaded, for scalability sake.
+
 #### With `<Link>`
 
 <details>
@@ -367,7 +374,11 @@ export default Page
 
 <p></p>
 
-Client-side transitions between routes can be enabled via a `<Link>` component. Consider these two pages:
+Client-side transitions between routes can be enabled via a `<Link>` component.
+
+**Basic Example**
+
+Consider these two pages:
 
 ```jsx
 // pages/index.js
@@ -388,6 +399,42 @@ export default () => (
 // pages/about.js
 export default () => <p>Welcome to About!</p>
 ```
+
+**Custom routes (using props from URL)**
+
+ `<Link>` component has two main props:
+
+* `href`: the path inside `pages` directory + query string.
+* `as`: the path that will be rendered in the browser URL bar.
+
+Example:
+
+1. Consider you have the URL `/post/:slug`.
+
+2. You created the `pages/post.js`
+
+    ```jsx
+    export default class extends React.Component {
+      static async getInitialProps({query}) {
+        console.log('SLUG', query.slug)
+        return {}
+      }
+      render() {
+        return <h1>My blog post</h1>
+      }
+    }
+    ```
+3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
+
+    ```jsx
+    server.get("/post/:slug", (req, res) => {
+      return app.render(req, res, "/post", { slug: req.params.slug })
+    })
+    ```
+4. For client side routing, use `next/link`:
+    ```jsx
+    <Link href="/post?slug=something" as="/post/something">
+    ```
 
 __Note: use [`<Link prefetch>`](#prefetching-pages) for maximum performance, to link and prefetch in the background at the same time__
 
@@ -1504,7 +1551,49 @@ The `modules` option on `"preset-env"` should be kept to `false` otherwise webpa
 
 ### Exposing configuration to the server / client side
 
-The `next/config` module gives your app access to runtime configuration stored in your `next.config.js`. Place any server-only runtime config under a `serverRuntimeConfig` property and anything accessible to both client and server-side code under `publicRuntimeConfig`.
+There is a common need in applications to provide configuration values.
+
+Next.js supports 2 ways of providing configuration:
+
+- Build-time configuration
+- Runtime configuration
+
+#### Build time configuration
+
+The way build-time configuration works is by inlining the provided values into the Javascript bundle.
+
+You can add the `env` key in `next.config.js`:
+
+```js
+// next.config.js
+module.exports = {
+  env: {
+    customKey: 'value'
+  }
+}
+```
+
+This will allow you to use `process.env.customKey` in your code. For example:
+
+```jsx
+// pages/index.js
+export default function Index() {
+  return <h1>The value of customEnv is: {process.env.customEnv}</h1>
+}
+```
+
+#### Runtime configuration
+
+> :warning: Note that this option is not available when using `target: 'serverless'`
+
+> :warning: Generally you want to use build-time configuration to provide your configuration. 
+The reason for this is that runtime configuration adds a small rendering / initialization overhead.
+
+The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`. 
+
+Place any server-only runtime config under a `serverRuntimeConfig` property.
+
+Anything accessible to both client and server-side code should be under `publicRuntimeConfig`.
 
 ```js
 // next.config.js

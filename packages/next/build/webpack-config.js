@@ -15,7 +15,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
 import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
-import TerserPlugin from 'terser-webpack-plugin'
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
 
 // The externals config makes sure that
@@ -291,10 +291,18 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
-      new webpack.DefinePlugin({
-        'process.crossOrigin': JSON.stringify(config.crossOrigin),
-        'process.browser': JSON.stringify(!isServer)
-      }),
+      new webpack.DefinePlugin(Object.assign(
+        {},
+        config.env ? Object.keys(config.env)
+          .reduce((acc, key) => ({
+            ...acc,
+            ...{ [`process.env.${key}`]: JSON.stringify(config.env[key]) }
+          }), {}) : {},
+        {
+          'process.crossOrigin': JSON.stringify(config.crossOrigin),
+          'process.browser': JSON.stringify(!isServer)
+        }
+      )),
       // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
       !isServer && dev && new webpack.DefinePlugin({
         'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
