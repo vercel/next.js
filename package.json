@@ -49,6 +49,7 @@
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
+      "build/webpack/plugins/terser-webpack-plugin/**",
       "**/node_modules/**",
       "**/examples/with-ioc/**",
       "**/examples/with-kea/**",
@@ -60,6 +61,13 @@
     "bin/*": "standard"
   },
   "dependencies": {
+    "cacache": "^11.0.2",
+    "find-cache-dir": "2.0.0",
+    "schema-utils": "1.0.0",
+    "serialize-javascript": "1.4.0",
+    "source-map": "0.6.1",
+    "terser": "3.16.1",
+    "worker-farm": "1.5.2",
     "@babel/core": "7.0.0",
     "@babel/plugin-proposal-class-properties": "7.0.0",
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
@@ -104,7 +112,6 @@
     "source-map": "0.5.7",
     "strip-ansi": "3.0.1",
     "styled-jsx": "3.1.0",
-    "terser-webpack-plugin": "1.0.2",
     "unfetch": "3.0.0",
     "url": "0.11.0",
     "webpack": "4.20.2",
