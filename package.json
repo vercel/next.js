@@ -49,7 +49,7 @@
   "standard": {
     "parser": "babel-eslint",
     "ignore": [
-      "packages/next/build/webpack/plugins/terser-webpack-plugin/**",
+      "build/webpack/plugins/terser-webpack-plugin/**",
       "**/node_modules/**",
       "**/examples/with-ioc/**",
       "**/examples/with-kea/**",
