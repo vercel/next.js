@@ -12,7 +12,7 @@ import ModuleFilenameHelpers from 'webpack/lib/ModuleFilenameHelpers';
 import serialize from 'serialize-javascript';
 import terserPackageJson from 'terser/package.json';
 
-import schema from './options.json';
+// import schema from './options.json';
 import TaskRunner from './TaskRunner';
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/;
