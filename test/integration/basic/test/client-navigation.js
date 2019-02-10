@@ -648,11 +648,6 @@ export default (context, render) => {
             await browser.back().waitForElementByCss('#something-hello')
             const queryThree = JSON.parse(await browser.elementByCss('#router-query').text())
             expect(queryThree.something).toBe('hello')
-            await browser.elementByCss('#else').click().waitForElementByCss('#something-else')
-            await browser.elementByCss('#hello2').click().waitForElementByCss('#nav-as-path-pushstate')
-            await browser.back().waitForElementByCss('#something-else')
-            const queryFour = JSON.parse(await browser.elementByCss('#router-query').text())
-            expect(queryFour.something).toBe(undefined)
           } finally {
             if (browser) {
               browser.close()
