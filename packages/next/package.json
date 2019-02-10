@@ -83,7 +83,7 @@
     "serialize-javascript": "1.4.0",
     "source-map": "0.6.1",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "3.2.0",
+    "styled-jsx": "3.2.1",
     "terser": "3.16.1",
     "tty-aware-progress": "1.0.3",
     "unfetch": "3.0.0",
