@@ -50,3 +50,4 @@ When you build your application the environment variable is transformed into a p
 - It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
 - Any env var you expose in `next.config.js` will be publicly available and exposed to the client.
 - This example sets the environment configuration at build time, meaning the same build might not be used in e.g. both staging and production. For a solution which sets the environment at runtime, see the example [with-universal-configuration-runtime](../with-universal-configuration-runtime).
+- If you have many variables in `.env` and want to expose them without listing them all in `next.config.js`, see the example [with-dotenv](../with-dotenv). That example automatically exposes any variable that has been referenced in code, but keeps all other variables secret.
