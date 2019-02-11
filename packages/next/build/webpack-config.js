@@ -242,7 +242,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     module: {
       rules: [
         {
-          test: /\.(js|jsx)$/,
+          test: /\.(js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path) => {
             if (/next-server[\\/]dist[\\/]lib/.exec(path)) {
