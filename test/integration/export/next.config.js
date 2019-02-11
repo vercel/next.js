@@ -3,6 +3,12 @@ const {PHASE_DEVELOPMENT_SERVER} = require('next-server/constants')
 module.exports = (phase) => {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+    publicRuntimeConfig: {
+      foo: 'bar'
+    },
+    serverRuntimeConfig: {
+      bar: 'foo'
+    },
     exportPathMap: function () {
       return {
         '/': { page: '/' },
