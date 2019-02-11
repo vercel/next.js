@@ -1,8 +1,9 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import { join } from 'path'
-import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH} from 'next/constants'
-import requirePage, {getPagePath, normalizePagePath, pageNotFoundError} from '../../dist/server/require'
+import {SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH} from 'next-server/constants'
+import {requirePage, getPagePath, pageNotFoundError} from 'next-server/dist/server/require'
+import {normalizePagePath} from 'next-server/dist/server/normalize-page-path'
 
 const sep = '/'
 const distDir = join(__dirname, '_resolvedata')
@@ -42,39 +43,39 @@ describe('normalizePagePath', () => {
 
 describe('getPagePath', () => {
   it('Should append /index to the / page', () => {
-    const pagePath = getPagePath('/', {distDir})
+    const pagePath = getPagePath('/', distDir)
     expect(pagePath).toBe(join(pathToBundles, `${sep}index.js`))
   })
 
   it('Should prepend / when a page does not have it', () => {
-    const pagePath = getPagePath('_error', {distDir})
+    const pagePath = getPagePath('_error', distDir)
     expect(pagePath).toBe(join(pathToBundles, `${sep}_error.js`))
   })
 
   it('Should throw with paths containing ../', () => {
-    expect(() => getPagePath('/../../package.json', {distDir})).toThrow()
+    expect(() => getPagePath('/../../package.json', distDir)).toThrow()
   })
 })
 
 describe('requirePage', () => {
   it('Should require /index.js when using /', async () => {
-    const page = await requirePage('/', {distDir})
+    const page = await requirePage('/', distDir)
     expect(page.test).toBe('hello')
   })
 
   it('Should require /index.js when using /index', async () => {
-    const page = await requirePage('/index', {distDir})
+    const page = await requirePage('/index', distDir)
     expect(page.test).toBe('hello')
   })
 
   it('Should require /world.js when using /world', async () => {
-    const page = await requirePage('/world', {distDir})
+    const page = await requirePage('/world', distDir)
     expect(page.test).toBe('world')
   })
 
   it('Should throw when using /../../test.js', async () => {
     try {
-      await requirePage('/../../test', {distDir})
+      await requirePage('/../../test', distDir)
     } catch (err) {
       expect(err.code).toBe('ENOENT')
     }
@@ -82,7 +83,7 @@ describe('requirePage', () => {
 
   it('Should throw when using non existent pages like /non-existent.js', async () => {
     try {
-      await requirePage('/non-existent', {distDir})
+      await requirePage('/non-existent', distDir)
     } catch (err) {
       expect(err.code).toBe('ENOENT')
     }
@@ -90,7 +91,7 @@ describe('requirePage', () => {
 
   it('Should bubble up errors in the child component', async () => {
     try {
-      await requirePage('/non-existent-child', {distDir})
+      await requirePage('/non-existent-child', distDir)
     } catch (err) {
       expect(err.code).toBe('MODULE_NOT_FOUND')
     }

@@ -10,7 +10,7 @@
   "dependencies": {
     "@zeit/next-css": "^1.0.1",
     "next": "latest",
-    "react": "16.4.2",
-    "react-dom": "16.4.2"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   }
 }

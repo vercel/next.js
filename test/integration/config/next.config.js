@@ -5,7 +5,8 @@ const path = require('path')
 module.exports = withCSS(withSass({
   onDemandEntries: {
     // Make sure entries are not getting disposed.
-    maxInactiveAge: 1000 * 60 * 60
+    maxInactiveAge: 1000 * 60 * 60,
+    websocketPort: 3001
   },
   cssModules: true,
   serverRuntimeConfig: {
@@ -13,6 +14,9 @@ module.exports = withCSS(withSass({
   },
   publicRuntimeConfig: {
     staticFolder: '/static'
+  },
+  env: {
+    customVar: 'hello'
   },
   webpack (config, {buildId}) {
     // When next-css is `npm link`ed we have to solve loaders from the project root

@@ -1,22 +1,7 @@
 import React from 'react'
-import styled, { hydrate, keyframes, css, injectGlobal } from 'react-emotion'
-
-// Adds server generated styles to emotion cache.
-// '__NEXT_DATA__.ids' is set in '_document.js'
-if (typeof window !== 'undefined') {
-  hydrate(window.__NEXT_DATA__.ids)
-}
-
-injectGlobal`
-  html, body {
-    padding: 3rem 1rem;
-    margin: 0;
-    background: papayawhip;
-    min-height: 100%;
-    font-family: Helvetica, Arial, sans-serif;
-    font-size: 24px;
-  }
-`
+import Head from 'next/head'
+import styled from '@emotion/styled'
+import { keyframes, css, Global } from '@emotion/core'
 
 const basicStyles = css`
   background-color: white;
@@ -68,12 +53,30 @@ const Animated = styled.div`
 
 export default () => {
   return (
-    <div>
-      <Basic>Cool Styles</Basic>
-      <Combined>
-        With <code>:hover</code>.
-      </Combined>
-      <Animated animation={bounce}>Let's bounce.</Animated>
-    </div>
+    <React.Fragment>
+      <Global
+        styles={css`
+          html,
+          body {
+            padding: 3rem 1rem;
+            margin: 0;
+            background: papayawhip;
+            min-height: 100%;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 24px;
+          }
+        `}
+      />
+      <Head>
+        <title>With Emotion</title>
+      </Head>
+      <div>
+        <Basic>Cool Styles</Basic>
+        <Combined>
+          With <code>:hover</code>.
+        </Combined>
+        <Animated animation={bounce}>Let's bounce.</Animated>
+      </div>
+    </React.Fragment>
   )
 }

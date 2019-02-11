@@ -1,9 +1,9 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
-export default (context, render) => {
+export default (context, renderViaHTTP) => {
   describe('Error Recovery', () => {
     it('should recover from 404 after a page has been added', async () => {
       let browser
@@ -110,6 +110,8 @@ export default (context, render) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       let browser
       try {
+        await renderViaHTTP('/hmr/about')
+
         aboutPage.replace('</div>', 'div')
 
         browser = await webdriver(context.appPort, '/hmr/contact')
@@ -211,7 +213,7 @@ export default (context, render) => {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the about page.')
 
-        aboutPage.replace('export default', 'export default "not-a-page"\nexport const fn = ')
+        aboutPage.replace('export default', 'export default {};\nexport const fn =')
 
         await check(
           () => getBrowserBodyText(browser),
@@ -250,7 +252,7 @@ export default (context, render) => {
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the about page.')
 
-        aboutPage.replace('export default', 'export default () => /search/ \nexport const fn = ')
+        aboutPage.replace('export default', 'export default () => /search/;\nexport const fn =')
 
         await check(
           () => getBrowserBodyText(browser),

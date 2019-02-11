@@ -2,7 +2,7 @@ import React from 'react'
 import { fetchUserRepos } from '../githubApi'
 import provideStateFactory from '../provideState'
 
-export default (Page) => {
+export default Page => {
   const App = ({ serverState }) => {
     const withState = provideStateFactory(serverState)
     const PageWithState = withState(Page)

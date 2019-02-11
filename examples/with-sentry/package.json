@@ -2,21 +2,15 @@
   "name": "with-sentry",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "@sentry/browser": "^4.3.4",
-    "@sentry/node": "^4.3.4",
-    "@zeit/next-source-maps": "0.0.4-canary.0",
-    "cookie-parser": "^1.4.3",
-    "express": "^4.16.4",
-    "js-cookie": "^2.2.0",
-    "next": "7.0.2",
-    "react": "^16.5.2",
-    "react-dom": "^16.5.2",
-    "uuid": "^3.3.2"
+    "next": "latest",
+    "@sentry/browser": "^4.0.4",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "license": "ISC"
 }

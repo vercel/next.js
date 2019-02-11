@@ -1,7 +1,7 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import { waitFor, check, File } from 'next-test-utils'
+import { waitFor, fetchViaHTTP } from 'next-test-utils' /* check, File */
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
@@ -14,10 +14,18 @@ export default (context, render) => {
 
       const serverText = await browser.elementByCss('#server-only').text()
       const serverClientText = await browser.elementByCss('#server-and-client').text()
+      const envValue = await browser.elementByCss('#env').text()
 
       expect(serverText).toBe('')
       expect(serverClientText).toBe('/static')
+      expect(envValue).toBe('hello')
       browser.close()
+    })
+
+    it('should use websocketPort for on-demand-entries WebSocket', async () => {
+      const res = await fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping')
+      const wsPort = res.headers.get('port')
+      expect(wsPort).toBe(context.devWebSocketPort + '')
     })
 
     it('should update css styles using hmr', async () => {
@@ -57,53 +65,53 @@ export default (context, render) => {
       }
     })
 
-    it('should update sass styles using hmr', async () => {
-      const file = new File(join(__dirname, '../', 'components', 'hello-webpack-sass.scss'))
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/webpack-css')
+    // it('should update sass styles using hmr', async () => {
+    //   const file = new File(join(__dirname, '../', 'components', 'hello-webpack-sass.scss'))
+    //   let browser
+    //   try {
+    //     browser = await webdriver(context.appPort, '/webpack-css')
 
-        expect(
-          await browser.elementByCss('.hello-world').getComputedCss('color')
-        ).toBe('rgba(255, 255, 0, 1)')
+    //     expect(
+    //       await browser.elementByCss('.hello-world').getComputedCss('color')
+    //     ).toBe('rgba(255, 255, 0, 1)')
 
-        file.replace('yellow', 'red')
+    //     file.replace('yellow', 'red')
 
-        await waitFor(10000)
+    //     await waitFor(10000)
 
-        await check(
-          async () => {
-            const tag = await browser.elementByCss('.hello-world')
-            const prop = await tag.getComputedCss('color')
+    //     await check(
+    //       async () => {
+    //         const tag = await browser.elementByCss('.hello-world')
+    //         const prop = await tag.getComputedCss('color')
 
-            expect(prop).toBe('rgba(255, 0, 0, 1)')
-            return 'works'
-          },
-          /works/
-        )
+    //         expect(prop).toBe('rgba(255, 0, 0, 1)')
+    //         return 'works'
+    //       },
+    //       /works/
+    //     )
 
-        file.restore()
+    //     file.restore()
 
-        await waitFor(10000)
+    //     await waitFor(10000)
 
-        await check(
-          async () => {
-            const tag = await browser.elementByCss('.hello-world')
-            const prop = await tag.getComputedCss('color')
-            expect(prop).toBe('rgba(255, 255, 0, 1)')
-            return 'works'
-          },
-          /works/
-        )
-      } catch (err) {
-        file.restore()
+    //     await check(
+    //       async () => {
+    //         const tag = await browser.elementByCss('.hello-world')
+    //         const prop = await tag.getComputedCss('color')
+    //         expect(prop).toBe('rgba(255, 255, 0, 1)')
+    //         return 'works'
+    //       },
+    //       /works/
+    //     )
+    //   } catch (err) {
+    //     file.restore()
 
-        throw err
-      } finally {
-        if (browser) {
-          browser.close()
-        }
-      }
-    })
+    //     throw err
+    //   } finally {
+    //     if (browser) {
+    //       browser.close()
+    //     }
+    //   }
+    // })
   })
 }

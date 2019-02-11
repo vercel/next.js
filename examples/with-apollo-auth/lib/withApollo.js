@@ -7,10 +7,7 @@ import Head from 'next/head'
 import initApollo from './initApollo'
 
 function parseCookies (req, options = {}) {
-  return cookie.parse(
-    req ? req.headers.cookie || '' : document.cookie,
-    options
-  )
+  return cookie.parse(req ? req.headers.cookie || '' : document.cookie, options)
 }
 
 export default App => {
@@ -21,11 +18,17 @@ export default App => {
     }
 
     static async getInitialProps (ctx) {
-      const { Component, router, ctx: { req, res } } = ctx
-      const token = parseCookies(req).token
-      const apollo = initApollo({}, {
-        getToken: () => token
-      })
+      const {
+        Component,
+        router,
+        ctx: { req, res }
+      } = ctx
+      const apollo = initApollo(
+        {},
+        {
+          getToken: () => parseCookies(req).token
+        }
+      )
 
       ctx.ctx.apolloClient = apollo
 
@@ -70,8 +73,7 @@ export default App => {
 
       return {
         ...appProps,
-        apolloState,
-        token
+        apolloState
       }
     }
 
@@ -80,7 +82,9 @@ export default App => {
       // `getDataFromTree` renders the component first, the client is passed off as a property.
       // After that rendering is done using Next's normal rendering pipeline
       this.apolloClient = initApollo(props.apolloState, {
-        getToken: () => props.token
+        getToken: () => {
+          return parseCookies().token
+        }
       })
     }
 

@@ -1,5 +1,5 @@
-/* global jasmine, describe, beforeAll, afterAll */
-
+/* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import {
   nextBuild,

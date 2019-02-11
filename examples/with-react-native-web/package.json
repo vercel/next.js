@@ -6,11 +6,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "babel-plugin-react-native-web": "^0.8.8",
+    "babel-plugin-module-resolver": "^3.1.2",
     "next": "latest",
-    "react": "^16.4.1",
-    "react-art": "^16.4.1",
-    "react-dom": "^16.4.1",
-    "react-native-web": "^0.8.8"
+    "react": "^16.7.0",
+    "react-art": "^16.5.2",
+    "react-dom": "^16.7.0",
+    "react-native-web": "^0.9.3"
   }
 }

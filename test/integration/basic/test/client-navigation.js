@@ -1,9 +1,9 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
 import webdriver from 'next-webdriver'
 import {waitFor, getReactErrorOverlayContent} from 'next-test-utils'
 
-export default (context, render) => {
+export default (context) => {
   describe('Client Navigation', () => {
     describe('with <Link/>', () => {
       it('should navigate the page', async () => {
@@ -56,7 +56,7 @@ export default (context, render) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        browser.close()
+        browser.quit()
       })
 
       it('should not navigate if the <a/> tag has a target', async () => {
@@ -648,6 +648,11 @@ export default (context, render) => {
             await browser.back().waitForElementByCss('#something-hello')
             const queryThree = JSON.parse(await browser.elementByCss('#router-query').text())
             expect(queryThree.something).toBe('hello')
+            await browser.elementByCss('#else').click().waitForElementByCss('#something-else')
+            await browser.elementByCss('#hello2').click().waitForElementByCss('#nav-as-path-pushstate')
+            await browser.back().waitForElementByCss('#something-else')
+            const queryFour = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryFour.something).toBe(undefined)
           } finally {
             if (browser) {
               browser.close()
@@ -664,7 +669,7 @@ export default (context, render) => {
           browser = await webdriver(context.appPort, '/error-inside-browser-page')
           await waitFor(3000)
           const text = await getReactErrorOverlayContent(browser)
-          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
         } finally {
           if (browser) {
@@ -679,7 +684,7 @@ export default (context, render) => {
           browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
           await waitFor(3000)
           const text = await getReactErrorOverlayContent(browser)
-          expect(text).toMatch(/An Expected error occured/)
+          expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
         } finally {
           if (browser) {
@@ -731,6 +736,18 @@ export default (context, render) => {
           }
         }
       })
+    })
+
+    it('should not error on module.exports + polyfills', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/read-only-object-error')
+        expect(await browser.elementByCss('body').text()).toBe('this is just a placeholder component')
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
   })
 }

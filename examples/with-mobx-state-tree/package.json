@@ -1,21 +1,21 @@
 {
-  "name": "with-mobx",
+  "name": "with-mobx-state-tree",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "mobx": "^5.1.2",
-    "mobx-react": "^5.2.8",
-    "mobx-state-tree": "^3.4.0",
+    "mobx": "3.3.1",
+    "mobx-react": "^4.0.4",
+    "mobx-state-tree": "1.0.1",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
-  "license": "ISC",
   "devDependencies": {
-    "@babel/plugin-proposal-decorators": "7.1.0"
-  }
+    "@babel/plugin-proposal-decorators": "^7.1.2"
+  },
+  "license": "ISC"
 }

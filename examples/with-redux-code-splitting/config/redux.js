@@ -5,8 +5,11 @@ import withRedux from 'next-redux-wrapper'
 import { rootReducer } from 'fast-redux'
 
 export const initStore = (initialState = {}) => {
-  return createStore(rootReducer, initialState,
-    composeWithDevTools(applyMiddleware(thunkMiddleware)))
+  return createStore(
+    rootReducer,
+    initialState,
+    composeWithDevTools(applyMiddleware(thunkMiddleware))
+  )
 }
 
-export const reduxPage = (comp) => withRedux(initStore)(comp)
+export const reduxPage = comp => withRedux(initStore)(comp)

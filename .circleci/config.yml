@@ -6,5 +6,29 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      - run: yarn install
-      - run: yarn test
+      - run:
+          name: Installing dependencies
+          command: yarn install
+      - run:
+          name: Bootstrapping
+          command: yarn bootstrap
+      - run:
+          name: Linting
+          command: yarn lint
+      - run:
+          name: Tests
+          command: yarn test
+      - run:
+          name: Potentially save npm token
+          command: "([[ ! -z $NPM_TOKEN ]] && echo \"//registry.npmjs.org/:_authToken=$NPM_TOKEN\" >> ~/.npmrc) || echo \"Did not write npm token\""
+      - run:
+          name: Potentially publish canary release
+          command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --npm-tag canary --yes; else  echo \"Did not publish\"; fi"
+      - run:
+          name: Potentially publish stable release
+          command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo \"Did not publish\"; fi"
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build

@@ -1,4 +1,4 @@
-import App, {Container} from 'next/app'
+import App, { Container } from 'next/app'
 import React from 'react'
 import Header from '../components/Header'
 
@@ -10,11 +10,11 @@ export default class MyApp extends App {
       pageProps = await Component.getInitialProps(ctx)
     }
 
-    return {pageProps}
+    return { pageProps }
   }
 
   render () {
-    const {Component, pageProps} = this.props
+    const { Component, pageProps } = this.props
     return (
       <Container>
         <Header />

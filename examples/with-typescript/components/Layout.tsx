@@ -3,10 +3,10 @@ import Link from 'next/link'
 import Head from 'next/head'
 
 type Props = {
-  title?: string
+  title?: string,
 }
 
-const Layout: React.SFC<Props> = ({ children, title = 'This is the default title' }) => (
+const Layout: React.FunctionComponent<Props> = ({ children, title = 'This is the default title' }) => (
   <div>
     <Head>
       <title>{title}</title>
@@ -15,13 +15,16 @@ const Layout: React.SFC<Props> = ({ children, title = 'This is the default title
     </Head>
     <header>
       <nav>
-        <Link href='/'><a>Home</a></Link> |{' '}
-        <Link href='/about'><a>About</a></Link>
+        <Link href='/'><a>Home</a></Link> | {' '}
+        <Link href='/list-class'><a>List Example</a></Link> | {' '}
+        <Link href='/list-fc'><a>List Example (as Functional Component)</a></Link> | {' '}
+        <Link href='/about'><a>About</a></Link> | {' '}
       </nav>
     </header>
     {children}
     <footer>
-      I'm here to stay
+      <hr />
+      <span>I'm here to stay (Footer)</span>
     </footer>
   </div>
 )

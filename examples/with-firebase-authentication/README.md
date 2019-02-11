@@ -29,6 +29,7 @@ Set up firebase:
 - Get your authentication credentials  from the Firebase console under *authentication>users>web setup*. It will include keys like `apiKey`, `authDomain` and `databaseUrl` and it goes into your project in `credentials/client.js`.
 - Copy the `databaseUrl` key you got in the last step into `server.js` in the corresponding line.
 - Back at the Firebase web console, go to *authentication>signup method* and select *Google*.
+- Create a database in the "Database" tab and select the realtime database. Then go to "rules" and set up your write, read rules. Examples can be found here: https://firebase.google.com/docs/database/security/quickstart#sample-rules
 
 Install it and run:
 

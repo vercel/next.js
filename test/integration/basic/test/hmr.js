@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
 import { join } from 'path'

@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default ({placeholder}) => (
+export default ({ placeholder }) => (
   <React.Fragment>
     <h2>JSON:</h2>
     {placeholder.data && (

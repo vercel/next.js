@@ -26,14 +26,17 @@ import { kea } from 'kea'
     ]
   })
 })
-
 export default class App extends React.Component {
-  render () {
+  render() {
     return (
       <div>
         <p>Double Counter: {this.props.doubleCounter}</p>
-        <button type='button' onClick={() => this.actions.increment(1)}>Increment</button>
-        <button type='button' onClick={() => this.actions.decrement(1)}>Decrement</button>
+        <button type="button" onClick={() => this.actions.increment(1)}>
+          Increment
+        </button>
+        <button type="button" onClick={() => this.actions.decrement(1)}>
+          Decrement
+        </button>
       </div>
     )
   }

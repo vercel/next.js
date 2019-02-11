@@ -9,15 +9,15 @@
   },
   "dependencies": {
     "@zeit/next-typescript": "^1.1.1",
-    "next": "latest",
-    "react": "^16.5.2",
-    "react-dom": "^16.5.2"
+    "next": "^7.0.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "@types/next": "^6.1.7",
-    "@types/react": "^16.4.14",
-    "@types/react-dom": "16.0.7",
-    "typescript": "3.0.3"
+    "@types/next": "^7.0.6",
+    "@types/react": "^16.4.16",
+    "@types/react-dom": "16.0.11",
+    "typescript": "3.2.4"
   },
   "license": "ISC"
 }

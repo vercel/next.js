@@ -1,2 +1,1 @@
-export default () =>
-  <h1>Home page</h1>
+export default () => <h1>Home page</h1>

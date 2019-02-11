@@ -1,0 +1,32 @@
+{
+  "name": "with-relay-modern-server-express",
+  "version": "1.0.0",
+  "description": "Example of Next.js with Relay Modern SSR and a Graphql Server with Express",
+  "scripts": {
+    "predev": "npm run relay",
+    "dev": "node server",
+    "build": "next build",
+    "prestart": "npm run build",
+    "start": "NODE_ENV=production node server",
+    "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' '**/server/**' --schema ./server/schema.graphql --verbose"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^4.0.0",
+    "dotenv-webpack": "^1.5.4",
+    "express-graphql": "^0.7.1",
+    "graphql": "^14.1.1",
+    "graphql-relay": "^0.6.0",
+    "isomorphic-unfetch": "^3.0.0",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "react-relay": "^2.0.0"
+  },
+  "devDependencies": {
+    "babel-plugin-relay": "^2.0.0",
+    "graphql-cli": "^1.0.0-beta.4",
+    "relay-compiler": "^2.0.0"
+  }
+}

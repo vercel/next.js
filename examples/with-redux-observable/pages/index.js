@@ -34,7 +34,9 @@ class Counter extends React.Component {
         <CharacterInfo />
         <br />
         <nav>
-          <Link href='/other'><a>Navigate to "/other"</a></Link>
+          <Link href='/other'>
+            <a>Navigate to "/other"</a>
+          </Link>
         </nav>
       </div>
     )

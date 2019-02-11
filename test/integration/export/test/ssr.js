@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -43,14 +43,13 @@ export default function (context) {
       expect(html).toMatch(/Query is: {}/)
     })
 
-    it('should handle next/asset properly', async () => {
-      const html = await renderViaHTTP(context.port, '/asset')
-      const $ = cheerio.load(html)
-      expect($('img').attr('src')).toBe('/static/myimage.png')
-    })
-
     it('should render _error on 404', async () => {
       const html = await renderViaHTTP(context.port, '/404')
+      expect(html).toMatch(/404/)
+    })
+
+    it('should export 404.html instead of 404/index.html', async () => {
+      const html = await renderViaHTTP(context.port, '/404.html')
       expect(html).toMatch(/404/)
     })
   })

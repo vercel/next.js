@@ -5,30 +5,22 @@ import { execOnce, warn } from 'next/dist/lib/utils'
 import exact from 'prop-types-exact'
 import { format, resolve, parse } from 'url'
 
-export const prefetch = async (href) => {
+export const prefetch = async href => {
   // if  we're running server side do nothing
   if (typeof window === 'undefined') return
 
-  const url =
-    typeof href !== 'string'
-      ? format(href)
-      : href
+  const url = typeof href !== 'string' ? format(href) : href
 
-  const { pathname } = window.location
+  const parsedHref = resolve(window.location.pathname, url)
 
-  const parsedHref = resolve(pathname, url)
-
-  const { query } =
-    typeof href !== 'string'
-      ? href
-      : parse(url, true)
+  const { query, pathname } = typeof href !== 'string' ? href : parse(url, true)
 
   const Component = await Router.prefetch(parsedHref)
 
   // if Component exists and has getInitialProps
   // fetch the component props (the component should save it in cache)
   if (Component && Component.getInitialProps) {
-    const ctx = { pathname: href, query, isVirtualCall: true }
+    const ctx = { pathname, query, isVirtualCall: true }
     await Component.getInitialProps(ctx)
   }
 }
@@ -50,14 +42,16 @@ export default class LinkWithData extends Link {
         const value = props[propName]
 
         if (typeof value === 'string') {
-          execOnce(warn)(`Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`)
+          execOnce(warn)(
+            `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
+          )
         }
 
         return null
       }
     ]).isRequired,
     withData: PropTypes.bool // our custom prop
-  });
+  })
 
   // our custom prefetch method
   async prefetch () {

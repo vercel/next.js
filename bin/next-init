@@ -1,4 +1,0 @@
-#!/usr/bin/env node
-console.log('`next init` is not supported anymore. These community projects provide the same functionality as `next init` with additional features: http://npmjs.com/next-init and http://npmjs.com/create-next-app.')
-
-process.exit(0)

@@ -1,4 +1,3 @@
-
 /* Without CSS Modules, maybe with PostCSS */
 
 import '../style.css'

@@ -27,7 +27,10 @@ export default class MyDocument extends Document {
     return (
       <html>
         <Head>
-          <style data-aphrodite dangerouslySetInnerHTML={{ __html: this.props.css.content }} />
+          <style
+            data-aphrodite
+            dangerouslySetInnerHTML={{ __html: this.props.css.content }}
+          />
         </Head>
         <body>
           <Main />

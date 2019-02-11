@@ -36,9 +36,7 @@ export default class extends Component {
       <div>
         <h1>Hello Electron!</h1>
 
-        {this.state.message &&
-          <p>{this.state.message}</p>
-        }
+        {this.state.message && <p>{this.state.message}</p>}
 
         <form onSubmit={this.handleSubmit}>
           <input type='text' onChange={this.handleChange} />

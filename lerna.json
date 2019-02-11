@@ -1,0 +1,18 @@
+{
+  "npmClient": "yarn",
+  "useWorkspaces": true,
+  "packages": [
+    "packages/*"
+  ],
+  "command": {
+    "version": {
+      "exact": true
+    },
+    "publish": {
+      "npmClient": "npm",
+      "allowBranch": "canary",
+      "registry": "https://registry.npmjs.org/"
+    }
+  },
+  "version": "8.0.0-canary.22"
+}

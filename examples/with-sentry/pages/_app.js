@@ -1,32 +1,23 @@
 import App from 'next/app'
-import { captureException } from '../utils/sentry'
+import * as Sentry from '@sentry/browser'
 
-class MyApp extends App {
-  // This reports errors before rendering, when fetching initial props
-  static async getInitialProps (appContext) {
-    const { Component, ctx } = appContext
+const SENTRY_PUBLIC_DSN = ''
 
-    let pageProps = {}
-
-    try {
-      if (Component.getInitialProps) {
-        pageProps = await Component.getInitialProps(ctx)
-      }
-    } catch (e) {
-      captureException(e, ctx)
-      throw e // you can also skip re-throwing and set property on pageProps
-    }
-
-    return {
-      pageProps
-    }
+export default class MyApp extends App {
+  constructor (...args) {
+    super(...args)
+    Sentry.init({ dsn: SENTRY_PUBLIC_DSN })
   }
 
-  // This reports errors thrown while rendering components
   componentDidCatch (error, errorInfo) {
-    captureException(error, { errorInfo })
+    Sentry.configureScope(scope => {
+      Object.keys(errorInfo).forEach(key => {
+        scope.setExtra(key, errorInfo[key])
+      })
+    })
+    Sentry.captureException(error)
+
+    // This is needed to render errors correctly in development / production
     super.componentDidCatch(error, errorInfo)
   }
 }
-
-export default MyApp

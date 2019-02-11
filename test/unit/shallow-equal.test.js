@@ -1,6 +1,6 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 
-import shallowEquals from 'next/dist/lib/shallow-equals'
+import shallowEquals from 'next-server/dist/lib/router/shallow-equals'
 
 describe('Shallow Equals', () => {
   it('should be true if both objects are the same', () => {

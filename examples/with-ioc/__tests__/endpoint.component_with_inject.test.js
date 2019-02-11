@@ -23,13 +23,25 @@ describe('With Enzyme', () => {
     const injected = shallow(<Component Link={() => {}} />)
     const component = injected.dive()
     expect(component.find('h3').text()).toEqual('Endpoint')
-    expect(component.find('Link').first().find('a').text()).toEqual('About: foo baz')
+    expect(
+      component
+        .find('Link')
+        .first()
+        .find('a')
+        .text()
+    ).toEqual('About: foo baz')
   })
 })
 
 describe('With Snapshot Testing', () => {
   it('Blog renders components', () => {
-    const component = renderer.create(<Component Link={(props) => <div comment={'mocked Link component'}>{props.children}</div>} />)
+    const component = renderer.create(
+      <Component
+        Link={props => (
+          <div comment={'mocked Link component'}>{props.children}</div>
+        )}
+      />
+    )
     const tree = component.toJSON()
     expect(tree).toMatchSnapshot()
   })

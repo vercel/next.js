@@ -1,5 +1,4 @@
 import React, { Component } from 'react'
-import Header from '../components/Header'
 
 export default class extends Component {
   state = { message: '' }
@@ -7,12 +6,11 @@ export default class extends Component {
   render () {
     return (
       <div>
-        <Header />
         <h1>This is the Contact page</h1>
         <form onSubmit={this.handleSubmit}>
           <label>
             <span>Message:</span>
-            <textarea onInput={this.handleInput} value={this.state.message} />
+            <textarea onChange={this.handleInput} value={this.state.message} />
           </label>
           <button type='submit'>submit</button>
         </form>

@@ -25,8 +25,11 @@ export default class CreateAccount extends React.Component {
         {/* RegisterBox handles all register logic. */}
         <RegisterBox />
         <hr />
-        Already have an account? <Link prefetch href='/signin'><a>Sign in</a></Link>
+        Already have an account?{' '}
+        <Link prefetch href='/signin'>
+          <a>Sign in</a>
+        </Link>
       </React.Fragment>
     )
   }
-};
+}

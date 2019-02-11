@@ -16,8 +16,8 @@ export default () => (
         </Link>
       </li>
       <li>
-        <Link href='/article?id=3' >
-          <a onMouseOver={e => prefetch('/article?id=3')} >Article 3</a>
+        <Link href='/article?id=3'>
+          <a onMouseOver={e => prefetch('/article?id=3')}>Article 3</a>
         </Link>
       </li>
     </ul>

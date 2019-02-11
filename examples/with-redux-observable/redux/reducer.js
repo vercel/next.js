@@ -17,7 +17,11 @@ export default function reducer (state = INITIAL_STATE, { type, payload }) {
         nextCharacterId: state.nextCharacterId + 1
       }
     case types.FETCH_CHARACTER_FAILURE:
-      return { ...state, error: payload.error, isFetchedOnServer: payload.isServer }
+      return {
+        ...state,
+        error: payload.error,
+        isFetchedOnServer: payload.isServer
+      }
     default:
       return state
   }

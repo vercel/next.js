@@ -38,10 +38,7 @@ export default class MyDocument extends Document {
 
     return (
       <html>
-        <Head>
-          <title>My page</title>
-          {styleNodes}
-        </Head>
+        <Head>{styleNodes}</Head>
         <body>
           <Main />
           <NextScript />

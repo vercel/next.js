@@ -9,8 +9,8 @@
   "dependencies": {
     "aphrodite": "^1.2.5",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "react-with-styles": "^2.2.0",
     "react-with-styles-interface-aphrodite": "^3.1.1"
   },

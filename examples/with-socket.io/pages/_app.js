@@ -1,4 +1,4 @@
-import App, {Container} from 'next/app'
+import App, { Container } from 'next/app'
 import React from 'react'
 import io from 'socket.io-client'
 
@@ -27,7 +27,7 @@ class MyApp extends App {
   }
 
   render () {
-    const {Component, pageProps} = this.props
+    const { Component, pageProps } = this.props
     return (
       <Container>
         <Component {...pageProps} socket={this.state.socket} />

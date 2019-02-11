@@ -1,0 +1,20 @@
+{
+  "name": "with-webpack-bundle-analyzer",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "analyze": "BUNDLE_ANALYZE=both next build",
+    "analyze:server": "BUNDLE_ANALYZE=server next build",
+    "analyze:browser": "BUNDLE_ANALYZE=browser next build"
+  },
+  "dependencies": {
+    "@zeit/next-bundle-analyzer": "^0.1.2",
+    "faker": "^4.1.0",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "license": "ISC"
+}

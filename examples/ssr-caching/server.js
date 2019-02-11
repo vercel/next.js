@@ -9,33 +9,35 @@ const handle = app.getRequestHandler()
 
 // This is where we cache our rendered HTML pages
 const ssrCache = new LRUCache({
-  max: 100,
+  length: function (n, key) {
+    return n.toString().length + key.toString().length
+  },
+  max: 100 * 1000 * 1000, // 100MB cache soft limit
   maxAge: 1000 * 60 * 60 // 1hour
 })
 
-app.prepare()
-  .then(() => {
-    const server = express()
+app.prepare().then(() => {
+  const server = express()
 
-    // Use the `renderAndCache` utility defined below to serve pages
-    server.get('/', (req, res) => {
-      renderAndCache(req, res, '/')
-    })
-
-    server.get('/blog/:id', (req, res) => {
-      const queryParams = { id: req.params.id }
-      renderAndCache(req, res, '/blog', queryParams)
-    })
-
-    server.get('*', (req, res) => {
-      return handle(req, res)
-    })
-
-    server.listen(port, (err) => {
-      if (err) throw err
-      console.log(`> Ready on http://localhost:${port}`)
-    })
+  // Use the `renderAndCache` utility defined below to serve pages
+  server.get('/', (req, res) => {
+    renderAndCache(req, res, '/')
   })
+
+  server.get('/blog/:id', (req, res) => {
+    const queryParams = { id: req.params.id }
+    renderAndCache(req, res, '/blog', queryParams)
+  })
+
+  server.get('*', (req, res) => {
+    return handle(req, res)
+  })
+
+  server.listen(port, err => {
+    if (err) throw err
+    console.log(`> Ready on http://localhost:${port}`)
+  })
+})
 
 /*
  * NB: make sure to modify this to take into account anything that should trigger

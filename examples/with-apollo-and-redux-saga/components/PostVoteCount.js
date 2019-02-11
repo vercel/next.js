@@ -1,4 +1,4 @@
-export default ({votes}) => (
+export default ({ votes }) => (
   <span>
     {votes}
     <style jsx>{`

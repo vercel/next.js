@@ -1,7 +1,7 @@
 import React from 'react'
-import {connect} from 'react-redux'
+import { connect } from 'react-redux'
 
-import {loadData, startClock, tickClock} from '../actions'
+import { loadData, startClock, tickClock } from '../actions'
 import Page from '../components/page'
 
 class Index extends React.Component {

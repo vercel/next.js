@@ -2,9 +2,9 @@
 
 exports['default'] = {
   servers: {
-    socket: (api) => {
+    socket: api => {
       return {
-        enabled: (process.env.ENABLE_TCP_SERVER !== undefined),
+        enabled: process.env.ENABLE_TCP_SERVER !== undefined,
         // TCP or TLS?
         secure: false,
         // Passed to tls.createServer if secure=true. Should contain SSL certificates
@@ -26,7 +26,7 @@ exports['default'] = {
 
 exports.test = {
   servers: {
-    socket: (api) => {
+    socket: api => {
       return {
         enabled: true,
         port: 1001 + (process.pid % 64535),

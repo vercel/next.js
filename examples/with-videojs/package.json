@@ -9,8 +9,8 @@
   "dependencies": {
     "@zeit/next-css": "^1.0.1",
     "next": "latest",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
     "url-loader": "^0.6.2",
     "video.js": "^6.7.3",
     "videojs-youtube": "^2.4.1"

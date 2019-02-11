@@ -12,10 +12,12 @@ export const fetchUserEpic = (action$, state$) =>
     mergeMap(action => {
       return interval(3000).pipe(
         map(x => actions.fetchCharacter()),
-        takeUntil(action$.ofType(
-          types.STOP_FETCHING_CHARACTERS,
-          types.FETCH_CHARACTER_FAILURE
-        ))
+        takeUntil(
+          action$.ofType(
+            types.STOP_FETCHING_CHARACTERS,
+            types.FETCH_CHARACTER_FAILURE
+          )
+        )
       )
     })
   )
@@ -45,7 +47,4 @@ export const fetchCharacterEpic = (action$, state$) =>
     )
   )
 
-export const rootEpic = combineEpics(
-  fetchUserEpic,
-  fetchCharacterEpic
-)
+export const rootEpic = combineEpics(fetchUserEpic, fetchCharacterEpic)

@@ -37,7 +37,7 @@ export default () => (
       }
 
       hr::before {
-        content: "***";
+        content: '***';
         color: #ccc;
       }
     `}</style>

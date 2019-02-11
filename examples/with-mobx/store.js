@@ -1,13 +1,17 @@
 import { action, observable } from 'mobx'
+import { useStaticRendering } from 'mobx-react'
 
-let store = null
+const isServer = typeof window === 'undefined'
+useStaticRendering(isServer)
 
 class Store {
   @observable lastUpdate = 0
   @observable light = false
 
-  constructor (isServer, lastUpdate) {
-    this.lastUpdate = lastUpdate
+  constructor(isServer, initialData = {}) {
+    this.lastUpdate =
+      initialData.lastUpdate != null ? initialData.lastUpdate : Date.now()
+    this.light = !!initialData.light
   }
 
   @action start = () => {
@@ -20,13 +24,14 @@ class Store {
   stop = () => clearInterval(this.timer)
 }
 
-export function initializeStore (isServer, lastUpdate = Date.now()) {
+let store = null
+export function initializeStore(initialData) {
+  // Always make a new store if server, otherwise state is shared between requests
   if (isServer) {
-    return new Store(isServer, lastUpdate)
-  } else {
-    if (store === null) {
-      store = new Store(isServer, lastUpdate)
-    }
-    return store
+    return new Store(isServer, initialData)
   }
+  if (store === null) {
+    store = new Store(isServer, initialData)
+  }
+  return store
 }

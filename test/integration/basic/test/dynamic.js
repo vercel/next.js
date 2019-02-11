@@ -1,4 +1,4 @@
-/* global describe, it, expect */
+/* eslint-env jest */
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
@@ -54,7 +54,7 @@ export default (context, render) => {
       })
     })
     describe('ssr:false option', () => {
-      it('Should render loading on the server side', async () => {
+      it('should render loading on the server side', async () => {
         const $ = await get$('/dynamic/no-ssr')
         expect($('body').html()).not.toContain('"dynamicIds"')
         expect($('p').text()).toBe('loading...')
@@ -64,6 +64,26 @@ export default (context, render) => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/dynamic/no-ssr')
+          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+    })
+
+    describe('ssr:true option', () => {
+      it('Should render the component on the server side', async () => {
+        const $ = await get$('/dynamic/ssr-true')
+        expect($('body').html()).toContain('"dynamicIds"')
+        expect($('p').text()).toBe('Hello World 1')
+      })
+
+      it('should render the component on client side', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/ssr-true')
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {

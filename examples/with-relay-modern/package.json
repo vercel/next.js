@@ -15,17 +15,17 @@
   "dependencies": {
     "dotenv": "^4.0.0",
     "dotenv-webpack": "^1.5.4",
-    "graphql": "^0.13.2",
-    "isomorphic-unfetch": "^2.0.0",
+    "graphql": "^14.1.1",
+    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "react": "^16.2.0",
-    "react-dom": "^16.2.0",
-    "react-relay": "^1.5.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "react-relay": "^2.0.0"
   },
   "devDependencies": {
-    "babel-plugin-relay": "^1.4.1",
+    "babel-plugin-relay": "^2.0.0",
     "graphcool": "^1.2.1",
     "graphql-cli": "^1.0.0-beta.4",
-    "relay-compiler": "^1.5.0"
+    "relay-compiler": "^2.0.0"
   }
 }

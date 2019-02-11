@@ -69,5 +69,3 @@ To pass the initial timestamp from the server to the client we pass it as a prop
 The trick here for supporting universal mobx is to separate the cases for the client and the server. When we are on the server we want to create a new store every time, otherwise different users data will be mixed up. If we are in the client we want to use always the same store. That's what we accomplish on `store.js`
 
 The clock, under `components/Clock.js`, has access to the state using the `inject` and `observer` functions from `mobx-react`. In this case Clock is a direct child from the page but it could be deep down the render tree.
-
-As far as how this example differs from the `with-mobx` example, `mobx-state-tree` requires that any changes to the observable data are sent as actions, which are defined on the model in `server.js`. The snapshot feature, while not very useful in this particular case, makes client-side rehydration of the state amazingly easy. Any changes that are made to the store in `getInitialProps` will be refreshed instantly when that page is loaded on the client.

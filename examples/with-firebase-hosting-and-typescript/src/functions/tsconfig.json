@@ -1,13 +1,12 @@
 {
   "compilerOptions": {
-    "lib": ["es6"],
+    "lib": ["es2017"],
     "module": "commonjs",
-    "noImplicitReturns": true,
+    "strict": true,
     "outDir": "../../dist/functions",
     "sourceMap": true,
-    "target": "es6",
-    "baseUrl": "./src"
+    "target": "es2017",
+    "baseUrl": "./"
   },
-  "compileOnSave": true,
-  "include": ["src"]
+  "compileOnSave": true
 }

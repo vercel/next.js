@@ -47,8 +47,6 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now --docker -e API_URL="https://example.com"
 ```
 
->*Note: Multi-stage only works in OSS plan. [\[#962\]](https://github.com/zeit/now-cli/issues/962#issuecomment-383860104)*
-
 ## The idea behind the example
 
 This example show how to set custom environment variables for your __docker application__ at runtime.

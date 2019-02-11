@@ -1,6 +1,6 @@
 import React from 'react'
-import {connect} from 'react-redux'
-import {startClock, serverRenderClock} from '../store'
+import { connect } from 'react-redux'
+import { startClock, serverRenderClock } from '../store'
 import Examples from '../components/examples'
 
 class Index extends React.Component {
@@ -12,7 +12,7 @@ class Index extends React.Component {
   }
 
   componentDidMount () {
-    const {dispatch} = this.props
+    const { dispatch } = this.props
     this.timer = startClock(dispatch)
   }
 
@@ -21,9 +21,7 @@ class Index extends React.Component {
   }
 
   render () {
-    return (
-      <Examples />
-    )
+    return <Examples />
   }
 }
 

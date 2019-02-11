@@ -10,8 +10,8 @@
     "glamor": "^2.20.24",
     "glamorous": "^4.11.0",
     "next": "latest",
-    "react": "16.2.0",
-    "react-dom": "16.2.0"
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "license": "ISC"
 }

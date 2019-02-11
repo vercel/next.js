@@ -8,7 +8,7 @@ export default class ClockContainer extends Container {
   constructor () {
     super()
     this.interval = setInterval(() => {
-      this.setState((state) => ({ light: !state.light, lastUpdate: Date.now() }))
+      this.setState(state => ({ light: !state.light, lastUpdate: Date.now() }))
     }, 1000)
   }
 }

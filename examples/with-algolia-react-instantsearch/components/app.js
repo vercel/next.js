@@ -10,7 +10,7 @@ import {
 } from 'react-instantsearch/dom'
 import { InstantSearch } from './instantsearch'
 
-const HitComponent = ({ hit }) =>
+const HitComponent = ({ hit }) => (
   <div className='hit'>
     <div>
       <div className='hit-picture'>
@@ -20,12 +20,8 @@ const HitComponent = ({ hit }) =>
     <div className='hit-content'>
       <div>
         <Highlight attributeName='name' hit={hit} />
-        <span>
-          {' '}- ${hit.price}
-        </span>
-        <span>
-          {' '}- {hit.rating} stars
-        </span>
+        <span> - ${hit.price}</span>
+        <span> - {hit.rating} stars</span>
       </div>
       <div className='hit-type'>
         <Highlight attributeName='type' hit={hit} />
@@ -35,6 +31,7 @@ const HitComponent = ({ hit }) =>
       </div>
     </div>
   </div>
+)
 
 HitComponent.propTypes = {
   hit: PropTypes.object
@@ -45,7 +42,7 @@ export default class extends React.Component {
     searchState: PropTypes.object,
     resultsState: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
     onSearchStateChange: PropTypes.func
-  };
+  }
 
   render () {
     return (

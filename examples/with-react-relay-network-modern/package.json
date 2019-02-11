@@ -1,0 +1,33 @@
+{
+  "name": "with-react-relay-network-modern",
+  "version": "3.0.3",
+  "description": "Example of Next.js with Relay Modern and react-relay-network-modern",
+  "scripts": {
+    "graphcool-init": "graphcool init --schema schema/init-schema.graphql",
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "relay": "relay-compiler --src ./ --exclude '**/.next/**' '**/node_modules/**' '**/test/**'  '**/__generated__/**' --exclude '**/schema/**' --schema ./schema/schema.graphql",
+    "schema": "graphql get-schema dev"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^4.0.0",
+    "dotenv-webpack": "^1.5.4",
+    "graphql": "^0.13.2",
+    "isomorphic-fetch": "2.2.1",
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "react-relay": "^1.5.0",
+    "react-relay-network-modern": "2.4.0",
+    "react-relay-network-modern-ssr": "1.2.1"
+  },
+  "devDependencies": {
+    "babel-plugin-relay": "^1.4.1",
+    "graphcool": "^1.2.1",
+    "graphql-cli": "^1.0.0-beta.4",
+    "relay-compiler": "^1.5.0"
+  }
+}

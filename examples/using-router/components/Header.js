@@ -13,7 +13,7 @@ export default () => (
 // and use it manually
 
 function onClickHandler (href) {
-  return (e) => {
+  return e => {
     e.preventDefault()
     Router.push(href)
   }

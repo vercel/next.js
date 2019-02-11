@@ -7,9 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "^7.0.0-canary.16",
-    "react": "^16.0.0",
-    "react-dom": "^16.0.0"
+    "next": "^7.0.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
   },
   "license": "ISC"
 }

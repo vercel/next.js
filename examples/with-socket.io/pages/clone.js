@@ -51,12 +51,12 @@ class ChatTwo extends Component {
   }
 
   // add messages from server to the state
-  handleMessage = (message) => {
+  handleMessage = message => {
     this.setState(state => ({ messages: state.messages.concat(message) }))
   }
 
   handleOtherMessage = () => {
-    this.setState((prevState) => ({ newMessage: (prevState.newMessage + 1) }))
+    this.setState(prevState => ({ newMessage: prevState.newMessage + 1 }))
   }
 
   handleChange = event => {
@@ -69,7 +69,7 @@ class ChatTwo extends Component {
 
     // create message object
     const message = {
-      id: (new Date()).getTime(),
+      id: new Date().getTime(),
       value: this.state.field
     }
 
@@ -87,15 +87,23 @@ class ChatTwo extends Component {
     return (
       <main>
         <div>
-          <Link href={'/'}><a>{`Chat One ${this.state.newMessage > 0 ? `( ${this.state.newMessage} new message )` : ''}`}</a></Link>
+          <Link href={'/'}>
+            <a>{`Chat One ${
+              this.state.newMessage > 0
+                ? `( ${this.state.newMessage} new message )`
+                : ''
+            }`}</a>
+          </Link>
           <br />
-          <Link href={'/clone'}><a>{'Chat Two'}</a></Link>
+          <Link href={'/clone'}>
+            <a>{'Chat Two'}</a>
+          </Link>
           <ul>
-            {this.state.messages.map(message =>
+            {this.state.messages.map(message => (
               <li key={message.id}>{message.value}</li>
-            )}
+            ))}
           </ul>
-          <form onSubmit={(e) => this.handleSubmit(e)}>
+          <form onSubmit={e => this.handleSubmit(e)}>
             <input
               onChange={this.handleChange}
               type='text'

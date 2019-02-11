@@ -1,4 +1,8 @@
-export default ({ clock: { state: { lastUpdate, light } } }) => {
+export default ({
+  clock: {
+    state: { lastUpdate, light }
+  }
+}) => {
   return (
     <div className={light ? 'light' : ''}>
       {format(new Date(lastUpdate))}
@@ -6,7 +10,7 @@ export default ({ clock: { state: { lastUpdate, light } } }) => {
         div {
           padding: 15px;
           display: inline-block;
-          color: #82FA58;
+          color: #82fa58;
           font: 50px menlo, monaco, monospace;
           background-color: #000;
         }
@@ -18,6 +22,7 @@ export default ({ clock: { state: { lastUpdate, light } } }) => {
   )
 }
 
-const format = t => `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
+const format = t =>
+  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
 
-const pad = n => n < 10 ? `0${n}` : n
+const pad = n => (n < 10 ? `0${n}` : n)

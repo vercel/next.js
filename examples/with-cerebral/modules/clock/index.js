@@ -1,5 +1,4 @@
-
-import {mounted, unMounted, secondTicked} from './signals'
+import { mounted, unMounted, secondTicked } from './signals'
 import provider from './provider'
 
 export default {
