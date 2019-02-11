@@ -6,7 +6,7 @@ import { findData } from '../utils/sample-api'
 import ListDetail from '../components/ListDetail';
 
 type RequestQuery = {
-  id: number,
+  id: string,
 }
 
 type Props = {
