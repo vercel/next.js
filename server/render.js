@@ -88,7 +88,7 @@ export async function doDocRender (page, initialProps, { dev, dir, publicPath, e
       publicPath: docProps.publicPath || publicPath,
       err: docProps.err
     },
-    entrypoints: entrypoints || hotReloader.stats.compilation.entrypoints,
+    entrypoints: entrypoints || hotReloader.multiStats.stats[0].compilation.entrypoints,
     dev,
     ...docProps
   })

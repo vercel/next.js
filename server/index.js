@@ -85,7 +85,8 @@ export default class Server {
 
   readEntrypoints () {
     const buildIdPath = join(this.dir, '.next', 'webpack-entrypoints.json')
-    return new Map(Object.entries(JSON.parse(fs.readFileSync(buildIdPath, 'utf8'))))
+    const entrypoints = JSON.parse(fs.readFileSync(buildIdPath, 'utf8'))
+    return new Map(Object.entries(entrypoints[process.env.SITE || 'default']))
   }
 
   async getCompilationError () {
