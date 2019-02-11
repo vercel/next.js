@@ -115,7 +115,9 @@ After that, the file-system is the main API. Every `.js` file becomes a route th
 Populate `./pages/index.js` inside your project:
 
 ```jsx
-export default () => <div>Welcome to next.js!</div>
+const Home = () => <div>Welcome to next.js!</div>
+
+export default Home
 ```
 
 and then just run `npm run dev` and go to `http://localhost:3000`. To use another port, you can run `npm run dev -- -p <your port here>`.
@@ -136,11 +138,13 @@ Every `import` you declare gets bundled and served with each page. That means pa
 ```jsx
 import cowsay from 'cowsay-browser'
 
-export default () => (
+const CowsayHi = () => (
   <pre>
     {cowsay.say({ text: 'hi there!' })}
   </pre>
 )
+
+export default CowsayHi
 ```
 
 ### CSS
@@ -159,7 +163,7 @@ export default () => (
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
-export default () => (
+const HelloWorld = () => (
   <div>
     Hello world
     <p>scoped!</p>
@@ -183,6 +187,8 @@ export default () => (
     `}</style>
   </div>
 )
+
+export default HelloWorld
 ```
 
 Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-jsx) for more examples.
@@ -208,7 +214,9 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
 ```jsx
-export default () => <p style={{ color: 'red' }}>hi there</p>
+const HiThere = () => <p style={{ color: 'red' }}>hi there</p>
+
+export default HiThere
 ```
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
@@ -227,7 +235,9 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
-export default () => <img src="/static/my-image.png" alt="my image" />
+const Image = () => <img src="/static/my-image.png" alt="my image" />
+
+export default Image
 ```
 
 _Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
@@ -249,34 +259,38 @@ We expose a built-in component for appending elements to the `<head>` of the pag
 ```jsx
 import Head from 'next/head'
 
-export default () => (
+const Head = () => (
   <div>
-    <Head>
+    <NextHead>
       <title>My page title</title>
       <meta name="viewport" content="initial-scale=1.0, width=device-width" />
-    </Head>
+    </NextHead>
     <p>Hello world!</p>
   </div>
 )
+
+export default Head
 ```
 
 To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
 
 ```jsx
-import Head from 'next/head'
+import NextHead from 'next/head'
 
-export default () => (
+const Head = () => (
   <div>
-    <Head>
+    <NextHead>
       <title>My page title</title>
       <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
-    </Head>
-    <Head>
+    </NextHead>
+    <NextHead>
       <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
-    </Head>
+    </NextHead>
     <p>Hello world!</p>
   </div>
 )
+
+export default Head
 ```
 
 In this case only the second `<meta name="viewport" />` is rendered.
@@ -301,7 +315,7 @@ When you need state, lifecycle hooks or **initial data population** you can expo
 ```jsx
 import React from 'react'
 
-export default class extends React.Component {
+class HelloUA extends React.Component {
   static async getInitialProps({ req }) {
     const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
     return { userAgent }
@@ -315,6 +329,8 @@ export default class extends React.Component {
     )
   }
 }
+
+export default HelloUA
 ```
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
@@ -384,7 +400,7 @@ Consider these two pages:
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
+const Home = () => (
   <div>
     Click{' '}
     <Link href="/about">
@@ -393,11 +409,15 @@ export default () => (
     to read more
   </div>
 )
+
+export default Home
 ```
 
 ```jsx
 // pages/about.js
-export default () => <p>Welcome to About!</p>
+const About = () => <p>Welcome to About!</p>
+
+export default About
 ```
 
 **Custom routes (using props from URL)**
@@ -414,7 +434,7 @@ Example:
 2. You created the `pages/post.js`
 
     ```jsx
-    export default class extends React.Component {
+    class Post extends React.Component {
       static async getInitialProps({query}) {
         console.log('SLUG', query.slug)
         return {}
@@ -423,6 +443,8 @@ Example:
         return <h1>My blog post</h1>
       }
     }
+
+    export default Post
     ```
 3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
 
@@ -463,7 +485,7 @@ The component `<Link>` can also receive an URL object and it will automatically 
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
+const Home = () => (
   <div>
     Click{' '}
     <Link href={{ pathname: '/about', query: { name: 'Zeit' } }}>
@@ -472,6 +494,8 @@ export default () => (
     to read more
   </div>
 )
+
+export default Home
 ```
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
@@ -484,7 +508,7 @@ The default behaviour for the `<Link>` component is to `push` a new url into the
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
+const Home = () => (
   <div>
     Click{' '}
     <Link href="/about" replace>
@@ -493,6 +517,8 @@ export default () => (
     to read more
   </div>
 )
+
+export default Home
 ```
 
 ##### Using a component that supports `onClick`
@@ -503,7 +529,7 @@ export default () => (
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
+const Home = () => (
   <div>
     Click{' '}
     <Link href="/about">
@@ -511,6 +537,8 @@ export default () => (
     </Link>
   </div>
 )
+
+export default Home
 ```
 
 ##### Forcing the Link to expose `href` to its child
@@ -523,13 +551,15 @@ If child is an `<a>` tag and doesn't have a href attribute we specify it so that
 import Link from 'next/link'
 import Unexpected_A from 'third-library'
 
-export default ({ href, name }) => (
+const NavLink = ({ href, name }) => (
   <Link href={href} passHref>
     <Unexpected_A>
       {name}
     </Unexpected_A>
   </Link>
 )
+
+export default NavLink
 ```
 
 ##### Disabling the scroll changes to top on page
@@ -558,11 +588,13 @@ You can also do client-side page transitions using the `next/router`
 ```jsx
 import Router from 'next/router'
 
-export default () => (
+const ReadMore = () => (
   <div>
     Click <span onClick={() => Router.push('/about')}>here</span> to read more
   </div>
 )
+
+export default ReadMore
 ```
 
 #### Intercepting `popstate`
@@ -615,11 +647,13 @@ const handler = () => {
   })
 }
 
-export default () => (
+const ReadMore = () => (
   <div>
     Click <span onClick={handler}>here</span> to read more
   </div>
 )
+
+export default ReadMore
 ```
 
 This uses the same exact parameters as in the `<Link>` component.
@@ -773,8 +807,7 @@ You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those page
 ```jsx
 import Link from 'next/link'
 
-// example header component
-export default () => (
+const Header = () => (
   <nav>
     <ul>
       <li>
@@ -795,6 +828,8 @@ export default () => (
     </ul>
   </nav>
 )
+
+export default Header
 ```
 
 #### Imperatively
@@ -804,7 +839,7 @@ Most prefetching needs are addressed by `<Link />`, but we also expose an impera
 ```jsx
 import { withRouter } from 'next/router'
 
-export default withRouter(({ router }) => (
+const MyLink = withRouter(({ router }) => (
   <div>
     <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
       A route transition will happen after 100ms
@@ -813,6 +848,8 @@ export default withRouter(({ router }) => (
     router.prefetch('/dynamic')}
   </div>
 )
+
+export default MyLink
 ```
 
 The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
@@ -1004,13 +1041,15 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() => import('../components/hello'))
 
-export default () => (
+const Home = () => (
   <div>
     <Header />
     <DynamicComponent />
     <p>HOME PAGE is here!</p>
   </div>
 )
+
+export default Home
 ```
 
 #### 2. With Custom Loading Component
@@ -1022,13 +1061,15 @@ const DynamicComponentWithCustomLoading = dynamic(() => import('../components/he
   loading: () => <p>...</p>
 })
 
-export default () => (
+const Home () => (
   <div>
     <Header />
     <DynamicComponentWithCustomLoading />
     <p>HOME PAGE is here!</p>
   </div>
 )
+
+export default Home
 ```
 
 #### 3. With No SSR
@@ -1040,13 +1081,15 @@ const DynamicComponentWithNoSSR = dynamic(() => import('../components/hello3'), 
   ssr: false
 })
 
-export default () => (
+const Home = () => (
   <div>
     <Header />
     <DynamicComponentWithNoSSR />
     <p>HOME PAGE is here!</p>
   </div>
 )
+
+export default Home
 ```
 
 #### 4. With Multiple Modules At Once
@@ -1073,7 +1116,9 @@ const HelloBundle = dynamic({
     </div>
 })
 
-export default () => <HelloBundle title="Dynamic Bundle" />
+const DynamicBundle = <HelloBundle title="Dynamic Bundle" />
+
+export default DynamicBundle
 ```
 
 ### Custom `<App>`
@@ -1205,6 +1250,7 @@ export default class MyDocument extends Document {
     return initialProps
   }
 }
+
 ```
 
 ### Custom error handling
@@ -1232,6 +1278,8 @@ export default class Error extends React.Component {
     )
   }
 }
+
+export
 ```
 
 ### Reusing the built-in error page
@@ -1617,9 +1665,11 @@ const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
-export default () => <div>
+const MyImage = () => <div>
   <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
 </div>
+
+export default MyImage
 ```
 
 ### Starting the server on alternative hostname
