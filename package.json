@@ -19,6 +19,7 @@
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
+    "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged"
   },
   "pre-commit": "lint-staged",
