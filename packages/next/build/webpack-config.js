@@ -295,7 +295,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         {},
         config.env ? Object.keys(config.env)
           .reduce((acc, key) => {
-            if (/^(?:NODE_\w+)|(?:NEXT_\w+)|(?:__\w+)|(?:CONFIG_BUILD_ID)|(?:PORT)$/.test(key.toUpperCase())) throw new Error(`Next.js config env cannot have key of ${key}`)
+            if (/^(?:NODE_.+)|(?:__.+)$/.test(key.toUpperCase())) throw new Error(`Next.js config env cannot have key of ${key}`)
             return {
               ...acc,
               ...{ [`process.env.${key}`]: JSON.stringify(config.env[key]) }

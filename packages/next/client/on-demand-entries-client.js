@@ -20,7 +20,7 @@ export default async ({ assetPrefix }) => {
     }
 
     return new Promise(resolve => {
-      ws = new WebSocket(`${wsProtocol}://${hostname}:${process.env.NEXT_WS_PORT}${process.env.NEXT_WS_PROXY_PATH}`)
+      ws = new WebSocket(`${wsProtocol}://${hostname}:${process.env.__NEXT_WS_PORT}${process.env.__NEXT_WS_PROXY_PATH}`)
       ws.onopen = () => resolve()
       ws.onclose = () => {
         setTimeout(async () => {
