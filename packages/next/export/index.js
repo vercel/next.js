@@ -104,6 +104,7 @@ export default async function (dir, options, configuration) {
 
   log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
+  exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
 
   const progress = !options.silent && createProgress(exportPaths.length)
