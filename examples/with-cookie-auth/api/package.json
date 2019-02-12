@@ -12,7 +12,7 @@
   },
   "scripts": {
     "start": "micro",
-    "dev": "micro-dev"
+    "dev": "micro-dev . -p 3001"
   },
   "keywords": [],
   "author": "",

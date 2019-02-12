@@ -115,7 +115,11 @@ After that, the file-system is the main API. Every `.js` file becomes a route th
 Populate `./pages/index.js` inside your project:
 
 ```jsx
-export default () => <div>Welcome to next.js!</div>
+function Home() {
+  return <div>Welcome to next.js!</div>
+}
+
+export default Home
 ```
 
 and then just run `npm run dev` and go to `http://localhost:3000`. To use another port, you can run `npm run dev -- -p <your port here>`.
@@ -136,11 +140,15 @@ Every `import` you declare gets bundled and served with each page. That means pa
 ```jsx
 import cowsay from 'cowsay-browser'
 
-export default () => (
-  <pre>
-    {cowsay.say({ text: 'hi there!' })}
-  </pre>
-)
+function CowsayHi() {
+  return (
+    <pre>
+      {cowsay.say({ text: 'hi there!' })}
+    </pre>
+  )
+}
+
+export default CowsayHi
 ```
 
 ### CSS
@@ -159,30 +167,34 @@ export default () => (
 We bundle [styled-jsx](https://github.com/zeit/styled-jsx) to provide support for isolated scoped CSS. The aim is to support "shadow CSS" similar to Web Components, which unfortunately [do not support server-rendering and are JS-only](https://github.com/w3c/webcomponents/issues/71).
 
 ```jsx
-export default () => (
-  <div>
-    Hello world
-    <p>scoped!</p>
-    <style jsx>{`
-      p {
-        color: blue;
-      }
-      div {
-        background: red;
-      }
-      @media (max-width: 600px) {
-        div {
-          background: blue;
+function HelloWorld() {
+  return (
+    <div>
+      Hello world
+      <p>scoped!</p>
+      <style jsx>{`
+        p {
+          color: blue;
         }
-      }
-    `}</style>
-    <style global jsx>{`
-      body {
-        background: black;
-      }
-    `}</style>
-  </div>
-)
+        div {
+          background: red;
+        }
+        @media (max-width: 600px) {
+          div {
+            background: blue;
+          }
+        }
+      `}</style>
+      <style global jsx>{`
+        body {
+          background: black;
+        }
+      `}</style>
+    </div>
+  )
+}
+
+export default HelloWorld
 ```
 
 Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-jsx) for more examples.
@@ -208,7 +220,11 @@ Please see the [styled-jsx documentation](https://www.npmjs.com/package/styled-j
 It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
 ```jsx
-export default () => <p style={{ color: 'red' }}>hi there</p>
+function HiThere() {
+  return <p style={{ color: 'red' }}>hi there</p>
+}
+
+export default HiThere
 ```
 
 To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
@@ -227,7 +243,11 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
-export default () => <img src="/static/my-image.png" alt="my image" />
+function MyImage() {
+  return <img src="/static/my-image.png" alt="my image" />
+}
+
+export default MyImage
 ```
 
 _Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
@@ -249,15 +269,19 @@ We expose a built-in component for appending elements to the `<head>` of the pag
 ```jsx
 import Head from 'next/head'
 
-export default () => (
-  <div>
-    <Head>
-      <title>My page title</title>
-      <meta name="viewport" content="initial-scale=1.0, width=device-width" />
-    </Head>
-    <p>Hello world!</p>
-  </div>
-)
+function IndexPage() {
+  return (
+    <div>
+      <Head>
+        <title>My page title</title>
+        <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+      </Head>
+      <p>Hello world!</p>
+    </div>
+  )
+}
+
+export default IndexPage
 ```
 
 To avoid duplicate tags in your `<head>` you can use the `key` property, which will make sure the tag is only rendered once:
@@ -265,18 +289,22 @@ To avoid duplicate tags in your `<head>` you can use the `key` property, which w
 ```jsx
 import Head from 'next/head'
 
-export default () => (
-  <div>
-    <Head>
-      <title>My page title</title>
-      <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
-    </Head>
-    <Head>
-      <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
-    </Head>
-    <p>Hello world!</p>
-  </div>
-)
+function IndexPage() {
+  return (
+    <div>
+      <Head>
+        <title>My page title</title>
+        <meta name="viewport" content="initial-scale=1.0, width=device-width" key="viewport" />
+      </Head>
+      <Head>
+        <meta name="viewport" content="initial-scale=1.2, width=device-width" key="viewport" />
+      </Head>
+      <p>Hello world!</p>
+    </div>
+  )
+}
+
+export default IndexPage
 ```
 
 In this case only the second `<meta name="viewport" />` is rendered.
@@ -301,7 +329,7 @@ When you need state, lifecycle hooks or **initial data population** you can expo
 ```jsx
 import React from 'react'
 
-export default class extends React.Component {
+class HelloUA extends React.Component {
   static async getInitialProps({ req }) {
     const userAgent = req ? req.headers['user-agent'] : navigator.userAgent
     return { userAgent }
@@ -315,6 +343,8 @@ export default class extends React.Component {
     )
   }
 }
+
+export default HelloUA
 ```
 
 Notice that to load data when the page loads, we use `getInitialProps` which is an [`async`](https://zeit.co/blog/async-and-await) static method. It can asynchronously fetch anything that resolves to a JavaScript plain `Object`, which populates `props`.
@@ -335,10 +365,9 @@ _Note: `getInitialProps` can **not** be used in children components. Only in `pa
 You can also define the `getInitialProps` lifecycle method for stateless components:
 
 ```jsx
-const Page = ({ stars }) =>
-  <div>
-    Next stars: {stars}
-  </div>
+function Page({ stars }) {
+  return <div>Next stars: {stars}</div>
+}
 
 Page.getInitialProps = async ({ req }) => {
   const res = await fetch('https://api.github.com/repos/zeit/next.js')
@@ -384,20 +413,28 @@ Consider these two pages:
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
-  <div>
-    Click{' '}
-    <Link href="/about">
-      <a>here</a>
-    </Link>{' '}
-    to read more
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      Click{' '}
+      <Link href="/about">
+        <a>here</a>
+      </Link>{' '}
+      to read more
+    </div>
+  )
+}
+
+export default Home
 ```
 
 ```jsx
 // pages/about.js
-export default () => <p>Welcome to About!</p>
+function About() {
+  return <p>Welcome to About!</p>
+}
+
+export default About
 ```
 
 **Custom routes (using props from URL)**
@@ -414,7 +451,7 @@ Example:
 2. You created the `pages/post.js`
 
     ```jsx
-    export default class extends React.Component {
+    class Post extends React.Component {
       static async getInitialProps({query}) {
         console.log('SLUG', query.slug)
         return {}
@@ -423,6 +460,8 @@ Example:
         return <h1>My blog post</h1>
       }
     }
+
+    export default Post
     ```
 3. You add the route to `express` (or any other server) on `server.js` file (this is only for SSR). This will route the url `/post/:slug` to `pages/post.js` and provide `slug` as part of query in getInitialProps.
 
@@ -463,15 +502,19 @@ The component `<Link>` can also receive an URL object and it will automatically 
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
-  <div>
-    Click{' '}
-    <Link href={{ pathname: '/about', query: { name: 'Zeit' } }}>
-      <a>here</a>
-    </Link>{' '}
-    to read more
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      Click{' '}
+      <Link href={{ pathname: '/about', query: { name: 'Zeit' } }}>
+        <a>here</a>
+      </Link>{' '}
+      to read more
+    </div>
+  )
+}
+
+export default Home
 ```
 
 That will generate the URL string `/about?name=Zeit`, you can use every property as defined in the [Node.js URL module documentation](https://nodejs.org/api/url.html#url_url_strings_and_url_objects).
@@ -484,15 +527,19 @@ The default behaviour for the `<Link>` component is to `push` a new url into the
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
-  <div>
-    Click{' '}
-    <Link href="/about" replace>
-      <a>here</a>
-    </Link>{' '}
-    to read more
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      Click{' '}
+      <Link href="/about" replace>
+        <a>here</a>
+      </Link>{' '}
+      to read more
+    </div>
+  )
+}
+
+export default Home
 ```
 
 ##### Using a component that supports `onClick`
@@ -503,14 +550,18 @@ export default () => (
 // pages/index.js
 import Link from 'next/link'
 
-export default () => (
-  <div>
-    Click{' '}
-    <Link href="/about">
-      <img src="/static/image.png" alt="image" />
-    </Link>
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      Click{' '}
+      <Link href="/about">
+        <img src="/static/image.png" alt="image" />
+      </Link>
+    </div>
+  )
+}
+
+export default Home
 ```
 
 ##### Forcing the Link to expose `href` to its child
@@ -523,13 +574,17 @@ If child is an `<a>` tag and doesn't have a href attribute we specify it so that
 import Link from 'next/link'
 import Unexpected_A from 'third-library'
 
-export default ({ href, name }) => (
-  <Link href={href} passHref>
-    <Unexpected_A>
-      {name}
-    </Unexpected_A>
-  </Link>
-)
+function NavLink({ href, name }) {
+  return (
+    <Link href={href} passHref>
+      <Unexpected_A>
+        {name}
+      </Unexpected_A>
+    </Link>
+  )
+}
+
+export default NavLink
 ```
 
 ##### Disabling the scroll changes to top on page
@@ -558,11 +613,15 @@ You can also do client-side page transitions using the `next/router`
 ```jsx
 import Router from 'next/router'
 
-export default () => (
-  <div>
-    Click <span onClick={() => Router.push('/about')}>here</span> to read more
-  </div>
-)
+function ReadMore() {
+  return (
+    <div>
+      Click <span onClick={() => Router.push('/about')}>here</span> to read more
+    </div>
+  )
+}
+
+export default ReadMore
 ```
 
 #### Intercepting `popstate`
@@ -615,11 +674,15 @@ const handler = () => {
   })
 }
 
-export default () => (
-  <div>
-    Click <span onClick={handler}>here</span> to read more
-  </div>
-)
+function ReadMore() {
+    return (
+    <div>
+      Click <span onClick={handler}>here</span> to read more
+    </div>
+  )
+}
+
+export default ReadMore
 ```
 
 This uses the same exact parameters as in the `<Link>` component.
@@ -724,7 +787,7 @@ If you want to access the `router` object inside any component in your app, you 
 ```jsx
 import { withRouter } from 'next/router'
 
-const ActiveLink = ({ children, router, href }) => {
+function ActiveLink({ children, router, href }) {
   const style = {
     marginRight: 10,
     color: router.pathname === href ? 'red' : 'black'
@@ -773,28 +836,31 @@ You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those page
 ```jsx
 import Link from 'next/link'
 
-// example header component
-export default () => (
-  <nav>
-    <ul>
-      <li>
-        <Link prefetch href="/">
-          <a>Home</a>
-        </Link>
-      </li>
-      <li>
-        <Link prefetch href="/about">
-          <a>About</a>
-        </Link>
-      </li>
-      <li>
-        <Link prefetch href="/contact">
-          <a>Contact</a>
-        </Link>
-      </li>
-    </ul>
-  </nav>
-)
+function Header() { 
+  return (
+    <nav>
+      <ul>
+        <li>
+          <Link prefetch href="/">
+            <a>Home</a>
+          </Link>
+        </li>
+        <li>
+          <Link prefetch href="/about">
+            <a>About</a>
+          </Link>
+        </li>
+        <li>
+          <Link prefetch href="/contact">
+            <a>Contact</a>
+          </Link>
+        </li>
+      </ul>
+    </nav>
+  )
+}
+
+export default Header
 ```
 
 #### Imperatively
@@ -804,15 +870,19 @@ Most prefetching needs are addressed by `<Link />`, but we also expose an impera
 ```jsx
 import { withRouter } from 'next/router'
 
-export default withRouter(({ router }) => (
-  <div>
-    <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
-      A route transition will happen after 100ms
-    </a>
-    {// but we can prefetch it!
-    router.prefetch('/dynamic')}
-  </div>
-)
+function MyLink({ router }) { 
+  return (
+    <div>
+      <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
+        A route transition will happen after 100ms
+      </a>
+      {// but we can prefetch it!
+      router.prefetch('/dynamic')}
+    </div>
+  )
+}
+
+export default withRouter(MyLink)
 ```
 
 The router instance should be only used inside the client side of your app though. In order to prevent any error regarding this subject, when rendering the Router on the server side, use the imperatively prefetch method in the `componentDidMount()` lifecycle method.
@@ -1004,13 +1074,17 @@ import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() => import('../components/hello'))
 
-export default () => (
-  <div>
-    <Header />
-    <DynamicComponent />
-    <p>HOME PAGE is here!</p>
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponent />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+} 
+
+export default Home
 ```
 
 #### 2. With Custom Loading Component
@@ -1022,13 +1096,17 @@ const DynamicComponentWithCustomLoading = dynamic(() => import('../components/he
   loading: () => <p>...</p>
 })
 
-export default () => (
-  <div>
-    <Header />
-    <DynamicComponentWithCustomLoading />
-    <p>HOME PAGE is here!</p>
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponentWithCustomLoading />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+}
+
+export default Home
 ```
 
 #### 3. With No SSR
@@ -1040,13 +1118,17 @@ const DynamicComponentWithNoSSR = dynamic(() => import('../components/hello3'), 
   ssr: false
 })
 
-export default () => (
-  <div>
-    <Header />
-    <DynamicComponentWithNoSSR />
-    <p>HOME PAGE is here!</p>
-  </div>
-)
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponentWithNoSSR />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+}
+
+export default Home
 ```
 
 #### 4. With Multiple Modules At Once
@@ -1073,7 +1155,11 @@ const HelloBundle = dynamic({
     </div>
 })
 
-export default () => <HelloBundle title="Dynamic Bundle" />
+function DynamicBundle() {
+  return <HelloBundle title="Dynamic Bundle" />
+}
+
+export default DynamicBundle
 ```
 
 ### Custom `<App>`
@@ -1101,7 +1187,7 @@ To override, create the `./pages/_app.js` file and override the App class as sho
 import React from 'react'
 import App, { Container } from 'next/app'
 
-export default class MyApp extends App {
+class MyApp extends App {
   static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
@@ -1122,6 +1208,8 @@ export default class MyApp extends App {
     )
   }
 }
+
+export default MyApp
 ```
 
 ### Custom `<Document>`
@@ -1149,7 +1237,7 @@ Pages in `Next.js` skip the definition of the surrounding document's markup. For
 // ./pages/_document.js
 import Document, { Head, Main, NextScript } from 'next/document'
 
-export default class MyDocument extends Document {
+class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx)
     return { ...initialProps }
@@ -1169,6 +1257,8 @@ export default class MyDocument extends Document {
     )
   }
 }
+
+export default MyDocument
 ```
 
 All of `<Head />`, `<Main />` and `<NextScript />` are required for page to be properly rendered.
@@ -1188,7 +1278,7 @@ that need to wrap the application to properly work with server-rendering. 🚧
 ```js
 import Document from 'next/document'
 
-export default class MyDocument extends Document {
+class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const originalRenderPage = ctx.renderPage
 
@@ -1205,6 +1295,8 @@ export default class MyDocument extends Document {
     return initialProps
   }
 }
+
+export default MyDocument
 ```
 
 ### Custom error handling
@@ -1216,7 +1308,7 @@ export default class MyDocument extends Document {
 ```jsx
 import React from 'react'
 
-export default class Error extends React.Component {
+class Error extends React.Component {
   static getInitialProps({ res, err }) {
     const statusCode = res ? res.statusCode : err ? err.statusCode : null;
     return { statusCode }
@@ -1232,6 +1324,8 @@ export default class Error extends React.Component {
     )
   }
 }
+
+export default Error
 ```
 
 ### Reusing the built-in error page
@@ -1243,7 +1337,7 @@ import React from 'react'
 import Error from 'next/error'
 import fetch from 'isomorphic-unfetch'
 
-export default class Page extends React.Component {
+class Page extends React.Component {
   static async getInitialProps() {
     const res = await fetch('https://api.github.com/repos/zeit/next.js')
     const errorCode = res.statusCode > 200 ? res.statusCode : false
@@ -1264,6 +1358,8 @@ export default class Page extends React.Component {
     )
   }
 }
+
+export default Page
 ```
 
 > If you have created a custom error page you have to import your own `_error` component from `./_error` instead of `next/error`
@@ -1577,9 +1673,11 @@ This will allow you to use `process.env.customKey` in your code. For example:
 
 ```jsx
 // pages/index.js
-export default function Index() {
+function Index() {
   return <h1>The value of customEnv is: {process.env.customEnv}</h1>
 }
+
+export default Index
 ```
 
 #### Runtime configuration
@@ -1617,9 +1715,15 @@ const {serverRuntimeConfig, publicRuntimeConfig} = getConfig()
 console.log(serverRuntimeConfig.mySecret) // Will only be available on the server side
 console.log(publicRuntimeConfig.staticFolder) // Will be available on both server and client
 
-export default () => <div>
-  <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
-</div>
+function MyImage() {
+  return (
+    <div>
+      <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
+    </div>
+  )
+}
+
+export default MyImage
 ```
 
 ### Starting the server on alternative hostname

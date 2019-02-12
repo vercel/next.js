@@ -6,60 +6,29 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-      - run: yarn install
-      - run: yarn bootstrap
-      - run: yarn lint
-      - run: yarn test
-  publish-stable:
-    docker:
-      - image: circleci/node:10
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run: yarn install
-      - run: yarn bootstrap
       - run:
-          name: Saving Authentication Information
-          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      # - run:
-      #     name: Publishing to Stable Channel
-      #     command: yarn run lerna publish from-git --yes
-
-  publish-canary:
-    docker:
-      - image: circleci/node:10
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run: yarn install
-      - run: yarn bootstrap
+          name: Installing dependencies
+          command: yarn install
       - run:
-          name: Saving Authentication Information
-          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          name: Bootstrapping
+          command: yarn bootstrap
       - run:
-          name: Publishing to Canary Channel
-          command: yarn run lerna publish from-git --npm-tag canary --yes
+          name: Linting
+          command: yarn lint
+      - run:
+          name: Tests
+          command: yarn test
+      - run:
+          name: Potentially save npm token
+          command: "([[ ! -z $NPM_TOKEN ]] && echo \"//registry.npmjs.org/:_authToken=$NPM_TOKEN\" >> ~/.npmrc) || echo \"Did not write npm token\""
+      - run:
+          name: Potentially publish canary release
+          command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --npm-tag canary --yes; else  echo \"Did not publish\"; fi"
+      - run:
+          name: Potentially publish stable release
+          command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo \"Did not publish\"; fi"
 workflows:
   version: 2
-  unscheduled:
+  build-and-deploy:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /.*/
-      - publish-canary:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /^.*canary.*($|\b)/
-            branches:
-              ignore: /.*/
-      - publish-stable:
-          requires:
-            - build
-          filters:
-            tags:
-              only: /^(\d+\.)?(\d+\.)?(\*|\d+)$/
-            branches:
-              ignore: /.*/
+      - build

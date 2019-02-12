@@ -7,6 +7,7 @@
     "moduleResolution": "node",
     "allowJs": true,
     "noEmit": true,
+    "strict": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "noUnusedLocals": true,
