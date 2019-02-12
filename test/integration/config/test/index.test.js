@@ -35,7 +35,8 @@ describe('Configuration', () => {
     await Promise.all([
       renderViaHTTP(context.appPort, '/next-config'),
       renderViaHTTP(context.appPort, '/build-id'),
-      renderViaHTTP(context.appPort, '/webpack-css')
+      renderViaHTTP(context.appPort, '/webpack-css'),
+      renderViaHTTP(context.appPort, '/module-only-component')
     ])
   })
   afterAll(() => {
