@@ -28,7 +28,8 @@ process.on(
         await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
         const req = { url: path }
-        const res = {}
+        const res = path === '/404.html' ? { statusCode: 404 } : {}
+
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
