@@ -1,5 +1,5 @@
 const {PHASE_DEVELOPMENT_SERVER} = require('next-server/constants')
-console.log('hello')
+
 module.exports = (phase) => {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
