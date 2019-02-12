@@ -189,7 +189,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
     },
-    mainFields: isServer ? ['main'] : ['browser', 'module', 'main']
+    mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main']
   }
 
   const webpackMode = dev ? 'development' : 'production'
