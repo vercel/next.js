@@ -3,14 +3,14 @@ import NextError from 'next/error'
 import React from 'react'
 
 export default class Error extends React.Component {
-  static getInitialProps(ctx) {
+  static getInitialProps (ctx) {
     const { statusCode } = NextError.getInitialProps(ctx)
     return { statusCode: statusCode || null }
   }
 
-  render() {
+  render () {
     return (
-      <>
+      <div>
         <div id='errorStatusCode'>
           Error: {this.props.statusCode || 'unknown'}
         </div>
@@ -19,7 +19,7 @@ export default class Error extends React.Component {
             <a id='errorGoHome'>go home</a>
           </Link>
         </p>
-      </>
+      </div>
     )
   }
 }
