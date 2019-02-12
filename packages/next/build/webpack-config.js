@@ -302,6 +302,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
             }
           }, {}) : {},
         {
+          'process.env.__NEXT_ENV_PASS': JSON.stringify(config.passEnv.join(',')),
           'process.crossOrigin': JSON.stringify(config.crossOrigin),
           'process.browser': JSON.stringify(!isServer)
         }

@@ -21,6 +21,15 @@ if (!window.Promise) {
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 window.__NEXT_DATA__ = data
+if (data && typeof data.passEnv === 'object') {
+  Object.keys(data.passEnv).forEach((key) => {
+    if (typeof global.process === 'undefined') {
+      global.process = {env: {}}
+    }
+
+    process.env[key] = data.passEnv[key]
+  })
+}
 
 const {
   props,
