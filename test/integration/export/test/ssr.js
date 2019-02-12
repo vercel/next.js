@@ -48,14 +48,12 @@ export default function (context) {
       expect(html).toMatch(/Query is: {}/)
     })
 
-    it('should render _error on 404', async () => {
-      const html = await renderViaHTTP(context.port, '/404')
-      expect(html).toMatch(/404/)
-    })
-
-    it('should export 404.html instead of 404/index.html', async () => {
+    it('should render _error on 404.html even if not provided in exportPathMap', async () => {
       const html = await renderViaHTTP(context.port, '/404.html')
       expect(html).toMatch(/404/)
+      // The static server used in these tests also includes "404" in
+      // its error page, so we also check for text unique to _error
+      expect(html).toMatch(/page.*not.*found/i)
     })
   })
 }
