@@ -9,7 +9,7 @@ const About = ({ bar }) => (
         <a>Go Back</a>
       </Link>
     </div>
-    <p>{`This is the About page ${publicRuntimeConfig.foo}${bar}`}</p>
+    <p>{`This is the About page ${publicRuntimeConfig.foo}${bar || ''}`}</p>
   </div>
 )
 
