@@ -294,10 +294,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       new webpack.DefinePlugin(Object.assign(
         {},
         config.env ? Object.keys(config.env)
-          .reduce((acc, key) => ({
-            ...acc,
-            ...{ [`process.env.${key}`]: JSON.stringify(config.env[key]) }
-          }), {}) : {},
+          .reduce((acc, key) => {
+            if (/^(?:NODE_\w+)|(?:NEXT_\w+)|(?:__\w+)|(?:CONFIG_BUILD_ID)|(?:PORT)$/.test(key.toUpperCase())) throw new Error(`Next.js config env cannot have key of ${key}`)
+            return {
+              ...acc,
+              ...{ [`process.env.${key}`]: JSON.stringify(config.env[key]) }
+            }
+          }, {}) : {},
         {
           'process.crossOrigin': JSON.stringify(config.crossOrigin),
           'process.browser': JSON.stringify(!isServer)
