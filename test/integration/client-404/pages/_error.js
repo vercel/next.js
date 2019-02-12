@@ -11,12 +11,12 @@ export default class Error extends React.Component {
   render() {
     return (
       <>
-        <div id="errorStatusCode">
+        <div id='errorStatusCode'>
           Error: {this.props.statusCode || 'unknown'}
         </div>
         <p>
-          <Link href="/">
-            <a id="errorGoHome">go home</a>
+          <Link href='/'>
+            <a id='errorGoHome'>go home</a>
           </Link>
         </p>
       </>
