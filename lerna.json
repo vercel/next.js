@@ -10,9 +10,12 @@
     },
     "publish": {
       "npmClient": "npm",
-      "allowBranch": "canary",
+      "allowBranch": [
+        "master",
+        "canary"
+      ],
       "registry": "https://registry.npmjs.org/"
     }
   },
-  "version": "8.0.0-canary.24"
+  "version": "8.0.0"
 }
