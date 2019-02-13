@@ -2,8 +2,6 @@ import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
-import FriendlyErrorsWebpackPlugin from 'friendly-errors-webpack-plugin'
-import WebpackBar from 'webpackbar'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -278,10 +276,6 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      new WebpackBar({
-        name: isServer ? 'server' : 'client'
-      }),
-      dev && !isServer && new FriendlyErrorsWebpackPlugin(),
       // Even though require.cache is server only we have to clear assets from both compilations
       // This is because the client compilation generates the build manifest that's used on the server side
       dev && new NextJsRequireCacheHotReloader(),
