@@ -40,6 +40,9 @@
     "packages/**/bin/*": [
       "standard --fix",
       "git add"
+    ],
+    "yarn.lock": [
+      "git rm --cached"
     ]
   },
   "standard": {
