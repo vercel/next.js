@@ -836,7 +836,7 @@ You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those page
 ```jsx
 import Link from 'next/link'
 
-function Header() { 
+function Header() {
   return (
     <nav>
       <ul>
@@ -870,7 +870,7 @@ Most prefetching needs are addressed by `<Link />`, but we also expose an impera
 ```jsx
 import { withRouter } from 'next/router'
 
-function MyLink({ router }) { 
+function MyLink({ router }) {
   return (
     <div>
       <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
@@ -1082,7 +1082,7 @@ function Home() {
       <p>HOME PAGE is here!</p>
     </div>
   )
-} 
+}
 
 export default Home
 ```
@@ -1684,10 +1684,10 @@ export default Index
 
 > :warning: Note that this option is not available when using `target: 'serverless'`
 
-> :warning: Generally you want to use build-time configuration to provide your configuration. 
+> :warning: Generally you want to use build-time configuration to provide your configuration.
 The reason for this is that runtime configuration adds a small rendering / initialization overhead.
 
-The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`. 
+The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
 Place any server-only runtime config under a `serverRuntimeConfig` property.
 
@@ -1742,7 +1742,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
 
 If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
 
