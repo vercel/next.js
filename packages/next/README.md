@@ -1575,7 +1575,7 @@ Example usage of `defaultLoaders.babel`:
 // This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
-  webpack: (config, {}) => {
+  webpack: (config, options) => {
     config.module.rules.push({
       test: /\.mdx/,
       use: [
