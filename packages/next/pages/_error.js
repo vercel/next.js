@@ -7,29 +7,38 @@ export default class Error extends React.Component {
   static displayName = 'ErrorPage'
 
   static getInitialProps ({ res, err }) {
-    const statusCode = res ? res.statusCode : (err ? err.statusCode : null)
+    const statusCode =
+      res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
     return { statusCode }
   }
 
   render () {
     const { statusCode } = this.props
-    const title = statusCode === 404
-      ? 'This page could not be found'
-      : HTTPStatus[statusCode] || 'An unexpected error has occurred'
+    const title =
+      statusCode === 404
+        ? 'This page could not be found'
+        : HTTPStatus[statusCode] || 'An unexpected error has occurred'
 
-    return <div style={styles.error}>
-      <Head>
-        <meta name='viewport' content='width=device-width, initial-scale=1.0' />
-        <title>{statusCode}: {title}</title>
-      </Head>
-      <div>
-        <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
-        {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
-        <div style={styles.desc}>
-          <h2 style={styles.h2}>{title}.</h2>
+    return (
+      <div style={styles.error}>
+        <Head>
+          <meta
+            name='viewport'
+            content='width=device-width, initial-scale=1.0'
+          />
+          <title>
+            {statusCode}: {title}
+          </title>
+        </Head>
+        <div>
+          <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
+          {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
+          <div style={styles.desc}>
+            <h2 style={styles.h2}>{title}.</h2>
+          </div>
         </div>
       </div>
-    </div>
+    )
   }
 }
 
@@ -43,7 +52,8 @@ const styles = {
   error: {
     color: '#000',
     background: '#fff',
-    fontFamily: '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, Roboto, "Segoe UI", "Fira Sans", Avenir, "Helvetica Neue", "Lucida Grande", sans-serif',
     height: '100vh',
     textAlign: 'center',
     display: 'flex',
