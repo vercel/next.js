@@ -10,9 +10,6 @@ jobs:
           name: Installing dependencies
           command: yarn install
       - run:
-          name: Bootstrapping
-          command: yarn bootstrap
-      - run:
           name: Linting
           command: yarn lint
       - run:
