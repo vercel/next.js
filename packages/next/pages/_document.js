@@ -4,10 +4,6 @@ import PropTypes from 'prop-types'
 import {htmlEscapeJsonString} from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 
-const Fragment = React.Fragment || function Fragment ({ children }) {
-  return <div>{children}</div>
-}
-
 export default class Document extends Component {
   static childContextTypes = {
     _documentProps: PropTypes.any,
@@ -31,7 +27,7 @@ export default class Document extends Component {
   }
 
   render () {
-    return <html>
+    return <html amp={this.props.amphtml ? '' : null}>
       <Head />
       <body>
         <Main />
@@ -115,10 +111,9 @@ export class Head extends Component {
   }
 
   render () {
-    const { head, styles, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { asPath, ampEnabled, head, styles, amphtml, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
-    const pagePathname = getPagePathname(page)
 
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
@@ -134,12 +129,26 @@ export class Head extends Component {
     return <head {...this.props}>
       {children}
       {head}
-      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      {amphtml && <>
+        <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>
+        <link rel="canonical" href={asPath === '/amp' ? '/' : asPath.replace(/\/amp$/, '')} />
+        {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
+        <link rel="preload" as="script" href="https://cdn.ampproject.org/v0.js" />
+        {/* Add custom styles before AMP styles to prevent accidental overrides */}
+        {styles && <style amp-custom="" dangerouslySetInnerHTML={{__html: styles.map((style) => style.props.dangerouslySetInnerHTML.__html)}} />}
+        <style amp-boilerplate="" dangerouslySetInnerHTML={{__html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`}}></style>
+        <noscript><style amp-boilerplate="" dangerouslySetInnerHTML={{__html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`}}></style></noscript>
+        <script async src="https://cdn.ampproject.org/v0.js"></script>
+      </>}
+      {!amphtml && <>
+      {ampEnabled && <link rel="amphtml" href={asPath === '/' ? '/amp' : (asPath.replace(/\/$/, '') + '/amp')} />}
+      {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(page)}${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {this.getPreloadDynamicChunks()}
       {this.getPreloadMainLinks()}
       {this.getCssLinks()}
       {styles || null}
+      </>}
     </head>
   }
 }
@@ -221,25 +230,29 @@ export class NextScript extends Component {
   }
 
   render () {
-    const { staticMarkup, assetPrefix, devFiles, __NEXT_DATA__ } = this.context._documentProps
+    const { staticMarkup, assetPrefix, amphtml, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
+
+    if(amphtml) {
+      return null
+    }
+
     const { page, buildId } = __NEXT_DATA__
-    const pagePathname = getPagePathname(page)
 
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin) console.warn('Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated')
     }
 
-    return <Fragment>
+    return <>
       {devFiles ? devFiles.map((file) => <script key={file} src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />) : null}
       {staticMarkup ? null : <script id="__NEXT_DATA__" type="application/json" nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} dangerouslySetInnerHTML={{
         __html: NextScript.getInlineScriptSource(this.context._documentProps)
       }} />}
-      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${pagePathname}${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
+      {page !== '/_error' && <script async id={`__NEXT_PAGE__${page}`} src={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(page)}${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
       <script async id={`__NEXT_PAGE__/_app`} src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`} nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {staticMarkup ? null : this.getDynamicChunks()}
       {staticMarkup ? null : this.getScripts()}
-    </Fragment>
+    </>
   }
 }
 

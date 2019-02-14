@@ -91,7 +91,7 @@ export default class DevServer extends Server {
     return routes
   }
 
-  async renderToHTML (req, res, pathname, query) {
+  async renderToHTML (req, res, pathname, query, options) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -109,7 +109,7 @@ export default class DevServer extends Server {
       if (!this.quiet) console.error(err)
     }
 
-    return super.renderToHTML(req, res, pathname, query)
+    return super.renderToHTML(req, res, pathname, query, options)
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
