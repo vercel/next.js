@@ -33,5 +33,10 @@ export default function ({ app }, suiteName, render, fetch) {
       const $ = await get$('/build-id')
       expect($('#buildId').text() === '-')
     })
+
+    test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
+      const $ = await get$('/module-only-content')
+      expect($('#messageInAPackage').text() === 'OK')
+    })
   })
 }
