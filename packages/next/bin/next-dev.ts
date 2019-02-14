@@ -49,20 +49,16 @@ if (!existsSync(dir)) {
 
 if (!existsSync(join(dir, 'pages'))) {
   if (existsSync(join(dir, '..', 'pages'))) {
-    printAndExit(
-      '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?',
-    )
+    printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
   }
 
-  printAndExit(
-    "> Couldn't find a `pages` directory. Please create one under the project root",
-  )
+  printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
 Prompt.clearConsole()
 Prompt.startingDevelopmentServer()
 const port = args['--port'] || 3000
-startServer({ dir, dev: true }, port, args['--hostname'])
+startServer({dir, dev: true}, port, args['--hostname'])
   .then(async (app) => {
     await app.prepare()
   })
@@ -74,13 +70,9 @@ startServer({ dir, dev: true }, port, args['--hostname'])
       })
       const appPackage = require(pkgAppPath)
       if (appPackage.scripts) {
-        const nextScript = Object.entries(appPackage.scripts).find(
-          (scriptLine) => scriptLine[1] === 'next',
-        )
+        const nextScript = Object.entries(appPackage.scripts).find((scriptLine) => scriptLine[1] === 'next')
         if (nextScript) {
-          errorMessage += `\nUse \`npm run ${
-            nextScript[0]
-          } -- -p <some other port>\`.`
+          errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
         }
       }
       // tslint:disable-next-line
