@@ -765,7 +765,7 @@ class MyLink extends React.Component {
     const { router } = this.props
     router.prefetch('/dynamic')
   }
-  
+
   render() {
     const { router } = this.props
     return (
@@ -773,7 +773,7 @@ class MyLink extends React.Component {
         <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
           A route transition will happen after 100ms
         </a>
-      </div>   
+      </div>
     )
   }
 }
@@ -1343,7 +1343,7 @@ module.exports = {
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source: 
+// This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
   webpack: (config, {}) => {
@@ -1464,7 +1464,7 @@ module.exports = {
 }
 ```
 
-注意：Next.js 运行时将会自动添加前缀，但是对于`/static`是没有效果的，如果你想这些静态资源也能使用 CDN，你需要自己添加前缀。有一个方法可以判断你的环境来加前缀，如 [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration)。
+注意：Next.js 运行时将会自动添加前缀，但是对于`/static`是没有效果的，如果你想这些静态资源也能使用 CDN，你需要自己添加前缀。有一个方法可以判断你的环境来加前缀，如 [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time)。
 
 <a id="production-deployment" style="display: none"></a>
 ## 项目部署
