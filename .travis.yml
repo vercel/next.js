@@ -20,6 +20,6 @@
   before_cache: [
     "rm -rf node_modules/.cache"
   ],
-  before_script: ["npm run bootstrap"],
+  before_script: [],
   after_script: ["npm run coveralls"]
 }

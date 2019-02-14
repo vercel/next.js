@@ -6,7 +6,6 @@
   ],
   "scripts": {
     "lerna": "lerna",
-    "bootstrap": "lerna bootstrap",
     "dev": "lerna run build --stream --parallel",
     "testonly": "jest",
     "testall": "yarn check && npm run testonly -- --coverage --forceExit --runInBand --reporters=default --reporters=jest-junit",

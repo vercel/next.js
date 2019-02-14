@@ -20,9 +20,5 @@ steps:
   displayName: 'Install dependencies'
 
 - script: |
-    yarn bootstrap
-  displayName: 'Lerna bootstrap'
-  
-- script: |
     yarn test
   displayName: 'Run tests'
