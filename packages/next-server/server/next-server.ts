@@ -30,6 +30,7 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
+    ampEnabled: boolean,
     staticMarkup: boolean,
     buildId: string,
     generateEtags: boolean,
@@ -53,6 +54,7 @@ export default class Server {
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
+      ampEnabled: this.nextConfig.experimental.amp,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -160,6 +162,29 @@ export default class Server {
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      if (this.nextConfig.experimental.amp) {
+        // It's very important to keep this route's param optional.
+        // (but it should support as many params as needed, separated by '/')
+        // Otherwise this will lead to a pretty simple DOS attack.
+        // See more: https://github.com/zeit/next.js/issues/2617
+        routes.push({
+          match: route('/:path*/amp'),
+          fn: async (req, res, params, parsedUrl) => {
+            let pathname
+            if (!params.path) {
+              pathname = '/'
+            } else {
+              pathname = '/' + params.path.join('/')
+            }
+            const { query } = parsedUrl
+            if (!pathname) {
+              throw new Error('pathname is undefined')
+            }
+            await this.renderToAMP(req, res, pathname, query, parsedUrl)
+          },
+        })
+      }
+
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
@@ -229,15 +254,47 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
+  public async renderToAMP(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, parsedUrl?: UrlWithParsedQuery): Promise<void> {
+    if (!this.nextConfig.experimental.amp) {
+      throw new Error('"experimental.amp" is not enabled in "next.config.js"')
+    }
+    const url: any = req.url
+    if (isInternalUrl(url)) {
+      return this.handleRequest(req, res, parsedUrl)
+    }
+
+    if (isBlockedPage(pathname)) {
+      return this.render404(req, res, parsedUrl)
+    }
+
+    const html = await this.renderToAMPHTML(req, res, pathname, query)
+    // Request was ended by the user
+    if (html === null) {
+      return
+    }
+
+    if (this.nextConfig.poweredByHeader) {
+      res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
+    }
+    return this.sendHTML(req, res, html)
+  }
+
   private async renderToHTMLWithComponents(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, opts: any) {
     const result = await loadComponents(this.distDir, this.buildId, pathname)
     return renderToHTML(req, res, pathname, query, {...result, ...opts})
   }
 
-  public async renderToHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
+  public async renderToAMPHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}): Promise<string|null> {
+    if (!this.nextConfig.experimental.amp) {
+      throw new Error('"experimental.amp" is not enabled in "next.config.js"')
+    }
+    return this.renderToHTML(req, res, pathname, query, {amphtml: true})
+  }
+
+  public async renderToHTML(req: IncomingMessage, res: ServerResponse, pathname: string, query: ParsedUrlQuery = {}, {amphtml}: {amphtml?: boolean} = {}): Promise<string|null> {
     try {
       // To make sure the try/catch is executed
-      const html = await this.renderToHTMLWithComponents(req, res, pathname, query, this.renderOpts)
+      const html = await this.renderToHTMLWithComponents(req, res, pathname, query, {...this.renderOpts, amphtml})
       return html
     } catch (err) {
       if (err.code === 'ENOENT') {
