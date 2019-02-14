@@ -12,7 +12,7 @@ import {route} from 'next-server/dist/server/router'
 import globModule from 'glob'
 import {promisify} from 'util'
 import {createPagesMapping, createEntrypoints} from '../build/entries'
-import * as Prompt from '../prompt'
+import * as Output from '../build/output'
 
 const glob = promisify(globModule)
 
@@ -260,7 +260,7 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (multiCompiler) {
-    Prompt.watchCompilers(
+    Output.watchCompilers(
       multiCompiler.compilers[0],
       multiCompiler.compilers[1]
     )

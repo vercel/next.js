@@ -4,7 +4,7 @@ import arg from 'arg'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
-import * as Prompt from '../prompt'
+import * as Output from '../build/output'
 
 const args = arg({
   // Types
@@ -55,8 +55,8 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-Prompt.clearConsole()
-Prompt.startingDevelopmentServer()
+Output.clearConsole()
+Output.startingDevelopmentServer()
 const port = args['--port'] || 3000
 startServer({dir, dev: true}, port, args['--hostname'])
   .then(async (app) => {

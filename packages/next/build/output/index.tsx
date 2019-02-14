@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
-import { render, Color, Text, Static } from 'ink'
-import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
+import { render, Color, Text } from 'ink'
+import formatWebpackMessages from '../../client/dev-error-overlay/format-webpack-messages'
 
 type CompilerOutputProps = { client: any; server: any }
 type CompilerOutputState = {
