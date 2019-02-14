@@ -21,10 +21,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+// This file is based on https://github.com/facebook/create-react-app/blob/7b1a32be6ec9f99a6c9a3c66813f3ac09c4736b9/packages/react-dev-utils/formatWebpackMessages.js
+// It's been edited to remove chalk and CRA-specific logic
 
 'use strict'
 
-const chalk = require('chalk')
 const friendlySyntaxErrorLabel = 'Syntax error:'
 
 function isLikelyASyntaxError (message) {
@@ -93,8 +94,6 @@ function formatMessage (message, isError) {
         .replace('Module not found: Cannot find file:', 'Cannot find file:')
     ]
   }
-
-  lines[0] = chalk.inverse(lines[0])
 
   message = lines.join('\n')
   // Internal stacks are generally useless so we strip them... with the
