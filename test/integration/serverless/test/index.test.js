@@ -52,6 +52,8 @@ describe('Serverless', () => {
   })
 
   it('should render correctly when importing isomorphic-unfetch on the client side', async () => {
+    process.env.DYNAMIC_RUNTIME = 'I am dynamic'
+    process.env.NO_VAR = 'I am dynamic'
     const browser = await webdriver(appPort, '/')
     try {
       const text = await browser
@@ -60,6 +62,12 @@ describe('Serverless', () => {
         .elementByCss('#text').text()
 
       expect(text).toMatch(/fetch page/)
+      const passVar = await browser
+        .elementByCss('#var').text()
+      expect(passVar).toMatch(/I am dynamic/)
+      const dontPassVar = await browser
+        .elementByCss('#noVar').text()
+      expect(dontPassVar).toMatch(/not here/)
     } finally {
       browser.close()
     }

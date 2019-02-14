@@ -24,6 +24,12 @@ export default class extends React.Component {
       <div id='text'>
         {text}
       </div>
+      <div id='var'>
+        {process.env.DYNAMIC_RUNTIME}
+      </div>
+      <div id='noVar'>
+        {process.env.NO_VAR ? process.env.NO_VAR : 'not here'}
+      </div>
     </div>
   }
 }
