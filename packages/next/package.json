@@ -67,6 +67,7 @@
     "glob": "7.1.2",
     "hoist-non-react-statics": "3.2.0",
     "http-status": "1.0.1",
+    "ink": "2.0.0-11",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp-then": "1.2.0",

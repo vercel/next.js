@@ -19,7 +19,12 @@ const babelOpts = {
 }
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
+  await task.parallel(['prompt', 'bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
+}
+
+export async function prompt (task, opts) {
+  await task.source(opts.src || 'prompt/*').typescript({module: 'commonjs'}).target('dist/prompt')
+  notify('Compiled prompts')
 }
 
 export async function bin (task, opts) {
@@ -64,6 +69,7 @@ export async function build (task) {
 export default async function (task) {
   await task.clear('dist')
   await task.start('build')
+  await task.watch('prompt/*', 'prompt')
   await task.watch('bin/*', 'bin')
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages')
   await task.watch('server/**/*.+(js|ts|tsx)', 'server')

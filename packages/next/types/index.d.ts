@@ -26,3 +26,5 @@ declare module 'arg' {
 
   export = arg;
 }
+
+declare module 'ink';
