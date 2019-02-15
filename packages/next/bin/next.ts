@@ -37,7 +37,7 @@ const args = arg({
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
   // tslint:disable-next-line
-  console.log(`Next.js v${process.env.NEXT_VERSION}`)
+  console.log(`Next.js v${process.env.__NEXT_VERSION}`)
   process.exit(0)
 }
 

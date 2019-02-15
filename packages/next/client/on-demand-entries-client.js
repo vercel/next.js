@@ -24,7 +24,7 @@ export default async ({ assetPrefix }) => {
     wsConnectTries++
 
     return new Promise(resolve => {
-      ws = new WebSocket(`${wsProtocol}://${hostname}:${process.env.NEXT_WS_PORT}${process.env.NEXT_WS_PROXY_PATH}`)
+      ws = new WebSocket(`${wsProtocol}://${hostname}:${process.env.__NEXT_WS_PORT}${process.env.__NEXT_WS_PROXY_PATH}`)
       ws.onopen = () => {
         wsConnectTries = 0
         resolve()
@@ -34,7 +34,7 @@ export default async ({ assetPrefix }) => {
           await fetch(`${assetPrefix}/_next/on-demand-entries-ping`)
             .then(res => {
               // Only reload if next was restarted and we have a new WebSocket port
-              if (res.status === 200 && res.headers.get('port') !== process.env.NEXT_WS_PORT + '') {
+              if (res.status === 200 && res.headers.get('port') !== process.env.__NEXT_WS_PORT + '') {
                 location.reload()
               }
             })
