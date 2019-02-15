@@ -4,7 +4,16 @@ import Router from 'next/router'
 import fetch from 'unfetch'
 
 const { hostname, protocol } = location
-const wsProtocol = protocol.includes('https') ? 'wss' : 'ws'
+const isHttps = protocol.includes('https')
+
+//
+// Cannot use `wss` until we can spin up ws server with ssl certs
+//
+const wsProtocol = 'ws'
+//
+// If developing under https, use ws://localhost
+//
+const wsHostname = isHttps ? 'localhost' : hostname
 const retryTime = 5000
 let ws = null
 let lastHref = null
@@ -20,7 +29,7 @@ export default async ({ assetPrefix }) => {
     }
 
     return new Promise(resolve => {
-      ws = new WebSocket(`${wsProtocol}://${hostname}:${process.env.NEXT_WS_PORT}${process.env.NEXT_WS_PROXY_PATH}`)
+      ws = new WebSocket(`${wsProtocol}://${wsHostname}:${process.env.NEXT_WS_PORT}${process.env.NEXT_WS_PROXY_PATH}`)
       ws.onopen = () => resolve()
       ws.onclose = () => {
         setTimeout(async () => {
