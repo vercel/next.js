@@ -32,12 +32,14 @@ store.subscribe(state => {
     console.log(chalk.red('Failed to compile.'))
     console.log()
     console.log(state.errors[0])
+    return
   }
 
   if (state.warnings) {
     console.log(chalk.yellow('Compiled with warnings.'))
     console.log()
     console.log(state.warnings.join('\n\n'))
+    return
   }
 
   console.log(chalk.green('Compiled successfully!'))
