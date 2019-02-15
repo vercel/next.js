@@ -13,6 +13,13 @@ export type WebpackOutputState = {
   server: WebpackOutputStatus
 }
 
+export enum WebpackOutputPhase {
+  COMPILING = 1,
+  COMPILED_WITH_ERRORS = 2,
+  COMPILED_WITH_WARNINGS = 3,
+  COMPILED = 4,
+}
+
 export const DEFAULT_WEBPACK_OUTPUT_STATE: WebpackOutputState = {
   client: { loading: true },
   server: { loading: true },

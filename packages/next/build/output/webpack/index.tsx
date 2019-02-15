@@ -5,8 +5,24 @@ import {
   WebpackOutputProps,
   WebpackOutputStatus,
   WebpackOutputState,
+  WebpackOutputPhase,
   DEFAULT_WEBPACK_OUTPUT_STATE,
 } from './types'
+
+function getWebpackStatusPhase(
+  status: WebpackOutputStatus
+): WebpackOutputPhase {
+  if (status.loading) {
+    return WebpackOutputPhase.COMPILING
+  }
+  if (status.errors) {
+    return WebpackOutputPhase.COMPILED_WITH_ERRORS
+  }
+  if (status.warnings) {
+    return WebpackOutputPhase.COMPILED_WITH_WARNINGS
+  }
+  return WebpackOutputPhase.COMPILED
+}
 
 class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
   state: WebpackOutputState = DEFAULT_WEBPACK_OUTPUT_STATE
@@ -45,7 +61,7 @@ class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
     }
   }
 
-  private tap() {
+  private tap = () => {
     this.tapCompiler('client', this.props.client, status =>
       this.setState({ client: status })
     )
@@ -55,72 +71,56 @@ class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
   }
 
   render() {
-    const {
-      client_loading,
-      server_loading,
-      client_messages,
-      server_messages,
-    } = this.state
-    if (client_loading || server_loading) {
-      return <Text>Compiling ...</Text>
-    }
-
-    let errors: string[] | undefined
-    if (
-      client_messages &&
-      client_messages.errors &&
-      client_messages.errors.length
-    ) {
-      errors = client_messages.errors
-    } else if (
-      server_messages &&
-      server_messages.errors &&
-      server_messages.errors.length
-    ) {
-      errors = server_messages.errors
-    }
-
-    if (errors) {
-      return (
-        <>
-          <Color red>Failed to compile.</Color>
-          <br /> <br />
-          <Text>{errors[0]}</Text>
-        </>
-      )
-    }
-
-    let warnings: string[] | undefined
-    if (
-      client_messages &&
-      client_messages.warnings &&
-      client_messages.warnings.length
-    ) {
-      warnings = client_messages.warnings
-    } else if (
-      server_messages &&
-      server_messages.warnings &&
-      server_messages.warnings.length
-    ) {
-      warnings = server_messages.warnings
-    }
-
-    if (warnings) {
-      return (
-        <>
-          <Color yellow>Compiled with warnings.</Color>
-          <br /> <br />
-          <Text>{warnings.join('\n\n')}</Text>
-        </>
-      )
-    }
-
-    return (
-      <>
-        <Color green>Compiled successfully!</Color>
-        <br /> <br />
-      </>
+    const { client, server } = this.state
+    console.log(
+      [
+        { status: client, phase: getWebpackStatusPhase(client) },
+        { status: server, phase: getWebpackStatusPhase(server) },
+      ].sort((a, b) => a.phase.valueOf() - b.phase.valueOf())
     )
+    console.log()
+    const [{ status, phase }] = [
+      { status: client, phase: getWebpackStatusPhase(client) },
+      { status: server, phase: getWebpackStatusPhase(server) },
+    ].sort((a, b) => a.phase.valueOf() - b.phase.valueOf())
+
+    switch (phase) {
+      case WebpackOutputPhase.COMPILED_WITH_ERRORS: {
+        if (status.loading !== false) {
+          return
+        }
+        return (
+          <>
+            <Color red>Failed to compile.</Color>
+            <br /> <br />
+            <Text>{status.errors![0]}</Text>
+          </>
+        )
+      }
+      case WebpackOutputPhase.COMPILED_WITH_WARNINGS: {
+        if (status.loading !== false) {
+          return
+        }
+        return (
+          <>
+            <Color yellow>Compiled with warnings.</Color>
+            <br /> <br />
+            <Text>{status.warnings!.join('\n\n')}</Text>
+          </>
+        )
+      }
+      case WebpackOutputPhase.COMPILED: {
+        return (
+          <>
+            <Color green>Compiled successfully!</Color>
+            <br /> <br />
+          </>
+        )
+      }
+      default: {
+        return <Text>Compiling ...</Text>
+      }
+    }
   }
 }
 
