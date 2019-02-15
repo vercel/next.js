@@ -249,7 +249,7 @@ export default class Server {
     }
 
     if (this.nextConfig.poweredByHeader) {
-      res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
+      res.setHeader('X-Powered-By', 'Next.js ' + process.env.__NEXT_VERSION)
     }
     return this.sendHTML(req, res, html)
   }
