@@ -21,7 +21,7 @@ store.subscribe(state => {
   if (state.bootstrap) {
     console.log(chalk.cyan('Starting the development server ...'))
     console.log()
-    console.log(`  > Ready on ${state.appUrl!}`)
+    console.log(`  > Waiting on ${state.appUrl!}`)
     return
   }
 
