@@ -9,6 +9,7 @@ const retryTime = 5000
 let ws = null
 let lastHref = null
 let wsConnectTries = 0
+let showedWarning = false
 
 export default async ({ assetPrefix }) => {
   Router.ready(() => {
@@ -66,6 +67,10 @@ export default async ({ assetPrefix }) => {
     // Use WebSocket if available
     if (ws && ws.readyState === ws.OPEN) {
       return ws.send(Router.pathname)
+    }
+    if (!showedWarning) {
+      console.warn('onDemandEntries WebSocket failed to connect, falling back to fetch based pinging..')
+      showedWarning = true
     }
     // If not, fallback to fetch based pinging
     try {
