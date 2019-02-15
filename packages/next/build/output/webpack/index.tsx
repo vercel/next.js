@@ -72,13 +72,6 @@ class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
 
   render() {
     const { client, server } = this.state
-    console.log(
-      [
-        { status: client, phase: getWebpackStatusPhase(client) },
-        { status: server, phase: getWebpackStatusPhase(server) },
-      ].sort((a, b) => a.phase.valueOf() - b.phase.valueOf())
-    )
-    console.log()
     const [{ status, phase }] = [
       { status: client, phase: getWebpackStatusPhase(client) },
       { status: server, phase: getWebpackStatusPhase(server) },
