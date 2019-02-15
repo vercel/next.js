@@ -69,7 +69,7 @@ export default async ({ assetPrefix }) => {
       return ws.send(Router.pathname)
     }
     if (!showedWarning) {
-      console.warn('onDemandEntries WebSocket failed to connect, falling back to fetch based pinging..')
+      console.warn('onDemandEntries WebSocket failed to connect, falling back to fetch based pinging. https://err.sh/zeit/next.js/on-demand-entries-websocket-unavailable')
       showedWarning = true
     }
     // If not, fallback to fetch based pinging
