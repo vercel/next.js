@@ -53,7 +53,11 @@ webpackStore.subscribe(state => {
     { status: server, phase: getWebpackStatusPhase(server) },
   ].sort((a, b) => a.phase.valueOf() - b.phase.valueOf())
 
-  const { appUrl } = store.getState()
+  const { bootstrap: bootstrapping, appUrl } = store.getState()
+  if (bootstrapping && status.loading) {
+    return
+  }
+
   let nextStoreState: OutputState = {
     bootstrap: false,
     appUrl: appUrl!,
