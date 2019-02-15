@@ -5,7 +5,7 @@ import { clearConsole } from './clearConsole'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null }
-  | ({ bootstrap: false; appUrl: string } & (
+  | ({ bootstrap: false; appUrl: string | null } & (
       | { loading: true }
       | {
           loading: false
@@ -20,8 +20,10 @@ store.subscribe(state => {
 
   if (state.bootstrap) {
     console.log(chalk.cyan('Starting the development server ...'))
-    console.log()
-    console.log(`  > Waiting on ${state.appUrl!}`)
+    if (state.appUrl) {
+      console.log()
+      console.log(`  > Waiting on ${state.appUrl!}`)
+    }
     return
   }
 
@@ -45,8 +47,10 @@ store.subscribe(state => {
   }
 
   console.log(chalk.green('Compiled successfully!'))
-  console.log()
-  console.log(`  > Ready on ${state.appUrl!}`)
+  if (state.appUrl) {
+    console.log()
+    console.log(`  > Ready on ${state.appUrl!}`)
+  }
   console.log()
   console.log('Note that pages will be compiled when you first load them.')
 })
