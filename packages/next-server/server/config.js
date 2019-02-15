@@ -4,6 +4,7 @@ import {CONFIG_FILE} from 'next-server/constants'
 const targets = ['server', 'serverless']
 
 const defaultConfig = {
+  env: [],
   webpack: null,
   webpackDevMiddleware: null,
   poweredByHeader: true,
