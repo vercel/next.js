@@ -9,6 +9,8 @@ import {
   DEFAULT_WEBPACK_OUTPUT_STATE,
 } from './types'
 
+import { lastAppUrl } from '../boot'
+
 function getWebpackStatusPhase(
   status: WebpackOutputStatus
 ): WebpackOutputPhase {
@@ -107,6 +109,16 @@ class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
           <>
             <Color green>Compiled successfully!</Color>
             <br /> <br />
+            <Text>You can now view your app in the browser.</Text>
+            <br /> <br />
+            <Text>
+              {'  > '}
+              {this.props.appUrl}
+            </Text>
+            <br /> <br />
+            <Text>
+              Note that pages will be compiled when you first load them.
+            </Text>
           </>
         )
       }
@@ -118,5 +130,7 @@ class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
 }
 
 export function watchCompilers(client: any, server: any) {
-  render(<CompilerOutput client={client} server={server} />)
+  render(
+    <CompilerOutput appUrl={lastAppUrl!} client={client} server={server} />
+  )
 }

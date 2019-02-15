@@ -1,4 +1,4 @@
-export type WebpackOutputProps = { client: any; server: any }
+export type WebpackOutputProps = { appUrl: string; client: any; server: any }
 
 export type WebpackOutputStatus =
   | { loading: true }

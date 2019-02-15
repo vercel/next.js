@@ -55,9 +55,12 @@ if (!existsSync(join(dir, 'pages'))) {
   printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
 }
 
-Output.clearConsole()
-Output.startingDevelopmentServer()
 const port = args['--port'] || 3000
+const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
+
+Output.clearConsole()
+Output.startingDevelopmentServer(appUrl)
+
 startServer({dir, dev: true}, port, args['--hostname'])
   .then(async (app) => {
     await app.prepare()

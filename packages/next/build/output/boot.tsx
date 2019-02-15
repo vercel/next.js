@@ -1,6 +1,10 @@
 import React from 'react'
-import { render, Color } from 'ink'
+import { render, Color, Text } from 'ink'
 
-export function startingDevelopmentServer() {
+export let lastAppUrl: string | null = null
+
+export function startingDevelopmentServer(appUrl: string) {
+  lastAppUrl = appUrl
+
   render(<Color cyan>Starting the development server ...</Color>)
 }
