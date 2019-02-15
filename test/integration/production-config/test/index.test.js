@@ -50,7 +50,7 @@ describe('Production Config Usage', () => {
       stdout: true,
       stderr: true})
 
-      expect(result.stderr).toMatch(/The "__NEXT_MY_VAR" key under/)
+      expect(result.stderr).toMatch(/The key "__NEXT_MY_VAR" under/)
     })
 
     it('should fail with NODE_ in env key', async () => {
@@ -63,7 +63,7 @@ describe('Production Config Usage', () => {
       stdout: true,
       stderr: true})
 
-      expect(result.stderr).toMatch(/The "NODE_ENV" key under/)
+      expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
     })
   })
 
