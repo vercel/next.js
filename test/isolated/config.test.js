@@ -23,6 +23,12 @@ describe('config', () => {
     expect(config.defaultConfig).toBeDefined()
   })
 
+  it('Should assign defaults deeply to user config', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    expect(config.distDir).toEqual('.next')
+    expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+  })
+
   it('Should pass the customConfig correctly', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { customConfig: true })
     expect(config.customConfig).toBe(true)
@@ -31,6 +37,12 @@ describe('config', () => {
   it('Should not pass the customConfig when it is null', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, null)
     expect(config.webpack).toBe(null)
+  })
+
+  it('Should assign defaults deeply to customConfig', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, {customConfig: true})
+    expect(config.customConfig).toBe(true)
+    expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
 
   it('Should throw when an invalid target is provided', () => {
