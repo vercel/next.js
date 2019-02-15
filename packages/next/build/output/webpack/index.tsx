@@ -1,16 +1,36 @@
 import React, { Component } from 'react'
 import { render, Color, Text } from 'ink'
 import formatWebpackMessages from '../../../client/dev-error-overlay/format-webpack-messages'
-
-class CompilerOutput extends Component<
+import {
   WebpackOutputProps,
-  WebpackOutputState
-> {
-  state: WebpackOutputState = {
-    client_loading: true,
-    server_loading: true,
-    client_messages: null,
-    server_messages: null,
+  WebpackOutputStatus,
+  WebpackOutputState,
+  DEFAULT_WEBPACK_OUTPUT_STATE,
+} from './types'
+
+class CompilerOutput extends Component<WebpackOutputProps, WebpackOutputState> {
+  state: WebpackOutputState = DEFAULT_WEBPACK_OUTPUT_STATE
+
+  private tapCompiler = (
+    key: string,
+    compiler: any,
+    onEvent: (status: WebpackOutputStatus) => void
+  ) => {
+    compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
+      onEvent({ loading: true })
+    })
+
+    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: any) => {
+      const { errors, warnings } = formatWebpackMessages(
+        stats.toJson({ all: false, warnings: true, errors: true })
+      )
+
+      onEvent({
+        loading: false,
+        errors: errors && errors.length ? errors : null,
+        warnings: warnings && warnings.length ? warnings : null,
+      })
+    })
   }
 
   componentDidMount() {
@@ -26,27 +46,12 @@ class CompilerOutput extends Component<
   }
 
   private tap() {
-    this.props.client.hooks.invalid.tap('NextJsClientPrompt', () => {
-      this.setState({ client_loading: true, client_messages: null })
-    })
-    this.props.server.hooks.invalid.tap('NextJsServerPrompt', () => {
-      this.setState({ server_loading: true, server_messages: null })
-    })
-
-    this.props.client.hooks.done.tap('NextJsClientDone', (stats: any) => {
-      const messages = formatWebpackMessages(
-        stats.toJson({ all: false, warnings: true, errors: true })
-      )
-
-      this.setState({ client_loading: false, client_messages: messages })
-    })
-    this.props.server.hooks.done.tap('NextJsServerDone', (stats: any) => {
-      const messages = formatWebpackMessages(
-        stats.toJson({ all: false, warnings: true, errors: true })
-      )
-
-      this.setState({ server_loading: false, server_messages: messages })
-    })
+    this.tapCompiler('client', this.props.client, status =>
+      this.setState({ client: status })
+    )
+    this.tapCompiler('server', this.props.server, status =>
+      this.setState({ server: status })
+    )
   }
 
   render() {
