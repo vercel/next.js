@@ -46,7 +46,9 @@ describe('Production Config Usage', () => {
           ...process.env,
           ENABLE_ENV_FAIL_UNDERSCORE: true
         }
-      }, stdout: true, stderr: true})
+      },
+      stdout: true,
+      stderr: true})
 
       expect(result.stderr).toMatch(/The "__NEXT_MY_VAR" key under/)
     })
@@ -57,7 +59,9 @@ describe('Production Config Usage', () => {
           ...process.env,
           ENABLE_ENV_FAIL_NODE: true
         }
-      }, stdout: true, stderr: true})
+      },
+      stdout: true,
+      stderr: true})
 
       expect(result.stderr).toMatch(/The "NODE_ENV" key under/)
     })
