@@ -19,7 +19,8 @@
     "error.js",
     "head.js",
     "link.js",
-    "router.js"
+    "router.js",
+    "amp.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
