@@ -14,6 +14,7 @@
   "license": "ISC",
   "devDependencies": {
     "eslint": "^5.14.0",
-    "eslint-plugin-react": "^7.12.4"
+    "eslint-plugin-react": "^7.12.4",
+    "standard": "^12.0.1"
   }
 }
