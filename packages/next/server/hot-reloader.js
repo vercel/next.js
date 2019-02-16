@@ -128,7 +128,7 @@ export default class HotReloader {
       }
 
       const page = `/${params.path.join('/')}`
-      if (BLOCKED_PAGES.indexOf(page) === -1) {
+      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
         } catch (error) {
@@ -164,14 +164,17 @@ export default class HotReloader {
     return del(join(this.dir, this.config.distDir), { force: true })
   }
 
-  addWsPort (configs) {
-    configs[0].plugins.push(new webpack.DefinePlugin({
-      'process.env.NEXT_WS_PORT': this.wsPort
-    }))
+  addWsConfig (configs) {
+    const { websocketProxyPath, websocketProxyPort } = this.config.onDemandEntries
+    const opts = {
+      'process.env.__NEXT_WS_PORT': websocketProxyPort || this.wsPort,
+      'process.env.__NEXT_WS_PROXY_PATH': JSON.stringify(websocketProxyPath)
+    }
+    configs[0].plugins.push(new webpack.DefinePlugin(opts))
   }
 
   async getWebpackConfig () {
-    const pagePaths = await glob(`+(_app|_document|_error).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
+    const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
     return Promise.all([
@@ -200,7 +203,7 @@ export default class HotReloader {
     })
 
     const configs = await this.getWebpackConfig()
-    this.addWsPort(configs)
+    this.addWsConfig(configs)
 
     const multiCompiler = webpack(configs)
 
@@ -229,7 +232,7 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
-    this.addWsPort(configs)
+    this.addWsConfig(configs)
 
     const compiler = webpack(configs)
 
@@ -407,7 +410,7 @@ export default class HotReloader {
 
   async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (BLOCKED_PAGES.indexOf(page) !== -1) {
+    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
     await this.onDemandEntries.ensurePage(page)

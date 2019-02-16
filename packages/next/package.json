@@ -1,7 +1,7 @@
 {
   "name": "next",
-  "version": "8.0.0-canary.7",
-  "description": "Minimalistic framework for server-rendered React applications",
+  "version": "8.0.1-canary.0",
+  "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
   "repository": "zeit/next.js",
@@ -19,7 +19,8 @@
     "error.js",
     "head.js",
     "link.js",
-    "router.js"
+    "router.js",
+    "amp.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -32,7 +33,8 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-typescript.js"
+      "./taskfile-typescript.js",
+      "./taskfile-babel.js"
     ]
   },
   "dependencies": {
@@ -49,45 +51,50 @@
     "@babel/template": "7.1.2",
     "ansi-html": "0.0.7",
     "arg": "3.0.0",
-    "async-sema": "^2.1.4",
+    "async-sema": "2.1.4",
     "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.2",
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.15",
+    "cacache": "^11.0.2",
     "case-sensitive-paths-webpack-plugin": "2.1.2",
     "cross-spawn": "5.1.0",
     "del": "3.0.0",
     "event-source-polyfill": "0.0.12",
+    "find-cache-dir": "2.0.0",
     "find-up": "2.1.0",
     "fresh": "0.5.2",
     "friendly-errors-webpack-plugin": "1.7.0",
     "glob": "7.1.2",
     "hoist-non-react-statics": "3.2.0",
-    "htmlescape": "1.1.1",
     "http-status": "1.0.1",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp-then": "1.2.0",
     "nanoid": "1.2.1",
-    "next-server": "^8.0.0-canary.7",
+    "next-server": "8.0.1-canary.0",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "4.0.0",
     "react-is": "16.6.3",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
+    "schema-utils": "1.0.0",
+    "serialize-javascript": "1.4.0",
+    "source-map": "0.6.1",
     "strip-ansi": "3.0.1",
-    "styled-jsx": "3.2.0",
-    "terser-webpack-plugin": "1.1.0",
+    "styled-jsx": "3.2.1",
+    "terser": "3.16.1",
     "tty-aware-progress": "1.0.3",
     "unfetch": "3.0.0",
     "url": "0.11.0",
-    "webpack": "4.28.2",
+    "webpack": "4.29.0",
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.24.3",
     "webpack-sources": "1.3.0",
     "webpackbar": "3.1.4 ",
+    "worker-farm": "1.5.2",
     "ws": "6.1.2"
   },
   "peerDependencies": {

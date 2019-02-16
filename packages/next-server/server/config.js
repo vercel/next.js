@@ -4,6 +4,7 @@ import {CONFIG_FILE} from 'next-server/constants'
 const targets = ['server', 'serverless']
 
 const defaultConfig = {
+  env: [],
   webpack: null,
   webpackDevMiddleware: null,
   poweredByHeader: true,
@@ -18,7 +19,12 @@ const defaultConfig = {
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
-    websocketPort: 0
+    websocketPort: 0,
+    websocketProxyPath: '/',
+    websocketProxyPort: null
+  },
+  experimental: {
+    amp: false
   }
 }
 
@@ -44,6 +50,12 @@ export default function loadConfig (phase, dir, customConfig) {
     const userConfig = normalizeConfig(phase, userConfigModule.default || userConfigModule)
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
+    }
+    if (userConfig.experimental) {
+      userConfig.experimental = {
+        ...defaultConfig.experimental,
+        ...userConfig.experimental
+      }
     }
     if (userConfig.onDemandEntries) {
       userConfig.onDemandEntries = {

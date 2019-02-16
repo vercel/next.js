@@ -8,6 +8,7 @@ const { renderToHTML } = require('next-server/dist/server/render')
 const { writeFile } = require('fs')
 const Sema = require('async-sema')
 const {loadComponents} = require('next-server/dist/server/load-components')
+const envConfig = require('next-server/config')
 
 process.on(
   'message',
@@ -18,6 +19,7 @@ process.on(
     exportPathMap,
     outDir,
     renderOpts,
+    serverRuntimeConfig,
     concurrency
   }) => {
     const sema = new Sema(concurrency, { capacity: exportPaths.length })
@@ -27,6 +29,10 @@ process.on(
         const { page, query = {} } = exportPathMap[path]
         const req = { url: path }
         const res = {}
+        envConfig.setConfig({
+          serverRuntimeConfig,
+          publicRuntimeConfig: renderOpts.runtimeConfig
+        })
 
         let htmlFilename = `${path}${sep}index.html`
         if (extname(path) !== '') {

@@ -103,4 +103,12 @@ describe('On Demand Entries', () => {
       }
     }
   })
+
+  it('should able to ping using fetch fallback', async () => {
+    const about = await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/about'})
+    expect(JSON.parse(about)).toEqual({success: true})
+
+    const third = await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/third'})
+    expect(JSON.parse(third)).toEqual({success: true})
+  })
 })

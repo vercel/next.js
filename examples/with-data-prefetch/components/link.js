@@ -11,18 +11,16 @@ export const prefetch = async href => {
 
   const url = typeof href !== 'string' ? format(href) : href
 
-  const { pathname } = window.location
+  const parsedHref = resolve(window.location.pathname, url)
 
-  const parsedHref = resolve(pathname, url)
-
-  const { query } = typeof href !== 'string' ? href : parse(url, true)
+  const { query, pathname } = typeof href !== 'string' ? href : parse(url, true)
 
   const Component = await Router.prefetch(parsedHref)
 
   // if Component exists and has getInitialProps
   // fetch the component props (the component should save it in cache)
   if (Component && Component.getInitialProps) {
-    const ctx = { pathname: href, query, isVirtualCall: true }
+    const ctx = { pathname, query, isVirtualCall: true }
     await Component.getInitialProps(ctx)
   }
 }

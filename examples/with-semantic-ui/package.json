@@ -3,18 +3,21 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
-    "build": "next build",
+    "now-build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-css": "^1.0.1",
-    "file-loader": "^1.1.11",
-    "next": "latest",
+    "next": "canary",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "semantic-ui-css": "^2.3.3",
-    "semantic-ui-react": "^0.82.0",
-    "url-loader": "^1.0.1"
+    "semantic-ui-css": "^2.4.1",
+    "semantic-ui-react": "^0.84.0"
+  },
+  "devDependencies": {
+    "@zeit/next-css": "^1.0.1",
+    "file-loader": "^3.0.1",
+    "url-loader": "^1.1.2",
+    "webpack": "^4.29.0"
   },
   "license": "ISC"
 }

@@ -20,7 +20,7 @@ export default function (context) {
         .waitForElementByCss('#about-page')
         .elementByCss('#about-page p').text()
 
-      expect(text).toBe('This is the About page')
+      expect(text).toBe('This is the About page foo')
       browser.close()
     })
 
@@ -31,7 +31,7 @@ export default function (context) {
         .waitForElementByCss('#about-page')
         .elementByCss('#about-page p').text()
 
-      expect(text).toBe('This is the About page')
+      expect(text).toBe('This is the About page foo')
       browser.close()
     })
 

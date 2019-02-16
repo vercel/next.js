@@ -73,7 +73,6 @@ export default async ({
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  ErrorComponent = await pageLoader.loadPage('/_error')
   App = await pageLoader.loadPage('/_app')
 
   let initialErr = err
@@ -99,7 +98,6 @@ export default async ({
     pageLoader,
     App,
     Component,
-    ErrorComponent,
     err: initialErr
   })
 
@@ -137,6 +135,8 @@ export async function renderError (props) {
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
+
+  ErrorComponent = await pageLoader.loadPage('/_error')
 
   // In production we do a normal render with the `ErrorComponent` as component.
   // If we've gotten here upon initial render, we can use the props from the server.
@@ -181,7 +181,7 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
-      <HeadManagerContext.Provider value={headManager}>
+      <HeadManagerContext.Provider value={headManager.updateHead}>
         <App {...appProps} />
       </HeadManagerContext.Provider>
     ), appContainer)
@@ -196,7 +196,7 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     }
     renderReactElement((
       <ErrorBoundary onError={onError}>
-        <HeadManagerContext.Provider value={headManager}>
+        <HeadManagerContext.Provider value={headManager.updateHead}>
           <App {...appProps} />
         </HeadManagerContext.Provider>
       </ErrorBoundary>
