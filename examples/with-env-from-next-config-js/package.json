@@ -11,5 +11,9 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^5.14.0",
+    "eslint-plugin-react": "^7.12.4"
+  }
 }
