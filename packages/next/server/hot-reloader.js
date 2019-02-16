@@ -12,6 +12,7 @@ import {route} from 'next-server/dist/server/router'
 import globModule from 'glob'
 import {promisify} from 'util'
 import {createPagesMapping, createEntrypoints} from '../build/entries'
+import {watchCompiler} from '../build/output'
 
 const glob = promisify(globModule)
 
@@ -259,6 +260,11 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (multiCompiler) {
+    watchCompiler(
+      multiCompiler.compilers[0],
+      multiCompiler.compilers[1]
+    )
+
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       if (!this.initialized) {
