@@ -5,5 +5,5 @@ export default () => {
       <br />
       RESTURL_SESSIONS {process.env.RESTURL_SESSIONS}
     </div>
-  );
-};
+  )
+}
