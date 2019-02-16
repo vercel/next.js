@@ -69,7 +69,14 @@ export function runNextCommand (argv, options = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, stdio: options.stdout ? ['ignore', 'pipe', 'ignore'] : 'inherit' })
+    const instance = spawn('node', ['dist/bin/next', ...argv], { ...options.spawnOptions, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+
+    let stderrOutput = ''
+    if (options.stderr) {
+      instance.stderr.on('data', function (chunk) {
+        stderrOutput += chunk
+      })
+    }
 
     let stdoutOutput = ''
     if (options.stdout) {
@@ -80,11 +87,14 @@ export function runNextCommand (argv, options = {}) {
 
     instance.on('close', () => {
       resolve({
-        stdout: stdoutOutput
+        stdout: stdoutOutput,
+        stderr: stderrOutput
       })
     })
 
     instance.on('error', (err) => {
+      err.stdout = stdoutOutput
+      err.stderr = stderrOutput
       reject(err)
     })
   })
