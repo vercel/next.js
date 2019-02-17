@@ -56,7 +56,7 @@ describe('Production Custom Build Directory', () => {
         dev: false,
         quiet: true
       })
-  
+
       const server = await startApp(app)
       const appPort = server.address().port
 
