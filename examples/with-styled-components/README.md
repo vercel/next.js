@@ -41,7 +41,7 @@ now
 
 ### Try it on CodeSandbox
 
-[Open this example on CodeSandbox](https://codesandbox.io/s/github/zeit/next.js/tree/master/examples/with-styled-components)
+[Open this example on CodeSandbox](https://codesandbox.io/s/github/zeit/next.js/tree/canary/examples/with-styled-components)
 
 ## The idea behind the example
 
