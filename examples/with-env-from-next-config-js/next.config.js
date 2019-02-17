@@ -3,10 +3,14 @@ const {
   PHASE_PRODUCTION_BUILD
 } = require('next/constants')
 
+// This uses phases as outlined here: https://nextjs.org/docs/#custom-configuration
 module.exports = phase => {
+  // when started in development mode
   const isDev = phase === PHASE_DEVELOPMENT_SERVER
+  // when `next build` is used
   const isProd = phase === PHASE_PRODUCTION_BUILD
-  const isStaging = process.env.STAGING === '1'
+  // when `STAGING=1 next build` is used
+  const isStaging = isProd && process.env.STAGING === '1'
 
   const env = {
     RESTURL_SPEAKERS: (() => {
@@ -22,5 +26,9 @@ module.exports = phase => {
       return 'RESTURL_SESSIONS:not isDev,isProd,isStaging'
     })()
   }
-  return env
+
+  // next.config.js object
+  return {
+    env
+  }
 }
