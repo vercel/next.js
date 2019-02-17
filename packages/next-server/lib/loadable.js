@@ -25,7 +25,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 
 const ALL_INITIALIZERS = []
-const READY_INITIALIZERS = [];
+const READY_INITIALIZERS = []
 let initialized = false
 
 function load (loader) {
@@ -140,7 +140,7 @@ function createLoadableComponent (loadFn, options) {
     const moduleIds = opts.webpack()
     READY_INITIALIZERS.push(({ids}) => {
       for (const moduleId of moduleIds) {
-        if(ids.indexOf(moduleId) !== -1) {
+        if (ids.indexOf(moduleId) !== -1) {
           return init()
         }
       }
@@ -303,8 +303,8 @@ Loadable.preloadReady = (ids) => {
       return resolve()
     }
     // We always will resolve, errors should be handled within loading UIs.
-    flushInitializers(READY_INITIALIZERS, {ids}).then(res, res);
-  });
+    flushInitializers(READY_INITIALIZERS, {ids}).then(res, res)
+  })
 }
 
 export default Loadable
