@@ -76,7 +76,6 @@ if (args['--inspect']) {
 const command = foundCommand ? args._[0] : defaultCommand
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
-console.log({command, foundCommand, forwardedArgs})
 
 // Make sure the `next <subcommand> --help` case is covered
 if (args['--help']) {
