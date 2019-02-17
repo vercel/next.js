@@ -138,7 +138,7 @@ function createLoadableComponent (loadFn, options) {
   // Client only
   if (!initialized && typeof window !== 'undefined' && typeof opts.webpack === 'function') {
     const moduleIds = opts.webpack()
-    READY_INITIALIZERS.push(({ids}) => {
+    READY_INITIALIZERS.push((ids) => {
       for (const moduleId of moduleIds) {
         if (ids.indexOf(moduleId) !== -1) {
           return init()
@@ -275,17 +275,17 @@ function LoadableMap (opts) {
 
 Loadable.Map = LoadableMap
 
-function flushInitializers (initializers, opts) {
+function flushInitializers (initializers, ids) {
   let promises = []
 
   while (initializers.length) {
     let init = initializers.pop()
-    promises.push(init(opts))
+    promises.push(init(ids))
   }
 
   return Promise.all(promises).then(() => {
     if (initializers.length) {
-      return flushInitializers(initializers, opts)
+      return flushInitializers(initializers, ids)
     }
   })
 }
@@ -303,7 +303,7 @@ Loadable.preloadReady = (ids) => {
       return resolve()
     }
     // We always will resolve, errors should be handled within loading UIs.
-    flushInitializers(READY_INITIALIZERS, {ids}).then(res, res)
+    flushInitializers(READY_INITIALIZERS, ids).then(res, res)
   })
 }
 
