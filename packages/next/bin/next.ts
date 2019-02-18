@@ -42,7 +42,7 @@ if (args['--version']) {
 }
 
 // Check if we are running `next <subcommand>` or `next`
-const foundCommand = args._.find((cmd) => commands.includes(cmd))
+const foundCommand = commands.includes(args._[0])
 
 // Makes sure the `next <subcommand> --help` case is covered
 // This help message is only showed for `next --help`
@@ -73,8 +73,8 @@ if (args['--inspect']) {
   nodeArguments.push('--inspect')
 }
 
-const command = foundCommand || defaultCommand
-const forwardedArgs = args._.filter((arg) => arg !== command)
+const command = foundCommand ? args._[0] : defaultCommand
+const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
 // Make sure the `next <subcommand> --help` case is covered
 if (args['--help']) {

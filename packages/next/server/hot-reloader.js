@@ -226,7 +226,7 @@ export default class HotReloader {
       onDemandEntries.middleware(),
       webpackDevMiddleware,
       webpackHotMiddleware,
-      errorOverlayMiddleware
+      errorOverlayMiddleware({ dir: this.dir })
     ]
   }
 

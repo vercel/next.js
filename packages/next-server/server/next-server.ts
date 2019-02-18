@@ -162,29 +162,6 @@ export default class Server {
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      if (this.nextConfig.experimental.amp) {
-        // It's very important to keep this route's param optional.
-        // (but it should support as many params as needed, separated by '/')
-        // Otherwise this will lead to a pretty simple DOS attack.
-        // See more: https://github.com/zeit/next.js/issues/2617
-        routes.push({
-          match: route('/:path*/amp'),
-          fn: async (req, res, params, parsedUrl) => {
-            let pathname
-            if (!params.path) {
-              pathname = '/'
-            } else {
-              pathname = '/' + params.path.join('/')
-            }
-            const { query } = parsedUrl
-            if (!pathname) {
-              throw new Error('pathname is undefined')
-            }
-            await this.renderToAMP(req, res, pathname, query, parsedUrl)
-          },
-        })
-      }
-
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
@@ -196,7 +173,13 @@ export default class Server {
           if (!pathname) {
             throw new Error('pathname is undefined')
           }
-          await this.render(req, res, pathname, query, parsedUrl)
+
+          // Currently, we will render amp even if the user passes `?amp=0`.
+          if (this.nextConfig.experimental.amp && query.amp) {
+            await this.renderToAMP(req, res, pathname, query, parsedUrl)
+          } else {
+            await this.render(req, res, pathname, query, parsedUrl)
+          }
         },
       })
     }
