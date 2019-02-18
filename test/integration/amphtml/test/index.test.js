@@ -24,11 +24,12 @@ async function validateAMP (html) {
   if (result.status !== 'PASS') {
     for (let ii = 0; ii < result.errors.length; ii++) {
       const error = result.errors[ii]
-      let msg = 'line ' + error.line + ', col ' + error.col + ': ' + error.message
+      let msg =
+        'line ' + error.line + ', col ' + error.col + ': ' + error.message
       if (error.specUrl !== null) {
         msg += ' (see ' + error.specUrl + ')'
       }
-      ((error.severity === 'ERROR') ? console.error : console.warn)(msg)
+      ;(error.severity === 'ERROR' ? console.error : console.warn)(msg)
     }
   }
   expect(result.status).toBe('PASS')
@@ -57,33 +58,45 @@ describe('AMP Usage', () => {
 
   describe('With basic AMP usage', () => {
     it('should render the page as valid AMP', async () => {
-      const html = await renderViaHTTP(appPort, '/amp')
+      const html = await renderViaHTTP(appPort, '/?amp=1')
       await validateAMP(html)
       expect(html).toMatch(/Hello World/)
     })
 
     it('should add link preload for amp script', async () => {
-      const html = await renderViaHTTP(appPort, '/amp')
+      const html = await renderViaHTTP(appPort, '/?amp=1')
       await validateAMP(html)
       const $ = cheerio.load(html)
-      expect($($('link[rel=preload]').toArray().find(i => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js')).attr('href')).toBe('https://cdn.ampproject.org/v0.js')
+      expect(
+        $(
+          $('link[rel=preload]')
+            .toArray()
+            .find(i => $(i).attr('href') === 'https://cdn.ampproject.org/v0.js')
+        ).attr('href')
+      ).toBe('https://cdn.ampproject.org/v0.js')
     })
 
     it('should add custom styles before amp boilerplate styles', async () => {
-      const html = await renderViaHTTP(appPort, '/amp')
+      const html = await renderViaHTTP(appPort, '/?amp=1')
       await validateAMP(html)
       const $ = cheerio.load(html)
       const order = []
-      $('style').toArray().forEach((i) => {
-        if ($(i).attr('amp-custom') === '') {
-          order.push('amp-custom')
-        }
-        if ($(i).attr('amp-boilerplate') === '') {
-          order.push('amp-boilerplate')
-        }
-      })
+      $('style')
+        .toArray()
+        .forEach(i => {
+          if ($(i).attr('amp-custom') === '') {
+            order.push('amp-custom')
+          }
+          if ($(i).attr('amp-boilerplate') === '') {
+            order.push('amp-boilerplate')
+          }
+        })
 
-      expect(order).toEqual(['amp-custom', 'amp-boilerplate', 'amp-boilerplate'])
+      expect(order).toEqual([
+        'amp-custom',
+        'amp-boilerplate',
+        'amp-boilerplate'
+      ])
     })
   })
 
@@ -94,7 +107,7 @@ describe('AMP Usage', () => {
     })
 
     it('should render the AMP page that uses the AMP hook', async () => {
-      const html = await renderViaHTTP(appPort, '/use-amp-hook/amp')
+      const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
       await validateAMP(html)
       expect(html).toMatch(/Hello AMP/)
     })
@@ -104,14 +117,22 @@ describe('AMP Usage', () => {
     it('should render link rel amphtml', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook')
       const $ = cheerio.load(html)
-      expect($('link[rel=amphtml]').first().attr('href')).toBe('/use-amp-hook/amp')
+      expect(
+        $('link[rel=amphtml]')
+          .first()
+          .attr('href')
+      ).toBe('/use-amp-hook?amp=1')
     })
 
     it('should render the AMP page that uses the AMP hook', async () => {
-      const html = await renderViaHTTP(appPort, '/use-amp-hook/amp')
+      const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
       const $ = cheerio.load(html)
       await validateAMP(html)
-      expect($('link[rel=canonical]').first().attr('href')).toBe('/use-amp-hook')
+      expect(
+        $('link[rel=canonical]')
+          .first()
+          .attr('href')
+      ).toBe('/use-amp-hook')
     })
   })
 })
