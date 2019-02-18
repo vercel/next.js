@@ -1,6 +1,7 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
+import {parse} from 'url'
 import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
@@ -152,6 +153,40 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     reloadCallbacks = null
   }
 
+  function handlePing (pg, socket) {
+    const page = normalizePage(pg)
+    const entryInfo = entries[page]
+
+    // If there's no entry.
+    // Then it seems like an weird issue.
+    if (!entryInfo) {
+      const message = `Client pings, but there's no entry for page: ${page}`
+      console.error(message)
+      return sendJson(socket, { invalid: true })
+    }
+
+    // 404 is an on demand entry but when a new page is added we have to refresh the page
+    if (page === '/_error') {
+      sendJson(socket, { invalid: true })
+    } else {
+      sendJson(socket, { success: true })
+    }
+
+    // We don't need to maintain active state of anything other than BUILT entries
+    if (entryInfo.status !== BUILT) return
+
+    // If there's an entryInfo
+    if (!lastAccessPages.includes(page)) {
+      lastAccessPages.unshift(page)
+
+      // Maintain the buffer max length
+      if (lastAccessPages.length > pagesBufferLength) {
+        lastAccessPages.pop()
+      }
+    }
+    entryInfo.lastActiveTime = Date.now()
+  }
+
   return {
     waitUntilReloaded () {
       if (!reloading) return Promise.resolve(true)
@@ -225,37 +260,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
     wsConnection (ws) {
       ws.onmessage = ({ data }) => {
-        const page = normalizePage(data)
-        const entryInfo = entries[page]
-
-        // If there's no entry.
-        // Then it seems like an weird issue.
-        if (!entryInfo) {
-          const message = `Client pings, but there's no entry for page: ${page}`
-          console.error(message)
-          return sendJson(ws, { invalid: true })
-        }
-
-        // 404 is an on demand entry but when a new page is added we have to refresh the page
-        if (page === '/_error') {
-          sendJson(ws, { invalid: true })
-        } else {
-          sendJson(ws, { success: true })
-        }
-
-        // We don't need to maintain active state of anything other than BUILT entries
-        if (entryInfo.status !== BUILT) return
-
-        // If there's an entryInfo
-        if (!lastAccessPages.includes(page)) {
-          lastAccessPages.unshift(page)
-
-          // Maintain the buffer max length
-          if (lastAccessPages.length > pagesBufferLength) {
-            lastAccessPages.pop()
-          }
-        }
-        entryInfo.lastActiveTime = Date.now()
+        // `data` should be the page here
+        handlePing(data, ws)
       }
     },
 
@@ -279,6 +285,12 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
             })
         } else {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
+
+          const { query } = parse(req.url, true)
+
+          if (query.page) {
+            return handlePing(query.page, res)
+          }
 
           res.statusCode = 200
           res.setHeader('port', wsPort)
@@ -328,8 +340,17 @@ export function normalizePage (page) {
   return unixPagePath.replace(/\/index$/, '')
 }
 
-function sendJson (ws, data) {
-  ws.send(JSON.stringify(data))
+function sendJson (socket, data) {
+  data = JSON.stringify(data)
+
+  // Handle fetch request
+  if (socket.setHeader) {
+    socket.setHeader('content-type', 'application/json')
+    socket.status = 200
+    return socket.end(data)
+  }
+  // Should be WebSocket so just send
+  socket.send(data)
 }
 
 // Make sure only one invalidation happens at a time

@@ -12,6 +12,7 @@ import {route} from 'next-server/dist/server/router'
 import globModule from 'glob'
 import {promisify} from 'util'
 import {createPagesMapping, createEntrypoints} from '../build/entries'
+import {watchCompiler} from '../build/output'
 
 const glob = promisify(globModule)
 
@@ -167,8 +168,8 @@ export default class HotReloader {
   addWsConfig (configs) {
     const { websocketProxyPath, websocketProxyPort } = this.config.onDemandEntries
     const opts = {
-      'process.env.NEXT_WS_PORT': websocketProxyPort || this.wsPort,
-      'process.env.NEXT_WS_PROXY_PATH': JSON.stringify(websocketProxyPath)
+      'process.env.__NEXT_WS_PORT': websocketProxyPort || this.wsPort,
+      'process.env.__NEXT_WS_PROXY_PATH': JSON.stringify(websocketProxyPath)
     }
     configs[0].plugins.push(new webpack.DefinePlugin(opts))
   }
@@ -259,6 +260,11 @@ export default class HotReloader {
   }
 
   async prepareBuildTools (multiCompiler) {
+    watchCompiler(
+      multiCompiler.compilers[0],
+      multiCompiler.compilers[1]
+    )
+
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       if (!this.initialized) {
