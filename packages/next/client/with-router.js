@@ -11,7 +11,7 @@ export default function withRouter (ComposedComponent) {
       router: PropTypes.object
     }
 
-    static displayName = `withRouter(${displayName})`
+    static displayName = process.env.NODE_ENV === 'production' ? 'Unknown' : `withRouter(${displayName})`
 
     render () {
       return <ComposedComponent
