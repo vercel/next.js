@@ -37,6 +37,26 @@ export default (context, render) => {
         }
       })
 
+      it('should hydrate nested chunks', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/nested')
+          await check(() => browser.elementByCss('body').text(), /Nested 1/)
+          await check(() => browser.elementByCss('body').text(), /Nested 2/)
+          await check(() => browser.elementByCss('body').text(), /Browser hydrated/)
+
+          const logs = await browser.log('browser')
+
+          logs.forEach(logItem => {
+            expect(logItem.message).not.toMatch(/Expected server HTML to contain/)
+          })
+        } finally {
+          if (browser) {
+            browser.close()
+          }
+        }
+      })
+
       it('should render the component Head content', async () => {
         let browser
         try {

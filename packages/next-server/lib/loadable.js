@@ -25,7 +25,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 
 const ALL_INITIALIZERS = []
-const READY_INITIALIZERS = new Map()
+const READY_INITIALIZERS = []
 let initialized = false
 
 function load (loader) {
@@ -138,11 +138,13 @@ function createLoadableComponent (loadFn, options) {
   // Client only
   if (!initialized && typeof window !== 'undefined' && typeof opts.webpack === 'function') {
     const moduleIds = opts.webpack()
-    for (const moduleId of moduleIds) {
-      READY_INITIALIZERS.set(moduleId, () => {
-        return init()
-      })
-    }
+    READY_INITIALIZERS.push((ids) => {
+      for (const moduleId of moduleIds) {
+        if (ids.indexOf(moduleId) !== -1) {
+          return init()
+        }
+      }
+    })
   }
 
   return class LoadableComponent extends React.Component {
@@ -273,17 +275,17 @@ function LoadableMap (opts) {
 
 Loadable.Map = LoadableMap
 
-function flushInitializers (initializers) {
+function flushInitializers (initializers, ids) {
   let promises = []
 
   while (initializers.length) {
     let init = initializers.pop()
-    promises.push(init())
+    promises.push(init(ids))
   }
 
   return Promise.all(promises).then(() => {
     if (initializers.length) {
-      return flushInitializers(initializers)
+      return flushInitializers(initializers, ids)
     }
   })
 }
@@ -294,24 +296,14 @@ Loadable.preloadAll = () => {
   })
 }
 
-Loadable.preloadReady = (webpackIds) => {
-  return new Promise((resolve, reject) => {
-    const initializers = webpackIds.reduce((allInitalizers, moduleId) => {
-      const initializer = READY_INITIALIZERS.get(moduleId)
-      if (!initializer) {
-        return allInitalizers
-      }
-
-      allInitalizers.push(initializer)
-      return allInitalizers
-    }, [])
-
-    initialized = true
-    // Make sure the object is cleared
-    READY_INITIALIZERS.clear()
-
+Loadable.preloadReady = (ids) => {
+  return new Promise((resolve) => {
+    const res = () => {
+      initialized = true
+      return resolve()
+    }
     // We always will resolve, errors should be handled within loading UIs.
-    flushInitializers(initializers).then(resolve, resolve)
+    flushInitializers(READY_INITIALIZERS, ids).then(res, res)
   })
 }
 
