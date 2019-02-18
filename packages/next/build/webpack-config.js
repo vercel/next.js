@@ -1,5 +1,5 @@
 import path from 'path'
-import webpack from 'webpack'
+import webpack from 'next/webpack'
 import resolve from 'resolve'
 import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'

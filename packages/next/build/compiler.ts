@@ -1,4 +1,4 @@
-import webpack from 'webpack'
+import webpack from 'next/webpack'
 
 export type CompilerResult = {
   errors: Error[]
