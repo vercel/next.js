@@ -1,7 +1,7 @@
 import findUp from 'find-up'
 import {CONFIG_FILE} from 'next-server/constants'
 
-const targets = ['server', 'serverless']
+const targets = ['server', 'serverless', 'unified']
 
 const defaultConfig = {
   webpack: null,

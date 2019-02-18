@@ -26,7 +26,7 @@ function externalsConfig (isServer, target) {
 
   // When the serverless target is used all node_modules will be compiled into the output bundles
   // So that the serverless bundles have 0 runtime dependencies
-  if (!isServer || target === 'serverless') {
+  if (!isServer || target === 'serverless' || target === 'unified') {
     return externals
   }
 
@@ -81,7 +81,7 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
     }
   }
 
-  if (isServer && target === 'serverless') {
+  if (isServer && (target === 'serverless' || target === 'unified')) {
     return {
       splitChunks: false,
       minimizer: [
@@ -166,7 +166,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
     .filter((p) => !!p)
 
   const distDir = path.join(dir, config.distDir)
-  const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
+  let outputDir = SERVER_DIRECTORY
+  if (target === 'serverless') {
+    outputDir = 'serverless'
+  } else if (target === 'unified') {
+    outputDir = 'unified'
+  }
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer ? {
@@ -307,10 +312,10 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       !isServer && dev && new webpack.DefinePlugin({
         'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
       }),
-      target !== 'serverless' && isServer && new PagesManifestPlugin(),
+      target !== 'serverless' && target !== 'unified' && isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       isServer && new NextJsSsrImportPlugin(),
-      target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
+      target !== 'serverless' && target !== 'unified' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource) => {
           return /react-is/.test(resource)

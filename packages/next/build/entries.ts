@@ -2,6 +2,7 @@ import {join} from 'path'
 import {stringify} from 'querystring'
 import {PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
 import {ServerlessLoaderQuery} from './webpack/loaders/next-serverless-loader'
+import {UnifiedLoaderQuery} from './webpack/loaders/next-unified-loader'
 
 type PagesMapping = {
   [page: string]: string
@@ -30,7 +31,7 @@ type Entrypoints = {
   server: WebpackEntrypoints
 }
 
-export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverless', buildId: string, config: any): Entrypoints {
+export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverless'|'unified', buildId: string, config: any): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
 
@@ -59,6 +60,22 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     }
     client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
   })
+
+  if(target === 'unified') {
+    const pagesArray: Array<String> = []
+    const absolutePagePaths: Array<String> = []
+
+    Object.keys(pages).forEach((page) => {
+      if(page === '/_document') {
+        return
+      }
+      pagesArray.push(page)
+      absolutePagePaths.push(pages[page])
+    });
+
+    const unifiedLoaderOptions: UnifiedLoaderQuery = {pages: pagesArray.join(','), absolutePagePaths: absolutePagePaths.join(','), ...defaultServerlessOptions};
+    server['index.js'] = `next-unified-loader?${stringify(unifiedLoaderOptions)}!`
+  }
 
   return {
     client,
