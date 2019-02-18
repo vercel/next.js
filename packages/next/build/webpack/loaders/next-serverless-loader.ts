@@ -39,7 +39,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
-    async function renderReqToHTML(req, res) {
+    async function renderReqToHTML(req, res, queryParams) {
       const options = {
         App,
         Document,
@@ -49,23 +49,25 @@ const nextServerlessLoader: loader.Loader = function () {
         assetPrefix: "${assetPrefix}"
       }
       const parsedUrl = parse(req.url, true)
+      const query = Object.assign({}, parsedUrl.query, queryParams);
+
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign({}, options, {
+        const result = await renderToHTML(req, res, "${page}", query, Object.assign({}, options, {
           Component
         }))
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
           res.statusCode = 404
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+          const result = await renderToHTML(req, res, "/_error", query, Object.assign({}, options, {
             Component: Error
           }))
           return result
         } else {
           console.error(err)
           res.statusCode = 500
-          const result = await renderToHTML(req, res, "/_error", parsedUrl.query, Object.assign({}, options, {
+          const result = await renderToHTML(req, res, "/_error", query, Object.assign({}, options, {
             Component: Error,
             err
           }))
@@ -73,9 +75,9 @@ const nextServerlessLoader: loader.Loader = function () {
         }
       }
     }
-    export async function render (req, res) {
+    export async function render (req, res, query) {
       try {
-        const html = await renderReqToHTML(req, res)
+        const html = await renderReqToHTML(req, res, query)
         sendHTML(req, res, html, {generateEtags: ${generateEtags}})
       } catch(err) {
         console.error(err)
