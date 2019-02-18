@@ -1,5 +1,7 @@
 function EventSourceWrapper (options) {
   var source
+  var curPath
+  var origPath = options.path
   var lastActivity = new Date()
   var listeners = []
 
@@ -14,11 +16,18 @@ function EventSourceWrapper (options) {
     }
   }, options.timeout / 2)
 
-  function init () {
-    source = new window.EventSource(options.path)
+  function init (page) {
+    curPath = page ? origPath + `?page=${page}` : (curPath || origPath)
+    source = new window.EventSource(curPath)
     source.onopen = handleOnline
     source.onerror = handleDisconnect
     source.onmessage = handleMessage
+    window.__NEXT_RES_EVT_SOURCE = resetEvtSource
+  }
+
+  function resetEvtSource (page) {
+    source.close()
+    init(page)
   }
 
   function handleOnline () {
@@ -27,6 +36,10 @@ function EventSourceWrapper (options) {
   }
 
   function handleMessage (event) {
+    if (window.__NEXT_PING_HANDLE) {
+      const handled = window.__NEXT_PING_HANDLE(event)
+      if (handled) return
+    }
     lastActivity = new Date()
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](event)
