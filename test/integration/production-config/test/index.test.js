@@ -41,27 +41,27 @@ describe('Production Config Usage', () => {
 
   describe('env', () => {
     it('should fail with __ in env key', async () => {
-      const result = await runNextCommand(['build', appDir], {spawnOptions: {
+      const result = await runNextCommand(['build', appDir], { spawnOptions: {
         env: {
           ...process.env,
           ENABLE_ENV_FAIL_UNDERSCORE: true
         }
       },
       stdout: true,
-      stderr: true})
+      stderr: true })
 
       expect(result.stderr).toMatch(/The key "__NEXT_MY_VAR" under/)
     })
 
     it('should fail with NODE_ in env key', async () => {
-      const result = await runNextCommand(['build', appDir], {spawnOptions: {
+      const result = await runNextCommand(['build', appDir], { spawnOptions: {
         env: {
           ...process.env,
           ENABLE_ENV_FAIL_NODE: true
         }
       },
       stdout: true,
-      stderr: true})
+      stderr: true })
 
       expect(result.stderr).toMatch(/The key "NODE_ENV" under/)
     })

@@ -25,7 +25,7 @@ export default function dynamic (dynamicOptions, options) {
   let loadableFn = Loadable
   let loadableOptions = {
     // A loading component is not required, so we default it
-    loading: ({error, isLoading}) => {
+    loading: ({ error, isLoading }) => {
       if (process.env.NODE_ENV === 'development') {
         if (isLoading) {
           return <DefaultLoading />
@@ -50,11 +50,11 @@ export default function dynamic (dynamicOptions, options) {
     loadableOptions.loader = dynamicOptions
   // Support for having first argument being options, eg: dynamic({loader: import('../hello-world')})
   } else if (typeof dynamicOptions === 'object') {
-    loadableOptions = {...loadableOptions, ...dynamicOptions}
+    loadableOptions = { ...loadableOptions, ...dynamicOptions }
   }
 
   // Support for passing options, eg: dynamic(import('../hello-world'), {loading: () => <p>Loading something</p>})
-  loadableOptions = {...loadableOptions, ...options}
+  loadableOptions = { ...loadableOptions, ...options }
 
   // Support for `render` when using a mapping, eg: `dynamic({ modules: () => {return {HelloWorld: import('../hello-world')}, render(props, loaded) {} } })
   if (dynamicOptions.render) {
@@ -78,7 +78,7 @@ export default function dynamic (dynamicOptions, options) {
 
   // coming from build/babel/plugins/react-loadable-plugin.js
   if (loadableOptions.loadableGenerated) {
-    loadableOptions = {...loadableOptions, ...loadableOptions.loadableGenerated}
+    loadableOptions = { ...loadableOptions, ...loadableOptions.loadableGenerated }
     delete loadableOptions.loadableGenerated
   }
 
