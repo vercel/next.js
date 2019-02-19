@@ -45,3 +45,12 @@ declare module 'autodll-webpack-plugin' {
 
   export = AutoDllPlugin
 }
+
+// This "hack" is needed because typescript doesn't support recursive type definitions
+// It's referenced from "ruleSet-conditions" in schemas/WebpackOptions.json
+interface RuleSetConditionsRecursive
+	extends Array<import("webpack/declarations/WebpackOptions").RuleSetCondition> {}
+interface RuleSetConditionsAbsoluteRecursive
+	extends Array<
+		import("webpack/declarations/WebpackOptions").RuleSetConditionAbsolute
+	> {}
