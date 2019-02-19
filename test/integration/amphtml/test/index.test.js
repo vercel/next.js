@@ -145,7 +145,7 @@ describe('AMP Usage', () => {
           .first()
           .text()
       ).toMatch(
-        /div.jsx-\d+{color:\w+;}div.jsx-\d+{color:\w+;}body{background-color:\w+;}/
+        /div.jsx-\d+{color:\w+;}span.jsx-\d+{color:\w+;}body{background-color:\w+;}/
       )
     })
   })
