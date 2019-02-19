@@ -140,7 +140,7 @@ export function nextBuild (dir, args = []) {
   return runNextCommand(['build', dir, ...args])
 }
 
-export function nextExport (dir, {outdir}) {
+export function nextExport (dir, { outdir }) {
   return runNextCommand(['export', dir, '--outdir', outdir])
 }
 
@@ -203,9 +203,9 @@ export async function check (contentFn, regex) {
     try {
       content = await contentFn()
     } catch (err) {
-      console.error('Error while getting content', {regex})
+      console.error('Error while getting content', { regex })
     }
-    console.error('TIMED OUT CHECK: ', {regex, content})
+    console.error('TIMED OUT CHECK: ', { regex, content })
     throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }, 1000 * 30)
   while (!found) {

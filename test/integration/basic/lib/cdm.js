@@ -1,4 +1,4 @@
-import React, {Component} from 'react'
+import React, { Component } from 'react'
 
 export default class extends Component {
   constructor (props) {
@@ -10,7 +10,7 @@ export default class extends Component {
   }
 
   componentDidMount () {
-    this.setState({mounted: true})
+    this.setState({ mounted: true })
   }
 
   render () {

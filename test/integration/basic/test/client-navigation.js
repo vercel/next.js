@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import {waitFor, getReactErrorOverlayContent} from 'next-test-utils'
+import { waitFor, getReactErrorOverlayContent } from 'next-test-utils'
 
 export default (context) => {
   describe('Client Navigation', () => {
@@ -40,8 +40,8 @@ export default (context) => {
         const urlResult = await browser.elementByCss('#url-result').text()
         const previousUrlResult = await browser.elementByCss('#previous-url-result').text()
 
-        expect(JSON.parse(urlResult)).toMatchObject({'query': {'added': 'yes'}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes'})
-        expect(JSON.parse(previousUrlResult)).toMatchObject({'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change'})
+        expect(JSON.parse(urlResult)).toMatchObject({ 'query': { 'added': 'yes' }, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes' })
+        expect(JSON.parse(previousUrlResult)).toMatchObject({ 'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change' })
 
         browser.close()
       })

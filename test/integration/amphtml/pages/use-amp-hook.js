@@ -1,4 +1,4 @@
-import {useAmp} from 'next/amp'
+import { useAmp } from 'next/amp'
 
 export default () => {
   const isAmp = useAmp()

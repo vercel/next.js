@@ -3,16 +3,16 @@ import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import del from 'del'
-import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
+import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import webpack from 'webpack'
 import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from 'next-server/constants'
-import {route} from 'next-server/dist/server/router'
+import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES } from 'next-server/constants'
+import { route } from 'next-server/dist/server/router'
 import globModule from 'glob'
-import {promisify} from 'util'
-import {createPagesMapping, createEntrypoints} from '../build/entries'
-import {watchCompiler} from '../build/output'
+import { promisify } from 'util'
+import { createPagesMapping, createEntrypoints } from '../build/entries'
+import { watchCompiler } from '../build/output'
 
 const glob = promisify(globModule)
 
@@ -63,11 +63,11 @@ function findEntryModule (issuer) {
   return issuer
 }
 
-function erroredPages (compilation, options = {enhanceName: (name) => name}) {
+function erroredPages (compilation, options = { enhanceName: (name) => name }) {
   const failedPages = {}
   for (const error of compilation.errors) {
     const entryModule = findEntryModule(error.origin)
-    const {name} = entryModule
+    const { name } = entryModule
     if (!name) {
       continue
     }
@@ -118,7 +118,7 @@ export default class HotReloader {
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (res, parsedUrl) => {
-      const {pathname} = parsedUrl
+      const { pathname } = parsedUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
@@ -134,20 +134,20 @@ export default class HotReloader {
           await this.ensurePage(page)
         } catch (error) {
           await renderScriptError(res, error)
-          return {finished: true}
+          return { finished: true }
         }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
           await renderScriptError(res, errors[0])
-          return {finished: true}
+          return { finished: true }
         }
       }
 
       return {}
     }
 
-    const {finished} = await handlePageBundleRequest(res, parsedUrl)
+    const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
@@ -158,7 +158,7 @@ export default class HotReloader {
       })
     }
 
-    return {finished}
+    return { finished }
   }
 
   async clean () {
@@ -175,7 +175,7 @@ export default class HotReloader {
   }
 
   async getWebpackConfig () {
-    const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
+    const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, { cwd: join(this.dir, 'pages') })
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
     return Promise.all([
@@ -195,7 +195,7 @@ export default class HotReloader {
           return reject(err)
         }
 
-        const {port} = this.address()
+        const { port } = this.address()
         if (!port) {
           return reject(new Error('No websocket port could be detected'))
         }
@@ -271,7 +271,7 @@ export default class HotReloader {
         return
       }
 
-      const {compilation} = stats
+      const { compilation } = stats
 
       // We only watch `_document` for changes on the server compilation
       // the rest of the files will be triggered by the client compilation
@@ -391,7 +391,7 @@ export default class HotReloader {
     await this.onDemandEntries.waitUntilReloaded()
 
     if (this.stats.hasErrors()) {
-      const {compilation} = this.stats
+      const { compilation } = this.stats
       const failedPages = erroredPages(compilation, {
         enhanceName (name) {
           return '/' + ROUTE_NAME_REGEX.exec(name)[1]

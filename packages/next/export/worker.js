@@ -7,7 +7,7 @@ const mkdirp = require('mkdirp-then')
 const { renderToHTML } = require('next-server/dist/server/render')
 const { writeFile } = require('fs')
 const Sema = require('async-sema')
-const {loadComponents} = require('next-server/dist/server/load-components')
+const { loadComponents } = require('next-server/dist/server/load-components')
 const envConfig = require('next-server/config')
 
 process.on(
@@ -47,7 +47,7 @@ process.on(
 
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
-        const html = await renderToHTML(req, res, page, query, {...components, ...renderOpts})
+        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts })
         await new Promise((resolve, reject) =>
           writeFile(
             htmlFilepath,

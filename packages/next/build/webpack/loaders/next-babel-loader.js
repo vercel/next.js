@@ -1,9 +1,9 @@
 import babelLoader from 'babel-loader'
 
 module.exports = babelLoader.custom(babel => {
-  const presetItem = babel.createConfigItem(require('../../babel/preset'), {type: 'preset'})
-  const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), {type: 'plugin'})
-  const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), {type: 'plugin'})
+  const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
+  const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), { type: 'plugin' })
+  const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), { type: 'plugin' })
 
   const configs = new Set()
 
@@ -22,7 +22,7 @@ module.exports = babelLoader.custom(babel => {
 
       return { loader, custom }
     },
-    config (cfg, {source, customOptions: {isServer, dev}}) {
+    config (cfg, { source, customOptions: { isServer, dev } }) {
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {

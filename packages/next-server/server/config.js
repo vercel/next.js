@@ -1,5 +1,5 @@
 import findUp from 'find-up'
-import {CONFIG_FILE} from 'next-server/constants'
+import { CONFIG_FILE } from 'next-server/constants'
 
 const targets = ['server', 'serverless']
 
@@ -30,7 +30,7 @@ const defaultConfig = {
 
 function normalizeConfig (phase, config) {
   if (typeof config === 'function') {
-    return config(phase, {defaultConfig})
+    return config(phase, { defaultConfig })
   }
 
   return config
@@ -38,7 +38,7 @@ function normalizeConfig (phase, config) {
 
 export default function loadConfig (phase, dir, customConfig) {
   if (customConfig) {
-    return {...defaultConfig, configOrigin: 'server', ...customConfig}
+    return { ...defaultConfig, configOrigin: 'server', ...customConfig }
   }
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir
@@ -63,7 +63,7 @@ export default function loadConfig (phase, dir, customConfig) {
         ...userConfig.onDemandEntries
       }
     }
-    return {...defaultConfig, configOrigin: CONFIG_FILE, ...userConfig}
+    return { ...defaultConfig, configOrigin: CONFIG_FILE, ...userConfig }
   }
 
   return defaultConfig
