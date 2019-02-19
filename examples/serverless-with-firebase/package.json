@@ -1,0 +1,41 @@
+{
+  "name": "serverless-with-firebase",
+  "version": "1.0.0",
+  "description": "Next.js 8 serverless with firebase example",
+  "license": "MIT",
+  "engines": {
+    "node": "8"
+  },
+  "scripts": {
+    "dev": "next src/app",
+    "local": "run-s build local:serve",
+    "build": "run-s build:*",
+    "build:public": "cpx \"src/app/static/**/*.*\" dist/public/static -C",
+    "build:functions": "cpx \"src/functions/**/*.*\" dist/functions -C",
+    "build:app": "next build src/app",
+    "build:install": "cpx \"*{package.json,yarn.lock}\" dist/functions -C && cd dist/functions && yarn install --production",
+    "local:serve": "cross-env NODE_ENV=production firebase serve",
+    "deploy": "firebase deploy",
+    "clean": "node scripts/clean.js"
+  },
+  "dependencies": {
+    "@zeit/next-typescript": "1.1.1",
+    "firebase-admin": "7.0.0",
+    "firebase-functions": "2.2.0",
+    "next": "8.0.1",
+    "react": "16.8.2",
+    "react-dom": "16.8.2"
+  },
+  "devDependencies": {
+    "@types/next": "8.0.1",
+    "@types/node": "11.9.4",
+    "@types/react": "16.8.3",
+    "@types/react-dom": "16.8.2",
+    "cpx": "1.5.0",
+    "cross-env": "5.2.0",
+    "del": "3.0.0",
+    "firebase-tools": "6.3.1",
+    "npm-run-all": "4.1.5",
+    "typescript": "3.3.3"
+  }
+}
