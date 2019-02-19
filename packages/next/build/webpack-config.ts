@@ -19,59 +19,59 @@ import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
 // The externals config makes sure that
 // on the server side when modules are
 // in node_modules they don't get compiled by webpack
-function externalsConfig (isServer, target) {
-  const externals = []
-
+function externalsConfig (isServer, target): webpack.ExternalsElement | webpack.ExternalsElement[] | undefined {
   // When the serverless target is used all node_modules will be compiled into the output bundles
   // So that the serverless bundles have 0 runtime dependencies
   if (!isServer || target === 'serverless') {
-    return externals
+    return
   }
 
   const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'ansi-html', 'hoist-non-react-statics', 'htmlescape']
 
-  externals.push((context, request, callback) => {
+  return (context, request, callback) => {
     if (notExternalModules.indexOf(request) !== -1) {
-      return callback()
+      return callback(null, null)
     }
 
     resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
       if (err) {
-        return callback()
+        return callback(err, null)
+      }
+
+      if (!res) {
+        return callback('no res', null)
       }
 
       // Default pages have to be transpiled
       if (res.match(/next[/\\]dist[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)) {
-        return callback()
+        return callback(null, null)
       }
 
       // Webpack itself has to be compiled because it doesn't always use module relative paths
       if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
-        return callback()
+        return callback(null, null)
       }
 
       // styled-jsx has to be transpiled
       if (res.match(/node_modules[/\\]styled-jsx/)) {
-        return callback()
+        return callback(null, null)
       }
 
       if (res.match(/node_modules[/\\].*\.js$/)) {
         return callback(null, `commonjs ${request}`)
       }
 
-      callback()
+      callback(null, null)
     })
-  })
-
-  return externals
+  }
 }
 
-function optimizationConfig ({ dev, isServer, totalPages, target }) {
+function optimizationConfig ({ dev, isServer, totalPages, target }): webpack.Options.Optimization {
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
     cache: true,
-    cacheKeys: (keys) => {
+    cacheKeys: (keys: any) => {
       // path changes per build because we add buildId
       // because the input is already hashed the path is not needed
       delete keys.path
@@ -79,74 +79,64 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
     }
   }
 
-  if (isServer && target === 'serverless') {
-    return {
-      splitChunks: false,
+  return {
+    ...isServer ? (
+      target === 'serverless' ? {
+        splitChunks: false,
+        minimizer: [
+          new TerserPlugin({...terserPluginConfig,
+            terserOptions: {
+              compress: false,
+              mangle: false,
+              module: false,
+              keep_classnames: true,
+              keep_fnames: true
+            }
+          })
+        ]
+      } : {
+        splitChunks: false,
+        minimize: false
+      }
+    ) : {
+      runtimeChunk: {
+        name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
+      },
+      splitChunks: {
+        cacheGroups: {
+          default: false,
+          vendors: false
+        }
+      }
+    },
+    ...!dev ? {
       minimizer: [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
-            compress: false,
-            mangle: false,
-            module: false,
-            keep_classnames: true,
-            keep_fnames: true
+            safari10: true
           }
         })
-      ]
-    }
-  }
-
-  if (isServer) {
-    return {
-      splitChunks: false,
-      minimize: false
-    }
-  }
-
-  const config = {
-    runtimeChunk: {
-      name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-    },
-    splitChunks: {
-      cacheGroups: {
-        default: false,
-        vendors: false
+      ],
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          commons: {
+            name: 'commons',
+            chunks: 'all',
+            minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+          },
+          react: {
+            name: 'react',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
+          }
+        }
       }
-    }
+    } : {}
   }
-
-  if (dev) {
-    return config
-  }
-
-  // Terser is a better uglifier
-  config.minimizer = [
-    new TerserPlugin({...terserPluginConfig,
-      terserOptions: {
-        safari10: true
-      }
-    })
-  ]
-
-  // Only enabled in production
-  // This logic will create a commons bundle
-  // with modules that are used in 50% of all pages
-  config.splitChunks.chunks = 'all'
-  config.splitChunks.cacheGroups.commons = {
-    name: 'commons',
-    chunks: 'all',
-    minChunks: totalPages > 2 ? totalPages * 0.5 : 2
-  }
-  config.splitChunks.cacheGroups.react = {
-    name: 'commons',
-    chunks: 'all',
-    test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
-  }
-
-  return config
 }
 
-export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}) {
+export default async function getBaseWebpackConfig (dir, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}): Promise<webpack.Configuration> {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -192,13 +182,13 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
 
   const webpackMode = dev ? 'development' : 'production'
 
-  let webpackConfig = {
+  let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
     externals: externalsConfig(isServer, target),
-    optimization: optimizationConfig({dir, dev, isServer, totalPages, target}),
+    optimization: optimizationConfig({dev, isServer, totalPages, target}),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
@@ -242,12 +232,12 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
         {
           test: /\.(js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
-          exclude: (path) => {
+          exclude: (path: string) => {
             if (/next-server[\\/]dist[\\/]lib/.exec(path)) {
               return false
             }
 
-            return /node_modules/.exec(path)
+            return Boolean(/node_modules/.exec(path))
           },
           use: defaultLoaders.babel
         }
@@ -308,10 +298,10 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       isServer && new NextJsSsrImportPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
       !dev && new webpack.IgnorePlugin({
-        checkResource: (resource) => {
+        checkResource: (resource: string) => {
           return /react-is/.test(resource)
         },
-        checkContext: (context) => {
+        checkContext: (context: string) => {
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       })
