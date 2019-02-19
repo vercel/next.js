@@ -56,9 +56,9 @@ export function renderViaHTTP (appPort, pathname, query) {
   return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
 }
 
-export function fetchViaHTTP (appPort, pathname, query) {
+export function fetchViaHTTP (appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
-  return fetch(url)
+  return fetch(url, opts)
 }
 
 export function findPort () {
