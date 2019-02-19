@@ -245,6 +245,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
             'react',
             'react-dom'
           ]
+        },
+        config: {
+          mode: webpackMode,
+          resolve: resolveConfig
         }
       }),
       // This plugin makes sure `output.filename` is used for entry chunks

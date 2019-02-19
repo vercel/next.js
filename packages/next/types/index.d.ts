@@ -37,7 +37,8 @@ declare module 'autodll-webpack-plugin' {
       filename?: string,
       path?: string,
       inherit?: boolean,
-      entry?: webpack.Entry
+      entry?: webpack.Entry,
+      config?: webpack.Configuration
     })
     apply: webpack.Plugin["apply"]
     [k: string]: any
