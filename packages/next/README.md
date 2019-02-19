@@ -1437,13 +1437,7 @@ module.exports = {
     // period (in ms) where the server will keep pages in the buffer
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
-    pagesBufferLength: 2,
-    // optionally configure a port for the onDemandEntries WebSocket, not needed by default
-    websocketPort: 3001,
-    // optionally configure a proxy path for the onDemandEntries WebSocket, not need by default
-    websocketProxyPath: '/hmr',
-    // optionally configure a proxy port for the onDemandEntries WebSocket, not need by default
-    websocketProxyPort: 7002,
+    pagesBufferLength: 2
   },
 }
 ```
@@ -1761,23 +1755,7 @@ next build
 next start
 ```
 
-For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like follows is recommended:
-
-```json
-{
-  "name": "my-app",
-  "dependencies": {
-    "next": "latest"
-  },
-  "scripts": {
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
-  }
-}
-```
-
-Then run `now` and enjoy!
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
@@ -1823,6 +1801,8 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 - [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
+
+Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
 #### One Level Lower
 

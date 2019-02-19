@@ -15,12 +15,12 @@ const {
 } = window
 
 const prefix = assetPrefix || ''
-const webpackHMR = initWebpackHMR({assetPrefix: prefix})
+const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
   .then((emitter) => {
-    initOnDemandEntries({assetPrefix: prefix})
+    initOnDemandEntries({ assetPrefix: prefix })
 
     let lastScroll
 

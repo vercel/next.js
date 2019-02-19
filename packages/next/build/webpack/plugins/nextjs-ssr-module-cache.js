@@ -1,7 +1,7 @@
 import webpack from 'webpack'
 import { RawSource } from 'webpack-sources'
 import { join, relative, dirname } from 'path'
-import {IS_BUNDLED_PAGE_REGEX} from 'next-server/constants'
+import { IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 
@@ -20,7 +20,7 @@ export default class NextJsSsrImportPlugin {
     this.options = options
   }
   apply (compiler) {
-    const {outputPath} = this.options
+    const { outputPath } = this.options
     compiler.hooks.emit.tapAsync('NextJsSSRModuleCache', (compilation, callback) => {
       compilation.assets[SSR_MODULE_CACHE_FILENAME] = new RawSource(`
       /* This cache is used by webpack for instantiated modules */

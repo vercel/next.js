@@ -135,7 +135,7 @@ export class Head extends Component {
         {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
         <link rel="preload" as="script" href="https://cdn.ampproject.org/v0.js" />
         {/* Add custom styles before AMP styles to prevent accidental overrides */}
-        {styles && <style amp-custom="" dangerouslySetInnerHTML={{__html: styles.map((style) => style.props.dangerouslySetInnerHTML.__html)}} />}
+        {styles && <style amp-custom="" dangerouslySetInnerHTML={{__html: styles.map((style) => style.props.dangerouslySetInnerHTML.__html).join('')}} />}
         <style amp-boilerplate="" dangerouslySetInnerHTML={{__html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`}}></style>
         <noscript><style amp-boilerplate="" dangerouslySetInnerHTML={{__html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`}}></style></noscript>
         <script async src="https://cdn.ampproject.org/v0.js"></script>

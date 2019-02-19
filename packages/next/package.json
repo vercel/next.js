@@ -94,8 +94,7 @@
     "webpack-dev-middleware": "3.4.0",
     "webpack-hot-middleware": "2.24.3",
     "webpack-sources": "1.3.0",
-    "worker-farm": "1.5.2",
-    "ws": "6.1.2"
+    "worker-farm": "1.5.2"
   },
   "peerDependencies": {
     "react": "^16.6.0",

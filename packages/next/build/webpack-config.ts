@@ -10,8 +10,8 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import {SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
-import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS} from '../lib/constants'
+import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
+import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
@@ -22,7 +22,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: {dev, isServer, cwd: dir}
+      options: { dev, isServer, cwd: dir }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -286,7 +286,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       !isServer && new BuildManifestPlugin(),
       isServer && new NextJsSsrImportPlugin(),
-      target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({outputPath}),
+      target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
@@ -299,7 +299,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, {dir, dev, isServer, buildId, config, defaultLoaders, totalPages})
+    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
   }
 
   // Backwards compat for `main.js` entry key
