@@ -111,7 +111,7 @@ export class Head extends Component {
   }
 
   render () {
-    const { asPath, ampEnabled, head, styles, amphtml, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
+    const { ampEnabled, head, styles, amphtml, assetPrefix, __NEXT_DATA__ } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
 
@@ -131,17 +131,17 @@ export class Head extends Component {
       {head}
       {amphtml && <>
         <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1"/>
-        <link rel="canonical" href={asPath === '/amp' ? '/' : asPath.replace(/\/amp$/, '')} />
+        <link rel="canonical" href={page} />
         {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
         <link rel="preload" as="script" href="https://cdn.ampproject.org/v0.js" />
         {/* Add custom styles before AMP styles to prevent accidental overrides */}
-        {styles && <style amp-custom="" dangerouslySetInnerHTML={{__html: styles.map((style) => style.props.dangerouslySetInnerHTML.__html)}} />}
+        {styles && <style amp-custom="" dangerouslySetInnerHTML={{__html: styles.map((style) => style.props.dangerouslySetInnerHTML.__html).join('')}} />}
         <style amp-boilerplate="" dangerouslySetInnerHTML={{__html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`}}></style>
         <noscript><style amp-boilerplate="" dangerouslySetInnerHTML={{__html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`}}></style></noscript>
         <script async src="https://cdn.ampproject.org/v0.js"></script>
       </>}
       {!amphtml && <>
-      {ampEnabled && <link rel="amphtml" href={asPath === '/' ? '/amp' : (asPath.replace(/\/$/, '') + '/amp')} />}
+      {ampEnabled && <link rel="amphtml" href={`${page}?amp=1`} />}
       {page !== '/_error' && <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(page)}${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />}
       <link rel='preload' href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`} as='script' nonce={this.props.nonce} crossOrigin={this.props.crossOrigin || process.crossOrigin} />
       {this.getPreloadDynamicChunks()}

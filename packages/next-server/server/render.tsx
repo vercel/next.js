@@ -85,7 +85,6 @@ function renderDocument(
     props,
     docProps,
     pathname,
-    asPath,
     query,
     buildId,
     assetPrefix,
@@ -103,7 +102,6 @@ function renderDocument(
     props: any
     docProps: any
     pathname: string
-    asPath: string | undefined
     query: ParsedUrlQuery
     amphtml: boolean
     dynamicImportsIds: string[]
@@ -130,7 +128,6 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           ampEnabled={ampEnabled}
-          asPath={encodeURI(asPath || '')}
           amphtml={amphtml}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
@@ -249,7 +246,6 @@ export async function renderToHTML(
     ...renderOpts,
     props,
     docProps,
-    asPath,
     pathname,
     amphtml,
     query,
