@@ -1,12 +1,12 @@
-export default function Bar() {
+export default function Bar () {
   return (
-    <>
+    <div>
       <span>Bar!</span>
       <style jsx>{`
-        div {
+        span {
           color: blue;
         }
       `}</style>
-    </>
+    </div>
   )
 }

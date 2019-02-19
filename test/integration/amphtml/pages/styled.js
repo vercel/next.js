@@ -2,7 +2,7 @@ import Foo from '../components/Foo'
 import Bar from '../components/Bar'
 
 export default () => (
-  <>
+  <div>
     <Foo />
     <Bar />
     <style jsx global>{`
@@ -10,5 +10,5 @@ export default () => (
         background-color: green;
       }
     `}</style>
-  </>
+  </div>
 )
