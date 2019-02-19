@@ -146,7 +146,7 @@ function optimizationConfig ({ dev, isServer, totalPages, target }) {
   return config
 }
 
-export default async function getBaseWebpackConfig (dir, { dev = false, isServer = false, buildId, config, target = 'server', entrypoints }) {
+export default function getBaseWebpackConfig (dir, { dev = false, isServer = false, buildId, config, target = 'server', entrypoints }) {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',

@@ -168,10 +168,10 @@ export default class HotReloader {
     const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, { cwd: join(this.dir, 'pages') })
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
-    return Promise.all([
+    return [
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: entrypoints.client }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
-    ])
+    ]
   }
 
   async start () {
