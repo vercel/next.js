@@ -124,34 +124,27 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       // When the serverless target is used all node_modules will be compiled into the output bundles
       // So that the serverless bundles have 0 runtime dependencies
     ],
-    optimization: {
-      ...isServer ? (
-        target === 'serverless' ? {
-          splitChunks: false,
-          minimizer: [
-            new TerserPlugin({...terserPluginConfig,
-              terserOptions: {
-                compress: false,
-                mangle: false,
-                module: false,
-                keep_classnames: true,
-                keep_fnames: true
-              }
-            })
-          ]
-        } : {
-          splitChunks: false,
-          minimize: false
-        }
-      ) : {
-        runtimeChunk: {
-          name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-        },
-        splitChunks: {
-          cacheGroups: {
-            default: false,
-            vendors: false
+    optimization: isServer ? {
+      splitChunks: false,
+      minimizer: target === 'serverless' ? [
+        new TerserPlugin({...terserPluginConfig,
+          terserOptions: {
+            compress: false,
+            mangle: false,
+            module: false,
+            keep_classnames: true,
+            keep_fnames: true
           }
+        })
+      ] : undefined
+    } : {
+      runtimeChunk: {
+        name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
+      },
+      splitChunks: {
+        cacheGroups: {
+          default: false,
+          vendors: false
         }
       },
       ...!dev ? {
@@ -184,7 +177,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     // Kept as function to be backwards compatible
     entry: async () => {
       return {
-        ...clientEntries,
+        ...clientEntries ? clientEntries : {},
         ...entrypoints
       }
     },
@@ -223,11 +216,11 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           test: /\.(js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path: string) => {
-            if (/next-server[\\/]dist[\\/]lib/.exec(path)) {
+            if (/next-server[\\/]dist[\\/]lib/.test(path)) {
               return false
             }
 
-            return Boolean(/node_modules/.exec(path))
+            return /node_modules/.test(path)
           },
           use: defaultLoaders.babel
         }
@@ -304,8 +297,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
 
   // Backwards compat for `main.js` entry key
   const originalEntry = webpackConfig.entry
-  webpackConfig.entry = typeof originalEntry === 'function' ? async () => {
-    const entry = await originalEntry()
+  webpackConfig.entry = typeof originalEntry !== 'undefined' ? async () => {
+    const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
     if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
       // Server compilation doesn't have main.js
       if (typeof entry['main.js'] !== 'undefined') {
