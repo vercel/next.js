@@ -27,30 +27,21 @@ declare module 'arg' {
   export = arg;
 }
 declare module 'autodll-webpack-plugin' {
-  import {WebpackOptions, WebpackPluginInstance, Entry} from 'webpack/declarations/WebpackOptions'
-  class AutoDllPlugin implements WebpackPluginInstance {
+  import webpack from 'webpack'
+  class AutoDllPlugin implements webpack.Plugin {
     constructor(settings?: {
       inject?: boolean,
-      plugins?: WebpackOptions["plugins"],
+      plugins?: webpack.Configuration["plugins"],
       context?: string,
       debug?: boolean,
       filename?: string,
       path?: string,
       inherit?: boolean,
-      entry?: Entry
+      entry?: webpack.Entry
     })
-    apply: WebpackPluginInstance["apply"]
+    apply: webpack.Plugin["apply"]
     [k: string]: any
   }
 
   export = AutoDllPlugin
 }
-
-// This "hack" is needed because typescript doesn't support recursive type definitions
-// It's referenced from "ruleSet-conditions" in schemas/WebpackOptions.json
-interface RuleSetConditionsRecursive
-	extends Array<import("webpack/declarations/WebpackOptions").RuleSetCondition> {}
-interface RuleSetConditionsAbsoluteRecursive
-	extends Array<
-		import("webpack/declarations/WebpackOptions").RuleSetConditionAbsolute
-	> {}

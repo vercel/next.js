@@ -15,10 +15,9 @@ import {NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIS
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
-import {WebpackOptions} from 'webpack/declarations/WebpackOptions'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}: {dev: boolean, isServer: boolean, buildId: string, config: any, target: string, entrypoints: {[x: string]: string}}): Promise<WebpackOptions> {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}: {dev: boolean, isServer: boolean, buildId: string, config: any, target: string, entrypoints: {[x: string]: string}}): Promise<webpack.Configuration> {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -76,7 +75,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     }
   }
 
-  let webpackConfig: WebpackOptions = {
+  let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',

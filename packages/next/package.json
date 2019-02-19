@@ -122,7 +122,6 @@
     "@types/node-fetch": "2.1.4",
     "@types/resolve": "0.0.8",
     "@types/rimraf": "2.0.2",
-    "@types/webpack": "4.4.24",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
   },
