@@ -1761,7 +1761,7 @@ next build
 next start
 ```
 
-To deploy with [ZEIT Now](https://zeit.co/now), see the [Serverless deployment section](#serverless-deployment).
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
