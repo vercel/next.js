@@ -22,6 +22,11 @@ export async function compile (task) {
   await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
 }
 
+export async function webpack (task, opts) {
+  await task.source(opts.src || '../../node_modules/webpack/lib/webpack.js').ncc().target('dist/compiled/webpack')
+  notify('Compiled webpack')
+}
+
 export async function bin (task, opts) {
   await task.source(opts.src || 'bin/*').typescript({module: 'commonjs', stripExtension: true}).target('dist/bin', {mode: '0755'})
   notify('Compiled binaries')
@@ -58,7 +63,7 @@ export async function pages (task, opts) {
 }
 
 export async function build (task) {
-  await task.serial(['compile'])
+  await task.serial(['webpack', 'compile'])
 }
 
 export default async function (task) {
