@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "paths": {
-      "webpack": ["./dist/compiled/webpack"]
+      "webpack": ["dist/compiled/webpack"]
     },
     "jsx": "react"
   }

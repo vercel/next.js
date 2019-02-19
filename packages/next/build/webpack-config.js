@@ -183,7 +183,7 @@ export default async function getBaseWebpackConfig (dir, {dev = false, isServer 
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
-      webpack: path.join(NEXT_PROJECT_ROOT_DIST, 'compiled', 'webpack'),
+      webpack: path.join(NEXT_PROJECT_ROOT_DIST, 'compiled', 'webpack'), // This doesn't appear to work
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
