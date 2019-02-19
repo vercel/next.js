@@ -10,11 +10,8 @@ module.exports = function (task) {
     return ncc(
       join(__dirname, file.dir, file.base),
       {
-        // we dont care about watching, so we don't want
-        // to bundle it. even if we did want watching and a bigger
-        // bundle, webpack (and therefore ncc) cannot currently bundle
-        // chokidar, which is quite convenient
-        externals: ['chokidar', 'fsevents']
+        // cannot bundle
+        externals: ['chokidar']
       }
     ).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => this._.files.push({
