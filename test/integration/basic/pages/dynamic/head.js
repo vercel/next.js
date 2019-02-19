@@ -12,7 +12,7 @@ const Test = dynamic({
               background-color: green;
               height: 200px;
             }
-          `}} />
+          ` }} />
         </Head>
         test
       </div>

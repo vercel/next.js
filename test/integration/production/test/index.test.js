@@ -16,7 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST} from 'next-server/constants'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let appPort
@@ -81,7 +81,7 @@ describe('Production Usage', () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
       const methods = ['POST', 'PUT', 'DELETE']
       for (const method of methods) {
-        const res = await fetch(url, {method})
+        const res = await fetch(url, { method })
         expect(res.status).toBe(501)
       }
     })

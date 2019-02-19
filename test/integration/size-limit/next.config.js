@@ -1,6 +1,6 @@
-const {BundleAnalyzerPlugin} = require('webpack-bundle-analyzer')
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 module.exports = {
-  webpack (config, {isServer}) {
+  webpack (config, { isServer }) {
     config.plugins.push(new BundleAnalyzerPlugin({
       analyzerMode: 'static',
       reportFilename: `dist/${isServer ? 'server' : 'client'}.html`,
