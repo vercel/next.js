@@ -20,7 +20,7 @@ const context = {}
 const doPing = page => {
   const controller = new AbortController()
   const signal = controller.signal
-  return fetchViaHTTP(context.appPort, '/_next/webpack-hmr', { page }, { signal })
+  return fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping', { page }, { signal })
     .then(res => {
       res.body.on('data', chunk => {
         try {
@@ -51,7 +51,6 @@ describe('On Demand Entries', () => {
     // buffered. Therefore, we need to double each render call with a ping.
     const pageContent = await renderViaHTTP(context.appPort, '/')
     await doPing('/')
-    console.log('finished ping')
     expect(pageContent.includes('Index Page')).toBeTruthy()
   })
 

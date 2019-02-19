@@ -221,12 +221,10 @@ export default class HotReloader {
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
     this.middlewares = [
-      // onDemandEntries needs to come before HotMiddleware
-      // so it can hook on to the EventSource request
-      onDemandEntries.middleware(),
       webpackDevMiddleware,
       webpackHotMiddleware,
-      errorOverlayMiddleware({ dir: this.dir })
+      errorOverlayMiddleware({ dir: this.dir }),
+      onDemandEntries.middleware()
     ]
   }
 

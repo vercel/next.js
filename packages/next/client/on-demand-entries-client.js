@@ -3,26 +3,37 @@
 import Router from 'next/router'
 import fetch from 'unfetch'
 
+let evtSource
 let currentPage
-const pingEvents = new Set()
-pingEvents.add(JSON.stringify({success: true}))
-pingEvents.add(JSON.stringify({invalid: true}))
+let retryTimeout
+const retryWait = 5000
 
-export default async () => {
+export default async ({ assetPrefix }) => {
   Router.ready(() => {
     Router.events.on('routeChangeComplete', setupPing)
   })
 
-  function setupPing () {
+  function setupPing (retry) {
     // Make sure to only create new EventSource request if page has changed
-    if (Router.pathname === currentPage) return
+    if (Router.pathname === currentPage && !retry) return
+    // close current EventSource connection
+    if (evtSource) {
+      evtSource.close()
+    }
     currentPage = Router.pathname
-    window.__NEXT_RES_EVT_SOURCE(currentPage)
-  }
 
-  // Set up ping handle to be called on EventSource message
-  window.__NEXT_PING_HANDLE = event => {
-    if (pingEvents.has(event.data)) {
+    const url = `${assetPrefix}/_next/on-demand-entries-ping?page=${currentPage}`
+    evtSource = new window.EventSource(url)
+
+    evtSource.onerror = () => {
+      retryTimeout = setTimeout(() => setupPing(true), retryWait)
+    }
+
+    evtSource.onopen = () => {
+      clearTimeout(retryTimeout)
+    }
+
+    evtSource.onmessage = event => {
       const payload = JSON.parse(event.data)
       if (payload.invalid) {
         // Payload can be invalid even if the page does not exist.
@@ -35,8 +46,6 @@ export default async () => {
           }
         })
       }
-      // Let EventSource know we handled it
-      return true
     }
   }
 

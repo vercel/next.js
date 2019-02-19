@@ -34,9 +34,18 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength,
-  wsPort
+  pagesBufferLength
 }) {
+  const clients = new Set()
+  const evtSourceHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Content-Type': 'text/event-stream;charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    // While behind nginx, event stream should not be buffered:
+    // http://nginx.org/docs/http/ngx_http_proxy_module.html#proxy_buffering
+    'X-Accel-Buffering': 'no',
+    'Connection': 'keep-alive'
+  }
   const {compilers} = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
@@ -147,6 +156,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
+    clients.forEach(client => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
@@ -279,20 +289,17 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
               res.end('302')
             })
         } else {
-          if (!/^\/_next\/webpack-hmr/.test(req.url)) {
-            return next()
-          }
+          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
           const { query } = parse(req.url, true)
           const page = query.page
-          // If we don't have a page query pass it on
-          if (!page) {
-            return next()
-          }
+          if (!page) return next()
 
-          // We hook on to the request listening for it to close.
-          // While it is open we have an interval run to ping the page
-          // when it is closed we clear the interval.
+          // Upgrade request to EventSource
+          req.socket.setKeepAlive(true)
+          res.writeHead(200, evtSourceHeaders)
+          res.write('\n')
+          clients.add(res)
 
           const runPing = () => {
             const data = handlePing(query.page)
@@ -300,12 +307,12 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
           const pingInterval = setInterval(() => runPing(), 5000)
 
-          req.on('close', () => clearInterval(pingInterval))
-
+          req.on('close', () => {
+            clients.delete(res)
+            clearInterval(pingInterval)
+          })
           // Do initial ping right after EventSource is finished being set up
-          setImmediate(() => runPing())
-          // Make sure to call next so HotMiddleware sets up the EventSource
-          next()
+          runPing()
         }
       }
     }
