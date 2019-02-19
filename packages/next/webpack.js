@@ -1,1 +1,1 @@
-module.exports = require('./dist/compiled/webpack/index')
+module.exports = require('./dist/compiled/webpack')

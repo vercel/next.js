@@ -14,7 +14,7 @@ module.exports = function (task) {
         // to bundle it. even if we did want watching and a bigger
         // bundle, webpack (and therefore ncc) cannot currently bundle
         // chokidar, which is quite convenient
-        externals: ['chokidar']
+        externals: ['chokidar', 'fsevents']
       }
     ).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => this._.files.push({

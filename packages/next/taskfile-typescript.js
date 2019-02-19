@@ -38,6 +38,7 @@ try {
 
       // Workaround for noop.js loading
       if (file.base === 'next-dev.js') result.outputText = result.outputText.replace('// REPLACE_NOOP_IMPORT', `import('./noop');`)
+      result.outputText = result.outputText.replace('require("webpack")', 'require("next/webpack")')
 
       // update file's data
       file.data = Buffer.from(result.outputText.replace(/process\.env\.__NEXT_VERSION/, `"${require('./package.json').version}"`), 'utf8')

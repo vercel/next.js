@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": "./",
     "strict": true,
     "allowJs": true,
     "noEmit": true,
@@ -7,6 +8,9 @@
     "target": "ES2017",
     "esModuleInterop": true,
     "moduleResolution": "node",
+    "paths": {
+      "webpack": ["./dist/compiled/webpack"]
+    },
     "jsx": "react"
   }
 }
