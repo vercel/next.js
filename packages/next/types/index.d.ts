@@ -26,3 +26,22 @@ declare module 'arg' {
 
   export = arg;
 }
+declare module 'autodll-webpack-plugin' {
+  import {WebpackOptions, WebpackPluginInstance, Entry} from 'webpack/declarations/WebpackOptions'
+  class AutoDllPlugin implements WebpackPluginInstance {
+    constructor(settings?: {
+      inject?: boolean,
+      plugins?: WebpackOptions["plugins"],
+      context?: string,
+      debug?: boolean,
+      filename?: string,
+      path?: string,
+      inherit?: boolean,
+      entry?: Entry
+    })
+    apply: WebpackPluginInstance["apply"]
+    [k: string]: any
+  }
+
+  export = AutoDllPlugin
+}

@@ -16,6 +16,7 @@ import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
 import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
 import {WebpackOptions} from 'webpack/declarations/WebpackOptions'
+type ExcludesFalse = <T>(x: T | false) => x is T
 
 export default async function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}: {dev: boolean, isServer: boolean, buildId: string, config: any, target: string, entrypoints: {[x: string]: string}}): Promise<WebpackOptions> {
   const defaultLoaders = {
@@ -244,10 +245,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
             'react',
             'react-dom'
           ]
-        },
-        config: {
-          mode: webpackMode,
-          resolve: resolveConfig
         }
       }),
       // This plugin makes sure `output.filename` is used for entry chunks
@@ -294,7 +291,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       })
-    ].filter(Boolean)
+    ].filter(Boolean as any as ExcludesFalse)
   }
 
   if (typeof config.webpack === 'function') {
