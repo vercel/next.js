@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import {withRouter} from 'next/router'
+import { withRouter } from 'next/router'
 
-export default withRouter(({router: {asPath, query}}) => {
+export default withRouter(({ router: { asPath, query } }) => {
   return <div id={asPath.replace('/', '').replace('/', '-')}>
     <div id='router-query'>{JSON.stringify(query)}</div>
     <div>

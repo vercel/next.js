@@ -3,7 +3,7 @@
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
 import webdriver from 'next-webdriver'
-import WebSocket from 'ws'
+import AbortController from 'abort-controller'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -17,11 +17,20 @@ import {
 
 const context = {}
 
-const doPing = path => {
-  return new Promise(resolve => {
-    context.ws.onmessage = () => resolve()
-    context.ws.send(path)
-  })
+const doPing = page => {
+  const controller = new AbortController()
+  const signal = controller.signal
+  return fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping', { page }, { signal })
+    .then(res => {
+      res.body.on('data', chunk => {
+        try {
+          const payload = JSON.parse(chunk.toString().split('data:')[1])
+          if (payload.success || payload.invalid) {
+            controller.abort()
+          }
+        } catch (_) {}
+      })
+    })
 }
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -31,15 +40,6 @@ describe('On Demand Entries', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
-    await new Promise(resolve => {
-      fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping').then(res => {
-        const wsPort = res.headers.get('port')
-        context.ws = new WebSocket(
-          `ws://localhost:${wsPort}`
-        )
-        context.ws.on('open', () => resolve())
-      })
-    })
   })
   afterAll(() => {
     context.ws.close()
@@ -102,13 +102,5 @@ describe('On Demand Entries', () => {
         browser.close()
       }
     }
-  })
-
-  it('should able to ping using fetch fallback', async () => {
-    const about = await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/about'})
-    expect(JSON.parse(about)).toEqual({success: true})
-
-    const third = await renderViaHTTP(context.appPort, '/_next/on-demand-entries-ping', {page: '/third'})
-    expect(JSON.parse(third)).toEqual({success: true})
   })
 })

@@ -412,9 +412,9 @@ export default class Router {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
-    const {Component: App} = this.components['/_app']
+    const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps(App, {Component, router: this, ctx})
+    const props = await loadGetInitialProps(App, { Component, router: this, ctx })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null
@@ -442,8 +442,8 @@ export default class Router {
   }
 
   notify (data) {
-    const {Component: App} = this.components['/_app']
-    this.subscriptions.forEach((fn) => fn({...data, App}))
+    const { Component: App } = this.components['/_app']
+    this.subscriptions.forEach((fn) => fn({ ...data, App }))
   }
 
   subscribe (fn) {
