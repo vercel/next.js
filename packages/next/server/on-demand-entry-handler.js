@@ -34,9 +34,18 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength,
-  wsPort
+  pagesBufferLength
 }) {
+  const clients = new Set()
+  const evtSourceHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Content-Type': 'text/event-stream;charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    // While behind nginx, event stream should not be buffered:
+    // http://nginx.org/docs/http/ngx_http_proxy_module.html#proxy_buffering
+    'X-Accel-Buffering': 'no',
+    'Connection': 'keep-alive'
+  }
   const {compilers} = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
@@ -147,29 +156,31 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
+    clients.forEach(client => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
     reloadCallbacks = null
   }
 
-  function handlePing (pg, socket) {
+  function handlePing (pg) {
     const page = normalizePage(pg)
     const entryInfo = entries[page]
+    let toSend
 
     // If there's no entry.
     // Then it seems like an weird issue.
     if (!entryInfo) {
       const message = `Client pings, but there's no entry for page: ${page}`
       console.error(message)
-      return sendJson(socket, { invalid: true })
+      return { invalid: true }
     }
 
     // 404 is an on demand entry but when a new page is added we have to refresh the page
     if (page === '/_error') {
-      sendJson(socket, { invalid: true })
+      toSend = { invalid: true }
     } else {
-      sendJson(socket, { success: true })
+      toSend = { success: true }
     }
 
     // We don't need to maintain active state of anything other than BUILT entries
@@ -185,6 +196,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       }
     }
     entryInfo.lastActiveTime = Date.now()
+    return toSend
   }
 
   return {
@@ -258,13 +270,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    wsConnection (ws) {
-      ws.onmessage = ({ data }) => {
-        // `data` should be the page here
-        handlePing(data, ws)
-      }
-    },
-
     middleware () {
       return (req, res, next) => {
         if (stopped) {
@@ -287,14 +292,27 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
           const { query } = parse(req.url, true)
+          const page = query.page
+          if (!page) return next()
 
-          if (query.page) {
-            return handlePing(query.page, res)
+          // Upgrade request to EventSource
+          req.socket.setKeepAlive(true)
+          res.writeHead(200, evtSourceHeaders)
+          res.write('\n')
+          clients.add(res)
+
+          const runPing = () => {
+            const data = handlePing(query.page)
+            res.write('data: ' + JSON.stringify(data) + '\n\n')
           }
+          const pingInterval = setInterval(() => runPing(), 5000)
 
-          res.statusCode = 200
-          res.setHeader('port', wsPort)
-          res.end('200')
+          req.on('close', () => {
+            clients.delete(res)
+            clearInterval(pingInterval)
+          })
+          // Do initial ping right after EventSource is finished being set up
+          runPing()
         }
       }
     }
@@ -338,19 +356,6 @@ export function normalizePage (page) {
     return '/'
   }
   return unixPagePath.replace(/\/index$/, '')
-}
-
-function sendJson (socket, data) {
-  data = JSON.stringify(data)
-
-  // Handle fetch request
-  if (socket.setHeader) {
-    socket.setHeader('content-type', 'application/json')
-    socket.status = 200
-    return socket.end(data)
-  }
-  // Should be WebSocket so just send
-  socket.send(data)
 }
 
 // Make sure only one invalidation happens at a time

@@ -5,7 +5,6 @@ import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import del from 'del'
 import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
 import webpack from 'webpack'
-import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
 import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from 'next-server/constants'
 import {route} from 'next-server/dist/server/router'
@@ -165,15 +164,6 @@ export default class HotReloader {
     return del(join(this.dir, this.config.distDir), { force: true })
   }
 
-  addWsConfig (configs) {
-    const { websocketProxyPath, websocketProxyPort } = this.config.onDemandEntries
-    const opts = {
-      'process.env.__NEXT_WS_PORT': websocketProxyPort || this.wsPort,
-      'process.env.__NEXT_WS_PROXY_PATH': JSON.stringify(websocketProxyPath)
-    }
-    configs[0].plugins.push(new webpack.DefinePlugin(opts))
-  }
-
   async getWebpackConfig () {
     const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
@@ -187,24 +177,7 @@ export default class HotReloader {
   async start () {
     await this.clean()
 
-    this.wsPort = await new Promise((resolve, reject) => {
-      const { websocketPort } = this.config.onDemandEntries
-      // create on-demand-entries WebSocket
-      this.wss = new WebSocket.Server({ port: websocketPort }, function (err) {
-        if (err) {
-          return reject(err)
-        }
-
-        const {port} = this.address()
-        if (!port) {
-          return reject(new Error('No websocket port could be detected'))
-        }
-        resolve(port)
-      })
-    })
-
     const configs = await this.getWebpackConfig()
-    this.addWsConfig(configs)
 
     const multiCompiler = webpack(configs)
 
@@ -215,7 +188,6 @@ export default class HotReloader {
   }
 
   async stop (webpackDevMiddleware) {
-    this.wss.close()
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
@@ -233,8 +205,6 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
-    this.addWsConfig(configs)
-
     const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
@@ -250,7 +220,6 @@ export default class HotReloader {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
-    this.wss.on('connection', this.onDemandEntries.wsConnection)
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
@@ -367,7 +336,6 @@ export default class HotReloader {
       buildId: this.buildId,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
-      wsPort: this.wsPort,
       ...this.config.onDemandEntries
     })
 
