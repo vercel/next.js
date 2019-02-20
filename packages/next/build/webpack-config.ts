@@ -91,7 +91,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     
         resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
           if (err) {
-            return callback() // We don't return the error?
+            return callback() //TODO: We don't return the error?
           }
     
           if (!res) {
@@ -141,36 +141,35 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       runtimeChunk: {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       },
-      splitChunks: {
+      splitChunks: dev ? {
         cacheGroups: {
           default: false,
           vendors: false
         }
-      },
-      ...!dev ? {
-        minimizer: [
-          new TerserPlugin({...terserPluginConfig,
-            terserOptions: {
-              safari10: true
-            }
-          })
-        ],
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            commons: {
-              name: 'commons',
-              chunks: 'all',
-              minChunks: totalPages > 2 ? totalPages * 0.5 : 2
-            },
-            react: {
-              name: 'commons',
-              chunks: 'all',
-              test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
-            }
+      } : {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          commons: {
+            name: 'commons',
+            chunks: 'all',
+            minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+          },
+          react: {
+            name: 'commons',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
           }
         }
-      } : {}
+      },
+      minimizer: !dev ? [
+        new TerserPlugin({...terserPluginConfig,
+          terserOptions: {
+            safari10: true
+          }
+        })
+      ] : undefined,
     },
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
@@ -315,7 +314,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       return entry
     }
   }
-  console.log(webpackConfig)
 
   return webpackConfig
 }
