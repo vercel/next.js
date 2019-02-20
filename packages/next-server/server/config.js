@@ -25,6 +25,20 @@ const defaultConfig = {
   }
 }
 
+function assignDefaults (userConfig) {
+  Object.keys(userConfig).forEach(key => {
+    const maybeObject = userConfig[key]
+    if ((!!maybeObject) && (maybeObject.constructor === Object)) {
+      userConfig[key] = {
+        ...(defaultConfig[key] || {}),
+        ...userConfig[key]
+      }
+    }
+  })
+
+  return { ...defaultConfig, ...userConfig }
+}
+
 function normalizeConfig (phase, config) {
   if (typeof config === 'function') {
     return config(phase, { defaultConfig })
@@ -35,7 +49,7 @@ function normalizeConfig (phase, config) {
 
 export default function loadConfig (phase, dir, customConfig) {
   if (customConfig) {
-    return { ...defaultConfig, configOrigin: 'server', ...customConfig }
+    return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
   const path = findUp.sync(CONFIG_FILE, {
     cwd: dir
@@ -48,19 +62,7 @@ export default function loadConfig (phase, dir, customConfig) {
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
     }
-    if (userConfig.experimental) {
-      userConfig.experimental = {
-        ...defaultConfig.experimental,
-        ...userConfig.experimental
-      }
-    }
-    if (userConfig.onDemandEntries) {
-      userConfig.onDemandEntries = {
-        ...defaultConfig.onDemandEntries,
-        ...userConfig.onDemandEntries
-      }
-    }
-    return { ...defaultConfig, configOrigin: CONFIG_FILE, ...userConfig }
+    return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
   }
 
   return defaultConfig
