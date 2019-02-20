@@ -26,18 +26,15 @@ const defaultConfig = {
 }
 
 function assignDefaults (userConfig) {
-  if (userConfig.experimental) {
-    userConfig.experimental = {
-      ...defaultConfig.experimental,
-      ...userConfig.experimental
+  Object.keys(userConfig).forEach(key => {
+    const maybeObject = userConfig[key]
+    if ((!!maybeObject) && (maybeObject.constructor === Object)) {
+      userConfig[key] = {
+        ...(defaultConfig[key] || {}),
+        ...userConfig[key]
+      }
     }
-  }
-  if (userConfig.onDemandEntries) {
-    userConfig.onDemandEntries = {
-      ...defaultConfig.onDemandEntries,
-      ...userConfig.onDemandEntries
-    }
-  }
+  })
 
   return {...defaultConfig, ...userConfig}
 }
