@@ -36,7 +36,7 @@ function assignDefaults (userConfig) {
     }
   })
 
-  return {...defaultConfig, ...userConfig}
+  return { ...defaultConfig, ...userConfig }
 }
 
 function normalizeConfig (phase, config) {
