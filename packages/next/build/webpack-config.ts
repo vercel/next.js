@@ -164,7 +164,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
               minChunks: totalPages > 2 ? totalPages * 0.5 : 2
             },
             react: {
-              name: 'react',
+              name: 'commons',
               chunks: 'all',
               test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
             }
