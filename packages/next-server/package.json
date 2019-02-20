@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "8.0.2-canary.3",
+  "version": "8.0.2-canary.5",
   "main": "./index.js",
   "license": "MIT",
   "files": [
@@ -42,8 +42,8 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
-    "@types/react": "16.7.13",
-    "@types/react-dom": "16.0.11",
+    "@types/react": "16.8.4",
+    "@types/react-dom": "16.8.2",
     "@types/react-is": "16.5.0",
     "@types/send": "0.14.4",
     "taskr": "1.1.0",

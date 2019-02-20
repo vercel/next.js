@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import createStore from 'unistore'
+import onExit from 'signal-exit'
 
 import { clearConsole } from './clearConsole'
 
@@ -15,7 +16,18 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
+let registered = false
+
 store.subscribe(state => {
+  if (!registered) {
+    registered = true
+
+    process.stderr.write('\u001B[?1049h')
+    onExit(function() {
+      process.stderr.write('\u001B[?1049l')
+    })
+  }
+
   clearConsole()
 
   if (state.bootstrap) {

@@ -23,7 +23,7 @@ export default class UrlPropChange extends React.Component {
   }
 
   render () {
-    const {previousUrl, url} = this.state
+    const { previousUrl, url } = this.state
     return <div>
       Current:
       <div id='url-result'>

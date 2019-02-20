@@ -48,7 +48,7 @@ function runNextCommand (argv, options = {}) {
 describe('Production Custom Build Directory', () => {
   describe('With basic usage', () => {
     it('should render the page', async () => {
-      const result = await runNextCommand(['build', 'build'], {stdout: true, stderr: true})
+      const result = await runNextCommand(['build', 'build'], { stdout: true, stderr: true })
       expect(result.stderr).toBe('')
 
       const app = nextServer({

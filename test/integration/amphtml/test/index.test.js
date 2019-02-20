@@ -135,4 +135,18 @@ describe('AMP Usage', () => {
       ).toBe('/use-amp-hook')
     })
   })
+
+  describe('combined styles', () => {
+    it('should combine style tags', async () => {
+      const html = await renderViaHTTP(appPort, '/styled?amp=1')
+      const $ = cheerio.load(html)
+      expect(
+        $('style[amp-custom]')
+          .first()
+          .text()
+      ).toMatch(
+        /div.jsx-\d+{color:red;}span.jsx-\d+{color:blue;}body{background-color:green;}/
+      )
+    })
+  })
 })
