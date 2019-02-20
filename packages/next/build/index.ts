@@ -59,7 +59,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
   const pages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(pages, config.target, buildId, config)
-  const configs: any = await Promise.all([
+  const configs: any = [
     getBaseWebpackConfig(dir, {
       buildId,
       isServer: false,
@@ -74,7 +74,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       target: config.target,
       entrypoints: entrypoints.server,
     }),
-  ])
+  ]
 
   let result: CompilerResult = { warnings: [], errors: [] }
   if (config.target === 'serverless') {
