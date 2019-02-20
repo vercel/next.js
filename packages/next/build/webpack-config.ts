@@ -14,7 +14,7 @@ import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_
 import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
-import {ServerlessPlugin} from './webpack/plugins/serverless-plugin'
+import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -91,7 +91,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
     
         resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
           if (err) {
-            return callback(err)
+            return callback() // We don't return the error?
           }
     
           if (!res) {
@@ -315,6 +315,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, i
       return entry
     }
   }
+  console.log(webpackConfig)
 
   return webpackConfig
 }
