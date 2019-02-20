@@ -50,9 +50,10 @@ export class Html extends Component {
 
   render() {
     const { amphtml } = this.context._documentProps
+    const { children, ...props } = this.props
     return (
-      <html {...this.props} amp={amphtml ? '' : null}>
-        {this.props.children}
+      <html {...props} amp={amphtml ? '' : null}>
+        {children}
       </html>
     )
   }
