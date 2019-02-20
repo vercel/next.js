@@ -99,7 +99,7 @@ export function makePublicRouterInstance (router) {
 
   for (const property of urlPropertyFields) {
     if (typeof router[property] === 'object') {
-      instance[property] = {...router[property]} // makes sure query is not stateful
+      instance[property] = { ...router[property] } // makes sure query is not stateful
       continue
     }
 

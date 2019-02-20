@@ -6,7 +6,7 @@ module.exports = {
   useFileSystemPublicRoutes: false,
   exportPathMap () {
     return {
-      '/exportpathmap-route': {page: '/exportpathmap-route'}
+      '/exportpathmap-route': { page: '/exportpathmap-route' }
     }
   }
 }
