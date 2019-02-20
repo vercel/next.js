@@ -1,8 +1,7 @@
 import chalk from 'chalk'
 import createStore from 'unistore'
-import onExit from 'signal-exit'
-
-import { clearConsole } from './clearConsole'
+import readline from 'readline'
+import cliCursor from 'cli-cursor'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null }
@@ -16,19 +15,11 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
-let registered = false
-
+cliCursor.hide()
+process.stdout.write('\n'.repeat(process.stdout.rows || 1))
 store.subscribe(state => {
-  if (!registered) {
-    registered = true
-
-    process.stderr.write('\u001B[?1049h')
-    onExit(function() {
-      process.stderr.write('\u001B[?1049l')
-    })
-  }
-
-  clearConsole()
+  readline.cursorTo(process.stdout, 0, 0)
+  readline.clearScreenDown(process.stdout)
 
   if (state.bootstrap) {
     console.log(chalk.cyan('Starting the development server ...'))
