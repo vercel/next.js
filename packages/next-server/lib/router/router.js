@@ -364,8 +364,8 @@ export default class Router {
 
   urlIsNew (asPath) {
     const { pathname, query } = parse(asPath, true)
-    const { pathname: curPathname } = parse(this.asPath, true)
-    return curPathname !== pathname || !shallowEquals(query, this.query)
+    const { pathname: curPathname, query: curQuery } = parse(this.asPath, true)
+    return curPathname !== pathname || !shallowEquals(query, curQuery)
   }
 
   isShallowRoutingPossible (route) {
