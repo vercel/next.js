@@ -1,4 +1,21 @@
 export function onExit(fn: Function) {
+  function exit(signal: string = '') {
+    try {
+      if (listeners.length) {
+        fn()
+      }
+    } finally {
+      while (listeners.length) {
+        const { event, handler } = listeners.shift()!
+        process.removeListener(event, handler)
+      }
+
+      if (signal) {
+        process.kill(process.pid, signal)
+      }
+    }
+  }
+
   const listeners = [
     { event: 'SIGINT', handler: () => exit('SIGINT') },
     { event: 'SIGHUP', handler: () => exit('SIGHUP') },
@@ -14,23 +31,6 @@ export function onExit(fn: Function) {
     },
     { event: 'exit', handler: () => exit() },
   ]
-
-  function exit(signal: string = '') {
-    try {
-      if (listeners.length) {
-        fn()
-      }
-    } finally {
-      while (listeners.length) {
-        const [{ event, handler }] = listeners.splice(0, 1)
-        process.removeListener(event, handler)
-      }
-
-      if (signal) {
-        process.kill(process.pid, signal)
-      }
-    }
-  }
 
   for (const { event, handler } of listeners) {
     process.on(event as any, handler)
