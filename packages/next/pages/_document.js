@@ -260,6 +260,10 @@ export class NextScript extends Component {
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     if (amphtml) {
+      if (process.env.NODE_ENV === 'production') {
+        return null
+      }
+
       const devFiles = [
         CLIENT_STATIC_FILES_RUNTIME_AMP,
         CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
