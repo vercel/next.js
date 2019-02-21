@@ -49,7 +49,6 @@
     "@babel/runtime": "7.1.2",
     "@babel/runtime-corejs2": "7.1.2",
     "@babel/template": "7.1.2",
-    "ansi-html": "0.0.7",
     "arg": "3.0.0",
     "async-sema": "2.1.4",
     "autodll-webpack-plugin": "0.4.2",
