@@ -4,6 +4,7 @@ import arg from 'arg'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
+import { startedDevelopmentServer } from '../build/output'
 
 const args = arg({
   // Types
@@ -55,10 +56,12 @@ if (!existsSync(join(dir, 'pages'))) {
 }
 
 const port = args['--port'] || 3000
+const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
+
+startedDevelopmentServer(appUrl)
+
 startServer({dir, dev: true}, port, args['--hostname'])
   .then(async (app) => {
-    // tslint:disable-next-line
-    console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
     await app.prepare()
   })
   .catch((err) => {

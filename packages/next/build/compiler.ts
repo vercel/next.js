@@ -1,11 +1,13 @@
 import webpack from 'webpack'
 
 export type CompilerResult = {
-  errors: Error[],
+  errors: Error[]
   warnings: Error[]
 }
 
-export function runCompiler (config: webpack.Configuration[]): Promise<CompilerResult> {
+export function runCompiler(
+  config: webpack.Configuration[]
+): Promise<CompilerResult> {
   return new Promise(async (resolve, reject) => {
     const compiler = webpack(config)
     compiler.run((err, multiStats: any) => {
@@ -13,17 +15,25 @@ export function runCompiler (config: webpack.Configuration[]): Promise<CompilerR
         return reject(err)
       }
 
-      const result: CompilerResult = multiStats.stats.reduce((result: CompilerResult, stat: webpack.Stats): CompilerResult => {
-        if (stat.compilation.errors.length > 0) {
-          result.errors.push(...stat.compilation.errors)
-        }
+      const result: CompilerResult = multiStats.stats.reduce(
+        (result: CompilerResult, stat: webpack.Stats): CompilerResult => {
+          const { errors, warnings } = stat.toJson({
+            all: false,
+            warnings: true,
+            errors: true,
+          })
+          if (errors.length > 0) {
+            result.errors.push(...errors)
+          }
 
-        if (stat.compilation.warnings.length > 0) {
-          result.warnings.push(...stat.compilation.warnings)
-        }
+          if (warnings.length > 0) {
+            result.warnings.push(...warnings)
+          }
 
-        return result
-      }, {errors: [], warnings: []})
+          return result
+        },
+        { errors: [], warnings: [] }
+      )
 
       resolve(result)
     })

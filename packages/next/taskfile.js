@@ -23,38 +23,38 @@ export async function compile (task) {
 }
 
 export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').typescript({module: 'commonjs', stripExtension: true}).target('dist/bin', {mode: '0755'})
+  await task.source(opts.src || 'bin/*').typescript({ module: 'commonjs', stripExtension: true }).target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
 
 export async function lib (task, opts) {
-  await task.source(opts.src || 'lib/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/lib')
+  await task.source(opts.src || 'lib/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).target('dist/lib')
   notify('Compiled lib files')
 }
 
 export async function server (task, opts) {
-  await task.source(opts.src || 'server/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/server')
+  await task.source(opts.src || 'server/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).target('dist/server')
   notify('Compiled server files')
 }
 
 export async function nextbuild (task, opts) {
-  await task.source(opts.src || 'build/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/build')
+  await task.source(opts.src || 'build/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).target('dist/build')
   notify('Compiled build files')
 }
 
 export async function client (task, opts) {
-  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).babel(babelOpts).target('dist/client')
+  await task.source(opts.src || 'client/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).babel(babelOpts).target('dist/client')
   notify('Compiled client files')
 }
 
 // export is a reserved keyword for functions
 export async function nextbuildstatic (task, opts) {
-  await task.source(opts.src || 'export/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).target('dist/export')
+  await task.source(opts.src || 'export/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).target('dist/export')
   notify('Compiled export files')
 }
 
 export async function pages (task, opts) {
-  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({module: 'commonjs'}).babel(babelOpts).target('dist/pages')
+  await task.source(opts.src || 'pages/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).babel(babelOpts).target('dist/pages')
 }
 
 export async function build (task) {

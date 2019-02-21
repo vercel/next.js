@@ -1,7 +1,7 @@
 import { action, observable } from 'mobx'
 import { useStaticRendering } from 'mobx-react'
 
-const isServer = typeof window === 'undefined'
+const isServer = !process.browser
 useStaticRendering(isServer)
 
 class Store {
@@ -25,6 +25,7 @@ class Store {
 }
 
 let store = null
+
 export function initializeStore(initialData) {
   // Always make a new store if server, otherwise state is shared between requests
   if (isServer) {

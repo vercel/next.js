@@ -6,8 +6,7 @@ import {
   fetchViaHTTP,
   findPort,
   launchApp,
-  killApp,
-  File
+  killApp
 } from 'next-test-utils'
 
 // test suits
@@ -20,27 +19,18 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('Configuration', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.devWebSocketPort = await findPort()
-
-    // update next.config with found devWebSocketPort (must come before launchApp)
-    context.nextConfig = new File(join(__dirname, '../next.config.js'))
-    context.nextConfig.replace(
-      'websocketPort: 3001',
-      `websocketPort: ${context.devWebSocketPort}`
-    )
-
     context.server = await launchApp(join(__dirname, '../'), context.appPort)
 
     // pre-build all pages at the start
     await Promise.all([
       renderViaHTTP(context.appPort, '/next-config'),
       renderViaHTTP(context.appPort, '/build-id'),
-      renderViaHTTP(context.appPort, '/webpack-css')
+      renderViaHTTP(context.appPort, '/webpack-css'),
+      renderViaHTTP(context.appPort, '/module-only-component')
     ])
   })
   afterAll(() => {
     killApp(context.server)
-    context.nextConfig.restore()
   })
 
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q), (p, q) => fetchViaHTTP(context.appPort, p, q))

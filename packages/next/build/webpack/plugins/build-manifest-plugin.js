@@ -1,13 +1,13 @@
 import { RawSource } from 'webpack-sources'
-import {BUILD_MANIFEST, ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX, CLIENT_STATIC_FILES_RUNTIME_MAIN} from 'next-server/constants'
+import { BUILD_MANIFEST, ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   apply (compiler) {
     compiler.hooks.emit.tapAsync('NextJsBuildManifest', (compilation, callback) => {
-      const {chunks} = compilation
-      const assetMap = {devFiles: [], pages: {}}
+      const { chunks } = compilation
+      const assetMap = { devFiles: [], pages: {} }
 
       const mainJsChunk = chunks.find((c) => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN)
       const mainJsFiles = mainJsChunk && mainJsChunk.files.length > 0 ? mainJsChunk.files.filter((file) => /\.js$/.test(file)) : []

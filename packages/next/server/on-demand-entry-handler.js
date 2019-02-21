@@ -1,13 +1,14 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
+import { parse } from 'url'
 import fs from 'fs'
 import promisify from '../lib/promisify'
 import globModule from 'glob'
-import {pageNotFoundError} from 'next-server/dist/server/require'
-import {normalizePagePath} from 'next-server/dist/server/normalize-page-path'
+import { pageNotFoundError } from 'next-server/dist/server/require'
+import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
-import {stringify} from 'querystring'
+import { stringify } from 'querystring'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -33,10 +34,19 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength,
-  wsPort
+  pagesBufferLength
 }) {
-  const {compilers} = multiCompiler
+  const clients = new Set()
+  const evtSourceHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Content-Type': 'text/event-stream;charset=utf-8',
+    'Cache-Control': 'no-cache, no-transform',
+    // While behind nginx, event stream should not be buffered:
+    // http://nginx.org/docs/http/ngx_http_proxy_module.html#proxy_buffering
+    'X-Accel-Buffering': 'no',
+    'Connection': 'keep-alive'
+  }
+  const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
   let lastAccessPages = ['']
@@ -60,7 +70,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         }
 
         entries[page].status = BUILDING
-        return addEntry(compilation, compiler.context, name, [compiler.name === 'client' ? `next-client-pages-loader?${stringify({page, absolutePagePath})}!` : absolutePagePath])
+        return addEntry(compilation, compiler.context, name, [compiler.name === 'client' ? `next-client-pages-loader?${stringify({ page, absolutePagePath })}!` : absolutePagePath])
       })
 
       return Promise.all(allEntries)
@@ -146,10 +156,47 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
+    clients.forEach(client => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
     reloadCallbacks = null
+  }
+
+  function handlePing (pg) {
+    const page = normalizePage(pg)
+    const entryInfo = entries[page]
+    let toSend
+
+    // If there's no entry.
+    // Then it seems like an weird issue.
+    if (!entryInfo) {
+      const message = `Client pings, but there's no entry for page: ${page}`
+      console.error(message)
+      return { invalid: true }
+    }
+
+    // 404 is an on demand entry but when a new page is added we have to refresh the page
+    if (page === '/_error') {
+      toSend = { invalid: true }
+    } else {
+      toSend = { success: true }
+    }
+
+    // We don't need to maintain active state of anything other than BUILT entries
+    if (entryInfo.status !== BUILT) return
+
+    // If there's an entryInfo
+    if (!lastAccessPages.includes(page)) {
+      lastAccessPages.unshift(page)
+
+      // Maintain the buffer max length
+      if (lastAccessPages.length > pagesBufferLength) {
+        lastAccessPages.pop()
+      }
+    }
+    entryInfo.lastActiveTime = Date.now()
+    return toSend
   }
 
   return {
@@ -176,7 +223,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const extensions = pageExtensions.join('|')
       const pagesDir = join(dir, 'pages')
 
-      let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, {cwd: pagesDir})
+      let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, { cwd: pagesDir })
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && paths.length === 0) {
@@ -223,42 +270,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    wsConnection (ws) {
-      ws.onmessage = ({ data }) => {
-        const page = normalizePage(data)
-        const entryInfo = entries[page]
-
-        // If there's no entry.
-        // Then it seems like an weird issue.
-        if (!entryInfo) {
-          const message = `Client pings, but there's no entry for page: ${page}`
-          console.error(message)
-          return sendJson(ws, { invalid: true })
-        }
-
-        // 404 is an on demand entry but when a new page is added we have to refresh the page
-        if (page === '/_error') {
-          sendJson(ws, { invalid: true })
-        } else {
-          sendJson(ws, { success: true })
-        }
-
-        // We don't need to maintain active state of anything other than BUILT entries
-        if (entryInfo.status !== BUILT) return
-
-        // If there's an entryInfo
-        if (!lastAccessPages.includes(page)) {
-          lastAccessPages.unshift(page)
-
-          // Maintain the buffer max length
-          if (lastAccessPages.length > pagesBufferLength) {
-            lastAccessPages.pop()
-          }
-        }
-        entryInfo.lastActiveTime = Date.now()
-      }
-    },
-
     middleware () {
       return (req, res, next) => {
         if (stopped) {
@@ -280,9 +291,28 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         } else {
           if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
 
-          res.statusCode = 200
-          res.setHeader('port', wsPort)
-          res.end('200')
+          const { query } = parse(req.url, true)
+          const page = query.page
+          if (!page) return next()
+
+          // Upgrade request to EventSource
+          req.socket.setKeepAlive(true)
+          res.writeHead(200, evtSourceHeaders)
+          res.write('\n')
+          clients.add(res)
+
+          const runPing = () => {
+            const data = handlePing(query.page)
+            res.write('data: ' + JSON.stringify(data) + '\n\n')
+          }
+          const pingInterval = setInterval(() => runPing(), 5000)
+
+          req.on('close', () => {
+            clients.delete(res)
+            clearInterval(pingInterval)
+          })
+          // Do initial ping right after EventSource is finished being set up
+          runPing()
         }
       }
     }
@@ -326,10 +356,6 @@ export function normalizePage (page) {
     return '/'
   }
   return unixPagePath.replace(/\/index$/, '')
-}
-
-function sendJson (ws, data) {
-  ws.send(JSON.stringify(data))
 }
 
 // Make sure only one invalidation happens at a time

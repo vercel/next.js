@@ -79,7 +79,7 @@ module.exports = (context: any, options: NextBabelPresetOptions = {}): BabelPres
         ...options['transform-runtime']
       }],
       [require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
-      process.env.NODE_ENV === 'production' && require('babel-plugin-transform-react-remove-prop-types')
+      isProduction && require('babel-plugin-transform-react-remove-prop-types')
     ].filter(Boolean)
   }
 }

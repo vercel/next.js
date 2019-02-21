@@ -7,7 +7,6 @@ import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
-import * as envConfig from 'next-server/config'
 import createProgress from 'tty-aware-progress'
 
 export default async function (dir, options, configuration) {
@@ -92,16 +91,11 @@ export default async function (dir, options, configuration) {
     hotReloader: null
   }
 
-  const {serverRuntimeConfig, publicRuntimeConfig} = nextConfig
+  const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (publicRuntimeConfig) {
     renderOpts.runtimeConfig = publicRuntimeConfig
   }
-
-  envConfig.setConfig({
-    serverRuntimeConfig,
-    publicRuntimeConfig
-  })
 
   // We need this for server rendering the Link component.
   global.__NEXT_DATA__ = {
@@ -109,7 +103,7 @@ export default async function (dir, options, configuration) {
   }
 
   log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
-  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {dev: false, dir, outDir, distDir, buildId})
+  const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, { dev: false, dir, outDir, distDir, buildId })
   const exportPaths = Object.keys(exportPathMap)
 
   const progress = !options.silent && createProgress(exportPaths.length)
@@ -138,6 +132,7 @@ export default async function (dir, options, configuration) {
             exportPathMap: chunk.pathMap,
             outDir,
             renderOpts,
+            serverRuntimeConfig,
             concurrency
           })
           worker.on('message', ({ type, payload }) => {

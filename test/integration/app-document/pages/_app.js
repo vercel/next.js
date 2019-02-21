@@ -1,6 +1,6 @@
-import App, {Container} from 'next/app'
+import App, { Container } from 'next/app'
 import React from 'react'
-import {setState} from '../shared-module'
+import { setState } from '../shared-module'
 
 setState(typeof window === 'undefined' ? 'UPDATED' : 'UPDATED CLIENT')
 
@@ -10,12 +10,12 @@ class Layout extends React.Component {
   }
 
   componentDidMount () {
-    this.setState({random: Math.random()})
+    this.setState({ random: Math.random() })
   }
 
   render () {
-    const {children} = this.props
-    const {random} = this.state
+    const { children } = this.props
+    const { random } = this.state
     return <div>
       <p id='hello-app'>Hello App</p>
       <p id='hello-hmr'>Hello HMR</p>
@@ -33,11 +33,11 @@ export default class MyApp extends App {
       pageProps = await Component.getInitialProps(ctx)
     }
 
-    return {pageProps}
+    return { pageProps }
   }
 
   render () {
-    const {Component, pageProps} = this.props
+    const { Component, pageProps } = this.props
     return <Container>
       <Layout>
         <Component {...pageProps} />

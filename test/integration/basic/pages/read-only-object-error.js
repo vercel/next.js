@@ -6,7 +6,7 @@ function ReadOnlyObjectError () {
 
 ReadOnlyObjectError.getInitialProps = async () => {
   const result = await test()
-  return {result}
+  return { result }
 }
 
 export default ReadOnlyObjectError

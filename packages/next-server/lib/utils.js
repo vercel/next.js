@@ -1,3 +1,5 @@
+import { format } from 'url'
+
 export function execOnce (fn) {
   let used = false
   return (...args) => {
@@ -53,4 +55,20 @@ export async function loadGetInitialProps (Component, ctx) {
   }
 
   return props
+}
+
+export const urlObjectKeys = ['auth', 'hash', 'host', 'hostname', 'href', 'path', 'pathname', 'port', 'protocol', 'query', 'search', 'slashes']
+
+export function formatWithValidation (url, options) {
+  if (process.env.NODE_ENV === 'development') {
+    if (url !== null && typeof url === 'object') {
+      Object.keys(url).forEach((key) => {
+        if (!urlObjectKeys.includes(key)) {
+          console.warn(`Unknown key passed via urlObject into url.format: ${key}`)
+        }
+      })
+    }
+  }
+
+  return format(url, options)
 }
