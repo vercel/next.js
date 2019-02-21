@@ -38,9 +38,6 @@
       "./taskfile-babel.js"
     ]
   },
-  "_moduleAliases": {
-    "webpack": "./dist/compiled/webpack"
-  },
   "dependencies": {
     "@babel/core": "7.1.2",
     "@babel/plugin-proposal-class-properties": "7.1.0",

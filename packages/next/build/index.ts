@@ -1,4 +1,5 @@
-require('module-alias/register')
+require('module-alias').addAlias('webpack', 'next/dist/compiled/webpack')
+
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
