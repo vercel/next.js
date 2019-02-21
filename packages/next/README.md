@@ -227,7 +227,7 @@ function HiThere() {
 export default HiThere
 ```
 
-To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#user-content-custom-document) component that wraps each page.
+To use more sophisticated CSS-in-JS solutions, you typically have to implement style flushing for server-side rendering. We enable this by allowing you to define your own [custom `<Document>`](#custom-document) component that wraps each page.
 
 #### Importing CSS / Sass / Less / Stylus files
 
@@ -836,7 +836,7 @@ You can add `prefetch` prop to any `<Link>` and Next.js will prefetch those page
 ```jsx
 import Link from 'next/link'
 
-function Header() { 
+function Header() {
   return (
     <nav>
       <ul>
@@ -870,7 +870,7 @@ Most prefetching needs are addressed by `<Link />`, but we also expose an impera
 ```jsx
 import { withRouter } from 'next/router'
 
-function MyLink({ router }) { 
+function MyLink({ router }) {
   return (
     <div>
       <a onClick={() => setTimeout(() => router.push('/dynamic'), 100)}>
@@ -1082,7 +1082,7 @@ function Home() {
       <p>HOME PAGE is here!</p>
     </div>
   )
-} 
+}
 
 export default Home
 ```
@@ -1235,7 +1235,7 @@ Pages in `Next.js` skip the definition of the surrounding document's markup. For
 // Event handlers like onClick can't be added to this file
 
 // ./pages/_document.js
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 class MyDocument extends Document {
   static async getInitialProps(ctx) {
@@ -1245,7 +1245,7 @@ class MyDocument extends Document {
 
   render() {
     return (
-      <html>
+      <Html>
         <Head>
           <style>{`body { margin: 0 } /* custom! */`}</style>
         </Head>
@@ -1253,7 +1253,7 @@ class MyDocument extends Document {
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }
@@ -1437,13 +1437,7 @@ module.exports = {
     // period (in ms) where the server will keep pages in the buffer
     maxInactiveAge: 25 * 1000,
     // number of pages that should be kept simultaneously without being disposed
-    pagesBufferLength: 2,
-    // optionally configure a port for the onDemandEntries WebSocket, not needed by default
-    websocketPort: 3001,
-    // optionally configure a proxy path for the onDemandEntries WebSocket, not need by default
-    websocketProxyPath: '/hmr',
-    // optionally configure a proxy port for the onDemandEntries WebSocket, not need by default
-    websocketProxyPort: 7002,
+    pagesBufferLength: 2
   },
 }
 ```
@@ -1575,7 +1569,7 @@ Example usage of `defaultLoaders.babel`:
 // This source was taken from the @zeit/next-mdx plugin source:
 // https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
 module.exports = {
-  webpack: (config, {}) => {
+  webpack: (config, options) => {
     config.module.rules.push({
       test: /\.mdx/,
       use: [
@@ -1684,10 +1678,10 @@ export default Index
 
 > :warning: Note that this option is not available when using `target: 'serverless'`
 
-> :warning: Generally you want to use build-time configuration to provide your configuration. 
+> :warning: Generally you want to use build-time configuration to provide your configuration.
 The reason for this is that runtime configuration adds a small rendering / initialization overhead.
 
-The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`. 
+The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
 Place any server-only runtime config under a `serverRuntimeConfig` property.
 
@@ -1742,7 +1736,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
 
 If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
 
@@ -1761,23 +1755,7 @@ next build
 next start
 ```
 
-For example, to deploy with [`now`](https://zeit.co/now) a `package.json` like follows is recommended:
-
-```json
-{
-  "name": "my-app",
-  "dependencies": {
-    "next": "latest"
-  },
-  "scripts": {
-    "dev": "next",
-    "build": "next build",
-    "start": "next start"
-  }
-}
-```
-
-Then run `now` and enjoy!
+To deploy Next.js with [ZEIT Now](https://zeit.co/now) see the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/).
 
 Next.js can be deployed to other hosting solutions too. Please have a look at the ['Deployment'](https://github.com/zeit/next.js/wiki/Deployment) section of the wiki.
 
@@ -1823,6 +1801,8 @@ export function render(req: http.IncomingMessage, res: http.ServerResponse) => v
 - [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 - [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 - `void` refers to the function not having a return value and is equivalent to JavaScript's `undefined`. Calling the function will finish the request.
+
+Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.co/now) with all of the benefits and added ease of control like for example; [custom routes](https://zeit.co/guides/custom-next-js-server-to-routes/) and caching headers. See the [ZEIT Guide for Deploying Next.js with Now](https://zeit.co/guides/deploying-nextjs-with-now/) for more information.
 
 #### One Level Lower
 

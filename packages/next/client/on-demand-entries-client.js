@@ -1,90 +1,53 @@
-/* global location, WebSocket */
+/* global window, location */
 
 import Router from 'next/router'
 import fetch from 'unfetch'
 
-const { hostname, protocol } = location
-const wsProtocol = protocol.includes('https') ? 'wss' : 'ws'
-const retryTime = 5000
-let ws = null
-let lastHref = null
+let evtSource
+let currentPage
+let retryTimeout
+const retryWait = 5000
 
 export default async ({ assetPrefix }) => {
   Router.ready(() => {
-    Router.events.on('routeChangeComplete', ping)
+    Router.events.on('routeChangeComplete', setupPing)
   })
 
-  const setup = async (reconnect) => {
-    if (ws && ws.readyState === ws.OPEN) {
-      return Promise.resolve()
+  function setupPing (retry) {
+    // Make sure to only create new EventSource request if page has changed
+    if (Router.pathname === currentPage && !retry) return
+    // close current EventSource connection
+    if (evtSource) {
+      evtSource.close()
+    }
+    currentPage = Router.pathname
+
+    const url = `${assetPrefix}/_next/on-demand-entries-ping?page=${currentPage}`
+    evtSource = new window.EventSource(url)
+
+    evtSource.onerror = () => {
+      retryTimeout = setTimeout(() => setupPing(true), retryWait)
     }
 
-    return new Promise(resolve => {
-      ws = new WebSocket(`${wsProtocol}://${hostname}:${process.env.NEXT_WS_PORT}${process.env.NEXT_WS_PROXY_PATH}`)
-      ws.onopen = () => resolve()
-      ws.onclose = () => {
-        setTimeout(async () => {
-          // check if next restarted and we have to reload to get new port
-          await fetch(`${assetPrefix}/_next/on-demand-entries-ping`)
-            .then(res => res.status === 200 && location.reload())
-            .catch(() => {})
-          await setup(true)
-          resolve()
-        }, retryTime)
-      }
-      ws.onmessage = async ({ data }) => {
-        const payload = JSON.parse(data)
-        if (payload.invalid && lastHref !== location.href) {
-          // Payload can be invalid even if the page does not exist.
-          // So, we need to make sure it exists before reloading.
-          const pageRes = await fetch(location.href, {
-            credentials: 'omit'
-          })
+    evtSource.onopen = () => {
+      clearTimeout(retryTimeout)
+    }
+
+    evtSource.onmessage = event => {
+      const payload = JSON.parse(event.data)
+      if (payload.invalid) {
+        // Payload can be invalid even if the page does not exist.
+        // So, we need to make sure it exists before reloading.
+        fetch(location.href, {
+          credentials: 'same-origin'
+        }).then(pageRes => {
           if (pageRes.status === 200) {
             location.reload()
-          } else {
-            lastHref = location.href
           }
-        }
+        })
       }
-    })
-  }
-  await setup()
-
-  async function ping () {
-    if (ws.readyState === ws.OPEN) {
-      ws.send(Router.pathname)
     }
   }
 
-  let pingerTimeout
-  async function runPinger () {
-    // Will restart on the visibilitychange API below. For older browsers, this
-    // will always be true and will always run, but support is fairly prevalent
-    // at this point.
-    while (!document.hidden) {
-      await ping()
-      await new Promise(resolve => {
-        pingerTimeout = setTimeout(resolve, 5000)
-      })
-    }
-  }
-
-  document.addEventListener(
-    'visibilitychange',
-    () => {
-      if (!document.hidden) {
-        runPinger()
-      } else {
-        clearTimeout(pingerTimeout)
-      }
-    },
-    false
-  )
-
-  setTimeout(() => {
-    runPinger().catch(err => {
-      console.error(err)
-    })
-  }, 10000)
+  setupPing(currentPage)
 }

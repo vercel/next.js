@@ -21,7 +21,7 @@ export function createPagesMapping(pagePaths: string[], extensions: string[]): P
   return pages
 }
 
-type WebpackEntrypoints = {
+export type WebpackEntrypoints = {
   [bundle: string]: string|string[]
 }
 

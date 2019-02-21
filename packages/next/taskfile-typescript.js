@@ -6,7 +6,7 @@ try {
 
   module.exports = function (task) {
     task.plugin('typescript', { every: true }, function * (file, options) {
-      const {stripExtension} = options
+      const { stripExtension } = options
       const opts = {
         fileName: file.base,
         compilerOptions: {
@@ -40,7 +40,7 @@ try {
       if (file.base === 'next-dev.js') result.outputText = result.outputText.replace('// REPLACE_NOOP_IMPORT', `import('./noop');`)
 
       // update file's data
-      file.data = Buffer.from(result.outputText.replace(/process\.env\.NEXT_VERSION/, `"${require('./package.json').version}"`), 'utf8')
+      file.data = Buffer.from(result.outputText.replace(/process\.env\.__NEXT_VERSION/, `"${require('./package.json').version}"`), 'utf8')
     })
   }
 } catch (err) {

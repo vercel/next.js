@@ -8,10 +8,7 @@ jobs:
       - checkout
       - run:
           name: Installing dependencies
-          command: yarn install
-      - run:
-          name: Bootstrapping
-          command: yarn bootstrap
+          command: yarn install --frozen-lockfile
       - run:
           name: Linting
           command: yarn lint
