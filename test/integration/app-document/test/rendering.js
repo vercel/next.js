@@ -10,6 +10,11 @@ export default function ({ app }, suiteName, render, fetch) {
 
   describe(suiteName, () => {
     describe('_document', () => {
+      test('It has a custom html class', async () => {
+        const $ = await get$('/')
+        expect($('html').hasClass('test-html-props'))
+      })
+
       test('It has a custom body class', async () => {
         const $ = await get$('/')
         expect($('body').hasClass('custom_class'))

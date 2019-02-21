@@ -23,6 +23,12 @@ describe('config', () => {
     expect(config.defaultConfig).toBeDefined()
   })
 
+  it('Should assign object defaults deeply to user config', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    expect(config.distDir).toEqual('.next')
+    expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+  })
+
   it('Should pass the customConfig correctly', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { customConfig: true })
     expect(config.customConfig).toBe(true)
@@ -31,6 +37,23 @@ describe('config', () => {
   it('Should not pass the customConfig when it is null', () => {
     const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, null)
     expect(config.webpack).toBe(null)
+  })
+
+  it('Should assign object defaults deeply to customConfig', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { customConfig: true, onDemandEntries: { custom: true } })
+    expect(config.customConfig).toBe(true)
+    expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+  })
+
+  it('Should allow setting objects which do not have defaults', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { bogusSetting: { custom: true } })
+    expect(config.bogusSetting).toBeDefined()
+    expect(config.bogusSetting.custom).toBe(true)
+  })
+
+  it('Should override defaults for arrays from user arrays', () => {
+    const config = loadConfig(PHASE_DEVELOPMENT_SERVER, null, { pageExtensions: ['.bogus'] })
+    expect(config.pageExtensions).toEqual(['.bogus'])
   })
 
   it('Should throw when an invalid target is provided', () => {
