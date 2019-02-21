@@ -1,9 +1,9 @@
 /* global __NEXT_DATA__ */
 
-import { parse, format } from 'url'
+import { parse } from 'url'
 import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
-import { loadGetInitialProps, getURL } from '../utils'
+import { loadGetInitialProps, getURL, formatWithValidation } from '../utils'
 
 export default class Router {
   static events = mitt()
@@ -38,7 +38,7 @@ export default class Router {
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
       // we have to register the initial route upon initialization
-      this.changeState('replaceState', format({ pathname, query }), as)
+      this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
     }
@@ -80,7 +80,7 @@ export default class Router {
       // Actually, for (1) we don't need to nothing. But it's hard to detect that event.
       // So, doing the following for (1) does no harm.
       const { pathname, query } = this
-      this.changeState('replaceState', format({ pathname, query }), getURL())
+      this.changeState('replaceState', formatWithValidation({ pathname, query }), getURL())
       return
     }
 
@@ -163,8 +163,8 @@ export default class Router {
   async change (method, _url, _as, options) {
     // If url and as provided as an object representation,
     // we'll format them into the string version here.
-    const url = typeof _url === 'object' ? format(_url) : _url
-    let as = typeof _as === 'object' ? format(_as) : _as
+    const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
+    let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
 
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly for the SSR page.

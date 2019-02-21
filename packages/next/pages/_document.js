@@ -26,14 +26,36 @@ export default class Document extends Component {
     }
   }
 
-  render () {
-    return <html amp={this.props.amphtml ? '' : null}>
-      <Head />
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </html>
+  render() {
+    return (
+      <Html>
+        <Head />
+        <body>
+          <Main />
+          <NextScript />
+        </body>
+      </Html>
+    )
+  }
+}
+
+export class Html extends Component {
+  static contextTypes = {
+    _documentProps: PropTypes.any,
+  }
+
+  static propTypes = {
+    children: PropTypes.node.isRequired,
+  }
+
+  render() {
+    const { amphtml } = this.context._documentProps
+    const { children, ...props } = this.props
+    return (
+      <html {...props} amp={amphtml ? '' : null}>
+        {children}
+      </html>
+    )
   }
 }
 

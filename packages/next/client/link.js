@@ -1,10 +1,10 @@
 /* global __NEXT_DATA__ */
 
-import { resolve, format, parse } from 'url'
+import { resolve, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
 import Router, { Router as _Router } from 'next/router'
-import { execOnce, getLocationOrigin } from 'next-server/dist/lib/utils'
+import { execOnce, formatWithValidation, getLocationOrigin } from 'next-server/dist/lib/utils'
 
 function isLocal (href) {
   const url = parse(href, false, true)
@@ -47,10 +47,10 @@ class Link extends Component {
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
       href: href && typeof href === 'object'
-        ? format(href)
+        ? formatWithValidation(href)
         : href,
       as: asHref && typeof asHref === 'object'
-        ? format(asHref)
+        ? formatWithValidation(asHref)
         : asHref
     }
   })

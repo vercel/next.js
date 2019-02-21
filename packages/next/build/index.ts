@@ -58,7 +58,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
   const pages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(pages, config.target, buildId, config)
-  const configs: any = [
+  const configs = [
     getBaseWebpackConfig(dir, {
       buildId,
       isServer: false,

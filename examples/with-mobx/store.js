@@ -26,7 +26,7 @@ class Store {
 
 let store = null
 
-export function initializeStore (initialData) {
+export function initializeStore(initialData) {
   // Always make a new store if server, otherwise state is shared between requests
   if (isServer) {
     return new Store(isServer, initialData)
