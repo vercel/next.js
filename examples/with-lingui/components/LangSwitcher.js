@@ -13,12 +13,12 @@ export default () => {
     evt.preventDefault()
     Router.push({
       pathname: window.location.pathname,
-      query: {lang: evt.currentTarget.lang.value}
+      query: { lang: evt.currentTarget.lang.value }
     })
   }
 
   return (
-    <I18n>{({i18n}) =>
+    <I18n>{({ i18n }) =>
       <form onSubmit={onSubmit}>
         <select key={i18n.language} name='lang' defaultValue={availableLanguages.find(lang => lang !== i18n.language)}>
           {availableLanguages.map(lang => (
