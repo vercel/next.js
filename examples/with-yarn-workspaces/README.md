@@ -51,4 +51,4 @@ In this example we have three workspaces:
 * [Documentation](https://yarnpkg.com/en/docs/workspaces)
 * [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
 * [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
-* [next-plugin-transpile-modules](https://www.npmjs.com/package/next-plugin-transpile-modules)
+* [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)
