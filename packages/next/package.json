@@ -34,6 +34,7 @@
   "taskr": {
     "requires": [
       "./taskfile-typescript.js",
+      "./taskfile-ncc.js",
       "./taskfile-babel.js"
     ]
   },
