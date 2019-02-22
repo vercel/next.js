@@ -1,5 +1,5 @@
-import 'event-source-polyfill'
 import connect from './dev-error-overlay/hot-dev-client'
+
 export default ({ assetPrefix }) => {
   const options = {
     path: `${assetPrefix}/_next/webpack-hmr`

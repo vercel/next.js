@@ -1,4 +1,5 @@
 import initNext, * as next from './'
+import EventSourcePolyfill from './event-source-polyfill'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
@@ -7,6 +8,11 @@ import initWebpackHMR from './webpack-hot-middleware-client'
 // The runtimeChunk doesn't have dynamic import handling code when there hasn't been a dynamic import
 // The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
 // REPLACE_NOOP_IMPORT
+
+// Support EventSource on Internet Explorer 11
+if (!window.EventSource) {
+  window.EventSource = EventSourcePolyfill
+}
 
 const {
   __NEXT_DATA__: {
