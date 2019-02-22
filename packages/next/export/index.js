@@ -1,4 +1,4 @@
-import del from 'del'
+import rimraf from 'rimraf'
 import { cpus } from 'os'
 import { fork } from 'child_process'
 import cp from 'recursive-copy'
@@ -52,7 +52,7 @@ export default async function (dir, options, configuration) {
 
   // Initialize the output directory
   const outDir = options.outdir
-  await del(join(outDir, '*'))
+  await rimraf(join(outDir, '*'))
   await mkdirp(join(outDir, '_next', buildId))
 
   // Copy static directory
