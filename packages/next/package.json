@@ -79,7 +79,6 @@
     "react-is": "16.6.3",
     "recursive-copy": "2.0.6",
     "resolve": "1.5.0",
-    "schema-utils": "1.0.0",
     "serialize-javascript": "1.4.0",
     "source-map": "0.6.1",
     "strip-ansi": "3.0.1",
