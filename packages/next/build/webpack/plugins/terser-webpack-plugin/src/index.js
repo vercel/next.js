@@ -8,19 +8,14 @@ import { SourceMapConsumer } from 'source-map';
 import { SourceMapSource, RawSource, ConcatSource } from 'webpack-sources';
 import RequestShortener from 'webpack/lib/RequestShortener';
 import ModuleFilenameHelpers from 'webpack/lib/ModuleFilenameHelpers';
-// import validateOptions from 'schema-utils';
 import serialize from 'serialize-javascript';
 import terserPackageJson from 'terser/package.json';
-
-import schema from './options.json';
 import TaskRunner from './TaskRunner';
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/;
 
 class TerserPlugin {
   constructor(options = {}) {
-    // validateOptions(schema, options, 'Terser Plugin');
-
     const {
       minify,
       terserOptions = {},
