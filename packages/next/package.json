@@ -69,7 +69,7 @@
     "hoist-non-react-statics": "3.2.0",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
-    "mkdirp-then": "1.2.0",
+    "mkdirp": "0.5.1",
     "nanoid": "1.2.1",
     "next-server": "8.0.3",
     "prop-types": "15.6.2",
