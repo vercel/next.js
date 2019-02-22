@@ -63,7 +63,7 @@ export function formatWithValidation (url, options) {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
-        if (!urlObjectKeys.includes(key)) {
+        if (urlObjectKeys.indexOf(key) === -1) {
           console.warn(`Unknown key passed via urlObject into url.format: ${key}`)
         }
       })

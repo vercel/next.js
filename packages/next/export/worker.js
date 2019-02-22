@@ -1,14 +1,17 @@
+import mkdirpModule from 'mkdirp'
+import { promisify } from 'util'
+import { extname, join, dirname, sep } from 'path'
+import { renderToHTML } from 'next-server/dist/server/render'
+import { writeFile } from 'fs'
+import Sema from 'async-sema'
+import { loadComponents } from 'next-server/dist/server/load-components'
+
+const envConfig = require('next-server/config')
+const mkdirp = promisify(mkdirpModule)
+
 global.__NEXT_DATA__ = {
   nextExport: true
 }
-
-const { extname, join, dirname, sep } = require('path')
-const mkdirp = require('mkdirp-then')
-const { renderToHTML } = require('next-server/dist/server/render')
-const { writeFile } = require('fs')
-const Sema = require('async-sema')
-const { loadComponents } = require('next-server/dist/server/load-components')
-const envConfig = require('next-server/config')
 
 process.on(
   'message',

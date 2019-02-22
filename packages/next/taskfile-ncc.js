@@ -11,7 +11,8 @@ module.exports = function (task) {
       join(__dirname, file.dir, file.base),
       {
         // cannot bundle
-        externals: ['chokidar']
+        externals: ['chokidar'],
+        ...options
       }
     ).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => this._.files.push({
@@ -20,7 +21,6 @@ module.exports = function (task) {
         data: assets[key].source
       }))
 
-      if (file.base === 'webpack.js') file.base = 'index.js'
       file.data = Buffer.from(code, 'utf8')
     })
   })

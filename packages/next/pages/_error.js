@@ -1,7 +1,13 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import HTTPStatus from 'http-status'
 import Head from 'next-server/head'
+
+const statusCodes = {
+  400: 'Bad Request',
+  404: 'This page could not be found',
+  500: 'Internal Server Error',
+  501: 'Not Implemented'
+}
 
 export default class Error extends React.Component {
   static displayName = 'ErrorPage'
@@ -14,10 +20,7 @@ export default class Error extends React.Component {
 
   render () {
     const { statusCode } = this.props
-    const title =
-      statusCode === 404
-        ? 'This page could not be found'
-        : HTTPStatus[statusCode] || 'An unexpected error has occurred'
+    const title = statusCodes[statusCode] || 'An unexpected error has occurred'
 
     return (
       <div style={styles.error}>
