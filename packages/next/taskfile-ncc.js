@@ -11,7 +11,8 @@ module.exports = function (task) {
       join(__dirname, file.dir, file.base),
       {
         // cannot bundle
-        externals: ['chokidar']
+        externals: ['chokidar'],
+        ...options
       }
     ).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => this._.files.push({
