@@ -52,7 +52,7 @@ export default async function (dir, options, configuration) {
 
   // Initialize the output directory
   const outDir = options.outdir
-  await rimraf(join(outDir, '*'))
+  await rimraf(join(outDir, '*'), (e) => { throw e })
   await mkdirp(join(outDir, '_next', buildId))
 
   // Copy static directory

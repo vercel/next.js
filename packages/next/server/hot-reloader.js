@@ -161,7 +161,7 @@ export default class HotReloader {
   }
 
   async clean () {
-    return rimraf(join(this.dir, this.config.distDir), { force: true })
+    return rimraf(join(this.dir, this.config.distDir), { force: true }, (e) => { throw e })
   }
 
   async getWebpackConfig () {
