@@ -6,6 +6,10 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - yarn-cache-{{ checksum "yarn.lock" }}
+            - yarn-cache
       - run:
           name: Installing dependencies
           command: yarn install --frozen-lockfile
@@ -24,6 +28,10 @@ jobs:
       - run:
           name: Potentially publish stable release
           command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo \"Did not publish\"; fi"
+      - save_cache:
+          paths:
+            - ./node_modules
+          key: yarn-cache-{{ checksum "yarn.lock" }}
 workflows:
   version: 2
   build-and-deploy:
