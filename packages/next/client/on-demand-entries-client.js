@@ -34,17 +34,21 @@ export default async ({ assetPrefix }) => {
     }
 
     evtSource.onmessage = event => {
-      const payload = JSON.parse(event.data)
-      if (payload.invalid) {
-        // Payload can be invalid even if the page does not exist.
-        // So, we need to make sure it exists before reloading.
-        fetch(location.href, {
-          credentials: 'same-origin'
-        }).then(pageRes => {
-          if (pageRes.status === 200) {
-            location.reload()
-          }
-        })
+      try {
+        const payload = JSON.parse(event.data)
+        if (payload.invalid) {
+          // Payload can be invalid even if the page does not exist.
+          // So, we need to make sure it exists before reloading.
+          fetch(location.href, {
+            credentials: 'same-origin'
+          }).then(pageRes => {
+            if (pageRes.status === 200) {
+              location.reload()
+            }
+          })
+        }
+      } catch (err) {
+        console.error('on-demand-entries failed to parse response', err)
       }
     }
   }

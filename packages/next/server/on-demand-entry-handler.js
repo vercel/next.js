@@ -303,6 +303,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
           const runPing = () => {
             const data = handlePing(query.page)
+            if (!data) return
             res.write('data: ' + JSON.stringify(data) + '\n\n')
           }
           const pingInterval = setInterval(() => runPing(), 5000)
