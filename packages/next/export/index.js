@@ -2,12 +2,15 @@ import del from 'del'
 import { cpus } from 'os'
 import { fork } from 'child_process'
 import cp from 'recursive-copy'
-import mkdirp from 'mkdirp-then'
+import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
+import { promisify } from 'util'
+
+const mkdirp = promisify(mkdirpModule)
 
 export default async function (dir, options, configuration) {
   function log (message) {
