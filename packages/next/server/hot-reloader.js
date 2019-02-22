@@ -2,7 +2,7 @@ import { join, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
-import del from 'del'
+import rimrafModule from 'rimraf'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
@@ -14,6 +14,7 @@ import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
 
 const glob = promisify(globModule)
+const rimraf = promisify(rimrafModule)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -161,7 +162,7 @@ export default class HotReloader {
   }
 
   async clean () {
-    return del(join(this.dir, this.config.distDir), { force: true })
+    return rimraf(join(this.dir, this.config.distDir), { force: true })
   }
 
   async getWebpackConfig () {
