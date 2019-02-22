@@ -9,13 +9,10 @@ const app = next({ dev })
 const handle = app.getRequestHandler()
 
 const ssrCache = cacheableResponse({
-  get: async ({ req, res, pagePath, queryParams }) => {
-    const html = await app.renderToHTML(req, res, pagePath, queryParams)
-    return {
-      data: html,
-      ttl: 1000 * 60 * 60 // 1hour
-    }
-  },
+  ttl: 1000 * 60 * 60, // 1hour
+  get: async ({ req, res, pagePath, queryParams }) => ({
+    data: await app.renderToHTML(req, res, pagePath, queryParams)
+  }),
   send: ({ data, res }) => res.send(data)
 })
 
