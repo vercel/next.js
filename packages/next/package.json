@@ -34,6 +34,7 @@
   "taskr": {
     "requires": [
       "./taskfile-typescript.js",
+      "./taskfile-ncc.js",
       "./taskfile-babel.js"
     ]
   },
@@ -119,6 +120,7 @@
     "@types/node-fetch": "2.1.4",
     "@types/resolve": "0.0.8",
     "@types/rimraf": "2.0.2",
+    "@zeit/ncc": "0.15.2",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
   },
