@@ -23,7 +23,9 @@ export async function compile (task) {
 }
 
 export async function webpack (task, opts) {
-  await task.source(opts.src || '../../node_modules/webpack/lib/webpack.js').ncc().target('dist/compiled/webpack')
+  await task.source(opts.src || '../../node_modules/webpack/lib/*.js').ncc().target('dist/compiled/webpack/lib')
+  await task.source('webpack/index.js').target('dist/compiled/webpack')
+  await task.source('webpack/webpack.js').target('dist/compiled/webpack/lib')
   notify('Compiled webpack')
 }
 
