@@ -47,7 +47,9 @@ export default async ({ assetPrefix }) => {
             }
           })
         }
-      } catch (_) { /* noop */ }
+      } catch (err) {
+        console.error('on-demand-entries failed to parse response', err)
+      }
     }
   }
 
