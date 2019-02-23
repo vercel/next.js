@@ -1,0 +1,20 @@
+{
+  "name": "with-react-esi",
+  "author": "Kévin Dunglas <dunglas@gmail.com>",
+  "main": "dist/server.js",
+  "dependencies": {
+    "express": "^4.16.4",
+    "next": "^7.0.2",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0",
+    "react-esi": "^0.1"
+  },
+  "scripts": {
+    "build": "babel src -d dist && next build dist",
+    "start": "NODE_ENV=production node dist/server.js"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.2.3",
+    "@babel/node": "^7.2.2"
+  }
+}
