@@ -1,5 +1,10 @@
 /* globals __webpack_hash__ */
+import EventSourcePolyfill from './event-source-polyfill'
 import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
+
+if (!window.EventSource) {
+  window.EventSource = EventSourcePolyfill
+}
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 const { assetPrefix } = data
