@@ -713,6 +713,16 @@ export default (context) => {
         browser.close()
       })
 
+      it('should not 404 for <page>/', async () => {
+        const browser = await webdriver(context.appPort, '/nav/')
+        const text = await browser
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the home.')
+        browser.close()
+      })
+
       it('should should not contain a page script in a 404 page', async () => {
         const browser = await webdriver(context.appPort, '/non-existent')
         const scripts = await browser.elementsByCss('script[src]')
