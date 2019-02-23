@@ -1,6 +1,6 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
-import { join } from 'path'
+import { join, sep } from 'path'
 import { parse } from 'url'
 import fs from 'fs'
 import { promisify } from 'util'
@@ -221,7 +221,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const extensions = pageExtensions.join('|')
       const pagesDir = join(dir, 'pages')
-      const only = new RegExp(`^(?:${normalizedPagePath.slice(1)}\\/index|${normalizedPagePath.slice(1)})\\.(?:${extensions})$`)
+      const only = new RegExp(`^(?:${normalizedPagePath.slice(1)}\\${sep}index|${normalizedPagePath.slice(1)})\\.(?:${extensions})$`)
 
       let paths = await getFilesFrom(pagesDir, only)
 
