@@ -13,13 +13,11 @@ const readDir = async (dir: string, rel: string, only: RegExp) => {
   const elements = ((await readdir(dir)).map((el) => path.resolve(dir, el)))
   const contentsOfElements = await Promise.all(elements.map(getContents(rel, only)))
 
-  contentsOfElements.forEach((el) =>
+  contentsOfElements.forEach((el) => {
     Array.isArray(el)
       ? el.forEach((file) => allFiles.push(file) !== 0)
-      : filter(el, rel, only, (validPath) =>
-          allFiles.push(validPath) !== 0,
-        ),
-  )
+      : filter(el, rel, only, (validPath) => allFiles.push(validPath) !== 0)
+  })
 
   return allFiles
 }
