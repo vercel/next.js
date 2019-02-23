@@ -205,7 +205,6 @@ export class NextScript extends Component {
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dynamicImports.map((bundle) => {
-      console.log(bundle.file)
       return <script
         async
         key={bundle.file}
