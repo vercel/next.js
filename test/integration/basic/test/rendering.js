@@ -259,13 +259,13 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('h2').text()).toBe('This page could not be found.')
       })
 
-      it('should 404 for <page>/', async () => {
+      it('should not 404 for <page>/', async () => {
         const $ = await get$('/nav/about/')
-        expect($('h1').text()).toBe('404')
-        expect($('h2').text()).toBe('This page could not be found.')
+        // Make sure "about.js" got included and not "about/.js"
+        expect($('script[src*="/nav/about.js"]').length).toBe(1)
       })
 
-      it('should should not contain a page script in a 404 page', async () => {
+      it('should not contain a page script in a 404 page', async () => {
         const $ = await get$('/non-existent')
         $('script[src]').each((index, element) => {
           const src = $(element).attr('src')
