@@ -356,6 +356,7 @@ export function normalizePage (page) {
   if (unixPagePath === '/index' || unixPagePath === '/') {
     return '/'
   }
+  // PROBLEM:
   return unixPagePath.replace(/\/index$/, '')
 }
 

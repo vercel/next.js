@@ -30,6 +30,7 @@ export default class PageLoader {
     if (route[0] !== '/') {
       throw new Error(`Route name should start with a "/", got "${route}"`)
     }
+    // PROBLEM:
     route = route.replace(/\/index$/, '/')
 
     if (route === '/') return route
