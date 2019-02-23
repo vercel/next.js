@@ -261,6 +261,7 @@ export default function ({ app }, suiteName, render, fetch) {
 
       it('should not 404 for <page>/', async () => {
         const $ = await get$('/nav/about/')
+        expect($('p').text()).toBe('This is the about page.')
         // Make sure "about.js" got included and not "about/.js"
         expect($('script[src*="/nav/about.js"]').length).toBe(1)
       })
