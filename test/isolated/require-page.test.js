@@ -39,6 +39,10 @@ describe('normalizePagePath', () => {
   it('Should throw on /../../test.js', () => {
     expect(() => normalizePagePath('/../../test.js')).toThrow()
   })
+
+  it('Should turn /abc/ into /abc', () => {
+    expect(normalizePagePath('/abc/')).toBe(`${sep}abc`)
+  })
 })
 
 describe('getPagePath', () => {

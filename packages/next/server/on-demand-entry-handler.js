@@ -240,7 +240,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
-
       await new Promise((resolve, reject) => {
         const entryInfo = entries[page]
 
@@ -356,7 +355,7 @@ export function normalizePage (page) {
   if (unixPagePath === '/index' || unixPagePath === '/') {
     return '/'
   }
-  return unixPagePath.replace(/\/index$/, '')
+  return unixPagePath.replace(/\/(?:index)?$/, '')
 }
 
 // Make sure only one invalidation happens at a time

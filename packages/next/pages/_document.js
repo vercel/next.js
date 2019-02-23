@@ -205,6 +205,7 @@ export class NextScript extends Component {
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
     return dynamicImports.map((bundle) => {
+      console.log(bundle.file)
       return <script
         async
         key={bundle.file}
@@ -283,5 +284,5 @@ function getPagePathname (page) {
     return '/index.js'
   }
 
-  return `${page}.js`
+  return `${page.replace(/\/$/, '')}.js`
 }
