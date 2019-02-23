@@ -70,6 +70,17 @@ export default (context) => {
         expect(counterText).toBe('Counter: 1')
         browser.close()
       })
+
+      it('should navigate the page when href has trailing slash', async () => {
+        const browser = await webdriver(context.appPort, '/nav/trailing-slash-link')
+        const text = await browser
+          .elementByCss('#home-link').click()
+          .waitForElementByCss('.nav-home')
+          .elementByCss('p').text()
+
+        expect(text).toBe('This is the home.')
+        browser.quit()
+      })
     })
 
     describe('with unexpected <a/> nested tag', () => {
@@ -697,13 +708,6 @@ export default (context) => {
     describe('with 404 pages', () => {
       it('should 404 on not existent page', async () => {
         const browser = await webdriver(context.appPort, '/non-existent')
-        expect(await browser.elementByCss('h1').text()).toBe('404')
-        expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
-        browser.close()
-      })
-
-      it('should 404 for <page>/', async () => {
-        const browser = await webdriver(context.appPort, '/nav/about/')
         expect(await browser.elementByCss('h1').text()).toBe('404')
         expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
         browser.close()
