@@ -168,7 +168,7 @@ export default class HotReloader {
     const pagesDir = join(this.dir, 'pages')
     const only = new RegExp(`^(?:_app|_document)\\.(?:${this.config.pageExtensions.join('|')})$`)
     const pagePaths = await getFilesFrom(pagesDir, only)
-    console.log(pagePaths)
+
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
     return [
