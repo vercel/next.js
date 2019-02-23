@@ -4,7 +4,7 @@ import { join } from 'path'
 import { parse } from 'url'
 import fs from 'fs'
 import { promisify } from 'util'
-import globModule from 'glob'
+import getFilesFrom from '../lib/getFilesFrom'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
@@ -14,7 +14,6 @@ const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
 
-const glob = promisify(globModule)
 const access = promisify(fs.access)
 
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
@@ -222,8 +221,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const extensions = pageExtensions.join('|')
       const pagesDir = join(dir, 'pages')
+      const only = new RegExp(`^(?:${normalizedPagePath.slice(1)}\\/index|${normalizedPagePath.slice(1)})\\.(?:${extensions})$`)
 
-      let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, { cwd: pagesDir })
+      let paths = await getFilesFrom(pagesDir, only)
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && paths.length === 0) {

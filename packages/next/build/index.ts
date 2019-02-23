@@ -1,3 +1,5 @@
+
+
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
@@ -7,19 +9,16 @@ import { generateBuildId } from './generate-build-id'
 import { writeBuildId } from './write-build-id'
 import { isWriteable } from './is-writeable'
 import { runCompiler, CompilerResult } from './compiler'
-import globModule from 'glob'
-import { promisify } from 'util'
+import getFilesFrom from '../lib/getFilesFrom'
 import { createPagesMapping, createEntrypoints } from './entries'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
-
-const glob = promisify(globModule)
 
 function collectPages(
   directory: string,
   pageExtensions: string[]
 ): Promise<string[]> {
-  return glob(`**/*.+(${pageExtensions.join('|')})`, { cwd: directory })
+  return getFilesFrom(directory, new RegExp(`^.+\.(?:${pageExtensions.join('|')})$`))
 }
 
 function printTreeView(list: string[]) {
@@ -56,6 +55,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagesDir = join(dir, 'pages')
 
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
+  console.log(pagePaths)
   const pages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(pages, config.target, buildId, config)
   const configs = [
