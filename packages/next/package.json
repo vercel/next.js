@@ -65,7 +65,6 @@
     "find-cache-dir": "2.0.0",
     "find-up": "2.1.0",
     "fresh": "0.5.2",
-    "glob": "7.1.2",
     "hoist-non-react-statics": "3.2.0",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
