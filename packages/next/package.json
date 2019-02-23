@@ -61,7 +61,6 @@
     "case-sensitive-paths-webpack-plugin": "2.1.2",
     "chalk": "2.4.2",
     "cross-spawn": "5.1.0",
-    "event-source-polyfill": "0.0.12",
     "find-cache-dir": "2.0.0",
     "find-up": "2.1.0",
     "fresh": "0.5.2",
