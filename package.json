@@ -66,7 +66,7 @@
     "babel-eslint": "9.0.0",
     "babel-jest": "23.6.0",
     "cheerio": "0.22.0",
-    "chromedriver": "2.42.0",
+    "chromedriver": "2.46.0",
     "clone": "2.1.1",
     "coveralls": "3.0.2",
     "eslint": "5.4.0",
@@ -95,7 +95,6 @@
     "tslint": "5.12.0",
     "typescript": "3.1.1",
     "typescript-eslint-parser": "21.0.1",
-    "wait-port": "0.2.2",
     "wd": "1.10.3",
     "webpack-bundle-analyzer": "3.0.3"
   },
