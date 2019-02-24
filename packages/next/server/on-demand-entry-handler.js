@@ -227,7 +227,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       pageUrl = pageUrl === '' ? '/' : pageUrl
       const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
       const name = join('static', buildId, 'pages', bundleFile)
