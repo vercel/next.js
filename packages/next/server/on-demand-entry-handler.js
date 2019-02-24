@@ -210,8 +210,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     },
 
     async ensurePage (page) {
+      const pagesDir = join(dir, 'pages')
       await this.waitUntilReloaded()
-      page = normalizePage(page)
+      const normalizedPage = normalizePage(page)
       let normalizedPagePath
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -221,12 +222,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       }
 
       const extensions = pageExtensions.join('|')
-      const pagesDir = join(dir, 'pages')
 
       let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, { cwd: pagesDir })
 
       // Default the /_error route to the Next.js provided default page
-      if (page === '/_error' && paths.length === 0) {
+      if (normalizedPage === '/_error' && paths.length === 0) {
         paths = ['next/dist/pages/_error']
       }
 
@@ -242,7 +242,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       await new Promise((resolve, reject) => {
-        const entryInfo = entries[page]
+        const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
           if (entryInfo.status === BUILT) {
@@ -251,15 +251,15 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.once(page, handleCallback)
+            doneCallbacks.once(normalizedPage, handleCallback)
             return
           }
         }
 
-        console.log(`> Building page: ${page}`)
+        console.log(`> Building page: ${normalizedPage}`)
 
-        entries[page] = { name, absolutePagePath, status: ADDED }
-        doneCallbacks.once(page, handleCallback)
+        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        doneCallbacks.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
 
