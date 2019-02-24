@@ -4,7 +4,7 @@ import { join, sep } from 'path'
 import { parse } from 'url'
 import fs from 'fs'
 import { promisify } from 'util'
-import getFilesFrom from '../lib/getFilesFrom'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
@@ -223,7 +223,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const pagesDir = join(dir, 'pages')
       const only = new RegExp(`^(?:${normalizedPagePath.slice(1)}\\${sep}index|${normalizedPagePath.slice(1)})\\.(?:${extensions})$`)
 
-      let paths = await getFilesFrom(pagesDir, only)
+      let paths = await recursiveReadDir(pagesDir, only)
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && paths.length === 0) {

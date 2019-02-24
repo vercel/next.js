@@ -8,7 +8,7 @@ import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES } from 'next-server/constants'
 import { route } from 'next-server/dist/server/router'
-import getFilesFrom from '../lib/getFilesFrom'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { promisify } from 'util'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
@@ -167,7 +167,7 @@ export default class HotReloader {
   async getWebpackConfig () {
     const pagesDir = join(this.dir, 'pages')
     const only = new RegExp(`^(?:_app|_document)\\.(?:${this.config.pageExtensions.join('|')})$`)
-    const pagePaths = await getFilesFrom(pagesDir, only)
+    const pagePaths = await recursiveReadDir(pagesDir, only)
 
     const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)

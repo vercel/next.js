@@ -7,7 +7,7 @@ import { generateBuildId } from './generate-build-id'
 import { writeBuildId } from './write-build-id'
 import { isWriteable } from './is-writeable'
 import { runCompiler, CompilerResult } from './compiler'
-import getFilesFrom from '../lib/getFilesFrom'
+import {recursiveReadDir} from '../lib/recursive-readdir'
 import { createPagesMapping, createEntrypoints } from './entries'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
@@ -16,7 +16,7 @@ function collectPages(
   directory: string,
   pageExtensions: string[]
 ): Promise<string[]> {
-  return getFilesFrom(directory, new RegExp(`^.+\\.(?:${pageExtensions.join('|')})$`))
+  return recursiveReadDir(directory, new RegExp(`\\.(${pageExtensions.join('|')})$`))
 }
 
 function printTreeView(list: string[]) {
