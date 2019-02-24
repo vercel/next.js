@@ -25,7 +25,7 @@ export async function recursiveReadDir(dir: string, filter: RegExp, arr: string[
       return
     }
 
-    if (!filter.exec(part)) {
+    if (!filter.test(part)) {
       return
     }
 
