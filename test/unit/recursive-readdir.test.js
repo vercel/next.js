@@ -1,14 +1,14 @@
 /* eslint-env jest */
-import { recursiveRead } from 'next/dist/lib/recursive-readdir'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
 
 const resolveDataDir = join(__dirname, '..', 'isolated', '_resolvedata')
-const dirWithPages = join(resolveDataDir, 'server', 'static', 'development')
+const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 
-describe('recursiveReaddir', () => {
+describe('recursiveReadDir', () => {
   it('should work', async () => {
-    const result = await recursiveRead(dirWithPages, /\.js/)
-    const pages = ['pages/_error.js', 'pages/index.js', 'pages/non-existent-child.js', 'pages/world.js']
+    const result = await recursiveReadDir(dirWithPages, /\.js/)
+    const pages = ['index.js', 'nav/about.js', 'nav/index.js', 'nav/products/product.js']
     expect(result.filter((item) => !pages.includes(item)).length).toBe(0)
   })
 })
