@@ -8,7 +8,15 @@ const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
 describe('recursiveReadDir', () => {
   it('should work', async () => {
     const result = await recursiveReadDir(dirWithPages, /\.js/)
-    const pages = ['index.js', 'prefered.js', 'nav/about.js', 'nav/index.js', 'nested/index.js', 'prefered/index.js', 'nav/products/product.js']
-    expect(result.filter((item) => !pages.includes(item)).length).toBe(0)
+    const pages = [/^[\\/]index\.js/, /^[\\/]prefered\.js/, /^[\\/]nav[\\/]about\.js/, /^[\\/]nav[\\/]index\.js/, /^[\\/]nested[\\/]index\.js/, /^[\\/]prefered[\\/]index\.js/, /^[\\/]nav[\\/]products[\\/]product\.js/]
+    expect(result.filter((item) => {
+      for (const page of pages) {
+        if (page.test(item)) {
+          return false
+        }
+      }
+
+      return true
+    }).length).toBe(0)
   })
 })

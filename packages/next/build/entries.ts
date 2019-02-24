@@ -9,7 +9,7 @@ type PagesMapping = {
 
 export function createPagesMapping(pagePaths: string[], extensions: string[]): PagesMapping {
   const pages: PagesMapping = pagePaths.reduce((result: PagesMapping, pagePath): PagesMapping => {
-    const page = `/${pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+    const page = `${pagePath.replace(new RegExp(`\\.+(${extensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
     result[page === '' ? '/' : page] = join(PAGES_DIR_ALIAS, pagePath).replace(/\\/g, '/')
     return result
   }, {})

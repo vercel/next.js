@@ -11,18 +11,18 @@ describe('findPageFile', () => {
   it('should work', async () => {
     const pagePath = normalizePagePath('/nav/about')
     const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
-    expect(result).toBe('/nav/about.js')
+    expect(result).toMatch(/^[\\/]nav[\\/]about\.js/)
   })
 
   it('should work with nested index.js', async () => {
     const pagePath = normalizePagePath('/nested')
     const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
-    expect(result).toBe('/nested/index.js')
+    expect(result).toMatch(/^[\\/]nested[\\/]index\.js/)
   })
 
   it('should prefer prefered.js before prefered/index.js', async () => {
     const pagePath = normalizePagePath('/prefered')
     const result = await findPageFile(dirWithPages, pagePath, ['jsx', 'js'])
-    expect(result).toBe('/prefered.js')
+    expect(result).toMatch(/^[\\/]prefered\.js/)
   })
 })
