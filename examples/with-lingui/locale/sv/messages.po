@@ -1,0 +1,39 @@
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2019-02-05 13:38+0100\n"
+"Mime-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: @lingui/cli\n"
+"Language: sv\n"
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: components/LangSwitcher.js:6
+msgid "English"
+msgstr "Engelska"
+
+#: pages/index.js:9
+msgid "Go to page 2"
+msgstr "Gå till sida 2"
+
+#: pages/index.js:8
+msgid "Hello World."
+msgstr "Hej Världen. "
+
+#: pages/two.js:8
+msgid "Page two."
+msgstr "Sida två."
+
+#: components/LangSwitcher.js:7
+msgid "Swedish"
+msgstr "Svenska"
+
+#: components/LangSwitcher.js:26
+msgid "Switch language"
+msgstr "Byt Språk"
+

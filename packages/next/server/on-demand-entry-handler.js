@@ -3,7 +3,7 @@ import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
 import fs from 'fs'
-import promisify from '../lib/promisify'
+import { promisify } from 'util'
 import globModule from 'glob'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
@@ -303,6 +303,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
           const runPing = () => {
             const data = handlePing(query.page)
+            if (!data) return
             res.write('data: ' + JSON.stringify(data) + '\n\n')
           }
           const pingInterval = setInterval(() => runPing(), 5000)
