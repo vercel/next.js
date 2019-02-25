@@ -81,6 +81,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
+    ...(isServer ? {
+      // Now that we use webpack-asset-relocator-loader we can allow these
+      // values to be their Node-runtime defined ones.
+      node: { __dirname: false, __filename: false }
+    } : undefined),
     externals: isServer && target !== 'serverless' ? [
       (context, request, callback) => {
         const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'string-hash', 'hoist-non-react-statics', 'htmlescape']
