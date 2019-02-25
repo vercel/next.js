@@ -205,12 +205,12 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    async ensurePage (page) {
+    async ensurePage (pg) {
       await this.waitUntilReloaded()
-      const normalizedPage = normalizePage(page)
+      const page = normalizePage(pg)
       let normalizedPagePath
       try {
-        normalizedPagePath = normalizePagePath(page)
+        normalizedPagePath = normalizePagePath(pg)
       } catch (err) {
         console.error(err)
         throw pageNotFoundError(normalizedPagePath)
@@ -219,7 +219,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions)
 
       // Default the /_error route to the Next.js provided default page
-      if (normalizedPage === '/_error' && pagePath === null) {
+      if (page === '/_error' && pagePath === null) {
         pagePath = 'next/dist/pages/_error'
       }
 
@@ -234,7 +234,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       await new Promise((resolve, reject) => {
-        const entryInfo = entries[normalizedPage]
+        const entryInfo = entries[page]
 
         if (entryInfo) {
           if (entryInfo.status === BUILT) {
@@ -243,15 +243,15 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.once(normalizedPage, handleCallback)
+            doneCallbacks.once(page, handleCallback)
             return
           }
         }
 
-        console.log(`> Building page: ${normalizedPage}`)
+        console.log(`> Building page: ${page}`)
 
-        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
-        doneCallbacks.once(normalizedPage, handleCallback)
+        entries[page] = { name, absolutePagePath, status: ADDED }
+        doneCallbacks.once(page, handleCallback)
 
         invalidator.invalidate()
 
