@@ -13,7 +13,7 @@
     "build:public": "cpx \"src/app/static/**/*.*\" dist/public/static -C",
     "build:functions": "cpx \"src/functions/**/*.*\" dist/functions -C",
     "build:app": "next build src/app",
-    "build:install": "cpx \"*{package.json,yarn.lock}\" dist/functions -C && cd dist/functions && yarn install --production",
+    "build:copy": "cpx \"*{package.json,yarn.lock}\" dist/functions -C",
     "local:serve": "cross-env NODE_ENV=production firebase serve",
     "deploy": "firebase deploy",
     "clean": "node scripts/clean.js"
