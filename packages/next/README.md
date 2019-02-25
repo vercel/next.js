@@ -116,7 +116,7 @@ Populate `./pages/index.js` inside your project:
 
 ```jsx
 function Home() {
-  return <div>Welcome to next.js!</div>
+  return <div>Welcome to Next.js!</div>
 }
 
 export default Home
