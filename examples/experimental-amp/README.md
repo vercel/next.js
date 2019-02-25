@@ -45,4 +45,4 @@ now
 
 ## The idea behind the example
 
-Next.js allows the construction of custom Documents. This feature enable the usage of custom attributes and elements. In this case, AMP tags and attributes.
+Next.js is working on first-class AMP support. You can periodically fetch an updated version of this template to view our progress.
