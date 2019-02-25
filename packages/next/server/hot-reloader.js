@@ -8,12 +8,11 @@ import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES } from 'next-server/constants'
 import { route } from 'next-server/dist/server/router'
-import globModule from 'glob'
 import { promisify } from 'util'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
+import { findPageFile } from './lib/find-page-file'
 
-const glob = promisify(globModule)
 const rimraf = promisify(rimrafModule)
 
 export async function renderScriptError (res, error) {
@@ -166,8 +165,13 @@ export default class HotReloader {
   }
 
   async getWebpackConfig () {
-    const pagePaths = await glob(`+(_app|_document).+(${this.config.pageExtensions.join('|')})`, { cwd: join(this.dir, 'pages') })
-    const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
+    const pagesDir = join(this.dir, 'pages')
+    const pagePaths = await Promise.all([
+      findPageFile(pagesDir, '/_app', this.config.pageExtensions),
+      findPageFile(pagesDir, '/_document', this.config.pageExtensions)
+    ])
+
+    const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
     return [
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: entrypoints.client }),
