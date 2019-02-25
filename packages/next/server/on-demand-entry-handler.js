@@ -2,20 +2,16 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join } from 'path'
 import { parse } from 'url'
-import fs from 'fs'
-import { promisify } from 'util'
-import globModule from 'glob'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 import { stringify } from 'querystring'
+import { findPageFile } from './lib/find-page-file'
+import { isWriteable } from '../build/is-writeable'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
-
-const glob = promisify(globModule)
-const access = promisify(fs.access)
 
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
 function addEntry (compilation, context, name, entry) {
@@ -36,6 +32,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   maxInactiveAge,
   pagesBufferLength
 }) {
+  const pagesDir = join(dir, 'pages')
   const clients = new Set()
   const evtSourceHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -61,9 +58,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const allEntries = Object.keys(entries).map(async (page) => {
         const { name, absolutePagePath } = entries[page]
-        try {
-          await access(absolutePagePath, (fs.constants || fs).W_OK)
-        } catch (err) {
+        const pageExists = await isWriteable(absolutePagePath)
+        if (!pageExists) {
           console.warn('Page was removed', page)
           delete entries[page]
           return
@@ -220,22 +216,18 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const extensions = pageExtensions.join('|')
-      const pagesDir = join(dir, 'pages')
-
-      let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, { cwd: pagesDir })
+      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions)
 
       // Default the /_error route to the Next.js provided default page
-      if (page === '/_error' && paths.length === 0) {
-        paths = ['next/dist/pages/_error']
+      if (page === '/_error' && pagePath === null) {
+        pagePath = 'next/dist/pages/_error'
       }
 
-      if (paths.length === 0) {
+      if (pagePath === null) {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const pagePath = paths[0]
-      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       pageUrl = pageUrl === '' ? '/' : pageUrl
       const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
       const name = join('static', buildId, 'pages', bundleFile)
