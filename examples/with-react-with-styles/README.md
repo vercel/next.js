@@ -47,4 +47,4 @@ In this case we are using [react-with-styles](https://github.com/airbnb/react-wi
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/zeit/next.js/tree/v3-beta/examples/with-aphrodite). 
+We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/zeit/next.js/tree/master/examples/with-aphrodite). 
