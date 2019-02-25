@@ -1,13 +1,20 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
+import { readFileSync, writeFileSync } from 'fs'
 import {
   nextServer,
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP
+  renderViaHTTP,
+  check,
+  getBrowserBodyText,
+  findPort,
+  launchApp,
+  killApp
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import amphtmlValidator from 'amphtml-validator'
 const appDir = join(__dirname, '../')
@@ -147,6 +154,58 @@ describe('AMP Usage', () => {
       ).toMatch(
         /div.jsx-\d+{color:red;}span.jsx-\d+{color:blue;}body{background-color:green;}/
       )
+    })
+  })
+
+  describe('editing a page', () => {
+    let dynamicAppPort
+    let ampDynamic
+    beforeAll(async () => {
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
+    })
+    afterAll(() => killApp(ampDynamic))
+    it('should detect the changes and display it', async () => {
+      let browser
+      try {
+        browser = await webdriver(dynamicAppPort, '/hmr/test')
+        const text = await browser.elementByCss('p').text()
+        expect(text).toBe('This is the hot AMP page.')
+
+        const hmrTestPagePath = join(
+          __dirname,
+          '../',
+          'pages',
+          'hmr',
+          'test.js'
+        )
+
+        const originalContent = readFileSync(hmrTestPagePath, 'utf8')
+        const editedContent = originalContent.replace(
+          'This is the hot AMP page',
+          'This is a cold AMP page'
+        )
+
+        // change the content
+        writeFileSync(hmrTestPagePath, editedContent, 'utf8')
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is a cold AMP page/
+        )
+
+        // add the original content
+        writeFileSync(hmrTestPagePath, originalContent, 'utf8')
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the hot AMP page/
+        )
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
   })
 })
