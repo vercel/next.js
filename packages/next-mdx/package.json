@@ -1,0 +1,10 @@
+{
+  "name": "@zeit/next-mdx",
+  "version": "1.1.1-canary.3",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": "zeit/next.js",
+  "peerDependencies": {
+    "@mdx-js/loader": ">=0.15.0"
+  }
+}
