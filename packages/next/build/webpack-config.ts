@@ -81,7 +81,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
-    ...(isServer ? {
+    ...(isServer && target === 'serverless' ? {
       // Now that we use webpack-asset-relocator-loader we can allow these
       // values to be their Node-runtime defined ones.
       node: { __dirname: false, __filename: false }
@@ -216,7 +216,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     },
     module: {
       rules: [
-        ...isServer ? [{
+        ...(isServer && target === 'serverless') ? [{
           test: /\.(m?js|node)$/,
           parser: { amd: false },
           use: {
