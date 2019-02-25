@@ -1867,10 +1867,10 @@
   dependencies:
     "@babel/preset-typescript" "^7.0.0"
 
-"@zeit/webpack-asset-relocator-loader@0.1.3":
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/@zeit/webpack-asset-relocator-loader/-/webpack-asset-relocator-loader-0.1.3.tgz#bd9984e979292fbf6e4c4c8ba217f547ea75fa97"
-  integrity sha512-cWfHhigdiURmRFWVAmfjajy5CAv+isaAL7ALLAWmCawaC1yMqUj+kE51jblx9FujR3IC1GdWx2DTCLKtR3cAYg==
+"@zeit/webpack-asset-relocator-loader@0.1.12":
+  version "0.1.12"
+  resolved "https://registry.yarnpkg.com/@zeit/webpack-asset-relocator-loader/-/webpack-asset-relocator-loader-0.1.12.tgz#a9c52fcfeb5449479052e70547fd3d7a478a1bb8"
+  integrity sha512-mKiIAeUAh/TYjBcvTiU1I76jF94g9jHdAktk5MXktgW6UuYAQ5RUz7c3OPPqMrs0n5PeCPwlYDjQaYnVSviN1g==
 
 JSONStream@^1.0.4, JSONStream@^1.3.4:
   version "1.3.5"
