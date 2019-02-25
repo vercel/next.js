@@ -164,7 +164,7 @@ describe('AMP Usage', () => {
       dynamicAppPort = await findPort()
       ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
     })
-    afterAll(afterAll(() => killApp(ampDynamic)))
+    afterAll(() => killApp(ampDynamic))
     it('should detect the changes and display it', async () => {
       let browser
       try {
