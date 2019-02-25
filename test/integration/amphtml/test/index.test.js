@@ -9,7 +9,10 @@ import {
   stopApp,
   renderViaHTTP,
   check,
-  getBrowserBodyText
+  getBrowserBodyText,
+  findPort,
+  launchApp,
+  killApp
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
@@ -155,10 +158,17 @@ describe('AMP Usage', () => {
   })
 
   describe('editing a page', () => {
+    let dynamicAppPort
+    let ampDynamic
+    beforeAll(async () => {
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
+    })
+    afterAll(afterAll(() => killApp(ampDynamic)))
     it('should detect the changes and display it', async () => {
       let browser
       try {
-        browser = await webdriver(appPort, '/hmr/test')
+        browser = await webdriver(dynamicAppPort, '/hmr/test')
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the hot AMP page.')
 
