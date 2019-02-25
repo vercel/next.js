@@ -3,7 +3,10 @@
   "version": "0.0.1",
   "main": "index.js",
   "license": "MIT",
-  "repository": "zeit/next.js",
+  "repository": {
+    "url" : "zeit/next.js",
+    "directory": "packages/next-mdx"
+  },
   "peerDependencies": {
     "@mdx-js/loader": ">=0.15.0"
   }
