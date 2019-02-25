@@ -5,7 +5,6 @@ import Byline from '../components/Byline'
 export default () => {
   const isAmp = useAmp()
 
-  const ImageTag = isAmp ? 'amp-img' : 'img'
   return (
     <div>
       <Head>
@@ -13,7 +12,6 @@ export default () => {
       </Head>
       <h1>The Dog</h1>
       <Byline author='Meow Meow Fuzzyface' />
-      <ImageTag src='/static/dog.jpg' width='470' height='350' alt='Woof' />
       <p>
         <a href={isAmp ? '/dog' : '/dog?amp=1'}>
           {isAmp ? 'View Non-AMP' : 'View AMP'} Version
