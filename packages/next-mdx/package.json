@@ -1,6 +1,6 @@
 {
   "name": "@zeit/mdx",
-  "version": "1.1.1-canary.3",
+  "version": "0.0.1",
   "main": "index.js",
   "license": "MIT",
   "repository": "zeit/next.js",
