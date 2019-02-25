@@ -45,4 +45,4 @@ now
 
 ## The idea behind the example
 
-Next.js is working on first-class AMP support. You can periodically fetch an updated version of this template to view our progress.
+The Next.js team is working on first-class AMP support. You can periodically fetch an updated version of this template to view our progress.
