@@ -5,13 +5,13 @@ Use [MDX](https://github.com/mdx-js/mdx) with [Next.js](https://github.com/zeit/
 ## Installation
 
 ```
-npm install --save @zeit/next-mdx @mdx-js/loader
+npm install --save @zeit/mdx @mdx-js/loader
 ```
 
 or
 
 ```
-yarn add @zeit/next-mdx @mdx-js/loader
+yarn add @zeit/mdx @mdx-js/loader
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ Create a `next.config.js` in your project
 
 ```js
 // next.config.js
-const withMDX = require('@zeit/next-mdx')()
+const withMDX = require('@zeit/mdx')()
 module.exports = withMDX()
 ```
 
@@ -28,7 +28,7 @@ Optionally you can provide [MDX options](https://github.com/mdx-js/mdx#options):
 
 ```js
 // next.config.js
-const withMDX = require('@zeit/next-mdx')({
+const withMDX = require('@zeit/mdx')({
   options: {
     mdPlugins: [
 
@@ -45,7 +45,7 @@ Optionally you can add your custom Next.js configuration as parameter
 
 ```js
 // next.config.js
-const withMDX = require('@zeit/next-mdx')()
+const withMDX = require('@zeit/mdx')()
 module.exports = withMDX({
   webpack(config, options) {
     return config
@@ -57,7 +57,7 @@ Optionally you can match other file extensions for MDX compilation, by default o
 
 ```js
 // next.config.js
-const withMDX = require('@zeit/next-mdx')({
+const withMDX = require('@zeit/mdx')({
   extension: /\.(md|mdx)$/
 })
 module.exports = withMDX()
@@ -69,7 +69,7 @@ Define the `pagesExtensions` option to have Next.js handle `.mdx` files in the `
 
 ```js
 // next.config.js
-const withMDX = require('@zeit/next-mdx')({
+const withMDX = require('@zeit/mdx')({
   extension: /\.mdx?$/
 })
 module.exports = withMDX({
