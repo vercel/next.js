@@ -1,16 +1,22 @@
 {
   "name": "with-sentry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "scripts": {
-    "dev": "next",
+    "dev": "node server.js",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@sentry/browser": "^4.6.1",
+    "@sentry/node": "^4.6.1",
+    "@zeit/next-source-maps": "0.0.4-canary.1",
+    "cookie-parser": "1.4.4",
+    "js-cookie": "2.2.0",
     "next": "latest",
-    "@sentry/browser": "^4.0.4",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0",
+    "sentry-testkit": "^2.1.0",
+    "uuid": "^3.3.2"
   },
   "license": "ISC"
 }

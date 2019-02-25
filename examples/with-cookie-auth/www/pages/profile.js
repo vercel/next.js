@@ -1,9 +1,10 @@
 import Router from 'next/router'
 import fetch from 'isomorphic-unfetch'
+import nextCookie from 'next-cookies'
 import Layout from '../components/layout'
-import auth, { withAuthSync } from '../utils/auth'
+import { withAuthSync } from '../utils/auth'
 
-const Profile = withAuthSync(props => {
+const Profile = props => {
   const { name, login, bio, avatarUrl } = props.data
 
   return (
@@ -36,13 +37,15 @@ const Profile = withAuthSync(props => {
       `}</style>
     </Layout>
   )
-})
+}
 
 Profile.getInitialProps = async ctx => {
-  const token = auth(ctx)
+  const { token } = nextCookie(ctx)
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
+
   const apiUrl = process.browser
-    ? `https://${window.location.host}/api/profile.js`
-    : `https://${ctx.req.headers.host}/api/profile.js`
+    ? `${protocol}://${window.location.host}/api/profile.js`
+    : `${protocol}://${ctx.req.headers.host}/api/profile.js`
 
   const redirectOnError = () =>
     process.browser
@@ -70,4 +73,4 @@ Profile.getInitialProps = async ctx => {
   }
 }
 
-export default Profile
+export default withAuthSync(Profile)

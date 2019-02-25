@@ -1,5 +1,5 @@
 import { join } from 'path'
-import promisify from '../../../lib/promisify'
+import { promisify } from 'util'
 import fs from 'fs'
 import { IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 

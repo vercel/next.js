@@ -56,9 +56,9 @@ export function renderViaHTTP (appPort, pathname, query) {
   return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
 }
 
-export function fetchViaHTTP (appPort, pathname, query) {
+export function fetchViaHTTP (appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
-  return fetch(url)
+  return fetch(url, opts)
 }
 
 export function findPort () {
@@ -69,7 +69,14 @@ export function runNextCommand (argv, options = {}) {
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, stdio: options.stdout ? ['ignore', 'pipe', 'ignore'] : 'inherit' })
+    const instance = spawn('node', ['dist/bin/next', ...argv], { ...options.spawnOptions, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+
+    let stderrOutput = ''
+    if (options.stderr) {
+      instance.stderr.on('data', function (chunk) {
+        stderrOutput += chunk
+      })
+    }
 
     let stdoutOutput = ''
     if (options.stdout) {
@@ -80,11 +87,14 @@ export function runNextCommand (argv, options = {}) {
 
     instance.on('close', () => {
       resolve({
-        stdout: stdoutOutput
+        stdout: stdoutOutput,
+        stderr: stderrOutput
       })
     })
 
     instance.on('error', (err) => {
+      err.stdout = stdoutOutput
+      err.stderr = stderrOutput
       reject(err)
     })
   })
@@ -130,7 +140,7 @@ export function nextBuild (dir, args = []) {
   return runNextCommand(['build', dir, ...args])
 }
 
-export function nextExport (dir, {outdir}) {
+export function nextExport (dir, { outdir }) {
   return runNextCommand(['export', dir, '--outdir', outdir])
 }
 
@@ -193,9 +203,9 @@ export async function check (contentFn, regex) {
     try {
       content = await contentFn()
     } catch (err) {
-      console.error('Error while getting content', {regex})
+      console.error('Error while getting content', { regex })
     }
-    console.error('TIMED OUT CHECK: ', {regex, content})
+    console.error('TIMED OUT CHECK: ', { regex, content })
     throw new Error('TIMED OUT: ' + regex + '\n\n' + content)
   }, 1000 * 30)
   while (!found) {

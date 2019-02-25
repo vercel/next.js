@@ -1,4 +1,5 @@
 import initNext, * as next from './'
+import EventSourcePolyfill from './event-source-polyfill'
 import initOnDemandEntries from './on-demand-entries-client'
 import initWebpackHMR from './webpack-hot-middleware-client'
 
@@ -8,6 +9,11 @@ import initWebpackHMR from './webpack-hot-middleware-client'
 // The runtimeChunk can't hot reload itself currently to correct it when adding pages using on-demand-entries
 // REPLACE_NOOP_IMPORT
 
+// Support EventSource on Internet Explorer 11
+if (!window.EventSource) {
+  window.EventSource = EventSourcePolyfill
+}
+
 const {
   __NEXT_DATA__: {
     assetPrefix
@@ -15,12 +21,12 @@ const {
 } = window
 
 const prefix = assetPrefix || ''
-const webpackHMR = initWebpackHMR({assetPrefix: prefix})
+const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
 
 window.next = next
 initNext({ webpackHMR })
   .then((emitter) => {
-    initOnDemandEntries({assetPrefix: prefix})
+    initOnDemandEntries({ assetPrefix: prefix })
 
     let lastScroll
 

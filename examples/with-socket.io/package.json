@@ -7,8 +7,8 @@
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "socket.io": "^1.7.3",
-    "socket.io-client": "^1.7.3"
+    "socket.io": "^2.2.0",
+    "socket.io-client": "^2.2.0"
   },
   "scripts": {
     "dev": "node server.js",

@@ -10,7 +10,7 @@ export default class App extends Component {
 
   static async getInitialProps ({ Component, router, ctx }) {
     const pageProps = await loadGetInitialProps(Component, ctx)
-    return {pageProps}
+    return { pageProps }
   }
 
   getChildContext () {
@@ -26,7 +26,7 @@ export default class App extends Component {
   }
 
   render () {
-    const {router, Component, pageProps} = this.props
+    const { router, Component, pageProps } = this.props
     const url = createUrl(router)
     return (
       <Container>
@@ -71,7 +71,7 @@ const warnUrl = execOnce(() => {
 
 export function createUrl (router) {
   // This is to make sure we don't references the router object at call time
-  const {pathname, asPath, query} = router
+  const { pathname, asPath, query } = router
   return {
     get query () {
       warnUrl()
