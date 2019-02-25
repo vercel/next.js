@@ -11,6 +11,7 @@ import {
   check,
   getBrowserBodyText
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import amphtmlValidator from 'amphtml-validator'
 const appDir = join(__dirname, '../')
@@ -157,7 +158,7 @@ describe('AMP Usage', () => {
     it('should detect the changes and display it', async () => {
       let browser
       try {
-        browser = await renderViaHTTP(appPort, '/hmr/test')
+        browser = await webdriver(appPort, '/hmr/test')
         const text = await browser.elementByCss('p').text()
         expect(text).toBe('This is the hot AMP page.')
 
