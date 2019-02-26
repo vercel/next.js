@@ -749,5 +749,11 @@ export default (context) => {
         }
       }
     })
+
+    it('should work on nested /index/index.js', async () => {
+      const browser = await webdriver(context.appPort, '/nested-index/index')
+      expect(await browser.elementByCss('p').text()).toBe('This is an index.js nested in an index/ folder.')
+      browser.close()
+    })
   })
 }
