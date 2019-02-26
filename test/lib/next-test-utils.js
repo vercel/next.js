@@ -51,6 +51,82 @@ export function initNextServerScript (scriptPath, successRegexp, env) {
   })
 }
 
+export function runNextCommand (argv, options = {}) {
+  const cwd = path.dirname(require.resolve('next/package'))
+  return new Promise((resolve, reject) => {
+    console.log(`Running command "next ${argv.join(' ')}"`)
+    const instance = spawn('node', ['dist/bin/next', ...argv], { ...options.spawnOptions, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+
+    let stderrOutput = ''
+    if (options.stderr) {
+      instance.stderr.on('data', function (chunk) {
+        stderrOutput += chunk
+      })
+    }
+
+    let stdoutOutput = ''
+    if (options.stdout) {
+      instance.stdout.on('data', function (chunk) {
+        stdoutOutput += chunk
+      })
+    }
+
+    instance.on('close', () => {
+      resolve({
+        stdout: stdoutOutput,
+        stderr: stderrOutput
+      })
+    })
+
+    instance.on('error', (err) => {
+      err.stdout = stdoutOutput
+      err.stderr = stderrOutput
+      reject(err)
+    })
+  })
+}
+
+export function runNextCommandDev (argv, stdOut) {
+  const cwd = path.dirname(require.resolve('next/package'))
+  return new Promise((resolve, reject) => {
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd })
+
+    function handleStdout (data) {
+      const message = data.toString()
+      if (/> Ready on/.test(message)) {
+        resolve(stdOut ? message : instance)
+      }
+      process.stdout.write(message)
+    }
+
+    function handleStderr (data) {
+      process.stderr.write(data.toString())
+    }
+
+    instance.stdout.on('data', handleStdout)
+    instance.stderr.on('data', handleStderr)
+
+    instance.on('close', () => {
+      instance.stdout.removeListener('data', handleStdout)
+      instance.stderr.removeListener('data', handleStderr)
+    })
+
+    instance.on('error', (err) => {
+      reject(err)
+    })
+  })
+}
+
+// Launch the app in dev mode.
+export function launchApp (dir, port) {
+  return runNextCommandDev([dir, '-p', port])
+}
+
+// Kill a launched app
+export async function killApp (instance) {
+  await fkill(instance.pid)
+}
+
 // Launch the app in dev mode.
 export async function runNextDev (dir) {
   const port = await getPort({ port: 3000 })
@@ -153,6 +229,10 @@ export function waitFor (millis) {
   return new Promise((resolve) => setTimeout(resolve, millis))
 }
 
+export function findPort () {
+  return getPort()
+}
+
 export function fetchViaHTTP (appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
   return fetch(url, opts)
@@ -160,6 +240,11 @@ export function fetchViaHTTP (appPort, pathname, query, opts) {
 
 export function renderViaHTTP (appPort, pathname, query) {
   return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
+}
+
+export function renderViaAPI (app, pathname, query) {
+  const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  return app.renderToHTML({ url }, {}, pathname, query)
 }
 
 export async function check (contentFn, regex) {
