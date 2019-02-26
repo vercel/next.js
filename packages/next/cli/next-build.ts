@@ -6,7 +6,7 @@ import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextBuild: cliCommand = (argv = process.argv.slice(2)) => {
+const nextBuild: cliCommand = (argv) => {
   const args = arg({
     // Types
     '--help': Boolean,
