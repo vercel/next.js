@@ -222,6 +222,9 @@ export async function startStaticServer (dir) {
   app.use(express.static(dir))
 
   await promiseCall(server, 'listen')
+
+  server.port = server.address().port
+  server.getURL = (path) => `http://localhost:${server.port}${path}`
   return server
 }
 

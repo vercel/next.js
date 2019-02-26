@@ -5,10 +5,8 @@ import {
   nextBuild,
   nextExport,
   startStaticServer,
-  launchApp,
   stopApp,
-  killApp,
-  findPort,
+  runNextDev,
   renderViaHTTP
 } from 'next-test-utils'
 
@@ -31,8 +29,8 @@ describe('Static Export', () => {
     context.server = await startStaticServer(join(appDir, 'out'))
     context.port = context.server.address().port
 
-    devContext.port = await findPort()
-    devContext.server = await launchApp(join(__dirname, '../'), devContext.port, true)
+    devContext.server = await runNextDev(join(__dirname, '../'))
+    devContext.port = devContext.server.port
 
     // pre-build all pages at the start
     await Promise.all([
@@ -43,7 +41,7 @@ describe('Static Export', () => {
   afterAll(async () => {
     await Promise.all([
       stopApp(context.server),
-      killApp(devContext.server)
+      devContext.server.close()
     ])
   })
 

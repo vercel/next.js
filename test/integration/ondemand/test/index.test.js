@@ -1,18 +1,15 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, browser */
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
-import webdriver from 'next-webdriver'
 import AbortController from 'abort-controller'
+import { getElementText } from 'puppet-utils'
 import {
   renderViaHTTP,
   fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
+  runNextDev,
   waitFor,
-  check,
-  getBrowserBodyText
+  check
 } from 'next-test-utils'
 
 const context = {}
@@ -38,13 +35,10 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('On Demand Entries', () => {
   it('should pass', () => {})
   beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await runNextDev(join(__dirname, '../'))
+    context.appPort = context.server.port
   })
-  afterAll(() => {
-    context.ws.close()
-    killApp(context.server)
-  })
+  afterAll(() => context.server.close())
 
   it('should compile pages for SSR', async () => {
     // The buffer of built page uses the on-demand-entries-ping to know which pages should be
@@ -87,20 +81,13 @@ describe('On Demand Entries', () => {
   })
 
   it('should navigate to pages with dynamic imports', async () => {
-    let browser
-    try {
-      browser = await webdriver(context.appPort, '/nav')
-
-      await browser.eval('document.getElementById("to-dynamic").click()')
-
-      await check(async () => {
-        const text = await getBrowserBodyText(browser)
-        return text
-      }, /Hello/)
-    } finally {
-      if (browser) {
-        browser.close()
-      }
-    }
+    const page = await browser.newPage()
+    await page.goto(context.server.getURL('/nav'))
+    await expect(page).toClick('#to-dynamic')
+    await check(
+      () => getElementText(page, 'body'),
+      /Hello/
+    )
+    await page.close()
   })
 })

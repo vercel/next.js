@@ -1,7 +1,8 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
-import { renderViaHTTP, getBrowserBodyText, check } from 'next-test-utils'
+/* global browser */
 import cheerio from 'cheerio'
+import { getElementText } from 'puppet-utils'
+import { renderViaHTTP, check } from 'next-test-utils'
 
 const loadJSONInPage = pageContent => {
   const page = cheerio.load(pageContent)
@@ -11,16 +12,17 @@ const loadJSONInPage = pageContent => {
 export default function (context) {
   describe('Render in development mode', () => {
     it('should render the home page', async () => {
-      const browser = await webdriver(context.port, '/')
-      await check(() => getBrowserBodyText(browser), /This is the home page/)
-      browser.close()
+      const page = await browser.newPage()
+      await page.goto(context.server.getURL('/'))
+      await check(() => getElementText(page, 'body'), /This is the home page/)
+      await page.close()
     })
 
     it('should render pages only existent in exportPathMap page', async () => {
-      const browser = await webdriver(context.port, '/dynamic/one')
-      const text = await browser.elementByCss('#dynamic-page p').text()
-      expect(text).toBe('next export is nice')
-      browser.close()
+      const page = await browser.newPage()
+      await page.goto(context.server.getURL('/dynamic/one'))
+      await expect(page).toMatchElement('#dynamic-page p', { text: 'next export is nice' })
+      await page.close()
     })
   })
 
