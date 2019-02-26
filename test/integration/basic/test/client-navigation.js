@@ -657,9 +657,12 @@ export default (context) => {
     })
 
     it('should work on nested /index/index.js', async () => {
-      const browser = await webdriver(context.appPort, '/nested-index/index')
-      expect(await browser.elementByCss('p').text()).toBe('This is an index.js nested in an index/ folder.')
-      browser.close()
+      const page = await browser.newPage()
+      await page.goto(context.server.getURL('/nested-index/index'))
+      await expect(page).toMatchElement('p', {
+        text: 'This is an index.js nested in an index/ folder.'
+      })
+      await page.close()
     })
   })
 }
