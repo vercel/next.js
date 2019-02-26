@@ -6,7 +6,7 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextExport: cliCommand = (argv = process.argv) => {
+const nextExport: cliCommand = (argv = process.argv.slice(2)) => {
   const args = arg({
     // Types
     '--help': Boolean,

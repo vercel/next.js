@@ -5,7 +5,7 @@ import arg from 'arg'
 import startServer from '../server/lib/start-server'
 import { cliCommand } from '../bin/next'
 
-const nextStart: cliCommand = (argv = process.argv) => {
+const nextStart: cliCommand = (argv = process.argv.slice(2)) => {
   const args = arg({
     // Types
     '--help': Boolean,

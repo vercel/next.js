@@ -7,7 +7,7 @@ import { printAndExit } from '../server/lib/utils'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
-const nextDev: cliCommand = (argv = process.argv) => {
+const nextDev: cliCommand = (argv = process.argv.slice(2)) => {
   const args = arg({
     // Types
     '--help': Boolean,
