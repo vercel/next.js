@@ -1,22 +1,20 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, browser */
 import { join } from 'path'
-import { readFileSync, writeFileSync } from 'fs'
+import fsTimeMachine from 'fs-time-machine'
+import { getElementText } from 'puppet-utils'
 import {
+  renderViaHTTP,
+  runNextDev,
   nextServer,
   nextBuild,
   startApp,
   stopApp,
-  renderViaHTTP,
-  check,
-  getBrowserBodyText,
-  findPort,
-  launchApp,
-  killApp
+  check
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import amphtmlValidator from 'amphtml-validator'
+
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -161,51 +159,43 @@ describe('AMP Usage', () => {
     let dynamicAppPort
     let ampDynamic
     beforeAll(async () => {
-      dynamicAppPort = await findPort()
-      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
+      ampDynamic = await runNextDev(join(__dirname, '../'), dynamicAppPort)
+      dynamicAppPort = ampDynamic.port
     })
-    afterAll(() => killApp(ampDynamic))
+    afterAll(() => ampDynamic.close())
     it('should detect the changes and display it', async () => {
-      let browser
-      try {
-        browser = await webdriver(dynamicAppPort, '/hmr/test')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the hot AMP page.')
+      const page = await browser.newPage()
+      await page.goto(ampDynamic.getURL('/hmr/test'))
+      await expect(page).toMatchElement('p', { text: 'This is the hot AMP page.' })
 
-        const hmrTestPagePath = join(
-          __dirname,
-          '../',
-          'pages',
-          'hmr',
-          'test.js'
-        )
+      const hmrTestPage = await fsTimeMachine(join(
+        __dirname,
+        '../',
+        'pages',
+        'hmr',
+        'test.js'
+      ))
 
-        const originalContent = readFileSync(hmrTestPagePath, 'utf8')
-        const editedContent = originalContent.replace(
-          'This is the hot AMP page',
-          'This is a cold AMP page'
-        )
+      // change the content
+      hmrTestPage.replace(
+        'This is the hot AMP page',
+        'This is a cold AMP page'
+      )
 
-        // change the content
-        writeFileSync(hmrTestPagePath, editedContent, 'utf8')
+      await check(
+        () => getElementText(page, 'body'),
+        /This is a cold AMP page/
+      )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is a cold AMP page/
-        )
+      // add the original content
+      hmrTestPage.restore()
 
-        // add the original content
-        writeFileSync(hmrTestPagePath, originalContent, 'utf8')
+      await check(
+        () => getElementText(page, 'body'),
+        /This is the hot AMP page/
+      )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This is the hot AMP page/
-        )
-      } finally {
-        if (browser) {
-          browser.close()
-        }
-      }
+      await page.close()
     })
   })
 })
