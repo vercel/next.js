@@ -1,7 +1,7 @@
 'use strict'
 
 const ncc = require('@zeit/ncc')
-const { writeFileSync } = require('fs')
+const { writeFileSync, existsSync, copyFileSync } = require('fs')
 const { basename, dirname, extname, join, relative } = require('path')
 
 module.exports = function (task) {
@@ -31,7 +31,10 @@ module.exports.writePackageManifest = function writePackageManifest (
   packageName
 ) {
   const packagePath = require.resolve(packageName + '/package.json')
-  const { name, main, types, typings } = require(packagePath)
+  let { name, main, author, license, types, typings } = require(packagePath)
+  if (!main) {
+    main = 'index.js'
+  }
 
   let typesFile = types || typings
   if (typesFile) {
@@ -39,12 +42,20 @@ module.exports.writePackageManifest = function writePackageManifest (
   }
 
   const compiledPackagePath = join(__dirname, `dist/compiled/${packageName}`)
+
+  const potentialLicensePath = join(dirname(packagePath), './LICENSE')
+  if (existsSync(potentialLicensePath)) {
+    copyFileSync(potentialLicensePath, join(compiledPackagePath, './LICENSE'))
+  }
+
   writeFileSync(
     join(compiledPackagePath, './package.json'),
     JSON.stringify(
       Object.assign(
         {},
         { name, main: `${basename(main, '.' + extname(main))}` },
+        author ? { author } : undefined,
+        license ? { license } : undefined,
         typesFile
           ? {
             types: relative(compiledPackagePath, typesFile)
