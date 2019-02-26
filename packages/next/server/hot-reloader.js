@@ -6,7 +6,8 @@ import rimrafModule from 'rimraf'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES } from 'next-server/constants'
+import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_RUNTIME_AMP } from 'next-server/constants'
+import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
 import { route } from 'next-server/dist/server/router'
 import { promisify } from 'util'
 import { createPagesMapping, createEntrypoints } from '../build/entries'
@@ -173,8 +174,14 @@ export default class HotReloader {
 
     const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
+
+    let additionalClientEntrypoints = {}
+    if (this.config.experimental.amp) {
+      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev')
+    }
+
     return [
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: entrypoints.client }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
     ]
   }
