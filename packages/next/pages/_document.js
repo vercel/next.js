@@ -1,8 +1,12 @@
 /* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import {htmlEscapeJsonString} from '../server/htmlescape'
+import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
+import {
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+} from 'next-server/constants'
 
 export default class Document extends Component {
   static childContextTypes = {
@@ -255,8 +259,43 @@ export class NextScript extends Component {
     const { staticMarkup, assetPrefix, amphtml, devFiles, __NEXT_DATA__ } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    if(amphtml) {
-      return null
+    if (amphtml) {
+      if (process.env.NODE_ENV === 'production') {
+        return null
+      }
+
+      const devFiles = [
+        CLIENT_STATIC_FILES_RUNTIME_AMP,
+        CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+      ]
+
+      return (
+        <>
+          {staticMarkup ? null : (
+            <script
+              id="__NEXT_DATA__"
+              type="application/json"
+              nonce={this.props.nonce}
+              crossOrigin={this.props.crossOrigin || process.crossOrigin}
+              dangerouslySetInnerHTML={{
+                __html: NextScript.getInlineScriptSource(
+                  this.context._documentProps
+                ),
+              }}
+            />
+          )}
+          {devFiles
+            ? devFiles.map(file => (
+                <script
+                  key={file}
+                  src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
+                  nonce={this.props.nonce}
+                  crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                />
+              ))
+            : null}
+        </>
+      )
     }
 
     const { page, buildId } = __NEXT_DATA__

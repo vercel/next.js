@@ -207,7 +207,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
     async ensurePage (page) {
       await this.waitUntilReloaded()
-      page = normalizePage(page)
       let normalizedPagePath
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -234,7 +233,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       await new Promise((resolve, reject) => {
-        const entryInfo = entries[page]
+        // Makes sure the page that is being kept in on-demand-entries matches the webpack output
+        const normalizedPage = normalizePage(page)
+        const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
           if (entryInfo.status === BUILT) {
@@ -243,15 +244,15 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.once(page, handleCallback)
+            doneCallbacks.once(normalizedPage, handleCallback)
             return
           }
         }
 
-        console.log(`> Building page: ${page}`)
+        console.log(`> Building page: ${normalizedPage}`)
 
-        entries[page] = { name, absolutePagePath, status: ADDED }
-        doneCallbacks.once(page, handleCallback)
+        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        doneCallbacks.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
 

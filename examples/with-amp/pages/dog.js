@@ -8,13 +8,6 @@ export default () => (
     </Head>
     <h1>The Dog</h1>
     <Byline author='Meow Meow Fuzzyface' />
-    <amp-img
-      src='/static/dog.jpg'
-      width='470'
-      height='350'
-      layout='responsive'
-      alt='Woof'
-    />
     <p className='caption'>Woooooooooooof</p>
     <p>
       Wafer donut candy soufflé lemon drops icing. Marzipan gummi bears pie
