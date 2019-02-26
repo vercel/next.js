@@ -25,11 +25,11 @@ module.exports = withBundleAnalyzer({
 });
 ```
 
-Then you can run one of these commands:
+Then you can run the command below:
 
 ```bash
 # Analyze is done on build when env var is set
 ANALYZE=true yarn build
 ```
 
-If you choose both then two different browser windows will open. One will be for the server bundle, one for the browser bundle.
+When enabled two different browser windows will open. One will be for the server bundle, one for the browser bundle.
