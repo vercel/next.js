@@ -1,6 +1,6 @@
 const notifier = require('node-notifier')
-const path = require('path')
-const fs = require('fs')
+const relative = require('path').relative
+const { writePackageManifest } = require('./taskfile-ncc')
 
 const babelOpts = {
   presets: [
@@ -21,38 +21,9 @@ const babelOpts = {
   ]
 }
 
-// This function writes a minimal `package.json` file for a compiled package.
-// It defines `name` and `main`. It also defines `types` (intended for
-// development usage only).
-function writePackageManifest (packageName) {
-  const packagePath = require.resolve(packageName + '/package.json')
-  const { name, main, types, typings } = require(packagePath)
-
-  let typesFile = types || typings
-  if (typesFile) {
-    typesFile = require.resolve(path.join(packageName, typesFile))
-  }
-
-  const compiledPackagePath = path.join(__dirname, `dist/compiled/${packageName}`)
-  fs.writeFileSync(
-    path.join(compiledPackagePath, './package.json'),
-    JSON.stringify(
-      Object.assign(
-        {},
-        { name, main: `${path.basename(main, '.' + path.extname(main))}` },
-        typesFile
-          ? {
-            types: path.relative(compiledPackagePath, typesFile)
-          }
-          : undefined
-      )
-    ) + '\n'
-  )
-}
-
 export async function nccunistore (task, opts) {
   await task
-    .source(opts.src || path.relative(__dirname, require.resolve('unistore')))
+    .source(opts.src || relative(__dirname, require.resolve('unistore')))
     .ncc()
     .target('dist/compiled/unistore')
   writePackageManifest('unistore')
