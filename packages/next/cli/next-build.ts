@@ -53,4 +53,4 @@ const nextBuild: cliCommand = (argv) => {
     })
 }
 
-export default nextBuild
+export { nextBuild }

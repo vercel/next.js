@@ -56,4 +56,4 @@ const nextStart: cliCommand = (argv) => {
     })
 }
 
-export default nextStart
+export { nextStart }

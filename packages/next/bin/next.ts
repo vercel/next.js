@@ -14,10 +14,10 @@ import arg from 'arg'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: {[command: string]: () => Promise<cliCommand>} = {
-  build: async () => await import('../cli/next-build').then((i) => i.default),
-  start: async () => await import('../cli/next-start').then((i) => i.default),
-  export: async () => await import('../cli/next-export').then((i) => i.default),
-  dev: async () => await import('../cli/next-dev').then((i) => i.default),
+  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
+  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
+  export: async () => await import('../cli/next-export').then((i) => i.nextExport),
+  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
 }
 
 const args = arg({

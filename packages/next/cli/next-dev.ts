@@ -89,4 +89,4 @@ const nextDev: cliCommand = (argv) => {
     })
 }
 
-export default nextDev
+export { nextDev }

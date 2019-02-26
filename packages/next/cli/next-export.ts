@@ -72,4 +72,4 @@ const nextExport: cliCommand = (argv) => {
     })
 }
 
-export default nextExport
+export { nextExport }
