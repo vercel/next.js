@@ -69,6 +69,7 @@
     "chromedriver": "2.42.0",
     "clone": "2.1.1",
     "coveralls": "3.0.2",
+    "cross-spawn": "6.0.5",
     "eslint": "5.4.0",
     "eslint-plugin-typescript": "0.14.0",
     "express": "4.16.3",
