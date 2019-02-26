@@ -1,53 +1,29 @@
 /* eslint-env jest */
-/* global jasmine */
-import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync } from 'fs'
+/* global browser */
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-  waitFor
-} from 'next-test-utils'
+import fsTimeMachine from 'fs-time-machine'
+import { runNextDev, waitFor } from 'next-test-utils'
 
-let appPort
 let server
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('App asPath', () => {
   beforeAll(async () => {
-    appPort = await findPort()
-    server = await launchApp(join(__dirname, '../'), appPort)
-
-    // pre-build all pages at the start
-    await Promise.all([
-      renderViaHTTP(appPort, '/')
-    ])
+    server = await runNextDev(join(__dirname, '..'))
   })
-  afterAll(() => killApp(server))
+  afterAll(() => server.close())
 
   it('should not have any changes in asPath after a bundle rebuild', async () => {
-    const browser = await webdriver(appPort, '/')
-    const appPath = join(__dirname, '../', 'pages', '_app.js')
-    const originalContent = readFileSync(appPath, 'utf8')
+    const page = await browser.newPage()
+    const _appJS = await fsTimeMachine(join(__dirname, '../pages/_app.js'))
 
-    const text = await browser.elementByCss('body').text()
-    expect(text).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
+    await page.goto(server.getURL('/'))
+    await expect(page).toMatch('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
 
-    const editedContent = originalContent.replace('find this', 'replace with this')
+    await _appJS.replace('find this', 'replace with this')
+    await waitFor(4000)
+    await expect(page).toMatch('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
 
-    // Change the content to trigger a bundle rebuild
-    await writeFileSync(appPath, editedContent, 'utf8')
-
-    // Wait for the bundle rebuild
-    await waitFor(5000)
-
-    const newContent = await browser.elementByCss('body').text()
-    expect(newContent).toBe('{ "url": { "query": {}, "pathname": "/", "asPath": "/" } }')
-
-    // Change back to the original content
-    writeFileSync(appPath, originalContent, 'utf8')
-    browser.quit()
+    await _appJS.restore()
+    await page.close()
   })
 })

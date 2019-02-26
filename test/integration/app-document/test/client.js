@@ -1,100 +1,75 @@
 /* eslint-env jest */
-
-import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync } from 'fs'
+/* global browser */
 import { join } from 'path'
 import { check } from 'next-test-utils'
+import fsTimeMachine from 'fs-time-machine'
+import { getElementText } from 'puppet-utils'
 
 export default (context, render) => {
+  afterEach(() => fsTimeMachine.restore())
+
   describe('Client side', () => {
     it('should detect the changes to pages/_app.js and display it', async () => {
-      const appPath = join(__dirname, '../', 'pages', '_app.js')
-      const originalContent = readFileSync(appPath, 'utf8')
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/')
-        const text = await browser.elementByCss('#hello-hmr').text()
-        expect(text).toBe('Hello HMR')
+      const page = await browser.newPage()
+      const _app = await fsTimeMachine(join(__dirname, '../pages/_app.js'))
 
-        // change the content
-        const editedContent = originalContent.replace('Hello HMR', 'Hi HMR')
-        writeFileSync(appPath, editedContent, 'utf8')
+      await page.goto(context.server.getURL('/'))
+      expect(await getElementText(page, '#hello-hmr')).toBe('Hello HMR')
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Hi HMR/
-        )
+      // Change content
+      await _app.replace('Hello HMR', 'Hi HMR')
+      await check(
+        () => getElementText(page, 'body'),
+        /Hi HMR/
+      )
 
-        // add the original content
-        writeFileSync(appPath, originalContent, 'utf8')
-
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Hello HMR/
-        )
-      } finally {
-        writeFileSync(appPath, originalContent, 'utf8')
-        if (browser) {
-          browser.close()
-        }
-      }
+      // Restore content
+      await _app.restore()
+      await check(
+        () => getElementText(page, 'body'),
+        /Hello HMR/
+      )
+      await page.close()
     })
 
     it('should detect the changes to pages/_document.js and display it', async () => {
-      const appPath = join(__dirname, '../', 'pages', '_document.js')
-      const originalContent = readFileSync(appPath, 'utf8')
-      let browser
-      try {
-        browser = await webdriver(context.appPort, '/')
-        const text = await browser
-          .elementByCss('#hello-hmr').text()
-        expect(text).toBe('Hello HMR')
+      const page = await browser.newPage()
+      const _document = await fsTimeMachine(join(__dirname, '../pages/_document.js'))
 
-        const editedContent = originalContent.replace('Hello Document HMR', 'Hi Document HMR')
+      await page.goto(context.server.getURL('/'))
+      expect(await getElementText(page, '#hello-hmr')).toBe('Hello HMR')
 
-        // change the content
-        writeFileSync(appPath, editedContent, 'utf8')
+      // Change content
+      await _document.replace('Hello Document HMR', 'Hi Document HMR')
+      await check(
+        () => getElementText(page, 'body'),
+        /Hi Document HMR/
+      )
 
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Hi Document HMR/
-        )
-
-        // add the original content
-        writeFileSync(appPath, originalContent, 'utf8')
-
-        await check(
-          () => browser.elementByCss('body').text(),
-          /Hello Document HMR/
-        )
-      } finally {
-        writeFileSync(appPath, originalContent, 'utf8')
-        if (browser) {
-          browser.close()
-        }
-      }
+      // Restore content
+      await _document.restore()
+      await check(
+        () => getElementText(page, 'body'),
+        /Hello Document HMR/
+      )
+      await page.close()
     })
 
     it('should keep state between page navigations', async () => {
-      const browser = await webdriver(context.appPort, '/')
+      const page = await browser.newPage()
+      await page.goto(context.server.getURL('/'))
 
-      const randomNumber = await browser.elementByCss('#random-number').text()
-
-      const switchedRandomNumer = await browser
-        .elementByCss('#about-link').click()
-        .waitForElementByCss('.page-about')
-        .elementByCss('#random-number').text()
-
-      expect(switchedRandomNumer).toBe(randomNumber)
-      browser.close()
+      const randomNumber = await getElementText(page, '#random-number')
+      await expect(page).toClick('#about-link')
+      expect(await getElementText(page, '#random-number')).toBe(randomNumber)
+      await page.close()
     })
 
     it('It should share module state with pages', async () => {
-      const browser = await webdriver(context.appPort, '/shared')
-
-      const text = await browser.elementByCss('#currentstate').text()
-      expect(text).toBe('UPDATED CLIENT')
-      browser.close()
+      const page = await browser.newPage()
+      await page.goto(context.server.getURL('/shared'))
+      expect(await getElementText(page, '#currentstate')).toBe('UPDATED CLIENT')
+      await page.close()
     })
   })
 }

@@ -1,20 +1,24 @@
 import fetch from 'node-fetch'
-import qs from 'querystring'
 import http from 'http'
+import qs from 'querystring'
 import express from 'express'
 import path from 'path'
 import getPort from 'get-port'
-import spawn from 'cross-spawn'
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
+import { spawn } from 'child_process'
 import fkill from 'fkill'
+import cheerio from 'cheerio'
 
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
 // This is done so that requiring from `next` works.
 // The reason we don't import the relative path `../../dist/<etc>` is that it would lead to inconsistent module singletons
 import server from 'next/dist/server/next'
+import build from 'next/dist/build'
+import _export from 'next/dist/export'
 import _pkg from 'next/package.json'
 
 export const nextServer = server
+export const nextBuild = build
+export const nextExport = _export
 export const pkg = _pkg
 
 export function initNextServerScript (scriptPath, successRegexp, env) {
@@ -47,68 +51,17 @@ export function initNextServerScript (scriptPath, successRegexp, env) {
   })
 }
 
-export function renderViaAPI (app, pathname, query) {
-  const url = `${pathname}${query ? `?${qs.stringify(query)}` : ''}`
-  return app.renderToHTML({ url }, {}, pathname, query)
-}
-
-export function renderViaHTTP (appPort, pathname, query) {
-  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
-}
-
-export function fetchViaHTTP (appPort, pathname, query, opts) {
-  const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
-  return fetch(url, opts)
-}
-
-export function findPort () {
-  return getPort()
-}
-
-export function runNextCommand (argv, options = {}) {
+// Launch the app in dev mode.
+export async function runNextDev (dir) {
+  const port = await getPort({ port: 3000 })
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['dist/bin/next', ...argv], { ...options.spawnOptions, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
-
-    let stderrOutput = ''
-    if (options.stderr) {
-      instance.stderr.on('data', function (chunk) {
-        stderrOutput += chunk
-      })
-    }
-
-    let stdoutOutput = ''
-    if (options.stdout) {
-      instance.stdout.on('data', function (chunk) {
-        stdoutOutput += chunk
-      })
-    }
-
-    instance.on('close', () => {
-      resolve({
-        stdout: stdoutOutput,
-        stderr: stderrOutput
-      })
-    })
-
-    instance.on('error', (err) => {
-      err.stdout = stdoutOutput
-      err.stderr = stderrOutput
-      reject(err)
-    })
-  })
-}
-
-export function runNextCommandDev (argv, stdOut) {
-  const cwd = path.dirname(require.resolve('next/package'))
-  return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd })
+    const instance = spawn('node', ['dist/bin/next', dir, '-p', port], { cwd })
 
     function handleStdout (data) {
       const message = data.toString()
       if (/> Ready on/.test(message)) {
-        resolve(stdOut ? message : instance)
+        resolve(createTestServerInstance(instance, port))
       }
       process.stdout.write(message)
     }
@@ -125,28 +78,35 @@ export function runNextCommandDev (argv, stdOut) {
       instance.stderr.removeListener('data', handleStderr)
     })
 
-    instance.on('error', (err) => {
-      reject(err)
-    })
+    instance.on('error', reject)
   })
 }
 
-// Launch the app in dev mode.
-export function launchApp (dir, port) {
-  return runNextCommandDev([dir, '-p', port])
-}
-
-export function nextBuild (dir, args = []) {
-  return runNextCommand(['build', dir, ...args])
-}
-
-export function nextExport (dir, { outdir }) {
-  return runNextCommand(['export', dir, '--outdir', outdir])
-}
-
-// Kill a launched app
-export async function killApp (instance) {
-  await fkill(instance.pid)
+function createTestServerInstance (instance, port) {
+  return {
+    port,
+    instance,
+    getURL (path = '/') {
+      return `http://localhost:${port}${path}`
+    },
+    close () {
+      return fkill(instance.pid)
+    },
+    fetch (path) {
+      const url = this.getURL(path)
+      return fetch(url)
+    },
+    fetchHTML (path) {
+      return this
+        .fetch(path)
+        .then(res => res.text())
+    },
+    fetch$ (path) {
+      return this
+        .fetchHTML(path)
+        .then(cheerio.load)
+    }
+  }
 }
 
 export async function startApp (app) {
@@ -180,10 +140,6 @@ function promiseCall (obj, method, ...args) {
   })
 }
 
-export function waitFor (millis) {
-  return new Promise((resolve) => setTimeout(resolve, millis))
-}
-
 export async function startStaticServer (dir) {
   const app = express()
   const server = http.createServer(app)
@@ -191,6 +147,19 @@ export async function startStaticServer (dir) {
 
   await promiseCall(server, 'listen')
   return server
+}
+
+export function waitFor (millis) {
+  return new Promise((resolve) => setTimeout(resolve, millis))
+}
+
+export function fetchViaHTTP (appPort, pathname, query, opts) {
+  const url = `http://localhost:${appPort}${pathname}${query ? `?${qs.stringify(query)}` : ''}`
+  return fetch(url, opts)
+}
+
+export function renderViaHTTP (appPort, pathname, query) {
+  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
 }
 
 export async function check (contentFn, regex) {
@@ -219,63 +188,4 @@ export async function check (contentFn, regex) {
       await waitFor(1000)
     } catch (ex) {}
   }
-}
-
-export class File {
-  constructor (path) {
-    this.path = path
-    this.originalContent = existsSync(this.path) ? readFileSync(this.path, 'utf8') : null
-  }
-
-  write (content) {
-    if (!this.originalContent) {
-      this.originalContent = content
-    }
-    writeFileSync(this.path, content, 'utf8')
-  }
-
-  replace (pattern, newValue) {
-    const newContent = this.originalContent.replace(pattern, newValue)
-    this.write(newContent)
-  }
-
-  delete () {
-    unlinkSync(this.path)
-  }
-
-  restore () {
-    this.write(this.originalContent)
-  }
-}
-
-// react-error-overlay uses an iframe so we have to read the contents from the frame
-export async function getReactErrorOverlayContent (browser) {
-  let found = false
-  setTimeout(() => {
-    if (found) {
-      return
-    }
-    console.error('TIMED OUT CHECK FOR IFRAME')
-    throw new Error('TIMED OUT CHECK FOR IFRAME')
-  }, 1000 * 30)
-  while (!found) {
-    try {
-      await browser.waitForElementByCss('iframe', 10000)
-
-      const hasIframe = await browser.hasElementByCssSelector('iframe')
-      if (!hasIframe) {
-        throw new Error('Waiting for iframe')
-      }
-
-      found = true
-      return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
-    } catch (ex) {
-      await waitFor(1000)
-    }
-  }
-  return browser.eval(`document.querySelector('iframe').contentWindow.document.body.innerHTML`)
-}
-
-export function getBrowserBodyText (browser) {
-  return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }

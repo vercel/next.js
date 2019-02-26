@@ -1,13 +1,12 @@
 'use strict'
 
 module.exports = {
-  testMatch: ['**/*.test.js'],
-  verbose: true,
   bail: true,
-  testEnvironment: 'node',
+  verbose: true,
   rootDir: 'test',
+  preset: 'jest-puppeteer',
+  testMatch: ['**/*.test.js'],
   modulePaths: ['<rootDir>/lib'],
-  globalSetup: '<rootDir>/jest-global-setup.js',
-  globalTeardown: '<rootDir>/jest-global-teardown.js',
-  coverageReporters: ['text', 'lcov', 'cobertura']
+  coverageReporters: ['text', 'lcov', 'cobertura'],
+  setupTestFrameworkScriptFile: '<rootDir>/jest-test-setup.js'
 }
