@@ -192,6 +192,9 @@ export async function startApp (app) {
   server.__app = app
 
   await promiseCall(server, 'listen')
+
+  server.port = server.address().port
+  server.getURL = (path) => `http://localhost:${server.port}${path}`
   return server
 }
 

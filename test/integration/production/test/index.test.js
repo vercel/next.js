@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, browser */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
@@ -11,9 +11,8 @@ import {
   renderViaHTTP,
   waitFor
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
-import dynamicImportTests from './dynamic'
+// import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
@@ -35,8 +34,8 @@ describe('Production Usage', () => {
       quiet: true
     })
 
-    server = await startApp(app)
-    context.appPort = appPort = server.address().port
+    context.server = server = await startApp(app)
+    context.appPort = appPort = server.port
   })
   afterAll(() => stopApp(server))
 
@@ -142,44 +141,41 @@ describe('Production Usage', () => {
 
   describe('With navigation', () => {
     it('should navigate via client side', async () => {
-      const browser = await webdriver(appPort, '/')
-      const text = await browser
-        .elementByCss('a').click()
-        .waitForElementByCss('.about-page')
-        .elementByCss('div').text()
-
-      expect(text).toBe('About Page')
-      browser.close()
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/'))
+      await expect(page).toClick('a')
+      await page.waitFor('.about-page')
+      await expect(page).toMatchElement('div', { text: 'About Page' })
+      await page.close()
     })
   })
 
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
-      const browser = await webdriver(appPort, '/error-in-ssr-render')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/error-in-ssr-render'))
       await waitFor(2000)
-      const text = await browser.elementByCss('body').text()
       // this makes sure we don't leak the actual error to the client side in production
-      expect(text).toMatch(/Internal Server Error\./)
-      const headingText = await browser.elementByCss('h1').text()
+      await expect(page).toMatchElement('body', { text: /Internal Server Error\./ })
       // This makes sure we render statusCode on the client side correctly
-      expect(headingText).toBe('500')
-      browser.close()
+      await expect(page).toMatchElement('h1', { text: '500' })
+      await page.close()
     })
 
     it('should render a client side component error', async () => {
-      const browser = await webdriver(appPort, '/error-in-browser-render')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/error-in-browser-render'))
       await waitFor(2000)
-      const text = await browser.elementByCss('body').text()
-      expect(text).toMatch(/An unexpected error has occurred\./)
-      browser.close()
+      await expect(page).toMatchElement('body', { text: /An unexpected error has occurred\./ })
+      await page.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
-      const browser = await webdriver(appPort, '/error-in-browser-render-status-code')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/error-in-browser-render-status-code'))
       await waitFor(2000)
-      const text = await browser.elementByCss('body').text()
-      expect(text).toMatch(/This page could not be found\./)
-      browser.close()
+      await expect(page).toMatchElement('body', { text: /This page could not be found\./ })
+      await page.close()
     })
   })
 
@@ -205,95 +201,87 @@ describe('Production Usage', () => {
     })
 
     it('should reload the page on page script error', async () => {
-      const browser = await webdriver(appPort, '/counter')
-      const counter = await browser
-        .elementByCss('#increase').click().click()
-        .elementByCss('#counter').text()
-      expect(counter).toBe('Counter: 2')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/counter'))
+      await expect(page).toClick('#increase')
+      await expect(page).toClick('#increase')
+      await expect(page).toMatchElement('#counter', { text: 'Counter: 2' })
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
       // Since the page is reloaded, when we go back to the counter page again,
       // previous counter value should be gone.
-      const counterAfter404Page = await browser
-        .elementByCss('#no-such-page').click()
-        .waitForElementByCss('h1')
-        .back()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter').text()
-      expect(counterAfter404Page).toBe('Counter: 0')
-
-      browser.close()
+      await expect(page).toClick('#no-such-page')
+      await page.waitFor('h1')
+      await page.goBack()
+      await page.waitFor('#counter-page')
+      await expect(page).toMatchElement('#counter', { text: 'Counter: 0' })
+      await page.close()
     })
 
     it('should add preload tags when Link prefetch prop is used', async () => {
-      const browser = await webdriver(appPort, '/prefetch')
-      const elements = await browser.elementsByCss('link[rel=preload]')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/prefetch'))
+      const elements = await page.$$('link[rel=preload]')
       expect(elements.length).toBe(9)
       await Promise.all(
         elements.map(async (element) => {
-          const rel = await element.getAttribute('rel')
-          const as = await element.getAttribute('as')
+          const rel = await (await element.getProperty('rel')).jsonValue()
+          const as = await (await element.getProperty('as')).jsonValue()
           expect(rel).toBe('preload')
           expect(as).toBe('script')
         })
       )
-      browser.close()
+      await page.close()
     })
 
     // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
     // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
     it('It does not add a timestamp to link tags with preload attribute', async () => {
-      const browser = await webdriver(appPort, '/prefetch')
-      const links = await browser.elementsByCss('link[rel=preload]')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/prefetch'))
+      const links = await page.$$('link[rel=preload]')
       await Promise.all(
         links.map(async (element) => {
-          const href = await element.getAttribute('href')
+          const href = await (await element.getProperty('href')).jsonValue()
           expect(href).not.toMatch(/\?ts=/)
         })
       )
-      const scripts = await browser.elementsByCss('script[src]')
+      const scripts = await page.$$('script[src]')
       await Promise.all(
         scripts.map(async (element) => {
-          const src = await element.getAttribute('src')
+          const src = await (await element.getProperty('src')).jsonValue()
           expect(src).not.toMatch(/\?ts=/)
         })
       )
-      browser.close()
+      await page.close()
     })
 
     it('should reload the page on page script error with prefetch', async () => {
-      const browser = await webdriver(appPort, '/counter')
-      const counter = await browser
-        .elementByCss('#increase').click().click()
-        .elementByCss('#counter').text()
-      expect(counter).toBe('Counter: 2')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/counter'))
+      page.on('requestfailed', req => {
+        expect(req.url().match(/\/no-such-page\.js/))
+      })
+
+      await expect(page).toClick('#increase')
+      await expect(page).toClick('#increase')
+      await expect(page).toMatchElement('#counter', { text: 'Counter: 2' })
 
       // Let the browser to prefetch the page and error it on the console.
       await waitFor(3000)
-      const browserLogs = await browser.log('browser')
-      let foundLog = false
-      browserLogs.forEach((log) => {
-        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
-          foundLog = true
-        }
-      })
-
-      expect(foundLog).toBe(true)
 
       // When we go to the 404 page, it'll do a hard reload.
       // So, it's possible for the front proxy to load a page from another zone.
       // Since the page is reloaded, when we go back to the counter page again,
       // previous counter value should be gone.
-      const counterAfter404Page = await browser
-        .elementByCss('#no-such-page-prefetch').click()
-        .waitForElementByCss('h1')
-        .back()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter').text()
-      expect(counterAfter404Page).toBe('Counter: 0')
+      await expect(page).toClick('#no-such-page-prefetch')
+      await page.waitFor('h1')
+      await page.goBack()
+      await page.waitFor('#counter-page')
+      await expect(page).toMatchElement('#counter-page', { text: 'Counter: 0' })
 
-      browser.close()
+      await page.close()
     })
   })
 
@@ -367,7 +355,7 @@ describe('Production Usage', () => {
     expect(html).toMatch(/Bad Request/)
   })
 
-  dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  // dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
   security(context)
