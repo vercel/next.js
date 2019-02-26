@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { join } from 'path'
 import arg from 'arg'
 
 ['react', 'react-dom'].forEach((dependency) => {
@@ -13,11 +12,12 @@ import arg from 'arg'
 })
 
 const defaultCommand = 'dev'
-const commands: {[command: string]: () => Promise<{}>} = {
-  build: () => import('./next-build'),
-  start: () => import('./next-start'),
-  export: () => import('./next-export'),
-  dev: () => import('./next-dev'),
+export type cliCommand = (argv?: string[]) => void
+const commands: {[command: string]: () => Promise<cliCommand>} = {
+  build: async () => await import('../cli/next-build').then((i) => i.default),
+  start: async () => await import('../cli/next-start').then((i) => i.default),
+  export: async () => await import('../cli/next-export').then((i) => i.default),
+  dev: async () => await import('../cli/next-dev').then((i) => i.default),
 }
 
 const args = arg({
@@ -78,10 +78,7 @@ if (args['--help']) {
 const defaultEnv = command === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-const bin = join(process.argv[1], '../next-' + command)
-
-process.argv = [ process.argv[0], bin, ...forwardedArgs ]
-commands[command]()
+commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
   const {CONFIG_FILE} = require('next-server/constants')
