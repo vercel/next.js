@@ -4,9 +4,7 @@ import { join } from 'path'
 import {
   renderViaHTTP,
   fetchViaHTTP,
-  findPort,
-  launchApp,
-  killApp
+  runNextDev
 } from 'next-test-utils'
 
 // test suits
@@ -18,8 +16,8 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('Configuration', () => {
   beforeAll(async () => {
-    context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.server = await runNextDev(join(__dirname, '../'))
+    context.appPort = context.server.port
 
     // pre-build all pages at the start
     await Promise.all([
@@ -29,9 +27,7 @@ describe('Configuration', () => {
       renderViaHTTP(context.appPort, '/module-only-component')
     ])
   })
-  afterAll(() => {
-    killApp(context.server)
-  })
+  afterAll(() => context.server.close())
 
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q), (p, q) => fetchViaHTTP(context.appPort, p, q))
   client(context, (p, q) => renderViaHTTP(context.appPort, p, q))

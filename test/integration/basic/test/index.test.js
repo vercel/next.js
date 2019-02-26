@@ -10,9 +10,9 @@ import {
 // test suits
 import rendering from './rendering'
 import clientNavigation from './client-navigation'
-// import hmr from './hmr'
-// import errorRecovery from './error-recovery'
-// import dynamic from './dynamic'
+import hmr from './hmr'
+import errorRecovery from './error-recovery'
+import dynamic from './dynamic'
 import processEnv from './process-env'
 
 const context = {}
@@ -66,8 +66,8 @@ describe('Basic Features', () => {
 
   rendering(context, 'Rendering via HTTP', (p, q) => renderViaHTTP(context.appPort, p, q), (p, q) => fetchViaHTTP(context.appPort, p, q))
   clientNavigation(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  // dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  // hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  // errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   processEnv(context)
 })

@@ -1,28 +1,27 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
+/* global browser */
 import { join } from 'path'
-import { waitFor, check, getBrowserBodyText } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { waitFor, check } from 'next-test-utils'
+import { getElementText, getComputedCSS, getAttribute } from 'puppet-utils'
+import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
 
 export default (context, renderViaHTTP) => {
   describe('Hot Module Reloading', () => {
     describe('delete a page and add it back', () => {
       it('should load the page properly', async () => {
+        const page = await browser.newPage()
         const contactPagePath = join(__dirname, '../', 'pages', 'hmr', 'contact.js')
         const newContactPagePath = join(__dirname, '../', 'pages', 'hmr', '_contact.js')
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/hmr/contact')
-          const text = await browser
-            .elementByCss('p').text()
-          expect(text).toBe('This is the contact page.')
 
-          // Rename the file to mimic a deleted page
+        try {
+          await page.goto(context.server.getURL('/hmr/contact'))
+          await expect(page).toMatchElement('p', { text: 'This is the contact page.' })
+
           renameSync(contactPagePath, newContactPagePath)
 
           await check(
-            () => getBrowserBodyText(browser),
+            () => getElementText(page, 'body'),
             /This page could not be found/
           )
 
@@ -31,28 +30,25 @@ export default (context, renderViaHTTP) => {
 
           // wait until the page comes back
           await check(
-            () => getBrowserBodyText(browser),
+            () => getElementText(page, 'body'),
             /This is the contact page/
           )
         } finally {
-          if (browser) {
-            browser.close()
-          }
           if (existsSync(newContactPagePath)) {
             renameSync(newContactPagePath, contactPagePath)
           }
         }
+        await page.close()
       })
     })
 
     describe('editing a page', () => {
       it('should detect the changes and display it', async () => {
-        let browser
+        const page = await browser.newPage()
+
         try {
-          browser = await webdriver(context.appPort, '/hmr/about')
-          const text = await browser
-            .elementByCss('p').text()
-          expect(text).toBe('This is the about page.')
+          await page.goto(context.server.getURL('/hmr/about'))
+          await expect(page).toMatchElement('p', { text: 'This is the about page.' })
 
           const aboutPagePath = join(__dirname, '../', 'pages', 'hmr', 'about.js')
 
@@ -63,7 +59,7 @@ export default (context, renderViaHTTP) => {
           writeFileSync(aboutPagePath, editedContent, 'utf8')
 
           await check(
-            () => getBrowserBodyText(browser),
+            () => getElementText(page, 'body'),
             /COOL page/
           )
 
@@ -71,25 +67,23 @@ export default (context, renderViaHTTP) => {
           writeFileSync(aboutPagePath, originalContent, 'utf8')
 
           await check(
-            () => getBrowserBodyText(browser),
+            () => getElementText(page, 'body'),
             /This is the about page/
           )
         } finally {
-          if (browser) {
-            browser.close()
-          }
+          await page.close()
         }
       })
 
       it('should not reload unrelated pages', async () => {
-        let browser
+        const page = await browser.newPage()
+
         try {
-          browser = await webdriver(context.appPort, '/hmr/counter')
-          const text = await browser
-            .elementByCss('button').click()
-            .elementByCss('button').click()
-            .elementByCss('p').text()
-          expect(text).toBe('COUNT: 2')
+          await page.goto(context.server.getURL('/hmr/counter'))
+
+          await expect(page).toClick('button')
+          await expect(page).toClick('button')
+          await expect(page).toMatchElement('p', { text: 'COUNT: 2' })
 
           const aboutPagePath = join(__dirname, '../', 'pages', 'hmr', 'about.js')
 
@@ -103,27 +97,22 @@ export default (context, renderViaHTTP) => {
           await waitFor(5000)
 
           // Check whether the this page has reloaded or not.
-          const newText = await browser
-            .elementByCss('p').text()
-          expect(newText).toBe('COUNT: 2')
+          await expect(page).toMatchElement('p', { text: 'COUNT: 2' })
 
           // restore the about page content.
           writeFileSync(aboutPagePath, originalContent, 'utf8')
         } finally {
-          if (browser) {
-            browser.close()
-          }
+          await page.close()
         }
       })
 
       // Added because of a regression in react-hot-loader, see issues: #4246 #4273
       // Also: https://github.com/zeit/styled-jsx/issues/425
       it('should update styles correctly', async () => {
-        let browser
+        const page = await browser.newPage()
         try {
-          browser = await webdriver(context.appPort, '/hmr/style')
-          const pTag = await browser.elementByCss('.hmr-style-page p')
-          const initialFontSize = await pTag.getComputedCss('font-size')
+          await page.goto(context.server.getURL('/hmr/style'))
+          const initialFontSize = await getComputedCSS(page, '.hmr-style-page p', 'font-size')
 
           expect(initialFontSize).toBe('100px')
 
@@ -135,13 +124,12 @@ export default (context, renderViaHTTP) => {
           // Change the page
           writeFileSync(pagePath, editedContent, 'utf8')
 
-          // wait for 5 seconds
-          await waitFor(5000)
+          // wait for 8 seconds
+          await waitFor(8000)
 
           try {
             // Check whether the this page has reloaded or not.
-            const editedPTag = await browser.elementByCss('.hmr-style-page p')
-            const editedFontSize = await editedPTag.getComputedCss('font-size')
+            const editedFontSize = await getComputedCSS(page, '.hmr-style-page p', 'font-size')
 
             expect(editedFontSize).toBe('200px')
           } finally {
@@ -150,24 +138,21 @@ export default (context, renderViaHTTP) => {
             writeFileSync(pagePath, originalContent, 'utf8')
           }
         } finally {
-          if (browser) {
-            browser.close()
-          }
+          await page.close()
         }
       })
 
       // Added because of a regression in react-hot-loader, see issues: #4246 #4273
       // Also: https://github.com/zeit/styled-jsx/issues/425
       it('should update styles in a stateful component correctly', async () => {
-        let browser
+        const page = await browser.newPage()
         const pagePath = join(__dirname, '../', 'pages', 'hmr', 'style-stateful-component.js')
         const originalContent = readFileSync(pagePath, 'utf8')
-        try {
-          browser = await webdriver(context.appPort, '/hmr/style-stateful-component')
-          const pTag = await browser.elementByCss('.hmr-style-page p')
-          const initialFontSize = await pTag.getComputedCss('font-size')
 
-          expect(initialFontSize).toBe('100px')
+        try {
+          await page.goto(context.server.getURL('/hmr/style-stateful-component'))
+          expect(await getComputedCSS(page, '.hmr-style-page p', 'font-size')).toBe('100px')
+
           const editedContent = originalContent.replace('100px', '200px')
 
           // Change the page
@@ -177,14 +162,9 @@ export default (context, renderViaHTTP) => {
           await waitFor(5000)
 
           // Check whether the this page has reloaded or not.
-          const editedPTag = await browser.elementByCss('.hmr-style-page p')
-          const editedFontSize = await editedPTag.getComputedCss('font-size')
-
-          expect(editedFontSize).toBe('200px')
+          expect(await getComputedCSS(page, '.hmr-style-page p', 'font-size')).toBe('200px')
         } finally {
-          if (browser) {
-            browser.close()
-          }
+          await page.close()
           writeFileSync(pagePath, originalContent, 'utf8')
         }
       })
@@ -192,15 +172,15 @@ export default (context, renderViaHTTP) => {
       // Added because of a regression in react-hot-loader, see issues: #4246 #4273
       // Also: https://github.com/zeit/styled-jsx/issues/425
       it('should update styles in a dynamic component correctly', async () => {
-        let browser = null
-        let secondBrowser = null
+        const page = await browser.newPage()
+        const secondPage = await browser.newPage()
         const pagePath = join(__dirname, '../', 'components', 'hmr', 'dynamic.js')
         const originalContent = readFileSync(pagePath, 'utf8')
         try {
-          browser = await webdriver(context.appPort, '/hmr/style-dynamic-component')
-          const div = await browser.elementByCss('#dynamic-component')
-          const initialClientClassName = await div.getAttribute('class')
-          const initialFontSize = await div.getComputedCss('font-size')
+          await page.goto(context.server.getURL('/hmr/style-dynamic-component'))
+
+          const initialClientClassName = await getAttribute(page, '#dynamic-component', 'class')
+          const initialFontSize = await getComputedCSS(page, '#dynamic-component', 'font-size')
 
           expect(initialFontSize).toBe('100px')
 
@@ -220,12 +200,11 @@ export default (context, renderViaHTTP) => {
           // wait for 5 seconds
           await waitFor(5000)
 
-          secondBrowser = await webdriver(context.appPort, '/hmr/style-dynamic-component')
+          await secondPage.goto(context.server.getURL('/hmr/style-dynamic-component'))
           // Check whether the this page has reloaded or not.
-          const editedDiv = await secondBrowser.elementByCss('#dynamic-component')
-          const editedClientClassName = await editedDiv.getAttribute('class')
-          const editedFontSize = await editedDiv.getComputedCss('font-size')
-          const browserHtml = await secondBrowser.elementByCss('html').getAttribute('innerHTML')
+          const editedClientClassName = await getAttribute(secondPage, '#dynamic-component', 'class')
+          const editedFontSize = await getComputedCSS(secondPage, '#dynamic-component', 'font-size')
+          const browserHtml = await secondPage.evaluate(() => document.querySelector('html').innerHTML)
 
           expect(editedFontSize).toBe('200px')
           expect(browserHtml.includes('font-size:200px;')).toBe(true)
@@ -242,13 +221,8 @@ export default (context, renderViaHTTP) => {
           // restore the about page content.
           writeFileSync(pagePath, originalContent, 'utf8')
 
-          if (browser) {
-            browser.close()
-          }
-
-          if (secondBrowser) {
-            secondBrowser.close()
-          }
+          await page.close()
+          await secondPage.close()
         }
       })
     })

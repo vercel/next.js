@@ -1,3 +1,5 @@
+/* global getComputedStyle */
+
 export async function getReactErrorOverlayContent (page) {
   await page.waitFor('iframe')
   const frame = await page.frames()[1]
@@ -17,5 +19,14 @@ export function getAttribute (page, selector, attribute) {
   return page.evaluate((sel, attr) =>
     document.querySelector(sel).getAttribute(attr),
   selector, attribute
+  )
+}
+
+export function getComputedCSS (page, selector, prop) {
+  return page.evaluate((sel, prop) => {
+    const el = document.querySelector(sel)
+    return getComputedStyle(el)[prop]
+  },
+  selector, prop
   )
 }

@@ -1,33 +1,36 @@
 /* eslint-env jest */
-
-import webdriver from 'next-webdriver'
-import { waitFor } from 'next-test-utils' /* check, File */
-import { readFileSync, writeFileSync } from 'fs'
+/* global browser */
 import { join } from 'path'
+import { waitFor } from 'next-test-utils' /* check, File */
+import { getElementText, getComputedCSS } from 'puppet-utils'
+import { readFileSync, writeFileSync } from 'fs'
 
 export default (context, render) => {
   describe('Configuration', () => {
     it('should have config available on the client', async () => {
-      const browser = await webdriver(context.appPort, '/next-config')
+      const page = await browser.newPage()
+      await page.goto(context.server.getURL('/next-config'))
+
       // Wait for client side to load
       await waitFor(10000)
 
-      const serverText = await browser.elementByCss('#server-only').text()
-      const serverClientText = await browser.elementByCss('#server-and-client').text()
-      const envValue = await browser.elementByCss('#env').text()
+      const serverText = await getElementText(page, '#server-only')
+      const serverClientText = await getElementText(page, '#server-and-client')
+      const envValue = await getElementText(page, '#env')
 
       expect(serverText).toBe('')
       expect(serverClientText).toBe('/static')
       expect(envValue).toBe('hello')
-      browser.close()
+
+      await page.close()
     })
 
     it('should update css styles using hmr', async () => {
-      let browser
+      const page = await browser.newPage()
+
       try {
-        browser = await webdriver(context.appPort, '/webpack-css')
-        const pTag = await browser.elementByCss('.hello-world')
-        const initialFontSize = await pTag.getComputedCss('font-size')
+        await page.goto(context.server.getURL('/webpack-css'))
+        const initialFontSize = await getComputedCSS(page, '.hello-world', 'font-size')
 
         expect(initialFontSize).toBe('100px')
 
@@ -43,8 +46,7 @@ export default (context, render) => {
 
         try {
           // Check whether the this page has reloaded or not.
-          const editedPTag = await browser.elementByCss('.hello-world')
-          const editedFontSize = await editedPTag.getComputedCss('font-size')
+          const editedFontSize = await getComputedCSS(page, '.hello-world', 'font-size')
 
           expect(editedFontSize).toBe('200px')
         } finally {
@@ -53,9 +55,7 @@ export default (context, render) => {
           writeFileSync(pagePath, originalContent, 'utf8')
         }
       } finally {
-        if (browser) {
-          browser.close()
-        }
+        await page.close()
       }
     })
 
