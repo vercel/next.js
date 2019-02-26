@@ -13,7 +13,7 @@ import arg from 'arg'
 })
 
 const defaultCommand = 'dev'
-const commands: {[command: string]: () => Promise<any>} = {
+const commands: {[command: string]: () => Promise<{}>} = {
   build: () => import('./next-build'),
   start: () => import('./next-start'),
   export: () => import('./next-export'),
@@ -68,6 +68,8 @@ if (!foundCommand && args['--help']) {
 const command = foundCommand ? args._[0] : defaultCommand
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
 
+if (args['--inspect']) throw new Error(`Use env variable NODE_OPTIONS instead: NODE_OPTIONS="--inspect" next ${command}`)
+
 // Make sure the `next <subcommand> --help` case is covered
 if (args['--help']) {
   forwardedArgs.push('--help')
@@ -76,7 +78,7 @@ if (args['--help']) {
 const defaultEnv = command === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-const bin = join(__dirname, 'next-' + command)
+const bin = join(process.argv[1], '../next-' + command)
 
 process.argv = [ process.argv[0], bin, ...forwardedArgs ]
 commands[command]()
