@@ -75,8 +75,7 @@ if (args['--help']) {
   forwardedArgs.push('--help')
 }
 
-const defaultEnv = command === 'dev' ? 'development' : 'production'
-process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
+process.env.NODE_ENV = command === 'dev' ? 'development' : 'production'
 
 commands[command]().then((exec) => exec(forwardedArgs))
 
