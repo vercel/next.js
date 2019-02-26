@@ -67,6 +67,7 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
+    "module-alias": "2.2.0",
     "nanoid": "1.2.1",
     "next-server": "8.0.4-canary.3",
     "prop-types": "15.6.2",

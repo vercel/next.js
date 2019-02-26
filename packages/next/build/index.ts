@@ -1,3 +1,5 @@
+require('module-alias').addAlias('acorn', 'next/dist/compiled/acorn')
+
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
