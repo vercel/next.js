@@ -1,9 +1,8 @@
 module.exports = pluginOptions => (nextConfig = {}) => {
   return Object.assign({}, nextConfig, {
     webpack (config, options) {
-      const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
-
       if (pluginOptions.enabled) {
+        const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
         config.plugins.push(
           new BundleAnalyzerPlugin({
             analyzerMode: 'static',
