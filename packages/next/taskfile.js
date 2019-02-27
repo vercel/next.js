@@ -1,6 +1,5 @@
 const notifier = require('node-notifier')
 const relative = require('path').relative
-const { writePackageManifest } = require('./taskfile-ncc')
 
 const babelOpts = {
   presets: [
@@ -24,9 +23,8 @@ const babelOpts = {
 export async function nccunistore (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('unistore')))
-    .ncc()
+    .ncc({ packageName: 'unistore' })
     .target('dist/compiled/unistore')
-  writePackageManifest('unistore')
 }
 
 export async function precompile (task) {
