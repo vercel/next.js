@@ -68,7 +68,6 @@ module.exports = (context: any, options: NextBabelPresetOptions = {}): BabelPres
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
-      require('./plugins/next-to-next-server'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       require('@babel/plugin-proposal-object-rest-spread'),
       [require('@babel/plugin-transform-runtime'), {
