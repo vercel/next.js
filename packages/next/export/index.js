@@ -25,6 +25,8 @@ export default async function (dir, options, configuration) {
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
 
+  if (nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
+
   log(`> using build directory: ${distDir}`)
 
   if (!existsSync(distDir)) {

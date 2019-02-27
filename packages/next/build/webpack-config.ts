@@ -83,7 +83,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     target: isServer ? 'node' : 'web',
     externals: isServer && target !== 'serverless' ? [
       (context, request, callback) => {
-        const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'string-hash', 'hoist-non-react-statics', 'htmlescape']
+        const notExternalModules = [
+          'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
+          'string-hash', 'hoist-non-react-statics', 'htmlescape','next/dynamic',
+          'next/constants', 'next/config', 'next/head'
+        ]
 
         if (notExternalModules.indexOf(request) !== -1) {
           return callback()
