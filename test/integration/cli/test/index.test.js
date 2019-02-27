@@ -40,13 +40,6 @@ describe('CLI Usage', () => {
       })
       expect(output.stdout).toMatch(new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`))
     })
-
-    test('--inspect', async () => {
-      const output = await runNextCommand(['build', dir, '--inspect'], {
-        stdout: true
-      })
-      expect(output.stdout).toMatch(/Passing "--inspect" to Node\.js/)
-    })
   })
   describe('build', () => {
     test('--help', async () => {
