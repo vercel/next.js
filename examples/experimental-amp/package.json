@@ -1,14 +1,12 @@
 {
-  "name": "ssr-caching",
+  "name": "experimental-amp",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "next",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js"
+    "start": "next start"
   },
   "dependencies": {
-    "cacheable-response": "^1.1.0",
-    "express": "^4.14.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
