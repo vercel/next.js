@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-import { join } from 'path'
-import spawn from 'cross-spawn'
 import arg from 'arg'
 
 ['react', 'react-dom'].forEach((dependency) => {
@@ -14,12 +12,13 @@ import arg from 'arg'
 })
 
 const defaultCommand = 'dev'
-const commands = [
-  'build',
-  'start',
-  'export',
-  defaultCommand,
-]
+export type cliCommand = (argv?: string[]) => void
+const commands: {[command: string]: () => Promise<cliCommand>} = {
+  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
+  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
+  export: async () => await import('../cli/next-export').then((i) => i.nextExport),
+  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
+}
 
 const args = arg({
   // Types
@@ -42,7 +41,7 @@ if (args['--version']) {
 }
 
 // Check if we are running `next <subcommand>` or `next`
-const foundCommand = commands.includes(args._[0])
+const foundCommand = Boolean(commands[args._[0]])
 
 // Makes sure the `next <subcommand> --help` case is covered
 // This help message is only showed for `next --help`
@@ -53,7 +52,7 @@ if (!foundCommand && args['--help']) {
       $ next <command>
 
     Available commands
-      ${commands.join(', ')}
+      ${Object.keys(commands).join(', ')}
 
     Options
       --version, -p   Version number
@@ -66,15 +65,10 @@ if (!foundCommand && args['--help']) {
   process.exit(0)
 }
 
-const nodeArguments: string[] = []
-if (args['--inspect']) {
-  // tslint:disable-next-line
-  console.log('Passing "--inspect" to Node.js')
-  nodeArguments.push('--inspect')
-}
-
 const command = foundCommand ? args._[0] : defaultCommand
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
+
+if (args['--inspect']) throw new Error(`Use env variable NODE_OPTIONS instead: NODE_OPTIONS="--inspect" next ${command}`)
 
 // Make sure the `next <subcommand> --help` case is covered
 if (args['--help']) {
@@ -84,43 +78,7 @@ if (args['--help']) {
 const defaultEnv = command === 'dev' ? 'development' : 'production'
 process.env.NODE_ENV = process.env.NODE_ENV || defaultEnv
 
-const bin = join(__dirname, 'next-' + command)
-
-const startProcess = () => {
-  const proc = spawn('node', [...nodeArguments, bin, ...forwardedArgs], { stdio: 'inherit' })
-  proc.on('close', (code, signal) => {
-    if (code !== null) {
-      process.exit(code)
-    }
-    if (signal) {
-      if (signal === 'SIGKILL') {
-        process.exit(137)
-      }
-      // tslint:disable-next-line
-      console.log(`got signal ${signal}, exiting`)
-      process.exit(signal === 'SIGINT' || signal === 'SIGTERM' ? 0 : 1)
-    }
-    process.exit(0)
-  })
-  proc.on('error', (err) => {
-    // tslint:disable-next-line
-    console.error(err)
-    process.exit(1)
-  })
-  return proc
-}
-
-let proc = startProcess()
-
-function wrapper() {
-  if (proc) {
-    proc.kill()
-  }
-}
-
-process.on('SIGINT', wrapper)
-process.on('SIGTERM', wrapper)
-process.on('exit', wrapper)
+commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
   const {CONFIG_FILE} = require('next-server/constants')
@@ -128,11 +86,7 @@ if (command === 'dev') {
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
       // tslint:disable-next-line
-      console.log(`\n> Found a change in ${CONFIG_FILE}, restarting the server...`)
-      // Don't listen to 'close' now since otherwise parent gets killed by listener
-      proc.removeAllListeners('close')
-      proc.kill()
-      proc = startProcess()
+      console.log(`\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`)
     }
   })
 }

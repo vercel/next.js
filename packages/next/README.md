@@ -1490,12 +1490,7 @@ You can pass any node arguments to `next` CLI command.
 ```bash
 NODE_OPTIONS="--throw-deprecation" next
 NODE_OPTIONS="-r esm" next
-```
-
-`--inspect` is a special case since it binds to a port and can't double-bind to the child process the `next` CLI creates.
-
-```
-next start --inspect
+NODE_OPTIONS="--inspect" next
 ```
 
 ### Customizing webpack config

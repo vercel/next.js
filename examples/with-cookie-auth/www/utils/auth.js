@@ -63,12 +63,18 @@ export const withAuthSync = WrappedComponent =>
 export const auth = ctx => {
   const { token } = nextCookie(ctx)
 
+  /*
+   * This happens on server only, ctx.req is available means it's being
+   * rendered on server. If we are on server and token is not available,
+   * means user is not logged in.
+   */
   if (ctx.req && !token) {
     ctx.res.writeHead(302, { Location: '/login' })
     ctx.res.end()
     return
   }
 
+  // We already checked for server. This should only happen on client.
   if (!token) {
     Router.push('/login')
   }
