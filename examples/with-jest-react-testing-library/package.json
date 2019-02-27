@@ -7,11 +7,10 @@
     "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.1.2",
-    "babel-core": "^7.0.0-bridge",
-    "babel-jest": "^23.6.0",
-    "react-testing-library": "^5.4.2",
-    "jest": "^23.6.0"
+    "@babel/core": "7.3.4",
+    "babel-jest": "24.1.0",
+    "jest": "24.1.0",
+    "react-testing-library": "^5.4.2"
   },
   "scripts": {
     "test": "jest",
