@@ -385,7 +385,6 @@ export default Page
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
-- `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
 ### Routing
@@ -1491,12 +1490,7 @@ You can pass any node arguments to `next` CLI command.
 ```bash
 NODE_OPTIONS="--throw-deprecation" next
 NODE_OPTIONS="-r esm" next
-```
-
-`--inspect` is a special case since it binds to a port and can't double-bind to the child process the `next` CLI creates.
-
-```
-next start --inspect
+NODE_OPTIONS="--inspect" next
 ```
 
 ### Customizing webpack config

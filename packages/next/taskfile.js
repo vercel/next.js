@@ -19,12 +19,17 @@ const babelOpts = {
 }
 
 export async function compile (task) {
-  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
+  await task.parallel(['cli', 'bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
 }
 
 export async function bin (task, opts) {
   await task.source(opts.src || 'bin/*').typescript({ module: 'commonjs', stripExtension: true }).target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
+}
+
+export async function cli (task, opts) {
+  await task.source(opts.src || 'cli/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).target('dist/cli')
+  notify('Compiled cli files')
 }
 
 export async function lib (task, opts) {
