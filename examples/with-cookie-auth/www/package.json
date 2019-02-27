@@ -1,7 +1,7 @@
 {
   "name": "with-cookie-auth",
   "scripts": {
-    "dev": "next",
+    "dev": "node server.js",
     "build": "next build",
     "start": "next start"
   },
@@ -12,5 +12,8 @@
     "next-cookies": "^1.0.4",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "http-proxy": "^1.17.0"
   }
 }

@@ -2,18 +2,19 @@ import { join, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
-import del from 'del'
-import onDemandEntryHandler, {normalizePage} from './on-demand-entry-handler'
+import rimrafModule from 'rimraf'
+import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
 import webpack from 'webpack'
-import WebSocket from 'ws'
 import getBaseWebpackConfig from '../build/webpack-config'
-import {IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES} from 'next-server/constants'
-import {route} from 'next-server/dist/server/router'
-import globModule from 'glob'
-import {promisify} from 'util'
-import {createPagesMapping, createEntrypoints} from '../build/entries'
+import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_RUNTIME_AMP } from 'next-server/constants'
+import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { route } from 'next-server/dist/server/router'
+import { promisify } from 'util'
+import { createPagesMapping, createEntrypoints } from '../build/entries'
+import { watchCompiler } from '../build/output'
+import { findPageFile } from './lib/find-page-file'
 
-const glob = promisify(globModule)
+const rimraf = promisify(rimrafModule)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -62,11 +63,11 @@ function findEntryModule (issuer) {
   return issuer
 }
 
-function erroredPages (compilation, options = {enhanceName: (name) => name}) {
+function erroredPages (compilation, options = { enhanceName: (name) => name }) {
   const failedPages = {}
   for (const error of compilation.errors) {
     const entryModule = findEntryModule(error.origin)
-    const {name} = entryModule
+    const { name } = entryModule
     if (!name) {
       continue
     }
@@ -117,7 +118,7 @@ export default class HotReloader {
     // by adding the page to on-demand-entries, waiting till it's done
     // and then the bundle will be served like usual by the actual route in server/index.js
     const handlePageBundleRequest = async (res, parsedUrl) => {
-      const {pathname} = parsedUrl
+      const { pathname } = parsedUrl
       const params = matchNextPageBundleRequest(pathname)
       if (!params) {
         return {}
@@ -128,25 +129,25 @@ export default class HotReloader {
       }
 
       const page = `/${params.path.join('/')}`
-      if (BLOCKED_PAGES.indexOf(page) === -1) {
+      if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
         } catch (error) {
           await renderScriptError(res, error)
-          return {finished: true}
+          return { finished: true }
         }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
           await renderScriptError(res, errors[0])
-          return {finished: true}
+          return { finished: true }
         }
       }
 
       return {}
     }
 
-    const {finished} = await handlePageBundleRequest(res, parsedUrl)
+    const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
       await new Promise((resolve, reject) => {
@@ -157,53 +158,38 @@ export default class HotReloader {
       })
     }
 
-    return {finished}
+    return { finished }
   }
 
   async clean () {
-    return del(join(this.dir, this.config.distDir), { force: true })
-  }
-
-  addWsConfig (configs) {
-    const { websocketProxyPath, websocketProxyPort } = this.config.onDemandEntries
-    const opts = {
-      'process.env.NEXT_WS_PORT': websocketProxyPort || this.wsPort,
-      'process.env.NEXT_WS_PROXY_PATH': JSON.stringify(websocketProxyPath)
-    }
-    configs[0].plugins.push(new webpack.DefinePlugin(opts))
+    return rimraf(join(this.dir, this.config.distDir), { force: true })
   }
 
   async getWebpackConfig () {
-    const pagePaths = await glob(`+(_app|_document|_error).+(${this.config.pageExtensions.join('|')})`, {cwd: join(this.dir, 'pages')})
-    const pages = createPagesMapping(pagePaths, this.config.pageExtensions)
-    const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
-    return Promise.all([
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: entrypoints.client }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
+    const pagesDir = join(this.dir, 'pages')
+    const pagePaths = await Promise.all([
+      findPageFile(pagesDir, '/_app', this.config.pageExtensions),
+      findPageFile(pagesDir, '/_document', this.config.pageExtensions)
     ])
+
+    const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
+    const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
+
+    let additionalClientEntrypoints = {}
+    if (this.config.experimental.amp) {
+      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev')
+    }
+
+    return [
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
+    ]
   }
 
   async start () {
     await this.clean()
 
-    this.wsPort = await new Promise((resolve, reject) => {
-      const { websocketPort } = this.config.onDemandEntries
-      // create on-demand-entries WebSocket
-      this.wss = new WebSocket.Server({ port: websocketPort }, function (err) {
-        if (err) {
-          return reject(err)
-        }
-
-        const {port} = this.address()
-        if (!port) {
-          return reject(new Error('No websocket port could be detected'))
-        }
-        resolve(port)
-      })
-    })
-
     const configs = await this.getWebpackConfig()
-    this.addWsConfig(configs)
 
     const multiCompiler = webpack(configs)
 
@@ -214,7 +200,6 @@ export default class HotReloader {
   }
 
   async stop (webpackDevMiddleware) {
-    this.wss.close()
     const middleware = webpackDevMiddleware || this.webpackDevMiddleware
     if (middleware) {
       return new Promise((resolve, reject) => {
@@ -232,8 +217,6 @@ export default class HotReloader {
     await this.clean()
 
     const configs = await this.getWebpackConfig()
-    this.addWsConfig(configs)
-
     const compiler = webpack(configs)
 
     const buildTools = await this.prepareBuildTools(compiler)
@@ -249,23 +232,27 @@ export default class HotReloader {
     this.webpackDevMiddleware = webpackDevMiddleware
     this.webpackHotMiddleware = webpackHotMiddleware
     this.onDemandEntries = onDemandEntries
-    this.wss.on('connection', this.onDemandEntries.wsConnection)
     this.middlewares = [
       webpackDevMiddleware,
       webpackHotMiddleware,
-      errorOverlayMiddleware,
+      errorOverlayMiddleware({ dir: this.dir }),
       onDemandEntries.middleware()
     ]
   }
 
   async prepareBuildTools (multiCompiler) {
+    watchCompiler(
+      multiCompiler.compilers[0],
+      multiCompiler.compilers[1]
+    )
+
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       if (!this.initialized) {
         return
       }
 
-      const {compilation} = stats
+      const { compilation } = stats
 
       // We only watch `_document` for changes on the server compilation
       // the rest of the files will be triggered by the client compilation
@@ -361,7 +348,6 @@ export default class HotReloader {
       buildId: this.buildId,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
-      wsPort: this.wsPort,
       ...this.config.onDemandEntries
     })
 
@@ -385,7 +371,7 @@ export default class HotReloader {
     await this.onDemandEntries.waitUntilReloaded()
 
     if (this.stats.hasErrors()) {
-      const {compilation} = this.stats
+      const { compilation } = this.stats
       const failedPages = erroredPages(compilation, {
         enhanceName (name) {
           return '/' + ROUTE_NAME_REGEX.exec(name)[1]
@@ -410,7 +396,7 @@ export default class HotReloader {
 
   async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
-    if (BLOCKED_PAGES.indexOf(page) !== -1) {
+    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
     await this.onDemandEntries.ensurePage(page)

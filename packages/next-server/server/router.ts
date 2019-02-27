@@ -4,7 +4,7 @@ import pathMatch from './lib/path-match'
 
 export const route = pathMatch()
 
-type Params = {[param: string]: string}
+type Params = {[param: string]: any}
 
 export type Route = {
   match: (pathname: string|undefined) => false|Params,

@@ -16,7 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST} from 'next-server/constants'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
 let appPort
@@ -81,7 +81,7 @@ describe('Production Usage', () => {
       const url = `http://localhost:${appPort}/_next/abcdef`
       const methods = ['POST', 'PUT', 'DELETE']
       for (const method of methods) {
-        const res = await fetch(url, {method})
+        const res = await fetch(url, { method })
         expect(res.status).toBe(501)
       }
     })
@@ -229,13 +229,34 @@ describe('Production Usage', () => {
     it('should add preload tags when Link prefetch prop is used', async () => {
       const browser = await webdriver(appPort, '/prefetch')
       const elements = await browser.elementsByCss('link[rel=preload]')
-      expect(elements.length).toBe(10)
+      expect(elements.length).toBe(9)
       await Promise.all(
         elements.map(async (element) => {
           const rel = await element.getAttribute('rel')
           const as = await element.getAttribute('as')
           expect(rel).toBe('preload')
           expect(as).toBe('script')
+        })
+      )
+      browser.close()
+    })
+
+    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+    it('It does not add a timestamp to link tags with preload attribute', async () => {
+      const browser = await webdriver(appPort, '/prefetch')
+      const links = await browser.elementsByCss('link[rel=preload]')
+      await Promise.all(
+        links.map(async (element) => {
+          const href = await element.getAttribute('href')
+          expect(href).not.toMatch(/\?ts=/)
+        })
+      )
+      const scripts = await browser.elementsByCss('script[src]')
+      await Promise.all(
+        scripts.map(async (element) => {
+          const src = await element.getAttribute('src')
+          expect(src).not.toMatch(/\?ts=/)
         })
       )
       browser.close()

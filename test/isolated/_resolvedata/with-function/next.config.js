@@ -1,4 +1,4 @@
-module.exports = (phase, {defaultConfig}) => {
+module.exports = (phase, { defaultConfig }) => {
   return {
     phase,
     defaultConfig,

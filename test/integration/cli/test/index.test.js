@@ -5,7 +5,7 @@ import {
   runNextCommandDev,
   findPort
 } from 'next-test-utils'
-import {join} from 'path'
+import { join } from 'path'
 import pkg from 'next/package'
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
@@ -39,13 +39,6 @@ describe('CLI Usage', () => {
         stdout: true
       })
       expect(output.stdout).toMatch(new RegExp(`Next\\.js v${pkg.version.replace(/\./g, '\\.')}`))
-    })
-
-    test('--inspect', async () => {
-      const output = await runNextCommand(['build', dir, '--inspect'], {
-        stdout: true
-      })
-      expect(output.stdout).toMatch(/Passing "--inspect" to Node\.js/)
     })
   })
   describe('build', () => {

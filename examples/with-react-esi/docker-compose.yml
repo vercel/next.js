@@ -1,0 +1,22 @@
+version: '3.4'
+
+services:
+  node:
+    build:
+      context: .
+      target: node
+    ports:
+      - "8080:80" # To debug
+
+  varnish:
+    build:
+      context: .
+      target: varnish
+    depends_on:
+      - node
+    volumes:
+      - ./docker/varnish/:/usr/local/etc/varnish:ro
+    tmpfs:
+      - /usr/local/var/varnish:exec
+    ports:
+      - "80:80"

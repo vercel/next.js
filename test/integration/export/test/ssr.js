@@ -9,6 +9,11 @@ export default function (context) {
       expect(html).toMatch(/This is the home page/)
     })
 
+    it('should render the about page', async () => {
+      const html = await renderViaHTTP(context.port, '/about')
+      expect(html).toMatch(/This is the About page foobar/)
+    })
+
     it('should render links correctly', async () => {
       const html = await renderViaHTTP(context.port, '/')
       const $ = cheerio.load(html)

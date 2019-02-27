@@ -1,14 +1,14 @@
 /* global __NEXT_DATA__ */
 
-import { parse, format } from 'url'
+import { parse } from 'url'
 import mitt from '../mitt'
 import shallowEquals from './shallow-equals'
-import { loadGetInitialProps, getURL } from '../utils'
+import { loadGetInitialProps, getURL, formatWithValidation } from '../utils'
 
 export default class Router {
   static events = mitt()
 
-  constructor (pathname, query, as, { initialProps, pageLoader, App, Component, ErrorComponent, err } = {}) {
+  constructor (pathname, query, as, { initialProps, pageLoader, App, Component, err } = {}) {
     // represents the current component key
     this.route = toRoute(pathname)
 
@@ -17,7 +17,7 @@ export default class Router {
     // We should not keep the cache, if there's an error
     // Otherwise, this cause issues when when going back and
     // come again to the errored page.
-    if (Component !== ErrorComponent) {
+    if (pathname !== '/_error') {
       this.components[this.route] = { Component, props: initialProps, err }
     }
 
@@ -28,7 +28,6 @@ export default class Router {
     this.events = Router.events
 
     this.pageLoader = pageLoader
-    this.ErrorComponent = ErrorComponent
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -39,7 +38,7 @@ export default class Router {
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
       // we have to register the initial route upon initialization
-      this.changeState('replaceState', format({ pathname, query }), as)
+      this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
     }
@@ -81,7 +80,7 @@ export default class Router {
       // Actually, for (1) we don't need to nothing. But it's hard to detect that event.
       // So, doing the following for (1) does no harm.
       const { pathname, query } = this
-      this.changeState('replaceState', format({ pathname, query }), getURL())
+      this.changeState('replaceState', formatWithValidation({ pathname, query }), getURL())
       return
     }
 
@@ -164,8 +163,8 @@ export default class Router {
   async change (method, _url, _as, options) {
     // If url and as provided as an object representation,
     // we'll format them into the string version here.
-    const url = typeof _url === 'object' ? format(_url) : _url
-    let as = typeof _as === 'object' ? format(_as) : _as
+    const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
+    let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
 
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly for the SSR page.
@@ -291,7 +290,7 @@ export default class Router {
         return { error: err }
       }
 
-      const Component = this.ErrorComponent
+      const Component = await this.fetchComponent('/_error')
       routeInfo = { Component, err }
       const ctx = { err, pathname, query }
       try {
@@ -413,9 +412,9 @@ export default class Router {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
-    const {Component: App} = this.components['/_app']
+    const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps(App, {Component, router: this, ctx})
+    const props = await loadGetInitialProps(App, { Component, router: this, ctx })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null
@@ -443,8 +442,8 @@ export default class Router {
   }
 
   notify (data) {
-    const {Component: App} = this.components['/_app']
-    this.subscriptions.forEach((fn) => fn({...data, App}))
+    const { Component: App } = this.components['/_app']
+    this.subscriptions.forEach((fn) => fn({ ...data, App }))
   }
 
   subscribe (fn) {

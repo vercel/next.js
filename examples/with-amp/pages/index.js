@@ -8,13 +8,6 @@ export default () => (
     </Head>
     <h1>The Cat</h1>
     <Byline author='Dan Zajdband' />
-    <amp-img
-      src='/static/cat.jpg'
-      width='470'
-      height='350'
-      layout='responsive'
-      alt='Meow'
-    />
     <p className='caption'>Meowwwwwwww</p>
     <p>
       Cat ipsum dolor <a href='/dog'>sit amet</a>, eat grass, throw it back up

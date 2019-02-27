@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import {BUILD_MANIFEST, REACT_LOADABLE_MANIFEST} from 'next-server/constants'
+import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 import { join } from 'path'
 
 export default function ({ app }, suiteName, render, fetch) {
@@ -118,6 +118,12 @@ export default function ({ app }, suiteName, render, fetch) {
       const $ = await get$('/link')
       const link = $('a[href="/about"]')
       expect(link.text()).toBe('About')
+    })
+
+    test('getInitialProps circular structure', async () => {
+      const $ = await get$('/circular-json-error')
+      const expectedErrorMessage = 'Circular structure in "getInitialProps" result of page "/circular-json-error".'
+      expect($('pre').text().includes(expectedErrorMessage)).toBeTruthy()
     })
 
     test('getInitialProps should be class method', async () => {

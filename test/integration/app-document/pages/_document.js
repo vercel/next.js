@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 const cspHashOf = (text) => {
   const hash = crypto.createHash('sha256')
@@ -43,7 +43,7 @@ export default class MyDocument extends Document {
     }
 
     return (
-      <html>
+      <Html className='test-html-props'>
         <Head nonce='test-nonce'>
           {csp ? <meta httpEquiv='Content-Security-Policy' content={csp} /> : null}
           <style>{`body { margin: 0 } /* custom! */`}</style>
@@ -54,7 +54,7 @@ export default class MyDocument extends Document {
           <Main />
           <NextScript nonce='test-nonce' />
         </body>
-      </html>
+      </Html>
     )
   }
 }
