@@ -18,13 +18,13 @@ fastify.register((fastify, opts, next) => {
       }
 
       fastify.get('/a', (req, reply) => {
-        return app.render(req.req, reply.res, '/b', req.query).then(() => {
+        return app.render(req.req, reply.res, '/a', req.query).then(() => {
           reply.sent = true
         })
       })
 
       fastify.get('/b', (req, reply) => {
-        return app.render(req.req, reply.res, '/a', req.query).then(() => {
+        return app.render(req.req, reply.res, '/b', req.query).then(() => {
           reply.sent = true
         })
       })

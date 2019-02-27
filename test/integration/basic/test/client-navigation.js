@@ -663,7 +663,7 @@ export default (context) => {
     })
 
     describe('runtime errors', () => {
-      it('should show ErrorDebug when a client side error is thrown inside a component', async () => {
+      it('should show react-error-overlay when a client side error is thrown inside a component', async () => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/error-inside-browser-page')
@@ -678,7 +678,7 @@ export default (context) => {
         }
       })
 
-      it('should show ErrorDebug when a client side error is thrown outside a component', async () => {
+      it('should show react-error-overlay when a client side error is thrown outside a component', async () => {
         let browser
         try {
           browser = await webdriver(context.appPort, '/error-in-the-browser-global-scope')
@@ -748,6 +748,12 @@ export default (context) => {
           browser.close()
         }
       }
+    })
+
+    it('should work on nested /index/index.js', async () => {
+      const browser = await webdriver(context.appPort, '/nested-index/index')
+      expect(await browser.elementByCss('p').text()).toBe('This is an index.js nested in an index/ folder.')
+      browser.close()
     })
   })
 }
