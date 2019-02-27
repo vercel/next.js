@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine, test */
+/* global jasmine, test, browser */
 import { join } from 'path'
 import {
   nextBuild,
@@ -7,7 +7,6 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 import startServer from '../server'
-import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
@@ -52,17 +51,12 @@ describe('Serverless', () => {
   })
 
   it('should render correctly when importing isomorphic-unfetch on the client side', async () => {
-    const browser = await webdriver(appPort, '/')
-    try {
-      const text = await browser
-        .elementByCss('a').click()
-        .waitForElementByCss('.fetch-page')
-        .elementByCss('#text').text()
-
-      expect(text).toMatch(/fetch page/)
-    } finally {
-      browser.close()
-    }
+    const page = await browser.newPage()
+    await page.goto(`http://localhost:${appPort}/`)
+    await expect(page).toClick('a')
+    await page.waitFor('.fetch-page')
+    await expect(page).toMatchElement('#text', { text: /fetch page/ })
+    await page.close()
   })
 
   describe('With basic usage', () => {

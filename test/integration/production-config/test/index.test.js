@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, browser */
 import { join } from 'path'
 import {
   nextServer,
@@ -8,13 +8,12 @@ import {
   stopApp,
   runNextCommand
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import { getComputedCSS } from 'puppet-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 const appDir = join(__dirname, '../')
 
-let appPort
 let server
 
 describe('Production Config Usage', () => {
@@ -26,7 +25,6 @@ describe('Production Config Usage', () => {
       quiet: true
     })
     server = await startApp(app)
-    appPort = server.address().port
   })
   afterAll(() => stopApp(server))
 
@@ -69,23 +67,26 @@ describe('Production Config Usage', () => {
 
   describe('with generateBuildId', () => {
     it('should add the custom buildid', async () => {
-      const browser = await webdriver(appPort, '/')
-      const text = await browser.elementByCss('#mounted').text()
-      expect(text).toMatch(/ComponentDidMount executed on client\./)
-
-      const html = await browser.elementByCss('html').getAttribute('innerHTML')
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/'))
+      await expect(page).toMatchElement('#mounted', {
+        text: /ComponentDidMount executed on client\./
+      })
+      /* istanbul ignore next */
+      const html = await page.evaluate(() => document.querySelector('html').innerHTML)
       expect(html).toMatch('custom-buildid')
-      return browser.close()
+      await page.close()
     })
   })
 })
 
 async function testBrowser () {
-  const browser = await webdriver(appPort, '/')
-  const element = await browser.elementByCss('#mounted')
-  const text = await element.text()
-  expect(text).toMatch(/ComponentDidMount executed on client\./)
-  expect(await element.getComputedCss('font-size')).toBe('40px')
-  expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
-  return browser.close()
+  const page = await browser.newPage()
+  await page.goto(server.getURL('/'))
+  await expect(page).toMatchElement('#mounted', {
+    text: /ComponentDidMount executed on client\./
+  })
+  expect(await getComputedCSS(page, '#mounted', 'font-size')).toBe('40px')
+  expect(await getComputedCSS(page, '#mounted', 'color')).toBe('rgb(255, 0, 0)')
+  await page.close()
 }

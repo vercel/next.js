@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, browser */
 import { join } from 'path'
 import {
   nextServer,
@@ -7,11 +7,9 @@ import {
   startApp,
   stopApp
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 describe('withRouter', () => {
   const appDir = join(__dirname, '../')
-  let appPort
   let server
   let app
   jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -25,56 +23,40 @@ describe('withRouter', () => {
     })
 
     server = await startApp(app)
-    appPort = server.address().port
   })
 
   afterAll(() => stopApp(server))
 
   it('allows observation of navigation events using withRouter', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
-
-    let activePage = await browser.elementByCss('.active').text()
-    expect(activePage).toBe('Foo')
-
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
-
-    activePage = await browser.elementByCss('.active').text()
-    expect(activePage).toBe('Bar')
-
-    browser.close()
+    const page = await browser.newPage()
+    await page.goto(server.getURL('/a'))
+    await page.waitFor('#page-a')
+    await expect(page).toMatchElement('.active', { text: 'Foo' })
+    await expect(page).toClick('button')
+    await page.waitFor('#page-b')
+    await expect(page).toMatchElement('.active', { text: 'Bar' })
+    await page.close()
   })
 
   it('allows observation of navigation events using top level Router', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
-
-    let activePage = await browser.elementByCss('.active-top-level-router').text()
-    expect(activePage).toBe('Foo')
-
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
-
-    activePage = await browser.elementByCss('.active-top-level-router').text()
-    expect(activePage).toBe('Bar')
-
-    browser.close()
+    const page = await browser.newPage()
+    await page.goto(server.getURL('/a'))
+    await page.waitFor('#page-a')
+    await expect(page).toMatchElement('.active-top-level-router', { text: 'Foo' })
+    await expect(page).toClick('button')
+    await page.waitFor('#page-b')
+    await expect(page).toMatchElement('.active-top-level-router', { text: 'Bar' })
+    await page.close()
   })
 
   it('allows observation of navigation events using top level Router deprecated behavior', async () => {
-    const browser = await webdriver(appPort, '/a')
-    await browser.waitForElementByCss('#page-a')
-
-    let activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
-    expect(activePage).toBe('Foo')
-
-    await browser.elementByCss('button').click()
-    await browser.waitForElementByCss('#page-b')
-
-    activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
-    expect(activePage).toBe('Bar')
-
-    browser.close()
+    const page = await browser.newPage()
+    await page.goto(server.getURL('/a'))
+    await page.waitFor('#page-a')
+    await expect(page).toMatchElement('.active-top-level-router-deprecated-behavior', { text: 'Foo' })
+    await expect(page).toClick('button')
+    await page.waitFor('#page-b')
+    await expect(page).toMatchElement('.active-top-level-router-deprecated-behavior', { text: 'Bar' })
+    await page.close()
   })
 })

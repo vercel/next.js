@@ -134,6 +134,7 @@ export default (context, render) => {
       it('should only load the rendered module in the browser', async () => {
         const page = await browser.newPage()
         await page.goto(context.server.getURL('/dynamic/multiple-modules'))
+        /* istanbul ignore next */
         const html = await page.evaluate(() => document.querySelector('html').innerHTML)
         expect(html).toMatch(/hello1\.js/)
         expect(html).not.toMatch(/hello2\.js/)

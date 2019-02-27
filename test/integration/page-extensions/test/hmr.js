@@ -14,6 +14,7 @@ export default (context, renderViaHTTP) => {
       const editedContent = originalContent.replace('Increment', 'INCREMENT')
       try {
         await page.goto(context.server.getURL('/hmr/some-page'))
+        /* istanbul ignore next */
         const randomNumber = await page.evaluate(() => window.HMR_RANDOM_NUMBER)
         const originalButtonText = await getElementText(page, 'button')
         expect(originalButtonText).toBe('Increment')
@@ -23,7 +24,7 @@ export default (context, renderViaHTTP) => {
 
         // wait for 5 seconds
         await waitFor(5000)
-
+        /* istanbul ignore next */
         const randomNumberAfterEdit = await page.evaluate(() => window.HMR_RANDOM_NUMBER)
         expect(randomNumberAfterEdit).toBe(randomNumber)
         const updatedButtonText = await getElementText(page, 'button')

@@ -12,7 +12,7 @@ import {
   waitFor
 } from 'next-test-utils'
 import fetch from 'node-fetch'
-// import dynamicImportTests from './dynamic'
+import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
@@ -355,7 +355,7 @@ describe('Production Usage', () => {
     expect(html).toMatch(/Bad Request/)
   })
 
-  // dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
+  dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
   security(context)

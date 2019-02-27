@@ -1,6 +1,7 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global browser */
 import cheerio from 'cheerio'
+import { getElementText } from 'puppet-utils'
 import { waitFor, check } from 'next-test-utils'
 
 // These tests are similar to ../../basic/test/dynamic.js
@@ -17,16 +18,11 @@ export default (context, render) => {
       })
 
       it('should render even there are no physical chunk exists', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/no-chunk')
-          await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
-          await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/no-chunk'))
+        await check(() => getElementText(page, 'body'), /Welcome, normal/)
+        await check(() => getElementText(page, 'body'), /Welcome, dynamic/)
+        await page.close()
       })
     })
     describe('ssr:false option', () => {
@@ -36,15 +32,10 @@ export default (context, render) => {
       })
 
       it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr')
-          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/no-ssr'))
+        await check(() => getElementText(page, 'body'), /Hello World 1/)
+        await page.close()
       })
     })
 
@@ -55,15 +46,10 @@ export default (context, render) => {
       })
 
       it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/ssr-true')
-          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/ssr-true'))
+        await check(() => getElementText(page, 'body'), /Hello World 1/)
+        await page.close()
       })
     })
 
@@ -74,15 +60,10 @@ export default (context, render) => {
       })
 
       it('should render the component on client side', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/dynamic/no-ssr-custom-loading')
-          await check(() => browser.elementByCss('body').text(), /Hello World 1/)
-        } finally {
-          if (browser) {
-            browser.close()
-          }
-        }
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/no-ssr-custom-loading'))
+        await check(() => getElementText(page, 'body'), /Hello World 1/)
+        await page.close()
       })
     })
 
@@ -104,11 +85,10 @@ export default (context, render) => {
       })
 
       it('should render components', async () => {
-        const browser = await webdriver(context.appPort, '/dynamic/bundle')
-
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/bundle'))
         while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
+          const bodyText = await getElementText(page, 'body')
           if (
             /Dynamic Bundle/.test(bodyText) &&
             /Hello World 1/.test(bodyText) &&
@@ -116,35 +96,28 @@ export default (context, render) => {
           ) break
           await waitFor(1000)
         }
-
-        browser.close()
+        await page.close()
       })
 
       it('should render support React context', async () => {
-        const browser = await webdriver(context.appPort, '/dynamic/bundle')
-
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/bundle'))
         while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
+          const bodyText = await getElementText(page, 'body')
           if (
             /ZEIT Rocks/.test(bodyText)
           ) break
           await waitFor(1000)
         }
-
-        browser.close()
+        await page.close()
       })
 
       it('should load new components and render for prop changes', async () => {
-        const browser = await webdriver(context.appPort, '/dynamic/bundle')
-
-        await browser
-          .waitForElementByCss('#toggle-show-more')
-          .elementByCss('#toggle-show-more').click()
-
+        const page = await browser.newPage()
+        await page.goto(context.server.getURL('/dynamic/bundle'))
+        await expect(page).toClick('#toggle-show-more')
         while (true) {
-          const bodyText = await browser
-            .elementByCss('body').text()
+          const bodyText = await getElementText(page, 'body')
           if (
             /Dynamic Bundle/.test(bodyText) &&
             /Hello World 1/.test(bodyText) &&
@@ -152,8 +125,7 @@ export default (context, render) => {
           ) break
           await waitFor(1000)
         }
-
-        browser.close()
+        await page.close()
       })
     })
   })

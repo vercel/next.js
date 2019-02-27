@@ -129,7 +129,7 @@ export async function killApp (instance) {
 
 // Launch the app in dev mode.
 export async function runNextDev (dir) {
-  const port = await getPort({ port: 3000 })
+  const port = await getPort()
   const cwd = path.dirname(require.resolve('next/package'))
   return new Promise((resolve, reject) => {
     const instance = spawn('node', ['dist/bin/next', dir, '-p', port], { cwd })

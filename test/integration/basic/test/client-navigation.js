@@ -251,9 +251,11 @@ export default (context) => {
           await page.goto(context.server.getURL('/nav/hash-changes'))
 
           await expect(page).toClick('#scroll-to-item-400')
+          /* istanbul ignore next */
           expect(await page.evaluate(() => window.pageYOffset)).toBe(7258)
 
           await expect(page).toClick('#via-empty-hash')
+          /* istanbul ignore next */
           expect(await page.evaluate(() => window.pageYOffset)).toBe(0)
 
           await page.close()
@@ -264,9 +266,11 @@ export default (context) => {
           await page.goto(context.server.getURL('/nav/hash-changes'))
 
           await expect(page).toClick('#scroll-to-name-item-400')
+          /* istanbul ignore next */
           expect(await page.evaluate(() => window.pageYOffset)).toBe(16258)
 
           await expect(page).toClick('#via-empty-hash')
+          /* istanbul ignore next */
           expect(await page.evaluate(() => window.pageYOffset)).toBe(0)
 
           await page.close()
@@ -279,6 +283,7 @@ export default (context) => {
           await expect(page).toClick('#scroll-to-hash')
           await page.waitFor('#hash-changes-page')
 
+          /* istanbul ignore next */
           expect(await page.evaluate(() => window.pageYOffset)).toBe(7258)
 
           await page.close()
@@ -406,6 +411,7 @@ export default (context) => {
         const page = await browser.newPage()
         await page.goto(context.server.getURL('/nav'))
 
+        /* istanbul ignore next */
         let stackLength = await page.evaluate(() => window.history.length)
         expect(stackLength).toBe(2)
 
@@ -413,12 +419,14 @@ export default (context) => {
         await page.waitFor('.nav-about')
         await expect(page).toMatchElement('p', { text: 'This is the about page.' })
 
+        /* istanbul ignore next */
         stackLength = await page.evaluate(() => window.history.length)
         expect(stackLength).toBe(2)
 
         await expect(page).toClick('#home-link')
         await page.waitFor('.nav-home')
 
+        /* istanbul ignore next */
         stackLength = await page.evaluate(() => window.history.length)
         expect(stackLength).toBe(3)
 
