@@ -1,4 +1,4 @@
-module.exports = (pluginOptions = { enabled: true }) => (nextConfig = {}) => {
+module.exports = ({ enabled = true } = {}) => (nextConfig = {}) => {
   return Object.assign({}, nextConfig, {
     webpack (config, options) {
       if (pluginOptions.enabled) {
