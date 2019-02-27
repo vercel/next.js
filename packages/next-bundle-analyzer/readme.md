@@ -19,10 +19,8 @@ yarn add @next/bundle-analyzer
 Create a next.config.js (and make sure you have next-bundle-analyzer set up)
 
 ```js
-const withBundleAnalyzer = require("@next/bundle-analyzer");
-module.exports = withBundleAnalyzer({ 
-  analyze: process.env.ANALYZE === "true"
-});
+const withBundleAnalyzer = require("@next/bundle-analyzer")({ enabled: process.env.ANALYZE === "true" });
+module.exports = withBundleAnalyzer({});
 ```
 
 Then you can run the command below:
