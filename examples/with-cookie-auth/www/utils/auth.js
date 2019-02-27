@@ -74,9 +74,7 @@ export const auth = ctx => {
     return
   }
 
-  /*
-   * We already checked for server. This should only happen on client.
-   */
+  // We already checked for server. This should only happen on client.
   if (!token) {
     Router.push('/login')
   }
