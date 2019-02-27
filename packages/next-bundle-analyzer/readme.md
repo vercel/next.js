@@ -32,4 +32,4 @@ Then you can run the command below:
 ANALYZE=true yarn build
 ```
 
-When enabled two different browser windows will open. One will be for the server bundle, one for the browser bundle.
+When enabled two HTML files (client.html and server.html) will be outputted to `<distDir>/analyze/`. One will be for the server bundle, one for the browser bundle.

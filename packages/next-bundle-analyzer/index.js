@@ -1,21 +1,14 @@
 module.exports = (nextConfig = {}) => {
   return Object.assign({}, nextConfig, {
     webpack (config, options) {
-      const { isServer } = options
       const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 
       if (nextConfig.analyze) {
         config.plugins.push(
-          new BundleAnalyzerPlugin(
-            Object.assign(
-              {},
-              {
-                analyzerMode: 'server',
-                analyzerPort: isServer ? 8888 : 8889,
-                openAnalyzer: true
-              }
-            )
-          )
+          new BundleAnalyzerPlugin({
+            analyzerMode: 'static',
+            reportFilename: options.isServer ? '../analyze/server.html' : './analyze/client.html'
+          })
         )
       }
 
