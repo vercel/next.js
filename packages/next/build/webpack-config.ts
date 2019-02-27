@@ -93,7 +93,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return callback()
         }
     
-        resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+        resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
           if (err) {
             return callback()
           }
