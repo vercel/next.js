@@ -1,12 +1,13 @@
 import Head from 'next/head'
 import { useAmp } from 'next/amp'
+import Layout from '../components/Layout'
 import Byline from '../components/Byline'
 
 export default () => {
   const isAmp = useAmp()
 
   return (
-    <>
+    <Layout>
       <Head>
         <title>The Cat</title>
       </Head>
@@ -200,6 +201,11 @@ export default () => {
         belly and purr when you are asleep. Lounge in doorway poop on grasses
         for lounge in doorway for chew iPad power cord.
       </p>
-    </>
+      <style jsx>{`
+        h1 {margin-bottom: 5px;}
+        p {font-size: 18px; line-height: 30px; margin-top: 30px;}
+        .caption {color: #ccc; margin-top: 0; font-size: 14px; text-align: center;}
+      `}</style>
+    </Layout>
   )
 }
