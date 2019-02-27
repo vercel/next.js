@@ -20,7 +20,8 @@ const babelOpts = {
   ]
 }
 
-export async function nccunistore (task, opts) {
+// eslint-disable-next-line camelcase
+export async function ncc_unistore (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('unistore')))
     .ncc({ packageName: 'unistore' })
@@ -28,7 +29,7 @@ export async function nccunistore (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['nccunistore'])
+  await task.parallel(['ncc_unistore'])
 }
 
 export async function compile (task) {
