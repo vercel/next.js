@@ -83,7 +83,6 @@
     "terser": "3.16.1",
     "tty-aware-progress": "1.0.3",
     "unfetch": "3.0.0",
-    "unistore": "3.2.1",
     "url": "0.11.0",
     "webpack": "4.29.0",
     "webpack-dev-middleware": "3.4.0",
@@ -117,7 +116,8 @@
     "@types/rimraf": "2.0.2",
     "@zeit/ncc": "0.15.2",
     "taskr": "1.1.0",
-    "typescript": "3.1.6"
+    "typescript": "3.1.6",
+    "unistore": "3.2.1"
   },
   "engines": {
     "node": ">= 8.0.0"

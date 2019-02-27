@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import createStore from 'unistore'
+import createStore from 'next/dist/compiled/unistore'
 import readline from 'readline'
 import { onExit } from './exit'
 
