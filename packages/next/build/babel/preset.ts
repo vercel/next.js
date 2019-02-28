@@ -78,6 +78,7 @@ module.exports = (context: any, options: NextBabelPresetOptions = {}): BabelPres
         ...options['transform-runtime']
       }],
       [require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
+      require('./plugins/amp-attributes'),
       isProduction && require('babel-plugin-transform-react-remove-prop-types')
     ].filter(Boolean)
   }
