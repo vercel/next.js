@@ -1,10 +1,10 @@
 const { join } = require('path')
-const { recursiveReadDir } = require('next/dist/lib/recursive-readdir')
+const { recursiveFilter } = require('next/dist/lib/recursive-helpers')
 const resolveDataDir = join(__dirname, 'fixtures')
 
 async function test () {
   const time = process.hrtime()
-  await recursiveReadDir(resolveDataDir, /\.js$/)
+  await recursiveFilter(resolveDataDir, { files: /\.js$/ })
 
   const hrtime = process.hrtime(time)
   const nanoseconds = (hrtime[0] * 1e9) + hrtime[1]
