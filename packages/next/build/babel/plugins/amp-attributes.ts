@@ -1,15 +1,12 @@
 import { PluginObj } from '@babel/core'
 import { NodePath } from '@babel/traverse'
-import { JSXElement } from '@babel/types'
+import { JSXOpeningElement } from '@babel/types'
 
 export default function AmpAttributePatcher(...args: any): PluginObj {
   return {
     visitor: {
-      JSXElement(path: NodePath<JSXElement>) {
-        const { openingElement } = path.node
-        if (!openingElement) {
-          return
-        }
+      JSXOpeningElement(path: NodePath<JSXOpeningElement>) {
+        const openingElement = path.node
 
         const { name, attributes } = openingElement
         if (!(name && name.type === 'JSXIdentifier')) {
