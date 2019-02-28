@@ -1,16 +1,18 @@
 /* globals __webpack_hash__ */
 import EventSourcePolyfill from './event-source-polyfill'
 import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
+import { setupPing } from './on-demand-entries-utils'
 
 if (!window.EventSource) {
   window.EventSource = EventSourcePolyfill
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
-const { assetPrefix } = data
+let { assetPrefix, page } = data
+assetPrefix = assetPrefix || ''
 
 getEventSourceWrapper({
-  path: `${assetPrefix || ''}/_next/webpack-hmr`
+  path: `${assetPrefix}/_next/webpack-hmr`
 }).addMessageListener(event => {
   if (event.data === '\uD83D\uDC93') {
     return
@@ -35,3 +37,5 @@ getEventSourceWrapper({
     console.warn('Invalid HMR message: ' + event.data + '\n' + ex)
   }
 })
+
+setupPing(assetPrefix, () => page)
