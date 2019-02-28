@@ -1,21 +1,9 @@
 import babelLoader from 'babel-loader'
 
 module.exports = babelLoader.custom(babel => {
-  const presetItem = babel.createConfigItem(require('../../babel/preset'), {
-    type: 'preset'
-  })
-  const applyCommonJs = babel.createConfigItem(
-    require('../../babel/plugins/commonjs'),
-    { type: 'plugin' }
-  )
-  const applyAmpAttributes = babel.createConfigItem(
-    require('../../babel/plugins/amp-attributes'),
-    { type: 'plugin' }
-  )
-  const commonJsItem = babel.createConfigItem(
-    require('@babel/plugin-transform-modules-commonjs'),
-    { type: 'plugin' }
-  )
+  const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
+  const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), { type: 'plugin' })
+  const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), { type: 'plugin' })
 
   const configs = new Set()
 
@@ -25,25 +13,16 @@ module.exports = babelLoader.custom(babel => {
         isServer: opts.isServer,
         dev: opts.dev
       }
-      const loader = Object.assign(
-        {
-          cacheCompression: false,
-          cacheDirectory: true
-        },
-        opts
-      )
+      const loader = Object.assign({
+        cacheCompression: false,
+        cacheDirectory: true
+      }, opts)
       delete loader.isServer
       delete loader.dev
 
       return { loader, custom }
     },
-    config (
-      cfg,
-      {
-        source,
-        customOptions: { isServer, dev }
-      }
-    ) {
+    config (cfg, { source, customOptions: { isServer, dev } }) {
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
@@ -59,12 +38,10 @@ module.exports = babelLoader.custom(babel => {
         options.presets = [...options.presets, presetItem]
       }
 
-      options.plugins = options.plugins || []
-      options.plugins.push(applyAmpAttributes)
-
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
       // That break webpack, since webpack doesn't support combining commonjs and esmodules
       if (source.indexOf('module.exports') !== -1) {
+        options.plugins = options.plugins || []
         options.plugins.push(applyCommonJs)
       }
 
@@ -73,7 +50,9 @@ module.exports = babelLoader.custom(babel => {
         ...(options.overrides || []),
         {
           test: /next-server[\\/]dist[\\/]lib/,
-          plugins: [commonJsItem]
+          plugins: [
+            commonJsItem
+          ]
         }
       ]
 
