@@ -32,6 +32,7 @@ describe('Promise in next config', () => {
 
   it('should warn when a promise is returned on webpack', async () => {
     configFile.write(`
+      setTimeout(() => process.exit(0), 2 * 1000)
       module.exports = (phase, { isServer }) => {
         return {
           webpack: async (config) => {
