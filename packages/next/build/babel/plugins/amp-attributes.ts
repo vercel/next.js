@@ -18,20 +18,12 @@ export default function AmpAttributePatcher(...args: any): PluginObj {
         }
 
         for (const attribute of attributes) {
-          if (
-            attribute.type !== 'JSXAttribute' ||
-            typeof attribute.name.name !== 'string'
-          ) {
+          if (attribute.type !== 'JSXAttribute') {
             continue
           }
 
-          switch (attribute.name.name) {
-            case 'className':
-              attribute.name.name = 'class'
-              break
-            case 'htmlFor':
-              attribute.name.name = 'for'
-              break
+          if (attribute.name.name === 'className') {
+            attribute.name.name = 'class'
           }
         }
       },
