@@ -30,7 +30,7 @@ describe('Promise in next config', () => {
     expect(stderr).toMatch(/Error: > Promise returned in next config\. https:\/\/err\.sh\/zeit\/next\.js\/promise-in-next-config\.md/)
   })
 
-  it('should throw error when a promise is returned on webpack', async () => {
+  it('should warn when a promise is returned on webpack', async () => {
     configFile.write(`
       module.exports = (phase, { isServer }) => {
         return {
@@ -46,6 +46,6 @@ describe('Promise in next config', () => {
       { stderr: true }
     )
 
-    expect(stderr).toMatch(/Error: > Promise returned in next config\. https:\/\/err\.sh\/zeit\/next\.js\/promise-in-next-config\.md/)
+    expect(stderr).toMatch(/> Promise returned in next config\. https:\/\/err\.sh\/zeit\/next\.js\/promise-in-next-config\.md/)
   })
 })
