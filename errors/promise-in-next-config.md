@@ -2,7 +2,15 @@
 
 #### Why This Error Occurred
 
-A function in `next.config.js` returned a promise which is not supported in Next.js yet
+The webpack function in `next.config.js` returned a promise which is not supported in Next.js. For example, below is not supported:
+
+```js
+module.exports = {
+  webpack: async function(config) { 
+    return config
+  }
+}
+```
 
 #### Possible Ways to Fix It
 
