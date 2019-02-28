@@ -14,4 +14,6 @@ module.exports = {
 
 #### Possible Ways to Fix It
 
-Look in your `next.config.js` and make sure you aren't using any asynchronous functions. Also check that any plugins you are using aren't either. 
+Check your `next.config.js` for `async` or `return Promise`
+
+Potentially a plugin is returning a `Promise` from the webpack function.
