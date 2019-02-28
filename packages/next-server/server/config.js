@@ -41,9 +41,14 @@ function assignDefaults (userConfig) {
 
 function normalizeConfig (phase, config) {
   if (typeof config === 'function') {
-    return config(phase, { defaultConfig })
-  }
+    config = config(phase, { defaultConfig })
 
+    if (typeof config.then === 'function') {
+      throw new Error(
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+      )
+    }
+  }
   return config
 }
 
