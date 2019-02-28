@@ -1,4 +1,4 @@
-import createStore from 'unistore'
+import createStore from 'next/dist/compiled/unistore'
 
 import { store, OutputState } from './store'
 import formatWebpackMessages from '../../client/dev-error-overlay/format-webpack-messages'

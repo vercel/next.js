@@ -7,8 +7,8 @@
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {
+    "cacheable-response": "^1.1.0",
     "express": "^4.14.0",
-    "lru-cache": "^4.0.2",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
