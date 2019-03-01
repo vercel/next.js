@@ -1,4 +1,6 @@
 const notifier = require('node-notifier')
+const relative = require('path').relative
+
 const babelOpts = {
   presets: [
     ['@babel/preset-env', {
@@ -16,6 +18,18 @@ const babelOpts = {
       useESModules: false
     }]
   ]
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_unistore (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('unistore')))
+    .ncc({ packageName: 'unistore' })
+    .target('dist/compiled/unistore')
+}
+
+export async function precompile (task) {
+  await task.parallel(['ncc_unistore'])
 }
 
 export async function compile (task) {
@@ -63,7 +77,7 @@ export async function pages (task, opts) {
 }
 
 export async function build (task) {
-  await task.serial(['compile'])
+  await task.serial(['precompile', 'compile'])
 }
 
 export default async function (task) {

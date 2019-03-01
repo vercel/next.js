@@ -68,6 +68,9 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/?amp=1')
       await validateAMP(html)
       expect(html).toMatch(/Hello World/)
+
+      const $ = cheerio.load(html)
+      expect($('.abc').length === 1)
     })
 
     it('should add link preload for amp script', async () => {
