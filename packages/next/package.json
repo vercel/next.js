@@ -85,7 +85,7 @@
     "unfetch": "3.0.0",
     "url": "0.11.0",
     "webpack": "4.29.0",
-    "webpack-dev-middleware": "3.4.0",
+    "webpack-dev-middleware": "3.6.0",
     "webpack-hot-middleware": "2.24.3",
     "webpack-sources": "1.3.0",
     "worker-farm": "1.5.2"
