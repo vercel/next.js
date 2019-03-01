@@ -36,7 +36,7 @@ export async function recursiveDelete(dir: string, filter?: RegExp, ensure?: boo
   try {
     result = await readdir(dir)
   } catch (e) {
-    if (e === 'ENOENT' && !ensure) return
+    if (e.code === 'ENOENT' && !ensure) return
 
     throw e
   }
@@ -44,7 +44,7 @@ export async function recursiveDelete(dir: string, filter?: RegExp, ensure?: boo
   await Promise.all(result.map(async (part: string) => {
     const absolutePath = join(dir, part)
     const pathStat = await stat(absolutePath).catch((e) => {
-      if (e !== 'ENOENT') throw e
+      if (e.code !== 'ENOENT') throw e
     })
     if (!pathStat) return
 
