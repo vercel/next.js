@@ -299,9 +299,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
 
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
-      throw new Error(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
-      )
+      console.warn('> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md')
     }
   }
 
