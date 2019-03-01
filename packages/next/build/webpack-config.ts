@@ -93,7 +93,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return callback()
         }
     
-        resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+        resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
           if (err) {
             return callback()
           }
@@ -296,6 +296,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
 
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
+
+    // @ts-ignore: Property 'then' does not exist on type 'Configuration'
+    if (typeof webpackConfig.then === 'function') {
+      console.warn('> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md')
+    }
   }
 
   // Backwards compat for `main.js` entry key
