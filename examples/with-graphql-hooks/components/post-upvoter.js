@@ -17,14 +17,18 @@ export default function PostUpvoter ({ votes, id, onUpdate }) {
   return (
     <button
       onClick={async () => {
-        const result = await updatePost({
-          variables: {
-            id,
-            votes: votes + 1
-          }
-        })
+        try {
+          const result = await updatePost({
+            variables: {
+              id,
+              votes: votes + 1
+            }
+          })
 
-        onUpdate && onUpdate(result)
+          onUpdate && onUpdate(result)
+        } catch (e) {
+          console.error('error upvoting post', e)
+        }
       }}
     >
       {votes}
