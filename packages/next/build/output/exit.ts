@@ -24,7 +24,8 @@ export function onExit(fn: Function) {
 
     {
       event: 'uncaughtException',
-      handler: () => {
+      handler: (error: Error) => {
+        console.error('Got uncaughtException:', error)
         exit()
         process.exit(1)
       },
