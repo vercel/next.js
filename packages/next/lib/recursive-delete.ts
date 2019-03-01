@@ -21,13 +21,11 @@ export async function recursiveDelete(dir: string, filter?: RegExp): Promise<voi
     const pathStat = await stat(absolutePath)
 
     if (pathStat.isDirectory()) {
-      await recursiveDelete(absolutePath, filter)
-      await rmdir(absolutePath)
-      return
+      return recursiveDelete(absolutePath, filter).then(async () => await rmdir(absolutePath))
     }
 
     if (!filter || filter.test(part)) {
-      unlink(absolutePath)
+      await unlink(absolutePath)
     }
   }))
 }
