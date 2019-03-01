@@ -1,0 +1,24 @@
+{
+  "name": "with-graphql-hooks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "now-build": "next build"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "graphql-hooks": "^3.2.1",
+    "graphql-hooks-memcache": "^1.0.4",
+    "graphql-hooks-ssr": "^1.0.1",
+    "isomorphic-unfetch": "^3.0.0",
+    "next": "^8.0.1",
+    "prop-types": "^15.7.2",
+    "react": "^16.8.2",
+    "react-dom": "^16.8.2"
+  }
+}
