@@ -204,12 +204,7 @@ export default class Server {
             throw new Error('pathname is undefined')
           }
 
-          // Currently, we will render amp even if the user passes `?amp=0`.
-          if (this.nextConfig.experimental.amp && query.amp) {
-            await this.renderToAMP(req, res, pathname, query, parsedUrl)
-          } else {
-            await this.render(req, res, pathname, query, parsedUrl)
-          }
+          await this.render(req, res, pathname, query, parsedUrl)
         },
       })
     }
@@ -269,7 +264,9 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query)
+    const html = await this.renderToHTML(req, res, pathname, query, {
+      amphtml: query.amp && this.nextConfig.experimental.amp,
+    })
     // Request was ended by the user
     if (html === null) {
       return
@@ -277,37 +274,6 @@ export default class Server {
 
     if (this.nextConfig.poweredByHeader) {
       res.setHeader('X-Powered-By', 'Next.js ' + process.env.__NEXT_VERSION)
-    }
-    return this.sendHTML(req, res, html)
-  }
-
-  public async renderToAMP(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    query: ParsedUrlQuery = {},
-    parsedUrl?: UrlWithParsedQuery,
-  ): Promise<void> {
-    if (!this.nextConfig.experimental.amp) {
-      throw new Error('"experimental.amp" is not enabled in "next.config.js"')
-    }
-    const url: any = req.url
-    if (isInternalUrl(url)) {
-      return this.handleRequest(req, res, parsedUrl)
-    }
-
-    if (isBlockedPage(pathname)) {
-      return this.render404(req, res, parsedUrl)
-    }
-
-    const html = await this.renderToAMPHTML(req, res, pathname, query)
-    // Request was ended by the user
-    if (html === null) {
-      return
-    }
-
-    if (this.nextConfig.poweredByHeader) {
-      res.setHeader('X-Powered-By', 'Next.js ' + process.env.NEXT_VERSION)
     }
     return this.sendHTML(req, res, html)
   }
@@ -321,18 +287,6 @@ export default class Server {
   ) {
     const result = await loadComponents(this.distDir, this.buildId, pathname)
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
-  }
-
-  public async renderToAMPHTML(
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    query: ParsedUrlQuery = {},
-  ): Promise<string | null> {
-    if (!this.nextConfig.experimental.amp) {
-      throw new Error('"experimental.amp" is not enabled in "next.config.js"')
-    }
-    return this.renderToHTML(req, res, pathname, query, { amphtml: true })
   }
 
   public async renderToHTML(
