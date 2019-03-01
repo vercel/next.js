@@ -13,8 +13,15 @@ const unlink = promisify(fs.unlink)
  * @param  {RegExp} filter Filter for the file name, only the name part is considered, not the full path
  * @returns Promise void
  */
-export async function recursiveDelete(dir: string, filter?: RegExp): Promise<void> {
-  const result = await readdir(dir)
+export async function recursiveDelete(dir: string, filter?: RegExp, ensure?: boolean): Promise<void> {
+  let result
+  try {
+    result = await readdir(dir)
+  } catch (e) {
+    if (ensure) throw e
+    // If the dir does not exist we dont need to do anything
+    return
+  }
 
   await Promise.all(result.map(async (part: string) => {
     const absolutePath = join(dir, part)
