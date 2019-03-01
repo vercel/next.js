@@ -49,11 +49,12 @@ export async function recursiveDelete(dir: string, filter?: RegExp, ensure?: boo
     if (!pathStat) return
 
     if (pathStat.isDirectory()) {
-      return recursiveDelete(absolutePath, filter).then(async () => await rmdir(absolutePath))
+      await recursiveDelete(absolutePath, filter)
+      return rmdir(absolutePath)
     }
 
     if (!filter || filter.test(part)) {
-      await unlinkFile(absolutePath)
+      return unlinkFile(absolutePath)
     }
   }))
 }
