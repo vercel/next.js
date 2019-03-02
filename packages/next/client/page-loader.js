@@ -77,9 +77,17 @@ export default class PageLoader {
   }
 
   loadScript (route) {
+    // If the user has too many tabs with Next.js open in the same browser,
+    // they might be exceeding the max number of concurrent request.
+    // This varies per browser so we can only guess if this is the cause of
+    // a slow request and show a warning that this might be why
+    // https://tools.ietf.org/html/rfc6202#section-5.1
+    const stallTimeout = setTimeout(() => {
+      console.warn(`This request is taking longer than it should, you might have too many tabs open in the same browser. https://err.sh/zeit/next.js/stalled-page-load`)
+    }, 2500)
+
     route = this.normalizeRoute(route)
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
-
     const script = document.createElement('script')
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
     script.crossOrigin = process.crossOrigin
@@ -89,7 +97,9 @@ export default class PageLoader {
       error.code = 'PAGE_LOAD_ERROR'
       this.pageRegisterEvents.emit(route, { error })
     }
-
+    script.onload = () => {
+      clearTimeout(stallTimeout)
+    }
     document.body.appendChild(script)
   }
 
