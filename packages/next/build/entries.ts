@@ -48,7 +48,7 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
     const bundlePath = join('static', buildId, 'pages', bundleFile)
-    if(target === 'serverless') {
+    if(target === 'serverless' && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultServerlessOptions}
       server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
     } else if(target === 'server') {
