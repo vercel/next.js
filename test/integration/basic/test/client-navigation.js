@@ -772,5 +772,28 @@ export default (context) => {
       expect(await browser.elementByCss('p').text()).toBe('This is an index.js nested in an index/ folder.')
       browser.close()
     })
+
+    it('should show warning when navigating stalls due to too many tabs', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+      await browser.eval(`window.copy1 = window.open('/nav', '_blank')`)
+      await browser.eval(`window.copy2 = window.open('/nav', '_blank')`)
+      await waitFor(1 * 1000)
+
+      await browser.eval(`document.querySelector('#about-link').click()`)
+      await waitFor(3 * 1000)
+
+      let foundWarning
+      const logs = await browser.log('browser')
+
+      logs.some(log => {
+        foundWarning = /This request is taking longer than it should, you might have too many tabs open in the same browser\. https:\/\/err\.sh/.test(log.message)
+        return foundWarning
+      })
+      await browser.eval(`window.copy1.close()`)
+      await browser.eval(`window.copy2.close()`)
+
+      expect(foundWarning).toBeTruthy()
+      browser.close()
+    })
   })
 }
