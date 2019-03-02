@@ -1,4 +1,4 @@
-# Stalled Page Load
+# Multiple Tabs
 
 #### Why This Error Occurred
 
