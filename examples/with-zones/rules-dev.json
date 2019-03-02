@@ -1,6 +1,6 @@
 {
   "rules": [
-    {"pathname": "/blog", "method":["GET", "POST", "OPTIONS"], "dest": "http://localhost:5000"},
+    {"pathname": "/blog", "dest": "http://localhost:5000"},
     {"pathname": "/**", "dest": "http://localhost:4000"}
   ]
 }

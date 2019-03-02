@@ -68,7 +68,6 @@ This is the place we define rules for our proxy. Here are the rules(in `rules.js
   "rules": [
     {
       "pathname": "/blog",
-      "method": ["GET", "POST", "OPTIONS"],
       "dest": "http://localhost:5000"
     },
     { "pathname": "/**", "dest": "http://localhost:4000" }
@@ -76,7 +75,7 @@ This is the place we define rules for our proxy. Here are the rules(in `rules.js
 }
 ```
 
-These rules are based on ZEIT now [path alias](https://zeit.co/docs/features/path-aliases) rules and use [`micro-proxy`](https://github.com/zeit/micro-proxy) as the proxy.
+These rules are based on ZEIT now v1 [path alias](https://zeit.co/docs/features/path-aliases) rules and use [`micro-proxy`](https://github.com/zeit/micro-proxy) as the proxy.
 
 ## Special Notes
 
@@ -87,8 +86,8 @@ These rules are based on ZEIT now [path alias](https://zeit.co/docs/features/pat
 
 Here's how are going to deploy this application into production.
 
-* Open the `now.json` file in both `blog` and `home` directories and change the aliases as you wish.
-* Then update `rules-prod.json` accordingly.
+* Open the `now.json` and `next.config.js` files in both `blog` and `home` directories and change the aliases as you wish.
+* Then update `routes` in `home/now.json` accordingly.
 * Now deploy both apps:
 
 ```bash
@@ -99,13 +98,7 @@ now && now alias
 cd ..
 ```
 
-* Finally, set the path alias rules with
-
-```bash
-now alias with-zones.now.sh -r rules-prod.json
-```
-
-> You can use a domain name of your choice in the above command instead of `with-zones.now.sh`.
+> You can use a domain name of your choice in the above command instead of `with-zones.nextjs.org`.
 
 That's it.
-Now you can access the final app via: <https://with-zones.now.sh>
+Now you can access the final app via: <https://with-zones.nextjs.org>

@@ -1066,7 +1066,7 @@ Since Next.js supports dynamic imports with SSR, you could do amazing things wit
 
 Here are a few ways to use dynamic imports.
 
-#### 1. Basic Usage (Also does SSR)
+#### Basic Usage (Also does SSR)
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1086,7 +1086,36 @@ function Home() {
 export default Home
 ```
 
-#### 2. With Custom Loading Component
+#### With named exports
+
+```jsx
+// components/hello.js
+export function Hello() {
+  return (
+    <p>Hello!</p>
+  )
+}
+```
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicComponent = dynamic(() => import('../components/hello').then((mod) => mod.Hello))
+
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponent />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+}
+
+export default Home
+```
+
+#### With Custom Loading Component
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1108,7 +1137,7 @@ function Home() {
 export default Home
 ```
 
-#### 3. With No SSR
+#### With No SSR
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1130,7 +1159,7 @@ function Home() {
 export default Home
 ```
 
-#### 4. With Multiple Modules At Once
+#### With Multiple Modules At Once
 
 ```jsx
 import dynamic from 'next/dynamic'
