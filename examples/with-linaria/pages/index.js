@@ -19,7 +19,7 @@ const Box = styled.div`
       transform: rotate(360deg);
     }
   }
-`;
+`
 
 export default () => {
   return (
