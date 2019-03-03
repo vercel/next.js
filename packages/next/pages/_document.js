@@ -30,13 +30,6 @@ export default class Document extends Component {
         process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
     }
   }
-  
-  getBuildWatcher() {
-    if (process.env.NODE_ENV === 'development') {
-      return <div id="__next-build-watcher"></div>
-    }
-    return null
-  }
 
   render() {
     return (
@@ -44,7 +37,6 @@ export default class Document extends Component {
         <Head />
         <body>
           <Main />
-          {this.getBuildWatcher()}
           <NextScript />
         </body>
       </Html>
@@ -264,9 +256,21 @@ export class Main extends Component {
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
+  getBuildWatcher() {
+    if (process.env.NODE_ENV === 'development') {
+      return <div id="__next-build-watcher" />
+    }
+    return null
+  }
+
   render() {
     const { html } = this.context._documentProps
-    return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+    return (
+      <>
+        <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
+        {this.getBuildWatcher()}
+      </>
+    )
   }
 }
 
