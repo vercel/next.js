@@ -1,19 +1,32 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import webdriver from 'next-webdriver'
+import AbortController from 'abort-controller'
 import {
   runNextCommand,
+  fetchViaHTTP,
   findPort,
-  waitFor,
   killApp
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
+let port
+
+const doPing = () => {
+  const controller = new AbortController()
+  const signal = controller.signal
+  fetchViaHTTP(port, '/_next/on-demand-entries-ping', { page: '/' }, {
+    signal,
+    headers: {
+      'user-agent': 'next-testing'
+    }
+  })
+  return controller
+}
 
 describe('Multi-tab warning', () => {
   it('should show warning when multiple tabs are open in the same browser', async () => {
-    const port = await findPort()
+    port = await findPort()
     let readyResolve
     const readyPromise = new Promise(resolve => {
       readyResolve = resolve
@@ -36,14 +49,9 @@ describe('Multi-tab warning', () => {
       }
     )
     await readyPromise
-    const browser = await webdriver(port, '/')
-    await browser.eval(`window.copy1 = window.open('/', '_blank')`)
-    await browser.eval(`window.copy2 = window.open('/', '_blank')`)
-    await waitFor(3000)
-    await browser.eval(`window.copy1.close()`)
-    await browser.eval(`window.copy2.close()`)
+    const controllers = [1, 2, 3].map(() => doPing())
 
-    browser.close()
     await runPromise
+    controllers.forEach(controller => controller.abort())
   })
 })
