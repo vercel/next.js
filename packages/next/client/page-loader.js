@@ -95,8 +95,6 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage (route, regFn) {
-    route = route === '/index' ? '/' : route
-
     const register = () => {
       try {
         const { error, page } = regFn()
