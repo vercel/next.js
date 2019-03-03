@@ -80,7 +80,8 @@ export default function connect (options) {
     })
   }
 
-  getEventSourceWrapper(options).addMessageListener((event) => {
+  const eventSourceWrapper = getEventSourceWrapper(options)
+  eventSourceWrapper.addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -95,6 +96,9 @@ export default function connect (options) {
   return {
     subscribeToHmrEvent (handler) {
       customHmrEventHandler = handler
+    },
+    addMessageListenerToEventSourceWrapper (fn) {
+      eventSourceWrapper.addMessageListener(fn)
     },
     prepareError (err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760

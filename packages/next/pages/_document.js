@@ -30,6 +30,13 @@ export default class Document extends Component {
         process.env.NODE_ENV !== 'production' ? '?ts=' + Date.now() : '',
     }
   }
+  
+  getBuildWatcher() {
+    if (process.env.NODE_ENV === 'development') {
+      return <div id="__next-build-watcher"></div>
+    }
+    return null
+  }
 
   render() {
     return (
@@ -37,6 +44,7 @@ export default class Document extends Component {
         <Head />
         <body>
           <Main />
+          {this.getBuildWatcher()}
           <NextScript />
         </body>
       </Html>
