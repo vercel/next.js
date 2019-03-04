@@ -7,16 +7,18 @@ export let currentPage
 let retryTimeout
 const retryWait = 5000
 
+export function closePing () {
+  if (evtSource) evtSource.close()
+}
+
 export function setupPing (assetPrefix, pathnameFn, retry) {
   const pathname = pathnameFn()
 
   // Make sure to only create new EventSource request if page has changed
   if (pathname === currentPage && !retry) return
-  // close current EventSource connection
-  if (evtSource) {
-    evtSource.close()
-  }
   currentPage = pathname
+  // close current EventSource connection
+  closePing()
 
   const url = `${assetPrefix}/_next/on-demand-entries-ping?page=${currentPage}`
   evtSource = new window.EventSource(url)

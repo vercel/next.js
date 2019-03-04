@@ -71,6 +71,10 @@ export function runNextCommand (argv, options = {}) {
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn('node', ['dist/bin/next', ...argv], { ...options.spawnOptions, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
 
+    if (typeof options.instance === 'function') {
+      options.instance(instance)
+    }
+
     let stderrOutput = ''
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
