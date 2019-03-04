@@ -14,6 +14,8 @@ export default function initializeBuildWatcher (webpackHMR) {
 
 function BuildWatcher ({ webpackHMR }) {
   const [isBuilding, setIsBuilding] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+
   useEffect(() => {
     webpackHMR.addMessageListenerToEventSourceWrapper((event) => {
       // This is the heartbeat event
@@ -33,35 +35,116 @@ function BuildWatcher ({ webpackHMR }) {
     switch (obj.action) {
       case 'building':
         setIsBuilding(true)
+        setIsVisible(true)
         break
       case 'built':
         setIsBuilding(false)
+        setTimeout(() => setIsVisible(false), 100)
         break
     }
   }
 
   return (
-    <div id='container' className={isBuilding ? 'visible' : null}>
-      Building...
+    <>
+      {isVisible && (
+        <div id='container' className={isBuilding ? 'visible' : null}>
+          <div id='icon-wrapper'>
+            <svg
+              width='114px'
+              height='100px'
+              viewBox='0 0 226 200'
+              version='1.1'
+              xmlns='http://www.w3.org/2000/svg'
+            >
+              <defs>
+                <linearGradient
+                  x1='114.720775%'
+                  y1='181.283245%'
+                  x2='39.5399306%'
+                  y2='100%'
+                  id='linearGradient-1'
+                >
+                  <stop stopColor='#FFFFFF' offset='0%' />
+                  <stop stopColor='#000000' offset='100%' />
+                </linearGradient>
+              </defs>
+              <g id='icon-group' fill='none' stroke='url(#linearGradient-1)' strokeWidth='18'>
+                <path d='M113,5.08219117 L4.28393801,197.5 L221.716062,197.5 L113,5.08219117 Z' />
+              </g>
+            </svg>
+          </div>
+
+          <span>Building...</span>
+        </div>
+      )}
 
       <style jsx>{`
         #container {
           position: absolute;
           bottom: 10px;
-          right: 10px;
+          right: 30px;
+
+          padding: 8px 10px;
+          background: white;
+          display: flex;
+          align-items: center;
+          box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.38), 0 2px 10px 0 rgba(0, 0, 0, 0.48);
 
           overflow: hidden;
-          height: 0;
           opacity: 0;
-          
-          transition: opacity .1s ease;
+          transition: opacity 0.1s ease, bottom 0.1s ease;
+
+          animation: appear 0.1s ease;
+        }
+
+        @keyframes appear {
+          from {
+            bottom: 10px;
+            opacity: 0;
+          }
+          to {
+            bottom: 20px;
+            opacity: 1;
+          }
         }
 
         #container.visible {
+          bottom: 20px;
           opacity: 1;
-          height: auto;
+        }
+
+        #icon-wrapper {
+          width: 16px;
+          height: 16px;
+          margin-right: 8px;
+        }
+
+        #icon-wrapper > svg {
+          width: 100%;
+          height: 100%;
+        }
+
+        #container > span {
+          font-family: monospace;
+          margin-top: 2px;
+        }
+
+        #icon-group {
+          stroke-dasharray: 0 226;
+          animation: strokedash 1s ease-in-out both infinite;
+        }
+
+        @keyframes strokedash {
+          0% {
+            stroke-dasharray: 0 226;
+          }
+
+          80%,
+          100% {
+            stroke-dasharray: 659 226;
+          }
         }
       `}</style>
-    </div>
+    </>
   )
 }
