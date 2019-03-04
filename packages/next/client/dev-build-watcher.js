@@ -96,9 +96,9 @@ function BuildWatcher ({ webpackHMR }) {
           align-items: center;
           box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.38), 0 2px 10px 0 rgba(0, 0, 0, 0.48);
 
-          overflow: hidden;
           opacity: 0;
           transition: opacity 0.1s ease, bottom 0.1s ease;
+          animation: fade-in 0.1s ease-in-out;
         }
 
         #container.building {
@@ -128,11 +128,21 @@ function BuildWatcher ({ webpackHMR }) {
           animation: strokedash 1s ease-in-out both infinite;
         }
 
+        @keyframes fade-in {
+          from {
+            bottom: 10px;
+            opacity: 0;
+          }
+          to {
+            bottom: 20px;
+            opacity: 1;
+          }
+        }
+
         @keyframes strokedash {
           0% {
             stroke-dasharray: 0 226;
           }
-
           80%,
           100% {
             stroke-dasharray: 659 226;
