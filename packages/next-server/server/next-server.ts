@@ -35,8 +35,8 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
-    ampEnabled: boolean,
-    buildWatcherStyle: string,
+    ampEnabled: boolean
+    buildWatcherStyle: string
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
