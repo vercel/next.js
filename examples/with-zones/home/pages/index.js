@@ -8,9 +8,7 @@ export default () => (
     <Header />
     <p>This is our homepage</p>
     <div>
-      <Link href='/blog'>
-        <a>Blog</a>
-      </Link>
+      <a href='/blog'>Blog</a>
     </div>
     <div>
       <Link href='/about'>
