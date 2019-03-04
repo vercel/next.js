@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 
 export default function initializeBuildWatcher (webpackHMR) {
   const shadowHost = document.getElementById('__next-build-watcher')
+  if (!shadowHost) return
   const shadowRoot = shadowHost.attachShadow({ mode: 'open' })
 
   const reactRoot = document.createElement('div')
@@ -46,6 +47,8 @@ function BuildWatcher ({ webpackHMR }) {
         break
     }
   }
+
+  const style = document.getElementById('__next-build-watcher').getAttribute('buildwatcherstyle')
 
   return (
     <>
@@ -106,7 +109,6 @@ function BuildWatcher ({ webpackHMR }) {
         #icon-wrapper {
           width: 16px;
           height: 16px;
-          margin-right: 8px;
         }
 
         #icon-wrapper > svg {
@@ -117,6 +119,8 @@ function BuildWatcher ({ webpackHMR }) {
         #container > span {
           font-family: monospace;
           margin-top: 2px;
+          margin-left: 8px;
+          display: ${style === 'minimalist' ? 'none' : 'unset'};
         }
 
         #icon-group {

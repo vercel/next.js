@@ -22,7 +22,8 @@ const defaultConfig = {
   },
   experimental: {
     amp: false
-  }
+  },
+  buildWatcherStyle: 'default'
 }
 
 function assignDefaults (userConfig) {

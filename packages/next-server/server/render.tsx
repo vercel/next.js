@@ -62,6 +62,7 @@ function render(
 
 type RenderOpts = {
   ampEnabled: boolean
+  buildWatcherStyle: string
   staticMarkup: boolean
   buildId: string
   runtimeConfig?: { [key: string]: any }
@@ -82,6 +83,7 @@ function renderDocument(
   Document: React.ComponentType,
   {
     ampEnabled = false,
+    buildWatcherStyle,
     props,
     docProps,
     pathname,
@@ -129,6 +131,7 @@ function renderDocument(
           }}
           ampEnabled={ampEnabled}
           amphtml={amphtml}
+          buildWatcherStyle={buildWatcherStyle}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
