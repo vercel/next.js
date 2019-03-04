@@ -15,6 +15,7 @@ export default function initializeBuildWatcher (webpackHMR) {
 function BuildWatcher ({ webpackHMR }) {
   const [isBuilding, setIsBuilding] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
+  let timeoutId = null
 
   useEffect(() => {
     webpackHMR.addMessageListenerToEventSourceWrapper((event) => {
@@ -34,12 +35,14 @@ function BuildWatcher ({ webpackHMR }) {
 
     switch (obj.action) {
       case 'building':
+        timeoutId && clearTimeout(timeoutId)
         setIsBuilding(true)
         setIsVisible(true)
         break
       case 'built':
         setIsBuilding(false)
-        setTimeout(() => setIsVisible(false), 100)
+        // Remove from DOM after the fade out animation is complete
+        timeoutId = setTimeout(() => setIsVisible(false), 100)
         break
     }
   }
@@ -47,7 +50,7 @@ function BuildWatcher ({ webpackHMR }) {
   return (
     <>
       {isVisible && (
-        <div id='container' className={isBuilding ? 'visible' : null}>
+        <div id='container' className={isBuilding ? 'building' : null}>
           <div id='icon-wrapper'>
             <svg
               width='114px'
@@ -93,22 +96,9 @@ function BuildWatcher ({ webpackHMR }) {
           overflow: hidden;
           opacity: 0;
           transition: opacity 0.1s ease, bottom 0.1s ease;
-
-          animation: appear 0.1s ease;
         }
 
-        @keyframes appear {
-          from {
-            bottom: 10px;
-            opacity: 0;
-          }
-          to {
-            bottom: 20px;
-            opacity: 1;
-          }
-        }
-
-        #container.visible {
+        #container.building {
           bottom: 20px;
           opacity: 1;
         }
