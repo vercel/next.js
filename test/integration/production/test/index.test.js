@@ -151,6 +151,17 @@ describe('Production Usage', () => {
       expect(text).toBe('About Page')
       browser.close()
     })
+
+    it('should navigate to nested index via client side', async () => {
+      const browser = await webdriver(appPort, '/another')
+      const text = await browser
+        .elementByCss('a').click()
+        .waitForElementByCss('.index-page')
+        .elementByCss('p').text()
+
+      expect(text).toBe('Hello World')
+      browser.close()
+    })
   })
 
   describe('Runtime errors', () => {
