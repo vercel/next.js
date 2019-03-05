@@ -37,6 +37,7 @@ export default async function (dir, options, configuration) {
 
   const pages = Object.keys(pagesManifest)
   const defaultPathMap = {}
+  const pageDirs = {}
 
   for (const page of pages) {
     // _document and _app are not real pages.
@@ -48,6 +49,10 @@ export default async function (dir, options, configuration) {
       defaultPathMap['/404.html'] = { page }
       continue
     }
+    // Store dir for checking extension
+    const dir = page.split('/')
+    dir.pop()
+    pageDirs[dir.join('/')] = 1
 
     defaultPathMap[page] = { page }
   }
@@ -133,6 +138,7 @@ export default async function (dir, options, configuration) {
           worker.send({
             distDir,
             buildId,
+            pageDirs,
             exportPaths: chunk.paths,
             exportPathMap: chunk.pathMap,
             outDir,

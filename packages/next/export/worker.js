@@ -18,6 +18,7 @@ process.on(
   async ({
     distDir,
     buildId,
+    pageDirs,
     exportPaths,
     exportPathMap,
     outDir,
@@ -38,7 +39,7 @@ process.on(
         })
 
         let htmlFilename = `${path}${sep}index.html`
-        if (extname(path) !== '') {
+        if (!pageDirs[path] && extname(path) !== '') {
           // If the path has an extension, use that as the filename instead
           htmlFilename = path
         } else if (path === '/') {
