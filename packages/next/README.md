@@ -116,7 +116,7 @@ Populate `./pages/index.js` inside your project:
 
 ```jsx
 function Home() {
-  return <div>Welcome to next.js!</div>
+  return <div>Welcome to Next.js!</div>
 }
 
 export default Home
@@ -827,6 +827,8 @@ Next.js has an API which allows you to prefetch pages.
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
+
+> `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892
 
 #### With `<Link>`
 
