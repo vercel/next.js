@@ -659,6 +659,23 @@ export default (context) => {
             }
           }
         })
+
+        it('should detect asPath query changes correctly', async () => {
+          let browser
+          try {
+            browser = await webdriver(context.appPort, '/nav/as-path-query')
+            await browser.elementByCss('#hello').click().waitForElementByCss('#something-hello-something-hello')
+            const queryOne = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryOne.something).toBe('hello')
+            await browser.elementByCss('#hello2').click().waitForElementByCss('#something-hello-something-else')
+            const queryTwo = JSON.parse(await browser.elementByCss('#router-query').text())
+            expect(queryTwo.something).toBe('else')
+          } finally {
+            if (browser) {
+              browser.close()
+            }
+          }
+        })
       })
     })
 
@@ -748,6 +765,12 @@ export default (context) => {
           browser.close()
         }
       }
+    })
+
+    it('should work on nested /index/index.js', async () => {
+      const browser = await webdriver(context.appPort, '/nested-index/index')
+      expect(await browser.elementByCss('p').text()).toBe('This is an index.js nested in an index/ folder.')
+      browser.close()
     })
   })
 }

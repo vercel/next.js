@@ -33,7 +33,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   pagesBufferLength
 }) {
   const pagesDir = join(dir, 'pages')
-  const clients = new Set()
+  const clients = new Map()
   const evtSourceHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Content-Type': 'text/event-stream;charset=utf-8',
@@ -152,7 +152,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
-    clients.forEach(client => client.end())
+    clients.forEach((id, client) => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
@@ -207,7 +207,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
     async ensurePage (page) {
       await this.waitUntilReloaded()
-      page = normalizePage(page)
       let normalizedPagePath
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -234,7 +233,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       await new Promise((resolve, reject) => {
-        const entryInfo = entries[page]
+        // Makes sure the page that is being kept in on-demand-entries matches the webpack output
+        const normalizedPage = normalizePage(page)
+        const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
           if (entryInfo.status === BUILT) {
@@ -243,15 +244,15 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.once(page, handleCallback)
+            doneCallbacks.once(normalizedPage, handleCallback)
             return
           }
         }
 
-        console.log(`> Building page: ${page}`)
+        console.log(`> Building page: ${normalizedPage}`)
 
-        entries[page] = { name, absolutePagePath, status: ADDED }
-        doneCallbacks.once(page, handleCallback)
+        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        doneCallbacks.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
 
@@ -291,7 +292,24 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           req.socket.setKeepAlive(true)
           res.writeHead(200, evtSourceHeaders)
           res.write('\n')
-          clients.add(res)
+
+          const startId = req.headers['user-agent'] + req.connection.remoteAddress
+          let clientId = startId
+          let numSameClient = 0
+
+          while (clients.has(clientId)) {
+            numSameClient++
+            clientId = startId + numSameClient
+          }
+
+          if (numSameClient > 1) {
+            // If the user has too many tabs with Next.js open in the same browser,
+            // they might be exceeding the max number of concurrent request.
+            // This varies per browser so we can only guess if this is the cause of
+            // a slow request and show a warning that this might be why
+            console.warn(`\nWarn: You are opening multiple tabs of the same site in the same browser, this could cause requests to stall. https://err.sh/zeit/next.js/multi-tabs`)
+          }
+          clients.set(clientId, res)
 
           const runPing = () => {
             const data = handlePing(query.page)
@@ -301,7 +319,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           const pingInterval = setInterval(() => runPing(), 5000)
 
           req.on('close', () => {
-            clients.delete(res)
+            clients.delete(clientId)
             clearInterval(pingInterval)
           })
           // Do initial ping right after EventSource is finished being set up

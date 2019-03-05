@@ -116,7 +116,7 @@ Populate `./pages/index.js` inside your project:
 
 ```jsx
 function Home() {
-  return <div>Welcome to next.js!</div>
+  return <div>Welcome to Next.js!</div>
 }
 
 export default Home
@@ -385,7 +385,6 @@ export default Page
 - `asPath` - `String` of the actual path (including the query) shows in the browser
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
-- `jsonPageRes` - [Fetch Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object (client only)
 - `err` - Error object if any error is encountered during the rendering
 
 ### Routing
@@ -1067,7 +1066,7 @@ Since Next.js supports dynamic imports with SSR, you could do amazing things wit
 
 Here are a few ways to use dynamic imports.
 
-#### 1. Basic Usage (Also does SSR)
+#### Basic Usage (Also does SSR)
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1087,7 +1086,36 @@ function Home() {
 export default Home
 ```
 
-#### 2. With Custom Loading Component
+#### With named exports
+
+```jsx
+// components/hello.js
+export function Hello() {
+  return (
+    <p>Hello!</p>
+  )
+}
+```
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicComponent = dynamic(() => import('../components/hello').then((mod) => mod.Hello))
+
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponent />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+}
+
+export default Home
+```
+
+#### With Custom Loading Component
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1109,7 +1137,7 @@ function Home() {
 export default Home
 ```
 
-#### 3. With No SSR
+#### With No SSR
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1131,7 +1159,7 @@ function Home() {
 export default Home
 ```
 
-#### 4. With Multiple Modules At Once
+#### With Multiple Modules At Once
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1491,12 +1519,7 @@ You can pass any node arguments to `next` CLI command.
 ```bash
 NODE_OPTIONS="--throw-deprecation" next
 NODE_OPTIONS="-r esm" next
-```
-
-`--inspect` is a special case since it binds to a port and can't double-bind to the child process the `next` CLI creates.
-
-```
-next start --inspect
+NODE_OPTIONS="--inspect" next
 ```
 
 ### Customizing webpack config

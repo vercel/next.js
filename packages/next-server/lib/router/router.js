@@ -2,7 +2,6 @@
 
 import { parse } from 'url'
 import mitt from '../mitt'
-import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL, formatWithValidation } from '../utils'
 
 export default class Router {
@@ -363,9 +362,7 @@ export default class Router {
   }
 
   urlIsNew (asPath) {
-    const { pathname, query } = parse(asPath, true)
-    const { pathname: curPathname } = parse(this.asPath, true)
-    return curPathname !== pathname || !shallowEquals(query, this.query)
+    return this.asPath !== asPath
   }
 
   isShallowRoutingPossible (route) {
