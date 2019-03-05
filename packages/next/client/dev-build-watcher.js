@@ -80,11 +80,11 @@ function BuildWatcher ({ webpackHMR }) {
             </svg>
           </div>
 
-          <span>Building...</span>
+          <span id='building-text' />
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         #container {
           position: absolute;
           bottom: 10px;
@@ -116,11 +116,15 @@ function BuildWatcher ({ webpackHMR }) {
           height: 100%;
         }
 
-        #container > span {
+        #building-text {
           font-family: monospace;
           margin-top: 2px;
           margin-left: 8px;
           display: ${style === 'minimalist' ? 'none' : 'unset'};
+        }
+
+        #building-text::after {
+          content: 'Building...';
         }
 
         #icon-group {
