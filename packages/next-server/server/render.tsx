@@ -20,6 +20,22 @@ type ComponentsEnhancer =
   | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
   | Enhancer
 
+class ServerRouter extends Router {
+  constructor(pathname: any, query: any, asPath: any, ...args: []) {
+    super(pathname, query, asPath, ...args)
+    const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
+
+    coreMethodFields.forEach((field) => {
+      // @ts-ignore 'ServerRouter' has no index signature
+      this[field] = (...args: any) => {
+        const message = 'No router instance found.\n' +
+        'You should only use "next/router" inside the client side of your app.\n'
+        throw new Error(message)
+      }
+    })
+  }
+}
+
 function enhanceComponents(
   options: ComponentsEnhancer,
   App: React.ComponentType,
@@ -186,18 +202,8 @@ export async function renderToHTML(
 
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
-  const router = new Router(pathname, query, asPath)
+  const router = new ServerRouter(pathname, query, asPath)
   const props = await loadGetInitialProps(App, { Component, router, ctx })
-  const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
-
-  coreMethodFields.forEach((field) => {
-    // @ts-ignore 'Router' has no index signature
-    router[field] = (...args: any) => {
-      const message = 'No router instance found.\n' +
-      'You should only use "next/router" inside the client side of your app.\n'
-      throw new Error(message)
-    }
-  })
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
