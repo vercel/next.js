@@ -50,7 +50,7 @@ Profile.getInitialProps = async ctx => {
   const redirectOnError = () =>
     process.browser
       ? Router.push('/login')
-      : ctx.res.writeHead(301, { Location: '/login' })
+      : ctx.res.writeHead(301, { Location: '/login' }).end()
 
   try {
     const response = await fetch(apiUrl, {
