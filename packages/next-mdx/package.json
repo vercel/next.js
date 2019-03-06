@@ -1,10 +1,10 @@
 {
   "name": "@next/mdx",
-  "version": "0.0.1",
+  "version": "8.0.4-canary.8",
   "main": "index.js",
   "license": "MIT",
   "repository": {
-    "url" : "zeit/next.js",
+    "url": "zeit/next.js",
     "directory": "packages/next-mdx"
   },
   "peerDependencies": {
