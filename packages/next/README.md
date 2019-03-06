@@ -495,7 +495,7 @@ To inject the `pathname`, `query` or `asPath` in your component, you can use [wi
 
 <p></p>
 
-The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+The component `<Link>` can also receive a URL object and it will automatically format it to create the URL string.
 
 ```jsx
 // pages/index.js
@@ -661,7 +661,7 @@ Above `Router` object comes with the following API:
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
+You can use a URL object the same way you use it in a `<Link>` component to `push` and `replace` a URL.
 
 ```jsx
 import Router from 'next/router'
