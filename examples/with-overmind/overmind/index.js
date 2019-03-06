@@ -7,16 +7,16 @@ export const config = {
     items: []
   },
   actions: {
-    changePage({ state }, mutations) {
+    changePage ({ state }, mutations) {
       rehydrate(state, mutations || [])
 
       switch (state.page) {
         case 'Index':
           // Do some additional logic
-          break;
+          break
         case 'About':
           // Do some additional logic
-          break;
+          break
       }
     }
   }

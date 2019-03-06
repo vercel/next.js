@@ -8,10 +8,10 @@ function Header () {
   return (
     <div>
       <h1>{state.page}</h1>
-      <Link href="/">
+      <Link href='/'>
         <a>Home page</a>
       </Link>
-      <Link href="/about">
+      <Link href='/about'>
         <a>About Page</a>
       </Link>
     </div>
