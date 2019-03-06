@@ -188,6 +188,16 @@ export async function renderToHTML(
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new Router(pathname, query, asPath)
   const props = await loadGetInitialProps(App, { Component, router, ctx })
+  const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
+
+  coreMethodFields.forEach((field) => {
+    // @ts-ignore 'Router' has no index signature
+    router[field] = (...args: any) => {
+      const message = 'No router instance found.\n' +
+      'You should only use "next/router" inside the client side of your app.\n'
+      throw new Error(message)
+    }
+  })
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
