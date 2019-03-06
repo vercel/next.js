@@ -108,7 +108,7 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-
+    pathname = pathname === '/index' ? '/' : pathname
     return super.renderToHTML(req, res, pathname, query, options)
   }
 
