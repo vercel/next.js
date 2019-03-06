@@ -2,10 +2,9 @@
   no-param-reassign
 */
 import crypto from 'crypto';
-import path from 'path';
 
 import { SourceMapConsumer } from 'source-map';
-import { SourceMapSource, RawSource, ConcatSource } from 'webpack-sources';
+import { SourceMapSource, RawSource } from 'webpack-sources';
 import RequestShortener from 'webpack/lib/RequestShortener';
 import ModuleFilenameHelpers from 'webpack/lib/ModuleFilenameHelpers';
 import serialize from 'serialize-javascript';
