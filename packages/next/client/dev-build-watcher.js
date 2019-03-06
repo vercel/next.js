@@ -1,17 +1,28 @@
 export default function initializeBuildWatcher (webpackHMR) {
   const shadowHost = document.getElementById('__next-build-watcher')
   if (!shadowHost) return
-  const shadowRoot = shadowHost.attachShadow({ mode: 'open' })
+  let shadowRoot
+  let prefix = ''
+
+  if (shadowHost.attachShadow) {
+    shadowRoot = shadowHost.attachShadow({ mode: 'open' })
+  } else {
+    // If attachShadow is undefined then the browser does not support
+    // the Shadow DOM, we need to prefix all the names so there
+    // will be no conflicts
+    shadowRoot = shadowHost
+    prefix = '__next-build-watcher-'
+  }
 
   // Get the current style
   const style = shadowHost.getAttribute('buildwatcherstyle')
 
   // Container
-  const container = createContainer()
+  const container = createContainer(prefix)
   shadowRoot.appendChild(container)
 
   // CSS
-  const css = createCss(style)
+  const css = createCss(style, prefix)
   shadowRoot.appendChild(css)
 
   // State
@@ -48,7 +59,6 @@ export default function initializeBuildWatcher (webpackHMR) {
           isVisible = false
           updateContainer()
         }, 100)
-
         updateContainer()
         break
     }
@@ -56,24 +66,24 @@ export default function initializeBuildWatcher (webpackHMR) {
 
   function updateContainer () {
     if (isBuilding) {
-      container.classList.add('building')
+      container.classList.add(`${prefix}building`)
     } else {
-      container.classList.remove('building')
+      container.classList.remove(`${prefix}building`)
     }
 
     if (isVisible) {
-      container.classList.add('visible')
+      container.classList.add(`${prefix}visible`)
     } else {
-      container.classList.remove('visible')
+      container.classList.remove(`${prefix}visible`)
     }
   }
 }
 
-function createContainer () {
+function createContainer (prefix) {
   const container = document.createElement('div')
-  container.setAttribute('id', 'container')
+  container.setAttribute('id', `${prefix}container`)
   container.innerHTML = `
-    <div id="icon-wrapper">
+    <div id="${prefix}icon-wrapper">
       <svg
         width="114px"
         height="100px"
@@ -87,28 +97,28 @@ function createContainer () {
             y1="181.283245%"
             x2="39.5399306%"
             y2="100%"
-            id="linearGradient-1"
+            id="${prefix}linearGradient-1"
           >
             <stop stop-color="#FFFFFF" offset="0%" />
             <stop stop-color="#000000" offset="100%" />
           </linearGradient>
         </defs>
-        <g id="icon-group" fill="none" stroke="url(#linearGradient-1)" stroke-width="18">
+        <g id="${prefix}icon-group" fill="none" stroke="url(#${prefix}linearGradient-1)" stroke-width="18">
           <path d="M113,5.08219117 L4.28393801,197.5 L221.716062,197.5 L113,5.08219117 Z" />
         </g>
       </svg>
     </div>
 
-    <span id="building-text"></span>
+    <span id="${prefix}building-text"></span>
   `
 
   return container
 }
 
-function createCss (style) {
+function createCss (style, prefix) {
   const css = document.createElement('style')
-  css.innerHTML = `
-    #container {
+  css.textContent = `
+    #${prefix}container {
       position: absolute;
       bottom: 10px;
       right: 30px;
@@ -121,45 +131,44 @@ function createCss (style) {
       display: none;
       opacity: 0;
       transition: opacity 0.1s ease, bottom 0.1s ease;
-      animation: fade-in 0.1s ease-in-out;
+      animation: ${prefix}fade-in 0.1s ease-in-out;
     }
 
-    #container.visible {
+    #${prefix}container.${prefix}visible {
       display: flex;
     }
 
-    #container.building {
+    #${prefix}container.${prefix}building {
       bottom: 20px;
       opacity: 1;
     }
 
-    #icon-wrapper {
+    #${prefix}icon-wrapper {
       width: 16px;
       height: 16px;
     }
 
-    #icon-wrapper > svg {
+    #${prefix}icon-wrapper > svg {
       width: 100%;
       height: 100%;
     }
 
-    #building-text {
+    #${prefix}building-text {
       font-family: monospace;
       margin-top: 2px;
       margin-left: 8px;
-      display: ${style === 'minimalist' ? 'none' : 'unset'};
+      display: ${style === 'minimalist' ? 'none' : 'block'};
     }
 
-    #building-text::after {
+    #${prefix}building-text::after {
       content: 'Building...';
     }
 
-    #icon-group {
-      stroke-dasharray: 0 226;
-      animation: strokedash 1s ease-in-out both infinite;
+    #${prefix}icon-group {
+      animation: ${prefix}strokedash 1s ease-in-out both infinite;
     }
 
-    @keyframes fade-in {
+    @keyframes ${prefix}fade-in {
       from {
         bottom: 10px;
         opacity: 0;
@@ -170,7 +179,7 @@ function createCss (style) {
       }
     }
 
-    @keyframes strokedash {
+    @keyframes ${prefix}strokedash {
       0% {
         stroke-dasharray: 0 226;
       }
