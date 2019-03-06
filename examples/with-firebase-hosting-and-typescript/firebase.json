@@ -8,7 +8,7 @@
         "npm run build-functions",
         "npm run build-app",
         "npm run copy-deps",
-        "npm run install-deps"        
+        "npm run install-deps"
     ]
   },
   "hosting": {
