@@ -20,9 +20,7 @@ class TerserPlugin {
       minify,
       terserOptions = {},
       test = /\.m?js(\?.*)?$/i,
-      chunkFilter = () => true,
       warningsFilter = () => true,
-      extractComments = false,
       sourceMap = false,
       cache = false,
       cacheKeys = (defaultCacheKeys) => defaultCacheKeys,
@@ -33,9 +31,7 @@ class TerserPlugin {
 
     this.options = {
       test,
-      chunkFilter,
       warningsFilter,
-      extractComments,
       sourceMap,
       cache,
       cacheKeys,
@@ -45,9 +41,7 @@ class TerserPlugin {
       minify,
       terserOptions: {
         output: {
-          comments: extractComments
-            ? false
-            : /^\**!|@preserve|@license|@cc_on/i,
+          comments: /^\**!|@preserve|@license|@cc_on/i,
         },
         ...terserOptions,
       },
@@ -150,11 +144,6 @@ class TerserPlugin {
   }
 
   apply(compiler) {
-    const buildModuleFn = (moduleArg) => {
-      // to get detailed location info about errors
-      moduleArg.useSourceMap = true;
-    };
-
     const optimizeFn = (compilation, chunks, callback) => {
       const taskRunner = new TaskRunner({
         cache: this.options.cache,
@@ -164,10 +153,7 @@ class TerserPlugin {
       const processedAssets = new WeakSet();
       const tasks = [];
 
-      const { chunkFilter } = this.options;
-
       Array.from(chunks)
-        .filter((chunk) => chunkFilter && chunkFilter(chunk))
         .reduce((acc, chunk) => acc.concat(chunk.files || []), [])
         .concat(compilation.additionalChunkAssets || [])
         .filter(ModuleFilenameHelpers.matchObject.bind(null, this.options))
@@ -202,24 +188,10 @@ class TerserPlugin {
               inputSourceMap = null;
             }
 
-            // Handling comment extraction
-            let commentsFile = false;
-
-            if (this.options.extractComments) {
-              commentsFile =
-                this.options.extractComments.filename || `${file}.LICENSE`;
-
-              if (typeof commentsFile === 'function') {
-                commentsFile = commentsFile(file);
-              }
-            }
-
             const task = {
               file,
               input,
               inputSourceMap,
-              commentsFile,
-              extractComments: this.options.extractComments,
               terserOptions: this.options.terserOptions,
               minify: this.options.minify,
             };
@@ -299,65 +271,6 @@ class TerserPlugin {
             outputSource = new RawSource(code);
           }
 
-          // Write extracted comments to commentsFile
-          if (
-            commentsFile &&
-            extractedComments &&
-            extractedComments.length > 0
-          ) {
-            if (commentsFile in compilation.assets) {
-              const commentsFileSource = compilation.assets[
-                commentsFile
-              ].source();
-
-              extractedComments = extractedComments.filter(
-                (comment) => !commentsFileSource.includes(comment)
-              );
-            }
-
-            if (extractedComments.length > 0) {
-              // Add a banner to the original file
-              if (this.options.extractComments.banner !== false) {
-                let banner =
-                  this.options.extractComments.banner ||
-                  `For license information please see ${path.posix.basename(
-                    commentsFile
-                  )}`;
-
-                if (typeof banner === 'function') {
-                  banner = banner(commentsFile);
-                }
-
-                if (banner) {
-                  outputSource = new ConcatSource(
-                    `/*! ${banner} */\n`,
-                    outputSource
-                  );
-                }
-              }
-
-              const commentsSource = new RawSource(
-                `${extractedComments.join('\n\n')}\n`
-              );
-
-              if (commentsFile in compilation.assets) {
-                // commentsFile already exists, append new comments...
-                if (compilation.assets[commentsFile] instanceof ConcatSource) {
-                  compilation.assets[commentsFile].add('\n');
-                  compilation.assets[commentsFile].add(commentsSource);
-                } else {
-                  compilation.assets[commentsFile] = new ConcatSource(
-                    compilation.assets[commentsFile],
-                    '\n',
-                    commentsSource
-                  );
-                }
-              } else {
-                compilation.assets[commentsFile] = commentsSource;
-              }
-            }
-          }
-
           // Updating assets
           processedAssets.add((compilation.assets[file] = outputSource));
 
@@ -389,7 +302,10 @@ class TerserPlugin {
 
     compiler.hooks.compilation.tap(plugin, (compilation) => {
       if (this.options.sourceMap) {
-        compilation.hooks.buildModule.tap(plugin, buildModuleFn);
+        compilation.hooks.buildModule.tap(plugin, (moduleArg) => {
+          // to get detailed location info about errors
+          moduleArg.useSourceMap = true;
+        })
       }
 
       const { mainTemplate, chunkTemplate } = compilation;
