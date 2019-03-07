@@ -1,7 +1,9 @@
 import wd from 'wd'
+import getPort from 'get-port'
 import waitPort from 'wait-port'
 
 const doHeadless = process.env.HEADLESS === 'true'
+let driverPort = 9515
 
 export default async function (appPort, pathname) {
   if (typeof appPort === 'undefined') {
@@ -24,13 +26,14 @@ export default async function (appPort, pathname) {
       // Try restarting chromedriver max twice
       if (lc < 2) {
         const chromedriver = require('chromedriver')
-        console.log('Trying to restart chromedriver')
+        console.log('Trying to restart chromedriver with random port')
+        driverPort = await getPort()
         chromedriver.stop()
-        chromedriver.start()
+        chromedriver.start([`--port=${driverPort}`])
         // https://github.com/giggio/node-chromedriver/issues/117
         await waitPort({
-          port: 9515,
-          timeout: 1000 * 60 * 2 // 2 Minutes
+          port: driverPort,
+          timeout: 1000 * 30 // 30 seconds
         })
         continue
       }
@@ -45,7 +48,7 @@ export default async function (appPort, pathname) {
 }
 
 function getBrowser (url, timeout) {
-  const browser = wd.promiseChainRemote('http://localhost:9515/')
+  const browser = wd.promiseChainRemote(`http://localhost:${driverPort}/`)
 
   return new Promise((resolve, reject) => {
     let timeouted = false
