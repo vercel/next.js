@@ -67,13 +67,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true,
-    cacheKeys: (keys: any) => {
-      // path changes per build because we add buildId
-      // because the input is already hashed the path is not needed
-      delete keys.path
-      return keys
-    }
+    cache: true
   }
 
   let webpackConfig: webpack.Configuration = {
