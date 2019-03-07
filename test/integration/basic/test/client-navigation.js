@@ -581,6 +581,18 @@ export default (context) => {
 
           await page.close()
         })
+
+        it('should detect asPath query changes correctly', async () => {
+          const page = await browser.newPage()
+          await page.goto(context.server.getURL('/nav/as-path-query'))
+          const queryOne = JSON.parse(await getElementText(page, '#router-query'))
+          expect(queryOne.something).toBe('hello')
+          await expect(page).toClick('#hello2')
+          await page.waitFor('#something-hello-something-else')
+          const queryTwo = JSON.parse(await getElementText(page, '#router-query'))
+          expect(queryTwo.something).toBe('else')
+          await page.close()
+        })
       })
     })
 

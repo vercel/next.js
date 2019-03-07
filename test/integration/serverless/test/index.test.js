@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine, test, browser */
 import { join } from 'path'
+import { existsSync } from 'fs'
 import {
   nextBuild,
   stopApp,
@@ -57,6 +58,12 @@ describe('Serverless', () => {
     await page.waitFor('.fetch-page')
     await expect(page).toMatchElement('#text', { text: /fetch page/ })
     await page.close()
+  })
+
+  it('should not output _app.js and _document.js to serverless build', () => {
+    const serverlessDir = join(appDir, '.next/serverless/pages')
+    expect(existsSync(join(serverlessDir, '_app.js'))).toBeFalsy()
+    expect(existsSync(join(serverlessDir, '_document.js'))).toBeFalsy()
   })
 
   describe('With basic usage', () => {

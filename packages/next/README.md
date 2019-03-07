@@ -116,7 +116,7 @@ Populate `./pages/index.js` inside your project:
 
 ```jsx
 function Home() {
-  return <div>Welcome to next.js!</div>
+  return <div>Welcome to Next.js!</div>
 }
 
 export default Home
@@ -495,7 +495,7 @@ To inject the `pathname`, `query` or `asPath` in your component, you can use [wi
 
 <p></p>
 
-The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+The component `<Link>` can also receive a URL object and it will automatically format it to create the URL string.
 
 ```jsx
 // pages/index.js
@@ -661,7 +661,7 @@ Above `Router` object comes with the following API:
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
+You can use a URL object the same way you use it in a `<Link>` component to `push` and `replace` a URL.
 
 ```jsx
 import Router from 'next/router'
@@ -827,6 +827,8 @@ Next.js has an API which allows you to prefetch pages.
 Since Next.js server-renders your pages, this allows all the future interaction paths of your app to be instant. Effectively Next.js gives you the great initial download performance of a _website_, with the ahead-of-time download capabilities of an _app_. [Read more](https://zeit.co/blog/next#anticipation-is-the-key-to-performance).
 
 > With prefetching Next.js only downloads JS code. When the page is getting rendered, you may need to wait for the data.
+
+> `<link rel="preload">` is used for prefetching. Sometimes browsers will show a warning if the resource is not used within 3 seconds, these warnings can be ignored as per https://github.com/zeit/next.js/issues/6517#issuecomment-469063892
 
 #### With `<Link>`
 
@@ -1066,7 +1068,7 @@ Since Next.js supports dynamic imports with SSR, you could do amazing things wit
 
 Here are a few ways to use dynamic imports.
 
-#### 1. Basic Usage (Also does SSR)
+#### Basic Usage (Also does SSR)
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1086,7 +1088,36 @@ function Home() {
 export default Home
 ```
 
-#### 2. With Custom Loading Component
+#### With named exports
+
+```jsx
+// components/hello.js
+export function Hello() {
+  return (
+    <p>Hello!</p>
+  )
+}
+```
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicComponent = dynamic(() => import('../components/hello').then((mod) => mod.Hello))
+
+function Home() {
+  return (
+    <div>
+      <Header />
+      <DynamicComponent />
+      <p>HOME PAGE is here!</p>
+    </div>
+  )
+}
+
+export default Home
+```
+
+#### With Custom Loading Component
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1108,7 +1139,7 @@ function Home() {
 export default Home
 ```
 
-#### 3. With No SSR
+#### With No SSR
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -1130,7 +1161,7 @@ function Home() {
 export default Home
 ```
 
-#### 4. With Multiple Modules At Once
+#### With Multiple Modules At Once
 
 ```jsx
 import dynamic from 'next/dynamic'

@@ -148,6 +148,15 @@ describe('Production Usage', () => {
       await expect(page).toMatchElement('div', { text: 'About Page' })
       await page.close()
     })
+
+    it('should navigate to nested index via client side', async () => {
+      const page = await browser.newPage()
+      await page.goto(server.getURL('/another'))
+      await expect(page).toClick('a')
+      await page.waitFor('.index-page')
+      await expect(page).toMatchElement('p', { text: 'Hello World' })
+      await page.close()
+    })
   })
 
   describe('Runtime errors', () => {

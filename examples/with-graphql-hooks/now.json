@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "name": "next-with-graphql-hooks",
+  "builds": [{ "src": "next.config.js", "use": "@now/next" }]
+}

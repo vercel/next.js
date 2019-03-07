@@ -2,17 +2,17 @@
   "name": "with-zones",
   "version": "1.0.0",
   "scripts": {
-    "home": "next home -p 4000",
+    "home": "cd home && next dev -p 4000",
     "home-build": "next build home",
     "home-start": "next start home -p 4000",
-    "blog": "next blog -p 5000",
+    "blog": "cd blog && next dev -p 5000",
     "blog-build": "next build blog",
     "blog-start": "next start blog -p 5000",
     "proxy": "micro-proxy -r rules-dev.json"
   },
   "dependencies": {
     "micro-proxy": "^1.0.0",
-    "next": "5.0.0-universal-alpha.15",
+    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
