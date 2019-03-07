@@ -67,7 +67,7 @@
     "babel-eslint": "9.0.0",
     "babel-jest": "23.6.0",
     "cheerio": "0.22.0",
-    "chromedriver": "2.42.0",
+    "chromedriver": "2.46.0",
     "clone": "2.1.1",
     "coveralls": "3.0.2",
     "cross-spawn": "6.0.5",
