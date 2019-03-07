@@ -1,0 +1,32 @@
+{
+  "name": "with-i18n-typescript",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "next build && tsc --project tsconfig.server.json",
+    "start": "cross-env NODE_ENV=production node .build/server",
+    "clean": "rm -rf .build/ .next/",
+    "type-check": "tsc"
+  },
+  "dependencies": {
+    "@zeit/next-typescript": "^1.1.1",
+    "bulma": "^0.7.4",
+    "express": "^4.16.4",
+    "next": "^8.0.3",
+    "next-i18next": "^0.35.2",
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4"
+  },
+  "devDependencies": {
+    "@types/next": "^7.0.6",
+    "@types/react": "^16.4.16",
+    "@types/react-dom": "16.0.11",
+    "@zeit/next-sass": "^1.0.1",
+    "cross-env": "^5.2.0",
+    "node-sass": "^4.11.0",
+    "nodemon": "^1.18.10",
+    "ts-node": "^8.0.2",
+    "typescript": "3.2.4"
+  },
+  "license": "ISC"
+}

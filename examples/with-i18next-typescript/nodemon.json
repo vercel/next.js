@@ -1,0 +1,9 @@
+{
+  "watch": [
+    ".babelrc",
+    "next.config.js",
+    "server/**/*.ts"
+  ],
+  "ignore": ["static/locales/**/*.missing.json"],
+  "exec": "ts-node --project tsconfig.server.json server/index.ts"
+}
