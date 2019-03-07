@@ -53,6 +53,15 @@
       "examples/with-mobx/**"
     ]
   },
+  "jest": {
+    "bail": true,
+    "verbose": true,
+    "rootDir": "test",
+    "preset": "jest-puppeteer",
+    "testMatch": ["**/*.test.js"],
+    "modulePaths": ["<rootDir>/lib"],
+    "setupTestFrameworkScriptFile": "<rootDir>/jest-test-setup.js"
+  },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
     "@babel/preset-flow": "7.0.0",
