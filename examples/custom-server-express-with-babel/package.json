@@ -1,0 +1,30 @@
+{
+    "name": "custom-server-express-with-babel",
+    "version": "1.0.0",
+    "author": "Pat Smith (https://github.com/pd-smith)",
+    "scripts": {
+        "dev": "babel-node src/server.js",
+        "clean": "shx rm -rf dist",
+        "prepare-build": "shx mkdir -p dist",
+        "build:app": "next build src/app && npm-run-all --parallel build:app:copy:*",
+        "build:app:copy:static": "shx cp -r src/app/static/* dist/app/static",
+        "build:server": "babel src --out-dir dist",
+        "build": "npm-run-all clean prepare-build && npm-run-all --parallel --print-label build:*",
+        "start": "NODE_ENV=production node dist/server.js"
+    },
+    "dependencies": {
+        "express": "^4.16.4",
+        "next": "latest",
+        "prettier": "^1.16.4",
+        "react": "^16.8.4",
+        "react-dom": "^16.8.4"
+    },
+    "devDependencies": {
+        "@babel/cli": "^7.2.3",
+        "@babel/core": "^7.3.4",
+        "@babel/node": "^7.2.2",
+        "@babel/preset-env": "^7.3.4",
+        "npm-run-all": "^4.1.5",
+        "shx": "^0.3.2"
+    }
+}

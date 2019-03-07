@@ -1,0 +1,14 @@
+html {
+    font-family: -apple-system, BlinkMacSystemFont, Roboto, 'Segoe UI', 'Fira Sans', Avenir, 'Helvetica Neue',
+        'Lucida Grande', sans-serif;
+}
+
+body {
+    padding: 20px 50px;
+}
+
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
