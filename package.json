@@ -79,7 +79,7 @@
     "isomorphic-unfetch": "3.0.0",
     "jest-cli": "23.6",
     "jest-junit": "^5.0.0",
-    "jest-puppeteer": "3",
+    "jest-puppeteer": "3.9.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
     "mkdirp": "0.5.1",

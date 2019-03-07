@@ -6951,7 +6951,7 @@ jest-mock@^23.2.0:
   resolved "https://registry.yarnpkg.com/jest-mock/-/jest-mock-23.2.0.tgz#ad1c60f29e8719d47c26e1138098b6d18b261134"
   integrity sha1-rRxg8p6HGdR8JuETgJi20YsmETQ=
 
-jest-puppeteer@3:
+jest-puppeteer@3.9.0:
   version "3.9.0"
   resolved "https://registry.yarnpkg.com/jest-puppeteer/-/jest-puppeteer-3.9.0.tgz#1a7bd5f5def3060868266d868bb18cd998daab2e"
   integrity sha512-v5B9YAYiQ1vxsIKy22D1IByb8MesSA5aC4b7k7pq7Aag5NHUYzPrlHr0N7JZFfuT3S5dXWyE1RbEzSGddHYxmQ==
