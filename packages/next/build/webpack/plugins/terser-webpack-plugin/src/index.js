@@ -15,7 +15,6 @@ const JS_REGEX = /\.m?js$/
 class TerserPlugin {
   constructor(options = {}) {
     const {
-      minify,
       terserOptions = {},
       warningsFilter = () => true,
       sourceMap = false,
@@ -28,7 +27,6 @@ class TerserPlugin {
       sourceMap,
       cache,
       parallel,
-      minify,
       terserOptions: {
         output: {
           comments: /^\**!|@preserve|@license|@cc_on/i,
@@ -182,8 +180,7 @@ class TerserPlugin {
               file,
               input,
               inputSourceMap,
-              terserOptions: this.options.terserOptions,
-              minify: this.options.minify,
+              terserOptions: this.options.terserOptions
             };
 
             if (this.options.cache) {
