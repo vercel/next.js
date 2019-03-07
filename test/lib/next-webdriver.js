@@ -1,4 +1,7 @@
 import wd from 'wd'
+import waitPort from 'wait-port'
+
+const doHeadless = process.env.HEADLESS === 'true'
 
 export default async function (appPort, pathname) {
   if (typeof appPort === 'undefined') {
@@ -17,7 +20,21 @@ export default async function (appPort, pathname) {
       return browser
     } catch (ex) {
       console.warn(`> Error when loading browser with url: ${url}`)
-      if (ex.message === 'TIMEOUT') continue
+
+      if (ex.message === 'TIMEOUT') {
+        const chromedriver = require('chromedriver')
+        console.log('Trying to restart chromedriver')
+
+        // try restarting chrome driver
+        chromedriver.stop()
+        chromedriver.start()
+        // https://github.com/giggio/node-chromedriver/issues/117
+        await waitPort({
+          port: 9515,
+          timeout: 1000 * 60 * 2 // 2 Minutes
+        })
+        continue
+      }
       throw ex
     }
   }
@@ -37,7 +54,12 @@ function getBrowser (url, timeout) {
       reject(error)
     }, timeout)
 
-    browser.init({ browserName: 'chrome' }).get(url, err => {
+    browser.init({
+      browserName: 'chrome',
+      ...(doHeadless ? {
+        chromeOptions: { args: ['--headless'] }
+      } : {})
+    }).get(url, err => {
       if (timeouted) {
         try {
           browser.close(() => {
