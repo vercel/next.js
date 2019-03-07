@@ -71,7 +71,7 @@ const minify = (options) => {
     terserOptions
   );
 
-  return { error, map, code, warnings, extractedComments };
+  return { error, map, code, warnings };
 };
 
 export default minify;
