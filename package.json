@@ -77,7 +77,7 @@
     "fkill": "5.1.0",
     "get-port": "3.2.0",
     "isomorphic-unfetch": "3.0.0",
-    "jest-cli": "24.1.0",
+    "jest-cli": "23.6",
     "jest-junit": "^5.0.0",
     "jest-puppeteer": "4.0.0",
     "lerna": "^3.4.0",
