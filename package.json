@@ -58,9 +58,13 @@
     "verbose": true,
     "rootDir": "test",
     "preset": "jest-puppeteer",
-    "testMatch": ["**/*.test.js"],
-    "modulePaths": ["<rootDir>/lib"],
-    "setupFilesAfterEnv": ["expect-puppeteer"]
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "modulePaths": [
+      "<rootDir>/lib"
+    ],
+    "setupTestFrameworkScriptFile": "<rootDir>/jest-test-setup.js"
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
@@ -81,12 +85,11 @@
     "cross-spawn": "6.0.5",
     "eslint": "5.4.0",
     "eslint-plugin-typescript": "0.14.0",
-    "expect-puppeteer": "4.0.0",
     "express": "4.16.3",
     "fkill": "5.1.0",
     "get-port": "3.2.0",
     "isomorphic-unfetch": "3.0.0",
-    "jest-cli": "23.6",
+    "jest-cli": "23.6.0",
     "jest-junit": "^5.0.0",
     "jest-puppeteer": "3.9.0",
     "lerna": "^3.4.0",
