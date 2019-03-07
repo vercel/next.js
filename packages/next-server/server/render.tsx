@@ -20,19 +20,33 @@ type ComponentsEnhancer =
   | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
   | Enhancer
 
-class ServerRouter extends Router {
-  constructor(pathname: any, query: any, asPath: any, ...args: []) {
-    super(pathname, query, asPath, ...args)
-    const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
+function noRouter() {
+  const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
+  throw new Error(message)
+}
 
-    coreMethodFields.forEach((field) => {
-      // @ts-ignore 'ServerRouter' has no index signature
-      this[field] = (...args: any) => {
-        const message = 'No router instance found.\n' +
-        'You should only use "next/router" inside the client side of your app.\n'
-        throw new Error(message)
-      }
-    })
+class ServerRouter extends Router {
+  // @ts-ignore
+  push() {
+    noRouter()
+  }
+  // @ts-ignore
+  replace() {
+    noRouter()
+  }
+  // @ts-ignore
+  reload() {
+    noRouter()
+  }
+  back() {
+    noRouter()
+  }
+  // @ts-ignore
+  prefetch() {
+    noRouter()
+  }
+  beforePopState() {
+    noRouter()
   }
 }
 
