@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "8.0.4-canary.7",
+  "version": "8.0.4-canary.8",
   "main": "./index.js",
   "license": "MIT",
   "files": [
