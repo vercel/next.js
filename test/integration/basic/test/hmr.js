@@ -104,9 +104,9 @@ export default (context, renderViaHTTP) => {
         const stylePage = await fsTimeMachine(join(__dirname, '../', 'pages', 'hmr', 'style.js'))
         try {
           await page.goto(context.server.getURL('/hmr/style'))
-          const initialFontSize = await getComputedCSS(page, '.hmr-style-page p', 'font-size')
+          const initialVal = await getComputedCSS(page, '#chng', 'font-size')
 
-          expect(initialFontSize).toBe('100px')
+          expect(initialVal).toMatch('100px')
           // Change the page
           await stylePage.replace('100px', '200px')
 
@@ -114,9 +114,9 @@ export default (context, renderViaHTTP) => {
           await waitFor(5000)
 
           // Check whether the this page has reloaded or not.
-          const editedFontSize = await getComputedCSS(page, '.hmr-style-page p', 'font-size')
+          const editedVal = await getComputedCSS(page, '#chng', 'font-size')
 
-          expect(editedFontSize).toBe('200px')
+          expect(editedVal).toMatch('200px')
         } finally {
           await stylePage.restore()
           await page.close()

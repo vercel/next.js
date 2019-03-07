@@ -3,13 +3,13 @@ export default () => {
   return (
     <React.Fragment>
       <div className='hmr-style-page'>
-        <p>
+        <p id='chng'>
             This is the style page.
           <style jsx>{`
               p {
                 font-size: 100px;
               }
-            `}</style>
+          `}</style>
         </p>
       </div>
     </React.Fragment>
