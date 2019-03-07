@@ -60,7 +60,7 @@
     "preset": "jest-puppeteer",
     "testMatch": ["**/*.test.js"],
     "modulePaths": ["<rootDir>/lib"],
-    "setupTestFrameworkScriptFile": "<rootDir>/jest-test-setup.js"
+    "setupFilesAfterEnv": ["expect-puppeteer"]
   },
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
