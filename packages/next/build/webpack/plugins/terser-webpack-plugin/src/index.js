@@ -2,42 +2,32 @@
   no-param-reassign
 */
 import crypto from 'crypto';
-import path from 'path';
 
 import { SourceMapConsumer } from 'source-map';
-import { SourceMapSource, RawSource, ConcatSource } from 'webpack-sources';
+import { SourceMapSource, RawSource } from 'webpack-sources';
 import RequestShortener from 'webpack/lib/RequestShortener';
-import ModuleFilenameHelpers from 'webpack/lib/ModuleFilenameHelpers';
-import serialize from 'serialize-javascript';
-import terserPackageJson from 'terser/package.json';
 import TaskRunner from './TaskRunner';
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/;
+
+const JS_REGEX = /\.m?js$/
 
 class TerserPlugin {
   constructor(options = {}) {
     const {
       minify,
       terserOptions = {},
-      test = /\.m?js(\?.*)?$/i,
       warningsFilter = () => true,
       sourceMap = false,
       cache = false,
-      cacheKeys = (defaultCacheKeys) => defaultCacheKeys,
-      parallel = false,
-      include,
-      exclude,
+      parallel = false
     } = options;
 
     this.options = {
-      test,
       warningsFilter,
       sourceMap,
       cache,
-      cacheKeys,
       parallel,
-      include,
-      exclude,
       minify,
       terserOptions: {
         output: {
@@ -156,7 +146,7 @@ class TerserPlugin {
       Array.from(chunks)
         .reduce((acc, chunk) => acc.concat(chunk.files || []), [])
         .concat(compilation.additionalChunkAssets || [])
-        .filter(ModuleFilenameHelpers.matchObject.bind(null, this.options))
+        .filter((file) => JS_REGEX.test(file))
         .forEach((file) => {
           let inputSourceMap;
 
@@ -197,8 +187,8 @@ class TerserPlugin {
             };
 
             if (this.options.cache) {
-              const defaultCacheKeys = {
-                terser: terserPackageJson.version,
+              task.cacheKeys = {
+                terser: '3.16.1',
                 // eslint-disable-next-line global-require
                 'terser-webpack-plugin': '1.2.2',
                 'terser-webpack-plugin-options': this.options,
@@ -206,9 +196,7 @@ class TerserPlugin {
                   .createHash('md4')
                   .update(input)
                   .digest('hex'),
-              };
-
-              task.cacheKeys = this.options.cacheKeys(defaultCacheKeys, file);
+              }
             }
 
             tasks.push(task);
@@ -232,9 +220,8 @@ class TerserPlugin {
         }
 
         results.forEach((data, index) => {
-          const { file, input, inputSourceMap, commentsFile } = tasks[index];
+          const { file, input, inputSourceMap } = tasks[index];
           const { error, map, code, warnings } = data;
-          let { extractedComments } = data;
 
           let sourceMap = null;
 
@@ -313,13 +300,10 @@ class TerserPlugin {
       // Regenerate `contenthash` for minified assets
       for (const template of [mainTemplate, chunkTemplate]) {
         template.hooks.hashForChunk.tap(plugin, (hash) => {
-          const data = serialize({
-            terser: terserPackageJson.version,
-            terserOptions: this.options.terserOptions,
-          });
-
-          hash.update('TerserPlugin');
-          hash.update(data);
+          // Terser version
+          // Has to be updated when options change too
+          hash.update('3.16.1');
+          return hash
         });
       }
 
