@@ -21,11 +21,10 @@ export default async function (appPort, pathname) {
     } catch (ex) {
       console.warn(`> Error when loading browser with url: ${url}`)
 
-      if (ex.message === 'TIMEOUT') {
+      // Try restarting chromedriver max twice
+      if (lc < 2) {
         const chromedriver = require('chromedriver')
         console.log('Trying to restart chromedriver')
-
-        // try restarting chrome driver
         chromedriver.stop()
         chromedriver.start()
         // https://github.com/giggio/node-chromedriver/issues/117
@@ -35,6 +34,8 @@ export default async function (appPort, pathname) {
         })
         continue
       }
+
+      if (ex.message === 'TIMEOUT') continue
       throw ex
     }
   }
