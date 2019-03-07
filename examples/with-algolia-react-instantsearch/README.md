@@ -45,5 +45,5 @@ now
 
 ## The idea behind the example
 The goal of this example is to illustrate how you can use [Algolia React InstantSearch](https://community.algolia.com/react-instantsearch/) to perform
-your search with a Server-rendered application developed with Next.js. It also illustrates how you 
-can keep in sync the Url with the search. 
+your search with a Server-rendered application developed with Next.js. It also illustrates how you
+can keep in sync the Url with the search.

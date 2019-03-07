@@ -6,7 +6,7 @@ The webpack function in `next.config.js` returned a promise which is not support
 
 ```js
 module.exports = {
-  webpack: async function(config) { 
+  webpack: async function(config) {
     return config
   }
 }
