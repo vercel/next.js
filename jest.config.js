@@ -7,6 +7,5 @@ module.exports = {
   preset: 'jest-puppeteer',
   testMatch: ['**/*.test.js'],
   modulePaths: ['<rootDir>/lib'],
-  coverageReporters: ['text', 'lcov', 'cobertura'],
   setupTestFrameworkScriptFile: '<rootDir>/jest-test-setup.js'
 }
