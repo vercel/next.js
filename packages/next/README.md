@@ -1693,7 +1693,7 @@ This will allow you to use `process.env.customKey` in your code. For example:
 ```jsx
 // pages/index.js
 function Index() {
-  return <h1>The value of customEnv is: {process.env.customEnv}</h1>
+  return <h1>The value of customKey is: {process.env.customKey}</h1>
 }
 
 export default Index
