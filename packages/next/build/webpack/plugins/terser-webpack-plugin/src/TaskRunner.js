@@ -13,7 +13,7 @@ export default class TaskRunner {
   constructor(options = {}) {
     const { cache, parallel } = options;
     this.cacheDir =
-      cache === true ? findCacheDir({ name: 'terser-webpack-plugin' }) : cache;
+      cache === true ? findCacheDir({ name: 'next-minifier' }) : cache;
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     const cpus = os.cpus() || { length: 1 };
