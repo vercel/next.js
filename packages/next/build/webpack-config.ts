@@ -67,7 +67,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true
+    cache: true,
+    compress: false,
+    mangle: false
   }
 
   let webpackConfig: webpack.Configuration = {
