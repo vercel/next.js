@@ -495,7 +495,7 @@ To inject the `pathname`, `query` or `asPath` in your component, you can use [wi
 
 <p></p>
 
-The component `<Link>` can also receive an URL object and it will automatically format it to create the URL string.
+The component `<Link>` can also receive a URL object and it will automatically format it to create the URL string.
 
 ```jsx
 // pages/index.js
@@ -661,7 +661,7 @@ Above `Router` object comes with the following API:
 The second `as` parameter for `push` and `replace` is an optional _decoration_ of the URL. Useful if you configured custom routes on the server.
 
 ##### With URL object
-You can use an URL object the same way you use it in a `<Link>` component to `push` and `replace` an URL.
+You can use a URL object the same way you use it in a `<Link>` component to `push` and `replace` a URL.
 
 ```jsx
 import Router from 'next/router'
@@ -1315,7 +1315,7 @@ class MyDocument extends Document {
     ctx.renderPage = () => originalRenderPage({
       // useful for wrapping the whole react tree
       enhanceApp: App => App,
-      // userful for wrapping in a per-page basis
+      // useful for wrapping in a per-page basis
       enhanceComponent: Component => Component
     })
 
@@ -1693,7 +1693,7 @@ This will allow you to use `process.env.customKey` in your code. For example:
 ```jsx
 // pages/index.js
 function Index() {
-  return <h1>The value of customEnv is: {process.env.customEnv}</h1>
+  return <h1>The value of customKey is: {process.env.customKey}</h1>
 }
 
 export default Index

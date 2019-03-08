@@ -20,6 +20,36 @@ type ComponentsEnhancer =
   | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
   | Enhancer
 
+function noRouter() {
+  const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
+  throw new Error(message)
+}
+
+class ServerRouter extends Router {
+  // @ts-ignore
+  push() {
+    noRouter()
+  }
+  // @ts-ignore
+  replace() {
+    noRouter()
+  }
+  // @ts-ignore
+  reload() {
+    noRouter()
+  }
+  back() {
+    noRouter()
+  }
+  // @ts-ignore
+  prefetch() {
+    noRouter()
+  }
+  beforePopState() {
+    noRouter()
+  }
+}
+
 function enhanceComponents(
   options: ComponentsEnhancer,
   App: React.ComponentType,
@@ -186,7 +216,7 @@ export async function renderToHTML(
 
   const asPath = req.url
   const ctx = { err, req, res, pathname, query, asPath }
-  const router = new Router(pathname, query, asPath)
+  const router = new ServerRouter(pathname, query, asPath)
   const props = await loadGetInitialProps(App, { Component, router, ctx })
 
   // the response might be finished on the getInitialProps call
