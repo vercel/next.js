@@ -674,7 +674,7 @@ const handler = () => {
 }
 
 function ReadMore() {
-    return (
+  return (
     <div>
       Click <span onClick={handler}>here</span> to read more
     </div>
