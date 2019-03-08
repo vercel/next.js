@@ -1,7 +1,7 @@
 /* eslint-disable
   arrow-body-style
 */
-import { minify as terserMinify } from 'terser';
+import { minify as terser } from 'terser';
 
 const buildTerserOptions = ({
   ecma,
@@ -12,7 +12,6 @@ const buildTerserOptions = ({
   module,
   output,
   toplevel,
-  nameCache,
   ie8,
   /* eslint-disable camelcase */
   keep_classnames,
@@ -39,10 +38,7 @@ const buildTerserOptions = ({
     ...output,
   },
   module,
-  // Ignoring sourceMap from options
-  sourceMap: null,
   toplevel,
-  nameCache,
   ie8,
   keep_classnames,
   keep_fnames,
@@ -66,7 +62,7 @@ const minify = (options) => {
     };
   }
 
-  const { error, map, code, warnings } = terserMinify(
+  const { error, map, code, warnings } = terser(
     { [file]: input },
     terserOptions
   );
