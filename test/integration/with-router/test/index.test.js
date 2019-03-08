@@ -2,7 +2,11 @@
 /* global jasmine */
 import { join } from 'path'
 import {
+  getReactErrorOverlayContent,
   nextServer,
+  launchApp,
+  findPort,
+  killApp,
   nextBuild,
   startApp,
   stopApp
@@ -75,6 +79,25 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
     expect(activePage).toBe('Bar')
 
+    browser.close()
+  })
+})
+
+describe('withRouter SSR', async () => {
+  let server
+  let port
+
+  beforeAll(async () => {
+    port = await findPort()
+    server = await launchApp(join(__dirname, '..'), port)
+  })
+  afterAll(async () => {
+    await killApp(server)
+  })
+
+  it('should show an error when trying to use router methods during SSR', async () => {
+    const browser = await webdriver(port, '/router-method-ssr')
+    expect(await getReactErrorOverlayContent(browser)).toMatch(`No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`)
     browser.close()
   })
 })

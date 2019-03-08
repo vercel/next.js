@@ -41,7 +41,7 @@ now
 
 ## The idea behind the example
 
-This example shows how to inline env vars. 
+This example shows how to inline env vars.
 
 **Please note**:
 
