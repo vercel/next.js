@@ -68,8 +68,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     parallel: true,
     sourceMap: false,
     cache: true,
-    compress: false,
-    mangle: false
+    terserOptions: {
+      compress: false,
+      mangle: false,
+      safari10: true
+    }
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -164,11 +167,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         }
       },
       minimizer: !dev ? [
-        new TerserPlugin({...terserPluginConfig,
-          terserOptions: {
-            safari10: true
-          }
-        })
+        new TerserPlugin(terserPluginConfig)
       ] : undefined,
     },
     recordsPath: path.join(outputPath, 'records.json'),
