@@ -132,7 +132,7 @@ describe('Production Usage', () => {
     })
 
     it('should block special pages', async () => {
-      const urls = ['/_document', '/_error']
+      const urls = ['/_document', '/_app']
       for (const url of urls) {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
