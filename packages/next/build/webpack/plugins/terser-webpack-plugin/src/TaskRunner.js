@@ -10,17 +10,12 @@ import minify from './minify';
 const worker = require.resolve('./worker');
 
 export default class TaskRunner {
-  constructor(options = {}) {
-    const { cache, parallel } = options;
-    this.cacheDir =
-      cache === true ? findCacheDir({ name: 'terser-webpack-plugin' }) : cache;
+  constructor() {
+    this.cacheDir = findCacheDir({ name: 'terser-webpack-plugin' })
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     const cpus = os.cpus() || { length: 1 };
-    this.maxConcurrentWorkers =
-      parallel === true
-        ? cpus.length - 1
-        : Math.min(Number(parallel) || 0, cpus.length - 1);
+    this.maxConcurrentWorkers = cpus.length - 1
   }
 
   run(tasks, callback) {

@@ -19,14 +19,12 @@ class TerserPlugin {
       warningsFilter = () => true,
       sourceMap = false,
       cache = false,
-      parallel = false
     } = options;
 
     this.options = {
       warningsFilter,
       sourceMap,
       cache,
-      parallel,
       terserOptions: {
         output: {
           comments: /^\**!|@preserve|@license|@cc_on/i,
@@ -133,10 +131,7 @@ class TerserPlugin {
 
   apply(compiler) {
     const optimizeFn = (compilation, chunks, callback) => {
-      const taskRunner = new TaskRunner({
-        cache: this.options.cache,
-        parallel: this.options.parallel,
-      });
+      const taskRunner = new TaskRunner();
 
       const processedAssets = new WeakSet();
       const tasks = [];

@@ -96,6 +96,9 @@ export default function connect (options) {
     subscribeToHmrEvent (handler) {
       customHmrEventHandler = handler
     },
+    reportRuntimeError (err) {
+      ErrorOverlay.reportRuntimeError(err)
+    },
     prepareError (err) {
       // Temporary workaround for https://github.com/facebook/create-react-app/issues/4760
       // Should be removed once the fix lands
