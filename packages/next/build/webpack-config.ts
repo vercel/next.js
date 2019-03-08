@@ -69,7 +69,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     sourceMap: false,
     cache: true,
     terserOptions: {
-      compress: false,
+      // compress: true,
       mangle: false,
       safari10: true
     }
