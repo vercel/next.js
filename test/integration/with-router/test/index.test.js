@@ -1,6 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
+import webdriver from 'next-webdriver'
 import {
   getReactErrorOverlayContent,
   nextServer,
@@ -11,14 +12,14 @@ import {
   startApp,
   stopApp
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('withRouter', () => {
   const appDir = join(__dirname, '../')
   let appPort
   let server
   let app
-  jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
   beforeAll(async () => {
     await nextBuild(appDir)
