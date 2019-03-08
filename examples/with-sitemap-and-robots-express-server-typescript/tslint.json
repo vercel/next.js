@@ -1,7 +1,7 @@
 {
   "extends": [
     "tslint-config-standard",
-    "tslint:latest", 
+    "tslint:latest",
     "tslint-react"
   ],
   "rules": {
@@ -12,7 +12,7 @@
     "no-console": false,
     "no-object-literal-type-assertion": false,
     "no-submodule-imports": [
-      true, 
+      true,
       "next"
     ],
     "no-unused-variable": false,

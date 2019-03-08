@@ -41,7 +41,7 @@ now
 
 ## The idea behind the example*
 
-This example shows how to use react context api in our app. 
+This example shows how to use react context api in our app.
 
 It provides an example of using `pages/_app.js` to include include the context api provider and then shows how both the `pages/index.js` and `pages/about.js` can both share the same data using the context api consumer.
 

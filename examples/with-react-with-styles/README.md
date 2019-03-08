@@ -41,10 +41,10 @@ now
 
 ## The idea behind the example
 
-This example features how you use a different styling solution than [styled-jsx](https://github.com/zeit/styled-jsx) that also supports universal styles. 
-That means we can serve the required styles for the first render within the HTML and then load the rest in the client. 
+This example features how you use a different styling solution than [styled-jsx](https://github.com/zeit/styled-jsx) that also supports universal styles.
+That means we can serve the required styles for the first render within the HTML and then load the rest in the client.
 In this case we are using [react-with-styles](https://github.com/airbnb/react-with-styles).
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
-We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/zeit/next.js/tree/master/examples/with-aphrodite). 
+We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/zeit/next.js/tree/master/examples/with-aphrodite).
