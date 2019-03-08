@@ -32,7 +32,7 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 describe('Static Export', () => {
   it('should export with folder that has dot in name', async () => {
     const outdir = join(appDir, 'out')
-    nextConfig.replace(/exportPathMap: function (.|\n)*end exportPathMap/gm, '// disabled exportPathMap')
+    nextConfig.replace(/exportPathMap: function (.|\n|\r\n)*end exportPathMap/gm, '// disabled exportPathMap')
 
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
