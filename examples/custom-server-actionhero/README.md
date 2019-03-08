@@ -1,6 +1,6 @@
 # Running Next.JS and React /inside/ of ActionHero
 
-This server will render dynamic next.js/react pages on some routes, and normal ActionHero API requests on others.  
+This server will render dynamic next.js/react pages on some routes, and normal ActionHero API requests on others.<br>
 This configuration works with both Next and ActionHero hot reloading of code.
 
 A more detailed example showcasing how to use fetch and web sockets to interact with your API can be found here: https://github.com/actionhero/next-in-actionhero
@@ -100,7 +100,7 @@ module.exports = class CreateChatRoom extends Action {
 
 3. Tell ActionHero to use the api rather than the file server as the top-level route in `api.config.servers.web.rootEndpointType = 'api'`.  This will allows "/" to listen to API requests.  Also update `api.config.general.paths.public = [ path.join(__dirname, '/../static') ]`.  In this configuration, the next 'static' renderer will take priority over the ActionHero 'public file' api.  Note that any static assets (CSS, fonts, etc) will need to be in "./static" rather than "./public".
 
-Note that this is where the websocket server, if you enable it, will place the `ActionheroWebsocketClient` libraray.  
+Note that this is where the websocket server, if you enable it, will place the `ActionheroWebsocketClient` libraray.<br>
 
 4.  Configure a wild-card route at the lowest priority of your GET handler to catch all web requests that aren't caught by other actions:
 
