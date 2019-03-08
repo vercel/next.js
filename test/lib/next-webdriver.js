@@ -2,7 +2,7 @@ import wd from 'wd'
 import getPort from 'get-port'
 import waitPort from 'wait-port'
 
-const doHeadless = process.env.HEADLESS === 'true'
+const doHeadless = process.env.HEADLESS !== 'false'
 let driverPort = 9515
 
 export default async function (appPort, pathname) {
