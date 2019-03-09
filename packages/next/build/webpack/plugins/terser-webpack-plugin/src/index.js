@@ -19,14 +19,12 @@ class TerserPlugin {
       warningsFilter = () => true,
       sourceMap = false,
       cache = false,
-      parallel = false
     } = options;
 
     this.options = {
       warningsFilter,
       sourceMap,
       cache,
-      parallel,
       terserOptions: {
         output: {
           comments: /^\**!|@preserve|@license|@cc_on/i,
@@ -133,10 +131,7 @@ class TerserPlugin {
 
   apply(compiler) {
     const optimizeFn = (compilation, chunks, callback) => {
-      const taskRunner = new TaskRunner({
-        cache: this.options.cache,
-        parallel: this.options.parallel,
-      });
+      const taskRunner = new TaskRunner();
 
       const processedAssets = new WeakSet();
       const tasks = [];
@@ -187,8 +182,8 @@ class TerserPlugin {
               task.cacheKeys = {
                 terser: '3.16.1',
                 // eslint-disable-next-line global-require
-                'terser-webpack-plugin': '1.2.2',
-                'terser-webpack-plugin-options': this.options,
+                'next-minifier': '1.2.2',
+                'next-minifier-options': this.options,
                 hash: crypto
                   .createHash('md4')
                   .update(input)
