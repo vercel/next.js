@@ -162,6 +162,17 @@ describe('Production Usage', () => {
       expect(text).toBe('Hello World')
       browser.close()
     })
+
+    it('should navigate trailing slash via client side', async () => {
+      const browser = await webdriver(appPort, '/trailing-slash-link')
+      const text = await browser
+        .elementByCss('#home-link').click()
+        .waitForElementByCss('.subfolder-index-page')
+        .elementByCss('p').text()
+
+      expect(text).toBe('Hello World')
+      browser.close()
+    })
   })
 
   describe('Runtime errors', () => {
