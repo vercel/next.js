@@ -182,8 +182,8 @@ class TerserPlugin {
               task.cacheKeys = {
                 terser: '3.16.1',
                 // eslint-disable-next-line global-require
-                'terser-webpack-plugin': '1.2.2',
-                'terser-webpack-plugin-options': this.options,
+                'next-minifier': '1.2.2',
+                'next-minifier-options': this.options,
                 hash: crypto
                   .createHash('md4')
                   .update(input)

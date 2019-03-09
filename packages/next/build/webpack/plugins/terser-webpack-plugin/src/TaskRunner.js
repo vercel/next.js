@@ -11,7 +11,7 @@ const worker = require.resolve('./worker');
 
 export default class TaskRunner {
   constructor() {
-    this.cacheDir = findCacheDir({ name: 'terser-webpack-plugin' })
+    this.cacheDir = findCacheDir({ name: 'next-minifier' })
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     const cpus = os.cpus() || { length: 1 };
