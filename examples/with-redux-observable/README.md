@@ -67,13 +67,13 @@ the default export from
 
 We transform the Observable we get from `ajax` into a Promise in order to await
 its resolution. That resolution should be a action (since the epic returns
-Observables of actions). We immediately dispatch that action to the store. 
+Observables of actions). We immediately dispatch that action to the store.
 
 This server-side solution allows compatibility with Next. It may not be
 something you wish to emulate. In other situations, calling or awaiting epics
 directly and passing their result to the store would be an anti-pattern. You
 should only trigger epics by dispatching actions. This solution may not
-generalise to resolving more complicated sets of actions. 
+generalise to resolving more complicated sets of actions.
 
 The layout of the redux related functionality is split between:
 
@@ -85,5 +85,5 @@ The layout of the redux related functionality is split between:
 and organized in `redux/index.js`.
 
 Excepting in those manners discussed above, the configuration is similar the
-configuration found in [with-redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux) 
-and [redux-observable docs](https://redux-observable.js.org/). 
+configuration found in [with-redux example](https://github.com/zeit/next.js/tree/canary/examples/with-redux)
+and [redux-observable docs](https://redux-observable.js.org/).

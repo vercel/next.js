@@ -8,6 +8,6 @@ More info here: https://tools.ietf.org/html/rfc6202#section-5.1
 
 #### Possible Ways to Fix It
 
-- Don't have too many tabs open to the same Next.js site open in development in the same browser at the same time. 
+- Don't have too many tabs open to the same Next.js site open in development in the same browser at the same time.
 - If using Firefox you can increase this limit by navigating to `about:config` and setting `network.http.max-persistent-connections-per-server` to a higher number
 

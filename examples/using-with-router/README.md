@@ -40,6 +40,6 @@ now
 
 ## The idea behind the example
 
-Sometimes, we want to use the `router` inside component of our app without using the singleton `next/router` API. 
+Sometimes, we want to use the `router` inside component of our app without using the singleton `next/router` API.
 
 You can do that by creating a React Higher Order Component with the help of the `withRouter` utility.
