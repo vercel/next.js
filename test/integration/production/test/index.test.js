@@ -173,6 +173,16 @@ describe('Production Usage', () => {
       expect(text).toBe('Hello World')
       browser.close()
     })
+
+    it('should navigate trailing slash via server side', async () => {
+      const browser = await webdriver(context.appPort, '/subfolder/')
+      const text = await browser
+        .waitForElementByCss('.subfolder-index-page')
+        .elementByCss('p').text()
+
+      expect(text).toBe('Hello World')
+      browser.close()
+    })
   })
 
   describe('Runtime errors', () => {
