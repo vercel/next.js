@@ -1,9 +1,11 @@
 /* eslint-env jest */
+/* global jasmine */
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
 
 const resolveDataDir = join(__dirname, '..', 'isolated', '_resolvedata')
 const dirWithPages = join(resolveDataDir, 'readdir', 'pages')
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('recursiveReadDir', () => {
   it('should work', async () => {

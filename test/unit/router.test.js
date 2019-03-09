@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import Router from 'next-server/dist/lib/router/router'
+process.env.NODE_ENV = 'production'
 
 class PageLoader {
   constructor (options = {}) {

@@ -377,7 +377,7 @@ export default class Router {
   async prefetch (url) {
     // We don't add support for prefetch in the development mode.
     // If we do that, our on-demand-entries optimization won't performs better
-    if (process.env.NODE_ENV === 'development') return
+    if (process.env.NODE_ENV !== 'production') return
 
     const { pathname } = parse(url)
     const route = toRoute(pathname)
