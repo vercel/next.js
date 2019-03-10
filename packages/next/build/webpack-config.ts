@@ -1,7 +1,6 @@
 import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
-import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -13,7 +12,7 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
 import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import AutoDllPlugin from 'autodll-webpack-plugin'
-import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
+import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -252,7 +251,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       dev && !isServer && new webpack.HotModuleReplacementPlugin(),
       dev && new webpack.NoEmitOnErrorsPlugin(),
       dev && new UnlinkFilePlugin(),
-      dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
       !dev && new webpack.HashedModuleIdsPlugin(),
       // Removes server/client code by minifier
       new webpack.DefinePlugin({
