@@ -49,7 +49,7 @@ function addCorsSupport (req, res) {
   return { preflight: false }
 }
 
-const matchNextPageBundleRequest = route('/_next/static/:buildId/pages/:path*.js(.map)?')
+const matchNextPageBundleRequest = route('/_next/static/:buildId/pages/*.js(.map)?')
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule (issuer) {
@@ -125,6 +125,7 @@ export default class HotReloader {
         return
       }
 
+      console.log(params.path)
       const page = `/${params.path.join('/')}`
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {

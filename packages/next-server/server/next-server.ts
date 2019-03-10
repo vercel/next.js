@@ -151,7 +151,7 @@ export default class Server {
   private generateRoutes(): Route[] {
     const routes: Route[] = [
       {
-        match: route('/_next/static/:path*'),
+        match: route('/_next/static/*'),
         fn: async (req, res, params, parsedUrl) => {
           // The commons folder holds commonschunk files
           // The chunks folder holds dynamic entries
@@ -172,7 +172,7 @@ export default class Server {
         },
       },
       {
-        match: route('/_next/:path*'),
+        match: route('/_next/*'),
         // This path is needed because `render()` does a check for `/_next` and the calls the routing again
         fn: async (req, res, _params, parsedUrl) => {
           await this.render404(req, res, parsedUrl)
@@ -183,7 +183,7 @@ export default class Server {
         // (but it should support as many params as needed, separated by '/')
         // Otherwise this will lead to a pretty simple DOS attack.
         // See more: https://github.com/zeit/next.js/issues/2617
-        match: route('/static/:path*'),
+        match: route('/static/*'),
         fn: async (req, res, params, parsedUrl) => {
           const p = join(this.dir, 'static', ...(params.path || []))
           await this.serveStatic(req, res, p, parsedUrl)
@@ -197,7 +197,7 @@ export default class Server {
       // Otherwise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
       routes.push({
-        match: route('/:path*'),
+        match: route('/*'),
         fn: async (req, res, _params, parsedUrl) => {
           const { pathname, query } = parsedUrl
           if (!pathname) {

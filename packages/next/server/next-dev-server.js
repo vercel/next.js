@@ -81,7 +81,7 @@ export default class DevServer extends Server {
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
     routes.unshift({
-      match: route('/_next/development/:path*'),
+      match: route('/_next/development/*'),
       fn: async (req, res, params) => {
         const p = join(this.distDir, ...(params.path || []))
         await this.serveStatic(req, res, p)
