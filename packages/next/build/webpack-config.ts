@@ -244,7 +244,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         filename: REACT_LOADABLE_MANIFEST
       }),
       ...(dev ? (() => {
-        const AutoDllPlugin = require('autodll-webpack-plugin')
         // Even though require.cache is server only we have to clear assets from both compilations
         // This is because the client compilation generates the build manifest that's used on the server side
         const {NextJsRequireCacheHotReloader} = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
@@ -256,6 +255,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ]
 
         if(!isServer) {
+          const AutoDllPlugin = require('autodll-webpack-plugin')
           devPlugins.push(
             new AutoDllPlugin({
               filename: '[name]_[hash].js',
