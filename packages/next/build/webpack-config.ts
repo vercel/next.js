@@ -1,7 +1,6 @@
 import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
-import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
