@@ -125,7 +125,6 @@ export default class HotReloader {
         return
       }
 
-      console.log(params.path)
       const page = `/${params.path.join('/')}`
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
