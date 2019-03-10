@@ -43,14 +43,14 @@
     "bin/*": "standard"
   },
   "dependencies": {
-    "del": "3.0.0",
-    "htmlescape": "1.1.1",
-    "minimist": "1.2.0",
-    "mitt": "1.1.3",
-    "prop-types": "15.7.0",
-    "querystring": "0.2.0",
-    "react-hot-loader": "4.6.5",
-    "strip-ansi": "5.0.0"
+    "del": "^3.0.0",
+    "htmlescape": "^1.1.1",
+    "minimist": "^1.2.0",
+    "mitt": "^1.1.3",
+    "prop-types": "^15.7.0",
+    "querystring": "^0.2.0",
+    "react-hot-loader": "^4.6.5",
+    "strip-ansi": "^5.0.0"
   },
   "devDependencies": {
     "@healthline/six-million": "3.0.0",
