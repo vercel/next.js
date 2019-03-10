@@ -20,11 +20,13 @@ export function getPagePath(page: string, distDir: string): string {
     throw pageNotFoundError(page)
   }
 
-  if (!pagesManifest[page]) {
+  const buildPath = pagesManifest[page] || pagesManifest[page.replace(/\/index$/, '')]
+
+  if (!buildPath) {
     throw pageNotFoundError(page)
   }
 
-  return join(serverBuildPath, pagesManifest[page])
+  return join(serverBuildPath, buildPath)
 }
 
 export function requirePage(page: string, distDir: string): any {
