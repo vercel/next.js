@@ -12,7 +12,7 @@ const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/;
 
 const JS_REGEX = /\.m?js$/
 
-class TerserPlugin {
+export class TerserPlugin {
   constructor(options = {}) {
     const {
       terserOptions = {},
@@ -306,5 +306,3 @@ class TerserPlugin {
     });
   }
 }
-
-export default TerserPlugin;
