@@ -14,7 +14,6 @@ export class UnlinkRemovedPagesPlugin {
   }
 
   apply (compiler: Compiler) {
-    const {outputPath}: any = compiler
     compiler.hooks.afterEmit.tapAsync('NextJsUnlinkRemovedPages', (compilation, callback) => {
       const removed = Object.keys(this.prevAssets)
         .filter((a) => IS_BUNDLED_PAGE_REGEX.test(a) && !compilation.assets[a])
@@ -22,7 +21,7 @@ export class UnlinkRemovedPagesPlugin {
       this.prevAssets = compilation.assets
 
       Promise.all(removed.map(async (f) => {
-        const path = join(outputPath, f)
+        const path = join((compiler as any).outputPath, f)
         try {
           await unlink(path)
         } catch (err) {
