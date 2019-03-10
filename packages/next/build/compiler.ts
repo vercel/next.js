@@ -1,11 +1,11 @@
-import webpack from 'webpack'
+import webpack, {Stats} from 'webpack'
 
 export type CompilerResult = {
   errors: Error[]
   warnings: Error[]
 }
 
-function generateStats(result: CompilerResult, stat: webpack.Stats): CompilerResult {
+function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
   const { errors, warnings } = stat.toJson({
     all: false,
     warnings: true,
@@ -23,11 +23,12 @@ function generateStats(result: CompilerResult, stat: webpack.Stats): CompilerRes
 }
 
 export function runCompiler(
-  config: webpack.Configuration
+  config: webpack.Configuration | webpack.Configuration[]
 ): Promise<CompilerResult> {
   return new Promise(async (resolve, reject) => {
+    // @ts-ignore webpack allows both a single config or array of configs
     const compiler = webpack(config)
-    compiler.run((err, statsOrMultiStats: any) => {
+    compiler.run((err: Error, statsOrMultiStats: any) => {
       if (err) {
         return reject(err)
       }
