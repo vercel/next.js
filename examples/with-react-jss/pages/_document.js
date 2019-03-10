@@ -1,5 +1,5 @@
 import React from 'react'
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document from 'next/document'
 import { SheetsRegistry, JssProvider, createGenerateId } from 'react-jss'
 
 export default class JssDocument extends Document {
@@ -20,24 +20,12 @@ export default class JssDocument extends Document {
 
     return {
       ...initialProps,
-      registry
+      styles: <>
+        {initialProps.styles},
+        <style id='server-side-styles'>
+          {registry.toString()}
+        </style>
+      </>
     }
-  }
-
-  render () {
-    return (
-      <html>
-        <Head>
-          <style id='server-side-styles'>
-            {this.props.registry.toString()}
-          </style>
-        </Head>
-
-        <body>
-          <Main />
-          <NextScript />
-        </body>
-      </html>
-    )
   }
 }
