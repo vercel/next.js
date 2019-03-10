@@ -21,6 +21,7 @@ const defaultConfig = {
     pagesBufferLength: 2
   },
   experimental: {
+    profiling: false,
     amp: false
   }
 }
