@@ -16,6 +16,7 @@ import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
+import resolution from './resolution'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
@@ -403,4 +404,5 @@ describe('Production Usage', () => {
 
   processEnv(context)
   security(context)
+  resolution(context)
 })
