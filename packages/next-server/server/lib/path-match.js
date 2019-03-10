@@ -1,34 +1,29 @@
-// We borrow this code from https://github.com/pillarjs/path-match
-// That's because, ^^^ package comes with very old version of path-to-regexp
-// So, it'll give us issues when the app has used a newer version of path-to-regexp
-// (When webpack resolving packages)
-var pathToRegexp = require('path-to-regexp')
+const regexparam = require('regexparam')
 
-module.exports = function (options) {
-  options = options || {}
-
+module.exports = function () {
   return function (path) {
-    var keys = []
-    var re = pathToRegexp(path, keys, options)
+    var result = regexparam(path)
 
-    return function (pathname, params) {
-      var m = re.exec(pathname)
-      if (!m) return false
+    return function (pathname) {
+      let i = 0
 
-      params = params || {}
-
-      var key, param
-      for (var i = 0; i < keys.length; i++) {
-        key = keys[i]
-        param = m[i + 1]
-        if (!param) continue
-        params[key.name] = decodeParam(param)
-        if (key.repeat) params[key.name] = params[key.name].split(key.delimiter)
+      let out = {}
+      let matches = result.pattern.exec(pathname)
+      if (!matches) return false
+      while (i < result.keys.length) {
+        const baseKey = result.keys[i]
+        const key = baseKey === 'wild' ? 'path' : baseKey
+        const value = matches[++i]
+        out[key] = key === 'path' ? segmentize(value).map(decodeParam) : value
       }
-
-      return params
+      return out
     }
   }
+}
+
+// https://github.com/developit/preact-router/blob/458b62be57ffd69f8338c0b5f2743401575ed5ea/src/util.js#L68
+function segmentize (url) {
+  return url.replace(/(^\/+|\/+$)/g, '').split('/')
 }
 
 function decodeParam (param) {

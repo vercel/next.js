@@ -9371,11 +9371,6 @@ path-to-regexp@0.1.7:
   resolved "https://registry.yarnpkg.com/path-to-regexp/-/path-to-regexp-0.1.7.tgz#df604178005f522f15eb4490e7247a1bfaa67f8c"
   integrity sha1-32BBeABfUi8V60SQ5yR6G/qmf4w=
 
-path-to-regexp@2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/path-to-regexp/-/path-to-regexp-2.1.0.tgz#7e30f9f5b134bd6a28ffc2e3ef1e47075ac5259b"
-  integrity sha512-dZY7QPCPp5r9cnNuQ955mOv4ZFVDXY/yvqeV7Y1W2PJA3PEFcuow9xKFfJxbBj1pIjOAP+M2B4/7xubmykLrXw==
-
 path-type@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/path-type/-/path-type-1.1.0.tgz#59c44f7ee491da704da415da5a4070ba4f8fe441"
@@ -10416,6 +10411,11 @@ regex-not@^1.0.0, regex-not@^1.0.2:
   dependencies:
     extend-shallow "^3.0.2"
     safe-regex "^1.1.0"
+
+regexparam@1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/regexparam/-/regexparam-1.2.0.tgz#c447c5c947ea2c823669c0578d3424808b84aae8"
+  integrity sha512-uSDJXp9qGMcTQpYkzK8xb1qc3n5l7y/bed2GO4fXDiiLcMSUSeUYhrzJirnFte1nd153+krKErlTa0c6nyQoMw==
 
 regexpp@^2.0.0, regexpp@^2.0.1:
   version "2.0.1"

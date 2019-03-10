@@ -30,8 +30,8 @@
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
-    "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
+    "regexparam": "1.2.0",
     "send": "0.16.1",
     "url": "0.11.0"
   },
