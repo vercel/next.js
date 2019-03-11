@@ -295,6 +295,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer && new BuildManifestPlugin(),
+      config.experimental.profiling && new webpack.debug.ProfilingPlugin({
+        outputPath: path.join(distDir, `profile-events-${isServer ? 'server' : 'client'}.json`)
+      })
     ].filter(Boolean as any as ExcludesFalse)
   }
 

@@ -27,7 +27,8 @@ const defaultConfig = {
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
-    )
+    ),
+    profiling: false
   }
 }
 
