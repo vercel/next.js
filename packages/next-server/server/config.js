@@ -23,7 +23,7 @@ const defaultConfig = {
   },
   experimental: {
     amp: false,
-    cpus: (Number(process.env.CIRCLE_NODE_TOTAL) || os.cpus() || { length: 1 }).length
+    cpus: Number(process.env.CIRCLE_NODE_TOTAL) || (os.cpus() || { length: 1 }).length
   }
 }
 
