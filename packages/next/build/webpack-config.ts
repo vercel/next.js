@@ -120,6 +120,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     ],
     optimization: isServer ? {
       splitChunks: false,
+      minimize: target === 'serverless',
       minimizer: target === 'serverless' ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
@@ -157,6 +158,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           }
         }
       },
+      minimize: !dev,
       minimizer: !dev ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
