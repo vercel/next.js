@@ -14,8 +14,9 @@ export default class TaskRunner {
     this.cacheDir = findCacheDir({ name: 'next-minifier' })
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
-    const cpus = os.cpus() || { length: 1 };
+    const cpus = Number(process.env.CIRCLE_NODE_TOTAL) || (os.cpus() || { length: 1 })
     this.maxConcurrentWorkers = cpus.length - 1
+    console.log('using maxWorkers', this.maxConcurrentWorkers);
   }
 
   run(tasks, callback) {
