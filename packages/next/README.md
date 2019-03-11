@@ -1575,7 +1575,8 @@ In order to extend our usage of `webpack`, you can define a function that extend
 // next.config.js is not transformed by Babel. So you can only use javascript features supported by your version of Node.js.
 
 module.exports = {
-  webpack: (config, { buildId, dev, isServer, defaultLoaders }) => {
+  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Note: we provide webpack above so you should not `require` it
     // Perform customizations to webpack config
     // Important: return the modified config
     return config
