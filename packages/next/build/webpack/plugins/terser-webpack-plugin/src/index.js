@@ -1,8 +1,7 @@
 /* eslint-disable
   no-param-reassign
 */
-import crypto from 'crypto';
-
+import murmur from 'imurmurhash';
 import { SourceMapConsumer } from 'source-map';
 import { SourceMapSource, RawSource } from 'webpack-sources';
 import RequestShortener from 'webpack/lib/RequestShortener';
@@ -186,10 +185,7 @@ export class TerserPlugin {
                 // eslint-disable-next-line global-require
                 'next-minifier': '1.2.2',
                 'next-minifier-options': this.options,
-                hash: crypto
-                  .createHash('md4')
-                  .update(input)
-                  .digest('hex'),
+                hash: murmur(input).result()
               }
             }
 

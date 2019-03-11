@@ -1,6 +1,6 @@
-import crypto from 'crypto';
 import { join } from 'path';
 import minify from './minify';
+import murmur from 'imurmurhash';
 import { promisify } from 'util';
 import workerFarm from 'worker-farm';
 import { writeFile, readFile } from 'fs';
@@ -67,10 +67,7 @@ export default class TaskRunner {
     tasks.forEach((task, index) => {
       const cachePath = join(
         this.cacheDir, 
-        crypto
-          .createHash('md4')
-          .update(serialize(task.cacheKeys))
-          .digest('hex')
+        murmur(serialize(task.cacheKeys)).result()+''
       )
 
       const enqueue = () => {
