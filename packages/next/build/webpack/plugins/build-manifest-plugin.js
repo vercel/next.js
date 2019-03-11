@@ -65,6 +65,10 @@ export default class BuildManifestPlugin {
         assetMap.pages['/'] = assetMap.pages['/index']
       }
 
+      assetMap.pages = Object.keys(assetMap.pages)
+        .sort()
+        .reduce((a, c) => Object.assign(a, { [c]: assetMap.pages[c] }), {})
+
       compilation.assets[BUILD_MANIFEST] = new RawSource(JSON.stringify(assetMap, null, 2))
       callback()
     })
