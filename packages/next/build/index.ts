@@ -55,22 +55,22 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
   const pages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(pages, config.target, buildId, config)
-  const configs = [
-    await getBaseWebpackConfig(dir, {
+  const configs = await Promise.all([
+    getBaseWebpackConfig(dir, {
       buildId,
       isServer: false,
       config,
       target: config.target,
       entrypoints: entrypoints.client,
     }),
-    await getBaseWebpackConfig(dir, {
+    getBaseWebpackConfig(dir, {
       buildId,
       isServer: true,
       config,
       target: config.target,
       entrypoints: entrypoints.server,
     }),
-  ]
+  ])
 
   let result: CompilerResult = { warnings: [], errors: [] }
   if (config.target === 'serverless') {
@@ -79,7 +79,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
 
-    const clientResult = await runCompiler([configs[0]])
+    const clientResult = await runCompiler(configs[0])
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
       result = {
@@ -87,7 +87,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         errors: [...clientResult.errors],
       }
     } else {
-      const serverResult = await runCompiler([configs[1]])
+      const serverResult = await runCompiler(configs[1])
       result = {
         warnings: [...clientResult.warnings, ...serverResult.warnings],
         errors: [...clientResult.errors, ...serverResult.errors],
