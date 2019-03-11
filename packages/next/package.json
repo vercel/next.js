@@ -62,6 +62,7 @@
     "find-up": "2.1.0",
     "fresh": "0.5.2",
     "hoist-non-react-statics": "3.2.0",
+    "imurmurhash": "0.1.4",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
