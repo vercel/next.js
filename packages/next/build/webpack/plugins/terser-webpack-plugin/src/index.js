@@ -185,7 +185,7 @@ export class TerserPlugin {
                 // eslint-disable-next-line global-require
                 'next-minifier': '1.2.2',
                 'next-minifier-options': this.options,
-                hash: murmur(input).result()+''
+                hash: murmur(input).result()
               }
             }
 
