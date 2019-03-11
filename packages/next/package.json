@@ -57,7 +57,6 @@
     "babel-loader": "8.0.2",
     "babel-plugin-react-require": "3.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.15",
-    "cacache": "^11.0.2",
     "chalk": "2.4.2",
     "find-cache-dir": "2.0.0",
     "find-up": "2.1.0",

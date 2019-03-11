@@ -1,17 +1,19 @@
-import os from 'os';
-
-import cacache from 'cacache';
-import findCacheDir from 'find-cache-dir';
+import crypto from 'crypto';
+import { join } from 'path';
+import minify from './minify';
+import { promisify } from 'util';
 import workerFarm from 'worker-farm';
+import { writeFile, readFile } from 'fs';
+import findCacheDir from 'find-cache-dir';
 import serialize from 'serialize-javascript';
 
-import minify from './minify';
-
 const worker = require.resolve('./worker');
+const writeFileP = promisify(writeFile)
+const readFileP = promisify(readFile)
 
 export default class TaskRunner {
   constructor(cpus) {
-    this.cacheDir = findCacheDir({ name: 'next-minifier' })
+    this.cacheDir = findCacheDir({ name: 'next-minifier', create: true })
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     this.maxConcurrentWorkers = cpus
@@ -63,19 +65,23 @@ export default class TaskRunner {
     };
 
     tasks.forEach((task, index) => {
+      const cachePath = join(
+        this.cacheDir, 
+        crypto
+          .createHash('md4')
+          .update(serialize(task.cacheKeys))
+          .digest('hex')
+      )
+
       const enqueue = () => {
         this.boundWorkers(task, (error, data) => {
           const result = error ? { error } : data;
           const done = () => step(index, result);
 
           if (this.cacheDir && !result.error) {
-            cacache
-              .put(
-                this.cacheDir,
-                serialize(task.cacheKeys),
-                JSON.stringify(data)
-              )
-              .then(done, done);
+            writeFileP(cachePath, JSON.stringify(data), 'utf8')
+              .then(done)
+              .catch(done)
           } else {
             done();
           }
@@ -83,9 +89,9 @@ export default class TaskRunner {
       };
 
       if (this.cacheDir) {
-        cacache
-          .get(this.cacheDir, serialize(task.cacheKeys))
-          .then(({ data }) => step(index, JSON.parse(data)), enqueue);
+        readFileP(cachePath, 'utf8')
+          .then(data => step(index, JSON.parse(data)))
+          .catch(() => enqueue())
       } else {
         enqueue();
       }
