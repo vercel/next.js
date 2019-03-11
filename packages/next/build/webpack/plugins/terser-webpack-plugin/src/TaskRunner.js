@@ -15,7 +15,6 @@ export default class TaskRunner {
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     this.maxConcurrentWorkers = cpus
-    console.log('using maxWorkers', this.maxConcurrentWorkers);
   }
 
   run(tasks, callback) {
