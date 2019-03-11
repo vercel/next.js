@@ -63,7 +63,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true
+    cache: true,
+    cpus: config.experimental.cpus,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -298,7 +299,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
+    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages, webpack })
 
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {

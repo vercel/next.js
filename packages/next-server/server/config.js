@@ -1,3 +1,4 @@
+import os from 'os'
 import findUp from 'find-up'
 import { CONFIG_FILE } from 'next-server/constants'
 
@@ -21,7 +22,8 @@ const defaultConfig = {
     pagesBufferLength: 2
   },
   experimental: {
-    amp: false
+    amp: false,
+    cpus: Number(process.env.CIRCLE_NODE_TOTAL) || (os.cpus() || { length: 1 }).length
   }
 }
 
