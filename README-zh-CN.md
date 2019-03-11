@@ -1706,7 +1706,7 @@ Next.js 也有其他托管解决方案。请查考 wiki 章节['Deployment'](htt
   </ul>
 </details>
 
-无服务器部署通过将应用程序拆分为更小的部分（也称为[**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)）来显着提高可靠性和可伸缩性。在Next.js的中，`pages`目录中的每个页面都变成了无服务器的lambda。
+无服务器部署通过将应用程序拆分为更小的部分（也称为[**lambdas**](https://zeit.co/docs/v2/deployments/concepts/lambdas/)）来显着提高可靠性和可伸缩性。在Next.js中，`pages`目录中的每个页面都变成了无服务器的lambda。
 对于无服务器的人来说，有[许多好处](https://zeit.co/blog/serverless-express-js-lambdas-with-now-2#benefits-of-serverless-express)。引用的链接在Express的上下文中讨论了其中的一些，但这些原则普遍适用：无服务器允许分布式故障点，无限的可扩展性，并且通过“为您使用的内容付费”的模式来提供难以置信的价格。
 
 要在Next.js中启用**无服务器模式**，可在`Next.config.js`中配置`target`值为`serverless`:
