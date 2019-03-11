@@ -19,8 +19,10 @@ export class TerserPlugin {
       warningsFilter = () => true,
       sourceMap = false,
       cache = false,
+      cpus,
     } = options;
 
+    this.cpus = cpus
     this.options = {
       warningsFilter,
       sourceMap,
@@ -131,7 +133,7 @@ export class TerserPlugin {
 
   apply(compiler) {
     const optimizeFn = (compilation, chunks, callback) => {
-      const taskRunner = new TaskRunner();
+      const taskRunner = new TaskRunner(this.cpus);
 
       const processedAssets = new WeakSet();
       const tasks = [];

@@ -63,7 +63,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true
+    cache: true,
+    cpus: config.experimental.cpus,
   }
 
   let webpackConfig: webpack.Configuration = {
