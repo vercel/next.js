@@ -24,6 +24,10 @@ app.prepare().then(() => {
       app.setAssetPrefix('')
     }
 
+    if (/test-index-hmr/.test(req.url)) {
+      return app.render(req, res, '/index')
+    }
+
     handleNextRequests(req, res)
   })
 

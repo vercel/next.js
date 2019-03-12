@@ -30,9 +30,9 @@ export default (context, render) => {
       })
     })
     describe('ssr:false option', () => {
-      it('should render loading on the server side', async () => {
+      it('should not render loading on the server side', async () => {
         const $ = await get$('/dynamic/no-ssr')
-        expect($('p').text()).toBe('loading...')
+        expect($('body').text()).not.toMatch('loading...')
       })
 
       it('should render the component on client side', async () => {

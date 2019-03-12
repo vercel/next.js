@@ -283,6 +283,49 @@ export default (context, renderViaHTTP) => {
       }
     })
 
+    it('should recover after undefined exported as default', async () => {
+      let browser
+      const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
+      try {
+        browser = await webdriver(context.appPort, '/hmr/about')
+        const text = await browser.elementByCss('p').text()
+        expect(text).toBe('This is the about page.')
+
+        aboutPage.replace('export default', 'export default undefined;\nexport const fn =')
+
+        await check(
+          async () => {
+            const txt = await getBrowserBodyText(browser)
+            console.log(txt)
+            return txt
+          },
+          /The default export is not a React Component/
+        )
+
+        aboutPage.restore()
+
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
+      } catch (err) {
+        aboutPage.restore()
+
+        if (browser) {
+          await check(
+            () => getBrowserBodyText(browser),
+            /This is the about page/
+          )
+        }
+
+        throw err
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
+    })
+
     it('should recover from errors in getInitialProps in client', async () => {
       let browser
       const erroredPage = new File(join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js'))
