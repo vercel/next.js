@@ -76,7 +76,7 @@ export class ServerlessPlugin {
                   )
                 }
 
-                if (this.sourceMap) {
+                if (this.sourceMap && inputSourceMap) {
                   compilation.assets[file] = new SourceMapSource(
                     f.toString(),
                     file,
