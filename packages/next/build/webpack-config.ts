@@ -63,7 +63,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true
+    cache: true,
+    cpus: config.experimental.cpus,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -294,11 +295,14 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer && new BuildManifestPlugin(),
+      config.experimental.profiling && new webpack.debug.ProfilingPlugin({
+        outputPath: path.join(distDir, `profile-events-${isServer ? 'server' : 'client'}.json`)
+      })
     ].filter(Boolean as any as ExcludesFalse)
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
+    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages, webpack })
 
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {

@@ -1,8 +1,7 @@
 /* eslint-disable
   no-param-reassign
 */
-import crypto from 'crypto';
-
+import murmur from 'imurmurhash';
 import { SourceMapConsumer } from 'source-map';
 import { SourceMapSource, RawSource } from 'webpack-sources';
 import RequestShortener from 'webpack/lib/RequestShortener';
@@ -19,8 +18,10 @@ export class TerserPlugin {
       warningsFilter = () => true,
       sourceMap = false,
       cache = false,
+      cpus,
     } = options;
 
+    this.cpus = cpus
     this.options = {
       warningsFilter,
       sourceMap,
@@ -131,7 +132,7 @@ export class TerserPlugin {
 
   apply(compiler) {
     const optimizeFn = (compilation, chunks, callback) => {
-      const taskRunner = new TaskRunner();
+      const taskRunner = new TaskRunner(this.cpus);
 
       const processedAssets = new WeakSet();
       const tasks = [];
@@ -179,16 +180,9 @@ export class TerserPlugin {
             };
 
             if (this.options.cache) {
-              task.cacheKeys = {
-                terser: '3.16.1',
-                // eslint-disable-next-line global-require
-                'next-minifier': '1.2.2',
-                'next-minifier-options': this.options,
-                hash: crypto
-                  .createHash('md4')
-                  .update(input)
-                  .digest('hex'),
-              }
+              // increment 'a' to invalidate previous caches from different options
+              task.cacheKey = 'a' + murmur(input).result()
+              if (this.options.sourceMap) task.cacheKey += 's'
             }
 
             tasks.push(task);
