@@ -111,6 +111,7 @@
     "@types/nanoid": "1.2.0",
     "@types/node-fetch": "2.1.4",
     "@types/resolve": "0.0.8",
+    "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.15.2",
     "taskr": "1.1.0",
     "typescript": "3.1.6",
