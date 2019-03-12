@@ -1,6 +1,5 @@
 import { join } from 'path';
 import minify from './minify';
-import murmur from 'imurmurhash';
 import { promisify } from 'util';
 import workerFarm from 'worker-farm';
 import { writeFile, readFile } from 'fs';
@@ -67,7 +66,7 @@ export default class TaskRunner {
     tasks.forEach((task, index) => {
       const cachePath = join(
         this.cacheDir, 
-        murmur(serialize(task.cacheKeys)).result()+''
+        task.cacheKey
       )
 
       const enqueue = () => {
