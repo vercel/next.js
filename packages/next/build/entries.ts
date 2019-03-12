@@ -41,7 +41,6 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     distDir: DOT_NEXT_ALIAS,
-    buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags
   }
