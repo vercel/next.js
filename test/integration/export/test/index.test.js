@@ -9,7 +9,8 @@ import {
   stopApp,
   killApp,
   findPort,
-  renderViaHTTP
+  renderViaHTTP,
+  File
 } from 'next-test-utils'
 
 import ssr from './ssr'
@@ -26,8 +27,25 @@ const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
 const context = {}
 const devContext = {}
+const nextConfig = new File(join(appDir, 'next.config.js'))
 
 describe('Static Export', () => {
+  it('should export with folder that has dot in name', async () => {
+    const outdir = join(appDir, 'out')
+    nextConfig.replace(/exportPathMap: function (.|\n|\r\n)*end exportPathMap/gm, '// disabled exportPathMap')
+
+    await nextBuild(appDir)
+    await nextExport(appDir, { outdir })
+
+    let doesExists = true
+    await access(join(outdir, 'v1.12/index.html'))
+      .then(() => {
+        doesExists = true
+      })
+
+    expect(doesExists).toBe(true)
+    nextConfig.restore()
+  })
   it('should delete existing exported files', async () => {
     const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
@@ -66,6 +84,7 @@ describe('Static Export', () => {
       stopApp(context.server),
       killApp(devContext.server)
     ])
+    nextConfig.restore()
   })
 
   ssr(context)
