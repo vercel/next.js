@@ -44,6 +44,7 @@ export default class Router {
       // Workaround for weird Firefox bug, see below links
       // https://github.com/zeit/next.js/issues/3817
       // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
+      // TODO: let's remove this once the Firefox bug is resolved
       if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
         window.addEventListener('unload', () => {
           if (location.search) location.replace(location)
