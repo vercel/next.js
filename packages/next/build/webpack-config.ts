@@ -125,11 +125,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       minimizer: target === 'serverless' ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
-            compress: false,
             mangle: false,
             module: false,
+            keep_fnames: true,
             keep_classnames: true,
-            keep_fnames: true
+            compress: config.experimental.compress
           }
         })
       ] : undefined
