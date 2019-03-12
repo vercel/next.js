@@ -27,28 +27,43 @@ function buildManifest (compiler, compilation) {
   let context = compiler.options.context
   let manifest = {}
 
-  compilation.chunks.forEach(chunk => {
-    chunk.files.forEach(file => {
-      for (const module of chunk.modulesIterable) {
-        let id = module.id
-        let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
-        // If it doesn't end in `.js` Next.js can't handle it right now.
-        if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
-          return
-        }
-        let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
+  compilation.chunks.forEach((chunk) => {
+    // If chunk is not an entry point skip them
+    if (chunk.hasEntryModule()) {
+      const dynamicChunks = chunk.getAllAsyncChunks()
+      if (dynamicChunks.size !== 0) {
+        for (const dynamicChunk of dynamicChunks) {
+          for (const file of dynamicChunk.files) {
+            // If it doesn't end in `.js` Next.js can't handle it right now.
+            if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+              continue
+            }
 
-        let currentModule = module
-        if (module.constructor.name === 'ConcatenatedModule') {
-          currentModule = module.rootModule
-        }
-        if (!manifest[currentModule.rawRequest]) {
-          manifest[currentModule.rawRequest] = []
-        }
+            for (const module of dynamicChunk.modulesIterable) {
+              let id = module.id
+              let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
 
-        manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
+              let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
+
+              let currentModule = module
+              if (module.constructor.name === 'ConcatenatedModule') {
+                currentModule = module.rootModule
+              }
+              if (!manifest[currentModule.rawRequest]) {
+                manifest[currentModule.rawRequest] = []
+              }
+
+              // Avoid duplicate files
+              if (manifest[currentModule.rawRequest].some((item) => item.file === file)) {
+                continue
+              }
+
+              manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
+            }
+          }
+        }
       }
-    })
+    }
   })
 
   return manifest
