@@ -10,19 +10,17 @@ module.exports = babelLoader.custom(babel => {
   return {
     customOptions (opts) {
       const custom = {
-        isServer: opts.isServer,
-        dev: opts.dev
+        isServer: opts.isServer
       }
       const loader = Object.assign({
         cacheCompression: false,
         cacheDirectory: true
       }, opts)
       delete loader.isServer
-      delete loader.dev
 
       return { loader, custom }
     },
-    config (cfg, { source, customOptions: { isServer, dev } }) {
+    config (cfg, { source, customOptions: { isServer } }) {
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
