@@ -1,13 +1,14 @@
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
+import { injectBuildId } from '../build/post-processing/serverless-build-id'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack-config'
 import { generateBuildId } from './generate-build-id'
 import { writeBuildId } from './write-build-id'
 import { isWriteable } from './is-writeable'
 import { runCompiler, CompilerResult } from './compiler'
-import {recursiveReadDir} from '../lib/recursive-readdir'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { createPagesMapping, createEntrypoints } from './entries'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
@@ -16,7 +17,10 @@ function collectPages(
   directory: string,
   pageExtensions: string[]
 ): Promise<string[]> {
-  return recursiveReadDir(directory, new RegExp(`\\.(?:${pageExtensions.join('|')})$`))
+  return recursiveReadDir(
+    directory,
+    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
+  )
 }
 
 function printTreeView(list: string[]) {
@@ -93,6 +97,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
         errors: [...clientResult.errors, ...serverResult.errors],
       }
     }
+
+    await injectBuildId(distDir, buildId).catch(err => {
+      throw new Error(
+        '> Build failed while post-processing build files\n\n' + err
+      )
+    })
   } else {
     result = await runCompiler(configs)
   }
