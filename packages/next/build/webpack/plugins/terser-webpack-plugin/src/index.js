@@ -180,13 +180,9 @@ export class TerserPlugin {
             };
 
             if (this.options.cache) {
-              task.cacheKeys = {
-                terser: '3.16.1',
-                // eslint-disable-next-line global-require
-                'next-minifier': '1.2.2',
-                'next-minifier-options': this.options,
-                hash: murmur(input).result()
-              }
+              // increment 'a' to invalidate previous caches from different options
+              task.cacheKey = 'a' + murmur(input).result()
+              if (this.options.sourceMap) task.cacheKey += 's'
             }
 
             tasks.push(task);
