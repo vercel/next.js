@@ -1,4 +1,4 @@
-/* global __NEXT_DATA__ */
+/* global __NEXT_DATA__, location */
 
 import { parse } from 'url'
 import mitt from '../mitt'
@@ -40,6 +40,10 @@ export default class Router {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
+      // Workaround for weird Firefox bug, see below links
+      // https://github.com/zeit/next.js/issues/3817
+      // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
+      window.addEventListener('unload', () => location.replace(location))
     }
   }
 
