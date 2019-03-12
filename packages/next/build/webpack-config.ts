@@ -18,7 +18,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { dev, isServer, cwd: dir }
+      options: { isServer, cwd: dir }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -290,7 +290,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(),
+      target === 'serverless' && isServer && new ServerlessPlugin(buildId, { sourceMap: dev }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
