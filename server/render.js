@@ -88,7 +88,23 @@ export async function doDocRender (page, initialProps, { dev, dir, publicPath, e
       publicPath: docProps.publicPath || publicPath,
       err: docProps.err
     },
-    entrypoints: entrypoints || hotReloader.multiStats.stats[0].compilation.entrypoints,
+    entrypoints:
+      entrypoints ||
+      hotReloader.multiStats.stats.reduce((prev, { compilation }) => {
+        for (let [entryName, entrypoint] of compilation.entrypoints.entries()) {
+          const path = prev[entryName] = prev[entryName] = prev[entryName] || { chunks: [] }
+          path.chunks.push(
+            ...entrypoint.chunks
+              .reduce((prev, { files }) => prev.concat(files), [])
+              .filter(name => !/\.map$/.test(name) && !/hot-update.js/.test(name))
+              .map(file => ({
+                file,
+                module: !/-legacy\.js/.test(file)
+              }))
+          )
+        }
+        return prev
+      }, {}),
     dev,
     ...docProps
   })

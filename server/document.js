@@ -4,14 +4,14 @@ import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 
 function scriptsForEntry (pathname, entrypoints) {
-  const entry = entrypoints.get(`pages${pathname}.js`)
+  const entry = entrypoints[`pages${pathname}.js`]
 
   if (entry) {
     return entry.chunks
-      .reduce((prev, { files }) => prev.concat(files), [])
-      .filter(name => !/hot-update/.test(name))
+      .reduce((prev, { file, module }) => prev.concat({ file, module }), [])
+      .filter(({ name }) => !/hot-update/.test(name))
   } else {
-    return ['vendor.js']
+    return []
   }
 }
 
@@ -45,11 +45,13 @@ export class Head extends Component {
     _documentProps: PropTypes.any
   }
 
-  getChunkPreloadLink (filename) {
+  getChunkPreloadLink ({ file, module }) {
     let { publicPath } = this.context._documentProps.__NEXT_DATA__
 
+    // Give preference to modern bundle for preloading (since we can't do nomodule for
+    // legacy vs. not and browsers will download both)
     return (
-      `<link rel=preload href="${publicPath}${filename}" as=script>`
+      module ? `<link rel=preload href="${publicPath}${file}" as=script>` : ''
     )
   }
 
@@ -121,14 +123,15 @@ export class NextScript extends Component {
 
     // In the production mode, we have a single asset with all the JS content.
     // So, we can load the script with async
-    return scripts.map((filename) => {
+    return scripts.map(({ file, module }) => {
       let { publicPath } = this.context._documentProps.__NEXT_DATA__
 
       return (
         <script
-          key={filename}
-          type='text/javascript'
-          src={`${publicPath}${filename}`}
+          key={file}
+          type={module ? 'module' : 'text/javascript'}
+          noModule={!module}
+          src={`${publicPath}${file}`}
           async
         />
       )

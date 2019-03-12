@@ -87,9 +87,9 @@ export default class Server {
     const buildIdPath = join(this.dir, '.next', 'webpack-entrypoints.json')
     const entrypoints = JSON.parse(fs.readFileSync(buildIdPath, 'utf8'))
     if (!entrypoints[process.env.SITE || 'default']) {
-      throw new Error(`No entry points defined for SITE ${process.env.SITE}`);
+      throw new Error(`No entry points defined for SITE ${process.env.SITE}`)
     }
-    return new Map(Object.entries(entrypoints[process.env.SITE || 'default']))
+    return entrypoints[process.env.SITE || 'default']
   }
 
   async getCompilationError () {
