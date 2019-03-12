@@ -10,15 +10,15 @@ let start
 let stop
 let store
 
-function initializeData(initialData = store || {}) {
+function initializeData (initialData = store || {}) {
   const { lastUpdate = Date.now(), light } = initialData
   return {
     lastUpdate,
-    light: Boolean(light),
+    light: Boolean(light)
   }
 }
 
-function InjectStoreContext({ children, initialData }) {
+function InjectStoreContext ({ children, initialData }) {
   let timerInterval = null
   store = useObservable(initializeData(initialData))
 
@@ -38,4 +38,4 @@ function InjectStoreContext({ children, initialData }) {
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
 }
 
-export { InjectStoreContext, StoreContext, initializeData, start, stop, store}
+export { InjectStoreContext, StoreContext, initializeData, start, stop, store }

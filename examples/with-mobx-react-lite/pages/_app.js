@@ -1,9 +1,9 @@
 import App, { Container } from 'next/app'
 import React from 'react'
-import { InjectStoreContext, initializeData } from '../store';
+import { InjectStoreContext, initializeData } from '../store'
 
 class MyMobxApp extends App {
-  static async getInitialProps({Component, ctx}) {
+  static async getInitialProps ({ Component, ctx }) {
     let pageProps = {}
     const initialStoreData = initializeData()
 
@@ -18,7 +18,7 @@ class MyMobxApp extends App {
     }
   }
 
-  render() {
+  render () {
     const { Component, pageProps, initialStoreData } = this.props
     return (
       <Container>

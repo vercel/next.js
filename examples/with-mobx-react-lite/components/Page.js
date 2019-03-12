@@ -1,10 +1,10 @@
-import { useObserver } from 'mobx-react-lite';
+import { useObserver } from 'mobx-react-lite'
 import Link from 'next/link'
 import { useContext, useEffect } from 'react'
-import { StoreContext, start, stop } from '../store';
+import { StoreContext, start, stop } from '../store'
 import Clock from './Clock'
 
-function Page({ linkTo, title }) {
+function Page ({ linkTo, title }) {
   const store = useContext(StoreContext)
 
   useEffect(() => {
