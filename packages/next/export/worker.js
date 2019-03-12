@@ -18,7 +18,6 @@ process.on(
   async ({
     distDir,
     buildId,
-    pageDirs,
     exportPaths,
     exportPathMap,
     outDir,
@@ -39,7 +38,10 @@ process.on(
         })
 
         let htmlFilename = `${path}${sep}index.html`
-        if (!pageDirs[path] && extname(path) !== '') {
+        const pageExt = extname(page)
+        const pathExt = extname(path)
+        // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
+        if (pageExt !== pathExt && pathExt !== '') {
           // If the path has an extension, use that as the filename instead
           htmlFilename = path
         } else if (path === '/') {
