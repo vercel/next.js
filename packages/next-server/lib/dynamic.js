@@ -25,7 +25,8 @@ export default function dynamic (dynamicOptions, options) {
   let loadableFn = Loadable
   let loadableOptions = {
     // A loading component is not required, so we default it
-    loading: ({ error, isLoading }) => {
+    loading: ({ error, isLoading, pastDelay }) => {
+      if (!pastDelay) return null
       if (process.env.NODE_ENV === 'development') {
         if (isLoading) {
           return <DefaultLoading />
