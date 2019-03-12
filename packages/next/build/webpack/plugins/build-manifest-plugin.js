@@ -67,7 +67,8 @@ export default class BuildManifestPlugin {
 
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
-        .reduce((a, c) => (a[c] = assetMap.pages[c]), {})
+        // eslint-disable-next-line
+        .reduce((a, c) => (a[c] = assetMap.pages[c], a), {})
 
       compilation.assets[BUILD_MANIFEST] = new RawSource(JSON.stringify(assetMap, null, 2))
       callback()
