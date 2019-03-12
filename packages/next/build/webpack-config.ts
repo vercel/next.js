@@ -18,7 +18,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { dev, isServer, cwd: dir }
+      options: { isServer, cwd: dir }
     },
     // Backwards compat
     hotSelfAccept: {

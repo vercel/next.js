@@ -108,7 +108,6 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-
     return super.renderToHTML(req, res, pathname, query, options)
   }
 
