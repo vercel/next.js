@@ -1,7 +1,6 @@
 import { join } from 'path'
 import nanoid from 'nanoid'
 import loadConfig from 'next-server/next-config'
-import { injectBuildId } from '../build/post-processing/serverless-build-id'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack-config'
 import { generateBuildId } from './generate-build-id'
@@ -97,12 +96,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
         errors: [...clientResult.errors, ...serverResult.errors],
       }
     }
-
-    await injectBuildId(distDir, buildId).catch(err => {
-      throw new Error(
-        '> Build failed while post-processing build files\n\n' + err
-      )
-    })
   } else {
     result = await runCompiler(configs)
   }
