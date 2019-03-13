@@ -5,25 +5,25 @@ import { startClock, serverRenderClock } from '../store'
 import Examples from '../components/examples'
 
 class Index extends React.Component {
-  static getInitialProps({ reduxStore, req }) {
+  static getInitialProps ({ reduxStore, req }) {
     const isServer = !!req
     reduxStore.dispatch(serverRenderClock(isServer))
 
     return {}
   }
 
-  componentDidMount() {
+  componentDidMount () {
     const { dispatch } = this.props
-    this.timer = setInterval(()=>this.props.startClock(dispatch),1000);
+    this.timer = setInterval(() => this.props.startClock(dispatch), 1000)
   }
 
-  componentWillUnmount() {
+  componentWillUnmount () {
     clearInterval(this.timer)
   }
 
-  render() {
+  render () {
     return <Examples />
   }
 }
-const mapDispatchToProps = dispatch => bindActionCreators({ startClock, }, dispatch)
+const mapDispatchToProps = dispatch => bindActionCreators({ startClock }, dispatch)
 export default connect(null, mapDispatchToProps)(Index)

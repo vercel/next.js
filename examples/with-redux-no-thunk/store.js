@@ -41,29 +41,25 @@ export const reducer = (state = exampleInitialState, action) => {
 
 // ACTIONS
 export const serverRenderClock = () => {
-  return { type: actionTypes.TICK, light: false, ts: Date.now() };
+  return { type: actionTypes.TICK, light: false, ts: Date.now() }
 }
-export const serverRenderDummy = () => {
-  return { type: actionTypes.TICK, light: false, ts: "ravinder" };
-}
-
 export const startClock = () => {
   return { type: actionTypes.TICK, light: true, ts: Date.now() }
 }
 
 export const incrementCount = () => {
-  return { type: actionTypes.INCREMENT };
+  return { type: actionTypes.INCREMENT }
 }
 
 export const decrementCount = () => {
-  return { type: actionTypes.DECREMENT };
+  return { type: actionTypes.DECREMENT }
 }
 
 export const resetCount = () => {
-  return { type: actionTypes.RESET };
+  return { type: actionTypes.RESET }
 }
 
-export function initializeStore(initialState = exampleInitialState) {
+export function initializeStore (initialState = exampleInitialState) {
   return createStore(
     reducer,
     initialState,
