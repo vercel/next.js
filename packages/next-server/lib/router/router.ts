@@ -310,16 +310,16 @@ export default class Router implements IRouterInterface {
         }
       }
 
-      return (new Promise((resolve) => {
+      return (new Promise((resolve, reject) => {
         const ctx = { pathname, query, asPath: as }
         this.getInitialProps(Component, ctx).then((props) => {
           routeInfo.props = props
           this.components[route] = routeInfo
           resolve(routeInfo)
-        })
+        }, reject)
       }) as Promise<RouteInfo>)
     }).catch((err) => {
-      return (new Promise((resolve, reject) => {
+      return (new Promise((resolve) => {
         if (err.code === 'PAGE_LOAD_ERROR') {
           // If we can't load the page it could be one of following reasons
           //  1. Page doesn't exists
