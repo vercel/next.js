@@ -5,7 +5,7 @@ function deleteCache (path: string) {
   try {
     delete require.cache[realpathSync(path)]
   } catch(e) {
-    // probably doesn't exist
+    if (e.code !== 'ENOENT') throw e
   } finally {
     delete require.cache[path]
   }
