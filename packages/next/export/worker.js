@@ -1,14 +1,17 @@
+import mkdirpModule from 'mkdirp'
+import { promisify } from 'util'
+import { extname, join, dirname, sep } from 'path'
+import { renderToHTML } from 'next-server/dist/server/render'
+import { writeFile } from 'fs'
+import Sema from 'async-sema'
+import { loadComponents } from 'next-server/dist/server/load-components'
+
+const envConfig = require('next-server/config')
+const mkdirp = promisify(mkdirpModule)
+
 global.__NEXT_DATA__ = {
   nextExport: true
 }
-
-const { extname, join, dirname, sep } = require('path')
-const mkdirp = require('mkdirp-then')
-const { renderToHTML } = require('next-server/dist/server/render')
-const { writeFile } = require('fs')
-const Sema = require('async-sema')
-const { loadComponents } = require('next-server/dist/server/load-components')
-const envConfig = require('next-server/config')
 
 process.on(
   'message',
@@ -35,7 +38,10 @@ process.on(
         })
 
         let htmlFilename = `${path}${sep}index.html`
-        if (extname(path) !== '') {
+        const pageExt = extname(page)
+        const pathExt = extname(path)
+        // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
+        if (pageExt !== pathExt && pathExt !== '') {
           // If the path has an extension, use that as the filename instead
           htmlFilename = path
         } else if (path === '/') {

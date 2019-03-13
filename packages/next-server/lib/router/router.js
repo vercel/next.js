@@ -1,8 +1,7 @@
-/* global __NEXT_DATA__ */
+/* global __NEXT_DATA__, location */
 
 import { parse } from 'url'
 import mitt from '../mitt'
-import shallowEquals from './shallow-equals'
 import { loadGetInitialProps, getURL, formatWithValidation } from '../utils'
 
 export default class Router {
@@ -41,6 +40,16 @@ export default class Router {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
+
+      // Workaround for weird Firefox bug, see below links
+      // https://github.com/zeit/next.js/issues/3817
+      // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
+      // TODO: let's remove this once the Firefox bug is resolved
+      if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
+        window.addEventListener('unload', () => {
+          if (location.search) location.replace(location)
+        })
+      }
     }
   }
 
@@ -363,9 +372,7 @@ export default class Router {
   }
 
   urlIsNew (asPath) {
-    const { pathname, query } = parse(asPath, true)
-    const { pathname: curPathname } = parse(this.asPath, true)
-    return curPathname !== pathname || !shallowEquals(query, this.query)
+    return this.asPath !== asPath
   }
 
   isShallowRoutingPossible (route) {
@@ -380,7 +387,7 @@ export default class Router {
   async prefetch (url) {
     // We don't add support for prefetch in the development mode.
     // If we do that, our on-demand-entries optimization won't performs better
-    if (process.env.NODE_ENV === 'development') return
+    if (process.env.NODE_ENV !== 'production') return
 
     const { pathname } = parse(url)
     const route = toRoute(pathname)

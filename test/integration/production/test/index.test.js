@@ -132,7 +132,7 @@ describe('Production Usage', () => {
     })
 
     it('should block special pages', async () => {
-      const urls = ['/_document', '/_error']
+      const urls = ['/_document', '/_app']
       for (const url of urls) {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
@@ -149,6 +149,17 @@ describe('Production Usage', () => {
         .elementByCss('div').text()
 
       expect(text).toBe('About Page')
+      browser.close()
+    })
+
+    it('should navigate to nested index via client side', async () => {
+      const browser = await webdriver(appPort, '/another')
+      const text = await browser
+        .elementByCss('a').click()
+        .waitForElementByCss('.index-page')
+        .elementByCss('p').text()
+
+      expect(text).toBe('Hello World')
       browser.close()
     })
   })

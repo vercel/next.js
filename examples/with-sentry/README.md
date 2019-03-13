@@ -43,14 +43,22 @@ now
 
 ## About example
 
-This example show you how to add Sentry to catch errors in next.js
+An example showing use of [Sentry](https://sentry.io) to catch & report errors on both client + server side.
 
-You will need a Sentry DSN for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.
+### Configuration
 
-The Sentry DSN should then be added as an environment variable when running:
+You will need a _Sentry DSN_ for your project. You can get it from the Settings of your Project, in **Client Keys (DSN)**, and copy the string labeled **DSN (Public)**.
+
+The Sentry DSN should then be added as an environment variable when running the `dev`, `build`, and `start` scripts in `package.json`:
 
 ```bash
-$ SENTRY_DSN=<dsn-here> npm run dev
+{
+  "scripts": {
+    "dev": "SENTRY_DSN=<dsn> node server.js",
+    "build": "SENTRY_DSN=<dsn> next build",
+    "start": "SENTRY_DSN=<dsn> NODE_ENV=production node server.js"
+  }
+}
 ```
 
-Note that if you are using a custom server, there is logging available for common platforms: https://docs.sentry.io/platforms/
+_Note: Setting environment variables in a `package.json` is not secure, it is done here only for demo purposes. See the [`with-dotenv`](../with-dotenv) example for an example of how to set environment variables safely._

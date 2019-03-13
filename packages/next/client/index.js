@@ -130,7 +130,9 @@ export async function renderError (props) {
   const { App, err } = props
 
   if (process.env.NODE_ENV !== 'production') {
-    throw webpackHMR.prepareError(err)
+    return webpackHMR.reportRuntimeError(
+      webpackHMR.prepareError(err)
+    )
   }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.

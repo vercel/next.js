@@ -7,6 +7,9 @@
       packages: ["google-chrome-stable"]
     }
   },
+  env: {
+    HEADLESS: 'false'
+  },
   language: "node_js",
   node_js: ["8", "10"],
   cache: {

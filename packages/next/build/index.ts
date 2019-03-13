@@ -7,19 +7,16 @@ import { generateBuildId } from './generate-build-id'
 import { writeBuildId } from './write-build-id'
 import { isWriteable } from './is-writeable'
 import { runCompiler, CompilerResult } from './compiler'
-import globModule from 'glob'
-import { promisify } from 'util'
+import {recursiveReadDir} from '../lib/recursive-readdir'
 import { createPagesMapping, createEntrypoints } from './entries'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
-
-const glob = promisify(globModule)
 
 function collectPages(
   directory: string,
   pageExtensions: string[]
 ): Promise<string[]> {
-  return glob(`**/*.+(${pageExtensions.join('|')})`, { cwd: directory })
+  return recursiveReadDir(directory, new RegExp(`\\.(?:${pageExtensions.join('|')})$`))
 }
 
 function printTreeView(list: string[]) {
@@ -58,7 +55,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
   const pages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(pages, config.target, buildId, config)
-  const configs = [
+  const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       buildId,
       isServer: false,
@@ -73,7 +70,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       target: config.target,
       entrypoints: entrypoints.server,
     }),
-  ]
+  ])
 
   let result: CompilerResult = { warnings: [], errors: [] }
   if (config.target === 'serverless') {
@@ -82,7 +79,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
       )
 
-    const clientResult = await runCompiler([configs[0]])
+    const clientResult = await runCompiler(configs[0])
     // Fail build if clientResult contains errors
     if (clientResult.errors.length > 0) {
       result = {
@@ -90,7 +87,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         errors: [...clientResult.errors],
       }
     } else {
-      const serverResult = await runCompiler([configs[1]])
+      const serverResult = await runCompiler(configs[1])
       result = {
         warnings: [...clientResult.warnings, ...serverResult.warnings],
         errors: [...clientResult.errors, ...serverResult.errors],

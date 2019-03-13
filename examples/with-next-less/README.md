@@ -41,5 +41,5 @@ now
 
 ## The idea behind the example
 
-This example demonstrates how to use the [next-less plugin](https://github.com/zeit/next-plugins/tree/master/packages/next-less).  
+This example demonstrates how to use the [next-less plugin](https://github.com/zeit/next-plugins/tree/master/packages/next-less).<br>
 It includes patterns for with and without CSS Modules, with PostCSS and with additional webpack configurations on top of the next-less plugin.

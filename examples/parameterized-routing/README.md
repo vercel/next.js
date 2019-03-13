@@ -33,11 +33,8 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+See now documentation [here](https://zeit.co/docs/v2/deployments/routes/) and Next.js example [here](https://zeit.co/examples/nextjs/) for info on deploying with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
-```bash
-now
-```
 
 ## The idea behind the example
 

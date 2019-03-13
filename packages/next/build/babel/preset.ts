@@ -47,11 +47,17 @@ type BabelPreset = {
   plugins?: PluginItem[] | null
 }
 
-module.exports = (context: any, options: NextBabelPresetOptions = {}): BabelPreset => {
+// Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
+function supportsStaticESM(caller: any) {
+  return !!(caller && caller.supportsStaticESM);
+}
+
+module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset => {
+  const supportsESM = api.caller(supportsStaticESM)
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
-    modules: isDevelopment || isProduction ? false : 'auto',
+    modules: 'auto',
     ...options['preset-env']
   }
   return {
@@ -68,17 +74,17 @@ module.exports = (context: any, options: NextBabelPresetOptions = {}): BabelPres
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
-      require('./plugins/next-to-next-server'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       require('@babel/plugin-proposal-object-rest-spread'),
       [require('@babel/plugin-transform-runtime'), {
         corejs: 2,
         helpers: true,
         regenerator: true,
-        useESModules: !isTest && presetEnvConfig.modules !== 'commonjs',
+        useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
         ...options['transform-runtime']
       }],
       [require('styled-jsx/babel'), styledJsxOptions(options['styled-jsx'])],
+      require('./plugins/amp-attributes'),
       isProduction && require('babel-plugin-transform-react-remove-prop-types')
     ].filter(Boolean)
   }

@@ -1,19 +1,15 @@
 import path from 'path'
 import webpack from 'webpack'
 import resolve from 'resolve'
-import CaseSensitivePathPlugin from 'case-sensitive-paths-webpack-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
-import NextJsRequireCacheHotReloader from './webpack/plugins/nextjs-require-cache-hot-reloader'
-import UnlinkFilePlugin from './webpack/plugins/unlink-file-plugin'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
 import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
-import AutoDllPlugin from 'autodll-webpack-plugin'
-import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/cjs.js'
+import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -22,7 +18,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { dev, isServer, cwd: dir }
+      options: { isServer, cwd: dir }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -68,12 +64,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     parallel: true,
     sourceMap: false,
     cache: true,
-    cacheKeys: (keys: any) => {
-      // path changes per build because we add buildId
-      // because the input is already hashed the path is not needed
-      delete keys.path
-      return keys
-    }
+    cpus: config.experimental.cpus,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -83,40 +74,44 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     target: isServer ? 'node' : 'web',
     externals: isServer && target !== 'serverless' ? [
       (context, request, callback) => {
-        const notExternalModules = ['next/app', 'next/document', 'next/link', 'next/router', 'next/error', 'http-status', 'string-hash', 'hoist-non-react-statics', 'htmlescape']
+        const notExternalModules = [
+          'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
+          'string-hash', 'hoist-non-react-statics', 'htmlescape','next/dynamic',
+          'next/constants', 'next/config', 'next/head'
+        ]
 
         if (notExternalModules.indexOf(request) !== -1) {
           return callback()
         }
-    
-        resolve(request, { basedir: context, preserveSymlinks: true }, (err, res) => {
+
+        resolve(request, { basedir: dir, preserveSymlinks: true }, (err, res) => {
           if (err) {
             return callback()
           }
-    
+
           if (!res) {
             return callback()
           }
-    
+
           // Default pages have to be transpiled
           if (res.match(/next[/\\]dist[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/) || res.match(/node_modules[/\\]@babel[/\\]runtime-corejs2[/\\]/)) {
             return callback()
           }
-    
+
           // Webpack itself has to be compiled because it doesn't always use module relative paths
           if (res.match(/node_modules[/\\]webpack/) || res.match(/node_modules[/\\]css-loader/)) {
             return callback()
           }
-    
+
           // styled-jsx has to be transpiled
           if (res.match(/node_modules[/\\]styled-jsx/)) {
             return callback()
           }
-    
+
           if (res.match(/node_modules[/\\].*\.js$/)) {
             return callback(undefined, `commonjs ${request}`)
           }
-    
+
           callback()
         })
       }
@@ -126,6 +121,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     ],
     optimization: isServer ? {
       splitChunks: false,
+      minimize: target === 'serverless',
       minimizer: target === 'serverless' ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
@@ -163,6 +159,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           }
         }
       },
+      minimize: !dev,
       minimizer: !dev ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
@@ -226,37 +223,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ].filter(Boolean)
     },
     plugins: [
-      target === 'serverless' && isServer && new ServerlessPlugin(),
-      // Precompile react / react-dom for development, speeding up webpack
-      dev && !isServer && new AutoDllPlugin({
-        filename: '[name]_[hash].js',
-        path: './static/development/dll',
-        context: dir,
-        entry: {
-          dll: [
-            'react',
-            'react-dom'
-          ]
-        },
-        config: {
-          mode: webpackMode,
-          resolve: resolveConfig
-        }
-      }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
-      !isServer && new ReactLoadablePlugin({
-        filename: REACT_LOADABLE_MANIFEST
-      }),
-      // Even though require.cache is server only we have to clear assets from both compilations
-      // This is because the client compilation generates the build manifest that's used on the server side
-      dev && new NextJsRequireCacheHotReloader(),
-      dev && !isServer && new webpack.HotModuleReplacementPlugin(),
-      dev && new webpack.NoEmitOnErrorsPlugin(),
-      dev && new UnlinkFilePlugin(),
-      dev && new CaseSensitivePathPlugin(), // Since on macOS the filesystem is case-insensitive this will make sure your path are case-sensitive
-      !dev && new webpack.HashedModuleIdsPlugin(),
-      // Removes server/client code by minifier
       new webpack.DefinePlugin({
         ...(Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|(?:__.+)$/i.test(key)) {
@@ -269,16 +237,51 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           }
         }, {})),
         'process.crossOrigin': JSON.stringify(config.crossOrigin),
-        'process.browser': JSON.stringify(!isServer)
+        'process.browser': JSON.stringify(!isServer),
+        // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
+        ...(dev && !isServer ? {
+          'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
+        } : {}),
       }),
-      // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
-      !isServer && dev && new webpack.DefinePlugin({
-        'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
+      !isServer && new ReactLoadablePlugin({
+        filename: REACT_LOADABLE_MANIFEST
       }),
-      target !== 'serverless' && isServer && new PagesManifestPlugin(),
-      !isServer && new BuildManifestPlugin(),
-      isServer && new NextJsSsrImportPlugin(),
-      target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
+      ...(dev ? (() => {
+        // Even though require.cache is server only we have to clear assets from both compilations
+        // This is because the client compilation generates the build manifest that's used on the server side
+        const {NextJsRequireCacheHotReloader} = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
+        const {UnlinkRemovedPagesPlugin} = require('./webpack/plugins/unlink-removed-pages-plugin')
+        const devPlugins = [
+          new UnlinkRemovedPagesPlugin(),
+          new webpack.NoEmitOnErrorsPlugin(),
+          new NextJsRequireCacheHotReloader(),
+        ]
+
+        if(!isServer) {
+          const AutoDllPlugin = require('autodll-webpack-plugin')
+          devPlugins.push(
+            new AutoDllPlugin({
+              filename: '[name]_[hash].js',
+              path: './static/development/dll',
+              context: dir,
+              entry: {
+                dll: [
+                  'react',
+                  'react-dom'
+                ]
+              },
+              config: {
+                mode: webpackMode,
+                resolve: resolveConfig
+              }
+            })
+          )
+          devPlugins.push(new webpack.HotModuleReplacementPlugin())
+        }
+
+        return devPlugins
+      })() : []),
+      !dev && new webpack.HashedModuleIdsPlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
@@ -286,12 +289,25 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         checkContext: (context: string) => {
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
+      }),
+      target === 'serverless' && isServer && new ServerlessPlugin(buildId, { sourceMap: dev }),
+      target !== 'serverless' && isServer && new PagesManifestPlugin(),
+      target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
+      isServer && new NextJsSsrImportPlugin(),
+      !isServer && new BuildManifestPlugin(),
+      config.experimental.profiling && new webpack.debug.ProfilingPlugin({
+        outputPath: path.join(distDir, `profile-events-${isServer ? 'server' : 'client'}.json`)
       })
     ].filter(Boolean as any as ExcludesFalse)
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
+    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages, webpack })
+
+    // @ts-ignore: Property 'then' does not exist on type 'Configuration'
+    if (typeof webpackConfig.then === 'function') {
+      console.warn('> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md')
+    }
   }
 
   // Backwards compat for `main.js` entry key
