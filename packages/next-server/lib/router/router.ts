@@ -430,7 +430,7 @@ export default class Router implements IRouterInterface {
     )
   }
 
-  async prefetch(url: string) {
+  prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
       if (process.env.NODE_ENV !== 'production') return
