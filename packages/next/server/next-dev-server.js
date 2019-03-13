@@ -121,7 +121,7 @@ export default class DevServer extends Server {
     }
 
     if (!err) {
-      err = new Error('Something threw undefined somewhere during render...')
+      err = new Error('An undefined error was thrown sometime during render...')
     }
 
     try {
