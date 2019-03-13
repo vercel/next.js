@@ -36,6 +36,7 @@ export default class Router implements IRouterInterface {
   componentLoadCancel: (() => void) | null
   pageLoader: any
   _beforePopState: BeforePopStateCallback
+  initialHistoryOrder: number
 
   static events: MittEmitter = mitt()
 
@@ -65,24 +66,32 @@ export default class Router implements IRouterInterface {
     this.asPath = as
     this.subscriptions = new Set()
     this.componentLoadCancel = null
+    this.initialHistoryOrder = 0
     this._beforePopState = () => true
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
       // we have to register the initial route upon initialization
-      this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
+      this.changeState('replaceState', formatWithValidation({ pathname, query }), as, {
+        __next: false, // initial load should not be tagged
+      })
 
       window.addEventListener('popstate', this.onPopState)
 
-      // Workaround for weird Firefox bug, see below links
-      // https://github.com/zeit/next.js/issues/3817
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
-      // TODO: let's remove this once the Firefox bug is resolved
-      if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
-        window.addEventListener('unload', () => {
-          if (window.location.search) window.location.replace(window.location.toString())
-        })
-      }
+      window.addEventListener('unload', () => {
+        // Workaround for weird Firefox bug, see below links
+        // https://github.com/zeit/next.js/issues/3817
+        // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
+        // TODO: let's remove this once the Firefox bug is resolved
+        if (window.location.search && navigator.userAgent &&
+          navigator.userAgent.match(/firefox/i)) {
+          window.location.replace(window.location.toString())
+        }
+        // Workaround for popstate firing on initial page load when
+        // navigating back from an external site
+        const { url, as, options }: any = history.state || {}
+        this.changeState('replaceState', url, as, { ...options, beforeLeave: true })
+      })
     }
   }
 
@@ -123,6 +132,12 @@ export default class Router implements IRouterInterface {
       // So, doing the following for (1) does no harm.
       const { pathname, query } = this
       this.changeState('replaceState', formatWithValidation({ pathname, query }), getURL())
+      return
+    }
+
+    // Make sure we don't re-render on initial load,
+    // can be caused by navigating back from an external site
+    if (!e.state.options.__next) {
       return
     }
 
@@ -284,7 +299,7 @@ export default class Router implements IRouterInterface {
     return true
   }
 
-  changeState(method: string, url: string, as: string, options = {}): void {
+  changeState(method: string, url: string, as: string, options: any = {}): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
         console.error(`Warning: window.history is not available.`)
@@ -296,6 +311,8 @@ export default class Router implements IRouterInterface {
         return
       }
     }
+    // tag the history
+    options.__next = !options.beforeLeave
 
     if (method !== 'pushState' || getURL() !== as) {
       // @ts-ignore method should always exist on history
