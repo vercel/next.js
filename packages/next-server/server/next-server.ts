@@ -307,7 +307,7 @@ export default class Server {
       )
       return html
     } catch (err) {
-      if (err.code === 'ENOENT') {
+      if (err && err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
       } else {

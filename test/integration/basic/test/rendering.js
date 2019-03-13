@@ -289,5 +289,10 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('#asPath').text()).toBe('Current asPath: /nav/with-hoc')
       })
     })
+
+    it('should show better error when undefined is thrown', async () => {
+      const $ = await get$('/throw-undefined')
+      expect($('body').text()).toMatch('Something threw undefined somewhere during render...')
+    })
   })
 }

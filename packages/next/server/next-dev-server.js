@@ -120,6 +120,10 @@ export default class DevServer extends Server {
       return super.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
+    if (!err) {
+      err = new Error('Something threw undefined somewhere during render...')
+    }
+
     try {
       const out = await super.renderErrorToHTML(err, req, res, pathname, query)
       return out
