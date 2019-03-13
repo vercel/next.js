@@ -18,7 +18,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { dev, isServer, cwd: dir }
+      options: { isServer, cwd: dir }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -63,7 +63,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true
+    cache: true,
+    cpus: config.experimental.cpus,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -120,6 +121,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     ],
     optimization: isServer ? {
       splitChunks: false,
+      minimize: target === 'serverless',
       minimizer: target === 'serverless' ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
@@ -157,6 +159,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           }
         }
       },
+      minimize: !dev,
       minimizer: !dev ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
@@ -287,16 +290,19 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(),
+      target === 'serverless' && isServer && new ServerlessPlugin(buildId, { sourceMap: dev }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer && new BuildManifestPlugin(),
+      config.experimental.profiling && new webpack.debug.ProfilingPlugin({
+        outputPath: path.join(distDir, `profile-events-${isServer ? 'server' : 'client'}.json`)
+      })
     ].filter(Boolean as any as ExcludesFalse)
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
+    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages, webpack })
 
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
