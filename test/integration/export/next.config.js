@@ -23,6 +23,6 @@ module.exports = (phase) => {
         '/file-name.md': { page: '/dynamic', query: { text: 'this file has an extension' } },
         '/query': { page: '/query', query: { a: 'blue' } }
       }
-    }
+    } // end exportPathMap
   }
 }
