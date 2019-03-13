@@ -209,79 +209,74 @@ export default class Router implements IRouterInterface {
     return this.change('replaceState', url, as, options)
   }
 
-  async change(method: string, _url: string, _as: string, options: any): Promise<boolean> {
-    // If url and as provided as an object representation,
-    // we'll format them into the string version here.
-    const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
-    let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
+  change(method: string, _url: string, _as: string, options: any): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      // If url and as provided as an object representation,
+      // we'll format them into the string version here.
+      const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
+      let as = typeof _as === 'object' ? formatWithValidation(_as) : _as
 
-    // Add the ending slash to the paths. So, we can serve the
-    // "<page>/index.html" directly for the SSR page.
-    // @ts-ignore this is temporarily global (attached to window)
-    if (__NEXT_DATA__.nextExport) {
-      as = Router._rewriteUrlForNextExport(as)
-    }
+      // Add the ending slash to the paths. So, we can serve the
+      // "<page>/index.html" directly for the SSR page.
+      // @ts-ignore this is temporarily global (attached to window)
+      if (__NEXT_DATA__.nextExport) {
+        as = Router._rewriteUrlForNextExport(as)
+      }
 
-    this.abortComponentLoad(as)
+      this.abortComponentLoad(as)
 
-    // If the url change is only related to a hash change
-    // We should not proceed. We should only change the state.
-    if (this.onlyAHashChange(as)) {
-      Router.events.emit('hashChangeStart', as)
-      this.changeState(method, url, as)
-      this.scrollToHash(as)
-      Router.events.emit('hashChangeComplete', as)
-      return true
-    }
+      // If the url change is only related to a hash change
+      // We should not proceed. We should only change the state.
+      if (this.onlyAHashChange(as)) {
+        Router.events.emit('hashChangeStart', as)
+        this.changeState(method, url, as)
+        this.scrollToHash(as)
+        Router.events.emit('hashChangeComplete', as)
+        return true
+      }
 
-    const { pathname, query } = parse(url, true)
+      const { pathname, query } = parse(url, true)
 
-    // If asked to change the current URL we should reload the current page
-    // (not location.reload() but reload getInitialProps and other Next.js stuffs)
-    // We also need to set the method = replaceState always
-    // as this should not go into the history (That's how browsers work)
-    // We should compare the new asPath to the current asPath, not the url
-    if (!this.urlIsNew(as)) {
-      method = 'replaceState'
-    }
+      // If asked to change the current URL we should reload the current page
+      // (not location.reload() but reload getInitialProps and other Next.js stuffs)
+      // We also need to set the method = replaceState always
+      // as this should not go into the history (That's how browsers work)
+      // We should compare the new asPath to the current asPath, not the url
+      if (!this.urlIsNew(as)) {
+        method = 'replaceState'
+      }
 
-    // @ts-ignore pathname is always a string
-    const route = toRoute(pathname)
-    const { shallow = false } = options
-    let routeInfo = null
-
-    Router.events.emit('routeChangeStart', as)
-
-    // If shallow === false and other conditions met, we reuse the
-    // existing routeInfo for this route.
-    // Because of this, getInitialProps would not run.
-    if (shallow && this.isShallowRoutingPossible(route)) {
-      routeInfo = this.components[route]
-    } else {
       // @ts-ignore pathname is always a string
-      routeInfo = await this.getRouteInfo(route, pathname, query, as)
-    }
+      const route = toRoute(pathname)
+      const { shallow = false } = options
 
-    const { error } = routeInfo
+      Router.events.emit('routeChangeStart', as)
 
-    if (error && error.cancelled) {
-      return false
-    }
+      // If shallow is true and the route exists in the router cache we reuse the previous result
+      // @ts-ignore pathname is always a string
+      this.getRouteInfo(route, pathname, query, as, shallow).then((routeInfo) => {
+        const { error } = routeInfo
 
-    Router.events.emit('beforeHistoryChange', as)
-    this.changeState(method, url, as, options)
-    const hash = window.location.hash.substring(1)
+        if (error && error.cancelled) {
+          return resolve(false)
+        }
 
-    // @ts-ignore pathname is always defined
-    this.set(route, pathname, query, as, { ...routeInfo, hash })
+        Router.events.emit('beforeHistoryChange', as)
+        this.changeState(method, url, as, options)
+        const hash = window.location.hash.substring(1)
 
-    if (error) {
-      Router.events.emit('routeChangeError', error, as)
-      throw error
-    }
+        // @ts-ignore pathname is always defined
+        this.set(route, pathname, query, as, { ...routeInfo, hash })
 
-    Router.events.emit('routeChangeComplete', as)
-    return true
+        if (error) {
+          Router.events.emit('routeChangeError', error, as)
+          throw error
+        }
+
+        Router.events.emit('routeChangeComplete', as)
+        return resolve(true)
+      }, reject)
+    })
   }
 
   changeState(method: string, url: string, as: string, options = {}): void {
@@ -303,13 +298,22 @@ export default class Router implements IRouterInterface {
     }
   }
 
-  async getRouteInfo(route: string, pathname: string, query: any, as: string): Promise<RouteInfo> {
-    try {
-      let routeInfo = this.components[route]
-      if (!routeInfo) {
-        routeInfo = { Component: await this.fetchComponent(route) }
+  getRouteInfo(route: string, pathname: string, query: any, as: string, shallow: boolean = false): Promise<RouteInfo> {
+    const cachedRouteInfo = this.components[route]
+
+    // If there is a shallow route transition possible
+    // If the route is already rendered on the screen.
+    if (shallow && cachedRouteInfo && this.route === route) {
+      return Promise.resolve(cachedRouteInfo)
+    }
+
+    return (new Promise((resolve, reject) => {
+      if (cachedRouteInfo) {
+        return resolve(cachedRouteInfo)
       }
 
+      this.fetchComponent(route).then((Component) => resolve({Component}), reject)
+    }) as Promise<RouteInfo>).then((routeInfo: RouteInfo) => {
       const { Component } = routeInfo
 
       if (process.env.NODE_ENV !== 'production') {
@@ -319,46 +323,55 @@ export default class Router implements IRouterInterface {
         }
       }
 
-      const ctx = { pathname, query, asPath: as }
-      routeInfo.props = await this.getInitialProps(Component, ctx)
+      return (new Promise((resolve) => {
+        const ctx = { pathname, query, asPath: as }
+        this.getInitialProps(Component, ctx).then((props) => {
+          routeInfo.props = props
+          this.components[route] = routeInfo
+          resolve(routeInfo)
+        })
+      }) as Promise<RouteInfo>)
+    }).catch((err) => {
+      return (new Promise((resolve, reject) => {
+        if (err.code === 'PAGE_LOAD_ERROR') {
+          // If we can't load the page it could be one of following reasons
+          //  1. Page doesn't exists
+          //  2. Page does exist in a different zone
+          //  3. Internal error while loading the page
 
-      this.components[route] = routeInfo
-      return routeInfo
-    } catch (err) {
-      if (err.code === 'PAGE_LOAD_ERROR') {
-        // If we can't load the page it could be one of following reasons
-        //  1. Page doesn't exists
-        //  2. Page does exist in a different zone
-        //  3. Internal error while loading the page
+          // So, doing a hard reload is the proper way to deal with this.
+          window.location.href = as
 
-        // So, doing a hard reload is the proper way to deal with this.
-        window.location.href = as
+          // Changing the URL doesn't block executing the current code path.
+          // So, we need to mark it as a cancelled error and stop the routing logic.
+          err.cancelled = true
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
 
-        // Changing the URL doesn't block executing the current code path.
-        // So, we need to mark it as a cancelled error and stop the routing logic.
-        err.cancelled = true
-        // @ts-ignore TODO: fix the control flow here
-        return { error: err }
-      }
+        if (err.cancelled) {
+          // @ts-ignore TODO: fix the control flow here
+          return resolve({ error: err })
+        }
 
-      if (err.cancelled) {
-        // @ts-ignore TODO: fix the control flow here
-        return { error: err }
-      }
-
-      const Component = await this.fetchComponent('/_error')
-      const routeInfo: RouteInfo = { Component, err }
-      const ctx = { err, pathname, query }
-      try {
-        routeInfo.props = await this.getInitialProps(Component, ctx)
-      } catch (err) {
-        console.error('Error in error page `getInitialProps`: ', err)
-        routeInfo.props = {}
-      }
-
-      routeInfo.error = err
-      return routeInfo
-    }
+        resolve(this.fetchComponent('/_error').then((Component) => {
+          const routeInfo: RouteInfo = { Component, err }
+          const ctx = { err, pathname, query }
+          return (new Promise((resolve) => {
+            this.getInitialProps(Component, ctx).then((props) => {
+              routeInfo.props = props
+              routeInfo.error = err
+              resolve(routeInfo)
+            }, (gipErr) => {
+              console.error('Error in error page `getInitialProps`: ', gipErr)
+              routeInfo.error = err
+              routeInfo.props = {}
+              resolve(routeInfo)
+            })
+          }) as Promise<RouteInfo>)
+        }))
+      }) as Promise<RouteInfo>)
+    })
   }
 
   set(route: string, pathname: string, query: any, as: string, data: RouteInfo): void {
@@ -419,15 +432,6 @@ export default class Router implements IRouterInterface {
 
   urlIsNew(asPath: string): boolean {
     return this.asPath !== asPath
-  }
-
-  isShallowRoutingPossible(route: string): boolean {
-    return (
-      // If there's cached routeInfo for the route.
-      Boolean(this.components[route]) &&
-      // If the route is already rendered on the screen.
-      this.route === route
-    )
   }
 
   prefetch(url: string): Promise<void> {
