@@ -6,7 +6,10 @@ const access = promisify(accessMod)
 const realpath = promisify(realpathMod)
 
 function deleteCache (path: string) {
-  access(path).then(() => realpath(path).then((p) => delete require.cache[p])).catch(() => {
+  access(path).then(() => realpath(path).then((p) => {
+    delete require.cache[p]
+    delete require.cache[path]
+  })).catch(() => {
     delete require.cache[path]
   })
 }
