@@ -1,17 +1,14 @@
 import { Compiler, Plugin } from 'webpack'
-import { access as accessMod, realpath as realpathMod } from 'fs'
-import { promisify } from 'util'
-
-const access = promisify(accessMod)
-const realpath = promisify(realpathMod)
+import { realpathSync } from 'fs'
 
 function deleteCache (path: string) {
-  access(path).then(() => realpath(path).then((p) => {
-    delete require.cache[p]
+  try {
+    delete require.cache[realpathSync(path)]
+  } catch(e) {
+    // probably doesn't exist
+  } finally {
     delete require.cache[path]
-  })).catch(() => {
-    delete require.cache[path]
-  })
+  }
 }
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
