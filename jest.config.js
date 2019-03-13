@@ -5,9 +5,8 @@ module.exports = {
   verbose: true,
   bail: true,
   testEnvironment: 'node',
-  rootDir: 'test',
-  modulePaths: ['<rootDir>/lib'],
-  globalSetup: '<rootDir>/jest-global-setup.js',
-  globalTeardown: '<rootDir>/jest-global-teardown.js',
+  modulePaths: ['<rootDir>/test/lib'],
+  globalSetup: '<rootDir>/test/jest-global-setup.js',
+  globalTeardown: '<rootDir>/test/jest-global-teardown.js',
   coverageReporters: ['text', 'lcov', 'cobertura']
 }

@@ -3,7 +3,11 @@
 const chromedriver = require('chromedriver')
 const waitPort = require('wait-port')
 
-module.exports = async function globalSetup () {
+module.exports = async function globalSetup (config) {
+  if (config.testPathPattern === 'packages') {
+    return
+  }
+
   chromedriver.start()
 
   // https://github.com/giggio/node-chromedriver/issues/117
