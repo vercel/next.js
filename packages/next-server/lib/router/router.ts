@@ -65,7 +65,6 @@ export default class Router implements IRouterInterface {
     this.asPath = as
     this.subscriptions = new Set()
     this.componentLoadCancel = null
-    this._beforePopState = () => true
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
