@@ -1,13 +1,5 @@
-import { access as accessMod, realpath as realpathMod } from 'fs'
-import { promisify } from 'util'
-
-const access = promisify(accessMod)
-const realpath = promisify(realpathMod)
-
 function deleteCache (path) {
-  access(path).then(() => realpath(path).then((p) => delete require.cache[p])).catch((e) => {
-    if (e.code === 'ENOENT') delete require.cache[path]
-  })
+  delete require.cache[path]
 }
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
