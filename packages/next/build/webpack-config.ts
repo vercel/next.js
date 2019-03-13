@@ -154,7 +154,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           commons: {
             name: 'commons',
             chunks: 'all',
-            minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+            minChunks: 2
           },
           react: {
             name: 'commons',
