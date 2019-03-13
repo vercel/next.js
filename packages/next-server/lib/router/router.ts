@@ -209,7 +209,7 @@ export default class Router implements IRouterInterface {
     return this.change('replaceState', url, as, options)
   }
 
-  async change(method: string, _url: string, _as: string, options: any) {
+  async change(method: string, _url: string, _as: string, options: any): Promise<boolean> {
     // If url and as provided as an object representation,
     // we'll format them into the string version here.
     const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
@@ -361,7 +361,7 @@ export default class Router implements IRouterInterface {
     }
   }
 
-  set(route: string, pathname: string, query: any, as: string, data: RouteInfo) {
+  set(route: string, pathname: string, query: any, as: string, data: RouteInfo): void {
     this.route = route
     this.pathname = pathname
     this.query = query
@@ -442,7 +442,7 @@ export default class Router implements IRouterInterface {
     })
   }
 
-  async fetchComponent(route: string) {
+  async fetchComponent(route: string): Promise<ComponentType> {
     let cancelled = false
     const cancel = this.componentLoadCancel = () => {
       cancelled = true
@@ -463,7 +463,7 @@ export default class Router implements IRouterInterface {
     return Component
   }
 
-  async getInitialProps(Component: ComponentType, ctx: Context) {
+  async getInitialProps(Component: ComponentType, ctx: Context): Promise<any> {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
@@ -484,7 +484,7 @@ export default class Router implements IRouterInterface {
     return props
   }
 
-  abortComponentLoad(as: string) {
+  abortComponentLoad(as: string): void {
     if (this.componentLoadCancel) {
       Router.events.emit('routeChangeError', new Error('Route Cancelled'), as)
       this.componentLoadCancel()
@@ -492,12 +492,12 @@ export default class Router implements IRouterInterface {
     }
   }
 
-  notify(data: RouteInfo) {
+  notify(data: RouteInfo): void {
     const { Component: App } = this.components['/_app']
     this.subscriptions.forEach((fn) => fn({ ...data, App }))
   }
 
-  subscribe(fn: Subscription) {
+  subscribe(fn: Subscription): () => void {
     this.subscriptions.add(fn)
     return () => this.subscriptions.delete(fn)
   }
