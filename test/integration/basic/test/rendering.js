@@ -290,7 +290,7 @@ export default function ({ app }, suiteName, render, fetch) {
       })
     })
 
-    it('should show better error when undefined is thrown', async () => {
+    it('should show a valid error when undefined is thrown', async () => {
       const $ = await get$('/throw-undefined')
       expect($('body').text()).toMatch('An undefined error was thrown sometime during render...')
     })

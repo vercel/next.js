@@ -1,4 +1,4 @@
-export default function ThrowUndefined (props) {
+function ThrowUndefined (props) {
   return (
     <div>throw-undefined</div>
   )
@@ -7,3 +7,5 @@ export default function ThrowUndefined (props) {
 ThrowUndefined.getInitialProps = () => {
   throw undefined
 }
+
+export default ThrowUndefined

@@ -120,7 +120,7 @@ export default class DevServer extends Server {
       return super.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
-    if (!err) {
+    if (!err && res.statusCode === 500) {
       err = new Error('An undefined error was thrown sometime during render...')
     }
 
