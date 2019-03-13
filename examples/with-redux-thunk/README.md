@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux-thunk)
 
 # Redux example
 
@@ -9,9 +9,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-redux with-redux-app
+npx create-next-app --example with-redux-thunk with-redux-thunk-app
 # or
-yarn create next-app --example with-redux with-redux-app
+yarn create next-app --example with-redux-thunk with-redux-thunk-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example with-redux with-redux-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux
-cd with-redux
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-thunk
+cd with-redux-thunk
 ```
 
 Install it and run:
