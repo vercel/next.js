@@ -35,7 +35,7 @@ export default class Router implements IRouterInterface {
   subscriptions: Set<Subscription>
   componentLoadCancel: (() => void) | null
   pageLoader: any
-  _beforePopState: BeforePopStateCallback
+  _bps: BeforePopStateCallback | undefined
 
   static events: MittEmitter = mitt()
 
@@ -128,7 +128,7 @@ export default class Router implements IRouterInterface {
 
     // If the downstream application returns falsy, return.
     // They will then be responsible for handling the event.
-    if (!this._beforePopState(e.state)) {
+    if (this._bps && !this._bps(e.state)) {
       return
     }
 
@@ -383,7 +383,7 @@ export default class Router implements IRouterInterface {
   }
 
   beforePopState(cb: BeforePopStateCallback) {
-    this._beforePopState = cb
+    this._bps = cb
   }
 
   onlyAHashChange(as: string): boolean {
