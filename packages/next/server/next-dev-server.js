@@ -121,7 +121,9 @@ export default class DevServer extends Server {
     }
 
     if (!err && res.statusCode === 500) {
-      err = new Error('An undefined error was thrown sometime during render...')
+      err = new Error('An undefined error was thrown sometime during render... ' +
+       'See https://err.sh/zeit/next.js/threw-undefined'
+      )
     }
 
     try {
