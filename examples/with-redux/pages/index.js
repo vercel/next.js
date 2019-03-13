@@ -14,6 +14,7 @@ class Index extends React.Component {
 
   componentDidMount () {
     const { dispatch } = this.props
+    // TO TICK THE CLOCK
     this.timer = setInterval(() => this.props.startClock(dispatch), 1000)
   }
 
