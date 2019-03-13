@@ -20,7 +20,7 @@ class Counter extends Component {
     resetCount()
   }
 
-  render() {
+  render () {
     const { count } = this.props
     return (
       <div>
