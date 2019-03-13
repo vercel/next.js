@@ -85,31 +85,19 @@ export default class Router implements IRouterInterface {
     }
   }
 
-  static _rewriteUrlForNextExport(url: string) {
-    const [, hash] = url.split('#')
-    url = url.replace(/#.*/, '')
+  static _rewriteUrlForNextExport(url: string): string {
+    const [pathname, hash] = url.split('#')
     // tslint:disable-next-line
-    let [path, qs] = url.split('?')
+    let [path, qs] = pathname.split('?')
     path = path.replace(/\/$/, '')
-
-    let newPath = path
     // Append a trailing slash if this path does not have an extension
-    if (!/\.[^/]+\/?$/.test(path)) {
-      newPath = `${path}/`
-    }
-
-    if (qs) {
-      newPath = `${newPath}?${qs}`
-    }
-
-    if (hash) {
-      newPath = `${newPath}#${hash}`
-    }
-
-    return newPath
+    if (!/\.[^/]+\/?$/.test(path)) path += `/`
+    if (qs) path += '?' + qs
+    if (hash) path += '#' + hash
+    return path
   }
 
-  onPopState = (e: PopStateEvent) => {
+  onPopState = (e: PopStateEvent): void => {
     if (!e.state) {
       // We get state as undefined for two reasons.
       //  1. With older safari (< 8) and older chrome (< 34)
