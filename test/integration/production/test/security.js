@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { readFileSync } from 'fs'
-import { join } from 'path'
+import { join, resolve as resolvePath } from 'path'
 import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -56,10 +56,11 @@ module.exports = (context) => {
           throw new Error(`Found the user's home directory in: ${buildFile}`)
         }
 
-        console.log('CWD:', process.cwd())
+        const checkPathProject = resolvePath(__dirname, ...Array(5).fill('..'))
+        console.log('looking for ' + checkPathProject)
 
-        if (content.includes(process.cwd())) {
-          throw new Error(`Found the CWD in: ${buildFile}`)
+        if (content.includes(checkPathProject)) {
+          throw new Error(`Found the project path in: ${buildFile}`)
         }
       })
     })
