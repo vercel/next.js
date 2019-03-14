@@ -51,7 +51,8 @@
       "packages/next/build/webpack/plugins/terser-webpack-plugin/**",
       "examples/with-ioc/**",
       "examples/with-kea/**",
-      "examples/with-mobx/**"
+      "examples/with-mobx/**",
+      "test/integration/basic/pages/throw-undefined.js"
     ]
   },
   "devDependencies": {

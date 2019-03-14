@@ -1,13 +1,45 @@
-/* global __NEXT_DATA__, location */
+/* global __NEXT_DATA__ */
+// tslint:disable:no-console
+import { ComponentType } from 'react';
+import { parse } from 'url';
+import mitt, {MittEmitter} from '../mitt';
+import { formatWithValidation, getURL, loadGetInitialProps } from '../utils';
+import {toRoute} from './to-route'
 
-import { parse } from 'url'
-import mitt from '../mitt'
-import { loadGetInitialProps, getURL, formatWithValidation } from '../utils'
+export interface IRouterInterface {
+  route: string
+  pathname: string
+  query: string
+  asPath: string
+}
 
-export default class Router {
-  static events = mitt()
+type RouteInfo = {
+  Component: ComponentType,
+  props?: any,
+  err?: Error
+  error?: any,
+}
 
-  constructor (pathname, query, as, { initialProps, pageLoader, App, Component, err } = {}) {
+type Subscription = (data: {App?: ComponentType} & RouteInfo) => void
+
+type BeforePopStateCallback = (state: any) => boolean
+
+type Context = any
+
+export default class Router implements IRouterInterface {
+  route: string
+  pathname: string
+  query: string
+  asPath: string
+  components: {[pathname: string]: RouteInfo}
+  subscriptions: Set<Subscription>
+  componentLoadCancel: (() => void) | null
+  pageLoader: any
+  _beforePopState: BeforePopStateCallback
+
+  static events: MittEmitter = mitt()
+
+  constructor(pathname: string, query: any, as: string, { initialProps, pageLoader, App, Component, err }: {initialProps: any, pageLoader: any, Component: ComponentType, App: ComponentType, err?: Error}) {
     // represents the current component key
     this.route = toRoute(pathname)
 
@@ -24,6 +56,7 @@ export default class Router {
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
+    // @ts-ignore backwards compatibility
     this.events = Router.events
 
     this.pageLoader = pageLoader
@@ -47,16 +80,16 @@ export default class Router {
       // TODO: let's remove this once the Firefox bug is resolved
       if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
         window.addEventListener('unload', () => {
-          if (location.search) location.replace(location)
+          if (window.location.search) window.location.replace(window.location.toString())
         })
       }
     }
   }
 
-  static _rewriteUrlForNextExport (url) {
+  static _rewriteUrlForNextExport(url: string) {
     const [, hash] = url.split('#')
     url = url.replace(/#.*/, '')
-
+    // tslint:disable-next-line
     let [path, qs] = url.split('?')
     path = path.replace(/\/$/, '')
 
@@ -77,7 +110,7 @@ export default class Router {
     return newPath
   }
 
-  onPopState = e => {
+  onPopState = (e: PopStateEvent) => {
     if (!e.state) {
       // We get state as undefined for two reasons.
       //  1. With older safari (< 8) and older chrome (< 34)
@@ -108,7 +141,7 @@ export default class Router {
     this.replace(url, as, options)
   };
 
-  update (route, Component) {
+  update(route: string, Component: ComponentType) {
     const data = this.components[route]
     if (!data) {
       throw new Error(`Cannot update unavailable route: ${route}`)
@@ -128,48 +161,55 @@ export default class Router {
     }
   }
 
-  async reload (route) {
-    delete this.components[route]
-    this.pageLoader.clearCache(route)
+  reload(route: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      delete this.components[route]
+      this.pageLoader.clearCache(route)
 
-    if (route !== this.route) return
+      if (route !== this.route) {
+        return resolve()
+      }
 
-    const { pathname, query } = this
-    const url = window.location.href
-    // This makes sure we only use pathname + query + hash, to mirror `asPath` coming from the server.
-    const as = window.location.pathname + window.location.search + window.location.hash
+      const { pathname, query } = this
+      const url = window.location.href
+      // This makes sure we only use pathname + query + hash, to mirror `asPath` coming from the server.
+      const as = window.location.pathname + window.location.search + window.location.hash
 
-    Router.events.emit('routeChangeStart', url)
-    const routeInfo = await this.getRouteInfo(route, pathname, query, as)
-    const { error } = routeInfo
+      Router.events.emit('routeChangeStart', url)
+      this.getRouteInfo(route, pathname, query, as).then((routeInfo) => {
+        const { error } = routeInfo
 
-    if (error && error.cancelled) {
-      return
-    }
+        if (error && error.cancelled) {
+          return resolve()
+        }
 
-    this.notify(routeInfo)
+        this.notify(routeInfo)
 
-    if (error) {
-      Router.events.emit('routeChangeError', error, url)
-      throw error
-    }
+        if (error) {
+          Router.events.emit('routeChangeError', error, url)
+          return reject(error)
+        }
 
-    Router.events.emit('routeChangeComplete', url)
+        Router.events.emit('routeChangeComplete', url)
+      })
+
+    })
+
   }
 
-  back () {
+  back() {
     window.history.back()
   }
 
-  push (url, as = url, options = {}) {
+  push(url: string, as: string = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
-  replace (url, as = url, options = {}) {
+  replace(url: string, as: string = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
 
-  async change (method, _url, _as, options) {
+  async change(method: string, _url: string, _as: string, options: any) {
     // If url and as provided as an object representation,
     // we'll format them into the string version here.
     const url = typeof _url === 'object' ? formatWithValidation(_url) : _url
@@ -177,6 +217,7 @@ export default class Router {
 
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly for the SSR page.
+    // @ts-ignore this is temporarily global (attached to window)
     if (__NEXT_DATA__.nextExport) {
       as = Router._rewriteUrlForNextExport(as)
     }
@@ -204,6 +245,7 @@ export default class Router {
       method = 'replaceState'
     }
 
+    // @ts-ignore pathname is always a string
     const route = toRoute(pathname)
     const { shallow = false } = options
     let routeInfo = null
@@ -216,6 +258,7 @@ export default class Router {
     if (shallow && this.isShallowRoutingPossible(route)) {
       routeInfo = this.components[route]
     } else {
+      // @ts-ignore pathname is always a string
       routeInfo = await this.getRouteInfo(route, pathname, query, as)
     }
 
@@ -229,6 +272,7 @@ export default class Router {
     this.changeState(method, url, as, options)
     const hash = window.location.hash.substring(1)
 
+    // @ts-ignore pathname is always defined
     this.set(route, pathname, query, as, { ...routeInfo, hash })
 
     if (error) {
@@ -240,12 +284,13 @@ export default class Router {
     return true
   }
 
-  changeState (method, url, as, options = {}) {
+  changeState(method: string, url: string, as: string, options = {}): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
         console.error(`Warning: window.history is not available.`)
         return
       }
+      // @ts-ignore method should always exist on history
       if (typeof window.history[method] === 'undefined') {
         console.error(`Warning: window.history.${method} is not available`)
         return
@@ -253,17 +298,16 @@ export default class Router {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+      // @ts-ignore method should always exist on history
       window.history[method]({ url, as, options }, null, as)
     }
   }
 
-  async getRouteInfo (route, pathname, query, as) {
-    let routeInfo = null
-
+  async getRouteInfo(route: string, pathname: string, query: any, as: string): Promise<RouteInfo> {
     try {
-      routeInfo = this.components[route]
+      let routeInfo = this.components[route]
       if (!routeInfo) {
-        routeInfo = { Component: await this.fetchComponent(route, as) }
+        routeInfo = { Component: await this.fetchComponent(route) }
       }
 
       const { Component } = routeInfo
@@ -279,6 +323,7 @@ export default class Router {
       routeInfo.props = await this.getInitialProps(Component, ctx)
 
       this.components[route] = routeInfo
+      return routeInfo
     } catch (err) {
       if (err.code === 'PAGE_LOAD_ERROR') {
         // If we can't load the page it could be one of following reasons
@@ -292,15 +337,17 @@ export default class Router {
         // Changing the URL doesn't block executing the current code path.
         // So, we need to mark it as a cancelled error and stop the routing logic.
         err.cancelled = true
+        // @ts-ignore TODO: fix the control flow here
         return { error: err }
       }
 
       if (err.cancelled) {
+        // @ts-ignore TODO: fix the control flow here
         return { error: err }
       }
 
       const Component = await this.fetchComponent('/_error')
-      routeInfo = { Component, err }
+      const routeInfo: RouteInfo = { Component, err }
       const ctx = { err, pathname, query }
       try {
         routeInfo.props = await this.getInitialProps(Component, ctx)
@@ -310,12 +357,11 @@ export default class Router {
       }
 
       routeInfo.error = err
+      return routeInfo
     }
-
-    return routeInfo
   }
 
-  set (route, pathname, query, as, data) {
+  set(route: string, pathname: string, query: any, as: string, data: RouteInfo) {
     this.route = route
     this.pathname = pathname
     this.query = query
@@ -323,11 +369,11 @@ export default class Router {
     this.notify(data)
   }
 
-  beforePopState (cb) {
+  beforePopState(cb: BeforePopStateCallback) {
     this._beforePopState = cb
   }
 
-  onlyAHashChange (as) {
+  onlyAHashChange(as: string): boolean {
     if (!this.asPath) return false
     const [ oldUrlNoHash, oldHash ] = this.asPath.split('#')
     const [ newUrlNoHash, newHash ] = as.split('#')
@@ -349,7 +395,7 @@ export default class Router {
     return oldHash !== newHash
   }
 
-  scrollToHash (as) {
+  scrollToHash(as: string): void {
     const [ , hash ] = as.split('#')
     // Scroll to top if the hash is just `#` with no value
     if (hash === '') {
@@ -371,11 +417,11 @@ export default class Router {
     }
   }
 
-  urlIsNew (asPath) {
+  urlIsNew(asPath: string): boolean {
     return this.asPath !== asPath
   }
 
-  isShallowRoutingPossible (route) {
+  isShallowRoutingPossible(route: string): boolean {
     return (
       // If there's cached routeInfo for the route.
       Boolean(this.components[route]) &&
@@ -384,26 +430,28 @@ export default class Router {
     )
   }
 
-  async prefetch (url) {
-    // We don't add support for prefetch in the development mode.
-    // If we do that, our on-demand-entries optimization won't performs better
-    if (process.env.NODE_ENV !== 'production') return
+  async prefetch(url: string) {
+    return new Promise((resolve, reject) => {
+      // Prefetch is not supported in development mode because it would trigger on-demand-entries
+      if (process.env.NODE_ENV !== 'production') return
 
-    const { pathname } = parse(url)
-    const route = toRoute(pathname)
-    return this.pageLoader.prefetch(route)
+      const { pathname } = parse(url)
+      // @ts-ignore pathname is always defined
+      const route = toRoute(pathname)
+      this.pageLoader.prefetch(route).then(resolve, reject)
+    })
   }
 
-  async fetchComponent (route, as) {
+  async fetchComponent(route: string) {
     let cancelled = false
-    const cancel = this.componentLoadCancel = function () {
+    const cancel = this.componentLoadCancel = () => {
       cancelled = true
     }
 
-    const Component = await this.fetchRoute(route)
+    const Component = await this.pageLoader.loadPage(route)
 
     if (cancelled) {
-      const error = new Error(`Abort fetching component for route: "${route}"`)
+      const error: any = new Error(`Abort fetching component for route: "${route}"`)
       error.cancelled = true
       throw error
     }
@@ -415,7 +463,7 @@ export default class Router {
     return Component
   }
 
-  async getInitialProps (Component, ctx) {
+  async getInitialProps(Component: ComponentType, ctx: Context) {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
@@ -428,7 +476,7 @@ export default class Router {
     }
 
     if (cancelled) {
-      const err = new Error('Loading initial props cancelled')
+      const err: any = new Error('Loading initial props cancelled')
       err.cancelled = true
       throw err
     }
@@ -436,11 +484,7 @@ export default class Router {
     return props
   }
 
-  async fetchRoute (route) {
-    return this.pageLoader.loadPage(route)
-  }
-
-  abortComponentLoad (as) {
+  abortComponentLoad(as: string) {
     if (this.componentLoadCancel) {
       Router.events.emit('routeChangeError', new Error('Route Cancelled'), as)
       this.componentLoadCancel()
@@ -448,17 +492,13 @@ export default class Router {
     }
   }
 
-  notify (data) {
+  notify(data: RouteInfo) {
     const { Component: App } = this.components['/_app']
     this.subscriptions.forEach((fn) => fn({ ...data, App }))
   }
 
-  subscribe (fn) {
+  subscribe(fn: Subscription) {
     this.subscriptions.add(fn)
     return () => this.subscriptions.delete(fn)
   }
-}
-
-function toRoute (path) {
-  return path.replace(/\/$/, '') || '/'
 }
