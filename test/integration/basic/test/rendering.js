@@ -289,5 +289,10 @@ export default function ({ app }, suiteName, render, fetch) {
         expect($('#asPath').text()).toBe('Current asPath: /nav/with-hoc')
       })
     })
+
+    it('should show a valid error when undefined is thrown', async () => {
+      const $ = await get$('/throw-undefined')
+      expect($('body').text()).toMatch('An undefined error was thrown sometime during render...')
+    })
   })
 }

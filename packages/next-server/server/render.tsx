@@ -2,7 +2,9 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import Router from '../lib/router/router'
+import {IRouterInterface} from '../lib/router/router'
+import {toRoute} from '../lib/router/to-route'
+import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
@@ -25,7 +27,21 @@ function noRouter() {
   throw new Error(message)
 }
 
-class ServerRouter extends Router {
+class ServerRouter implements IRouterInterface {
+  route: string
+  pathname: string
+  query: string
+  asPath: string
+  // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
+  static events: MittEmitter = mitt()
+
+  constructor(pathname: string, query: any, as: string) {
+    this.route = toRoute(pathname)
+    this.pathname = pathname
+    this.query = query
+    this.asPath = as
+    this.pathname = pathname
+  }
   // @ts-ignore
   push() {
     noRouter()
@@ -215,7 +231,8 @@ export async function renderToHTML(
     }
   }
 
-  const asPath = req.url
+  // @ts-ignore url will always be set
+  const asPath: string = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new ServerRouter(pathname, query, asPath)
   const props = await loadGetInitialProps(App, { Component, router, ctx })
