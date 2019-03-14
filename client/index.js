@@ -3,9 +3,9 @@ import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import mitt from 'mitt'
 import App from '../lib/app'
-import { getURL } from '../lib/utils'
 import { waitForPage } from '../lib/page-loader'
 import router, { createRouter } from './router'
+import { getURL } from '../lib/url'
 
 const {
   props,

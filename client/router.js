@@ -1,7 +1,6 @@
 /* global Raven */
 import mitt from 'mitt'
-import { getURL } from '../lib/utils'
-import { formatPath, parsePath } from '../lib/url'
+import { formatPath, parsePath, getURL } from '../lib/url'
 
 // set up the component cache (by route keys)
 const components = {}
