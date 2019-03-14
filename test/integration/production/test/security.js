@@ -57,9 +57,11 @@ module.exports = (context) => {
         }
 
         const checkPathProject = resolvePath(__dirname, ...Array(5).fill('..'))
-        console.log('looking for ' + checkPathProject)
-
-        if (content.includes(checkPathProject)) {
+        if (
+          content.includes(checkPathProject) ||
+          (process.platform.match(/win/) &&
+            content.includes(checkPathProject.replace(/\\/g, '\\\\')))
+        ) {
           throw new Error(`Found the project path in: ${buildFile}`)
         }
       })
