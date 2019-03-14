@@ -52,11 +52,14 @@ module.exports = (context) => {
       const homeDir = homedir()
       buildFiles.forEach(buildFile => {
         const content = readFileSync(join(readPath, buildFile), 'utf8')
-        if (process.platform.match(/win/)) {
-          console.log(content)
-        }
         if (content.includes(homeDir)) {
           throw new Error(`Found the user's home directory in: ${buildFile}`)
+        }
+
+        console.log('CWD:', process.cwd())
+
+        if (content.includes(process.cwd())) {
+          throw new Error(`Found the CWD in: ${buildFile}`)
         }
       })
     })
