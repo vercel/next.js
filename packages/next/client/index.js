@@ -78,7 +78,7 @@ export default async ({
   try {
     App = await import(`${PAGES_DIR_ALIAS}/_app`).then((m) => m.default)
   } catch (e) {
-    App = await import(`next/dist/pages/_app`).then((m) => m.default)
+
   }
 
   let initialErr = err
