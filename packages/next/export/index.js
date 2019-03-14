@@ -1,4 +1,3 @@
-import rimrafModule from 'rimraf'
 import { cpus } from 'os'
 import { fork } from 'child_process'
 import cp from 'recursive-copy'
@@ -9,9 +8,9 @@ import loadConfig from 'next-server/next-config'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
+import { recursiveDelete } from '../lib/recursive-delete'
 
 const mkdirp = promisify(mkdirpModule)
-const rimraf = promisify(rimrafModule)
 
 export default async function (dir, options, configuration) {
   function log (message) {
@@ -55,7 +54,7 @@ export default async function (dir, options, configuration) {
 
   // Initialize the output directory
   const outDir = options.outdir
-  await rimraf(join(outDir, '*'))
+  await recursiveDelete(join(outDir))
   await mkdirp(join(outDir, '_next', buildId))
 
   // Copy static directory

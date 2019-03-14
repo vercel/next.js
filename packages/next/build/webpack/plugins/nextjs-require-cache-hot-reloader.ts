@@ -1,13 +1,16 @@
-function deleteCache (path) {
+import {Compiler} from 'webpack'
+
+function deleteCache (path: string): void {
   delete require.cache[path]
 }
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-export default class NextJsRequireCacheHotReloader {
+export class NextJsRequireCacheHotReloader {
+  prevAssets: any
   constructor () {
     this.prevAssets = null
   }
-  apply (compiler) {
+  apply (compiler: Compiler) {
     compiler.hooks.afterEmit.tapAsync('NextJsRequireCacheHotReloader', (compilation, callback) => {
       const { assets } = compilation
 

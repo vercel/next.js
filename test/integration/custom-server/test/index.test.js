@@ -3,14 +3,19 @@
 import { join } from 'path'
 import getPort from 'get-port'
 import clone from 'clone'
+import webdriver from 'next-webdriver'
 import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
-  fetchViaHTTP
+  fetchViaHTTP,
+  check,
+  File
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
+const indexPg = new File(join(appDir, 'pages/index.js'))
+
 let appPort
 let server
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
@@ -82,6 +87,34 @@ describe('Custom Server', () => {
     it('response does not include etag header', async () => {
       const response = await fetchViaHTTP(appPort, '/')
       expect(response.headers.get('etag')).toBeNull()
+    })
+  })
+
+  describe('HMR with custom server', () => {
+    beforeAll(() => startServer())
+    afterAll(() => {
+      killApp(server)
+      indexPg.restore()
+    })
+
+    it('Should support HMR when rendering with /index pathname', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/test-index-hmr')
+        const text = await browser.elementByCss('#go-asset').text()
+        expect(text).toBe('Asset')
+
+        indexPg.replace('Asset', 'Asset!!')
+
+        await check(
+          () => browser.elementByCss('#go-asset').text(),
+          /Asset!!/
+        )
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+      }
     })
   })
 })

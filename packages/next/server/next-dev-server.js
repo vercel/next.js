@@ -108,7 +108,6 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-
     return super.renderToHTML(req, res, pathname, query, options)
   }
 
@@ -119,6 +118,12 @@ export default class DevServer extends Server {
     if (compilationErr) {
       res.statusCode = 500
       return super.renderErrorToHTML(compilationErr, req, res, pathname, query)
+    }
+
+    if (!err && res.statusCode === 500) {
+      err = new Error('An undefined error was thrown sometime during render... ' +
+       'See https://err.sh/zeit/next.js/threw-undefined'
+      )
     }
 
     try {

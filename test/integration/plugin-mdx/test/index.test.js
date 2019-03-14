@@ -1,4 +1,5 @@
 /* eslint-env jest */
+/* global jasmine */
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -8,6 +9,7 @@ import {
 } from 'next-test-utils'
 
 const context = {}
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 describe('Configuration', () => {
   beforeAll(async () => {
