@@ -1,3 +1,4 @@
+/* global __NEXT_DATA__, location */
 import { createElement } from 'react'
 import ReactDOM from 'react-dom'
 import mitt from 'mitt'
@@ -7,17 +8,13 @@ import { waitForPage } from '../lib/page-loader'
 import router, { createRouter } from './router'
 
 const {
-  __NEXT_DATA__: {
-    props,
-    err,
-    pathname,
-    query,
-    publicPath
-  },
-  location
-} = window
+  props,
+  err,
+  pathname,
+  query
+} = __NEXT_DATA__
 
-__webpack_public_path__ = publicPath    // eslint-disable-line
+__webpack_public_path__ = __NEXT_DATA__.publicPath    // eslint-disable-line
 
 const asPath = getURL()
 
@@ -25,7 +22,7 @@ const appContainer = document.getElementById('__next')
 const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
-export let ErrorComponent
+let ErrorComponent
 
 export const emitter = mitt()
 
@@ -41,18 +38,16 @@ export default () => {
       createRouter(pathname, query, asPath, {
         Component,
         err
-      }, ({ Component, props, hash, err }) => {
-        render({ Component, props, err, hash, emitter })
-      })
+      }, render)
 
       const hash = location.hash.substring(1)
-      render({ Component, props, hash, err, emitter })
+      render({ Component, props, hash, err })
 
       return emitter
     })
 }
 
-export function render ({ Component, props, hash, err, emitter: emitterProp = emitter }) {
+export function render ({ Component, props, hash, err }) {
   // There are some errors we should ignore.
   // Next.js rendering logic knows how to handle them.
   // These are specially 404 errors
@@ -80,7 +75,7 @@ export function render ({ Component, props, hash, err, emitter: emitterProp = em
       // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
       lastAppProps = appProps
 
-      emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
+      emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
 
       // We need to clear any existing runtime error messages
       ReactDOM.unmountComponentAtNode(errorContainer)
@@ -88,7 +83,7 @@ export function render ({ Component, props, hash, err, emitter: emitterProp = em
 
       renderReactElement(createElement(App, appProps), appContainer)
 
-      emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+      emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
     }).catch((err) => {
       if (err.abort) return
       return renderError(err)
@@ -109,7 +104,7 @@ export function renderError (error) {
 
   return ErrorComponent.getInitialProps({ err: error, pathname, query, asPath })
     .then((props) => {
-      const appProps = { Component: ErrorComponent, props, err, router }
+      const appProps = { Component: ErrorComponent, props, err: error, router }
       renderReactElement(createElement(App, appProps), errorContainer)
 
       appContainer.innerHTML = ''
