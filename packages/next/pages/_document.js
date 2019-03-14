@@ -232,13 +232,6 @@ export class Head extends Component {
                 crossOrigin={this.props.crossOrigin || process.crossOrigin}
               />
             )}
-            <link
-              rel="preload"
-              href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`}
-              as="script"
-              nonce={this.props.nonce}
-              crossOrigin={this.props.crossOrigin || process.crossOrigin}
-            />
             {this.getPreloadDynamicChunks()}
             {this.getPreloadMainLinks()}
             {this.getCssLinks()}
@@ -428,13 +421,6 @@ export class NextScript extends Component {
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
           />
         )}
-        <script
-          async
-          id={`__NEXT_PAGE__/_app`}
-          src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`}
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
         {staticMarkup ? null : this.getDynamicChunks()}
         {staticMarkup ? null : this.getScripts()}
       </>

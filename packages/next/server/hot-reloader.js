@@ -165,7 +165,6 @@ export default class HotReloader {
   async getWebpackConfig () {
     const pagesDir = join(this.dir, 'pages')
     const pagePaths = await Promise.all([
-      findPageFile(pagesDir, '/_app', this.config.pageExtensions),
       findPageFile(pagesDir, '/_document', this.config.pageExtensions)
     ])
 

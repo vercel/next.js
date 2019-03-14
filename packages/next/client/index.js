@@ -9,6 +9,7 @@ import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
+import { PAGES_DIR_ALIAS } from 'next/dist/lib/constants'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -73,7 +74,12 @@ export default async ({
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-  App = await pageLoader.loadPage('/_app')
+
+  try {
+    App = await import(`${PAGES_DIR_ALIAS}/_app`).then((m) => m.default)
+  } catch (e) {
+    App = await import('next/dist/pages/_app').then((m) => m.default)
+  }
 
   let initialErr = err
 

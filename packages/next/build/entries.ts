@@ -16,7 +16,6 @@ export function createPagesMapping(pagePaths: string[], extensions: string[]): P
     return result
   }, {})
 
-  pages['/_app'] = pages['/_app'] || 'next/dist/pages/_app'
   pages['/_error'] = pages['/_error'] || 'next/dist/pages/_error'
   pages['/_document'] = pages['/_document'] || 'next/dist/pages/_document'
 
