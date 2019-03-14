@@ -206,7 +206,7 @@ export default class Router implements IRouterInterface {
       // Add the ending slash to the paths. So, we can serve the
       // "<page>/index.html" directly for the SSR page.
       // @ts-ignore this is temporarily global (attached to window)
-      if (__NEXT_DATA__.nextExport) {
+      if (!process.env.__NEXT_EXPORT_TRAILING_SLASH && __NEXT_DATA__.nextExport) {
         as = Router._rewriteUrlForNextExport(as)
       }
 

@@ -467,7 +467,7 @@ export default (context) => {
         expect(text).toBe('10')
 
         expect(await browser.url())
-          .toBe(`http://localhost:${context.appPort}/nav/querystring/10#10`)
+          .toBe(`http://localhost:${context.appPort}/nav/querystring/10/#10`)
         browser.close()
       })
 
@@ -605,7 +605,7 @@ export default (context) => {
             .waitForElementByCss('.as-path-content')
             .elementByCss('.as-path-content').text()
 
-          expect(asPath).toBe('/as/path')
+          expect(asPath).toBe('/as/path/')
           browser.close()
         })
 

@@ -42,16 +42,23 @@ class Link extends Component {
     }
   }
 
+  formatUrl (url, asHref) {
+    url = url && typeof url === 'object'
+      ? formatWithValidation(url)
+      : url
+
+    if (url && asHref && process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      url = _Router._rewriteUrlForNextExport(url)
+    }
+    return url
+  }
+
   // The function is memoized so that no extra lifecycles are needed
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: href && typeof href === 'object'
-        ? formatWithValidation(href)
-        : href,
-      as: asHref && typeof asHref === 'object'
-        ? formatWithValidation(asHref)
-        : asHref
+      href: this.formatUrl(href),
+      as: this.formatUrl(asHref, true)
     }
   })
 
