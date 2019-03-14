@@ -170,6 +170,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         })
       ] : undefined,
     },
+    recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
