@@ -3,6 +3,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import PropTypes from 'prop-types'
 import htmlescape from 'htmlescape'
 
+// Hack to prevent duplicate script exec under Safari 10.3
+// https://gist.github.com/samthor/64b114e4a4f539915a95b91ffd340acc#file-safari-nomodule-js-L18
+const safariNoModule =
+  '(function(d,c,s){c=d.createElement("script");if(!("noModule"in c)&&"onbeforeload"in c){d.addEventListener("beforeload",e=>{if(e.target===c){s=true}else if(!e.target.hasAttribute("nomodule")||!s){return}e.preventDefault()},true);c.type="module";c.src=".";d.head.appendChild(c);c.remove()}})(document);'
+
 function scriptsForEntry (pathname, entrypoints) {
   const entry = entrypoints[`pages${pathname}.js`]
 
@@ -143,7 +148,7 @@ export class NextScript extends Component {
 
     return <div>
       <script nonce={this.props.nonce} dangerouslySetInnerHTML={{
-        __html: `module={};__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)}`
+        __html: `module={};__NEXT_DATA__ = ${htmlescape(__NEXT_DATA__)};${safariNoModule}`
       }} />
       {this.getScripts()}
     </div>
