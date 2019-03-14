@@ -2185,6 +2185,15 @@ Yes! Here's an example with [Apollo](/examples/with-apollo).
 <p></p>
 
 <details>
+<summary>Can I use it with Redux and thunk?</summary>
+
+Yes! Here's an [example](/examples/with-redux-thunk)
+
+</details>
+
+<p></p>
+
+<details>
 <summary>Can I use it with Redux?</summary>
 
 Yes! Here's an [example](/examples/with-redux)
