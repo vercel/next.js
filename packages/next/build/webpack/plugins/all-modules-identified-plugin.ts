@@ -1,6 +1,6 @@
-import { Compiler } from 'webpack'
+import { Compiler, Plugin } from 'webpack'
 
-export class AllModulesIdentifiedPlugin {
+export class AllModulesIdentifiedPlugin implements Plugin {
   apply(compiler: Compiler) {
     compiler.hooks.compilation.tap(
       'AllModulesIdentifiedPlugin',
