@@ -14,7 +14,7 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, appPath}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, appPath: string}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -42,7 +42,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : undefined
-
+console.log(appPath)
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
@@ -51,6 +51,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      next_app_path: 'test',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir

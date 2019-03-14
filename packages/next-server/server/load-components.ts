@@ -8,19 +8,14 @@ function interopDefault(mod: any) {
 
 export async function loadComponents(distDir: string, buildId: string, pathname: string) {
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
-  const [buildManifest, reactLoadableManifest, Component, Document] = await Promise.all([
+  const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
+  const [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
     interopDefault(requirePage(pathname, distDir)),
     interopDefault(require(documentPath)),
+    interopDefault(require(appPath)),
   ])
-
-  let App
-  try {
-    App = interopDefault(require('private-next-pages/_app'))
-  } catch (e) {
-    App = interopDefault(require('next/dist/pages/_app'))
-  }
 
   return {buildManifest, reactLoadableManifest, Component, Document, App}
 }
