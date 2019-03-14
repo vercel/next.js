@@ -11,6 +11,7 @@ import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_
 import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
+import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -282,6 +283,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         return devPlugins
       })() : []),
       !dev && new webpack.HashedModuleIdsPlugin(),
+      // This must come after HashedModuleIdsPlugin (it sets any modules that
+      // were missed by HashedModuleIdsPlugin)
+      !dev && new AllModulesIdentifiedPlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
