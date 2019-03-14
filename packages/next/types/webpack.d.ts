@@ -706,7 +706,7 @@ declare module 'webpack' {
                 /** Generate records with relative paths to be able to move the context folder". */
                 portableRecords?: boolean;
                 /** Tells webpack which algorithm to use when choosing chunk ids. */
-                chunkIds: false | 'natural' | 'named'| 'size' | 'total-size'
+                chunkIds?: false | 'natural' | 'named'| 'size' | 'total-size'
             }
         }
 
