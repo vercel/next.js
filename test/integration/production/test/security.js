@@ -3,6 +3,8 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+import { homedir } from 'os'
 
 // Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
 async function checkInjected (browser) {
@@ -35,6 +37,25 @@ module.exports = (context) => {
         const data = await renderViaHTTP(context.appPort, path)
         expect(data.includes('cool-version')).toBeFalsy()
       }
+    })
+
+    it("should not leak the user's home directory into the build", async () => {
+      const buildId = readFileSync(join(__dirname, '../.next/BUILD_ID'), 'utf8')
+
+      const readPath = join(__dirname, `../.next/static/${buildId}`)
+      const buildFiles = await recursiveReadDir(readPath, /\.js$/)
+
+      if (buildFiles.length < 1) {
+        throw new Error('Could not locate any build files')
+      }
+
+      const homeDir = homedir()
+      buildFiles.forEach(buildFile => {
+        const content = readFileSync(join(readPath, buildFile), 'utf8')
+        if (content.includes(homeDir)) {
+          throw new Error(`Found the user's home directory in: ${buildFile}`)
+        }
+      })
     })
 
     it('should prevent URI based XSS attacks', async () => {
