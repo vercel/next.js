@@ -62,7 +62,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       config,
       target: config.target,
       entrypoints: entrypoints.client,
-      appPath: pages['/_app'],
     }),
     getBaseWebpackConfig(dir, {
       buildId,
@@ -70,7 +69,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       config,
       target: config.target,
       entrypoints: entrypoints.server,
-      appPath: pages['/_app'],
     }),
   ])
 
