@@ -1,4 +1,4 @@
-import { join, normalize } from 'path'
+import { relative as relativePath, join, normalize } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
@@ -174,7 +174,7 @@ export default class HotReloader {
 
     let additionalClientEntrypoints = {}
     if (this.config.experimental.amp) {
-      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev')
+      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
     }
 
     return [
