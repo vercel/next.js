@@ -31,17 +31,10 @@ function memoizedFormatUrl (formatFunc) {
   }
 }
 
-function formatUrl (url, isAs) {
-  url = url && typeof url === 'object'
+function formatUrl (url) {
+  return url && typeof url === 'object'
     ? formatWithValidation(url)
     : url
-
-  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-    if (isAs && url) {
-      url = _Router._rewriteUrlForNextExport(url)
-    }
-  }
-  return url
 }
 
 class Link extends Component {
@@ -145,12 +138,14 @@ class Link extends Component {
 
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly.
-    if (
-      props.href &&
-      typeof __NEXT_DATA__ !== 'undefined' &&
-      __NEXT_DATA__.nextExport
-    ) {
-      props.href = _Router._rewriteUrlForNextExport(props.href)
+    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      if (
+        props.href &&
+        typeof __NEXT_DATA__ !== 'undefined' &&
+        __NEXT_DATA__.nextExport
+      ) {
+        props.href = _Router._rewriteUrlForNextExport(props.href)
+      }
     }
 
     return React.cloneElement(child, props)

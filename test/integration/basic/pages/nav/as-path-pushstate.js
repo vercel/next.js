@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { withRouter } from 'next/router'
 
 export default withRouter(({ router: { asPath, query } }) => {
-  return <div id={asPath.replace('/', '').replace('/', '-').replace('/', '')}>
+  return <div id={asPath.replace('/', '').replace('/', '-')}>
     <div id='router-query'>{JSON.stringify(query)}</div>
     <div>
       <Link href='/nav/as-path-pushstate?something=hello' as='/something/hello'>
