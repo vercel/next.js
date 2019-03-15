@@ -43,7 +43,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : undefined
-console.log(appPath)
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
