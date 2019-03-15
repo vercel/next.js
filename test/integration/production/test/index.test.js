@@ -29,7 +29,7 @@ const context = {}
 describe('Production Usage', () => {
   beforeAll(async () => {
     await runNextCommand(['build', appDir], {
-      spawnOptions: { env: { NODE_ENV: 'production' } }
+      spawnOptions: { env: { ...process.env, NODE_ENV: 'production' } }
     })
     app = nextServer({
       dir: join(__dirname, '../'),
