@@ -1,5 +1,6 @@
 import { createStore, applyMiddleware } from 'redux'
 import { composeWithDevTools } from 'redux-devtools-extension'
+import thunkMiddleware from 'redux-thunk'
 
 const exampleInitialState = {
   lastUpdate: 0,
@@ -40,29 +41,32 @@ export const reducer = (state = exampleInitialState, action) => {
 }
 
 // ACTIONS
-export const serverRenderClock = () => {
-  return { type: actionTypes.TICK, light: false, ts: Date.now() }
-}
-export const startClock = () => {
-  return { type: actionTypes.TICK, light: true, ts: Date.now() }
+export const serverRenderClock = isServer => dispatch => {
+  return dispatch({ type: actionTypes.TICK, light: !isServer, ts: Date.now() })
 }
 
-export const incrementCount = () => {
-  return { type: actionTypes.INCREMENT }
+export const startClock = dispatch => {
+  return setInterval(() => {
+    dispatch({ type: actionTypes.TICK, light: true, ts: Date.now() })
+  }, 1000)
 }
 
-export const decrementCount = () => {
-  return { type: actionTypes.DECREMENT }
+export const incrementCount = () => dispatch => {
+  return dispatch({ type: actionTypes.INCREMENT })
 }
 
-export const resetCount = () => {
-  return { type: actionTypes.RESET }
+export const decrementCount = () => dispatch => {
+  return dispatch({ type: actionTypes.DECREMENT })
+}
+
+export const resetCount = () => dispatch => {
+  return dispatch({ type: actionTypes.RESET })
 }
 
 export function initializeStore (initialState = exampleInitialState) {
   return createStore(
     reducer,
     initialState,
-    composeWithDevTools(applyMiddleware())
+    composeWithDevTools(applyMiddleware(thunkMiddleware))
   )
 }
