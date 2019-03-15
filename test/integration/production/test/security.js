@@ -53,7 +53,9 @@ module.exports = (context) => {
       buildFiles.forEach(buildFile => {
         const content = readFileSync(join(readPath, buildFile), 'utf8')
         if (content.includes(homeDir)) {
-          throw new Error(`Found the user's home directory in: ${buildFile}`)
+          throw new Error(
+            `Found the user's home directory in: ${buildFile}, ${homeDir}\n\n${content}`
+          )
         }
 
         const checkPathProject = resolvePath(__dirname, ...Array(5).fill('..'))
@@ -62,7 +64,9 @@ module.exports = (context) => {
           (process.platform.match(/win/) &&
             content.includes(checkPathProject.replace(/\\/g, '\\\\')))
         ) {
-          throw new Error(`Found the project path in: ${buildFile}`)
+          throw new Error(
+            `Found the project path in: ${buildFile}, ${checkPathProject}\n\n${content}`
+          )
         }
       })
     })
