@@ -13,6 +13,15 @@ export default function (context) {
       browser.close()
     })
 
+    it('should have trailing slash on Link', async () => {
+      const browser = await webdriver(context.port, '/')
+      const link = await browser
+        .elementByCss('#about-via-link')
+        .getAttribute('href')
+
+      expect(link.substr(link.length - 1)).toBe('/')
+    })
+
     it('should do navigations via Link', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser
