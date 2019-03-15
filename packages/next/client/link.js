@@ -14,7 +14,7 @@ function isLocal (href) {
     (url.protocol === origin.protocol && url.host === origin.host)
 }
 
-function memoizedFormatUrl (formatUrl) {
+function memoizedFormatUrl (formatFunc) {
   let lastHref = null
   let lastAs = null
   let lastResult = null
@@ -23,12 +23,25 @@ function memoizedFormatUrl (formatUrl) {
       return lastResult
     }
 
-    const result = formatUrl(href, as)
+    const result = formatFunc(href, as)
     lastHref = href
     lastAs = as
     lastResult = result
     return result
   }
+}
+
+function formatUrl (url, isAs) {
+  url = url && typeof url === 'object'
+    ? formatWithValidation(url)
+    : url
+
+  if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+    if (isAs && url) {
+      url = _Router._rewriteUrlForNextExport(url)
+    }
+  }
+  return url
 }
 
 class Link extends Component {
@@ -42,23 +55,12 @@ class Link extends Component {
     }
   }
 
-  formatUrl (url, asHref) {
-    url = url && typeof url === 'object'
-      ? formatWithValidation(url)
-      : url
-
-    if (url && asHref && process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      url = _Router._rewriteUrlForNextExport(url)
-    }
-    return url
-  }
-
   // The function is memoized so that no extra lifecycles are needed
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: this.formatUrl(href),
-      as: this.formatUrl(asHref, true)
+      href: formatUrl(href),
+      as: formatUrl(asHref, true)
     }
   })
 
