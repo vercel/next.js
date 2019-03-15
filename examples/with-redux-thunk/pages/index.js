@@ -1,6 +1,5 @@
 import React from 'react'
 import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux'
 import { startClock, serverRenderClock } from '../store'
 import Examples from '../components/examples'
 
@@ -14,8 +13,7 @@ class Index extends React.Component {
 
   componentDidMount () {
     const { dispatch } = this.props
-    // TO TICK THE CLOCK
-    this.timer = setInterval(() => this.props.startClock(dispatch), 1000)
+    this.timer = startClock(dispatch)
   }
 
   componentWillUnmount () {
@@ -26,5 +24,5 @@ class Index extends React.Component {
     return <Examples />
   }
 }
-const mapDispatchToProps = dispatch => bindActionCreators({ startClock }, dispatch)
-export default connect(null, mapDispatchToProps)(Index)
+
+export default connect()(Index)
