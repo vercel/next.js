@@ -4,6 +4,7 @@ import HeadManager from './head-manager'
 import { createRouter } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
+import App from 'next-app'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
 import ErrorBoundary from './error-boundary'
@@ -62,7 +63,6 @@ let webpackHMR
 export let router
 export let ErrorComponent
 let Component
-let App
 
 export const emitter = mitt()
 
@@ -73,8 +73,6 @@ export default async ({
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
   }
-
-  App = await import('next_app_path').then((m) => m.default)
 
   let initialErr = err
 

@@ -55,6 +55,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const pagePaths = await collectPages(pagesDir, config.pageExtensions)
   const pages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(pages, config.target, buildId, config)
+  const appPath = pages['/_app'] || 'next/dist/pages/_app'
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       buildId,
@@ -62,6 +63,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       config,
       target: config.target,
       entrypoints: entrypoints.client,
+      appPath
     }),
     getBaseWebpackConfig(dir, {
       buildId,
@@ -69,6 +71,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       config,
       target: config.target,
       entrypoints: entrypoints.server,
+      appPath
     }),
   ])
 

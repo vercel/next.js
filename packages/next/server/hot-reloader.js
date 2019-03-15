@@ -170,6 +170,7 @@ export default class HotReloader {
     ])
 
     const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
+    const appPath = pages['/_app'] || 'next/dist/pages/_app'
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
 
     let additionalClientEntrypoints = {}
@@ -178,8 +179,8 @@ export default class HotReloader {
     }
 
     return [
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
-      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints }, appPath }),
+      getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server, appPath })
     ]
   }
 

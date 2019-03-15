@@ -15,7 +15,7 @@ import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identi
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, appPath}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, appPath: string}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -35,8 +35,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const distDir = path.join(dir, config.distDir)
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
-  const pages = Object.keys(entrypoints)
-  const totalPages = pages.length
+  const totalPages = Object.keys(entrypoints).length
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
@@ -44,11 +43,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
     ].filter(Boolean)
   } : undefined
-  let appPath = 'next/dist/pages/_app'
-  pages.forEach((p) => {
-    if (/_app$/.test(p)) appPath = p
-  })
-
+console.log(appPath)
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
@@ -57,7 +52,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
-      next_app_path: appPath,
+      ['next-app']: appPath,
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
