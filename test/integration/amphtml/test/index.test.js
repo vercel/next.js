@@ -158,6 +158,15 @@ describe('AMP Usage', () => {
         /div.jsx-\d+{color:red;}span.jsx-\d+{color:blue;}body{background-color:green;}/
       )
     })
+
+    it('should remove sourceMaps from styles', async () => {
+      const html = await renderViaHTTP(appPort, '/styled?amp=1')
+      const $ = cheerio.load(html)
+      const styles = $('style[amp-custom]').first().text()
+
+      expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
+      expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
+    })
   })
 
   describe('editing a page', () => {

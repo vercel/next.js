@@ -12,6 +12,7 @@ import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DI
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
+import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -40,7 +41,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     // Backwards compatibility
     'main.js': [],
     [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
+      `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next')))
     ].filter(Boolean)
   } : undefined
 
@@ -287,6 +288,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       // This must come after HashedModuleIdsPlugin (it sets any modules that
       // were missed by HashedModuleIdsPlugin)
       !dev && new AllModulesIdentifiedPlugin(),
+      // This sets chunk ids to be hashed versions of their names to reduce
+      // bundle churn
+      !dev && new HashedChunkIdsPlugin(buildId),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)

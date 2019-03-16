@@ -5,7 +5,7 @@ import { join } from 'path'
 import {
   pkg,
   nextServer,
-  nextBuild,
+  runNextCommand,
   startApp,
   stopApp,
   renderViaHTTP,
@@ -28,7 +28,9 @@ const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await runNextCommand(['build', appDir], {
+      spawnOptions: { env: { ...process.env, NODE_ENV: 'production' } }
+    })
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
