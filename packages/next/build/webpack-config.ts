@@ -41,7 +41,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     // Backwards compatibility
     'main.js': [],
     [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next')))
+      `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next')))
     ].filter(Boolean)
   } : undefined
 

@@ -197,7 +197,9 @@ export class Head extends Component {
                 dangerouslySetInnerHTML={{
                   __html: styles
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
-                    .join(''),
+                    .join('')
+                    .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+                    .replace(/\/\*@ sourceURL=.*?\*\//g, '')
                 }}
               />
             )}
