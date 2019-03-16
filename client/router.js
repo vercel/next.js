@@ -24,14 +24,12 @@ export function createRouter (pathname, query, as, routeInfo, _subscriber) {
 
   // represents the current component key
   SingletonRouter.route = toRoute(pathname)
-  SingletonRouter.pathname = pathname
-  SingletonRouter.query = query
-  SingletonRouter.asPath = as
+  SingletonRouter.url = { pathname, query, asPath: as }
 
   components[SingletonRouter.route] = routeInfo
 
   if (typeof window !== 'undefined') {
-    const originalState = { url: formatPath(SingletonRouter), as: getURL(), options: { shallow: true } }
+    const originalState = { url: formatPath(SingletonRouter.url), as: getURL(), options: { shallow: true } }
 
     window.addEventListener('popstate', (e) => {
       let state = e.state
@@ -108,9 +106,7 @@ function change (method, _url, _as, options) {
   const hash = window.location.hash.substring(1)
 
   SingletonRouter.route = route
-  SingletonRouter.pathname = pathname
-  SingletonRouter.query = query
-  SingletonRouter.asPath = as
+  SingletonRouter.url = { pathname, query, asPath: as }
   subscriber({ ...routeInfo, hash })
 
   if (error) {
@@ -129,8 +125,8 @@ function changeState (method, url, as, options = {}) {
 }
 
 function onlyAHashChange (as) {
-  if (!SingletonRouter.asPath) return false
-  const [ oldUrlNoHash ] = SingletonRouter.asPath.split('#')
+  if (!SingletonRouter.url.asPath) return false
+  const [ oldUrlNoHash ] = SingletonRouter.url.asPath.split('#')
   const [ newUrlNoHash ] = as.split('#')
 
   // If the urls are change, there's more than a hash change

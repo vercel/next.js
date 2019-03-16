@@ -60,7 +60,7 @@ export function render ({ Component, props, hash, err }) {
   Component !== ErrorComponent &&
   lastAppProps.Component === ErrorComponent) {
   // fetch props if ErrorComponent was replaced with a page component by HMR
-    const { pathname, query, asPath } = router
+    const { pathname, query, asPath } = router.url
     loadProps = Component.getInitialProps({ err, pathname, query, asPath })
   } else {
     loadProps = Promise.resolve(props)
@@ -71,7 +71,7 @@ export function render ({ Component, props, hash, err }) {
       Component = Component || lastAppProps.Component
       props = props || lastAppProps.props
 
-      const appProps = { Component, props, hash, err, router }
+      const appProps = { Component, props, hash, err, router, url: router.url }
       // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
       lastAppProps = appProps
 
