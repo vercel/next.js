@@ -1,27 +1,7 @@
-import React from 'react'
-import App, { Container } from 'next/app'
+import App from 'next/app'
 
 class MyApp extends App {
-  static async getInitialProps ({ Component, ctx }) {
-    // throw _app GIP err here
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
-    return { pageProps }
-  }
-
-  render () {
-    const { Component, pageProps } = this.props
-
-    return (
-      <Container>
-        <Component {...pageProps} />
-      </Container>
-    )
-  }
+  // throw _app GIP err here
 }
 
 export default MyApp

@@ -240,7 +240,7 @@ export async function renderToHTML(
   try {
     props = await loadGetInitialProps(App, { Component, router, ctx })
   } catch (err) {
-    if (!dev) throw err
+    if (!dev || !err) throw err
     ctx.err = err
     renderOpts.err = err
   }
