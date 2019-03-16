@@ -55,7 +55,7 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     } else if(target === 'server') {
       server[bundlePath] = [absolutePagePath]
     }
-    if (page === '/_document' || page !== '/_app') {
+    if (page === '/_document' || page === '/_app') {
       return
     }
     client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
