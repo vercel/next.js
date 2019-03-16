@@ -10,4 +10,4 @@ export const NEXT_PROJECT_ROOT_DIST_SERVER = join(NEXT_PROJECT_ROOT_DIST, 'serve
 // we have to use a private alias
 export const PAGES_DIR_ALIAS = 'private-next-pages'
 export const DOT_NEXT_ALIAS = 'private-dot-next'
-export const NEXT_UNDERSCORE_APP = 'private-next-app'
+export const APP_DIR_ALIAS = 'private-next-app'
