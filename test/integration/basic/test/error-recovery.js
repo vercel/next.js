@@ -407,5 +407,23 @@ export default (context, renderViaHTTP) => {
         }
       }
     })
+
+    it('should show valid error when thrown in _app getInitialProps', async () => {
+      let browser
+      const _app = new File(join(__dirname, '../pages/_app.js'))
+      const errMsg = 'have an error from _app getInitialProps'
+
+      _app.replace('// throw _app GIP err here', `throw new Error('${errMsg}')`)
+
+      try {
+        browser = await webdriver(context.appPort, '/')
+        expect(await await getBrowserBodyText(browser)).toMatch(errMsg)
+      } finally {
+        if (browser) {
+          browser.close()
+        }
+        _app.restore()
+      }
+    })
   })
 }
