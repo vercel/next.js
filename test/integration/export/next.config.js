@@ -9,6 +9,9 @@ module.exports = (phase) => {
     serverRuntimeConfig: {
       bar: 'bar'
     },
+    experimental: {
+      // exportTrailingSlash: false
+    },
     exportPathMap: function () {
       return {
         '/': { page: '/' },
