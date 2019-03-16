@@ -131,7 +131,6 @@ So far, we get:
 - Server rendering and indexing of `./pages`
 - Static file serving. `./static/` is mapped to `/static/` (given you [create a `./static/` directory](#static-file-serving-eg-images) inside your project)
 
-To see how simple this is, check out the [sample app - nextgram](https://github.com/zeit/nextgram)
 
 ### Automatic code splitting
 
@@ -2125,8 +2124,6 @@ As a result, we were able to introduce a very simple approach to routing that co
 
 - Every top level component receives a `url` object to inspect the url or perform modifications to the history
 - A `<Link />` component is used to wrap elements like anchors (`<a/>`) to perform client-side transitions
-
-We tested the flexibility of the routing with some interesting scenarios. For an example, check out [nextgram](https://github.com/zeit/nextgram).
 
 </details>
 
