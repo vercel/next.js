@@ -417,7 +417,7 @@ export default (context, renderViaHTTP) => {
       _app.replace('// throw _app GIP err here', `static async getInitialProps() {
         throw new Error("${errMsg}")
       }`)
-      check(
+      await check(
         () => renderViaHTTP('/'),
         /have an error from _app getInitialProps/
       )
