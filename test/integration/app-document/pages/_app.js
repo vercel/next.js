@@ -18,7 +18,7 @@ class Layout extends React.Component {
     const { random } = this.state
     return <div>
       <p id='hello-app'>Hello App</p>
-      <p id='hello-hmr'>Hello HMR</p>
+      <p id='hello-hmr'>Hi HMR</p>
       <p id='random-number'>{random}</p>
       {children}
     </div>

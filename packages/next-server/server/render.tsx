@@ -241,12 +241,7 @@ export async function renderToHTML(
   if (isResSent(res)) return null
 
   const devFiles = buildManifest.devFiles
-  const files = [
-    ...new Set([
-      ...getPageFiles(buildManifest, pathname),
-      ...getPageFiles(buildManifest, '/_app'),
-    ]),
-  ]
+  const files = getPageFiles(buildManifest, pathname)
 
   const reactLoadableModules: string[] = []
   const renderPage = (
