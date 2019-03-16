@@ -170,7 +170,7 @@ export default class HotReloader {
     ])
 
     const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
-    const appPath = pages['/_app'] || 'next/dist/pages/_app'
+    const appPath = pages['/_app']
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, this.config)
 
     let additionalClientEntrypoints = {}
