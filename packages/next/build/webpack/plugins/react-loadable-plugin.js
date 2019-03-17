@@ -27,7 +27,7 @@ function buildManifest (compiler, compilation) {
   let context = compiler.options.context
   let manifest = {}
 
-  compilation.chunks.forEach((chunk) => {
+  compilation.chunks.forEach(chunk => {
     // If chunk is not an entry point skip them
     if (chunk.hasEntryModule()) {
       const dynamicChunks = chunk.getAllAsyncChunks()
@@ -39,11 +39,17 @@ function buildManifest (compiler, compilation) {
               continue
             }
 
+            let publicPath = url.resolve(
+              compilation.outputOptions.publicPath || '',
+              file
+            )
+
             for (const module of dynamicChunk.modulesIterable) {
               let id = module.id
-              let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
-
-              let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
+              let name =
+                typeof module.libIdent === 'function'
+                  ? module.libIdent({ context })
+                  : null
 
               let currentModule = module
               if (module.constructor.name === 'ConcatenatedModule') {
@@ -54,17 +60,31 @@ function buildManifest (compiler, compilation) {
               }
 
               // Avoid duplicate files
-              if (manifest[currentModule.rawRequest].some((item) => item.file === file)) {
+              if (
+                manifest[currentModule.rawRequest].some(
+                  item => item.file === file
+                )
+              ) {
                 continue
               }
 
-              manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
+              manifest[currentModule.rawRequest].push({
+                id,
+                name,
+                file,
+                publicPath
+              })
             }
           }
         }
       }
     }
   })
+
+  manifest = Object.keys(manifest)
+    .sort()
+    // eslint-disable-next-line
+    .reduce((a, c) => ((a[c] = manifest[c]), a), {})
 
   return manifest
 }
@@ -75,18 +95,21 @@ export class ReactLoadablePlugin {
   }
 
   apply (compiler) {
-    compiler.hooks.emit.tapAsync('ReactLoadableManifest', (compilation, callback) => {
-      const manifest = buildManifest(compiler, compilation)
-      var json = JSON.stringify(manifest, null, 2)
-      compilation.assets[this.filename] = {
-        source () {
-          return json
-        },
-        size () {
-          return json.length
+    compiler.hooks.emit.tapAsync(
+      'ReactLoadableManifest',
+      (compilation, callback) => {
+        const manifest = buildManifest(compiler, compilation)
+        var json = JSON.stringify(manifest, null, 2)
+        compilation.assets[this.filename] = {
+          source () {
+            return json
+          },
+          size () {
+            return json.length
+          }
         }
+        callback()
       }
-      callback()
-    })
+    )
   }
 }
