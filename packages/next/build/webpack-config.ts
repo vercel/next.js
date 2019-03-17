@@ -244,6 +244,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ...(dev && !isServer ? {
           'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
         } : {}),
+        'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash)
       }),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
