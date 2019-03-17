@@ -1,4 +1,4 @@
-# nextjs-serverless
+# with-serverless-framework
 An example of nextjs with serverless
 
 ## Setup

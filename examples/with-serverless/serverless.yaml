@@ -1,5 +1,5 @@
 service:
-  name: nextjs-serverless
+  name: with-serverless-framework
 
 plugins:
   - serverless-webpack
@@ -48,7 +48,7 @@ provider:
 
 functions:
   server:
-    description: nextjs-serverless server handler
+    description: with-serverless-framework server handler
     handler: src/server/serverless.handler
     memorySize: 128
     tracing: true

@@ -1,5 +1,5 @@
 {
-  "name": "nextjs-serverless",
+  "name": "with-serverless-framework",
   "version": "1.0.0",
   "description": "Rodimus next.js project",
   "main": "index.js",
