@@ -72,7 +72,6 @@ export default class Router implements IRouterInterface {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
-
       window.addEventListener('unload', () => {
         // Workaround for weird Firefox bug, see below links
         // https://github.com/zeit/next.js/issues/3817
@@ -85,7 +84,7 @@ export default class Router implements IRouterInterface {
         // Workaround for popstate firing on initial page load when
         // navigating back from an external site
         const { url, as, options }: any = history.state || {}
-        this.changeState('replaceState', url, as, { ...options, beforeLeave: true })
+        this.changeState('replaceState', url, as, { ...options, fromExternal: true })
       })
     }
   }
@@ -120,7 +119,7 @@ export default class Router implements IRouterInterface {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (!e.state.options.__next) {
+    if (e.state.options.fromExternal) {
       return
     }
 
@@ -277,7 +276,7 @@ export default class Router implements IRouterInterface {
     })
   }
 
-  changeState(method: string, url: string, as: string, options: any = {}): void {
+  changeState(method: string, url: string, as: string, options = {}): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
         console.error(`Warning: window.history is not available.`)
@@ -289,8 +288,6 @@ export default class Router implements IRouterInterface {
         return
       }
     }
-    // tag the history
-    options.__next = !options.beforeLeave
 
     if (method !== 'pushState' || getURL() !== as) {
       // @ts-ignore method should always exist on history
