@@ -3,11 +3,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
-const _app = new File(join(__dirname, '../pages/_app.js'))
-
 export default (context, renderViaHTTP) => {
-  afterAll(() => _app.restore())
-
   describe('Error Recovery', () => {
     it('should recover from 404 after a page has been added', async () => {
       let browser
@@ -410,18 +406,6 @@ export default (context, renderViaHTTP) => {
           browser.close()
         }
       }
-    })
-
-    it('should show valid error when thrown in _app getInitialProps', async () => {
-      const errMsg = 'have an error from _app getInitialProps'
-      _app.replace('// throw _app GIP err here', `static async getInitialProps() {
-        throw new Error("${errMsg}")
-      }`)
-      check(
-        () => renderViaHTTP('/'),
-        /have an error from _app getInitialProps/
-      )
-      _app.restore()
     })
   })
 }
