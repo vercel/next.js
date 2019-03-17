@@ -14,7 +14,7 @@ function isLocal (href) {
     (url.protocol === origin.protocol && url.host === origin.host)
 }
 
-function memoizedFormatUrl (formatUrl) {
+function memoizedFormatUrl (formatFunc) {
   let lastHref = null
   let lastAs = null
   let lastResult = null
@@ -23,12 +23,18 @@ function memoizedFormatUrl (formatUrl) {
       return lastResult
     }
 
-    const result = formatUrl(href, as)
+    const result = formatFunc(href, as)
     lastHref = href
     lastAs = as
     lastResult = result
     return result
   }
+}
+
+function formatUrl (url) {
+  return url && typeof url === 'object'
+    ? formatWithValidation(url)
+    : url
 }
 
 class Link extends Component {
@@ -46,12 +52,8 @@ class Link extends Component {
   // as per https://reactjs.org/blog/2018/06/07/you-probably-dont-need-derived-state.html
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
-      href: href && typeof href === 'object'
-        ? formatWithValidation(href)
-        : href,
-      as: asHref && typeof asHref === 'object'
-        ? formatWithValidation(asHref)
-        : asHref
+      href: formatUrl(href),
+      as: formatUrl(asHref, true)
     }
   })
 
@@ -136,12 +138,14 @@ class Link extends Component {
 
     // Add the ending slash to the paths. So, we can serve the
     // "<page>/index.html" directly.
-    if (
-      props.href &&
-      typeof __NEXT_DATA__ !== 'undefined' &&
-      __NEXT_DATA__.nextExport
-    ) {
-      props.href = _Router._rewriteUrlForNextExport(props.href)
+    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
+      if (
+        props.href &&
+        typeof __NEXT_DATA__ !== 'undefined' &&
+        __NEXT_DATA__.nextExport
+      ) {
+        props.href = _Router._rewriteUrlForNextExport(props.href)
+      }
     }
 
     return React.cloneElement(child, props)
