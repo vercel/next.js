@@ -17,7 +17,9 @@ module.exports = phase => {
   const env = {
     RESTURL_SPEAKERS: (() => {
       if (isDev) return 'http://localhost:4000/speakers'
-      if (isProd) { return 'https://www.siliconvalley-codecamp.com/rest/speakers/ps' }
+      if (isProd) {
+        return 'https://www.siliconvalley-codecamp.com/rest/speakers/ps'
+      }
       if (isStaging) return 'http://localhost:11639'
       return 'RESTURL_SPEAKERS:not (isDev,isProd && !isStaging,isProd && isStaging)'
     })(),

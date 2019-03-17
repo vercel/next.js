@@ -1,0 +1,40 @@
+{
+  "name": "nextjs-serverless",
+  "version": "1.0.0",
+  "description": "Rodimus next.js project",
+  "main": "index.js",
+  "dependencies": {
+    "aws-serverless-express": "3.3.5",
+    "compression": "1.7.3",
+    "copy-webpack-plugin": "5.0.0",
+    "express": "4.16.4",
+    "helmet": "3.15.1",
+    "next": "8.0.3",
+    "react": "16.8.3",
+    "react-dom": "16.8.3",
+    "serverless-webpack": "5.2.0",
+    "webpack": "4.29.6",
+    "webpack-node-externals": "1.7.2"
+  },
+  "devDependencies": {
+    "babel-loader": "8.0.5",
+    "concurrently": "4.1.0",
+    "npm-run-all": "4.1.5",
+    "serverless": "1.38.0",
+    "serverless-offline": "4.8.1",
+    "serverless-plugin-warmup": "4.4.3-rc.1",
+    "serverless-prune-plugin": "1.3.2",
+    "webpack-cli": "3.2.3"
+  },
+  "scripts": {
+    "local": "run-s local:build local:start",
+    "local:build": "STAGE=local webpack --config ./webpack.server.js --progress",
+    "local:start": "STAGE=local node ./build/server/main.js",
+    "development": "run-s development:build development:start",
+    "development:build": "STAGE=development next build",
+    "development:start": "STAGE=development serverless offline start --dontPrintOutput --preserveTrailingSlash"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

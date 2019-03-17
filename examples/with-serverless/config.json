@@ -1,0 +1,8 @@
+{
+  "region": "do-not-deploy-local",
+  "vpc": {
+    "securityGroupIds": [],
+    "subnetIds": []
+  },
+  "vpce": ""
+}

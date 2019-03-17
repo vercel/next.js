@@ -1,0 +1,61 @@
+service:
+  name: nextjs-serverless
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+  - serverless-prune-plugin
+  - serverless-plugin-warmup
+
+custom:
+  webpack:
+    webpackConfig: webpack.server.js
+    includeModules:
+      forceExclude:
+        - aws-sdk
+  serverless-offline:
+    port: 8000
+  prune:
+    automatic: true
+    number: 5
+  warmup:
+    default: production
+    prewarm: true
+
+provider:
+  name: aws
+  runtime: nodejs8.10
+  endpointType: private
+  stage: ${env:STAGE}
+  region: ${file(./config.json):region}
+  vpc: ${file(./config.json):vpc}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "lambda:InvokeFunction"
+      Resource:
+        - "*"
+  resourcePolicy:
+    - Effect: Allow
+      Principal: "*"
+      Action: execute-api:Invoke
+      Resource:
+        - execute-api:/*/*/*
+      Condition:
+        StringEquals:
+          aws:sourceVpce:
+            - ${file(./config.json):vpce}
+
+functions:
+  server:
+    description: nextjs-serverless server handler
+    handler: src/server/serverless.handler
+    memorySize: 128
+    tracing: true
+    events:
+      - http:
+          path: /
+          method: ANY
+      - http:
+          path: /{proxy+}
+          method: ANY
