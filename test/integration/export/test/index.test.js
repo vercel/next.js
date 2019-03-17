@@ -9,7 +9,8 @@ import {
   stopApp,
   killApp,
   findPort,
-  renderViaHTTP
+  renderViaHTTP,
+  File
 } from 'next-test-utils'
 
 import ssr from './ssr'
@@ -26,8 +27,25 @@ const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
 const context = {}
 const devContext = {}
+const nextConfig = new File(join(appDir, 'next.config.js'))
 
 describe('Static Export', () => {
+  it('should export with folder that has dot in name', async () => {
+    const outdir = join(appDir, 'out')
+    nextConfig.replace(/exportPathMap: function (.|\n|\r\n)*end exportPathMap/gm, '// disabled exportPathMap')
+
+    await nextBuild(appDir)
+    await nextExport(appDir, { outdir })
+
+    let doesExists = true
+    await access(join(outdir, 'v1.12/index.html'))
+      .then(() => {
+        doesExists = true
+      })
+
+    expect(doesExists).toBe(true)
+    nextConfig.restore()
+  })
   it('should delete existing exported files', async () => {
     const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
@@ -46,11 +64,20 @@ describe('Static Export', () => {
   })
   beforeAll(async () => {
     const outdir = join(appDir, 'out')
+    const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
+
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
+    nextConfig.replace(`// exportTrailingSlash: false`, `exportTrailingSlash: false`)
+    await nextBuild(appDir)
+    await nextExport(appDir, { outdir: outNoTrailSlash })
+
     context.server = await startStaticServer(join(appDir, 'out'))
     context.port = context.server.address().port
+
+    context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
+    context.portNoTrailSlash = context.serverNoTrailSlash.address().port
 
     devContext.port = await findPort()
     devContext.server = await launchApp(join(__dirname, '../'), devContext.port, true)
@@ -64,8 +91,10 @@ describe('Static Export', () => {
   afterAll(async () => {
     await Promise.all([
       stopApp(context.server),
-      killApp(devContext.server)
+      killApp(devContext.server),
+      stopApp(context.serverNoTrailSlash)
     ])
+    nextConfig.restore()
   })
 
   ssr(context)
