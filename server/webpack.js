@@ -28,11 +28,8 @@ export default async function createCompiler (dir, { buildId = '-', dev = false 
 
   // Filter to a single site at dev time for reduced build overhead
   if (dev) {
-    if (process.env.SITE) {
-      sites = sites.filter(({ name }) => name.startsWith(process.env.SITE))
-    } else {
-      sites = [ sites[0] ]
-    }
+    const sitename = process.env.SITE || sites[0].name
+    sites = sites.filter(({ name }) => name.startsWith(sitename))
   }
 
   return webpack(sites, {
