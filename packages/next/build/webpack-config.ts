@@ -16,7 +16,7 @@ import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, appPath}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, appPath?: string}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, appPath}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, appPath: string}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -54,7 +54,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
-      [APP_DIR_ALIAS]: appPath || 'next/dist/pages/_app',
+      [APP_DIR_ALIAS]: appPath,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
     },
