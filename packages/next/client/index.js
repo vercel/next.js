@@ -104,6 +104,14 @@ export default async ({
     render({ App, Component, props, err, emitter })
   })
 
+  if (module.hot) {
+    module.hot.accept('private-next-app', function () {
+      const newApp = require('private-next-app')
+
+      router.update('/_app', newApp.default || newApp)
+    })
+  }
+
   render({ App, Component, props, err: initialErr, emitter })
 
   return emitter
