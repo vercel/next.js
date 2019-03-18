@@ -178,13 +178,13 @@ export class Head extends Component {
       if (!child) return child
       const { type, props } = child
       let badProp
-      
+
       if (type === 'meta' && props.name === 'viewport') {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
       }
-      
+
       if (badProp) {
         console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
         return null
@@ -387,6 +387,7 @@ export class NextScript extends Component {
                   this.context._documentProps
                 ),
               }}
+              data-amp-development-mode-only
             />
           )}
           {devFiles
@@ -396,6 +397,7 @@ export class NextScript extends Component {
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
                   nonce={this.props.nonce}
                   crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                  data-amp-development-mode-only
                 />
               ))
             : null}
