@@ -98,17 +98,11 @@ export default class DevServer extends Server {
       return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
     }
 
-    const hasAmp = pathname.endsWith('.amp')
-    if (options.amphtml && !hasAmp) {
-      pathname = pathname.endsWith('/') ? pathname + 'index' : pathname
-      pathname += '.amp'
-    } else if (hasAmp && !options.amphtml) {
-      options.amphtml = hasAmp
-    }
-
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      pathname = await this.hotReloader.ensurePage(pathname)
+      const result = await this.hotReloader.ensurePage(pathname, options.amphtml)
+      pathname = result.pathname
+      options.amphtml = options.amphtml || result.isAmp
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404

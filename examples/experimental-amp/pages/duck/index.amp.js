@@ -8,12 +8,12 @@ export default () => {
   return (
     <div>
       <Head>
-        <title>The Cat</title>
+        <title>The Duck</title>
       </Head>
-      <h1>The Cat</h1>
+      <h1>The Duck</h1>
       <Byline author='Meow Meow Fuzzyface' />
       <p>
-        <a href={isAmp ? '/cat' : '/cat?amp=1'}>
+        <a href={isAmp ? '/duck' : '/duck?amp=1'}>
           {isAmp ? 'View Non-AMP' : 'View AMP'} Version
         </a>
       </p>

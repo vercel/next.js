@@ -1,13 +1,12 @@
 import { join } from 'path'
 import {isWriteable} from '../../build/is-writeable'
 
-export async function findPageFile(rootDir: string, normalizedPagePath: string, pageExtensions: string[]): Promise<string|null> {
-  const pathParts = normalizedPagePath.split('.')
-  const addAmp = pathParts.pop() === 'amp'
-  normalizedPagePath = pathParts.join('.') || normalizedPagePath
+export async function findPageFile(rootDir: string, normalizedPagePath: string, pageExtensions: string[], amp: boolean): Promise<string|null> {
+  // Add falling back to .amp.js extension
+  if (!amp) pageExtensions = pageExtensions.concat('amp.js')
 
   for (let extension of pageExtensions) {
-    if (addAmp) extension = 'amp.' + extension
+    if (amp) extension = 'amp.' + extension
     const relativePagePath = `${normalizedPagePath}.${extension}`
     const pagePath = join(rootDir, relativePagePath)
 

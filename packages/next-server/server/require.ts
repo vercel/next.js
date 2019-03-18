@@ -8,20 +8,31 @@ export function pageNotFoundError(page: string): Error {
   return err
 }
 
-export function getPagePath(page: string, distDir: string, opts: any): string {
+export const tryAmp = (manifest: any, page: string) => {
+  const hasAmp = manifest[page + '.amp']
+  if (hasAmp) {
+    page += '.amp'
+  } else if (manifest[page + '/index.amp']) {
+    page += '/index.amp'
+  }
+  return page
+}
+
+export function getPagePath(page: string, distDir: string, opts: any = {}): string {
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
   try {
     page = normalizePagePath(page)
 
-    // Load {page}.amp.js when ?amp=1 is set
-    if (opts.amphtml && !page.endsWith('.amp')) {
-      if (!pagesManifest[page + '.amp']) {
-        page += '/index.amp'
-      } else {
+    if (opts.amphtml || !pagesManifest[page]) {
+      page = tryAmp(pagesManifest, page)
+      // Force .amp to show 404 if set
+      const isAmp = page.endsWith('.amp')
+      if (opts.amphtml && !isAmp) {
         page += '.amp'
       }
+      opts.amphtml = opts.amphtml || isAmp
     }
   } catch (err) {
     // tslint:disable-next-line
