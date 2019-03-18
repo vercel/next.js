@@ -56,7 +56,7 @@ export class Head extends Component {
     // Give preference to modern bundle for preloading (since we can't do nomodule for
     // legacy vs. not and browsers will download both)
     return (
-      module ? `<link rel=preload href="${publicPath}${file}" as=script>` : ''
+      module ? `<link rel=preload href="${publicPath}${file}" as=script crossorigin="anonymous">` : ''
     )
   }
 
@@ -137,6 +137,7 @@ export class NextScript extends Component {
           type={module ? 'module' : 'text/javascript'}
           noModule={!module}
           src={`${publicPath}${file}`}
+          crossOrigin='anonymous'
           async
         />
       )
