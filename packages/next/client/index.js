@@ -6,7 +6,7 @@ import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
-import ErrorBoundary from './error-boundary'
+import { ErrorBoundary } from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 
@@ -189,15 +189,8 @@ async function doRender ({ App, Component, props, err }) {
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
-    const onError = async (error) => {
-      try {
-        await renderError({ App, err: error })
-      } catch (err) {
-        console.error('Error while rendering error page: ', err)
-      }
-    }
     renderReactElement((
-      <ErrorBoundary onError={onError}>
+      <ErrorBoundary fn={(error) => renderError({ App, err: error }).catch(err => console.error('Error rendering page: ', err))}>
         <HeadManagerContext.Provider value={headManager.updateHead}>
           <App {...appProps} />
         </HeadManagerContext.Provider>
