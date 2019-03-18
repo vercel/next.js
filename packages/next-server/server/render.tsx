@@ -235,7 +235,15 @@ export async function renderToHTML(
   const asPath: string = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new ServerRouter(pathname, query, asPath)
-  const props = await loadGetInitialProps(App, { Component, router, ctx })
+  let props: any
+
+  try {
+    props = await loadGetInitialProps(App, { Component, router, ctx })
+  } catch (err) {
+    if (!dev || !err) throw err
+    ctx.err = err
+    renderOpts.err = err
+  }
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
@@ -256,8 +264,8 @@ export async function renderToHTML(
       ? renderToStaticMarkup
       : renderToString
 
-    if (err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={err} />)
+    if (ctx.err && ErrorDebug) {
+      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
     }
 
     if (dev && (props.router || props.Component)) {

@@ -1,6 +1,8 @@
 /* eslint-env jest */
 
+import { join } from 'path'
 import cheerio from 'cheerio'
+import { check, File, waitFor } from 'next-test-utils'
 
 export default function ({ app }, suiteName, render, fetch) {
   async function get$ (path, query) {
@@ -101,6 +103,32 @@ export default function ({ app }, suiteName, render, fetch) {
       test('It should share module state with pages', async () => {
         const $ = await get$('/shared')
         expect($('#currentstate').text() === 'UPDATED')
+      })
+
+      test('It should show valid error when thrown in _app getInitialProps', async () => {
+        const errMsg = 'have an error from _app getInitialProps'
+        const _app = new File(join(__dirname, '../pages/_app.js'))
+
+        let foundErr = false
+        expect(await render('/')).toMatch('page-index')
+        _app.replace('// throw _app GIP err here', `throw new Error("${errMsg}")`)
+
+        try {
+          let tries = 0
+          while (!foundErr && tries < 5) {
+            foundErr = (await render('/')).indexOf(errMsg) > -1
+            await waitFor(1000)
+            tries++
+          }
+        } finally {
+          _app.restore()
+          // Make sure _app is restored
+          await check(
+            () => render('/'),
+            /page-index/
+          )
+          expect(foundErr).toBeTruthy()
+        }
       })
     })
   })
