@@ -7,7 +7,7 @@ import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
 import App from 'private-next-app'
 import PageLoader from './page-loader'
 import * as envConfig from 'next-server/config'
-import ErrorBoundary from './error-boundary'
+import { ErrorBoundary } from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
 
@@ -160,7 +160,7 @@ function renderReactElement (reactEl, domEl) {
   }
 }
 
-async function doRender ({ App, Component, props, err, emitter: emitterProp = emitter }) {
+async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
@@ -173,11 +173,11 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, err, router, headManager, ...props }
+  const appProps = { Component, err, router, ...props }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
+  emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
 
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
@@ -188,15 +188,8 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
-    const onError = async (error) => {
-      try {
-        await renderError({ App, err: error })
-      } catch (err) {
-        console.error('Error while rendering error page: ', err)
-      }
-    }
     renderReactElement((
-      <ErrorBoundary onError={onError}>
+      <ErrorBoundary fn={(error) => renderError({ App, err: error }).catch(err => console.error('Error rendering page: ', err))}>
         <HeadManagerContext.Provider value={headManager.updateHead}>
           <App {...appProps} />
         </HeadManagerContext.Provider>
@@ -204,5 +197,5 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     ), appContainer)
   }
 
-  emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }

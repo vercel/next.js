@@ -64,11 +64,20 @@ describe('Static Export', () => {
   })
   beforeAll(async () => {
     const outdir = join(appDir, 'out')
+    const outNoTrailSlash = join(appDir, 'outNoTrailSlash')
+
     await nextBuild(appDir)
     await nextExport(appDir, { outdir })
 
+    nextConfig.replace(`// exportTrailingSlash: false`, `exportTrailingSlash: false`)
+    await nextBuild(appDir)
+    await nextExport(appDir, { outdir: outNoTrailSlash })
+
     context.server = await startStaticServer(join(appDir, 'out'))
     context.port = context.server.address().port
+
+    context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)
+    context.portNoTrailSlash = context.serverNoTrailSlash.address().port
 
     devContext.port = await findPort()
     devContext.server = await launchApp(join(__dirname, '../'), devContext.port, true)
@@ -82,7 +91,8 @@ describe('Static Export', () => {
   afterAll(async () => {
     await Promise.all([
       stopApp(context.server),
-      killApp(devContext.server)
+      killApp(devContext.server),
+      stopApp(context.serverNoTrailSlash)
     ])
     nextConfig.restore()
   })

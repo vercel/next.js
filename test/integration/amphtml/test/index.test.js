@@ -144,6 +144,15 @@ describe('AMP Usage', () => {
           .attr('href')
       ).toBe('/use-amp-hook')
     })
+
+    it('should remove conflicting amp tags', async () => {
+      const html = await renderViaHTTP(appPort, '/conflicting-tag?amp=1')
+      const $ = cheerio.load(html)
+      await validateAMP(html)
+      expect(
+        $('meta[name=viewport]').attr('content')
+      ).not.toBe('something :p')
+    })
   })
 
   describe('combined styles', () => {

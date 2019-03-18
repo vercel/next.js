@@ -148,7 +148,6 @@ export class Head extends Component {
   render() {
     const {
       ampEnabled,
-      head,
       styles,
       amphtml,
       assetPrefix,
@@ -157,6 +156,7 @@ export class Head extends Component {
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
 
+    let { head } = this.context._documentProps
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
@@ -173,6 +173,24 @@ export class Head extends Component {
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
         )
     }
+    // show warning and remove conflicting amp head tags
+    head = !amphtml ? head : React.Children.map(head, child => {
+      if (!child) return child
+      const { type, props } = child
+      let badProp
+      
+      if (type === 'meta' && props.name === 'viewport') {
+        badProp = 'name="viewport"'
+      } else if (type === 'link' && props.rel === 'canonical') {
+        badProp = 'rel="canonical"'
+      }
+      
+      if (badProp) {
+        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
+        return null
+      }
+      return child
+    })
     return (
       <head {...this.props}>
         {children}
