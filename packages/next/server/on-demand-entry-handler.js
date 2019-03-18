@@ -232,6 +232,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
+      if (pagePath.indexOf('index.amp') > -1) {
+        page = pagePath.replace('.js', '')
+      }
+
       await new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
         const normalizedPage = normalizePage(page)
@@ -261,6 +265,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           resolve()
         }
       })
+      return page
     },
 
     middleware () {

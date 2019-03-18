@@ -396,7 +396,7 @@ export default class HotReloader {
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    await this.onDemandEntries.ensurePage(page)
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 

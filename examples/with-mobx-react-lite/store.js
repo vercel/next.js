@@ -22,12 +22,14 @@ function InjectStoreContext ({ children, initialData }) {
   let timerInterval = null
   store = useObservable(initializeData(initialData))
 
-  start = useCallback(action(() => {
-    timerInterval = setInterval(() => {
-      store.lastUpdate = Date.now()
-      store.light = true
-    }, 1000)
-  }))
+  start = useCallback(
+    action(() => {
+      timerInterval = setInterval(() => {
+        store.lastUpdate = Date.now()
+        store.light = true
+      }, 1000)
+    })
+  )
 
   stop = () => {
     if (timerInterval) {
