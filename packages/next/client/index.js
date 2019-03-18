@@ -161,7 +161,7 @@ function renderReactElement (reactEl, domEl) {
   }
 }
 
-async function doRender ({ App, Component, props, err, emitter: emitterProp = emitter }) {
+async function doRender ({ App, Component, props, err }) {
   // Usual getInitialProps fetching is handled in next/router
   // this is for when ErrorComponent gets replaced by Component by HMR
   if (!props && Component &&
@@ -174,11 +174,11 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
-  const appProps = { Component, err, router, headManager, ...props }
+  const appProps = { Component, err, router, ...props }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  emitterProp.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
+  emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
 
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
@@ -205,5 +205,5 @@ async function doRender ({ App, Component, props, err, emitter: emitterProp = em
     ), appContainer)
   }
 
-  emitterProp.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
+  emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
 }
