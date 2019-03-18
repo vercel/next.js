@@ -21,7 +21,7 @@ export default class BuildManifestPlugin {
         )
         const mainJsFiles =
           mainJsChunk && mainJsChunk.files.length > 0
-            ? mainJsChunk.files.filter(file => /\.js$/.test(file))
+            ? mainJsChunk.files.filter(file => /\.js$/.test(file) && !/\.hot-update\.js$/.test(file))
             : []
 
         for (const filePath of Object.keys(compilation.assets)) {
