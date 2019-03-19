@@ -12,7 +12,7 @@ export function getPageFiles(buildManifest: BuildManifest, page: string): string
   const normalizedPage = normalizePagePath(page)
   const files = buildManifest.pages[normalizedPage]
   if (!files) {
-    page = tryAmp(buildManifest.pages, page)
+    page = tryAmp(buildManifest.pages, normalizedPage)
   }
 
   if (!files) {
