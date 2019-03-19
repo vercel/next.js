@@ -53,7 +53,7 @@ const matchNextPageBundleRequest = route('/_next/static/:buildId/pages/:path*.js
 
 // Recursively look up the issuer till it ends up at the root
 function findEntryModule (issuer) {
-  if (issuer.issuer) {
+  if (issuer && issuer.issuer) {
     return findEntryModule(issuer.issuer)
   }
 
@@ -64,6 +64,10 @@ function erroredPages (compilation, options = { enhanceName: (name) => name }) {
   const failedPages = {}
   for (const error of compilation.errors) {
     const entryModule = findEntryModule(error.origin)
+    if (!entryModule) {
+      continue
+    }
+
     const { name } = entryModule
     if (!name) {
       continue

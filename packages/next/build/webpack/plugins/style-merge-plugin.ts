@@ -9,8 +9,8 @@ export class StyleMergePlugin implements Plugin {
         const mainChunk = chunks.find(chunk => chunk.name === 'static/runtime/main.js')
 
         if(stylesChunk && mainChunk) {
-          for (const module of stylesChunk.modulesIterable) {
-            GraphHelpers.connectChunkAndModule(mainChunk, module)
+          for (const mod of stylesChunk.modulesIterable) {
+            GraphHelpers.connectChunkAndModule(mainChunk, mod)
           }
           stylesChunk.remove('empty')
         }
