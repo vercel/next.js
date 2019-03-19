@@ -123,7 +123,7 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      const result = await this.hotReloader.ensurePage(pathname, options.amphtml)
+      const result = await this.hotReloader.ensurePage(pathname, options.amphtml, this.nextConfig.experimental.amp)
       pathname = result.pathname
       options.amphtml = options.amphtml || result.isAmp
     } catch (err) {
