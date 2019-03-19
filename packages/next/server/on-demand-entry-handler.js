@@ -216,7 +216,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       }
 
       let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions, amp)
-      const isAmp = pagePath && pagePath.endsWith('amp.js')
+      const isAmp = pagePath && pageExtensions.some(ext => pagePath.endsWith('amp.' + ext))
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -233,7 +233,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
-      page = pageUrl.replace('//', '/')
+      page = normalizePagePath(pageUrl)
       const result = { isAmp, pathname: page }
 
       await new Promise((resolve, reject) => {

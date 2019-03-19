@@ -3,7 +3,7 @@ import {isWriteable} from '../../build/is-writeable'
 
 export async function findPageFile(rootDir: string, normalizedPagePath: string, pageExtensions: string[], amp: boolean): Promise<string|null> {
   // Add falling back to .amp.js extension
-  if (!amp) pageExtensions = pageExtensions.concat('amp.js')
+  if (!amp) pageExtensions = pageExtensions.concat(pageExtensions.map((ext) => 'amp.' + ext))
 
   for (let extension of pageExtensions) {
     if (amp) extension = 'amp.' + extension
