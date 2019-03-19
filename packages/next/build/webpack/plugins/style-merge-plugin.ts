@@ -5,7 +5,6 @@ export class StyleMergePlugin implements Plugin {
   apply(compiler: Compiler) {
     compiler.hooks.compilation.tap('StyleMergePlugin', compilation => {
       compilation.hooks.afterOptimizeChunks.tap('StyleMergePlugin', chunks => {
-        chunks.map((chunk) => console.log(chunk.name))
         const stylesChunk = chunks.find(chunk => chunk.name === 'styles')
         const mainChunk = chunks.find(chunk => chunk.name === 'static/runtime/main.js')
 
