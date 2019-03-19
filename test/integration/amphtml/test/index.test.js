@@ -156,6 +156,28 @@ describe('AMP Usage', () => {
       ).toBe('/use-amp-hook')
     })
 
+    it('should render a canonical regardless of amp-only status (implicit)', async () => {
+      const html = await renderViaHTTP(appPort, '/only-amp')
+      const $ = cheerio.load(html)
+      await validateAMP(html)
+      expect(
+        $('link[rel=canonical]')
+          .first()
+          .attr('href')
+      ).toBe('/only-amp')
+    })
+
+    it('should render a canonical regardless of amp-only status (explicit)', async () => {
+      const html = await renderViaHTTP(appPort, '/only-amp?amp=1')
+      const $ = cheerio.load(html)
+      await validateAMP(html)
+      expect(
+        $('link[rel=canonical]')
+          .first()
+          .attr('href')
+      ).toBe('/only-amp')
+    })
+
     it('should not render amphtml link tag with no AMP page', async () => {
       const html = await renderViaHTTP(appPort, '/normal')
       const $ = cheerio.load(html)

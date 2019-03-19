@@ -1,3 +1,1 @@
-export default () => (
-  <div>No AMP for me...</div>
-)
+export default () => <div>No AMP for me...</div>
