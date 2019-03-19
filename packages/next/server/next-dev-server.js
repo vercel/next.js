@@ -127,7 +127,6 @@ export default class DevServer extends Server {
       pathname = result.pathname
       options.amphtml = options.amphtml || result.isAmp
       options.hasAmp = result.hasAmp
-      options.hasCanonical = result.hasCanonical
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404

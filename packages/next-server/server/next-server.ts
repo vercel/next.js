@@ -296,10 +296,9 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, hasAmp, hasCanonical }: {
+    { amphtml, hasAmp }: {
       amphtml?: boolean,
       hasAmp?: boolean,
-      hasCanonical?: boolean,
     } = {},
   ): Promise<string | null> {
     try {
@@ -309,7 +308,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml, hasAmp, hasCanonical },
+        { ...this.renderOpts, amphtml, hasAmp },
       )
       return html
     } catch (err) {

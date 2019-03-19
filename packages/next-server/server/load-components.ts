@@ -20,7 +20,7 @@ export async function loadComponents(distDir: string, buildId: string, pathname:
   ])
 
   const Component = interopDefault(pageData.mod)
-  const { hasAmp, hasCanonical } = pageData
+  const { hasAmp } = pageData
 
-  return {buildManifest, reactLoadableManifest, Component, Document, App, hasAmp, hasCanonical}
+  return {buildManifest, reactLoadableManifest, Component, Document, App, hasAmp}
 }

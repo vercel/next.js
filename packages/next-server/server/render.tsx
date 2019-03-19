@@ -117,7 +117,6 @@ type RenderOpts = {
   dev?: boolean
   amphtml?: boolean
   hasAmp?: boolean
-  hasCanonical?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
@@ -143,7 +142,6 @@ function renderDocument(
     dev,
     amphtml,
     hasAmp,
-    hasCanonical,
     staticMarkup,
     devFiles,
     files,
@@ -155,7 +153,6 @@ function renderDocument(
     query: ParsedUrlQuery
     amphtml: boolean
     hasAmp: boolean,
-    hasCanonical: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -182,7 +179,6 @@ function renderDocument(
           ampEnabled={ampEnabled}
           amphtml={amphtml}
           hasAmp={hasAmp}
-          hasCanonical={hasCanonical}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
@@ -209,7 +205,6 @@ export async function renderToHTML(
     staticMarkup = false,
     amphtml = false,
     hasAmp = false,
-    hasCanonical = false,
     App,
     Document,
     Component,
@@ -321,7 +316,6 @@ export async function renderToHTML(
     pathname,
     amphtml,
     hasAmp,
-    hasCanonical,
     query,
     dynamicImportsIds,
     dynamicImports,

@@ -151,7 +151,6 @@ export class Head extends Component {
       styles,
       amphtml,
       hasAmp,
-      // hasCanonical,
       assetPrefix,
       __NEXT_DATA__,
     } = this.context._documentProps

@@ -237,7 +237,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const result = {
         isAmp,
         pathname: page,
-        [isAmp ? 'hasCanonical' : 'hasAmp']: Boolean(await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled))
+        hasAmp: !isAmp && await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled)
       }
 
       await new Promise((resolve, reject) => {
