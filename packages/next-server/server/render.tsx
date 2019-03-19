@@ -116,6 +116,7 @@ type RenderOpts = {
   nextExport?: boolean
   dev?: boolean
   amphtml?: boolean
+  hasAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
@@ -140,6 +141,7 @@ function renderDocument(
     err,
     dev,
     amphtml,
+    hasAmp,
     staticMarkup,
     devFiles,
     files,
@@ -150,6 +152,7 @@ function renderDocument(
     pathname: string
     query: ParsedUrlQuery
     amphtml: boolean
+    hasAmp: boolean,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -175,6 +178,7 @@ function renderDocument(
           }}
           ampEnabled={ampEnabled}
           amphtml={amphtml}
+          hasAmp={hasAmp}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
@@ -200,6 +204,7 @@ export async function renderToHTML(
     dev = false,
     staticMarkup = false,
     amphtml = false,
+    hasAmp = false,
     App,
     Document,
     Component,
@@ -310,6 +315,7 @@ export async function renderToHTML(
     docProps,
     pathname,
     amphtml,
+    hasAmp,
     query,
     dynamicImportsIds,
     dynamicImports,

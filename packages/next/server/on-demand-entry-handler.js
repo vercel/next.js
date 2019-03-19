@@ -234,7 +234,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       page = posix.normalize(pageUrl)
-      const result = { isAmp, pathname: page }
+      const result = {
+        isAmp,
+        pathname: page,
+        hasAmp: !isAmp && await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled)
+      }
 
       await new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output

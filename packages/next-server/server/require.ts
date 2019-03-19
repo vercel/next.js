@@ -51,7 +51,21 @@ export function getPagePath(page: string, distDir: string, opts: PagePathOptions
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export function requirePage(page: string, distDir: string, opts?: PagePathOptions): any {
+export function requirePage(page: string, distDir: string, opts: PagePathOptions = {}): any {
   const pagePath = getPagePath(page, distDir, opts)
-  return require(pagePath)
+  const isAmp = pagePath.indexOf('.amp.') > -1
+  let hasAmp = false
+
+  if (!isAmp) {
+    try {
+      const ampPage = getPagePath(page, distDir, { amphtml: true })
+      hasAmp = Boolean(ampPage && ampPage.indexOf('.amp') > -1)
+    } catch (_) {}
+  }
+  opts.amphtml = opts.amphtml || isAmp
+
+  return {
+    hasAmp,
+    mod: require(pagePath),
+  }
 }

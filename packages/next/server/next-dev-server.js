@@ -126,6 +126,7 @@ export default class DevServer extends Server {
       const result = await this.hotReloader.ensurePage(pathname, options.amphtml, this.nextConfig.experimental.amp)
       pathname = result.pathname
       options.amphtml = options.amphtml || result.isAmp
+      options.hasAmp = result.hasAmp
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404

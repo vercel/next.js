@@ -11,13 +11,16 @@ export async function loadComponents(distDir: string, buildId: string, pathname:
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
 
-  const [buildManifest, reactLoadableManifest, Component, Document, App] = await Promise.all([
+  const [buildManifest, reactLoadableManifest, pageData, Document, App] = await Promise.all([
     require(join(distDir, BUILD_MANIFEST)),
     require(join(distDir, REACT_LOADABLE_MANIFEST)),
-    interopDefault(requirePage(pathname, distDir, opts)),
+    requirePage(pathname, distDir, opts),
     interopDefault(require(documentPath)),
     interopDefault(require(appPath)),
   ])
 
-  return {buildManifest, reactLoadableManifest, Component, Document, App}
+  const Component = interopDefault(pageData.mod)
+  const { hasAmp } = pageData
+
+  return {buildManifest, reactLoadableManifest, Component, Document, App, hasAmp}
 }
