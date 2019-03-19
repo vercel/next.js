@@ -285,7 +285,7 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const loadOpts = { amphtml: !!opts.amphtml }
+    const loadOpts = { amphtml: Boolean(opts.amphtml) }
     const result = await loadComponents(this.distDir, this.buildId, pathname, loadOpts)
     opts.amphtml = loadOpts.amphtml
     return renderToHTML(req, res, pathname, query, { ...opts, ...result  })
