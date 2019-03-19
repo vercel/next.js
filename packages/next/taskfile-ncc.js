@@ -1,7 +1,7 @@
 'use strict'
 
 const ncc = require('@zeit/ncc')
-const { existsSync, copyFileSync } = require('fs')
+const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, relative } = require('path')
 
 module.exports = function (task) {
@@ -47,7 +47,11 @@ function writePackageManifest (packageName) {
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
   if (existsSync(potentialLicensePath)) {
-    copyFileSync(potentialLicensePath, join(compiledPackagePath, './LICENSE'))
+    this._.files.push({
+      dir: compiledPackagePath,
+      base: 'LICENSE',
+      data: readFileSync(potentialLicensePath, 'utf8')
+    })
   }
 
   this._.files.push({
