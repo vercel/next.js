@@ -24,7 +24,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -42,7 +42,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -61,7 +61,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -80,7 +80,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -117,7 +117,7 @@ export default (context, render) => {
           await waitFor(1000)
         }
 
-        browser.close()
+        await browser.close()
       })
 
       it('should render support React context', async () => {
@@ -132,7 +132,7 @@ export default (context, render) => {
           await waitFor(1000)
         }
 
-        browser.close()
+        await browser.close()
       })
 
       it('should load new components and render for prop changes', async () => {
@@ -153,7 +153,7 @@ export default (context, render) => {
           await waitFor(1000)
         }
 
-        browser.close()
+        await browser.close()
       })
     })
   })

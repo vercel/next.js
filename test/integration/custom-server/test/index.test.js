@@ -112,7 +112,7 @@ describe('Custom Server', () => {
         )
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })

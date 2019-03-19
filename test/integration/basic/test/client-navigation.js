@@ -14,7 +14,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the about page.')
-        browser.close()
+        await browser.close()
       })
 
       it('should navigate via the client side', async () => {
@@ -29,7 +29,7 @@ export default (context) => {
           .elementByCss('#counter').text()
 
         expect(counterText).toBe('Counter: 1')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -43,7 +43,7 @@ export default (context) => {
         expect(JSON.parse(urlResult)).toMatchObject({ 'query': { 'added': 'yes' }, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change?added=yes' })
         expect(JSON.parse(previousUrlResult)).toMatchObject({ 'query': {}, 'pathname': '/nav/url-prop-change', 'asPath': '/nav/url-prop-change' })
 
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -56,7 +56,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        browser.quit()
+        await browser.close()
       })
 
       it('should not navigate if the <a/> tag has a target', async () => {
@@ -68,7 +68,7 @@ export default (context) => {
           .elementByCss('#counter').text()
 
         expect(counterText).toBe('Counter: 1')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -81,7 +81,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the passHref prop page.')
-        browser.close()
+        await browser.close()
       })
 
       it('should redirect if passHref prop is defined in Link', async () => {
@@ -92,7 +92,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -110,7 +110,7 @@ export default (context) => {
           )
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -125,7 +125,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('2')
-        browser.close()
+        await browser.close()
       })
 
       it('should remove querystring', async () => {
@@ -136,7 +136,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('0')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -151,7 +151,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(countAfterClicked).toBe('COUNT: 1')
-        browser.close()
+        await browser.close()
       })
 
       it('should always replace the state', async () => {
@@ -172,7 +172,7 @@ export default (context) => {
           .back()
           .waitForElementByCss('.nav-home')
 
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -194,7 +194,7 @@ export default (context) => {
           expect(countStateAfterClicked).toBe('STATE COUNT: 1')
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -223,7 +223,7 @@ export default (context) => {
           expect(countStateAfterClickedAgain).toBe('STATE COUNT: 2')
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -248,7 +248,7 @@ export default (context) => {
           await browser.back().waitForElementByCss('.nav-home')
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -265,7 +265,7 @@ export default (context) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          browser.close()
+          await browser.close()
         })
 
         it('should scroll to the specified position on the same page', async () => {
@@ -288,7 +288,7 @@ export default (context) => {
             expect(scrollPositionAfterEmptyHash).toBe(0)
           } finally {
             if (browser) {
-              browser.close()
+              await browser.close()
             }
           }
         })
@@ -315,7 +315,7 @@ export default (context) => {
             expect(scrollPositionAfterEmptyHash).toBe(0)
           } finally {
             if (browser) {
-              browser.close()
+              await browser.close()
             }
           }
         })
@@ -334,7 +334,7 @@ export default (context) => {
             expect(scrollPosition).toBe(7258)
           } finally {
             if (browser) {
-              browser.close()
+              await browser.close()
             }
           }
         })
@@ -350,7 +350,7 @@ export default (context) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          browser.close()
+          await browser.close()
         })
       })
 
@@ -365,7 +365,7 @@ export default (context) => {
 
           expect(counter).toBe('COUNT: 1')
 
-          browser.close()
+          await browser.close()
         })
       })
 
@@ -380,7 +380,7 @@ export default (context) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          browser.close()
+          await browser.close()
         })
       })
 
@@ -395,7 +395,7 @@ export default (context) => {
 
           expect(counter).toBe('COUNT: 0')
 
-          browser.close()
+          await browser.close()
         })
       })
     })
@@ -413,7 +413,7 @@ export default (context) => {
           .elementByCss('#get-initial-props-run-count').text()
         expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
 
-        browser.close()
+        await browser.close()
       })
 
       it('should handle the back button and should not run getInitialProps', async () => {
@@ -433,7 +433,7 @@ export default (context) => {
           .elementByCss('#get-initial-props-run-count').text()
         expect(getInitialPropsRunCount).toBe('getInitialProps run count: 1')
 
-        browser.close()
+        await browser.close()
       })
 
       it('should run getInitialProps always when rending the page to the screen', async () => {
@@ -453,7 +453,7 @@ export default (context) => {
           .elementByCss('#get-initial-props-run-count').text()
         expect(getInitialPropsRunCount).toBe('getInitialProps run count: 2')
 
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -468,7 +468,7 @@ export default (context) => {
 
         expect(await browser.url())
           .toBe(`http://localhost:${context.appPort}/nav/querystring/10#10`)
-        browser.close()
+        await browser.close()
       })
 
       it('should work with "Router.push"', async () => {
@@ -481,7 +481,7 @@ export default (context) => {
 
         expect(await browser.url())
           .toBe(`http://localhost:${context.appPort}/nav/querystring/10#10`)
-        browser.close()
+        await browser.close()
       })
 
       it('should work with the "replace" prop', async () => {
@@ -515,7 +515,7 @@ export default (context) => {
 
         expect(stackLength).toBe(3)
 
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -528,7 +528,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the about page.')
-        browser.close()
+        await browser.close()
       })
 
       it('should redirect the page when loading', async () => {
@@ -538,7 +538,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the about page.')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -548,7 +548,7 @@ export default (context) => {
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
-        browser.close()
+        await browser.close()
       })
 
       it('should work with dir/ page', async () => {
@@ -556,7 +556,7 @@ export default (context) => {
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
-        browser.close()
+        await browser.close()
       })
 
       it('should work with /index page', async () => {
@@ -564,7 +564,7 @@ export default (context) => {
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
-        browser.close()
+        await browser.close()
       })
 
       it('should work with / page', async () => {
@@ -572,7 +572,7 @@ export default (context) => {
         const text = await browser.elementByCss('p').text()
 
         expect(text).toBe('ComponentDidMount executed on client.')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -592,7 +592,7 @@ export default (context) => {
           .elementByCss('p').text()
 
         expect(text).toBe('This is the home.')
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -606,7 +606,7 @@ export default (context) => {
             .elementByCss('.as-path-content').text()
 
           expect(asPath).toBe('/as/path')
-          browser.close()
+          await browser.close()
         })
 
         it('should show the correct asPath with a Link without the as prop', async () => {
@@ -617,7 +617,7 @@ export default (context) => {
             .elementByCss('.as-path-content').text()
 
           expect(asPath).toBe('/nav/as-path')
-          browser.close()
+          await browser.close()
         })
       })
 
@@ -630,7 +630,7 @@ export default (context) => {
             .elementByCss('.as-path-content').text()
 
           expect(asPath).toBe('/nav/as-path-using-router')
-          browser.close()
+          await browser.close()
         })
       })
 
@@ -655,7 +655,7 @@ export default (context) => {
             expect(queryFour.something).toBe(undefined)
           } finally {
             if (browser) {
-              browser.close()
+              await browser.close()
             }
           }
         })
@@ -672,7 +672,7 @@ export default (context) => {
             expect(queryTwo.something).toBe('else')
           } finally {
             if (browser) {
-              browser.close()
+              await browser.close()
             }
           }
         })
@@ -690,7 +690,7 @@ export default (context) => {
           expect(text).toMatch(/pages\/error-inside-browser-page\.js:5/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -705,7 +705,7 @@ export default (context) => {
           expect(text).toMatch(/error-in-the-browser-global-scope\.js:2/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -716,14 +716,14 @@ export default (context) => {
         const browser = await webdriver(context.appPort, '/non-existent')
         expect(await browser.elementByCss('h1').text()).toBe('404')
         expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
-        browser.close()
+        await browser.close()
       })
 
       it('should 404 for <page>/', async () => {
         const browser = await webdriver(context.appPort, '/nav/about/')
         expect(await browser.elementByCss('h1').text()).toBe('404')
         expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
-        browser.close()
+        await browser.close()
       })
 
       it('should should not contain a page script in a 404 page', async () => {
@@ -733,7 +733,7 @@ export default (context) => {
           const src = await script.getAttribute('src')
           expect(src.includes('/non-existent')).toBeFalsy()
         }
-        browser.close()
+        await browser.close()
       })
     })
 
@@ -749,7 +749,7 @@ export default (context) => {
           expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -762,7 +762,7 @@ export default (context) => {
         expect(await browser.elementByCss('body').text()).toBe('this is just a placeholder component')
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -770,7 +770,7 @@ export default (context) => {
     it('should work on nested /index/index.js', async () => {
       const browser = await webdriver(context.appPort, '/nested-index/index')
       expect(await browser.elementByCss('p').text()).toBe('This is an index.js nested in an index/ folder.')
-      browser.close()
+      await browser.close()
     })
   })
 }

@@ -48,7 +48,7 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active').text()
     expect(activePage).toBe('Bar')
 
-    browser.close()
+    await browser.close()
   })
 
   it('allows observation of navigation events using top level Router', async () => {
@@ -64,7 +64,7 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active-top-level-router').text()
     expect(activePage).toBe('Bar')
 
-    browser.close()
+    await browser.close()
   })
 
   it('allows observation of navigation events using top level Router deprecated behavior', async () => {
@@ -80,7 +80,7 @@ describe('withRouter', () => {
     activePage = await browser.elementByCss('.active-top-level-router-deprecated-behavior').text()
     expect(activePage).toBe('Bar')
 
-    browser.close()
+    await browser.close()
   })
 })
 
@@ -99,6 +99,6 @@ describe('withRouter SSR', async () => {
   it('should show an error when trying to use router methods during SSR', async () => {
     const browser = await webdriver(port, '/router-method-ssr')
     expect(await getReactErrorOverlayContent(browser)).toMatch(`No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/`)
-    browser.close()
+    await browser.close()
   })
 })

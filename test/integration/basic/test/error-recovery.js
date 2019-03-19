@@ -32,7 +32,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -66,7 +66,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -101,7 +101,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -137,7 +137,7 @@ export default (context, renderViaHTTP) => {
       } finally {
         aboutPage.restore()
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -164,7 +164,7 @@ export default (context, renderViaHTTP) => {
       } finally {
         aboutPage.restore()
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -200,7 +200,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -239,7 +239,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -278,7 +278,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -321,7 +321,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -362,7 +362,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -403,7 +403,7 @@ export default (context, renderViaHTTP) => {
         throw err
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })

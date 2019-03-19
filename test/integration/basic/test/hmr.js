@@ -36,7 +36,7 @@ export default (context, renderViaHTTP) => {
           )
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
           if (existsSync(newContactPagePath)) {
             renameSync(newContactPagePath, contactPagePath)
@@ -76,7 +76,7 @@ export default (context, renderViaHTTP) => {
           )
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -111,7 +111,7 @@ export default (context, renderViaHTTP) => {
           writeFileSync(aboutPagePath, originalContent, 'utf8')
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -151,7 +151,7 @@ export default (context, renderViaHTTP) => {
           }
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -183,7 +183,7 @@ export default (context, renderViaHTTP) => {
           expect(editedFontSize).toBe('200px')
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
           writeFileSync(pagePath, originalContent, 'utf8')
         }
@@ -243,7 +243,7 @@ export default (context, renderViaHTTP) => {
           writeFileSync(pagePath, originalContent, 'utf8')
 
           if (browser) {
-            browser.close()
+            await browser.close()
           }
 
           if (secondBrowser) {
