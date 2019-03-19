@@ -166,28 +166,6 @@ describe('AMP Usage', () => {
       ).not.toBeTruthy()
     })
 
-    it('should not render canonical link to page with AMP only (implicit)', async () => {
-      const html = await renderViaHTTP(appPort, '/styled')
-      const $ = cheerio.load(html)
-      await validateAMP(html)
-      expect(
-        $('link[rel=canonical]')
-          .first()
-          .attr('href')
-      ).not.toBeTruthy()
-    })
-
-    it('should not render canonical link to page with AMP only (explicit)', async () => {
-      const html = await renderViaHTTP(appPort, '/styled?amp=1')
-      const $ = cheerio.load(html)
-      await validateAMP(html)
-      expect(
-        $('link[rel=canonical]')
-          .first()
-          .attr('href')
-      ).not.toBeTruthy()
-    })
-
     it('should remove conflicting amp tags', async () => {
       const html = await renderViaHTTP(appPort, '/conflicting-tag?amp=1')
       const $ = cheerio.load(html)
