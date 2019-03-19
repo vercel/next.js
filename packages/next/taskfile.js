@@ -28,8 +28,16 @@ export async function ncc_unistore (task, opts) {
     .target('dist/compiled/unistore')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_text_table (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('text-table')))
+    .ncc({ packageName: 'text-table' })
+    .target('dist/compiled/text-table')
+}
+
 export async function precompile (task) {
-  await task.parallel(['ncc_unistore'])
+  await task.parallel(['ncc_unistore', 'ncc_text_table'])
 }
 
 export async function compile (task) {
