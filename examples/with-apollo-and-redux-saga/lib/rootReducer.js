@@ -1,4 +1,6 @@
-import { combineReducers } from 'redux'
+import {
+  combineReducers
+} from 'redux'
 
 import clock from './clock/reducers'
 import count from './count/reducers'
