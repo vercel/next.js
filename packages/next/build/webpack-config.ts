@@ -14,6 +14,7 @@ import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
+import { StyleMergePlugin } from './webpack/plugins/style-merge-plugin'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, appPath}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, appPath: string}): webpack.Configuration {
@@ -227,6 +228,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     },
     plugins: [
       // This plugin makes sure `output.filename` is used for entry chunks
+      new StyleMergePlugin(),
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
         ...(Object.keys(config.env).reduce((acc, key) => {
