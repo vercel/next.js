@@ -54,6 +54,7 @@ export function getPagePath(page: string, distDir: string, opts: PagePathOptions
 export function requirePage(page: string, distDir: string, opts: PagePathOptions = {}): any {
   const pagePath = getPagePath(page, distDir, opts)
   const isAmp = pagePath.indexOf('.amp.') > -1
+  opts.amphtml = isAmp
   let hasAmpCanonical = false
   try {
     hasAmpCanonical = Boolean(
