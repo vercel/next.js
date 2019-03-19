@@ -266,9 +266,7 @@ describe('AMP Usage', () => {
           /This is the hot AMP page/
         )
       } finally {
-        if (browser) {
-          browser.close()
-        }
+        await browser.close()
       }
     })
   })

@@ -151,7 +151,7 @@ describe('Production Usage', () => {
         .elementByCss('div').text()
 
       expect(text).toBe('About Page')
-      browser.close()
+      await browser.close()
     })
 
     it('should navigate to nested index via client side', async () => {
@@ -162,7 +162,7 @@ describe('Production Usage', () => {
         .elementByCss('p').text()
 
       expect(text).toBe('Hello World')
-      browser.close()
+      await browser.close()
     })
   })
 
@@ -176,7 +176,7 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
-      browser.close()
+      await browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -184,7 +184,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
-      browser.close()
+      await browser.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
@@ -192,7 +192,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
-      browser.close()
+      await browser.close()
     })
   })
 
@@ -236,7 +236,7 @@ describe('Production Usage', () => {
         .elementByCss('#counter').text()
       expect(counterAfter404Page).toBe('Counter: 0')
 
-      browser.close()
+      await browser.close()
     })
 
     it('should add preload tags when Link prefetch prop is used', async () => {
@@ -251,7 +251,7 @@ describe('Production Usage', () => {
           expect(as).toBe('script')
         })
       )
-      browser.close()
+      await browser.close()
     })
 
     // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
@@ -272,7 +272,7 @@ describe('Production Usage', () => {
           expect(src).not.toMatch(/\?ts=/)
         })
       )
-      browser.close()
+      await browser.close()
     })
 
     it('should reload the page on page script error with prefetch', async () => {
@@ -306,7 +306,7 @@ describe('Production Usage', () => {
         .elementByCss('#counter').text()
       expect(counterAfter404Page).toBe('Counter: 0')
 
-      browser.close()
+      await browser.close()
     })
   })
 

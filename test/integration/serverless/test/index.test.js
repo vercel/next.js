@@ -62,7 +62,7 @@ describe('Serverless', () => {
 
       expect(text).toMatch(/fetch page/)
     } finally {
-      browser.close()
+      await browser.close()
     }
   })
 

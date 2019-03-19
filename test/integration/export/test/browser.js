@@ -10,7 +10,7 @@ export default function (context) {
         .elementByCss('#home-page p').text()
 
       expect(text).toBe('This is the home page')
-      browser.close()
+      await browser.close()
     })
 
     it('should add trailing slash on Link', async () => {
@@ -39,7 +39,7 @@ export default function (context) {
         .elementByCss('#about-page p').text()
 
       expect(text).toBe('This is the About page foo')
-      browser.close()
+      await browser.close()
     })
 
     it('should do navigations via Router', async () => {
@@ -50,7 +50,7 @@ export default function (context) {
         .elementByCss('#about-page p').text()
 
       expect(text).toBe('This is the About page foo')
-      browser.close()
+      await browser.close()
     })
 
     it('should do run client side javascript', async () => {
@@ -63,7 +63,7 @@ export default function (context) {
         .elementByCss('#counter-page p').text()
 
       expect(text).toBe('Counter: 2')
-      browser.close()
+      await browser.close()
     })
 
     it('should render pages using getInitialProps', async () => {
@@ -74,7 +74,7 @@ export default function (context) {
         .elementByCss('#dynamic-page p').text()
 
       expect(text).toBe('cool dynamic text')
-      browser.close()
+      await browser.close()
     })
 
     it('should render dynamic pages with custom urls', async () => {
@@ -85,7 +85,7 @@ export default function (context) {
         .elementByCss('#dynamic-page p').text()
 
       expect(text).toBe('next export is nice')
-      browser.close()
+      await browser.close()
     })
 
     it('should support client side naviagtion', async () => {
@@ -109,7 +109,7 @@ export default function (context) {
 
       expect(textNow).toBe('Counter: 2')
 
-      browser.close()
+      await browser.close()
     })
 
     it('should render dynamic import components in the client', async () => {
@@ -123,7 +123,7 @@ export default function (context) {
         /Welcome to dynamic imports/
       )
 
-      browser.close()
+      await browser.close()
     })
 
     it('should render pages with url hash correctly', async () => {
@@ -145,7 +145,7 @@ export default function (context) {
         )
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -159,7 +159,7 @@ export default function (context) {
         .elementByCss('#home-page p').text()
 
       expect(text).toBe('This is the home page')
-      browser.close()
+      await browser.close()
     })
 
     describe('pages in the nested level: level1', () => {
@@ -170,7 +170,7 @@ export default function (context) {
 
         await check(() => getBrowserBodyText(browser), /This is the Level1 home page/)
 
-        browser.close()
+        await browser.close()
       })
 
       it('should render the about page', async () => {
@@ -180,7 +180,7 @@ export default function (context) {
 
         await check(() => getBrowserBodyText(browser), /This is the Level1 about page/)
 
-        browser.close()
+        await browser.close()
       })
     })
   })
