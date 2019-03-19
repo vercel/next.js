@@ -203,7 +203,7 @@ export class Head extends Component {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={page.replace('/index','').replace('.amp', '')} />
+            <link rel="canonical" href={page.replace(/\/index$/, '').replace('.amp', '')} />
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
