@@ -54,16 +54,16 @@ export function getPagePath(page: string, distDir: string, opts: PagePathOptions
 export function requirePage(page: string, distDir: string, opts: PagePathOptions = {}): any {
   const pagePath = getPagePath(page, distDir, opts)
   const isAmp = pagePath.indexOf('.amp.') > -1
-  opts.amphtml = isAmp
   let hasAmp = false
 
-  if (!isAmp) {
+  if (!isAmp && opts.amphtml) {
     try {
       hasAmp = Boolean(
         getPagePath(page, distDir, { amphtml: false }),
       )
     } catch (_) {}
   }
+  opts.amphtml = isAmp
 
   return {
     hasAmp,
