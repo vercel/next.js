@@ -30,12 +30,21 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
+        const ampOpts = { amphtml: Boolean(query.amp), hasAmp: query.hasAmp, ampPath: query.ampPath }
+        delete query.hasAmp
+        delete query.ampPath
+
         const req = { url: path }
         const res = {}
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
+
+        if (query.ampOnly) {
+          delete query.ampOnly
+          path = path.split('.amp')[0].replace('/index', '')
+        }
 
         let htmlFilename = `${path}${sep}index.html`
         const pageExt = extname(page)
@@ -53,7 +62,7 @@ process.on(
 
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
-        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts })
+        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
         await new Promise((resolve, reject) =>
           writeFile(
             htmlFilepath,
