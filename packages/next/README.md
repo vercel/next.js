@@ -994,6 +994,7 @@ To disable this behavior & prevent routing based on files in `/pages`, simply se
 ```js
 // next.config.js
 module.exports = {
+  ...withTypescript(),
   useFileSystemPublicRoutes: false
 }
 ```
