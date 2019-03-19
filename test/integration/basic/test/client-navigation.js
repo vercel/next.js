@@ -719,7 +719,7 @@ export default (context) => {
         await browser.close()
       })
 
-      fit('should 404 for <page>/', async () => {
+      it('should 404 for <page>/', async () => {
         const browser = await webdriver(context.appPort, '/nav/about/')
         expect(await browser.elementByCss('h1').text()).toBe('404')
         expect(await browser.elementByCss('h2').text()).toBe('This page could not be found.')
