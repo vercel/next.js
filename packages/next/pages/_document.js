@@ -150,6 +150,8 @@ export class Head extends Component {
       ampEnabled,
       styles,
       amphtml,
+      hasAmp,
+      hasCanonical,
       assetPrefix,
       __NEXT_DATA__,
     } = this.context._documentProps
@@ -201,7 +203,7 @@ export class Head extends Component {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={page} />
+            {<link rel="canonical" href={page.split('.amp')[0] + (hasCanonical ? '' : '?amp=1')} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -240,7 +242,7 @@ export class Head extends Component {
         )}
         {!amphtml && (
           <>
-            {ampEnabled && <link rel="amphtml" href={`${page}?amp=1`} />}
+            {ampEnabled && hasAmp && <link rel="amphtml" href={`${page}?amp=1`} />}
             {page !== '/_error' && (
               <link
                 rel="preload"

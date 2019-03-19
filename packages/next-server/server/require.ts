@@ -51,7 +51,18 @@ export function getPagePath(page: string, distDir: string, opts: PagePathOptions
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export function requirePage(page: string, distDir: string, opts?: PagePathOptions): any {
+export function requirePage(page: string, distDir: string, opts: PagePathOptions = {}): any {
   const pagePath = getPagePath(page, distDir, opts)
-  return require(pagePath)
+  const isAmp = pagePath.indexOf('.amp.') > -1
+  let hasAmpCanonical = false
+  try {
+    hasAmpCanonical = Boolean(
+      getPagePath(page, distDir, { amphtml: !isAmp }),
+    )
+  } catch (_) {}
+
+  return {
+    mod: require(pagePath),
+    [isAmp ? 'hasCanonical' : 'hasAmp']: hasAmpCanonical,
+  }
 }

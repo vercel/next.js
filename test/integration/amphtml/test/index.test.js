@@ -156,6 +156,16 @@ describe('AMP Usage', () => {
       ).toBe('/use-amp-hook')
     })
 
+    it('should not render amphtml link tag with no AMP page', async () => {
+      const html = await renderViaHTTP(appPort, '/normal')
+      const $ = cheerio.load(html)
+      expect(
+        $('link[rel=canonical]')
+          .first()
+          .attr('href')
+      ).not.toBeTruthy()
+    })
+
     it('should remove conflicting amp tags', async () => {
       const html = await renderViaHTTP(appPort, '/conflicting-tag?amp=1')
       const $ = cheerio.load(html)

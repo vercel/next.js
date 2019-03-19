@@ -286,7 +286,7 @@ export default class Server {
     opts: any,
   ) {
     const result = await loadComponents(this.distDir, this.buildId, pathname, { amphtml: !!opts.amphtml })
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
+    return renderToHTML(req, res, pathname, query, { ...opts, ...result  })
   }
 
   public async renderToHTML(
@@ -294,7 +294,11 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml }: { amphtml?: boolean } = {},
+    { amphtml, hasAmp, hasCanonical }: {
+      amphtml?: boolean,
+      hasAmp?: boolean,
+      hasCanonical?: boolean,
+    } = {},
   ): Promise<string | null> {
     try {
       // To make sure the try/catch is executed
@@ -303,7 +307,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml },
+        { ...this.renderOpts, amphtml, hasAmp, hasCanonical },
       )
       return html
     } catch (err) {
