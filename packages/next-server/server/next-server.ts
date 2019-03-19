@@ -286,7 +286,7 @@ export default class Server {
     opts: any,
   ) {
     const result = await loadComponents(this.distDir, this.buildId, pathname, opts)
-    return renderToHTML(req, res, pathname, query, { ...opts, ...result  })
+    return renderToHTML(req, res, pathname, query, { ...result, ...opts, hasAmp: result.hasAmp  })
   }
 
   public async renderToHTML(
