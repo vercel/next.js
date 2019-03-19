@@ -1,12 +1,13 @@
-import {join} from 'path'
-import {CLIENT_STATIC_FILES_PATH, BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
-import {requirePage} from './require'
+import {BUILD_MANIFEST, CLIENT_STATIC_FILES_PATH, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants';
+import { join } from 'path';
+
+import { PagePathOptions, requirePage } from './require';
 
 function interopDefault(mod: any) {
   return mod.default || mod
 }
 
-export async function loadComponents(distDir: string, buildId: string, pathname: string, opts: any) {
+export async function loadComponents(distDir: string, buildId: string, pathname: string, opts?: PagePathOptions) {
   const documentPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_document')
   const appPath = join(distDir, SERVER_DIRECTORY, CLIENT_STATIC_FILES_PATH, buildId, 'pages', '_app')
 

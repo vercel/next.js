@@ -2,6 +2,10 @@ import {join} from 'path'
 import {PAGES_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
 import { normalizePagePath } from './normalize-page-path'
 
+export type PagePathOptions = {
+  amphtml?: boolean,
+}
+
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
   err.code = 'ENOENT'
@@ -18,7 +22,7 @@ export const tryAmp = (manifest: any, page: string) => {
   return page
 }
 
-export function getPagePath(page: string, distDir: string, opts: any = {}): string {
+export function getPagePath(page: string, distDir: string, opts: PagePathOptions = {}): string {
   const serverBuildPath = join(distDir, SERVER_DIRECTORY)
   const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 
@@ -47,7 +51,7 @@ export function getPagePath(page: string, distDir: string, opts: any = {}): stri
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export function requirePage(page: string, distDir: string, opts: any): any {
+export function requirePage(page: string, distDir: string, opts?: PagePathOptions): any {
   const pagePath = getPagePath(page, distDir, opts)
   return require(pagePath)
 }
