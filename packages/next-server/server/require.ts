@@ -56,14 +56,13 @@ export function requirePage(page: string, distDir: string, opts: PagePathOptions
   const isAmp = pagePath.indexOf('.amp.') > -1
   let hasAmp = false
 
-  if (!isAmp && opts.amphtml) {
+  if (!isAmp) {
     try {
-      hasAmp = Boolean(
-        getPagePath(page, distDir, { amphtml: false }),
-      )
+      const ampPage = getPagePath(page, distDir, { amphtml: true })
+      hasAmp = Boolean(ampPage && ampPage.indexOf('.amp') > -1)
     } catch (_) {}
   }
-  opts.amphtml = isAmp
+  opts.amphtml = opts.amphtml || isAmp
 
   return {
     hasAmp,
