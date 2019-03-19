@@ -9,6 +9,9 @@ import { loadComponents } from 'next-server/dist/server/load-components'
 const envConfig = require('next-server/config')
 const mkdirp = promisify(mkdirpModule)
 
+import loadConfig from 'next-server/next-config'      // Needed for extension support (ie., less) #6181 #6384 #6181
+import { PHASE_EXPORT } from 'next-server/constants'  // Needed for call to loadConfig()
+
 global.__NEXT_DATA__ = {
   nextExport: true
 }
@@ -36,6 +39,8 @@ process.on(
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
+
+        const nextConfig = loadConfig(PHASE_EXPORT)     // Needed for extension support (ie., less) #6181 #6384 #6181
 
         let htmlFilename = `${path}${sep}index.html`
         const pageExt = extname(page)
