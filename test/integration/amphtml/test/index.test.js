@@ -160,6 +160,17 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/normal')
       const $ = cheerio.load(html)
       expect(
+        $('link[rel=amphtml]')
+          .first()
+          .attr('href')
+      ).not.toBeTruthy()
+    })
+
+    it('should not render canonical link to page with AMP only', async () => {
+      const html = await renderViaHTTP(appPort, '/styled')
+      const $ = cheerio.load(html)
+      await validateAMP(html)
+      expect(
         $('link[rel=canonical]')
           .first()
           .attr('href')
@@ -170,9 +181,7 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(appPort, '/conflicting-tag?amp=1')
       const $ = cheerio.load(html)
       await validateAMP(html)
-      expect(
-        $('meta[name=viewport]').attr('content')
-      ).not.toBe('something :p')
+      expect($('meta[name=viewport]').attr('content')).not.toBe('something :p')
     })
   })
 
@@ -192,7 +201,9 @@ describe('AMP Usage', () => {
     it('should remove sourceMaps from styles', async () => {
       const html = await renderViaHTTP(appPort, '/styled?amp=1')
       const $ = cheerio.load(html)
-      const styles = $('style[amp-custom]').first().text()
+      const styles = $('style[amp-custom]')
+        .first()
+        .text()
 
       expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
       expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
