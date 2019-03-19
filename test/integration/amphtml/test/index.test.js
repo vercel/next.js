@@ -121,6 +121,17 @@ describe('AMP Usage', () => {
       await validateAMP(html)
       expect(html).toMatch(/Hello AMP/)
     })
+
+    it('should render nested normal page with AMP hook', async () => {
+      const html = await renderViaHTTP(appPort, '/nested')
+      expect(html).toMatch(/Hello others/)
+    })
+
+    it('should render nested AMP page with AMP hook', async () => {
+      const html = await renderViaHTTP(appPort, '/nested?amp=1')
+      await validateAMP(html)
+      expect(html).toMatch(/Hello AMP/)
+    })
   })
 
   describe('canonical amphtml', () => {

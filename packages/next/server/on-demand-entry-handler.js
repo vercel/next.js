@@ -1,6 +1,6 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
-import { join } from 'path'
+import { join, posix } from 'path'
 import { parse } from 'url'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
@@ -205,7 +205,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    async ensurePage (page) {
+    async ensurePage (page, amp, ampEnabled) {
       await this.waitUntilReloaded()
       let normalizedPagePath
       try {
@@ -215,7 +215,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions)
+      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions, amp, ampEnabled)
+      const isAmp = pagePath && pageExtensions.some(ext => pagePath.endsWith('amp.' + ext))
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -231,6 +232,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
+
+      page = posix.normalize(pageUrl)
+      const result = { isAmp, pathname: page }
 
       await new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
@@ -261,6 +265,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           resolve()
         }
       })
+
+      return result
     },
 
     middleware () {
