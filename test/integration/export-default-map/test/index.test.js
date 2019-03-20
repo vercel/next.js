@@ -2,6 +2,7 @@
 /* global jasmine */
 import fs from 'fs'
 import { join } from 'path'
+import cheerio from 'cheerio'
 import { promisify } from 'util'
 import {
   nextBuild,
@@ -9,6 +10,7 @@ import {
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+const readFile = promisify(fs.readFile)
 const access = promisify(fs.access)
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
@@ -36,14 +38,22 @@ describe('Export with default map', () => {
   })
 
   it('should export nested hybrid amp page correctly', async () => {
-    expect.assertions(2)
+    expect.assertions(3)
     await expect(access(join(outdir, 'docs/index.html'))).resolves.toBe(undefined)
     await expect(access(join(outdir, 'docs.amp/index.html'))).resolves.toBe(undefined)
+
+    const html = await readFile(join(outdir, 'docs/index.html'))
+    const $ = cheerio.load(html)
+    expect($('link[rel=amphtml]').attr('href')).toBe('/docs.amp')
   })
 
   it('should export nested hybrid amp page correctly with folder', async () => {
-    expect.assertions(2)
+    expect.assertions(3)
     await expect(access(join(outdir, 'info/index.html'))).resolves.toBe(undefined)
     await expect(access(join(outdir, 'info.amp/index.html'))).resolves.toBe(undefined)
+
+    const html = await readFile(join(outdir, 'info/index.html'))
+    const $ = cheerio.load(html)
+    expect($('link[rel=amphtml]').attr('href')).toBe('/info.amp')
   })
 })
