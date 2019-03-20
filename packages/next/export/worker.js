@@ -64,8 +64,6 @@ process.on(
         const baseDir = join(outDir, dirname(htmlFilename))
         const htmlFilepath = join(outDir, htmlFilename)
 
-        console.log('export', path)
-
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
         const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
