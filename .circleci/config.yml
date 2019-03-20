@@ -28,6 +28,7 @@ jobs:
           command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings)
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
+            JEST_JUNIT_SUITE_NAME: '{filepath}'
       - store_test_results:
           path: ~/repo/reports
   deploy:
