@@ -26,6 +26,8 @@ jobs:
       - run:
           name: Tests
           command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings)
+      - store_test_results:
+          path: ~/repo/reports
   deploy:
     docker:
       - image: circleci/node:8-browsers
