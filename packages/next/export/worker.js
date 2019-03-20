@@ -1,7 +1,7 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
-import { cleanAmpPath } from 'next/dist/server/lib/utils'
 import { extname, join, dirname, sep } from 'path'
+import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
 import Sema from 'async-sema'
