@@ -1,5 +1,6 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
+import { cleanAmpPath } from 'next/dist/server/lib/utils'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
@@ -30,12 +31,21 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
+        const ampOpts = { amphtml: Boolean(query.amp), hasAmp: query.hasAmp, ampPath: query.ampPath }
+        delete query.hasAmp
+        delete query.ampPath
+
         const req = { url: path }
         const res = {}
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
+
+        if (query.ampOnly) {
+          delete query.ampOnly
+          path = cleanAmpPath(path)
+        }
 
         let htmlFilename = `${path}${sep}index.html`
         const pageExt = extname(page)
@@ -53,7 +63,7 @@ process.on(
 
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
-        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts })
+        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
         await new Promise((resolve, reject) =>
           writeFile(
             htmlFilepath,
