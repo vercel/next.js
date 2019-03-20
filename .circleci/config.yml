@@ -16,7 +16,7 @@ jobs:
           root: ~/repo
           paths: ['.']
   test:
-    parallelism: 6
+    parallelism: 3
     docker:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
@@ -25,9 +25,10 @@ jobs:
           at: .
       - run:
           name: Tests
-          command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings)
+          command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname)
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
+            JEST_JUNIT_CLASSNAME: '{filepath}'
       - store_test_results:
           path: ~/repo/reports
   deploy:

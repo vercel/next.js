@@ -4,13 +4,13 @@ import cheerio from 'cheerio'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
 import { join } from 'path'
 
-export default function ({ app }, suiteName, render, fetch) {
+export default function (render, fetch) {
   async function get$ (path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
   }
 
-  describe(suiteName, () => {
+  describe('Rendering via HTTP', () => {
     test('renders a stateless component', async () => {
       const html = await render('/stateless')
       expect(html.includes('<meta charSet="utf-8" class="next-head"/>')).toBeTruthy()
