@@ -66,7 +66,7 @@ export default async function (dir, options, configuration) {
     } else {
       const ampPath = tryAmp(defaultPathMap, path)
       if (ampPath !== path) {
-        defaultPathMap[path].query = { hasAmp: true, ampPath }
+        defaultPathMap[path].query = { hasAmp: true, ampPath: ampPath.replace(/(?<!^)\/index\.amp$/, '.amp') }
       }
     }
   })
