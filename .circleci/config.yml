@@ -29,6 +29,9 @@ jobs:
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
             JEST_JUNIT_SUITE_NAME: '{filepath}'
+      - store_artifacts:
+          path: ~/repo/reports
+          destination: reports
       - store_test_results:
           path: ~/repo/reports
   deploy:
