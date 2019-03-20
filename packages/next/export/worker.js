@@ -1,5 +1,6 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
+import { cleanAmpPath } from 'next/dist/server/lib/utils'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
@@ -43,7 +44,7 @@ process.on(
 
         if (query.ampOnly) {
           delete query.ampOnly
-          path = path.split('.amp')[0].replace('/index', '')
+          path = cleanAmpPath(path)
         }
 
         let htmlFilename = `${path}${sep}index.html`
