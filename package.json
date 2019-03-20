@@ -54,7 +54,7 @@
       "examples/with-ioc/**",
       "examples/with-kea/**",
       "examples/with-mobx/**",
-      "test/integration/basic/pages/throw-undefined.js"
+      "test/integration/client-navigation/pages/throw-undefined.js"
     ]
   },
   "devDependencies": {
