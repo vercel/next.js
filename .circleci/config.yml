@@ -25,10 +25,10 @@ jobs:
           at: .
       - run:
           name: Tests
-          command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings)
+          command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname)
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
-            JEST_JUNIT_SUITE_NAME: '{filepath}'
+            JEST_JUNIT_CLASSNAME: '{filepath}'
       - store_artifacts:
           path: ~/repo/reports
           destination: reports
