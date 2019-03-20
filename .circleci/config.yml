@@ -20,6 +20,8 @@ jobs:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
     steps:
+      - attach_workspace:
+          at: .
       - run:
           name: Tests
           command: yarn test
@@ -28,6 +30,8 @@ jobs:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
     steps:
+      - attach_workspace:
+          at: .
       - run:
           name: Potentially save npm token
           command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
