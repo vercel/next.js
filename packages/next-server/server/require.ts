@@ -1,4 +1,5 @@
 import {join} from 'path'
+import { isAmpFile } from './utils'
 import {PAGES_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
 import { normalizePagePath } from './normalize-page-path'
 
@@ -53,13 +54,12 @@ export function getPagePath(page: string, distDir: string, opts: PagePathOptions
 
 export function requirePage(page: string, distDir: string, opts: PagePathOptions = {}): any {
   const pagePath = getPagePath(page, distDir, opts)
-  const isAmp = pagePath.indexOf('.amp.') > -1
+  const isAmp = isAmpFile(pagePath)
   let hasAmp = false
 
   if (!isAmp) {
     try {
-      const ampPage = getPagePath(page, distDir, { amphtml: true })
-      hasAmp = Boolean(ampPage && ampPage.indexOf('.amp') > -1)
+      hasAmp = isAmpFile(getPagePath(page, distDir, { amphtml: true }))
     } catch (_) {}
   }
   opts.amphtml = opts.amphtml || isAmp
