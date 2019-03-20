@@ -156,11 +156,11 @@ export default class PageLoader {
     }
 
     if (document.readyState === 'complete') {
-      await this.loadPage(route)
+      await this.loadPage(route).catch(() => {})
     } else {
       return new Promise((resolve, reject) => {
         window.addEventListener('load', () => {
-          this.loadPage(route).then(() => resolve(), reject)
+          this.loadPage(route).then(resolve, resolve)
         })
       })
     }
