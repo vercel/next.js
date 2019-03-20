@@ -12,6 +12,9 @@ jobs:
       - run:
           name: Linting
           command: yarn lint
+      - persist_to_workspace:
+          root: ~/repo
+          paths: ['.']
   test:
     docker:
       - image: circleci/node:8-browsers
