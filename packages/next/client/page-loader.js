@@ -156,9 +156,9 @@ export default class PageLoader {
     }
 
     if (document.readyState === 'complete') {
-      return this.loadPage(route).catch((e) => {})
+      return this.loadPage(route).catch(() => {})
     } else {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         window.addEventListener('load', () => {
           this.loadPage(route).then(() => resolve(), () => resolve())
         })
