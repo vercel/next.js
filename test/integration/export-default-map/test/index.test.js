@@ -34,4 +34,16 @@ describe('Export with default map', () => {
     await expect(access(join(outdir, 'some/index.html'))).resolves.toBe(undefined)
     await expect(access(join(outdir, 'some.amp/index.html'))).resolves.toBe(undefined)
   })
+
+  it('should export nested hybrid amp page correctly', async () => {
+    expect.assertions(2)
+    await expect(access(join(outdir, 'docs/index.html'))).resolves.toBe(undefined)
+    await expect(access(join(outdir, 'docs.amp/index.html'))).resolves.toBe(undefined)
+  })
+
+  it('should export nested hybrid amp page correctly with folder', async () => {
+    expect.assertions(2)
+    await expect(access(join(outdir, 'info/index.html'))).resolves.toBe(undefined)
+    await expect(access(join(outdir, 'info.amp/index.html'))).resolves.toBe(undefined)
+  })
 })
