@@ -47,6 +47,9 @@ process.on(
           path = cleanAmpPath(path)
         }
 
+        // replace /docs/index.amp with /docs.amp
+        path = path.replace(/(?<!^)\/index\.amp$/, '.amp')
+
         let htmlFilename = `${path}${sep}index.html`
         const pageExt = extname(page)
         const pathExt = extname(path)
