@@ -12,9 +12,19 @@ jobs:
       - run:
           name: Linting
           command: yarn lint
+  test:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
       - run:
           name: Tests
           command: yarn test
+  deploy:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
       - run:
           name: Potentially save npm token
           command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
@@ -26,6 +36,12 @@ jobs:
           command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo "Did not publish"; fi'
 workflows:
   version: 2
-  build-and-deploy:
+  build-test-and-deploy:
     jobs:
       - build
+      - test:
+          requires:
+            - build
+      - deploy:
+          requires:
+            - test
