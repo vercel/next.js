@@ -1,3 +1,5 @@
 module.exports = {
-  experimental: true
+  experimental: {
+    amp: true
+  }
 }
