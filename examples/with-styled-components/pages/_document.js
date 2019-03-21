@@ -1,5 +1,12 @@
 import Document from 'next/document'
-import { ServerStyleSheet } from 'styled-components'
+import { ServerStyleSheet, createGlobalStyle } from 'styled-components'
+
+const GlobalStyles = createGlobalStyle`
+  html, body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, Avenir Next, Avenir, Helvetica, sans-serif;
+  }
+`
 
 export default class MyDocument extends Document {
   static async getInitialProps (ctx) {
@@ -9,7 +16,11 @@ export default class MyDocument extends Document {
     try {
       ctx.renderPage = () =>
         originalRenderPage({
-          enhanceApp: App => props => sheet.collectStyles(<App {...props} />)
+          enhanceApp: App => props => sheet.collectStyles(
+          <React.Fragment>
+            <GlobalStyles />
+            <App {...props} />
+          </React.Fragment>)
         })
 
       const initialProps = await Document.getInitialProps(ctx)
