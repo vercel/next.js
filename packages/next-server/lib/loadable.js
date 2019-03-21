@@ -29,15 +29,13 @@ const READY_INITIALIZERS = []
 let initialized = false
 
 function load (loader) {
-  let promise = loader()
-
   let state = {
     loading: true,
     loaded: null,
     error: null
   }
 
-  state.promise = promise
+  state.promise = loader()
     .then(loaded => {
       state.loading = false
       state.loaded = loaded
@@ -61,30 +59,19 @@ function loadMap (obj) {
 
   let promises = []
 
-  try {
-    Object.keys(obj).forEach(key => {
-      let result = load(obj[key])
+  Object.keys(obj).forEach(key => {
+    if (!state.loading) state.loading = true
 
-      if (!result.loading) {
-        state.loaded[key] = result.loaded
-        state.error = result.error
-      } else {
-        state.loading = true
-      }
-
-      promises.push(result.promise)
-
-      result.promise
-        .then(res => {
-          state.loaded[key] = res
-        })
-        .catch(err => {
-          state.error = err
-        })
-    })
-  } catch (err) {
-    state.error = err
-  }
+    promises.push(obj[key]()
+      .then(loaded => {
+        state.loaded[key] = loaded
+      })
+      .catch(err => {
+        state.error = err
+        throw err
+      })
+    )
+  })
 
   state.promise = Promise.all(promises)
     .then(res => {
@@ -154,7 +141,7 @@ function createLoadableComponent (loadFn, options) {
 
       this.state = {
         error: res.error,
-        pastDelay: false,
+        pastDelay: Boolean(res.error),
         timedOut: false,
         loading: res.loading,
         loaded: res.loaded
@@ -237,11 +224,11 @@ function createLoadableComponent (loadFn, options) {
       clearTimeout(this._timeout)
     }
 
-    retry = () => {
+    retry () {
       this.setState({ error: null, loading: true, timedOut: false })
       res = loadFn(opts.loader)
       this._loadModule()
-    };
+    }
 
     render () {
       if (this.state.loading || this.state.error) {
