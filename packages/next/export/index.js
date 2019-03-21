@@ -59,7 +59,7 @@ export default async function (dir, options, configuration) {
 
     if (isAmp) {
       defaultPathMap[path].query = { amp: 1 }
-      const nonAmp = cleanAmpPath(path).replace(/\/$/, '')
+      const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
       if (!defaultPathMap[nonAmp]) {
         defaultPathMap[path].query.ampOnly = true
       }
