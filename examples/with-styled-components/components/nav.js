@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import styled, { createGlobalStyle } from 'styled-components'
+import styled from 'styled-components'
 
 const StyledNav = styled.nav`
   text-align: center;
@@ -18,7 +18,7 @@ const StyledNav = styled.nav`
     text-decoration: none;
     font-size: 13px;
   }
-` 
+`
 
 const links = [
   { href: 'https://github.com/segmentio/create-next-app', label: 'Github' }
