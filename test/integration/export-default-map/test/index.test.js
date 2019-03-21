@@ -56,4 +56,14 @@ describe('Export with default map', () => {
     const $ = cheerio.load(html)
     expect($('link[rel=amphtml]').attr('href')).toBe('/info.amp')
   })
+
+  it('should export hybrid index amp page correctly', async () => {
+    expect.assertions(3)
+    await expect(access(join(outdir, 'index.html'))).resolves.toBe(undefined)
+    await expect(access(join(outdir, 'index.amp/index.html'))).resolves.toBe(undefined)
+
+    const html = await readFile(join(outdir, 'index.html'))
+    const $ = cheerio.load(html)
+    expect($('link[rel=amphtml]').attr('href')).toBe('/index.amp')
+  })
 })
