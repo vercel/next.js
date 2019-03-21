@@ -54,7 +54,7 @@ const Card = styled.a`
 
 const Home = () => (
   <div>
-    <Head title="Home" />
+    <Head title='Home' />
     <Nav />
 
     <Hero>
@@ -64,13 +64,13 @@ const Home = () => (
       </Description>
 
       <Row>
-        <Link href="https://github.com/zeit/next.js#getting-started">
+        <Link href='https://github.com/zeit/next.js#getting-started'>
           <Card>
             <h3>Getting Started &rarr;</h3>
             <p>Learn more about Next on Github and in their examples</p>
           </Card>
         </Link>
-        <Link href="https://open.segment.com/create-next-app">
+        <Link href='https://open.segment.com/create-next-app'>
           <Card>
             <h3>Examples &rarr;</h3>
             <p>
@@ -79,7 +79,7 @@ const Home = () => (
             </p>
           </Card>
         </Link>
-        <Link href="https://github.com/segmentio/create-next-app">
+        <Link href='https://github.com/segmentio/create-next-app'>
           <Card>
             <h3>Create Next App &rarr;</h3>
             <p>Was this tool helpful? Let us know how we can improve it</p>

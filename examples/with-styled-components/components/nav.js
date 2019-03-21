@@ -31,7 +31,7 @@ const Nav = () => (
   <StyledNav>
     <ul>
       <li>
-        <Link prefetch href="/">
+        <Link prefetch href='/'>
           <a>Home</a>
         </Link>
       </li>
