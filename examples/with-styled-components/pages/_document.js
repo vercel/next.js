@@ -17,10 +17,10 @@ export default class MyDocument extends Document {
       ctx.renderPage = () =>
         originalRenderPage({
           enhanceApp: App => props => sheet.collectStyles(
-            <React.Fragment>
+            <>
               <GlobalStyles />
               <App {...props} />
-            </React.Fragment>)
+            </>)
         })
 
       const initialProps = await Document.getInitialProps(ctx)
