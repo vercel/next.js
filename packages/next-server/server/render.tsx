@@ -115,6 +115,7 @@ type RenderOpts = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
+  ampPath?: string
   amphtml?: boolean
   hasAmp?: boolean
   buildManifest: BuildManifest
@@ -140,6 +141,7 @@ function renderDocument(
     dynamicImportsIds,
     err,
     dev,
+    ampPath,
     amphtml,
     hasAmp,
     staticMarkup,
@@ -151,6 +153,7 @@ function renderDocument(
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    ampPath: string,
     amphtml: boolean
     hasAmp: boolean,
     dynamicImportsIds: string[]
@@ -177,6 +180,7 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           ampEnabled={ampEnabled}
+          ampPath={ampPath}
           amphtml={amphtml}
           hasAmp={hasAmp}
           staticMarkup={staticMarkup}
@@ -205,6 +209,7 @@ export async function renderToHTML(
     staticMarkup = false,
     amphtml = false,
     hasAmp = false,
+    ampPath = '',
     App,
     Document,
     Component,
@@ -314,6 +319,7 @@ export async function renderToHTML(
     props,
     docProps,
     pathname,
+    ampPath,
     amphtml,
     hasAmp,
     query,
