@@ -5,6 +5,7 @@ import { HeadManagerContext } from "./head-manager-context";
 export function defaultHead(className = 'next-head') {
   return [
     <meta key="charSet" charSet="utf-8" className={className} />,
+    <meta key="viewport" name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" className={className} />,
   ];
 }
 
@@ -37,7 +38,7 @@ function onlyReactElement(
   return list.concat(child);
 }
 
-const METATYPES = ["name", "httpEquiv", "charSet", "itemProp"];
+const METATYPES = ["name", "httpEquiv", "charSet", "viewport", "itemProp"];
 
 /*
  returns a function for filtering head child elements
@@ -67,7 +68,7 @@ function unique() {
           const metatype = METATYPES[i];
           if (!h.props.hasOwnProperty(metatype)) continue;
 
-          if (metatype === "charSet") {
+          if (metatype === "charSet" || metatype === "viewport") {
             if (metaTypes.has(metatype)) return false;
             metaTypes.add(metatype);
           } else {
