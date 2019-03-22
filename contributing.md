@@ -35,25 +35,16 @@ yarn testonly --testPathPattern "production" -t "should allow etag header suppor
 
 ## Testing in your own app
 
-First `next-server` needs to be linked:
+Because of the way Node.js resolves modules the easiest way to test your own application is copying it into the `test` directory.
 
 ```
-cd packages/next-server
-npm link
+cp -r yourapp <next.js directory>/test/integration/yourapp
 ```
 
-Then `next` needs to link to `next-server`, and be linked itself:
+Make sure you remove `react` `react-dom` and `next` from `test/integration/yourapp/node_modules` as otherwise they will be overwritten.
+
+Then run your app using:
 
 ```
-cd packages/next
-npm link
-npm link next-server
+./node_modules/.bin/next ./test/integration/yourapp
 ```
-
-And finally, link the `next` package inside your app:
-
-```
-npm link next
-```
-
-Then you can run your app with the local version of Next.js (You may need to re-run the example app as you change server side code in the Next.js repository).
