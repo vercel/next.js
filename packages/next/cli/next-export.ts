@@ -14,6 +14,7 @@ const nextExport: cliCommand = (argv) => {
     '--outdir': String,
     '--threads': Number,
     '--concurrency': Number,
+    '--no-subfolders': Boolean,
 
     // Aliases
     '-h': '--help',
@@ -61,6 +62,7 @@ const nextExport: cliCommand = (argv) => {
     threads: args['--threads'],
     concurrency: args['--concurrency'],
     outdir: args['--outdir'] ? resolve(args['--outdir']) : join(dir, 'out'),
+    subFolders: !args['--no-subfolders'],
   }
 
   exportApp(dir, options)
