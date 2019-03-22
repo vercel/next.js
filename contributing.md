@@ -43,6 +43,10 @@ cp -r yourapp <next.js directory>/test/integration/yourapp
 
 Make sure you remove `react` `react-dom` and `next` from `test/integration/yourapp/node_modules` as otherwise they will be overwritten.
 
+```bash
+rm -rf <next.js directory>/test/integration/yourapp/{react,react-dom,next,next-server}
+```
+
 Then run your app using:
 
 ```
