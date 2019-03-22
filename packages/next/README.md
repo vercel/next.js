@@ -1518,7 +1518,7 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
 - [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
 
-*Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property*
+> **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
 
 Multiple configurations can be combined together with function composition. For example:
 
@@ -1668,7 +1668,7 @@ This will allow you to use `process.env.customKey` in your code. For example:
 ```jsx
 // pages/index.js
 function Index() {
-  return <h1>The value of customEnv is: {process.env.customEnv}</h1>
+  return <h1>The value of customEnv is: {process.env.customKey}</h1>
 }
 
 export default Index
@@ -1676,9 +1676,9 @@ export default Index
 
 #### Runtime configuration
 
-> :warning: Note that this option is not available when using `target: 'serverless'`
+> **Warning:** Note that this option is not available when using `target: 'serverless'`
 
-> :warning: Generally you want to use build-time configuration to provide your configuration.
+> **Warning:** Generally you want to use build-time configuration to provide your configuration.
 The reason for this is that runtime configuration adds a small rendering / initialization overhead.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
