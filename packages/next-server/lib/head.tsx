@@ -1,13 +1,22 @@
 import React from "react";
 import withSideEffect from "./side-effect";
+import {IsAmpContext} from './amphtml-context';
 import { HeadManagerContext } from "./head-manager-context";
 
 export function defaultHead(className = 'next-head') {
   return [
     <meta key="charSet" charSet="utf-8" className={className} />,
-    <meta key="viewport" name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" className={className} />,
+    <DefaultViewportTag className={className} />,
   ];
 }
+
+const DefaultViewportTag = ({ className }: { className: string }) => (
+  <IsAmpContext.Consumer>
+    {(isAmp) => !isAmp && (
+      <meta key="viewport" name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" className={className} />
+    )}
+  </IsAmpContext.Consumer>
+)
 
 function onlyReactElement(
   list: Array<React.ReactElement<any>>,
