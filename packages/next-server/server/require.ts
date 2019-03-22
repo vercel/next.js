@@ -14,6 +14,7 @@ export function pageNotFoundError(page: string): Error {
 }
 
 export const tryAmp = (manifest: any, page: string) => {
+  page = page === '/' ? '/index' : page
   const hasAmp = manifest[page + '.amp']
   if (hasAmp) {
     page += '.amp'
