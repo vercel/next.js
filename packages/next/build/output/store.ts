@@ -21,11 +21,6 @@ onExit(() => {
   process.stdout.write('\u001b[?25h')
 })
 store.subscribe(state => {
-  if (process.stdout.isTTY) {
-    readline.cursorTo(process.stdout, 0, 0)
-    readline.clearScreenDown(process.stdout)
-  }
-
   if (state.bootstrap) {
     console.log(chalk.cyan('Starting the development server ...'))
     if (state.appUrl) {
