@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { Fabric } from 'office-ui-fabric-react/lib-commonjs/Fabric'
-import { DefaultButton, PrimaryButton } from 'office-ui-fabric-react/lib-commonjs/Button'
-import { Dialog, DialogType, DialogFooter } from 'office-ui-fabric-react/lib-commonjs/Dialog'
+import {
+  DefaultButton,
+  PrimaryButton
+} from 'office-ui-fabric-react/lib-commonjs/Button'
+import {
+  Dialog,
+  DialogType,
+  DialogFooter
+} from 'office-ui-fabric-react/lib-commonjs/Dialog'
 
 export default () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -10,7 +17,9 @@ export default () => {
   return (
     <Fabric>
       <p>Welcome to next.js!</p>
-      <DefaultButton primary onClick={openDialog}>Open Dialog</DefaultButton>
+      <DefaultButton primary onClick={openDialog}>
+        Open Dialog
+      </DefaultButton>
       <Dialog
         hidden={!isOpen}
         onDismiss={closeDialog}

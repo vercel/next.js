@@ -1,7 +1,9 @@
 import App from 'next/app'
 import sentry from '../utils/sentry'
 
-const { Sentry, captureException } = sentry({ release: process.env.SENTRY_RELEASE })
+const { Sentry, captureException } = sentry({
+  release: process.env.SENTRY_RELEASE
+})
 
 export default class MyApp extends App {
   constructor () {
@@ -62,7 +64,9 @@ export default class MyApp extends App {
         <p>
           <a
             href='#'
-            onClick={() => Sentry.showReportDialog({ eventId: this.state.errorEventId })}
+            onClick={() =>
+              Sentry.showReportDialog({ eventId: this.state.errorEventId })
+            }
           >
             📣 Report this error
           </a>
@@ -70,7 +74,9 @@ export default class MyApp extends App {
         <p>
           <a
             href='#'
-            onClick={() => { window.location.reload(true) }}
+            onClick={() => {
+              window.location.reload(true)
+            }}
           >
             Or, try reloading the page
           </a>

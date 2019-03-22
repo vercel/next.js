@@ -13,12 +13,18 @@ export default class about extends Component {
             <h1>ABOUT</h1>
             <p>Counter: {count}</p>
             <button onClick={increase}>Increase</button>
-            <button onClick={() => {
-              increaseBy(15)
-            }}>Increase By 15</button>
-            <p><Link href='/'>
-              <a>Home</a>
-            </Link></p>
+            <button
+              onClick={() => {
+                increaseBy(15)
+              }}
+            >
+              Increase By 15
+            </button>
+            <p>
+              <Link href='/'>
+                <a>Home</a>
+              </Link>
+            </p>
           </div>
         )}
       </CounterConsumer>

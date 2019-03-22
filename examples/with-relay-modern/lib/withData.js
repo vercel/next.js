@@ -46,7 +46,9 @@ export default (ComposedComponent, options = {}) => {
 
     render () {
       return (
-        <ReactRelayContext.Provider value={{ environment: this.environment, variables: {} }}>
+        <ReactRelayContext.Provider
+          value={{ environment: this.environment, variables: {} }}
+        >
           <ComposedComponent {...this.props} />
         </ReactRelayContext.Provider>
       )

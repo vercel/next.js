@@ -26,5 +26,9 @@ class Index extends React.Component {
     return <Examples />
   }
 }
-const mapDispatchToProps = dispatch => bindActionCreators({ startClock }, dispatch)
-export default connect(null, mapDispatchToProps)(Index)
+const mapDispatchToProps = dispatch =>
+  bindActionCreators({ startClock }, dispatch)
+export default connect(
+  null,
+  mapDispatchToProps
+)(Index)
