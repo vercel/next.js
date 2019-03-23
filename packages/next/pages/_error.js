@@ -1,5 +1,4 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 import Head from 'next-server/head'
 
 const statusCodes = {
@@ -42,12 +41,6 @@ export default class Error extends React.Component {
         </div>
       </div>
     )
-  }
-}
-
-if (process.env.NODE_ENV !== 'production') {
-  Error.propTypes = {
-    statusCode: PropTypes.number
   }
 }
 

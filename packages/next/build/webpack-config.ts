@@ -78,7 +78,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       (context, request, callback) => {
         const notExternalModules = [
           'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
-          'string-hash', 'hoist-non-react-statics', 'htmlescape','next/dynamic',
+          'string-hash', 'htmlescape','next/dynamic',
           'next/constants', 'next/config', 'next/head'
         ]
 

@@ -8,7 +8,7 @@ import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
-import LoadableCapture from '../lib/loadable-capture'
+import {LoadableContext} from '../lib/loadable-context'
 import {
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
@@ -292,15 +292,15 @@ export async function renderToHTML(
     return render(
       renderElementToString,
       <IsAmpContext.Provider value={amphtml}>
-        <LoadableCapture
-          report={(moduleName) => reactLoadableModules.push(moduleName)}
+        <LoadableContext.Provider
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           <EnhancedApp
             Component={EnhancedComponent}
             router={router}
             {...props}
           />
-        </LoadableCapture>
+        </LoadableContext.Provider>
       </IsAmpContext.Provider>,
     )
   }
