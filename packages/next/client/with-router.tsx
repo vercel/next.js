@@ -1,13 +1,14 @@
-import React, { Component } from 'react'
+import React from 'react'
 import PropTypes from 'prop-types'
 
-export default function withRouter (ComposedComponent) {
-  class WithRouteWrapper extends Component {
+export default function withRouter(ComposedComponent: React.ComponentType<any> & {getInitialProps?: any}) {
+  class WithRouteWrapper extends React.Component {
+    static getInitialProps?: any
     static contextTypes = {
-      router: PropTypes.object
+      router: PropTypes.object,
     }
 
-    render () {
+    render() {
       return <ComposedComponent
         router={this.context.router}
         {...this.props}
