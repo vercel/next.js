@@ -175,7 +175,7 @@ function createLoadableComponent (loadFn, options) {
     _loadModule () {
       if (this.context && Array.isArray(opts.modules)) {
         opts.modules.forEach(moduleName => {
-          this.context.report(moduleName)
+          this.context(moduleName)
         })
       }
 
