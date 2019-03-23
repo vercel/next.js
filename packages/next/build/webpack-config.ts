@@ -51,6 +51,10 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      'next/head': 'next-server/dist/lib/head.js',
+      'next/router': 'next-server/dist/lib/router.js',
+      'next/config': 'next-server/dist/lib/runtime-config.js',
+      'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
@@ -76,7 +80,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       (context, request, callback) => {
         const notExternalModules = [
           'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
-          'string-hash', 'htmlescape','next/dynamic',
+          'string-hash', 'next/dynamic',
           'next/constants', 'next/config', 'next/head'
         ]
 
