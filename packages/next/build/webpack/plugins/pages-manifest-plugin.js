@@ -7,11 +7,11 @@ import { PAGES_MANIFEST, ROUTE_NAME_REGEX } from 'next-server/constants'
 export default class PagesManifestPlugin {
   apply (compiler) {
     compiler.hooks.emit.tap('NextJsPagesManifest', (compilation) => {
-      const { entries } = compilation
+      const { chunks } = compilation
       const pages = {}
 
-      for (const entry of entries) {
-        const result = ROUTE_NAME_REGEX.exec(entry.name)
+      for (const chunk of chunks) {
+        const result = ROUTE_NAME_REGEX.exec(chunk.name)
         if (!result) {
           continue
         }
@@ -22,9 +22,8 @@ export default class PagesManifestPlugin {
           continue
         }
 
-        const { name } = entry
         // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-        pages[`/${pagePath.replace(/\\/g, '/')}`] = name.replace(/\\/g, '/')
+        pages[`/${pagePath.replace(/\\/g, '/')}`] = chunk.name.replace(/\\/g, '/')
       }
 
       if (typeof pages['/index'] !== 'undefined') {
