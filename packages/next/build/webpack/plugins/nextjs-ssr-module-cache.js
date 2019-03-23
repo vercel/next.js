@@ -37,14 +37,11 @@ export default class NextJsSsrImportPlugin {
               // If the chunk is not part of the pages directory we have to keep the original behavior,
               // otherwise webpack will error out when the file is used before the compilation finishes
               // this is the case with mini-css-extract-plugin
-              if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name) && chunk.name !== 'error-debug.js') {
+              if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
                 return originalFn(source, chunk)
               }
               const pagePath = join(outputPath, dirname(chunk.name))
               let relativePathToBaseDir = relative(pagePath, join(outputPath, SSR_MODULE_CACHE_FILENAME))
-              if (chunk.name === 'error-debug.js') {
-                relativePathToBaseDir = `./${relativePathToBaseDir}`
-              }
 
               // Make sure even in windows, the path looks like in unix
               // Node.js require system will convert it accordingly
