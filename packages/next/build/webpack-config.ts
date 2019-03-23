@@ -40,9 +40,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
-    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next')))
-    ].filter(Boolean)
+    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev.js` : 'next.js')))
   } : undefined
 
   const resolveConfig = {
@@ -320,20 +318,20 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   }
 
   // Backwards compat for `main.js` entry key
-  const originalEntry = webpackConfig.entry
+  const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     webpackConfig.entry = async () => {
       const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
       if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
         // Server compilation doesn't have main.js
-        if (typeof entry['main.js'] !== 'undefined') {
+        if (entry['main.js'] && entry['main.js'].length > 0) {
           entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
             ...entry['main.js'],
-            ...entry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+            originalEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           ]
-
-          delete entry['main.js']
         }
+
+        delete entry['main.js']
       }
 
       return entry
