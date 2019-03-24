@@ -49,9 +49,7 @@
     "@babel/preset-react": "7.0.0",
     "@babel/runtime": "7.1.2",
     "@babel/runtime-corejs2": "7.1.2",
-    "@babel/template": "7.1.2",
     "amphtml-validator": "1.0.23",
-    "arg": "3.0.0",
     "async-sema": "2.2.0",
     "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
@@ -73,7 +71,6 @@
     "react-error-overlay": "5.1.4",
     "react-is": "16.6.3",
     "recursive-copy": "2.0.6",
-    "resolve": "1.5.0",
     "serialize-javascript": "1.6.1",
     "source-map": "0.6.1",
     "strip-ansi": "3.0.1",
@@ -93,6 +90,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
+    "resolve": "1.5.0",
     "@babel/parser": "7.2.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
@@ -115,6 +113,7 @@
     "@types/text-table": "0.2.0",
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.15.2",
+    "arg": "4.1.0",
     "nanoid": "1.2.1",
     "taskr": "1.1.0",
     "text-table": "0.2.0",
