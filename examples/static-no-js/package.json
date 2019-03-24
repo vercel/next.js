@@ -1,0 +1,14 @@
+{
+  "name": "create-next-example-app",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "export": "next export",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "8.0.3",
+    "react": "16.8.5",
+    "react-dom": "16.8.5"
+  }
+}
