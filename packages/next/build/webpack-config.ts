@@ -54,7 +54,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       'next/head': 'next-server/dist/lib/head.js',
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next-server/dist/lib/runtime-config.js',
-      'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
