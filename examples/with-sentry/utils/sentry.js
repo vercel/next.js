@@ -44,7 +44,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
         }
 
         if (ctx) {
-          const { req, res, errorInfo, query, pathname } = ctx;
+          const { req, res, errorInfo, query, pathname } = ctx
 
           if (res && res.statusCode) {
             scope.setExtra('statusCode', res.statusCode)
