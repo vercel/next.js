@@ -51,6 +51,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      // These aliases make sure the wrapper module is not included in the bundles
+      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
       'next/head': 'next-server/dist/lib/head.js',
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next-server/dist/lib/runtime-config.js',
