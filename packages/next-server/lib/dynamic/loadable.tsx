@@ -28,37 +28,35 @@ const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
 let initialized = false
 
-
-
-function load (loader) {
+function load(loader) {
   return new Loader(loader)
 }
 
-function resolve (obj) {
+function resolve(obj) {
   return obj && obj.__esModule ? obj.default : obj
 }
 
-function render (loaded, props) {
+function render(loaded, props) {
   return React.createElement(resolve(loaded), props)
 }
 
-function createLoadableComponent (loadFn, options) {
-  let opts = Object.assign(
+function createLoadableComponent(loadFn, options) {
+  const opts = Object.assign(
     {
       loader: null,
       loading: null,
       delay: 200,
       timeout: null,
-      render: render,
+      render,
       webpack: null,
-      modules: null
+      modules: null,
     },
-    options
+    options,
   )
 
   let res = null
 
-  function init () {
+  function init() {
     if (!res) {
       res = loadFn(opts.loader)
     }
@@ -85,7 +83,7 @@ function createLoadableComponent (loadFn, options) {
   return class LoadableComponent extends React.Component {
     private _mounted = false
 
-    constructor (props) {
+    constructor(props) {
       super(props)
       init()
 
@@ -94,28 +92,28 @@ function createLoadableComponent (loadFn, options) {
         pastDelay: Boolean(res.error),
         timedOut: false,
         loading: res.loading,
-        loaded: res.loaded
+        loaded: res.loaded,
       }
     }
 
     static contextTypes = {
       loadable: PropTypes.shape({
-        report: PropTypes.func.isRequired
-      })
+        report: PropTypes.func.isRequired,
+      }),
     };
 
-    static preload () {
+    static preload() {
       return init()
     }
 
-    componentWillMount () {
+    componentWillMount() {
       this._mounted = true
       this._loadModule()
     }
 
-    _loadModule () {
+    _loadModule() {
       if (this.context.loadable && Array.isArray(opts.modules)) {
-        opts.modules.forEach(moduleName => {
+        opts.modules.forEach((moduleName) => {
           this.context.loadable.report(moduleName)
         })
       }
@@ -140,7 +138,7 @@ function createLoadableComponent (loadFn, options) {
         }, opts.timeout)
       }
 
-      let update = () => {
+      const update = () => {
         if (!this._mounted) {
           return
         }
@@ -148,7 +146,7 @@ function createLoadableComponent (loadFn, options) {
         this.setState({
           error: res.error,
           loaded: res.loaded,
-          loading: res.loading
+          loading: res.loading,
         })
 
         this._clearTimeouts()
@@ -159,35 +157,35 @@ function createLoadableComponent (loadFn, options) {
           update()
         })
         // eslint-disable-next-line handle-callback-err
-        .catch(err => {
+        .catch((err) => {
           update()
         })
     }
 
-    componentWillUnmount () {
+    componentWillUnmount() {
       this._mounted = false
       this._clearTimeouts()
     }
 
-    _clearTimeouts () {
+    _clearTimeouts() {
       clearTimeout(this._delay)
       clearTimeout(this._timeout)
     }
 
-    retry () {
+    retry() {
       this.setState({ error: null, loading: true, timedOut: false })
       res = loadFn(opts.loader)
       this._loadModule()
     }
 
-    render () {
+    render() {
       if (this.state.loading || this.state.error) {
         return React.createElement(opts.loading, {
           isLoading: this.state.loading,
           pastDelay: this.state.pastDelay,
           timedOut: this.state.timedOut,
           error: this.state.error,
-          retry: this.retry
+          retry: this.retry,
         })
       } else if (this.state.loaded) {
         return opts.render(this.state.loaded, this.props)
@@ -198,11 +196,11 @@ function createLoadableComponent (loadFn, options) {
   }
 }
 
-function Loadable (opts) {
+function Loadable(opts) {
   return createLoadableComponent(load, opts)
 }
 
-function LoadableMap (opts) {
+function LoadableMap(opts) {
   if (typeof opts.render !== 'function') {
     throw new Error('LoadableMap requires a `render(loaded, props)` function')
   }
@@ -212,11 +210,11 @@ function LoadableMap (opts) {
 
 Loadable.Map = LoadableMap
 
-function flushInitializers (initializers, ids) {
-  let promises = []
+function flushInitializers(initializers, ids) {
+  const promises = []
 
   while (initializers.length) {
-    let init = initializers.pop()
+    const init = initializers.pop()
     promises.push(init(ids))
   }
 
