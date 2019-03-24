@@ -21,6 +21,22 @@ const babelOpts = {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_arg (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('arg')))
+    .ncc({ packageName: 'arg' })
+    .target('dist/compiled/arg')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_resolve (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('resolve')))
+    .ncc({ packageName: 'resolve' })
+    .target('dist/compiled/resolve')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_nanoid (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('nanoid')))
@@ -45,7 +61,7 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_unistore', 'ncc_nanoid', 'ncc_text_table'])
+  await task.parallel(['ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {
