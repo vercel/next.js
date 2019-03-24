@@ -1,4 +1,4 @@
-import { join, normalize } from 'path'
+import { relative as relativePath, join, normalize, sep } from 'path'
 import WebpackDevMiddleware from 'webpack-dev-middleware'
 import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
@@ -174,7 +174,7 @@ export default class HotReloader {
 
     let additionalClientEntrypoints = {}
     if (this.config.experimental.amp) {
-      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev')
+      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
     }
 
     return [
@@ -391,12 +391,12 @@ export default class HotReloader {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
-  async ensurePage (page) {
+  async ensurePage (page, amp, ampEnabled) {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    await this.onDemandEntries.ensurePage(page)
+    return this.onDemandEntries.ensurePage(page, amp, ampEnabled)
   }
 }
 

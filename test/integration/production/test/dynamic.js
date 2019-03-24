@@ -24,15 +24,15 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
     })
     describe('ssr:false option', () => {
-      it('should render loading on the server side', async () => {
+      it('should not render loading on the server side', async () => {
         const $ = await get$('/dynamic/no-ssr')
-        expect($('p').text()).toBe('loading...')
+        expect($('body').text()).not.toMatch('loading...')
       })
 
       it('should render the component on client side', async () => {
@@ -42,7 +42,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -61,7 +61,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -80,7 +80,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Hello World 1/)
         } finally {
           if (browser) {
-            browser.close()
+            await browser.close()
           }
         }
       })
@@ -117,7 +117,7 @@ export default (context, render) => {
           await waitFor(1000)
         }
 
-        browser.close()
+        await browser.close()
       })
 
       it('should render support React context', async () => {
@@ -132,7 +132,7 @@ export default (context, render) => {
           await waitFor(1000)
         }
 
-        browser.close()
+        await browser.close()
       })
 
       it('should load new components and render for prop changes', async () => {
@@ -153,7 +153,7 @@ export default (context, render) => {
           await waitFor(1000)
         }
 
-        browser.close()
+        await browser.close()
       })
     })
   })

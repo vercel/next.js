@@ -1,6 +1,7 @@
 /* eslint-disable */
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 import {
@@ -148,15 +149,17 @@ export class Head extends Component {
   render() {
     const {
       ampEnabled,
-      head,
       styles,
       amphtml,
+      hasAmp,
+      ampPath,
       assetPrefix,
       __NEXT_DATA__,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
 
+    let { head } = this.context._documentProps
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
@@ -173,6 +176,24 @@ export class Head extends Component {
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
         )
     }
+    // show warning and remove conflicting amp head tags
+    head = !amphtml ? head : React.Children.map(head, child => {
+      if (!child) return child
+      const { type, props } = child
+      let badProp
+
+      if (type === 'meta' && props.name === 'viewport') {
+        badProp = 'name="viewport"'
+      } else if (type === 'link' && props.rel === 'canonical') {
+        badProp = 'rel="canonical"'
+      }
+
+      if (badProp) {
+        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
+        return null
+      }
+      return child
+    })
     return (
       <head {...this.props}>
         {children}
@@ -183,7 +204,7 @@ export class Head extends Component {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={page} />
+            <link rel="canonical" href={cleanAmpPath(page)} />
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -197,7 +218,9 @@ export class Head extends Component {
                 dangerouslySetInnerHTML={{
                   __html: styles
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
-                    .join(''),
+                    .join('')
+                    .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+                    .replace(/\/\*@ sourceURL=.*?\*\//g, '')
                 }}
               />
             )}
@@ -220,7 +243,7 @@ export class Head extends Component {
         )}
         {!amphtml && (
           <>
-            {ampEnabled && <link rel="amphtml" href={`${page}?amp=1`} />}
+            {ampEnabled && hasAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
             {page !== '/_error' && (
               <link
                 rel="preload"
@@ -367,6 +390,7 @@ export class NextScript extends Component {
                   this.context._documentProps
                 ),
               }}
+              data-amp-development-mode-only
             />
           )}
           {devFiles
@@ -376,6 +400,7 @@ export class NextScript extends Component {
                   src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
                   nonce={this.props.nonce}
                   crossOrigin={this.props.crossOrigin || process.crossOrigin}
+                  data-amp-development-mode-only
                 />
               ))
             : null}

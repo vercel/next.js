@@ -1,0 +1,17 @@
+{
+  "name": "with-office-ui-fabric-react",
+  "version": "1.0.0",
+  "dependencies": {
+    "next": "^8.03",
+    "office-ui-fabric-react": "^6.154.0",
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4"
+  },
+  "devDependencies": {},
+  "license": "ISC",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}

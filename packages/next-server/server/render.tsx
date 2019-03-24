@@ -2,11 +2,12 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import Router from '../lib/router/router'
+import {IRouterInterface} from '../lib/router/router'
+import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
-import LoadableCapture from '../lib/loadable-capture'
+import {LoadableContext} from '../lib/loadable-context'
 import {
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
@@ -25,7 +26,21 @@ function noRouter() {
   throw new Error(message)
 }
 
-class ServerRouter extends Router {
+class ServerRouter implements IRouterInterface {
+  route: string
+  pathname: string
+  query: string
+  asPath: string
+  // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
+  static events: MittEmitter = mitt()
+
+  constructor(pathname: string, query: any, as: string) {
+    this.route = pathname.replace(/\/$/, '') || '/'
+    this.pathname = pathname
+    this.query = query
+    this.asPath = as
+    this.pathname = pathname
+  }
   // @ts-ignore
   push() {
     noRouter()
@@ -99,7 +114,9 @@ type RenderOpts = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
+  ampPath?: string
   amphtml?: boolean
+  hasAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
@@ -123,7 +140,9 @@ function renderDocument(
     dynamicImportsIds,
     err,
     dev,
+    ampPath,
     amphtml,
+    hasAmp,
     staticMarkup,
     devFiles,
     files,
@@ -133,7 +152,9 @@ function renderDocument(
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    ampPath: string,
     amphtml: boolean
+    hasAmp: boolean,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -158,7 +179,9 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           ampEnabled={ampEnabled}
+          ampPath={ampPath}
           amphtml={amphtml}
+          hasAmp={hasAmp}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
@@ -178,11 +201,14 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts,
 ): Promise<string | null> {
+  pathname = pathname === '/index' ? '/' : pathname
   const {
     err,
     dev = false,
     staticMarkup = false,
     amphtml = false,
+    hasAmp = false,
+    ampPath = '',
     App,
     Document,
     Component,
@@ -214,10 +240,19 @@ export async function renderToHTML(
     }
   }
 
-  const asPath = req.url
+  // @ts-ignore url will always be set
+  const asPath: string = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new ServerRouter(pathname, query, asPath)
-  const props = await loadGetInitialProps(App, { Component, router, ctx })
+  let props: any
+
+  try {
+    props = await loadGetInitialProps(App, { Component, router, ctx })
+  } catch (err) {
+    if (!dev || !err) throw err
+    ctx.err = err
+    renderOpts.err = err
+  }
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
@@ -238,8 +273,8 @@ export async function renderToHTML(
       ? renderToStaticMarkup
       : renderToString
 
-    if (err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={err} />)
+    if (ctx.err && ErrorDebug) {
+      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
     }
 
     if (dev && (props.router || props.Component)) {
@@ -256,15 +291,15 @@ export async function renderToHTML(
     return render(
       renderElementToString,
       <IsAmpContext.Provider value={amphtml}>
-        <LoadableCapture
-          report={(moduleName) => reactLoadableModules.push(moduleName)}
+        <LoadableContext.Provider
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           <EnhancedApp
             Component={EnhancedComponent}
             router={router}
             {...props}
           />
-        </LoadableCapture>
+        </LoadableContext.Provider>
       </IsAmpContext.Provider>,
     )
   }
@@ -283,7 +318,9 @@ export async function renderToHTML(
     props,
     docProps,
     pathname,
+    ampPath,
     amphtml,
+    hasAmp,
     query,
     dynamicImportsIds,
     dynamicImports,

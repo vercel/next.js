@@ -705,6 +705,8 @@ declare module 'webpack' {
                 minimizer?: Array<Plugin | Tapable.Plugin>;
                 /** Generate records with relative paths to be able to move the context folder". */
                 portableRecords?: boolean;
+                /** Tells webpack which algorithm to use when choosing chunk ids. */
+                chunkIds?: false | 'natural' | 'named'| 'size' | 'total-size'
             }
         }
 
