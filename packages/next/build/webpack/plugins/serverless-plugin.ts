@@ -70,6 +70,7 @@ export class ServerlessPlugin {
                     output,
                     file,
                     inputSourceMap,
+                    input
                   )
                 } else {
                   compilation.assets[file] = new RawSource(output)
