@@ -1117,7 +1117,19 @@ import dynamic from 'next/dynamic'
 const DynamicComponentWithCustomLoading = dynamic(
   () => import('../components/hello2'),
   {
-    loading: () => <p>...</p>
+    loading: ({ error, isLoading, pastDelay }) => {
+      if (!pastDelay) return null
+      if (process.env.NODE_ENV === 'development') {
+        if (isLoading) {
+          return <p>loading...</p>
+        }
+        if (error) {
+          return <p>{error.message}<br />{error.stack}</p>
+        }
+      }
+
+      return <p>loading...</p>
+    }
   }
 )
 

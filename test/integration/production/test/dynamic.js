@@ -2,6 +2,8 @@
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
+import { join } from 'path'
+import { recursiveDelete } from 'next/dist/lib/recursive-delete'
 
 // These tests are similar to ../../basic/test/dynamic.js
 export default (context, render) => {
@@ -22,6 +24,22 @@ export default (context, render) => {
           browser = await webdriver(context.appPort, '/dynamic/no-chunk')
           await check(() => browser.elementByCss('body').text(), /Welcome, normal/)
           await check(() => browser.elementByCss('body').text(), /Welcome, dynamic/)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('should catch error if missing', async () => {
+        let browser
+        try {
+          await recursiveDelete(join(__dirname, '../.next/static/chunks'), /^3\.\w+\.js$/, true) // Delete the missing.js chunk (3)
+          browser = await webdriver(context.appPort, '/dynamic')
+          await browser
+            .waitForElementByCss('#missing')
+            .elementByCss('#missing').click()
+          await check(() => browser.elementByCss('body').text(), /^Loading chunk 3 failed\. \(error: http:\/\/localhost:\d+\/_next\/static\/chunks\/3\.\w+\.js\)$/)
         } finally {
           if (browser) {
             await browser.close()

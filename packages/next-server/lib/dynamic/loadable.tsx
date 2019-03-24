@@ -28,62 +28,10 @@ const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
 let initialized = false
 
+
+
 function load (loader) {
-  let state = {
-    loading: true,
-    loaded: null,
-    error: null
-  }
-
-  state.promise = loader()
-    .then(loaded => {
-      state.loading = false
-      state.loaded = loaded
-      return loaded
-    })
-    .catch(err => {
-      state.loading = false
-      state.error = err
-      throw err
-    })
-
-  return state
-}
-
-function loadMap (obj) {
-  let state = {
-    loading: false,
-    loaded: {},
-    error: null
-  }
-
-  let promises = []
-
-  Object.keys(obj).forEach(key => {
-    if (!state.loading) state.loading = true
-
-    promises.push(obj[key]()
-      .then(loaded => {
-        state.loaded[key] = loaded
-      })
-      .catch(err => {
-        state.error = err
-        throw err
-      })
-    )
-  })
-
-  state.promise = Promise.all(promises)
-    .then(res => {
-      state.loading = false
-      return res
-    })
-    .catch(err => {
-      state.loading = false
-      throw err
-    })
-
-  return state
+  return new Loader(loader)
 }
 
 function resolve (obj) {
@@ -135,6 +83,8 @@ function createLoadableComponent (loadFn, options) {
   }
 
   return class LoadableComponent extends React.Component {
+    private _mounted = false
+
     constructor (props) {
       super(props)
       init()
