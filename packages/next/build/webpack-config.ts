@@ -52,7 +52,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     ],
     alias: {
       'next/head': 'next-server/dist/lib/head.js',
-      'next/router': 'next-server/dist/lib/router/router.js',
+      'next/router': 'next/dist/client/router.js',
       'next/config': 'next-server/dist/lib/runtime-config.js',
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
