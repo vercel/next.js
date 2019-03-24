@@ -10,7 +10,13 @@ declare module 'next/dist/compiled/nanoid/index.js' {
   export = nanoid;
 }
 
-declare module 'arg' {
+declare module 'next/dist/compiled/resolve/index.js' {
+  import resolve from 'resolve'
+
+  export = resolve;
+}
+
+declare module 'next/dist/compiled/arg/index.js' {
   function arg<T extends arg.Spec>(spec: T, options?: {argv?: string[], permissive?: boolean}): arg.Result<T>;
 
   namespace arg {
@@ -33,6 +39,7 @@ declare module 'arg' {
 
   export = arg;
 }
+
 declare module 'autodll-webpack-plugin' {
   import webpack from 'webpack'
   class AutoDllPlugin implements webpack.Plugin {
