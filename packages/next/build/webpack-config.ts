@@ -40,9 +40,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
-    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next')))
-    ].filter(Boolean)
+    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev.js` : 'next.js')))
   } : undefined
 
   const resolveConfig = {
@@ -53,6 +51,12 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      // These aliases make sure the wrapper module is not included in the bundles
+      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
+      'next/head': 'next-server/dist/lib/head.js',
+      'next/router': 'next/dist/client/router.js',
+      'next/config': 'next-server/dist/lib/runtime-config.js',
+      'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
@@ -77,9 +81,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     externals: isServer && target !== 'serverless' ? [
       (context, request, callback) => {
         const notExternalModules = [
-          'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
-          'string-hash', 'htmlescape','next/dynamic',
-          'next/constants', 'next/config', 'next/head'
+          'next/app', 'next/document', 'next/link', 'next/error',
+          'string-hash',
+          'next/constants'
         ]
 
         if (notExternalModules.indexOf(request) !== -1) {
@@ -320,20 +324,20 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   }
 
   // Backwards compat for `main.js` entry key
-  const originalEntry = webpackConfig.entry
+  const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     webpackConfig.entry = async () => {
       const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
       if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
         // Server compilation doesn't have main.js
-        if (typeof entry['main.js'] !== 'undefined') {
+        if (entry['main.js'] && entry['main.js'].length > 0) {
           entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
             ...entry['main.js'],
-            ...entry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+            originalEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           ]
-
-          delete entry['main.js']
         }
+
+        delete entry['main.js']
       }
 
       return entry

@@ -22,11 +22,7 @@ export function getURL () {
 }
 
 export function getDisplayName (Component) {
-  if (typeof Component === 'string') {
-    return Component
-  }
-
-  return Component.displayName || Component.name || 'Unknown'
+  return typeof Component === 'string' ? Component : (Component.displayName || Component.name || 'Unknown')
 }
 
 export function isResSent (res) {
