@@ -3,7 +3,7 @@
 const Sentry = require('@sentry/node')
 const Cookie = require('js-cookie')
 
-module.exports = ({ release }) => {
+module.exports = (release = process.env.SENTRY_RELEASE) => {
   const sentryOptions = {
     dsn: process.env.SENTRY_DSN,
     release,
