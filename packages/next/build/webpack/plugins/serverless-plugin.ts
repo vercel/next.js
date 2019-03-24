@@ -65,7 +65,7 @@ export class ServerlessPlugin {
 
                 const output = input.relace(NEXT_REPLACE_BUILD_ID, this.buildId)
                 
-                if (!this.sourceMap && !inputSourceMap) {
+                if (this.sourceMap && inputSourceMap) {
                   compilation.assets[file] = new SourceMapSource(
                     output,
                     file,
