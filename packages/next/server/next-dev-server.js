@@ -114,7 +114,7 @@ export default class DevServer extends Server {
     return !snippet.includes('data-amp-development-mode-only')
   }
 
-  async renderToHTML (req, res, pathname, query, options) {
+  async renderToHTML (req, res, pathname, query, options = {}) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500

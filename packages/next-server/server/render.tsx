@@ -3,12 +3,11 @@ import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import {IRouterInterface} from '../lib/router/router'
-import {toRoute} from '../lib/router/to-route'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
-import LoadableCapture from '../lib/loadable-capture'
+import {LoadableContext} from '../lib/loadable-context'
 import {
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
@@ -36,7 +35,7 @@ class ServerRouter implements IRouterInterface {
   static events: MittEmitter = mitt()
 
   constructor(pathname: string, query: any, as: string) {
-    this.route = toRoute(pathname)
+    this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -292,15 +291,15 @@ export async function renderToHTML(
     return render(
       renderElementToString,
       <IsAmpContext.Provider value={amphtml}>
-        <LoadableCapture
-          report={(moduleName) => reactLoadableModules.push(moduleName)}
+        <LoadableContext.Provider
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           <EnhancedApp
             Component={EnhancedComponent}
             router={router}
             {...props}
           />
-        </LoadableCapture>
+        </LoadableContext.Provider>
       </IsAmpContext.Provider>,
     )
   }

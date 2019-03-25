@@ -22,7 +22,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // Modified to be compatible with webpack 4 / Next.js
 
 import React from 'react'
-import PropTypes from 'prop-types'
+import { LoadableContext } from './loadable-context'
 
 const ALL_INITIALIZERS = []
 const READY_INITIALIZERS = []
@@ -161,15 +161,11 @@ function createLoadableComponent (loadFn, options) {
       }
     }
 
-    static contextTypes = {
-      loadable: PropTypes.shape({
-        report: PropTypes.func.isRequired
-      })
-    };
-
     static preload () {
       return init()
     }
+
+    static contextType = LoadableContext
 
     componentWillMount () {
       this._mounted = true
@@ -177,9 +173,9 @@ function createLoadableComponent (loadFn, options) {
     }
 
     _loadModule () {
-      if (this.context.loadable && Array.isArray(opts.modules)) {
+      if (this.context && Array.isArray(opts.modules)) {
         opts.modules.forEach(moduleName => {
-          this.context.loadable.report(moduleName)
+          this.context(moduleName)
         })
       }
 
