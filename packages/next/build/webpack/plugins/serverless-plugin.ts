@@ -1,4 +1,4 @@
-import { Compiler, Source } from 'webpack'
+import { Compiler } from 'webpack'
 import { SourceMapSource, RawSource } from 'webpack-sources'
 import GraphHelpers from 'webpack/lib/GraphHelpers'
 
@@ -54,7 +54,7 @@ export class ServerlessPlugin {
                   if (asset.sourceAndMap) {
                     const sourceAndMap = asset.sourceAndMap()
                     inputSourceMap = sourceAndMap.map
-                    input = sourceAndMap.source as Source
+                    input = sourceAndMap.source
                   } else {
                     inputSourceMap = asset.map()
                     input = asset.source()
