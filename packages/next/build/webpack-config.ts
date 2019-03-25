@@ -327,18 +327,16 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     webpackConfig.entry = async () => {
-      const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
-      if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
-        // Server compilation doesn't have main.js
-        if (entry['main.js'] && entry['main.js'].length > 0) {
-          entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
-            ...entry['main.js'],
-            originalEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-          ]
-        }
-
-        delete entry['main.js']
+      const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
+      // Server compilation doesn't have main.js
+      if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
+        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
+          ...entry['main.js'],
+          originalFile
+        ]
       }
+      delete entry['main.js']
 
       return entry
     }
