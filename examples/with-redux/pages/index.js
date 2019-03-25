@@ -26,7 +26,5 @@ class Index extends React.Component {
     return <Examples />
   }
 }
-const mapDispatchToProps = {
-  startClock
-};
+const mapDispatchToProps = { startClock };
 export default connect(null, mapDispatchToProps)(Index)
