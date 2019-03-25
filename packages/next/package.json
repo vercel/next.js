@@ -63,7 +63,6 @@
     "imurmurhash": "0.1.4",
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
-    "magic-string": "0.25.2",
     "mkdirp": "0.5.1",
     "next-server": "8.0.4-canary.20",
     "prop-types": "15.6.2",

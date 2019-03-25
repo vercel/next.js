@@ -1,4 +1,3 @@
-import MagicString from 'magic-string'
 import { Compiler } from 'webpack'
 import { SourceMapSource, RawSource } from 'webpack-sources'
 import GraphHelpers from 'webpack/lib/GraphHelpers'
@@ -64,28 +63,16 @@ export class ServerlessPlugin {
                   input = asset.source()
                 }
 
-                const f = new MagicString(input)
-
-                const regex = new RegExp(NEXT_REPLACE_BUILD_ID, 'g')
-                let result
-                while ((result = regex.exec(input))) {
-                  f.overwrite(
-                    result.index,
-                    result.index + NEXT_REPLACE_BUILD_ID.length,
-                    this.buildId
-                  )
-                }
-
+                const output = input.replace(NEXT_REPLACE_BUILD_ID, this.buildId)
+                
                 if (this.sourceMap && inputSourceMap) {
                   compilation.assets[file] = new SourceMapSource(
-                    f.toString(),
+                    output,
                     file,
-                    f.generateMap({ hires: true }),
-                    input,
                     inputSourceMap
                   )
                 } else {
-                  compilation.assets[file] = new RawSource(f.toString())
+                  compilation.assets[file] = new RawSource(output)
                 }
               })
           }
