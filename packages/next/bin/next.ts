@@ -25,6 +25,7 @@ const args = arg({
   '--version': Boolean,
   '--help': Boolean,
   '--inspect': Boolean,
+  '--page': [String],
 
   // Aliases
   '-v': '--version',
@@ -73,6 +74,10 @@ if (args['--inspect']) throw new Error(`Use env variable NODE_OPTIONS instead: N
 // Make sure the `next <subcommand> --help` case is covered
 if (args['--help']) {
   forwardedArgs.push('--help')
+}
+
+if (args['--page']) {
+  args['--page'].forEach((page) => forwardedArgs.push('--page', page))
 }
 
 const defaultEnv = command === 'dev' ? 'development' : 'production'
