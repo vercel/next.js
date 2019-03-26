@@ -1,6 +1,4 @@
-import MagicString from 'magic-string'
 import { Compiler } from 'webpack'
-import { SourceMapSource, RawSource } from 'webpack-sources'
 import GraphHelpers from 'webpack/lib/GraphHelpers'
 
 /**
@@ -11,16 +9,60 @@ import GraphHelpers from 'webpack/lib/GraphHelpers'
 
 const NEXT_REPLACE_BUILD_ID = '__NEXT_REPLACE__BUILD_ID__'
 
+function replaceInBuffer(buffer: Buffer, from: string, to: string) {
+  const target = Buffer.from(from, 'utf8')
+  const replacement = Buffer.from(to, 'utf8')
+
+  function bufferTee(source: Buffer): Buffer {
+    const index = source.indexOf(target)
+    if (index === -1) {
+      // Escape recursion loop
+      return source
+    }
+
+    const b1 = source.slice(0, index)
+    const b2 = source.slice(index + target.length)
+
+    const nextBuffer = bufferTee(b2)
+    return Buffer.concat(
+      [b1, replacement, nextBuffer],
+      index + replacement.length + nextBuffer.length
+    )
+  }
+
+  return bufferTee(buffer)
+}
+
+function interceptFileWrites(
+  compiler: Compiler,
+  contentFn: (input: Buffer) => Buffer
+) {
+  compiler.outputFileSystem = new Proxy(compiler.outputFileSystem, {
+    get(target, propKey) {
+      const orig = (target as any)[propKey]
+      if (propKey !== 'writeFile') {
+        return orig
+      }
+
+      return function(targetPath: string, content: Buffer, ...args: any[]) {
+        return orig.call(target, targetPath, contentFn(content), ...args)
+      }
+    },
+  })
+}
+
 export class ServerlessPlugin {
   private buildId: string
-  private sourceMap: boolean
 
-  constructor(buildId: string, { sourceMap = false } = {}) {
+  constructor(buildId: string) {
     this.buildId = buildId
-    this.sourceMap = sourceMap
   }
 
   apply(compiler: Compiler) {
+    interceptFileWrites(compiler, content =>
+      replaceInBuffer(content, NEXT_REPLACE_BUILD_ID, this.buildId)
+    )
+
     compiler.hooks.compilation.tap('ServerlessPlugin', compilation => {
       compilation.hooks.optimizeChunksBasic.tap('ServerlessPlugin', chunks => {
         chunks.forEach(chunk => {
@@ -36,60 +78,6 @@ export class ServerlessPlugin {
             }
           }
         })
-
-        compilation.hooks.afterOptimizeChunkAssets.tap(
-          'ServerlessPlugin',
-          chunks => {
-            chunks
-              .reduce(
-                (acc, chunk) => acc.concat(chunk.files || []),
-                [] as any[]
-              )
-              .forEach(file => {
-                const asset = compilation.assets[file]
-
-                let input
-                let inputSourceMap
-
-                if (this.sourceMap) {
-                  if (asset.sourceAndMap) {
-                    const sourceAndMap = asset.sourceAndMap()
-                    inputSourceMap = sourceAndMap.map
-                    input = sourceAndMap.source
-                  } else {
-                    inputSourceMap = asset.map()
-                    input = asset.source()
-                  }
-                } else {
-                  input = asset.source()
-                }
-
-                const f = new MagicString(input)
-
-                const regex = new RegExp(NEXT_REPLACE_BUILD_ID, 'g')
-                let result
-                while ((result = regex.exec(input))) {
-                  f.overwrite(
-                    result.index,
-                    result.index + NEXT_REPLACE_BUILD_ID.length,
-                    this.buildId
-                  )
-                }
-
-                if (this.sourceMap && inputSourceMap) {
-                  compilation.assets[file] = new SourceMapSource(
-                    f.toString(),
-                    file,
-                    f.generateMap({ hires: true }),
-                    input,
-                    inputSourceMap
-                  )
-                } else {
-                  compilation.assets[file] = new RawSource(f.toString())
-                }
-              })
-          }
-        )
       })
     })
   }
