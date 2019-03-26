@@ -3,7 +3,6 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
-  pkg,
   nextServer,
   runNextCommand,
   startApp,
@@ -307,45 +306,6 @@ describe('Production Usage', () => {
       expect(counterAfter404Page).toBe('Counter: 0')
 
       await browser.close()
-    })
-  })
-
-  describe('X-Powered-By header', () => {
-    it('should set it by default', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const headers = {}
-      const res = {
-        getHeader (key) {
-          return headers[key]
-        },
-        setHeader (key, value) {
-          headers[key] = value
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
-    })
-
-    it('should not set it when poweredByHeader==false', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.nextConfig.poweredByHeader
-      app.nextConfig.poweredByHeader = false
-      const res = {
-        getHeader () {
-          return false
-        },
-        setHeader (key, value) {
-          if (key === 'XPoweredBy') {
-            throw new Error('Should not set the XPoweredBy header')
-          }
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      app.nextConfig.poweredByHeader = originalConfigValue
     })
   })
 
