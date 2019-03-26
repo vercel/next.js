@@ -27,8 +27,9 @@ const defaultConfig = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    exportTrailingSlash: true,
     profiling: false,
-    exportTrailingSlash: true
+    sharedRuntime: false
   }
 }
 
