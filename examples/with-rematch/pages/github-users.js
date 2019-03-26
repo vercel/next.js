@@ -1,7 +1,6 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
-import { dispatch } from '@rematch/core'
-import { initStore } from '../shared/store'
+import { store } from '../shared/store'
 import withRematch from '../shared/utils/withRematch'
 import Header from '../shared/components/header'
 import CounterDisplay from '../shared/components/counter-display'
@@ -9,7 +8,7 @@ import CounterDisplay from '../shared/components/counter-display'
 class Github extends Component {
   static async getInitialProps ({ isServer, initialState }) {
     if (isServer) {
-      await dispatch.github.fetchUsers()
+      await store.dispatch.github.fetchUsers()
     }
     return {}
   }
@@ -54,4 +53,4 @@ const mapDispatch = ({ github: { fetchUsers } }) => ({
   fetchUsers: () => fetchUsers()
 })
 
-export default withRematch(initStore, mapState, mapDispatch)(Github)
+export default withRematch(store, mapState, mapDispatch)(Github)

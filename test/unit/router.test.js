@@ -17,7 +17,7 @@ class PageLoader {
     }
   }
 
-  prefetch (route) {
+  async prefetch (route) {
     this.prefetched[route] = true
   }
 }

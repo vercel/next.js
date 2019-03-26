@@ -1,5 +1,5 @@
 import { join } from 'path'
-import nanoid from 'nanoid'
+import nanoid from 'next/dist/compiled/nanoid/index.js'
 import loadConfig from 'next-server/next-config'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import getBaseWebpackConfig from './webpack-config'
@@ -105,10 +105,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
     if (result.errors.length > 1) {
       result.errors.length = 1
     }
+    const error = result.errors.join('\n\n')
 
     console.error(chalk.red('Failed to compile.\n'))
-    console.error(result.errors.join('\n\n'))
+    console.error(error)
     console.error()
+
+    if (error.indexOf('private-next-pages') > -1) {
+      throw new Error('> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias')
+    }
     throw new Error('> Build failed because of webpack errors')
   } else if (result.warnings.length > 0) {
     console.warn(chalk.yellow('Compiled with warnings.\n'))

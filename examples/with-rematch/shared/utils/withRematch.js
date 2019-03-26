@@ -10,12 +10,12 @@ const checkServer = () =>
 const getOrCreateStore = (initStore, initialState) => {
   // Always make a new store if server
   if (checkServer() || typeof window === 'undefined') {
-    return initStore(initialState)
+    return initStore
   }
 
   // Memoize store in global variable if client
   if (!window[__NEXT_REMATCH_STORE__]) {
-    window[__NEXT_REMATCH_STORE__] = initStore(initialState)
+    window[__NEXT_REMATCH_STORE__] = initStore
   }
   return window[__NEXT_REMATCH_STORE__]
 }

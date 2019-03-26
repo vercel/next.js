@@ -17,7 +17,7 @@ import _pkg from 'next/package.json'
 export const nextServer = server
 export const pkg = _pkg
 
-export function initNextServerScript (scriptPath, successRegexp, env) {
+export function initNextServerScript (scriptPath, successRegexp, env, failRegexp) {
   return new Promise((resolve, reject) => {
     const instance = spawn('node', [scriptPath], { env })
 
@@ -30,7 +30,12 @@ export function initNextServerScript (scriptPath, successRegexp, env) {
     }
 
     function handleStderr (data) {
-      process.stderr.write(data.toString())
+      const message = data.toString()
+      if (failRegexp && failRegexp.test(message)) {
+        instance.kill()
+        return reject(new Error('received failRegexp'))
+      }
+      process.stderr.write(message)
     }
 
     instance.stdout.on('data', handleStdout)

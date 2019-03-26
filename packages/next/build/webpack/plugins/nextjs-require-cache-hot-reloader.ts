@@ -1,15 +1,20 @@
-import {Compiler} from 'webpack'
+import { Compiler, Plugin } from 'webpack'
+import { realpathSync } from 'fs'
 
-function deleteCache (path: string): void {
-  delete require.cache[path]
+function deleteCache (path: string) {
+  try {
+    delete require.cache[realpathSync(path)]
+  } catch(e) {
+    if (e.code !== 'ENOENT') throw e
+  } finally {
+    delete require.cache[path]
+  }
 }
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-export class NextJsRequireCacheHotReloader {
-  prevAssets: any
-  constructor () {
-    this.prevAssets = null
-  }
+export class NextJsRequireCacheHotReloader implements Plugin {
+  prevAssets: any = null
+
   apply (compiler: Compiler) {
     compiler.hooks.afterEmit.tapAsync('NextJsRequireCacheHotReloader', (compilation, callback) => {
       const { assets } = compilation

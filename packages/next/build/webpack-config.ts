@@ -1,6 +1,6 @@
 import path from 'path'
 import webpack from 'webpack'
-import resolve from 'resolve'
+import resolve from 'next/dist/compiled/resolve/index.js'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -11,6 +11,8 @@ import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_
 import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
+import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
+import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -18,7 +20,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { dev, isServer, cwd: dir }
+      options: { isServer, cwd: dir }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -38,9 +40,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
-    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next'))
-    ].filter(Boolean)
+    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev.js` : 'next.js')))
   } : undefined
 
   const resolveConfig = {
@@ -51,6 +51,12 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      // These aliases make sure the wrapper module is not included in the bundles
+      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
+      'next/head': 'next-server/dist/lib/head.js',
+      'next/router': 'next/dist/client/router.js',
+      'next/config': 'next-server/dist/lib/runtime-config.js',
+      'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
@@ -63,7 +69,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true
+    cache: true,
+    cpus: config.experimental.cpus,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -74,9 +81,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     externals: isServer && target !== 'serverless' ? [
       (context, request, callback) => {
         const notExternalModules = [
-          'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
-          'string-hash', 'hoist-non-react-statics', 'htmlescape','next/dynamic',
-          'next/constants', 'next/config', 'next/head'
+          'next/app', 'next/document', 'next/link', 'next/error',
+          'string-hash',
+          'next/constants'
         ]
 
         if (notExternalModules.indexOf(request) !== -1) {
@@ -241,6 +248,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ...(dev && !isServer ? {
           'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
         } : {}),
+        'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash)
       }),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
@@ -281,6 +289,12 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         return devPlugins
       })() : []),
       !dev && new webpack.HashedModuleIdsPlugin(),
+      // This must come after HashedModuleIdsPlugin (it sets any modules that
+      // were missed by HashedModuleIdsPlugin)
+      !dev && new AllModulesIdentifiedPlugin(),
+      // This sets chunk ids to be hashed versions of their names to reduce
+      // bundle churn
+      !dev && new HashedChunkIdsPlugin(buildId),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
@@ -289,16 +303,19 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(),
+      target === 'serverless' && isServer && new ServerlessPlugin(buildId, { sourceMap: dev }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
       !isServer && new BuildManifestPlugin(),
+      config.experimental.profiling && new webpack.debug.ProfilingPlugin({
+        outputPath: path.join(distDir, `profile-events-${isServer ? 'server' : 'client'}.json`)
+      })
     ].filter(Boolean as any as ExcludesFalse)
   }
 
   if (typeof config.webpack === 'function') {
-    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages })
+    webpackConfig = config.webpack(webpackConfig, { dir, dev, isServer, buildId, config, defaultLoaders, totalPages, webpack })
 
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
@@ -307,20 +324,20 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   }
 
   // Backwards compat for `main.js` entry key
-  const originalEntry = webpackConfig.entry
+  const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     webpackConfig.entry = async () => {
       const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
       if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
         // Server compilation doesn't have main.js
-        if (typeof entry['main.js'] !== 'undefined') {
+        if (entry['main.js'] && entry['main.js'].length > 0) {
           entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
             ...entry['main.js'],
-            ...entry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+            originalEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
           ]
-
-          delete entry['main.js']
         }
+
+        delete entry['main.js']
       }
 
       return entry

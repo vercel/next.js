@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
 import { existsSync } from 'fs'
-import arg from 'arg'
+import arg from 'next/dist/compiled/arg/index.js'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
