@@ -36,7 +36,7 @@ export default class PageLoader {
     return route.replace(/\/$/, '')
   }
 
-  loadPage (route) {
+  loadPage (route, isPreload = false) {
     route = this.normalizeRoute(route)
 
     return new Promise((resolve, reject) => {
@@ -70,13 +70,13 @@ export default class PageLoader {
 
       // Load the script if not asked to load yet.
       if (!this.loadingRoutes[route]) {
-        this.loadScript(route)
+        this.loadScript(route, isPreload)
         this.loadingRoutes[route] = true
       }
     })
   }
 
-  loadScript (route) {
+  loadScript (route, isPreload) {
     route = this.normalizeRoute(route)
     const scriptRoute = route === '/' ? '/index.js' : `${route}.js`
 
@@ -84,7 +84,9 @@ export default class PageLoader {
     const url = `${this.assetPrefix}/_next/static/${encodeURIComponent(this.buildId)}/pages${scriptRoute}`
     script.crossOrigin = process.crossOrigin
     script.src = url
-    script.onerror = () => {
+    script.onerror = isPreload ? () => {
+      console.log(`Error when preloading route: ${route}`)
+    } : () => {
       const error = new Error(`Error when loading route: ${route}`)
       error.code = 'PAGE_LOAD_ERROR'
       this.pageRegisterEvents.emit(route, { error })
@@ -156,11 +158,11 @@ export default class PageLoader {
     }
 
     if (document.readyState === 'complete') {
-      return this.loadPage(route).catch(() => {})
+      return this.loadPage(route, true).catch(() => {})
     } else {
       return new Promise((resolve) => {
         window.addEventListener('load', () => {
-          this.loadPage(route).then(() => resolve(), () => resolve())
+          this.loadPage(route, true).then(() => resolve(), () => resolve())
         })
       })
     }
