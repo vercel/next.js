@@ -28,7 +28,8 @@ const defaultConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     exportTrailingSlash: true,
-    profiling: false
+    profiling: false,
+    sharedRuntime: false
   }
 }
 
