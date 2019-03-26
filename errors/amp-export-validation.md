@@ -6,7 +6,7 @@ During export we validate AMP pages using [amphtml-validator](https://www.npmjs.
 
 #### Possible Ways to Fix It
 
-Look at the error messages telling you the reasons for the error and update it to make the AMP page that caused the error to validate. 
+Look at the error messages and follow their appropriate links to learn more about the error and how to correct the problem.
 
 ### Useful Links
 
