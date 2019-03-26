@@ -1,3 +1,4 @@
+import chalk from 'chalk'
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
@@ -51,6 +52,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
+  let lastEntry = null
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
@@ -164,11 +166,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     const entryInfo = entries[page]
     let toSend
 
-    // If there's no entry.
-    // Then it seems like an weird issue.
+    // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
-      const message = `Client pings, but there's no entry for page: ${page}`
-      console.error(message)
+      if (page !== lastEntry) console.error(`[${chalk.cyan('entry')}] ${page}`)
+      lastEntry = page
       return { invalid: true }
     }
 
@@ -257,7 +258,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
         }
 
-        console.log(`> Building page: ${normalizedPage}`)
+        console.log(`[${chalk.cyan('build')}] ${normalizedPage}`)
 
         entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
         doneCallbacks.once(normalizedPage, handleCallback)
@@ -364,7 +365,7 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
     disposingPages.forEach((page) => {
       delete entries[page]
     })
-    console.log(`> Disposing inactive page(s): ${disposingPages.join(', ')}`)
+    console.log(`[${chalk.cyan('reset')}] ${disposingPages.join(', ')}`)
     devMiddleware.invalidate()
   }
 }

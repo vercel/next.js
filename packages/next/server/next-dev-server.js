@@ -6,6 +6,7 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
 import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
+import chalk from 'chalk'
 
 export default class DevServer extends Server {
   constructor (options) {
@@ -15,6 +16,7 @@ export default class DevServer extends Server {
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
+    this.lastError = null
   }
 
   currentPhase () {
@@ -170,10 +172,19 @@ export default class DevServer extends Server {
       const out = await super.renderErrorToHTML(err, req, res, pathname, query)
       return out
     } catch (err2) {
-      if (!this.quiet) console.error(err2)
+      if (!this.quiet) console.error('renderErrorToHtml:', err2)
       res.statusCode = 500
       return super.renderErrorToHTML(err2, req, res, pathname, query)
     }
+  }
+
+  logError (...args) {
+    if (this.quiet) { return }
+
+    const [err = 'Unknown error'] = args
+    const newError = err.stack
+    if (this.lastError !== newError) console.error(`[${chalk.red('error')}]`, newError)
+    this.lastError = newError
   }
 
   sendHTML (req, res, html) {

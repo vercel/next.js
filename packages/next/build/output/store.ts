@@ -14,45 +14,43 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
-process.stdout.write('\n'.repeat(process.stdout.rows || 1))
-process.stdout.write('\u001b[?25l')
 onExit(() => {
-  process.stdout.write('\u001b[?25h')
+  console.log(`[${chalk.cyan('done')}]`)
 })
+
+let lastState: string | null = null
 store.subscribe(state => {
+
   if (state.bootstrap) {
-    console.log(chalk.cyan('Starting the development server ...'))
-    if (state.appUrl) {
-      console.log()
-      console.log(`  > Waiting on ${state.appUrl!}`)
-    }
+    if (lastState !== 'start') console.log(`[${chalk.cyan('start')}] ...`)
+    lastState = 'start'
     return
   }
 
   if (state.loading) {
-    console.log('Compiling ...')
+    if (lastState !== 'load') console.log(`[${chalk.cyan('build')}] ...`)
+    lastState = 'load'
     return
   }
 
   if (state.errors) {
-    console.log(chalk.red('Failed to compile.'))
-    console.log()
-    console.log(state.errors[0])
+    const { errors: [err = ''] } = state
+    const newState = `error - ${err.toString()}`
+    if (lastState !== newState) console.log(`[${chalk.red('error')}]`, state.errors[0])
+    lastState = newState
     return
   }
 
   if (state.warnings) {
-    console.log(chalk.yellow('Compiled with warnings.'))
-    console.log()
-    console.log(state.warnings.join('\n\n'))
+    const { warnings } = state
+    const newState = `warning - ${warnings.join('\n\n')}`
+    if (lastState !== newState) console.log(`[${chalk.yellow(' warn')}]`, state.warnings.join('\n\n'))
+    lastState = newState
     return
   }
 
-  console.log(chalk.green('Compiled successfully!'))
   if (state.appUrl) {
-    console.log()
-    console.log(`  > Ready on ${state.appUrl!}`)
+    if (lastState !== 'ready') console.log(`[${chalk.green('ready')}] ${state.appUrl!}`)
+    lastState = 'ready'
   }
-  console.log()
-  console.log('Note that pages will be compiled when you first load them.')
 })
