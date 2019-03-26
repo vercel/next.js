@@ -19,7 +19,16 @@ export class HashedChunkIdsPlugin implements Plugin {
               .update(id)
               .digest('hex')
               .substr(0, 4)
+            continue
           }
+
+          const ids = [...chunk.modulesIterable]
+            .map(m => m.id)
+            .sort() as string[]
+
+          const h = createHash('md4')
+          ids.forEach(id => h.update(id))
+          chunk.id = h.digest('hex').substr(0, 4)
         }
       })
     })
