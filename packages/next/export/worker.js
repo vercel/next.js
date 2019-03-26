@@ -6,7 +6,6 @@ import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
 import Sema from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
-import { formatAmpMessages } from '../build/output/index'
 import { loadComponents } from 'next-server/dist/server/load-components'
 
 const envConfig = require('next-server/config')
@@ -77,17 +76,16 @@ process.on(
           const warnings = result.errors.filter(e => e.severity !== 'ERROR')
 
           if (warnings.length || errors.length) {
-            console.log(
-              formatAmpMessages({
-                [page]: {
+            process.send({
+              type: 'amp-validation',
+              payload: {
+                page,
+                result: {
                   errors,
                   warnings
                 }
-              })
-            )
-            if (errors.length) {
-              throw new Error('AMP validation had error')
-            }
+              }
+            })
           }
         }
 

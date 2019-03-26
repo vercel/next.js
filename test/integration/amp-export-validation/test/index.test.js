@@ -35,10 +35,10 @@ describe('AMP Validation on Export', () => {
           })
         }
       })
-    } finally {
-      nextConfig.restore()
       expect(stdout).toMatch(/warn.*The tag 'amp-video extension \.js script' is missing/)
       await expect(access(join(outDir, 'cat/index.html'))).resolves.toBe(undefined)
+    } finally {
+      nextConfig.restore()
     }
   })
 
@@ -59,10 +59,10 @@ describe('AMP Validation on Export', () => {
           })
         }
       })
+      expect(stdout).toMatch(/error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/)
+      await expect(access(join(outDir, 'dog/index.html'))).resolves.toBe(undefined)
     } finally {
       nextConfig.restore()
-      expect(stdout).toMatch(/error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/)
-      await expect(access(join(outDir, 'dog/index.html'))).rejects.toBeTruthy()
     }
   })
 
@@ -83,11 +83,11 @@ describe('AMP Validation on Export', () => {
           })
         }
       })
-    } finally {
-      nextConfig.restore()
       expect(stdout).toMatch(/warn.*The tag 'amp-video extension \.js script' is missing/)
       expect(stdout).toMatch(/error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/)
-      await expect(access(join(outDir, 'dog-cat/index.html'))).rejects.toBeTruthy()
+      await expect(access(join(outDir, 'dog-cat/index.html'))).resolves.toBe(undefined)
+    } finally {
+      nextConfig.restore()
     }
   })
 })
