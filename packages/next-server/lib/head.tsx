@@ -3,20 +3,21 @@ import withSideEffect from "./side-effect";
 import {IsAmpContext} from './amphtml-context';
 import { HeadManagerContext } from "./head-manager-context";
 
-export function defaultHead(className = 'next-head') {
-  return [
-    <meta key="charSet" charSet="utf-8" className={className} />,
-    <DefaultViewportTag className={className} />,
-  ];
+type WithIsAmp = {
+  isAmp?: boolean;
 }
 
-const DefaultViewportTag = ({ className }: { className: string }) => (
-  <IsAmpContext.Consumer>
-    {(isAmp) => !isAmp && (
-      <meta key="viewport" name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" className={className} />
-    )}
-  </IsAmpContext.Consumer>
-)
+export function defaultHead(className = 'next-head', isAmp = false) {
+  const head = [
+    <meta key="charSet" charSet="utf-8" className={className} />,
+  ];
+  if (!isAmp) {
+    head.push(
+      <meta key="viewport" name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" className={className} />,
+    );
+  }
+  return head;
+}
 
 function onlyReactElement(
   list: Array<React.ReactElement<any>>,
@@ -98,7 +99,7 @@ function unique() {
  *
  * @param headElement List of multiple <Head> instances
  */
-function reduceComponents(headElements: Array<React.ReactElement<any>>) {
+function reduceComponents(headElements: Array<React.ReactElement<any>>, props: WithIsAmp) {
   return headElements
     .reduce(
       (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
@@ -111,7 +112,7 @@ function reduceComponents(headElements: Array<React.ReactElement<any>>) {
     )
     .reduce(onlyReactElement, [])
     .reverse()
-    .concat(defaultHead(''))
+    .concat(defaultHead('', props.isAmp))
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
@@ -123,20 +124,25 @@ function reduceComponents(headElements: Array<React.ReactElement<any>>) {
     });
 }
 
-const Effect = withSideEffect();
+const Effect = withSideEffect<WithIsAmp>();
 
 function Head({ children }: { children: React.ReactNode }) {
   return (
-    <HeadManagerContext.Consumer>
-      {(updateHead) => (
-        <Effect
-          reduceComponentsToState={reduceComponents}
-          handleStateChange={updateHead}
-        >
-          {children}
-        </Effect>
+    <IsAmpContext.Consumer>
+      {(isAmp) => (
+        <HeadManagerContext.Consumer>
+          {(updateHead) => (
+            <Effect
+              reduceComponentsToState={reduceComponents}
+              handleStateChange={updateHead}
+              isAmp={isAmp}
+            >
+              {children}
+            </Effect>
+          )}
+        </HeadManagerContext.Consumer>
       )}
-    </HeadManagerContext.Consumer>
+    </IsAmpContext.Consumer>
   );
 }
 
