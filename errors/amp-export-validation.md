@@ -4,7 +4,7 @@
 
 During export we validate AMP pages using [amphtml-validator](https://www.npmjs.com/package/amphtml-validator). Errors received from the validator will fail the export.
 
-Validation errors mean your page is not valid AMP HTML and will not be [indexed by AMP Caches](https://www.ampproject.org/docs/fundamentals/how_cached).
+Validation errors will cause pages to not be [indexed by AMP Caches](https://www.ampproject.org/docs/fundamentals/how_cached).
 
 #### Possible Ways to Fix It
 
