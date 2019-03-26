@@ -74,6 +74,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     cpus: config.experimental.cpus,
   }
 
+  const sharedRuntime = config.experimental.sharedRuntime && target === 'serverless'
+
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
@@ -141,7 +143,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         })
       ] : undefined
     } : {
-      runtimeChunk: (!config.experimental.sharedRuntime || dev) ? {
+      runtimeChunk: (!sharedRuntime || dev) ? {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       } : false,
       splitChunks: dev ? {
@@ -297,7 +299,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
       // On the client we want to share the same runtime cache
-      !dev && !isServer && config.experimental.sharedRuntime && new SharedRuntimePlugin(),
+      !dev && !isServer && sharedRuntime && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
