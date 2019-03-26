@@ -184,7 +184,7 @@ export default async function (dir, options, configuration) {
     console.log(formatAmpMessages(ampValidations))
   }
   if (hadValidationError) {
-    throw new Error(`AMP Validation received an error. https://err.sh/zeit/next.js/amp-export-validation`)
+    throw new Error(`AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`)
   }
 
   // Add an empty line to the console for the better readability.
