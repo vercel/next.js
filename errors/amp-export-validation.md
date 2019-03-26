@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-During export we validate AMP pages using [amphtml-validator](https://www.npmjs.com/package/amphtml-validator), when we receive an error is received from the validator that means an AMP page is invalid an the export is not valid.
+During export we validate AMP pages using [amphtml-validator](https://www.npmjs.com/package/amphtml-validator), when we receive an error from the validator that means an AMP page is invalid so the export is not valid.
 
 #### Possible Ways to Fix It
 
