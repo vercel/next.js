@@ -2,7 +2,7 @@ import React from 'react'
 import { AsyncComponent, loadingOptions, Component } from './index'
 
 interface InterfaceBaseOptions {
-  loading?: React.ComponentType<loadingOptions> | (() => null),
+  loading: React.ComponentType<loadingOptions> | (() => null),
   delay?: number,
   timeout?: number,
 }
@@ -15,7 +15,7 @@ interface InterfaceOptions<P> extends InterfaceBaseOptions {
 interface InterfaceMapOptions<P, T, K extends keyof T> extends InterfaceBaseOptions {
   kind: 'map',
   loader: Record<K, () => Promise<Component<T[K]>>>,
-  render: (props: P, loaded: Record<K, Component<T[K]>>) => React.ReactNode,
+  render: (loaded: Record<K, React.ComponentType<T[K]>>, props: P) => React.ReactNode,
   modules: () => Record<K, Component<T[K]>>,
 }
 
@@ -41,7 +41,9 @@ export class Loadable <
   K extends keyof T,
   O extends Options<P, T, K>
 > extends React.Component<P, State<P, T, K, O>> {
-  private _mounted = false
+  private timeout?: NodeJS.Timeout | number
+  private delay?: NodeJS.Timeout | number
+  private promise: LoadablePromise<P, T, K, O>
   private options: O
 
   // promise object is a reference
@@ -54,30 +56,37 @@ export class Loadable <
     }
 
     this.state = {
-      error: null,
-      pastDelay: false,
-      timedOut: false,
+      pastDelay: !this.options.delay || this.options.delay <= 0,
+      timedOut: typeof this.options.timeout !== 'undefined' && this.options.timeout <= 0,
       loading: true,
       loaded: null,
+      error: null,
     }
 
-    if (!promise.val) promise.val = Loadable.createPromise<P, T, K, O>(options)
-    promise.val
+    this.promise = promise
+
+    if (!this.promise.val) this.promise.val = this.bindNewPromise()
+
+    this.promise.val
       .then((loaded) => {
         this.setState({
           loading: false,
           loaded,
         })
+
+        this.clearTimeouts()
       })
       .catch((error) => {
         this.setState({
           loading: false,
           error,
         })
+
+        this.clearTimeouts()
       })
   }
 
-  static async loadMap<T, K extends keyof T>(loader: Record<K, () => Promise<Component<T[K]>>>): Promise<Record<K, Component<T[K]>>> {
+  private static async loadMap<T, K extends keyof T>(loader: Record<K, () => Promise<Component<T[K]>>>): Promise<Record<K, Component<T[K]>>> {
     const components: Array<Promise<[K, Component<T[K]>]>> = []
 
     for (const l in loader) {
@@ -97,86 +106,52 @@ export class Loadable <
     return loaded
   }
 
-  static createPromise<P, T extends {[key: string]: {}}, K extends keyof T, O>(options: Options<P, T, K>) {
-    return (options.kind === 'single' ? options.loader() : Loadable.loadMap<T, K>(options.loader)) as LoaderPromise<P, T, K, O>
+  public static createPromise<P, T extends {[key: string]: {}}, K extends keyof T, O>(options: Options<P, T, K>) {
+    return (Loadable.hasMapLoader(options) ? Loadable.loadMap<T, K>(options.loader) : options.loader()) as LoaderPromise<P, T, K, O>
   }
 
-  /* Past here hasn't been rewritten yet */
-  componentWillMount() {
-    this._mounted = true
-    this._loadModule()
-  }
-
-  _loadModule() {
-    if (this.context.loadable && Array.isArray(opts.modules)) {
-      opts.modules.forEach((moduleName) => {
-        this.context.loadable.report(moduleName)
-      })
-    }
-
-    if (!res.loading) {
-      return
-    }
-
-    if (typeof opts.delay === 'number') {
-      if (opts.delay === 0) {
-        this.setState({ pastDelay: true })
-      } else {
-        this._delay = setTimeout(() => {
-          this.setState({ pastDelay: true })
-        }, opts.delay)
-      }
-    }
-
-    if (typeof opts.timeout === 'number') {
-      this._timeout = setTimeout(() => {
+  private bindNewPromise() {
+    if (this.options.timeout) {
+      this.timeout = setTimeout(() => {
         this.setState({ timedOut: true })
-      }, opts.timeout)
+      }, this.options.timeout)
     }
 
-    const update = () => {
-      if (!this._mounted) {
-        return
-      }
-
-      this.setState({
-        error: res.error,
-        loaded: res.loaded,
-        loading: res.loading,
-      })
-
-      this._clearTimeouts()
+    if (this.options.delay && this.options.delay !== 0) {
+      this.delay = setTimeout(() => {
+        this.setState({ pastDelay: true })
+      }, this.options.delay)
     }
 
-    res.promise
-      .then(() => {
-        update()
-      })
-      // eslint-disable-next-line handle-callback-err
-      .catch((err) => {
-        update()
-      })
+    return Loadable.createPromise<P, T, K, O>(this.options)
   }
 
-  componentWillUnmount() {
-    this._mounted = false
-    this._clearTimeouts()
+  private clearTimeouts() {
+    if (typeof this.delay === 'number') {
+      window.clearTimeout(this.delay)
+    } else {
+      clearTimeout(this.delay as NodeJS.Timeout)
+    }
+
+    if (typeof this.timeout === 'number') {
+      window.clearTimeout(this.timeout)
+    } else {
+      clearTimeout(this.timeout as NodeJS.Timeout)
+    }
   }
 
-  _clearTimeouts() {
-    clearTimeout(this._delay)
-    clearTimeout(this._timeout)
-  }
-
-  retry() {
+  private retry() {
     this.setState({ error: null, loading: true, timedOut: false })
-    res = loadFn(opts.loader)
-    this._loadModule()
+    this.promise.val = this.bindNewPromise()
+  }
+
+  private static hasMapLoader<P, T, K extends keyof T>(options: Options<P, T, K>): options is InterfaceMapOptions<P, T, K> {
+    return options.kind === 'map'
   }
 
   render() {
     if (this.state.loading || this.state.error) {
-      return React.createElement(opts.loading, {
+      return React.createElement(this.options.loading, {
         isLoading: this.state.loading,
         pastDelay: this.state.pastDelay,
         timedOut: this.state.timedOut,
@@ -184,7 +159,11 @@ export class Loadable <
         retry: this.retry,
       })
     } else if (this.state.loaded) {
-      return opts.render(this.state.loaded, this.props)
+      if (Loadable.hasMapLoader(this.options)) {
+        return this.options.render(this.state.loaded as Record<K, React.ComponentType<T[K]>>, this.props)
+      } else {
+        return React.createElement(this.state.loaded as React.ComponentType<P>, this.props)
+      }
     } else {
       return null
     }
