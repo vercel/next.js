@@ -1,7 +1,7 @@
-import * as React from "react"
-import App, { Container } from "next/app"
-import { getTokens } from "@kiwicom/orbit-components"
-import { ThemeProvider, createGlobalStyle } from "styled-components"
+import * as React from 'react'
+import App, { Container } from 'next/app'
+import { getTokens } from '@kiwicom/orbit-components'
+import { ThemeProvider, createGlobalStyle } from 'styled-components'
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -15,7 +15,7 @@ const GlobalStyle = createGlobalStyle`
 const tokens = getTokens()
 
 export default class MyApp extends App {
-  render() {
+  render () {
     const { Component, pageProps } = this.props
     return (
       <Container>
