@@ -1450,17 +1450,6 @@ module.exports = {
 }
 ```
 
-#### Disabling X-Powered-By
-
-Next.js generates X-Powered-By response header with version information for every page. You can disable it with:
-
-```js
-// next.config.js
-module.exports = {
-  poweredByHeader: false
-}
-```
-
 #### Configuring the onDemandEntries
 
 Next exposes some options that give you some control over how the server will dispose or keep in memories pages built:
