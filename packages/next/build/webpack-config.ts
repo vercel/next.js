@@ -290,7 +290,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       !dev && new webpack.HashedModuleIdsPlugin(),
       // This must come after HashedModuleIdsPlugin (it sets any modules that
       // were missed by HashedModuleIdsPlugin)
-      new AllModulesIdentifiedPlugin({ development:dev }),
+      !dev && new AllModulesIdentifiedPlugin(),
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),

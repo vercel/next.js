@@ -2,12 +2,6 @@ import { Compiler, Plugin } from 'webpack'
 import { createHash } from 'crypto'
 
 export class AllModulesIdentifiedPlugin implements Plugin {
-  development: boolean
-
-  constructor({ development = false } = {}) {
-    this.development = development
-  }
-
   apply(compiler: Compiler) {
     compiler.hooks.compilation.tap(
       'AllModulesIdentifiedPlugin',
@@ -20,11 +14,11 @@ export class AllModulesIdentifiedPlugin implements Plugin {
                 return
               }
 
-              const identifier = m.identifier()
-              if (this.development) {
-                m.id = identifier
-                return
-              }
+              const identifier = m
+                .identifier()
+                // Ensure the context isn't included in the hash (this normally
+                // isn't present)
+                .replace(m.context, '')
 
               // This hashing algorithm is consistent with how the rest of
               // webpack does it (n.b. HashedModuleIdsPlugin)
