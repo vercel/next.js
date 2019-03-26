@@ -12,6 +12,7 @@ import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DI
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
+import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -72,6 +73,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     cache: true,
     cpus: config.experimental.cpus,
   }
+
+  const sharedRuntime = config.experimental.sharedRuntime && target === 'serverless'
 
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
@@ -140,9 +143,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         })
       ] : undefined
     } : {
-      runtimeChunk: {
+      runtimeChunk: (!sharedRuntime || dev) ? {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-      },
+      } : false,
       splitChunks: dev ? {
         cacheGroups: {
           default: false,
@@ -295,6 +298,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
+      // On the client we want to share the same runtime cache
+      !dev && !isServer && sharedRuntime && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
