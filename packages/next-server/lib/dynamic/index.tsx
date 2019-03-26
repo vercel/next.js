@@ -38,12 +38,12 @@ function loading({ error, isLoading, pastDelay }: loadingOptions) {
 interface InterfaceLoadableComponent {
   preload(): void;
 }
-type DynamicComponent<P> = React.ComponentType<P> & InterfaceLoadableComponent
+export type DynamicComponent<P> = React.ComponentType<P> & InterfaceLoadableComponent
 
-type AsyncComponent<P> = Promise<React.ComponentType<P> | { default: React.ComponentType<P> }>
-type Component<P> = AsyncComponent<P> | (() => AsyncComponent<P>)
+export type AsyncComponent<P> = Promise<React.ComponentType<P> | { default: React.ComponentType<P> }>
+export type Component<P> = AsyncComponent<P> | (() => AsyncComponent<P>)
 
-type loadingOptions = {
+export type loadingOptions = {
   isLoading: boolean,
   pastDelay: boolean,
   timedOut: boolean,
