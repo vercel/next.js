@@ -74,6 +74,25 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
+      [
+        require('@babel/plugin-transform-destructuring'),
+        {
+          useBuiltIns: true,
+          loose: false,
+          selectiveLoose: [
+            'useState',
+            'useEffect',
+            'useContext',
+            'useReducer',
+            'useCallback',
+            'useMemo',
+            'useRef',
+            'useImperativeHandle',
+            'useLayoutEffect',
+            'useDebugValue',
+          ],
+        },
+      ],
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       require('@babel/plugin-proposal-object-rest-spread'),
       [require('@babel/plugin-transform-runtime'), {
