@@ -1,4 +1,8 @@
-import { join } from 'path'
+import {
+  join as pathJoin,
+  relative as pathRelative,
+  isAbsolute as pathIsAbsolute,
+} from 'path'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import loadConfig from 'next-server/next-config'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
@@ -7,7 +11,7 @@ import { generateBuildId } from './generate-build-id'
 import { writeBuildId } from './write-build-id'
 import { isWriteable } from './is-writeable'
 import { runCompiler, CompilerResult } from './compiler'
-import {recursiveReadDir} from '../lib/recursive-readdir'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import { createPagesMapping, createEntrypoints } from './entries'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
@@ -16,7 +20,10 @@ function collectPages(
   directory: string,
   pageExtensions: string[]
 ): Promise<string[]> {
-  return recursiveReadDir(directory, new RegExp(`\\.(?:${pageExtensions.join('|')})$`))
+  return recursiveReadDir(
+    directory,
+    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
+  )
 }
 
 function printTreeView(list: string[]) {
@@ -37,7 +44,11 @@ function printTreeView(list: string[]) {
   console.log()
 }
 
-export default async function build(dir: string, conf = null): Promise<void> {
+export default async function build(
+  dir: string,
+  conf = null,
+  { pages = [] as string[] } = {}
+): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
@@ -49,12 +60,25 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
-  const distDir = join(dir, config.distDir)
-  const pagesDir = join(dir, 'pages')
+  const distDir = pathJoin(dir, config.distDir)
+  const pagesDir = pathJoin(dir, 'pages')
 
-  const pagePaths = await collectPages(pagesDir, config.pageExtensions)
-  const pages = createPagesMapping(pagePaths, config.pageExtensions)
-  const entrypoints = createEntrypoints(pages, config.target, buildId, config)
+  let pagePaths
+  if (pages && pages.length) {
+    // TODO: smart resolve these pages and check for them
+    pagePaths = pages.map(page =>
+      pathIsAbsolute(page) ? pathRelative(pagesDir, page) : page
+    )
+  } else {
+    pagePaths = await collectPages(pagesDir, config.pageExtensions)
+  }
+  const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
+  const entrypoints = createEntrypoints(
+    mappedPages,
+    config.target,
+    buildId,
+    config
+  )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       buildId,
@@ -112,7 +136,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.error()
 
     if (error.indexOf('private-next-pages') > -1) {
-      throw new Error('> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias')
+      throw new Error(
+        '> webpack config.resolve.alias was incorrectly overriden. https://err.sh/zeit/next.js/invalid-resolve-alias'
+      )
     }
     throw new Error('> Build failed because of webpack errors')
   } else if (result.warnings.length > 0) {
@@ -123,7 +149,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  printTreeView(Object.keys(pages))
+  printTreeView(Object.keys(mappedPages))
 
   await writeBuildId(distDir, buildId)
 }
