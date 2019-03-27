@@ -7,7 +7,8 @@ const babelOpts = {
       modules: 'commonjs',
       'targets': {
         'browsers': ['IE 11']
-      }
+      },
+      exclude: ['transform-typeof-symbol']
     }]
   ],
   plugins: [
