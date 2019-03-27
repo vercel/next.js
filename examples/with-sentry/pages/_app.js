@@ -1,7 +1,7 @@
 import App from 'next/app'
 import sentry from '../utils/sentry'
 
-const { Sentry, captureException } = sentry({ release: process.env.SENTRY_RELEASE })
+const { Sentry, captureException } = sentry()
 
 export default class MyApp extends App {
   constructor () {
