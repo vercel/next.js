@@ -73,6 +73,8 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
     plugins: [
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
+      // Transform dynamic import to require
+      isTest && require('babel-plugin-dynamic-import-node'),
       require('./plugins/react-loadable-plugin'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       require('@babel/plugin-proposal-object-rest-spread'),
