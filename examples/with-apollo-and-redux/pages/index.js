@@ -1,14 +1,7 @@
 import React from 'react'
 import { bindActionCreators } from 'redux'
-import {
-  connect
-} from 'react-redux'
-import {
-  initStore,
-  startClock,
-  addCount,
-  serverRenderClock
-} from '../lib/store'
+import { connect } from 'react-redux'
+import { startClock, addCount, serverRenderClock } from '../lib/store'
 
 import App from '../components/App'
 import Header from '../components/Header'
@@ -52,4 +45,9 @@ const mapDispatchToProps = dispatch => {
   }
 }
 
-export default withApollo(connect(null, mapDispatchToProps)(Index))
+export default withApollo(
+  connect(
+    null,
+    mapDispatchToProps
+  )(Index)
+)
