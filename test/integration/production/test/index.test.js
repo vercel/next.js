@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, webdriver */
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
@@ -10,7 +10,6 @@ import {
   renderViaHTTP,
   waitFor
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'

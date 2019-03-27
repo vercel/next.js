@@ -1,6 +1,5 @@
 /* eslint-env jest */
-
-import webdriver from 'next-webdriver'
+/* global webdriver */
 
 export default (context, render) => {
   describe('With CSP enabled', () => {
