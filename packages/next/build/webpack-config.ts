@@ -12,6 +12,7 @@ import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DI
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
+import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -72,6 +73,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     cache: true,
     cpus: config.experimental.cpus,
   }
+
+  const sharedRuntime = config.experimental.sharedRuntime && target === 'serverless'
 
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
@@ -140,13 +143,23 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         })
       ] : undefined
     } : {
-      runtimeChunk: {
+      runtimeChunk: (!sharedRuntime || dev) ? {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-      },
+      } : false,
       splitChunks: dev ? {
         cacheGroups: {
           default: false,
           vendors: false
+        }
+      } : sharedRuntime ? {
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          react: {
+            name: 'commons',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
+          }
         }
       } : {
         chunks: 'all',
@@ -295,6 +308,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
+      // On the client we want to share the same runtime cache
+      !dev && !isServer && sharedRuntime && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
@@ -303,7 +318,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(buildId, { sourceMap: dev }),
+      target === 'serverless' && isServer && new ServerlessPlugin(buildId),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
@@ -327,18 +342,16 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     webpackConfig.entry = async () => {
-      const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
-      if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
-        // Server compilation doesn't have main.js
-        if (entry['main.js'] && entry['main.js'].length > 0) {
-          entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
-            ...entry['main.js'],
-            originalEntry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-          ]
-        }
-
-        delete entry['main.js']
+      const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
+      // Server compilation doesn't have main.js
+      if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
+        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
+          ...entry['main.js'],
+          originalFile
+        ]
       }
+      delete entry['main.js']
 
       return entry
     }
