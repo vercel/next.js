@@ -4,7 +4,10 @@ import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
 import { formatWithValidation, getURL, loadGetInitialProps } from '../utils';
-import {toRoute} from './to-route'
+
+function toRoute(path: string): string {
+  return path.replace(/\/$/, '') || '/'
+}
 
 export interface IRouterInterface {
   route: string

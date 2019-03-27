@@ -3,7 +3,8 @@ import Link from 'next/link'
 import CustomKeygenEditor from './CustomKeygenEditor'
 
 const content = {
-  'first-editor': 'This example shows how to have multiple instances of the editor.',
+  'first-editor':
+    'This example shows how to have multiple instances of the editor.',
   'second-editor': 'Without a custom key generator, you could not focus here.'
 }
 
@@ -15,7 +16,12 @@ class MultipleEditors extends React.Component {
           <a>Go to Home</a>
         </Link>
         {Object.keys(content).map((key, idx) => (
-          <CustomKeygenEditor key={idx} uniqueId={key} content={content[key]} style={{ margin: 20 }} />
+          <CustomKeygenEditor
+            key={idx}
+            uniqueId={key}
+            content={content[key]}
+            style={{ margin: 20 }}
+          />
         ))}
       </React.Fragment>
     )

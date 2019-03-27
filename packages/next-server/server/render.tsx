@@ -3,12 +3,11 @@ import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import {IRouterInterface} from '../lib/router/router'
-import {toRoute} from '../lib/router/to-route'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
-import LoadableCapture from '../lib/loadable-capture'
+import {LoadableContext} from '../lib/loadable-context'
 import {
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
@@ -36,7 +35,7 @@ class ServerRouter implements IRouterInterface {
   static events: MittEmitter = mitt()
 
   constructor(pathname: string, query: any, as: string) {
-    this.route = toRoute(pathname)
+    this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -115,7 +114,9 @@ type RenderOpts = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
+  ampPath?: string
   amphtml?: boolean
+  hasAmp?: boolean
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
@@ -139,7 +140,9 @@ function renderDocument(
     dynamicImportsIds,
     err,
     dev,
+    ampPath,
     amphtml,
+    hasAmp,
     staticMarkup,
     devFiles,
     files,
@@ -149,7 +152,9 @@ function renderDocument(
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    ampPath: string,
     amphtml: boolean
+    hasAmp: boolean,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -174,7 +179,9 @@ function renderDocument(
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           ampEnabled={ampEnabled}
+          ampPath={ampPath}
           amphtml={amphtml}
+          hasAmp={hasAmp}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
@@ -200,6 +207,8 @@ export async function renderToHTML(
     dev = false,
     staticMarkup = false,
     amphtml = false,
+    hasAmp = false,
+    ampPath = '',
     App,
     Document,
     Component,
@@ -235,7 +244,15 @@ export async function renderToHTML(
   const asPath: string = req.url
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new ServerRouter(pathname, query, asPath)
-  const props = await loadGetInitialProps(App, { Component, router, ctx })
+  let props: any
+
+  try {
+    props = await loadGetInitialProps(App, { Component, router, ctx })
+  } catch (err) {
+    if (!dev || !err) throw err
+    ctx.err = err
+    renderOpts.err = err
+  }
 
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
@@ -256,8 +273,8 @@ export async function renderToHTML(
       ? renderToStaticMarkup
       : renderToString
 
-    if (err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={err} />)
+    if (ctx.err && ErrorDebug) {
+      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
     }
 
     if (dev && (props.router || props.Component)) {
@@ -274,15 +291,15 @@ export async function renderToHTML(
     return render(
       renderElementToString,
       <IsAmpContext.Provider value={amphtml}>
-        <LoadableCapture
-          report={(moduleName) => reactLoadableModules.push(moduleName)}
+        <LoadableContext.Provider
+          value={(moduleName) => reactLoadableModules.push(moduleName)}
         >
           <EnhancedApp
             Component={EnhancedComponent}
             router={router}
             {...props}
           />
-        </LoadableCapture>
+        </LoadableContext.Provider>
       </IsAmpContext.Provider>,
     )
   }
@@ -301,7 +318,9 @@ export async function renderToHTML(
     props,
     docProps,
     pathname,
+    ampPath,
     amphtml,
+    hasAmp,
     query,
     dynamicImportsIds,
     dynamicImports,

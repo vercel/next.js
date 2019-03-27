@@ -32,7 +32,7 @@ const startServer = async (optEnv = {}) => {
     optEnv
   )
 
-  server = await initNextServerScript(scriptPath, /Ready on/, env)
+  server = await initNextServerScript(scriptPath, /Ready on/, env, /ReferenceError: options is not defined/)
 }
 
 describe('Custom Server', () => {
@@ -112,7 +112,7 @@ describe('Custom Server', () => {
         )
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })

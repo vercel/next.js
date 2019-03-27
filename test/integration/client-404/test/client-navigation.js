@@ -20,7 +20,7 @@ export default (context) => {
           serverCode: '404',
           clientCode: '404'
         })
-        browser.close()
+        await browser.close()
       })
     })
   })

@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "aphrodite": "^1.1.0",
+    "aphrodite": "^2.3.1",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"

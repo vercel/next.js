@@ -1,9 +1,11 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
+import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
 import Sema from 'async-sema'
+import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
 
 const envConfig = require('next-server/config')
@@ -30,12 +32,24 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
+        const ampOpts = { amphtml: Boolean(query.amp), hasAmp: query.hasAmp, ampPath: query.ampPath }
+        delete query.hasAmp
+        delete query.ampPath
+
         const req = { url: path }
         const res = {}
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
+
+        if (query.ampOnly) {
+          delete query.ampOnly
+          path = cleanAmpPath(path)
+        }
+
+        // replace /docs/index.amp with /docs.amp
+        path = path.replace(/(?<!^)\/index\.amp$/, '.amp')
 
         let htmlFilename = `${path}${sep}index.html`
         const pageExt = extname(page)
@@ -53,7 +67,28 @@ process.on(
 
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
-        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts })
+        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
+
+        if (ampOpts.amphtml) {
+          const validator = await AmpHtmlValidator.getInstance()
+          const result = validator.validateString(html)
+          const errors = result.errors.filter(e => e.severity === 'ERROR')
+          const warnings = result.errors.filter(e => e.severity !== 'ERROR')
+
+          if (warnings.length || errors.length) {
+            process.send({
+              type: 'amp-validation',
+              payload: {
+                page,
+                result: {
+                  errors,
+                  warnings
+                }
+              }
+            })
+          }
+        }
+
         await new Promise((resolve, reject) =>
           writeFile(
             htmlFilepath,

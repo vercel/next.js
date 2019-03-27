@@ -202,9 +202,20 @@ export default () => {
         for lounge in doorway for chew iPad power cord.
       </p>
       <style jsx>{`
-        h1 {margin-bottom: 5px;}
-        p {font-size: 18px; line-height: 30px; margin-top: 30px;}
-        .caption {color: #ccc; margin-top: 0; font-size: 14px; text-align: center;}
+        h1 {
+          margin-bottom: 5px;
+        }
+        p {
+          font-size: 18px;
+          line-height: 30px;
+          margin-top: 30px;
+        }
+        .caption {
+          color: #ccc;
+          margin-top: 0;
+          font-size: 14px;
+          text-align: center;
+        }
       `}</style>
     </Layout>
   )

@@ -27,9 +27,7 @@ export default () => {
       <Head>
         <title>With Linaria</title>
       </Head>
-      <Box>
-        Zero runtime CSS in JS
-      </Box>
+      <Box>Zero runtime CSS in JS</Box>
     </React.Fragment>
   )
 }

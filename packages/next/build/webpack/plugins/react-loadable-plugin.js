@@ -28,28 +28,63 @@ function buildManifest (compiler, compilation) {
   let manifest = {}
 
   compilation.chunks.forEach(chunk => {
-    chunk.files.forEach(file => {
-      for (const module of chunk.modulesIterable) {
-        let id = module.id
-        let name = typeof module.libIdent === 'function' ? module.libIdent({ context }) : null
-        // If it doesn't end in `.js` Next.js can't handle it right now.
-        if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
-          return
-        }
-        let publicPath = url.resolve(compilation.outputOptions.publicPath || '', file)
+    // If chunk is not an entry point skip them
+    if (chunk.hasEntryModule()) {
+      const dynamicChunks = chunk.getAllAsyncChunks()
+      if (dynamicChunks.size !== 0) {
+        for (const dynamicChunk of dynamicChunks) {
+          for (const file of dynamicChunk.files) {
+            // If it doesn't end in `.js` Next.js can't handle it right now.
+            if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+              continue
+            }
 
-        let currentModule = module
-        if (module.constructor.name === 'ConcatenatedModule') {
-          currentModule = module.rootModule
-        }
-        if (!manifest[currentModule.rawRequest]) {
-          manifest[currentModule.rawRequest] = []
-        }
+            let publicPath = url.resolve(
+              compilation.outputOptions.publicPath || '',
+              file
+            )
 
-        manifest[currentModule.rawRequest].push({ id, name, file, publicPath })
+            for (const module of dynamicChunk.modulesIterable) {
+              let id = module.id
+              let name =
+                typeof module.libIdent === 'function'
+                  ? module.libIdent({ context })
+                  : null
+
+              let currentModule = module
+              if (module.constructor.name === 'ConcatenatedModule') {
+                currentModule = module.rootModule
+              }
+              if (!manifest[currentModule.rawRequest]) {
+                manifest[currentModule.rawRequest] = []
+              }
+
+              // Avoid duplicate files
+              if (
+                manifest[currentModule.rawRequest].some(
+                  item => item.file === file
+                )
+              ) {
+                continue
+              }
+
+              manifest[currentModule.rawRequest].push({
+                id,
+                name,
+                file,
+                publicPath
+              })
+            }
+          }
+        }
       }
-    })
+    }
   })
+
+  manifest = Object.keys(manifest)
+    .sort()
+    // eslint-disable-next-line
+    .reduce((a, c) => ((a[c] = manifest[c]), a), {})
 
   return manifest
 }
@@ -60,18 +95,21 @@ export class ReactLoadablePlugin {
   }
 
   apply (compiler) {
-    compiler.hooks.emit.tapAsync('ReactLoadableManifest', (compilation, callback) => {
-      const manifest = buildManifest(compiler, compilation)
-      var json = JSON.stringify(manifest, null, 2)
-      compilation.assets[this.filename] = {
-        source () {
-          return json
-        },
-        size () {
-          return json.length
+    compiler.hooks.emit.tapAsync(
+      'ReactLoadableManifest',
+      (compilation, callback) => {
+        const manifest = buildManifest(compiler, compilation)
+        var json = JSON.stringify(manifest, null, 2)
+        compilation.assets[this.filename] = {
+          source () {
+            return json
+          },
+          size () {
+            return json.length
+          }
         }
+        callback()
       }
-      callback()
-    })
+    )
   }
 }

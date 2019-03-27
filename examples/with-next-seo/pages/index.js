@@ -35,7 +35,11 @@ export default () => (
     <h1>SEO Added to Page</h1>
     <p>Take a look at the head to see what has been added.</p>
     <p>
-      Or checkout how <Link href='/jsonld'><a>JSON-LD</a></Link> (Structured Data) is added
+      Or checkout how{' '}
+      <Link href='/jsonld'>
+        <a>JSON-LD</a>
+      </Link>{' '}
+      (Structured Data) is added
     </p>
   </div>
 )

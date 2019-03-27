@@ -48,6 +48,6 @@ describe('App asPath', () => {
 
     // Change back to the original content
     writeFileSync(appPath, originalContent, 'utf8')
-    browser.quit()
+    await browser.close()
   })
 })

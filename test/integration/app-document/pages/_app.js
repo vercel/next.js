@@ -27,6 +27,7 @@ class Layout extends React.Component {
 
 export default class MyApp extends App {
   static async getInitialProps ({ Component, router, ctx }) {
+    // throw _app GIP err here
     let pageProps = {}
 
     if (Component.getInitialProps) {

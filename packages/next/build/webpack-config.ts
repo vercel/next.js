@@ -1,6 +1,6 @@
 import path from 'path'
 import webpack from 'webpack'
-import resolve from 'resolve'
+import resolve from 'next/dist/compiled/resolve/index.js'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -12,6 +12,7 @@ import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DI
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
+import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -40,9 +41,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const clientEntries = !isServer ? {
     // Backwards compatibility
     'main.js': [],
-    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: [
-      `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev` : 'next')))
-    ].filter(Boolean)
+    [CLIENT_STATIC_FILES_RUNTIME_MAIN]: `.${path.sep}` + path.relative(dir, path.join(NEXT_PROJECT_ROOT_DIST_CLIENT, (dev ? `next-dev.js` : 'next.js')))
   } : undefined
 
   const resolveConfig = {
@@ -53,6 +52,12 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      // These aliases make sure the wrapper module is not included in the bundles
+      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
+      'next/head': 'next-server/dist/lib/head.js',
+      'next/router': 'next/dist/client/router.js',
+      'next/config': 'next-server/dist/lib/runtime-config.js',
+      'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir
@@ -69,6 +74,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     cpus: config.experimental.cpus,
   }
 
+  const sharedRuntime = config.experimental.sharedRuntime && target === 'serverless'
+
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
@@ -77,9 +84,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     externals: isServer && target !== 'serverless' ? [
       (context, request, callback) => {
         const notExternalModules = [
-          'next/app', 'next/document', 'next/link', 'next/router', 'next/error',
-          'string-hash', 'hoist-non-react-statics', 'htmlescape','next/dynamic',
-          'next/constants', 'next/config', 'next/head'
+          'next/app', 'next/document', 'next/link', 'next/error',
+          'string-hash',
+          'next/constants'
         ]
 
         if (notExternalModules.indexOf(request) !== -1) {
@@ -136,13 +143,23 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         })
       ] : undefined
     } : {
-      runtimeChunk: {
+      runtimeChunk: (!sharedRuntime || dev) ? {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-      },
+      } : false,
       splitChunks: dev ? {
         cacheGroups: {
           default: false,
           vendors: false
+        }
+      } : sharedRuntime ? {
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          react: {
+            name: 'commons',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
+          }
         }
       } : {
         chunks: 'all',
@@ -291,6 +308,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
+      // On the client we want to share the same runtime cache
+      !dev && !isServer && sharedRuntime && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
@@ -299,7 +318,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(buildId, { sourceMap: dev }),
+      target === 'serverless' && isServer && new ServerlessPlugin(buildId),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
@@ -320,21 +339,19 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   }
 
   // Backwards compat for `main.js` entry key
-  const originalEntry = webpackConfig.entry
+  const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
     webpackConfig.entry = async () => {
-      const entry = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
-      if (entry && typeof entry !== 'string' && !Array.isArray(entry)) {
-        // Server compilation doesn't have main.js
-        if (typeof entry['main.js'] !== 'undefined') {
-          entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
-            ...entry['main.js'],
-            ...entry[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-          ]
-
-          delete entry['main.js']
-        }
+      const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
+      // Server compilation doesn't have main.js
+      if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
+        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
+          ...entry['main.js'],
+          originalFile
+        ]
       }
+      delete entry['main.js']
 
       return entry
     }
