@@ -62,7 +62,9 @@ export default class MyApp extends App {
         <p>
           <a
             href='#'
-            onClick={() => Sentry.showReportDialog({ eventId: this.state.errorEventId })}
+            onClick={() =>
+              Sentry.showReportDialog({ eventId: this.state.errorEventId })
+            }
           >
             📣 Report this error
           </a>
@@ -70,7 +72,9 @@ export default class MyApp extends App {
         <p>
           <a
             href='#'
-            onClick={() => { window.location.reload(true) }}
+            onClick={() => {
+              window.location.reload(true)
+            }}
           >
             Or, try reloading the page
           </a>

@@ -14,9 +14,11 @@ export default class index extends Component {
             <p>Counter: {count}</p>
             <button onClick={increase}>Increase</button>
             <button onClick={decrease}>Decrease</button>
-            <p><Link href='/about'>
-              <a>About</a>
-            </Link></p>
+            <p>
+              <Link href='/about'>
+                <a>About</a>
+              </Link>
+            </p>
           </div>
         )}
       </CounterConsumer>
