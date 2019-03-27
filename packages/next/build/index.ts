@@ -67,7 +67,7 @@ export default async function build(
   if (pages && pages.length) {
     // TODO: smart resolve these pages and check for them
     pagePaths = pages.map(page =>
-      pathIsAbsolute(page) ? pathRelative(pagesDir, page) : page
+      '/'.concat(pathIsAbsolute(page) ? pathRelative(pagesDir, page) : page)
     )
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
