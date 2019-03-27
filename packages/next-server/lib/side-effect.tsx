@@ -1,4 +1,4 @@
-import React, { Component } from 'react'
+import React, { Component, ReactNode } from 'react'
 
 const isServer = typeof window === 'undefined'
 
@@ -14,7 +14,7 @@ export default function withSideEffect<MoreProps>() {
   let state: State
 
   function emitChange(component: React.Component<SideEffectProps & MoreProps>) {
-    state = component.props.reduceComponentsToState<MoreProps>([...mountedInstances], component.props)
+    state = component.props.reduceComponentsToState([...mountedInstances], component.props)
     if (component.props.handleStateChange) {
       component.props.handleStateChange(state)
     }
