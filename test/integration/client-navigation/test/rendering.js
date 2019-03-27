@@ -57,7 +57,7 @@ export default function (render, fetch) {
       expect(html).toContain('<meta charSet="iso-8859-5" class="next-head"/>')
       expect(html).not.toContain('<meta charSet="utf-8" class="next-head"/>')
       expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1" class="next-head"/>')
-      expect(html.match(/<meta name="viewport" /g).length).toBe(2, 'Should contain only one viewport')
+      expect(html.match(/<meta name="viewport" /g).length).toBe(1, 'Should contain only one viewport')
       expect(html).not.toContain('<meta name="viewport" content="width=device-width"/>')
       expect(html).toContain('<meta content="my meta" class="next-head"/>')
       expect(html).toContain('<link rel="stylesheet" href="/dup-style.css" class="next-head"/><link rel="stylesheet" href="/dup-style.css" class="next-head"/>')
