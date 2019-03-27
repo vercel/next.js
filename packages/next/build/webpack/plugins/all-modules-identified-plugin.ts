@@ -14,11 +14,7 @@ export class AllModulesIdentifiedPlugin implements Plugin {
                 return
               }
 
-              const identifier = m
-                .identifier()
-                // Ensure the context isn't included in the hash (this normally
-                // isn't present)
-                .replace(m.context, '')
+              const identifier = m.identifier()
 
               // This hashing algorithm is consistent with how the rest of
               // webpack does it (n.b. HashedModuleIdsPlugin)
