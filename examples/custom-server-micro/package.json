@@ -3,16 +3,17 @@
   "scripts": {
     "dev": "micro-dev --watch server.js",
     "build": "next build",
-    "start": "NODE_ENV=production micro"
+    "start": "cross-env NODE_ENV=production micro"
   },
   "dependencies": {
-    "micro": "^9.1.0",
-    "micro-route": "^2.4.0",
+    "micro": "^9.3.3",
+    "micro-route": "^2.5.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4"
   },
   "devDependencies": {
-    "micro-dev": "^2.2.0"
+    "cross-env": "^5.2.0",
+    "micro-dev": "^3.0.0"
   }
 }
