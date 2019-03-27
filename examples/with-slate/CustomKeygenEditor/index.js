@@ -15,7 +15,13 @@ class CustomKeygenEditor extends React.Component {
     this.initialValue = Plain.deserialize(props.content)
   }
   render () {
-    return <Editor placeholder='Enter some plain text...' defaultValue={this.initialValue} style={this.props.style} />
+    return (
+      <Editor
+        placeholder='Enter some plain text...'
+        defaultValue={this.initialValue}
+        style={this.props.style}
+      />
+    )
   }
 }
 

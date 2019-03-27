@@ -11,6 +11,7 @@ import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_F
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { formatAmpMessages } from '../build/output/index'
 
 const mkdirp = promisify(mkdirpModule)
 
@@ -143,6 +144,9 @@ export default async function (dir, options, configuration) {
     return result
   }, [])
 
+  const ampValidations = {}
+  let hadValidationError = false
+
   await Promise.all(
     chunks.map(
       chunk =>
@@ -167,11 +171,21 @@ export default async function (dir, options, configuration) {
               reject(payload)
             } else if (type === 'done') {
               resolve()
+            } else if (type === 'amp-validation') {
+              ampValidations[payload.page] = payload.result
+              hadValidationError = hadValidationError || payload.result.errors.length
             }
           })
         })
     )
   )
+
+  if (Object.keys(ampValidations).length) {
+    console.log(formatAmpMessages(ampValidations))
+  }
+  if (hadValidationError) {
+    throw new Error(`AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`)
+  }
 
   // Add an empty line to the console for the better readability.
   log('')

@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "next start -p 8000",
+    "start": "next start",
     "dev": "node server.js",
     "build": "next build"
   },
@@ -13,14 +12,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.15.4",
+    "express": "^4.16.4",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "next-redux-wrapper": "^1.3.2",
-    "react-bootstrap": "^0.31.3",
-    "react-redux": "^5.0.6",
-    "redux": "^3.7.2",
-    "redux-thunk": "^2.2.0"
+    "next-redux-wrapper": "^2.1.0",
+    "react": "^16.8.4",
+    "react-bootstrap": "^0.32.4",
+    "react-dom": "^16.8.4",
+    "react-redux": "^6.0.1",
+    "redux": "^4.0.1",
+    "redux-thunk": "^2.3.0"
   }
 }

@@ -27,4 +27,7 @@ class Index extends React.Component {
   }
 }
 const mapDispatchToProps = { startClock }
-export default connect(null, mapDispatchToProps)(Index)
+export default connect(
+  null,
+  mapDispatchToProps
+)(Index)
