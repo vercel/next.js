@@ -1,5 +1,5 @@
 import { delay, call, put, take } from 'redux-saga/effects'
-import {polyfill} from 'es6-promise'
+import { polyfill } from 'es6-promise'
 import 'isomorphic-unfetch'
 
 import { actionTypes, tickClock } from './actions'
