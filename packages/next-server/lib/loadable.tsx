@@ -5,24 +5,24 @@ export type loadingOptions = {
   pastDelay: boolean,
   timedOut: boolean,
   error: any,
-  retry: () => void,
+  readonly retry: () => void,
 }
 
 interface InterfaceBaseOptions {
-  loading: React.ComponentType<loadingOptions> | (() => null),
-  delay?: number,
-  timeout?: number,
+  readonly loading: React.ComponentType<loadingOptions> | (() => null),
+  readonly delay?: number,
+  readonly timeout?: number,
 }
 
 interface InterfaceOptions<P> extends InterfaceBaseOptions {
-  kind: 'single',
-  loader: () => Promise<React.ComponentType<P>>,
+  readonly kind: 'single',
+  readonly loader: () => Promise<React.ComponentType<P>>,
 }
 
 interface InterfaceMapOptions<P, T, K extends keyof T> extends InterfaceBaseOptions {
-  kind: 'map',
-  loader: Record<K, () => Promise<React.ComponentType<T[K]>>>,
-  render: (loaded: Record<K, React.ComponentType<T[K]>>, props: P) => React.ReactNode,
+  readonly kind: 'map',
+  readonly loader: Record<K, () => Promise<React.ComponentType<T[K]>>>,
+  readonly render: (loaded: Record<K, React.ComponentType<T[K]>>, props: P) => React.ReactNode,
 }
 
 type Options<P, T, K extends keyof T> = InterfaceOptions<P> | InterfaceMapOptions<P, T, K>
@@ -50,8 +50,8 @@ export class Loadable <
 > extends React.Component<P, State<P, T, K, O>> {
   private timeout?: NodeJS.Timeout | number
   private delay?: NodeJS.Timeout | number
-  private promise: R
   private options: O
+  private readonly promise: R
 
   // promise object is a reference
   constructor(props: P, options: O, promise: R) {
