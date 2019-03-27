@@ -51,22 +51,27 @@ class CustomEnvironment extends NodeEnvironment {
 
     // Mock current browser set up
     this.global.webdriver = async (appPort, pathname) => {
-      await this.freshWindow()
       const url = `http://localhost:${appPort}${pathname}`
 
-      let timedOut = false
-      const timeoutHandler = setTimeout(() => {
-        timedOut = true
-        throw new Error(`Loading browser with ${url} timed out`)
-      }, browserTimeout)
+      console.log(`\n> Loading browser with ${url}\n`)
+      await this.freshWindow()
 
-      await browser.get(url)
-      clearTimeout(timeoutHandler)
-      if (!timedOut) return browser
+      return new Promise(async (resolve, reject) => {
+        let timedOut = false
+        const timeoutHandler = setTimeout(() => {
+          timedOut = true
+          reject(new Error(`Loading browser with ${url} timed out`))
+        }, browserTimeout)
+
+        await browser.get(url)
+        clearTimeout(timeoutHandler)
+        if (!timedOut) resolve(browser)
+      })
     }
   }
 
-  async freshWindow () {
+  async freshWindow (tries = 0) {
+    if (tries > 4) throw new Error('failed to get fresh browser window')
     // Since we need a fresh start for each window
     // we have to force a new tab which can be disposed
     const startWindows = await browser.windowHandles()
@@ -99,7 +104,7 @@ class CustomEnvironment extends NodeEnvironment {
         })
       )
     } catch (err) {
-      await this.freshWindow()
+      await this.freshWindow(tries + 1)
     }
   }
 
