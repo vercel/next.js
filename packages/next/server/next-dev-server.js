@@ -172,7 +172,7 @@ export default class DevServer extends Server {
       const out = await super.renderErrorToHTML(err, req, res, pathname, query)
       return out
     } catch (err2) {
-      if (!this.quiet) console.error('renderErrorToHtml:', err2)
+      this.logError(err2)
       res.statusCode = 500
       return super.renderErrorToHTML(err2, req, res, pathname, query)
     }
