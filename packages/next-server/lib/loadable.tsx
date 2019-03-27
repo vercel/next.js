@@ -1,5 +1,12 @@
 import React from 'react'
-import { AsyncComponent, loadingOptions, Component } from './index'
+
+export type loadingOptions = {
+  isLoading: boolean,
+  pastDelay: boolean,
+  timedOut: boolean,
+  error: any,
+  retry: () => void,
+}
 
 interface InterfaceBaseOptions {
   loading: React.ComponentType<loadingOptions> | (() => null),
@@ -9,14 +16,13 @@ interface InterfaceBaseOptions {
 
 interface InterfaceOptions<P> extends InterfaceBaseOptions {
   kind: 'single',
-  loader: () => AsyncComponent<P>,
+  loader: () => Promise<React.ComponentType<P>>,
 }
 
 interface InterfaceMapOptions<P, T, K extends keyof T> extends InterfaceBaseOptions {
   kind: 'map',
-  loader: Record<K, () => Promise<Component<T[K]>>>,
+  loader: Record<K, () => Promise<React.ComponentType<T[K]>>>,
   render: (loaded: Record<K, React.ComponentType<T[K]>>, props: P) => React.ReactNode,
-  modules: () => Record<K, Component<T[K]>>,
 }
 
 type Options<P, T, K extends keyof T> = InterfaceOptions<P> | InterfaceMapOptions<P, T, K>
@@ -39,15 +45,16 @@ export class Loadable <
   P extends {},
   T extends { [k: string]: {}},
   K extends keyof T,
-  O extends Options<P, T, K>
+  O extends Options<P, T, K>,
+  R extends LoadablePromise<P, T, K, O>
 > extends React.Component<P, State<P, T, K, O>> {
   private timeout?: NodeJS.Timeout | number
   private delay?: NodeJS.Timeout | number
-  private promise: LoadablePromise<P, T, K, O>
+  private promise: R
   private options: O
 
   // promise object is a reference
-  constructor(props: P, options: O, promise: LoadablePromise<P, T, K, O>) {
+  constructor(props: P, options: O, promise: R) {
     super(props)
 
     this.options = {
@@ -63,41 +70,40 @@ export class Loadable <
       error: null,
     }
 
+    // store as reference
     this.promise = promise
 
     if (!this.promise.val) this.promise.val = this.bindNewPromise()
 
     this.promise.val
       .then((loaded) => {
+        this.clearTimeouts()
         this.setState({
           loading: false,
           loaded,
         })
-
-        this.clearTimeouts()
       })
       .catch((error) => {
+        this.clearTimeouts()
         this.setState({
           loading: false,
           error,
         })
-
-        this.clearTimeouts()
       })
   }
 
-  private static async loadMap<T, K extends keyof T>(loader: Record<K, () => Promise<Component<T[K]>>>): Promise<Record<K, Component<T[K]>>> {
-    const components: Array<Promise<[K, Component<T[K]>]>> = []
+  private static async loadMap<T, K extends keyof T>(loader: Record<K, () => Promise<React.ComponentType<T[K]>>>): Promise<Record<K, React.ComponentType<T[K]>>> {
+    const components: Array<Promise<[K, React.ComponentType<T[K]>]>> = []
 
     for (const l in loader) {
       if (loader.hasOwnProperty(l)) {
-        components.push(loader[l]().then((loaded) => [l, loaded] as [K, Component<T[K]>]))
+        components.push(loader[l]().then((loaded) => [l, loaded] as [K, React.ComponentType<T[K]>]))
       }
     }
 
     const map = await Promise.all(components)
 
-    const loaded = { [map[0][0]]: map[0][1] } as Record<K, Component<T[K]>>
+    const loaded = { [map[0][0]]: map[0][1] } as Record<K, React.ComponentType<T[K]>>
 
     map.forEach((l, k) => {
       if (k !== 0) loaded[l[0]] = l[1]
@@ -106,18 +112,27 @@ export class Loadable <
     return loaded
   }
 
-  public static createPromise<P, T extends {[key: string]: {}}, K extends keyof T, O>(options: Options<P, T, K>) {
-    return (Loadable.hasMapLoader(options) ? Loadable.loadMap<T, K>(options.loader) : options.loader()) as LoaderPromise<P, T, K, O>
+  private static createPromise<
+    P extends {},
+    T extends {[key: string]: {}},
+    K extends keyof T,
+    O extends Options<P, T, K>
+  >(options: Options<P, T, K>) {
+    return (
+      Loadable.hasMapLoader(options)
+        ? Loadable.loadMap<T, K>(options.loader)
+        : options.loader()
+      ) as LoaderPromise<P, T, K, O>
   }
 
   private bindNewPromise() {
-    if (this.options.timeout) {
+    if (this.options.timeout && 0 < this.options.timeout) {
       this.timeout = setTimeout(() => {
         this.setState({ timedOut: true })
       }, this.options.timeout)
     }
 
-    if (this.options.delay && this.options.delay !== 0) {
+    if (this.options.delay && 0 < this.options.delay) {
       this.delay = setTimeout(() => {
         this.setState({ pastDelay: true })
       }, this.options.delay)

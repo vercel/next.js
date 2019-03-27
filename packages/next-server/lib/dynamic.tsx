@@ -1,5 +1,5 @@
 import React from 'react'
-import Loadable from './loadable'
+import { loadingOptions } from './loadable'
 
 const isServerSide = typeof window === 'undefined'
 
@@ -43,13 +43,6 @@ export type DynamicComponent<P> = React.ComponentType<P> & InterfaceLoadableComp
 export type AsyncComponent<P> = Promise<React.ComponentType<P> | { default: React.ComponentType<P> }>
 export type Component<P> = AsyncComponent<P> | (() => AsyncComponent<P>)
 
-export type loadingOptions = {
-  isLoading: boolean,
-  pastDelay: boolean,
-  timedOut: boolean,
-  error: any,
-  retry: () => void,
-}
 type options = {
   loading?: React.ComponentType<loadingOptions> | (() => null),
   ssr?: boolean,
