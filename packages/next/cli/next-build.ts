@@ -11,7 +11,7 @@ const nextBuild: cliCommand = (argv) => {
     {
       // Types
       '--help': Boolean,
-      '--page': [String],
+      '--experimental-page': [String],
       // Aliases
       '-h': '--help',
     },
@@ -56,7 +56,7 @@ const nextBuild: cliCommand = (argv) => {
     )
   }
 
-  build(dir, undefined, { pages: args['--page'] }).catch((err) => {
+  build(dir, undefined, { pages: args['--experimental-page'] }).catch((err) => {
     // tslint:disable-next-line
     console.error('> Build error occurred')
     printAndExit(err)
