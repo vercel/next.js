@@ -9,6 +9,7 @@ const {
 } = process.env
 
 let browser
+let initialWindow
 let driverPort = 9515
 let browserOptions = {
   browserName: BROWSER_NAME || 'chrome'
@@ -41,38 +42,64 @@ class CustomEnvironment extends NodeEnvironment {
 
       // Setup the browser instance
       await browser.init(browserOptions)
+      initialWindow = await browser.windowHandle()
+
+      browser.origClose = browser.close
+      // disable browser.close and we handle it manually
+      browser.close = () => {}
     }
 
     // Mock current browser set up
-    this.global.webdriver = (appPort, pathname) => {
-      return new Promise(async (resolve, reject) => {
-        const url = `http://localhost:${appPort}${pathname}`
+    this.global.webdriver = async (appPort, pathname) => {
+      await this.freshWindow()
+      const url = `http://localhost:${appPort}${pathname}`
 
-        // Since we need a fresh start for each window
-        // we have to force a new tab which can be disposed
-        let windows = await browser.windowHandles()
-        await browser.window(windows[0])
+      let timedOut = false
+      const timeoutHandler = setTimeout(() => {
+        timedOut = true
+        throw new Error(`Loading browser with ${url} timed out`)
+      }, browserTimeout)
 
-        await browser.get('data:text/html;charset=utf-8,<%21DOCTYPE%20html><html><head><title>new%20tab<%2Ftitle><%2Fhead><body><a%20href%3D"about%3Ablank"%20target%3D"_blank"%20id%3D"new">Click%20me<%2Fa><%2Fbody><%2Fhtml>')
-        await browser.elementByCss('#new').click()
+      await browser.get(url)
+      clearTimeout(timeoutHandler)
+      if (!timedOut) return browser
+    }
+  }
 
-        windows = await browser.windowHandles()
-        await browser.window(windows[windows.length - 1])
+  async freshWindow () {
+    // Since we need a fresh start for each window
+    // we have to force a new tab which can be disposed
+    const startWindows = await browser.windowHandles()
 
-        let timedOut = false
-
-        const timeoutHandler = setTimeout(() => {
-          timedOut = true
-          reject(new Error(`Loading browser with ${url} timed out`))
-        }, browserTimeout)
-
-        browser.get(url, err => {
-          if (timedOut) return
-          clearTimeout(timeoutHandler)
-          if (err) return reject(err)
-          resolve(browser)
+    // let's close all windows that aren't the initial window
+    for (const window of startWindows) {
+      if (!window || window === initialWindow) continue
+      try {
+        await browser.window(window)
+        await browser.origClose()
+      } catch (_) { /* should already be closed */ }
+    }
+    // focus initial window
+    await browser.window(initialWindow)
+    // load html to open new tab
+    await browser.get('data:text/html;charset=utf-8,<%21DOCTYPE%20html><html><head><title>new%20tab<%2Ftitle><%2Fhead><body><a%20href%3D"about%3Ablank"%20target%3D"_blank"%20id%3D"new">Click%20me<%2Fa><%2Fbody><%2Fhtml>')
+    // click new tab link
+    await browser.elementByCss('#new').click()
+    // focus fresh window
+    const newWindows = await browser.windowHandles()
+    try {
+      await browser.window(
+        newWindows.find(win => {
+          if (win &&
+            win !== initialWindow &&
+            startWindows.indexOf(win) < 0
+          ) {
+            return win
+          }
         })
-      })
+      )
+    } catch (err) {
+      await this.freshWindow()
     }
   }
 
