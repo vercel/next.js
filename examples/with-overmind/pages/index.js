@@ -13,13 +13,16 @@ class Index extends React.Component {
     const overmind = createOvermindSSR(config)
 
     overmind.state.page = 'Index'
-    overmind.state.items = [{
-      id: 0,
-      title: 'foo'
-    }, {
-      id: 1,
-      title: 'bar'
-    }]
+    overmind.state.items = [
+      {
+        id: 0,
+        title: 'foo'
+      },
+      {
+        id: 1,
+        title: 'bar'
+      }
+    ]
 
     return {
       mutations: overmind.hydrate()

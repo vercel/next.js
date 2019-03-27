@@ -75,7 +75,7 @@ describe('Production Config Usage', () => {
 
       const html = await browser.elementByCss('html').getAttribute('innerHTML')
       expect(html).toMatch('custom-buildid')
-      return browser.close()
+      await browser.close()
     })
   })
 })
@@ -87,5 +87,5 @@ async function testBrowser () {
   expect(text).toMatch(/ComponentDidMount executed on client\./)
   expect(await element.getComputedCss('font-size')).toBe('40px')
   expect(await element.getComputedCss('color')).toBe('rgba(255, 0, 0, 1)')
-  return browser.close()
+  await browser.close()
 }

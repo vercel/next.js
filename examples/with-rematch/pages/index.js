@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
-import { dispatch } from '@rematch/core'
-import { initStore } from '../shared/store'
+import { store } from '../shared/store'
 import withRematch from '../shared/utils/withRematch'
 import Header from '../shared/components/header'
 
@@ -13,7 +12,7 @@ class Home extends Component {
         <h3>The count is {this.props.counter}</h3>
         <p>
           <button onClick={this.props.increment}>increment</button>
-          <button onClick={() => dispatch.counter.increment(1)}>
+          <button onClick={() => store.dispatch.counter.increment(1)}>
             increment (using dispatch function)
           </button>
           <button onClick={this.props.incrementBy(5)}>increment by 5</button>
@@ -35,4 +34,4 @@ const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   incrementAsync: () => incrementAsync(1)
 })
 
-export default withRematch(initStore, mapState, mapDispatch)(Home)
+export default withRematch(store, mapState, mapDispatch)(Home)

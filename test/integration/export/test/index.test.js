@@ -30,22 +30,6 @@ const devContext = {}
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
 describe('Static Export', () => {
-  it('should export with folder that has dot in name', async () => {
-    const outdir = join(appDir, 'out')
-    nextConfig.replace(/exportPathMap: function (.|\n|\r\n)*end exportPathMap/gm, '// disabled exportPathMap')
-
-    await nextBuild(appDir)
-    await nextExport(appDir, { outdir })
-
-    let doesExists = true
-    await access(join(outdir, 'v1.12/index.html'))
-      .then(() => {
-        doesExists = true
-      })
-
-    expect(doesExists).toBe(true)
-    nextConfig.restore()
-  })
   it('should delete existing exported files', async () => {
     const outdir = join(appDir, 'out')
     const tempfile = join(outdir, 'temp.txt')
@@ -72,6 +56,7 @@ describe('Static Export', () => {
     nextConfig.replace(`// exportTrailingSlash: false`, `exportTrailingSlash: false`)
     await nextBuild(appDir)
     await nextExport(appDir, { outdir: outNoTrailSlash })
+    nextConfig.restore()
 
     context.server = await startStaticServer(join(appDir, 'out'))
     context.port = context.server.address().port
@@ -94,7 +79,6 @@ describe('Static Export', () => {
       killApp(devContext.server),
       stopApp(context.serverNoTrailSlash)
     ])
-    nextConfig.restore()
   })
 
   ssr(context)

@@ -21,6 +21,30 @@ const babelOpts = {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_arg (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('arg')))
+    .ncc({ packageName: 'arg' })
+    .target('dist/compiled/arg')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_resolve (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('resolve')))
+    .ncc({ packageName: 'resolve' })
+    .target('dist/compiled/resolve')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_nanoid (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('nanoid')))
+    .ncc({ packageName: 'nanoid' })
+    .target('dist/compiled/nanoid')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_unistore (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('unistore')))
@@ -28,8 +52,16 @@ export async function ncc_unistore (task, opts) {
     .target('dist/compiled/unistore')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_text_table (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('text-table')))
+    .ncc({ packageName: 'text-table' })
+    .target('dist/compiled/text-table')
+}
+
 export async function precompile (task) {
-  await task.parallel(['ncc_unistore'])
+  await task.parallel(['ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {
@@ -90,6 +122,7 @@ export default async function (task) {
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextexport')
   await task.watch('client/**/*.+(js|ts|tsx)', 'client')
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
+  await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
 }
 
 export async function release (task) {
