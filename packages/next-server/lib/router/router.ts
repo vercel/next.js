@@ -124,7 +124,7 @@ export default class Router implements IRouterInterface {
 
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (e.state.options.fromExternal) {
+    if (e.state.options && e.state.options.fromExternal) {
       return
     }
 
