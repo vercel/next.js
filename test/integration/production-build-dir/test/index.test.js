@@ -16,7 +16,6 @@ describe('Production Custom Build Directory', () => {
     it('should render the page', async () => {
       const result = await runNextCommand(['build', 'build'], {
         cwd: join(__dirname, '..'),
-        spawnOptions: { env: { ...process.env, NODE_ENV: 'production' } },
         stdout: true,
         stderr: true
       })
