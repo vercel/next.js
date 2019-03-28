@@ -115,14 +115,10 @@
     "nanoid": "1.2.1",
     "resolve": "1.5.0",
     "taskr": "1.1.0",
-<<<<<<< HEAD
-    "typescript": "3.1.6",
-    "webpack": "4.29.0"
-=======
     "text-table": "0.2.0",
     "typescript": "3.1.6",
-    "unistore": "3.2.1"
->>>>>>> canary
+    "unistore": "3.2.1",
+    "webpack": "4.29.0"
   },
   "engines": {
     "node": ">= 8.0.0"
