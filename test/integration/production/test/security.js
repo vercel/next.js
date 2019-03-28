@@ -9,7 +9,7 @@ import { homedir } from 'os'
 // Does the same evaluation checking for INJECTED for 15 seconds, triggering every 500ms
 async function checkInjected (browser) {
   const start = Date.now()
-  while (Date.now() - start < 10000) {
+  while (Date.now() - start < 15000) {
     const bodyText = await getBrowserBodyText(browser)
     if (/INJECTED/.test(bodyText)) {
       throw new Error('Vulnerable to XSS attacks')
