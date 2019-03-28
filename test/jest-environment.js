@@ -8,6 +8,7 @@ const NodeEnvironment = require('jest-environment-node')
 const {
   HEADLESS,
   BROWSER_NAME,
+  BROWSERSTACK,
   BROWSERSTACK_USERNAME,
   BROWSERSTACK_ACCESS_KEY
 } = process.env
@@ -19,29 +20,42 @@ let browserOptions = {
   browserName: BROWSER_NAME || 'chrome'
 }
 let deviceIP = 'localhost'
+
 const isIE = BROWSER_NAME === 'ie'
 const isSafari = BROWSER_NAME === 'safari'
+const isFirefox = BROWSER_NAME === 'firefox'
 // 30 seconds for BrowserStack 5 seconds for local
-const isBrowserStack = BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
+const isBrowserStack = BROWSERSTACK && BROWSERSTACK_USERNAME && BROWSERSTACK_ACCESS_KEY
 const browserTimeout = (isBrowserStack ? 30 : 5) * 1000
 
 if (isBrowserStack) {
-  browserOptions = {
-    ...browserOptions,
-    ...(isIE ? {
-      'os': 'Windows',
-      'os_version': '10',
-      'browser': 'IE',
-      'resolution': '1024x768'
-    } : {}),
-    ...(isSafari ? {
-      'os': 'OS X',
-      'os_version': 'Mojave',
-      'browser': 'Safari',
-      'browser_version': '12.0'
-    } : {}),
+  const safariOpts = {
+    'os': 'OS X',
+    'os_version': 'Mojave',
+    'browser': 'Safari'
+  }
+  const ieOpts = {
+    'os': 'Windows',
+    'os_version': '10',
+    'browser': 'IE'
+  }
+  const firefoxOpts = {
+    'os': 'Windows',
+    'os_version': '10',
+    'browser': 'Firefox'
+  }
+  const sharedOpts = {
     'browserstack.local': true,
     'browserstack.video': false
+  }
+
+  browserOptions = {
+    ...browserOptions,
+    ...sharedOpts,
+
+    ...(isIE ? ieOpts : {}),
+    ...(isSafari ? safariOpts : {}),
+    ...(isFirefox ? firefoxOpts : {})
   }
 } else if (HEADLESS !== 'false') {
   browserOptions.chromeOptions = { args: ['--headless'] }
@@ -79,8 +93,6 @@ class CustomEnvironment extends NodeEnvironment {
       // disable browser.close and we handle it manually
       browser.close = () => {}
       global.browser = browser
-      // this isn't supported in IE so disable
-      if (browserOptions.browserName !== 'chrome') browser.log = undefined
     }
     // Since ie11 doesn't like dataURIs we have to spin up a
     // server to handle the new tab page
@@ -114,6 +126,7 @@ class CustomEnvironment extends NodeEnvironment {
         }
       }
     }
+    this.global.browserName = BROWSER_NAME
 
     // Mock current browser set up
     this.global.webdriver = async (appPort, pathname) => {
