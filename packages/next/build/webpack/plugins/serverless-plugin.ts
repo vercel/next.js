@@ -1,5 +1,5 @@
 import { Compiler } from 'next/dist/compiled/webpack'
-import GraphHelpers from 'next/dist/compiled/webpack/lib/GraphHelpers'
+import { connectChunkAndModule } from 'next/dist/compiled/webpack/lib/GraphHelpers'
 
 /**
  * Makes sure there are no dynamic chunks when the target is serverless
@@ -72,7 +72,7 @@ export class ServerlessPlugin {
             if (dynamicChunks.size !== 0) {
               for (const dynamicChunk of dynamicChunks) {
                 for (const module of dynamicChunk.modulesIterable) {
-                  GraphHelpers.connectChunkAndModule(chunk, module)
+                  connectChunkAndModule(chunk, module)
                 }
               }
             }

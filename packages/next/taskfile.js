@@ -23,17 +23,22 @@ const babelOpts = {
 // eslint-disable-next-line camelcase
 export async function ncc_webpack (task, opts) {
   await task
-    .source(opts.src || '../../node_modules/webpack/lib/*.js')
-    .ncc({ packageName: 'webpack' })
-    .target('dist/compiled/webpack/lib')
-  await task
-    .source('webpack/index.js')
+    .source(opts.src || relative(__dirname, require.resolve('webpack')))
+    .ncc({
+      packageName: 'webpack'
+    })
     .target('dist/compiled/webpack')
-  await task
-    .source('webpack/webpack.js')
-    .target('dist/compiled/webpack/lib')
 
   notify('Compiled webpack')
+}
+
+export async function ncc_webpack_graph_helpers (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('webpack/lib/GraphHelpers')))
+    .ncc()
+    .target('dist/compiled/webpack/lib')
+
+  notify('Compiled webpack/lib/GraphHelpers')
 }
 
 // eslint-disable-next-line camelcase
@@ -116,7 +121,7 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_webpack', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
+  await task.parallel(['ncc_webpack', 'ncc_webpack_graph_helpers', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {

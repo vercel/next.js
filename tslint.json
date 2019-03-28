@@ -19,9 +19,6 @@
     "member-access": false,
     "member-ordering": false
   },
-  "alias": {
-    "webpack": "next/dist/compiled/webpack"
-  },
   "rulesDirectory": [],
   "linterOptions": {
     "exclude": [
