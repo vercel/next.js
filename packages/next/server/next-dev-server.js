@@ -4,6 +4,8 @@ import HotReloader from './hot-reloader'
 import { route } from 'next-server/dist/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
 import ErrorDebug from './error-debug'
+import AmpHtmlValidator from 'amphtml-validator'
+import { ampValidation } from '../build/output/index'
 
 export default class DevServer extends Server {
   constructor (options) {
@@ -91,7 +93,28 @@ export default class DevServer extends Server {
     return routes
   }
 
-  async renderToHTML (req, res, pathname, query, options) {
+  _filterAmpDevelopmentScript (html, event) {
+    if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
+      return true
+    }
+
+    const snippetChunks = html.split('\n')
+
+    let snippet
+    if (
+      !(snippet = html.split('\n')[event.line - 1]) ||
+      !(snippet = snippet.substring(event.col))
+    ) {
+      return true
+    }
+
+    snippet = snippet + snippetChunks.slice(event.line).join('\n')
+    snippet = snippet.substring(0, snippet.indexOf('</script>'))
+
+    return !snippet.includes('data-amp-development-mode-only')
+  }
+
+  async renderToHTML (req, res, pathname, query, options = {}) {
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
       res.statusCode = 500
@@ -100,7 +123,10 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader.ensurePage(pathname)
+      const result = await this.hotReloader.ensurePage(pathname, options.amphtml, this.nextConfig.experimental.amp)
+      pathname = result.pathname
+      options.amphtml = options.amphtml || result.isAmp
+      options.hasAmp = result.hasAmp
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
@@ -108,8 +134,20 @@ export default class DevServer extends Server {
       }
       if (!this.quiet) console.error(err)
     }
-
-    return super.renderToHTML(req, res, pathname, query, options)
+    const html = await super.renderToHTML(req, res, pathname, query, options)
+    if (options.amphtml && pathname !== '/_error') {
+      await AmpHtmlValidator.getInstance().then(validator => {
+        const result = validator.validateString(html)
+        ampValidation(
+          pathname,
+          result.errors
+            .filter(e => e.severity === 'ERROR')
+            .filter(e => this._filterAmpDevelopmentScript(html, e)),
+          result.errors.filter(e => e.severity !== 'ERROR')
+        )
+      })
+    }
+    return html
   }
 
   async renderErrorToHTML (err, req, res, pathname, query) {
@@ -119,6 +157,13 @@ export default class DevServer extends Server {
     if (compilationErr) {
       res.statusCode = 500
       return super.renderErrorToHTML(compilationErr, req, res, pathname, query)
+    }
+
+    if (!err && res.statusCode === 500) {
+      err = new Error(
+        'An undefined error was thrown sometime during render... ' +
+          'See https://err.sh/zeit/next.js/threw-undefined'
+      )
     }
 
     try {

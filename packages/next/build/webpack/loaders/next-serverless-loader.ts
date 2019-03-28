@@ -10,7 +10,6 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string,
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
-  buildId: string,
   assetPrefix: string,
   generateEtags: string
 }
@@ -20,7 +19,6 @@ const nextServerlessLoader: loader.Loader = function () {
     distDir,
     absolutePagePath,
     page,
-    buildId,
     assetPrefix,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -45,7 +43,7 @@ const nextServerlessLoader: loader.Loader = function () {
         Document,
         buildManifest,
         reactLoadableManifest,
-        buildId: "${buildId}",
+        buildId: "__NEXT_REPLACE__BUILD_ID__",
         assetPrefix: "${assetPrefix}"
       }
       const parsedUrl = parse(req.url, true)

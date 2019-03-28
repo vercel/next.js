@@ -2,15 +2,16 @@
   "name": "with-sentry",
   "version": "1.1.0",
   "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "start": "next start"
+    "dev": "SENTRY_DSN=abc123 node server.js",
+    "build": "SENTRY_DSN=abc123 next build",
+    "start": "SENTRY_DSN=abc123 NODE_ENV=production node server.js"
   },
   "dependencies": {
     "@sentry/browser": "^4.6.1",
     "@sentry/node": "^4.6.1",
     "@zeit/next-source-maps": "0.0.4-canary.1",
     "cookie-parser": "1.4.4",
+    "express": "^4.16.4",
     "js-cookie": "2.2.0",
     "next": "latest",
     "react": "^16.8.0",

@@ -6,14 +6,16 @@ import Examples from '../components/examples'
 class Index extends React.Component {
   static getInitialProps ({ reduxStore, req }) {
     const isServer = !!req
+    // DISPATCH ACTIONS HERE ONLY WITH `reduxStore.dispatch`
     reduxStore.dispatch(serverRenderClock(isServer))
 
     return {}
   }
 
   componentDidMount () {
-    const { dispatch } = this.props
-    this.timer = startClock(dispatch)
+    // DISPATCH ACTIONS HERE FROM `mapDispatchToProps`
+    // TO TICK THE CLOCK
+    this.timer = setInterval(() => this.props.startClock(), 1000)
   }
 
   componentWillUnmount () {
@@ -24,5 +26,5 @@ class Index extends React.Component {
     return <Examples />
   }
 }
-
-export default connect()(Index)
+const mapDispatchToProps = { startClock }
+export default connect(null, mapDispatchToProps)(Index)

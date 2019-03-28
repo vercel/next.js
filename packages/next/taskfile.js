@@ -1,4 +1,6 @@
 const notifier = require('node-notifier')
+const relative = require('path').relative
+
 const babelOpts = {
   presets: [
     ['@babel/preset-env', {
@@ -18,20 +20,70 @@ const babelOpts = {
   ]
 }
 
-export async function compile (task) {
-  await task.parallel(['bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
-}
-
-export async function webpack (task, opts) {
-  await task.source(opts.src || '../../node_modules/webpack/lib/*.js').ncc().target('dist/compiled/webpack/lib')
+// eslint-disable-next-line camelcase
+export async function ncc_webpack (task, opts) {
+  await task.source(opts.src || '../../node_modules/webpack/lib/*.js').ncc({ packageName: 'webpack' }).target('dist/compiled/webpack/lib')
   await task.source('webpack/index.js').target('dist/compiled/webpack')
   await task.source('webpack/webpack.js').target('dist/compiled/webpack/lib')
   notify('Compiled webpack')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_arg (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('arg')))
+    .ncc({ packageName: 'arg' })
+    .target('dist/compiled/arg')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_resolve (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('resolve')))
+    .ncc({ packageName: 'resolve' })
+    .target('dist/compiled/resolve')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_nanoid (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('nanoid')))
+    .ncc({ packageName: 'nanoid' })
+    .target('dist/compiled/nanoid')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_unistore (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('unistore')))
+    .ncc({ packageName: 'unistore' })
+    .target('dist/compiled/unistore')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_text_table (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('text-table')))
+    .ncc({ packageName: 'text-table' })
+    .target('dist/compiled/text-table')
+}
+
+export async function precompile (task) {
+  await task.parallel(['ncc_webpack', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
+}
+
+export async function compile (task) {
+  await task.parallel(['cli', 'bin', 'server', 'nextbuild', 'nextbuildstatic', 'pages', 'lib', 'client'])
+}
+
 export async function bin (task, opts) {
   await task.source(opts.src || 'bin/*').typescript({ module: 'commonjs', stripExtension: true }).target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
+}
+
+export async function cli (task, opts) {
+  await task.source(opts.src || 'cli/**/*.+(js|ts|tsx)').typescript({ module: 'commonjs' }).target('dist/cli')
+  notify('Compiled cli files')
 }
 
 export async function lib (task, opts) {
@@ -65,7 +117,7 @@ export async function pages (task, opts) {
 }
 
 export async function build (task) {
-  await task.serial(['webpack', 'compile'])
+  await task.serial(['precompile', 'compile'])
 }
 
 export default async function (task) {

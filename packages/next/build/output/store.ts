@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import createStore from 'unistore'
+import createStore from 'next/dist/compiled/unistore'
 import readline from 'readline'
 import { onExit } from './exit'
 
@@ -21,8 +21,10 @@ onExit(() => {
   process.stdout.write('\u001b[?25h')
 })
 store.subscribe(state => {
-  readline.cursorTo(process.stdout, 0, 0)
-  readline.clearScreenDown(process.stdout)
+  if (process.stdout.isTTY) {
+    readline.cursorTo(process.stdout, 0, 0)
+    readline.clearScreenDown(process.stdout)
+  }
 
   if (state.bootstrap) {
     console.log(chalk.cyan('Starting the development server ...'))

@@ -8,14 +8,14 @@ export default (context, render) => {
       const browser = await webdriver(context.appPort, '/?withCSP=hash')
       const errLog = await browser.log('browser')
       expect(errLog.filter((e) => e.source === 'security')).toEqual([])
-      browser.close()
+      await browser.close()
     })
 
     it('should load inline script by nonce', async () => {
       const browser = await webdriver(context.appPort, '/?withCSP=nonce')
       const errLog = await browser.log('browser')
       expect(errLog.filter((e) => e.source === 'security')).toEqual([])
-      browser.close()
+      await browser.close()
     })
   })
 }

@@ -1,3 +1,4 @@
+import os from 'os'
 import findUp from 'find-up'
 import { CONFIG_FILE } from 'next-server/constants'
 
@@ -7,7 +8,6 @@ const defaultConfig = {
   env: [],
   webpack: null,
   webpackDevMiddleware: null,
-  poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
@@ -21,7 +21,15 @@ const defaultConfig = {
     pagesBufferLength: 2
   },
   experimental: {
-    amp: false
+    amp: false,
+    cpus: Math.max(
+      1,
+      (Number(process.env.CIRCLE_NODE_TOTAL) ||
+        (os.cpus() || { length: 1 }).length) - 1
+    ),
+    exportTrailingSlash: true,
+    profiling: false,
+    sharedRuntime: false
   }
 }
 
@@ -41,9 +49,14 @@ function assignDefaults (userConfig) {
 
 function normalizeConfig (phase, config) {
   if (typeof config === 'function') {
-    return config(phase, { defaultConfig })
-  }
+    config = config(phase, { defaultConfig })
 
+    if (typeof config.then === 'function') {
+      throw new Error(
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+      )
+    }
+  }
   return config
 }
 

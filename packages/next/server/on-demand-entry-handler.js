@@ -1,21 +1,17 @@
 import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
-import { join } from 'path'
+import { join, posix } from 'path'
 import { parse } from 'url'
-import fs from 'fs'
-import promisify from '../lib/promisify'
-import globModule from 'glob'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 import { stringify } from 'querystring'
+import { findPageFile } from './lib/find-page-file'
+import { isWriteable } from '../build/is-writeable'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
 const BUILT = Symbol('built')
-
-const glob = promisify(globModule)
-const access = promisify(fs.access)
 
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
 function addEntry (compilation, context, name, entry) {
@@ -36,7 +32,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   maxInactiveAge,
   pagesBufferLength
 }) {
-  const clients = new Set()
+  const pagesDir = join(dir, 'pages')
+  const clients = new Map()
   const evtSourceHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Content-Type': 'text/event-stream;charset=utf-8',
@@ -61,9 +58,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
       const allEntries = Object.keys(entries).map(async (page) => {
         const { name, absolutePagePath } = entries[page]
-        try {
-          await access(absolutePagePath, (fs.constants || fs).W_OK)
-        } catch (err) {
+        const pageExists = await isWriteable(absolutePagePath)
+        if (!pageExists) {
           console.warn('Page was removed', page)
           delete entries[page]
           return
@@ -156,7 +152,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
-    clients.forEach(client => client.end())
+    clients.forEach((id, client) => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
@@ -209,9 +205,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    async ensurePage (page) {
+    async ensurePage (page, amp, ampEnabled) {
       await this.waitUntilReloaded()
-      page = normalizePage(page)
       let normalizedPagePath
       try {
         normalizedPagePath = normalizePagePath(page)
@@ -220,29 +215,35 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const extensions = pageExtensions.join('|')
-      const pagesDir = join(dir, 'pages')
-
-      let paths = await glob(`{${normalizedPagePath.slice(1)}/index,${normalizedPagePath.slice(1)}}.+(${extensions})`, { cwd: pagesDir })
+      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions, amp, ampEnabled)
+      const isAmp = pagePath && pageExtensions.some(ext => pagePath.endsWith('amp.' + ext))
 
       // Default the /_error route to the Next.js provided default page
-      if (page === '/_error' && paths.length === 0) {
-        paths = ['next/dist/pages/_error']
+      if (page === '/_error' && pagePath === null) {
+        pagePath = 'next/dist/pages/_error'
       }
 
-      if (paths.length === 0) {
+      if (pagePath === null) {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      const pagePath = paths[0]
-      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(${extensions})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
+      let pageUrl = `/${pagePath.replace(new RegExp(`\\.+(?:${pageExtensions.join('|')})$`), '').replace(/\\/g, '/')}`.replace(/\/index$/, '')
       pageUrl = pageUrl === '' ? '/' : pageUrl
       const bundleFile = pageUrl === '/' ? '/index.js' : `${pageUrl}.js`
       const name = join('static', buildId, 'pages', bundleFile)
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
+      page = posix.normalize(pageUrl)
+      const result = {
+        isAmp,
+        pathname: page,
+        hasAmp: !isAmp && await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled)
+      }
+
       await new Promise((resolve, reject) => {
-        const entryInfo = entries[page]
+        // Makes sure the page that is being kept in on-demand-entries matches the webpack output
+        const normalizedPage = normalizePage(page)
+        const entryInfo = entries[normalizedPage]
 
         if (entryInfo) {
           if (entryInfo.status === BUILT) {
@@ -251,15 +252,15 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
 
           if (entryInfo.status === BUILDING) {
-            doneCallbacks.once(page, handleCallback)
+            doneCallbacks.once(normalizedPage, handleCallback)
             return
           }
         }
 
-        console.log(`> Building page: ${page}`)
+        console.log(`> Building page: ${normalizedPage}`)
 
-        entries[page] = { name, absolutePagePath, status: ADDED }
-        doneCallbacks.once(page, handleCallback)
+        entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
+        doneCallbacks.once(normalizedPage, handleCallback)
 
         invalidator.invalidate()
 
@@ -268,6 +269,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           resolve()
         }
       })
+
+      return result
     },
 
     middleware () {
@@ -299,7 +302,24 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           req.socket.setKeepAlive(true)
           res.writeHead(200, evtSourceHeaders)
           res.write('\n')
-          clients.add(res)
+
+          const startId = req.headers['user-agent'] + req.connection.remoteAddress
+          let clientId = startId
+          let numSameClient = 0
+
+          while (clients.has(clientId)) {
+            numSameClient++
+            clientId = startId + numSameClient
+          }
+
+          if (numSameClient > 1) {
+            // If the user has too many tabs with Next.js open in the same browser,
+            // they might be exceeding the max number of concurrent request.
+            // This varies per browser so we can only guess if this is the cause of
+            // a slow request and show a warning that this might be why
+            console.warn(`\nWarn: You are opening multiple tabs of the same site in the same browser, this could cause requests to stall. https://err.sh/zeit/next.js/multi-tabs`)
+          }
+          clients.set(clientId, res)
 
           const runPing = () => {
             const data = handlePing(query.page)
@@ -309,7 +329,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           const pingInterval = setInterval(() => runPing(), 5000)
 
           req.on('close', () => {
-            clients.delete(res)
+            clients.delete(clientId)
             clearInterval(pingInterval)
           })
           // Do initial ping right after EventSource is finished being set up

@@ -3,9 +3,8 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
-  pkg,
   nextServer,
-  nextBuild,
+  runNextCommand,
   startApp,
   stopApp,
   renderViaHTTP,
@@ -28,7 +27,9 @@ const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
-    await nextBuild(appDir)
+    await runNextCommand(['build', appDir], {
+      spawnOptions: { env: { ...process.env, NODE_ENV: 'production' } }
+    })
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
@@ -132,7 +133,7 @@ describe('Production Usage', () => {
     })
 
     it('should block special pages', async () => {
-      const urls = ['/_document', '/_error']
+      const urls = ['/_document', '/_app']
       for (const url of urls) {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
@@ -149,7 +150,18 @@ describe('Production Usage', () => {
         .elementByCss('div').text()
 
       expect(text).toBe('About Page')
-      browser.close()
+      await browser.close()
+    })
+
+    it('should navigate to nested index via client side', async () => {
+      const browser = await webdriver(appPort, '/another')
+      const text = await browser
+        .elementByCss('a').click()
+        .waitForElementByCss('.index-page')
+        .elementByCss('p').text()
+
+      expect(text).toBe('Hello World')
+      await browser.close()
     })
   })
 
@@ -163,7 +175,7 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
-      browser.close()
+      await browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -171,7 +183,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
-      browser.close()
+      await browser.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
@@ -179,7 +191,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
-      browser.close()
+      await browser.close()
     })
   })
 
@@ -223,7 +235,7 @@ describe('Production Usage', () => {
         .elementByCss('#counter').text()
       expect(counterAfter404Page).toBe('Counter: 0')
 
-      browser.close()
+      await browser.close()
     })
 
     it('should add preload tags when Link prefetch prop is used', async () => {
@@ -238,7 +250,7 @@ describe('Production Usage', () => {
           expect(as).toBe('script')
         })
       )
-      browser.close()
+      await browser.close()
     })
 
     // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
@@ -259,7 +271,7 @@ describe('Production Usage', () => {
           expect(src).not.toMatch(/\?ts=/)
         })
       )
-      browser.close()
+      await browser.close()
     })
 
     it('should reload the page on page script error with prefetch', async () => {
@@ -293,46 +305,7 @@ describe('Production Usage', () => {
         .elementByCss('#counter').text()
       expect(counterAfter404Page).toBe('Counter: 0')
 
-      browser.close()
-    })
-  })
-
-  describe('X-Powered-By header', () => {
-    it('should set it by default', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const headers = {}
-      const res = {
-        getHeader (key) {
-          return headers[key]
-        },
-        setHeader (key, value) {
-          headers[key] = value
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
-    })
-
-    it('should not set it when poweredByHeader==false', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.nextConfig.poweredByHeader
-      app.nextConfig.poweredByHeader = false
-      const res = {
-        getHeader () {
-          return false
-        },
-        setHeader (key, value) {
-          if (key === 'XPoweredBy') {
-            throw new Error('Should not set the XPoweredBy header')
-          }
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      app.nextConfig.poweredByHeader = originalConfigValue
+      await browser.close()
     })
   })
 

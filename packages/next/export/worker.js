@@ -1,6 +1,7 @@
 import mkdirpModule from 'mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
+import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
 import Sema from 'async-sema'
@@ -30,6 +31,10 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
+        const ampOpts = { amphtml: Boolean(query.amp), hasAmp: query.hasAmp, ampPath: query.ampPath }
+        delete query.hasAmp
+        delete query.ampPath
+
         const req = { url: path }
         const res = {}
         envConfig.setConfig({
@@ -37,8 +42,19 @@ process.on(
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
 
+        if (query.ampOnly) {
+          delete query.ampOnly
+          path = cleanAmpPath(path)
+        }
+
+        // replace /docs/index.amp with /docs.amp
+        path = path.replace(/(?<!^)\/index\.amp$/, '.amp')
+
         let htmlFilename = `${path}${sep}index.html`
-        if (extname(path) !== '') {
+        const pageExt = extname(page)
+        const pathExt = extname(path)
+        // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
+        if (pageExt !== pathExt && pathExt !== '') {
           // If the path has an extension, use that as the filename instead
           htmlFilename = path
         } else if (path === '/') {
@@ -50,7 +66,7 @@ process.on(
 
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
-        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts })
+        const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
         await new Promise((resolve, reject) =>
           writeFile(
             htmlFilepath,

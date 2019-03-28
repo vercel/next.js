@@ -22,18 +22,18 @@ nvm use node
     const { createServer } = require('http')
     const { parse } = require('url')
     const next = require('next')
-    
+
     const dev = process.env.NODE_ENV !== 'production'
     const app = next({ dev })
     const handle = app.getRequestHandler()
-    
+
     app.prepare().then(() => {
       let server = createServer((req, res) => {
         // Be sure to pass `true` as the second argument to `url.parse`.
         // This tells it to parse the query portion of the URL.
         const parsedUrl = parse(req.url, true)
         const { pathname, query } = parsedUrl
-    
+
         handle(req, res, parsedUrl)
       }).listen(process.env.PORT, process.env.IP || "0.0.0.0", err => {
         if (err) throw err
@@ -41,7 +41,7 @@ nvm use node
         console.log("> Ready on http://", addr.address + ":" + addr.port);
       })
     })
-    
+
 ## Change 'package.json' scripts to use that file ##
 
     "scripts": {
@@ -52,7 +52,7 @@ nvm use node
 
 ## Use dev preview within the Cloud9 VM IDE ##
 
-After starting up the server (by using 'Run' button while having server.js open 
+After starting up the server (by using 'Run' button while having server.js open
 in the IDE editor or by using "npm run dev" in terminal) you should be able to access web server by
 clicking on "Preview" -> "Preview running application" next to 'Run' button in
 the top menu in Cloud9 IDE.

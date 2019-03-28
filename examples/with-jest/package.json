@@ -7,12 +7,11 @@
     "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.1.2",
-    "babel-core": "^7.0.0-bridge",
-    "babel-jest": "^23.6.0",
+    "@babel/core": "7.3.4",
+    "babel-jest": "24.1.0",
     "enzyme": "3.4.3",
     "enzyme-adapter-react-16": "1.2.0",
-    "jest": "^23.6.0",
+    "jest": "24.1.0",
     "react-addons-test-utils": "15.6.2",
     "react-test-renderer": "16.4.2"
   },

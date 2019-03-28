@@ -1,0 +1,17 @@
+{
+  "name": "with-linaria",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@zeit/next-css": "1.0.1",
+    "linaria": "1.2.4",
+    "next": "8.0.3",
+    "react": "16.8.3",
+    "react-dom": "16.8.3"
+  },
+  "license": "ISC"
+}

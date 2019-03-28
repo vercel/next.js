@@ -1,6 +1,7 @@
-const { NOW_URL } = process.env
-const { alias } = require('./now.json')
+const { DEPLOY } = process.env
+const alias = 'with-zones-blog.nextjs.org'
 
 module.exports = {
-  assetPrefix: NOW_URL ? `https://${alias}` : 'http://localhost:5000'
+  target: 'serverless',
+  assetPrefix: DEPLOY ? `https://${alias}` : 'http://localhost:5000'
 }

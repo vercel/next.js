@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "noEmit": true,
     "target": "esnext",
     "module": "esnext",
     "jsx": "preserve",
@@ -21,6 +22,8 @@
       "dom",
       "es2015",
       "es2016"
-    ]
-  }
+    ],
+    "outDir": ".next"
+  },
+  "exclude": [".next", "server/**/*.*"]
 }

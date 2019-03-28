@@ -99,7 +99,7 @@ describe('On Demand Entries', () => {
       }, /Hello/)
     } finally {
       if (browser) {
-        browser.close()
+        await browser.close()
       }
     }
   })
