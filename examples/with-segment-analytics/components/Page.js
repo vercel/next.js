@@ -7,10 +7,11 @@ Router.events.on('routeChangeComplete', url => {
   window.analytics.page(url)
 })
 
-const Page = ({ children }) =>
+const Page = ({ children }) => (
   <div>
     <Header />
     {children}
   </div>
+)
 
 export default Page

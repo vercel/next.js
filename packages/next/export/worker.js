@@ -5,6 +5,7 @@ import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile } from 'fs'
 import Sema from 'async-sema'
+import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
 
 const envConfig = require('next-server/config')
@@ -67,6 +68,27 @@ process.on(
         await mkdirp(baseDir)
         const components = await loadComponents(distDir, buildId, page)
         const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
+
+        if (ampOpts.amphtml) {
+          const validator = await AmpHtmlValidator.getInstance()
+          const result = validator.validateString(html)
+          const errors = result.errors.filter(e => e.severity === 'ERROR')
+          const warnings = result.errors.filter(e => e.severity !== 'ERROR')
+
+          if (warnings.length || errors.length) {
+            process.send({
+              type: 'amp-validation',
+              payload: {
+                page,
+                result: {
+                  errors,
+                  warnings
+                }
+              }
+            })
+          }
+        }
+
         await new Promise((resolve, reject) =>
           writeFile(
             htmlFilepath,

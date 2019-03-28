@@ -30,8 +30,16 @@ class Index extends React.Component {
       <div>
         <h2>Index page</h2>
         <ul>
-          <li><a href='#' onClick={this.raiseErrorInRender}>Raise the error in render</a></li>
-          <li><a href='#' onClick={this.raiseErrorInUpdate}>Raise the error in componentDidUpdate</a></li>
+          <li>
+            <a href='#' onClick={this.raiseErrorInRender}>
+              Raise the error in render
+            </a>
+          </li>
+          <li>
+            <a href='#' onClick={this.raiseErrorInUpdate}>
+              Raise the error in componentDidUpdate
+            </a>
+          </li>
           <li>
             <Link href={{ pathname: '/', query: { raiseError: '1' } }}>
               <a>Raise error in getInitialProps of client-loaded page</a>

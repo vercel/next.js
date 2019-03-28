@@ -8,6 +8,11 @@ export default () => <div>
     {/* this will get rendered */}
     <meta charSet='iso-8859-5' />
 
+    {/* this not render */}
+    <meta name='viewport' content='width=device-width' />
+    {/* this will override the default */}
+    <meta name='viewport' content='width=device-width,initial-scale=1' />
+
     <meta content='my meta' />
 
     {/* allow duplicates for specific tags */}
