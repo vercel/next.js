@@ -15,7 +15,7 @@ class CounterProvider extends Component {
     })
   }
 
-  increaseBy = (val) => {
+  increaseBy = val => {
     this.setState({
       count: this.state.count + val
     })

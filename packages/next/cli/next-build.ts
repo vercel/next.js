@@ -7,15 +7,20 @@ import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
 const nextBuild: cliCommand = (argv) => {
-  const args = arg({
-    // Types
-    '--help': Boolean,
-    // Aliases
-    '-h': '--help',
-  }, { argv })
+  const args = arg(
+    {
+      // Types
+      '--help': Boolean,
+      '--experimental-page': [String],
+      // Aliases
+      '-h': '--help',
+    },
+    { argv },
+  )
 
   if (args['--help']) {
-    printAndExit(`
+    printAndExit(
+      `
       Description
         Compiles the application for production deployment
 
@@ -25,7 +30,9 @@ const nextBuild: cliCommand = (argv) => {
       <dir> represents where the compiled dist folder should go.
       If no directory is provided, the dist folder will be created in the current directory.
       You can set a custom folder in config https://github.com/zeit/next.js#custom-configuration, otherwise it will be created inside '.next'
-    `, 0)
+    `,
+      0,
+    )
   }
 
   const dir = resolve(args._[0] || '.')
@@ -39,18 +46,21 @@ const nextBuild: cliCommand = (argv) => {
   if (!existsSync(join(dir, 'pages'))) {
     // Check one level down the tree to see if the pages directory might be there
     if (existsSync(join(dir, '..', 'pages'))) {
-      printAndExit('> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?')
+      printAndExit(
+        '> No `pages` directory found. Did you mean to run `next` in the parent (`../`) directory?',
+      )
     }
 
-    printAndExit('> Couldn\'t find a `pages` directory. Please create one under the project root')
+    printAndExit(
+      "> Couldn't find a `pages` directory. Please create one under the project root",
+    )
   }
 
-  build(dir)
-    .catch((err) => {
-      // tslint:disable-next-line
-      console.error('> Build error occurred')
-      printAndExit(err)
-    })
+  build(dir, undefined, { pages: args['--experimental-page'] }).catch((err) => {
+    // tslint:disable-next-line
+    console.error('> Build error occurred')
+    printAndExit(err)
+  })
 }
 
 export { nextBuild }

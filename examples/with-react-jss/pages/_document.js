@@ -20,12 +20,12 @@ export default class JssDocument extends Document {
 
     return {
       ...initialProps,
-      styles: <>
-        {initialProps.styles}
-        <style id='server-side-styles'>
-          {registry.toString()}
-        </style>
-      </>
+      styles: (
+        <>
+          {initialProps.styles}
+          <style id='server-side-styles'>{registry.toString()}</style>
+        </>
+      )
     }
   }
 }
