@@ -3,7 +3,7 @@
 let globalTeardown
 const browser = global.browser
 
-if (process.env.BROWSERSTACK_USERNAME) {
+if (process.env.BROWSERSTACK) {
   globalTeardown = () => global.browserStackLocal.killAllProcesses(() => {})
 } else {
   const chromedriver = require('chromedriver')

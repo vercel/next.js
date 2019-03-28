@@ -1,7 +1,7 @@
 'use strict'
 let globalSetup
 
-if (process.env.BROWSERSTACK_USERNAME) {
+if (process.env.BROWSERSTACK) {
   const { Local } = require('browserstack-local')
   const browserStackLocal = new Local()
   const localBrowserStackOpts = {
