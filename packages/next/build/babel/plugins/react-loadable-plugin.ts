@@ -128,7 +128,7 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
             t.identifier('loadableGenerated'),
             t.objectExpression([
               t.objectProperty(
-                t.identifier('next/dist/compiled/webpack'),
+                t.identifier('webpack'),
                 t.arrowFunctionExpression(
                   [],
                   t.arrayExpression(
