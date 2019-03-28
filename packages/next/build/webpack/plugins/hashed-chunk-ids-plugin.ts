@@ -1,4 +1,4 @@
-import { Compiler, Plugin } from 'webpack'
+import { Compiler, Plugin } from 'next/dist/compiled/webpack'
 import { createHash } from 'crypto'
 
 export class HashedChunkIdsPlugin implements Plugin {

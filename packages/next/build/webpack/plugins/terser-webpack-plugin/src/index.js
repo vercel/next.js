@@ -4,7 +4,7 @@
 import murmur from 'imurmurhash';
 import { SourceMapConsumer } from 'source-map';
 import { SourceMapSource, RawSource } from 'webpack-sources';
-import RequestShortener from 'webpack/lib/RequestShortener';
+import RequestShortener from 'next/dist/compiled/webpack/lib/RequestShortener';
 import TaskRunner from './TaskRunner';
 
 const warningRegex = /\[.+:([0-9]+),([0-9]+)\]/;

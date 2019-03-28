@@ -1,5 +1,3 @@
-require('module-alias').addAlias('webpack', 'next/dist/compiled/webpack')
-
 import { join } from 'path'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import loadConfig from 'next-server/next-config'

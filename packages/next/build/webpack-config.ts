@@ -1,5 +1,5 @@
 import path from 'path'
-import webpack from 'webpack'
+import webpack from 'next/dist/compiled/webpack'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
@@ -268,7 +268,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ]
 
         if(!isServer) {
-          const AutoDllPlugin = require('autodll-webpack-plugin')
+          const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')
           devPlugins.push(
             new AutoDllPlugin({
               filename: '[name]_[hash].js',

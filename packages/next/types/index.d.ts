@@ -1,7 +1,7 @@
 declare module '@babel/plugin-transform-modules-commonjs';
 declare module 'next-server/next-config';
 declare module 'next-server/constants';
-declare module 'webpack/lib/GraphHelpers';
+declare module 'next/dist/compiled/webpack/lib/GraphHelpers';
 
 
 declare module 'next/dist/compiled/nanoid/index.js' {
@@ -40,8 +40,8 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg;
 }
 
-declare module 'autodll-webpack-plugin' {
-  import webpack from 'webpack'
+declare module 'next/dist/compiled/autodll-webpack-plugin' {
+  import webpack from 'next/dist/compiled/webpack'
   class AutoDllPlugin implements webpack.Plugin {
     constructor(settings?: {
       inject?: boolean,

@@ -22,10 +22,57 @@ const babelOpts = {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack (task, opts) {
-  await task.source(opts.src || '../../node_modules/webpack/lib/*.js').ncc({ packageName: 'webpack' }).target('dist/compiled/webpack/lib')
-  await task.source('webpack/index.js').target('dist/compiled/webpack')
-  await task.source('webpack/webpack.js').target('dist/compiled/webpack/lib')
+  await task
+    .source(opts.src || '../../node_modules/webpack/lib/*.js')
+    .ncc({ packageName: 'webpack' })
+    .target('dist/compiled/webpack/lib')
+  await task
+    .source('webpack/index.js')
+    .target('dist/compiled/webpack')
+  await task
+    .source('webpack/webpack.js')
+    .target('dist/compiled/webpack/lib')
+
   notify('Compiled webpack')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_hot_middleware (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('webpack-hot-middleware')))
+    .ncc({
+      externals: ['chokidar', 'webpack'],
+      packageName: 'webpack-hot-middleware'
+    })
+    .target('dist/compiled/webpack-hot-middleware')
+
+  notify('Compiled webpack-hot-middleware')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_autodll_webpack_plugin (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('autodll-webpack-plugin')))
+    .ncc({
+      externals: ['chokidar', 'webpack'],
+      packageName: 'autodll-webpack-plugin'
+    })
+    .target('dist/compiled/autodll-webpack-plugin')
+
+  notify('Compiled autodll-webpack-plugin')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_dev_middleware (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('webpack-dev-middleware')))
+    .ncc({
+      externals: ['chokidar', 'webpack'],
+      packageName: 'webpack-dev-middleware'
+    })
+    .target('dist/compiled/webpack-dev-middleware')
+
+  notify('Compiled webpack-dev-middleware')
 }
 
 // eslint-disable-next-line camelcase
@@ -69,7 +116,7 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_webpack', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
+  await task.parallel(['ncc_webpack', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {
