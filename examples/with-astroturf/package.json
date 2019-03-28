@@ -1,0 +1,18 @@
+{
+  "name": "with-astroturf",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@zeit/next-css": "^1.0.1",
+    "astroturf": "^0.9.2",
+    "next": "^8.0.3",
+    "postcss-nested": "^4.1.2",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  },
+  "license": "ISC"
+}
