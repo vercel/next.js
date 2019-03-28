@@ -88,7 +88,8 @@ export default class Router implements IRouterInterface {
         // navigating back from an external site
         if (history.state) {
           const { url, as, options }: any = history.state
-        this.changeState('replaceState', url, as, { ...options, fromExternal: true })
+          this.changeState('replaceState', url, as, { ...options, fromExternal: true })
+        }
       })
     }
   }
