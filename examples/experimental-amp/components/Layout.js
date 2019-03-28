@@ -3,7 +3,11 @@ export default function Layout ({ children }) {
     <>
       {children}
       <style jsx global>{`
-        body {font-family: Roboto, sans-serif; padding: 30px; color: #444;}
+        body {
+          font-family: Roboto, sans-serif;
+          padding: 30px;
+          color: #444;
+        }
       `}</style>
     </>
   )

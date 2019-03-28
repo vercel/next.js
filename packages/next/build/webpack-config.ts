@@ -151,6 +151,16 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           default: false,
           vendors: false
         }
+      } : sharedRuntime ? {
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          react: {
+            name: 'commons',
+            chunks: 'all',
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
+          }
+        }
       } : {
         chunks: 'all',
         cacheGroups: {

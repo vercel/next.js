@@ -12,7 +12,7 @@ import PostList from '../../components/PostList'
 
 class BlogIndex extends React.Component {
   componentDidMount () {
-    this.props.dispatch(startClock())
+    this.props.store.dispatch(startClock())
   }
 
   render () {
