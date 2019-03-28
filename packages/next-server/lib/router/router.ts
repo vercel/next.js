@@ -86,7 +86,8 @@ export default class Router implements IRouterInterface {
         }
         // Workaround for popstate firing on initial page load when
         // navigating back from an external site
-        const { url, as, options }: any = history.state || {}
+        if (history.state) {
+          const { url, as, options }: any = history.state
         this.changeState('replaceState', url, as, { ...options, fromExternal: true })
       })
     }
