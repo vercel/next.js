@@ -148,9 +148,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser
-          .elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export', 'aa=20;\nexport')
 
@@ -175,9 +176,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
 
@@ -211,8 +213,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default {};\nexport const fn =')
 
@@ -250,8 +254,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default () => /search/;\nexport const fn =')
 
@@ -289,8 +295,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default undefined;\nexport const fn =')
 
