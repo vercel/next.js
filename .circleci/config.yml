@@ -40,7 +40,7 @@ jobs:
           at: .
       - run:
           name: Production Tests
-          command: BROWSER_NAME='ie' yarn testall test/integration/production/
+          command: BROWSER_NAME=ie yarn testall test/integration/production/
           environment:
             BROWSERSTACK: 'true'
   deploy:
