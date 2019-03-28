@@ -29,11 +29,11 @@ const Store = types
     return { start, stop, update };
   });
 
-type IStore = Instance<typeof Store>;
-type IStoreSnapshotIn = SnapshotIn<typeof Store>;
-type IStoreSnapshotOut = SnapshotOut<typeof Store>;
+export type IStore = Instance<typeof Store>;
+export type IStoreSnapshotIn = SnapshotIn<typeof Store>;
+export type IStoreSnapshotOut = SnapshotOut<typeof Store>;
 
-const initializeStore = (isServer, snapshot = null) => {
+export const initializeStore = (isServer, snapshot = null) => {
   if (isServer) {
     store = Store.create({ foo:6, lastUpdate: Date.now() });
   }
@@ -45,5 +45,3 @@ const initializeStore = (isServer, snapshot = null) => {
   }
   return store;
 };
-
-export { initializeStore, IStore, IStoreSnapshotIn, IStoreSnapshotOut };

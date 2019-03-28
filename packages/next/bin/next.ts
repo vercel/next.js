@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import arg from 'arg'
+import arg from 'next/dist/compiled/arg/index.js'
 
 ['react', 'react-dom'].forEach((dependency) => {
   try {

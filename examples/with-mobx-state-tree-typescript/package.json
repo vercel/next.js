@@ -9,9 +9,9 @@
   },
   "dependencies": {
     "@zeit/next-typescript": "1.1.0",
-    "mobx": "5.0.5",
-    "mobx-react": "5.2.5",
-    "mobx-state-tree": "3.2.3",
+    "mobx": "^5.9.0",
+    "mobx-react": "^5.4.3",
+    "mobx-state-tree": "^3.11.0",
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/next": "^6.1.4",
     "@types/react": "^16.4.12",
-    "@babel/plugin-proposal-decorators": "^7.1.2",
+    "@babel/plugin-proposal-decorators": "^7.3.0",
     "tslint": "^5.9.1",
     "tslint-config-standard": "^7.0.0",
     "tslint-loader": "^3.5.3",

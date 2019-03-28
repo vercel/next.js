@@ -38,6 +38,10 @@ function mapStateToProps (state) {
   const { count } = state
   return { count }
 }
-const mapDispatchToProps = dispatch => bindActionCreators({ incrementCount, decrementCount, resetCount }, dispatch)
+const mapDispatchToProps = dispatch =>
+  bindActionCreators({ incrementCount, decrementCount, resetCount }, dispatch)
 
-export default connect(mapStateToProps, mapDispatchToProps)(Counter)
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Counter)

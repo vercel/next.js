@@ -272,9 +272,6 @@ export default class Server {
       return
     }
 
-    if (this.nextConfig.poweredByHeader) {
-      res.setHeader('X-Powered-By', 'Next.js ' + process.env.__NEXT_VERSION)
-    }
     return this.sendHTML(req, res, html)
   }
 
@@ -285,8 +282,8 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname)
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
+    const result = await loadComponents(this.distDir, this.buildId, pathname, opts)
+    return renderToHTML(req, res, pathname, query, { ...result, ...opts, hasAmp: result.hasAmp  })
   }
 
   public async renderToHTML(
@@ -294,7 +291,10 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml }: { amphtml?: boolean } = {},
+    { amphtml, hasAmp }: {
+      amphtml?: boolean,
+      hasAmp?: boolean,
+    } = {},
   ): Promise<string | null> {
     try {
       // To make sure the try/catch is executed
@@ -303,7 +303,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml },
+        { ...this.renderOpts, amphtml, hasAmp },
       )
       return html
     } catch (err) {

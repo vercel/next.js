@@ -7,7 +7,7 @@ export default (context) => {
       const browser = await webdriver(context.appPort, '/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('development')
-      browser.close()
+      await browser.close()
     })
   })
 }

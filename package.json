@@ -8,9 +8,11 @@
     "lerna": "lerna",
     "dev": "lerna run build --stream --parallel",
     "testonly": "jest",
-    "testall": "yarn check && yarn run testonly -- --coverage --forceExit --runInBand --reporters=default --reporters=jest-junit",
+    "testall": "yarn check && yarn run testonly -- --ci --coverage --reporters=default --reporters=jest-junit --forceExit --runInBand",
     "pretest": "yarn run lint",
-    "test-take2": "git clean -d -x -e node_modules -e packages -f && yarn testall",
+    "git-reset": "git reset --hard HEAD",
+    "git-clean": "git clean -d -x -e node_modules -e packages -f",
+    "test-take2": "yarn git-reset && yarn git-clean && yarn testall",
     "test": "yarn run testall || yarn run test-take2",
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
@@ -52,7 +54,7 @@
       "examples/with-ioc/**",
       "examples/with-kea/**",
       "examples/with-mobx/**",
-      "test/integration/basic/pages/throw-undefined.js"
+      "test/integration/client-navigation/pages/throw-undefined.js"
     ]
   },
   "devDependencies": {
@@ -80,7 +82,7 @@
     "get-port": "3.2.0",
     "isomorphic-unfetch": "3.0.0",
     "jest-cli": "23.6.0",
-    "jest-junit": "^5.0.0",
+    "jest-junit": "6.3.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
     "mkdirp": "0.5.1",

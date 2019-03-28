@@ -74,54 +74,54 @@ module.exports = (context) => {
     it('should prevent URI based XSS attacks', async () => {
       const browser = await webdriver(context.appPort, '/\',document.body.innerHTML="INJECTED",\'')
       await checkInjected(browser)
-      browser.quit()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
       const browser = await webdriver(context.appPort, `/'-(document.body.innerHTML='INJECTED')-'`)
       await checkInjected(browser)
-      browser.close()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
       const browser = await webdriver(context.appPort, `/"-(document.body.innerHTML='INJECTED')-"`)
       await checkInjected(browser)
 
-      browser.close()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
       const browser = await webdriver(context.appPort, `/;"-(document.body.innerHTML='INJECTED')-"`)
       await checkInjected(browser)
 
-      browser.close()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
       const browser = await webdriver(context.appPort, `/;'-(document.body.innerHTML='INJECTED')-'`)
       await checkInjected(browser)
 
-      browser.close()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using src', async () => {
       const browser = await webdriver(context.appPort, `/javascript:(document.body.innerHTML='INJECTED')`)
       await checkInjected(browser)
 
-      browser.close()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using querystring', async () => {
       const browser = await webdriver(context.appPort, `/?javascript=(document.body.innerHTML='INJECTED')`)
       await checkInjected(browser)
 
-      browser.close()
+      await browser.close()
     })
 
     it('should prevent URI based XSS attacks using querystring and quotes', async () => {
       const browser = await webdriver(context.appPort, `/?javascript="(document.body.innerHTML='INJECTED')"`)
       await checkInjected(browser)
-      browser.close()
+      await browser.close()
     })
   })
 }

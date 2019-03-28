@@ -7,13 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "@rematch/core": "0.6.0",
-    "isomorphic-unfetch": "2.0.0",
-    "next": "5.1.0",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-redux": "5.0.7",
-    "redux": "3.7.2"
+    "@rematch/core": "^1.1.0",
+    "isomorphic-unfetch": "^3.0.0",
+    "next": "^8.0.3",
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4",
+    "react-redux": "^6.0.1",
+    "redux": "^4.0.1"
   },
   "license": "ISC"
 }
