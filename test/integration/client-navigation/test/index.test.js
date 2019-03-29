@@ -1,7 +1,6 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, webdriver */
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import renderingSuite from './rendering'
 import {
   waitFor,

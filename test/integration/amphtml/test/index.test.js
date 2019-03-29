@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, webdriver */
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
 import {
@@ -14,7 +14,6 @@ import {
   launchApp,
   killApp
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
 import amphtmlValidator from 'amphtml-validator'
 const appDir = join(__dirname, '../')
@@ -107,6 +106,12 @@ describe('AMP Usage', () => {
         'amp-boilerplate',
         'amp-boilerplate'
       ])
+    })
+
+    it('should drop custom scripts', async () => {
+      const html = await renderViaHTTP(appPort, '/custom-scripts')
+      expect(html).not.toMatch(/src='\/im-not-allowed\.js'/)
+      expect(html).not.toMatch(/console\.log("I'm not either :p")'/)
     })
   })
 
