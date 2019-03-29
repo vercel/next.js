@@ -107,6 +107,12 @@ describe('AMP Usage', () => {
         'amp-boilerplate'
       ])
     })
+
+    it('should drop custom scripts', async () => {
+      const html = await renderViaHTTP(appPort, '/custom-scripts')
+      expect(html).not.toMatch(/src='\/im-not-allowed\.js'/)
+      expect(html).not.toMatch(/console\.log("I'm not either :p")'/)
+    })
   })
 
   describe('With AMP context', () => {

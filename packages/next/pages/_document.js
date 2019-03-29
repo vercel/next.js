@@ -154,7 +154,6 @@ export class Head extends Component {
       hasAmp,
       ampPath,
       assetPrefix,
-      dev,
       __NEXT_DATA__,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
@@ -187,9 +186,7 @@ export class Head extends Component {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
-      } else if (!dev && type === 'script') {
-        // In production drop custom scripts since they're not allowed in AMP
-        // in dev we leave them so the validation warning is shown
+      } else if (type === 'script') {
         badProp = '<script'
         Object.keys(props).forEach(prop => {
           badProp += ` ${prop}="${props[prop]}"`

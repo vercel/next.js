@@ -178,7 +178,6 @@ function renderDocument(
               dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
-          dev={dev}
           ampEnabled={ampEnabled}
           ampPath={ampPath}
           amphtml={amphtml}
