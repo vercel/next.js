@@ -74,8 +74,9 @@ const newTabPg = `
 `
 
 class CustomEnvironment extends NodeEnvironment {
-  async createBrowser () {
-    if (!browser) {
+  async createBrowser (fromWebdriver = false) {
+    // always create new browser session if not BrowserStack
+    if ((!browser && isBrowserStack) || fromWebdriver) {
       browser = isBrowserStack
         ? wd.promiseChainRemote(
           'hub-cloud.browserstack.com', // seleniumHost
@@ -87,28 +88,28 @@ class CustomEnvironment extends NodeEnvironment {
 
       // Setup the browser instance
       await browser.init(browserOptions)
-      initialWindow = await browser.windowHandle()
-
-      browser.origClose = browser.close
-      // disable browser.close and we handle it manually
-      browser.close = () => {}
+      if (isBrowserStack) initialWindow = await browser.windowHandle()
       global.browser = browser
     }
-    // Since ie11 doesn't like dataURIs we have to spin up a
-    // server to handle the new tab page
-    this.server = http.createServer((req, res) => {
-      res.statusCode = 200
-      res.end(newTabPg)
-    })
-    this.newTabPort = await getPort()
-    await new Promise((resolve, reject) => {
-      this.server.listen(this.newTabPort, (err) => {
-        if (err) return reject(err)
-        resolve()
-      })
-    })
 
     if (isBrowserStack) {
+      // disable browser.close and we handle it manually
+      browser.origClose = browser.close
+      browser.close = () => {}
+      // Since ie11 doesn't like dataURIs we have to spin up a
+      // server to handle the new tab page
+      this.server = http.createServer((req, res) => {
+        res.statusCode = 200
+        res.end(newTabPg)
+      })
+      this.newTabPort = await getPort()
+      await new Promise((resolve, reject) => {
+        this.server.listen(this.newTabPort, (err) => {
+          if (err) return reject(err)
+          resolve()
+        })
+      })
+
       const networkIntfs = os.networkInterfaces()
       // find deviceIP to use with BrowserStack
       for (const intf of Object.keys(networkIntfs)) {
@@ -130,21 +131,24 @@ class CustomEnvironment extends NodeEnvironment {
 
     // Mock current browser set up
     this.global.webdriver = async (appPort, pathname) => {
+      if (!isBrowserStack) await this.createBrowser(true)
       const url = `http://${deviceIP}:${appPort}${pathname}`
 
       console.log(`\n> Loading browser with ${url}\n`)
-      await this.freshWindow()
+      if (isBrowserStack) await this.freshWindow()
 
-      return new Promise(async (resolve, reject) => {
+      return new Promise((resolve, reject) => {
         let timedOut = false
         const timeoutHandler = setTimeout(() => {
           timedOut = true
           reject(new Error(`Loading browser with ${url} timed out`))
         }, browserTimeout)
 
-        await browser.get(url)
-        clearTimeout(timeoutHandler)
-        if (!timedOut) resolve(browser)
+        browser.get(url, err => {
+          if (err) return reject(err)
+          clearTimeout(timeoutHandler)
+          if (!timedOut) resolve(browser)
+        })
       })
     }
   }
@@ -199,7 +203,7 @@ class CustomEnvironment extends NodeEnvironment {
 
   async teardown () {
     await super.teardown()
-    this.server.close()
+    if (this.server) this.server.close()
   }
 }
 
