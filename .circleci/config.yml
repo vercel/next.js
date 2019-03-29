@@ -41,6 +41,9 @@ jobs:
       - run:
           name: Production Tests
           command: '[[ ! -z $BROWSERSTACK_USERNAME ]] && yarn testall test/integration/production/ || echo "Not running for PR"'
+          environment:
+            BROWSERSTACK: 'true'
+            BROWSER_NAME: 'ie'
   deploy:
     docker:
       - image: circleci/node:8-browsers
