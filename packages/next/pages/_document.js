@@ -158,6 +158,7 @@ export class Head extends Component {
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
+    const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
     let { head } = this.context._documentProps
     let children = this.props.children
@@ -211,6 +212,7 @@ export class Head extends Component {
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
             <link rel="canonical" href={cleanAmpPath(page)} />
+            {isDirtyAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
