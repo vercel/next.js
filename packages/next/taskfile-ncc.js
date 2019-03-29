@@ -23,7 +23,7 @@ module.exports = function (task) {
         writePackageManifest.call(this, options.packageName)
       }
 
-      file.data = Buffer.from(options.replace ? code.replace(options.replace.regex, options.replace.with) : code, 'utf8')
+      file.data = Buffer.from(code, 'utf8')
     })
   })
 }

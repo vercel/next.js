@@ -32,6 +32,7 @@ export async function ncc_webpack (task, opts) {
   notify('Compiled webpack')
 }
 
+// eslint-disable-next-line camelcase
 export async function ncc_webpack_graph_helpers (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('webpack/lib/GraphHelpers')))

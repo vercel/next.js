@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": "./",
     "strict": true,
     "allowJs": true,
     "noEmit": true,
