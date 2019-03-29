@@ -17,9 +17,8 @@ interface IOptimizeOptions {
   query?: ParsedUrlQuery
 }
 
-const ampOptimizer: IOptimizer = require('amp-toolbox-optimizer')
-
 export default async function optimize(html: string, { amphtml, noDirtyAmp, query }: IOptimizeOptions): Promise<string> {
+  const ampOptimizer: IOptimizer = require('amp-toolbox-optimizer')
   const validAmp = Boolean(noDirtyAmp || (amphtml && query && query.amp))
   //  Examples below
   //
