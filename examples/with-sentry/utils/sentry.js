@@ -21,10 +21,12 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
     sentryOptions.transport = sentryTransport
 
     // Instead, dump the errors to the console
-    sentryOptions.integrations = [new Sentry.Integrations.Debug({
-      // Trigger DevTools debugger instead of using console.log
-      debugger: false
-    })]
+    sentryOptions.integrations = [
+      new Sentry.Integrations.Debug({
+        // Trigger DevTools debugger instead of using console.log
+        debugger: false
+      })
+    ]
   }
 
   Sentry.init(sentryOptions)
@@ -32,7 +34,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
   return {
     Sentry,
     captureException: (err, ctx) => {
-      Sentry.configureScope((scope) => {
+      Sentry.configureScope(scope => {
         if (err.message) {
           // De-duplication currently doesn't work correctly for SSR / browser errors
           // so we force deduplication by error message if it is present
@@ -75,7 +77,9 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
           }
 
           if (errorInfo) {
-            Object.keys(errorInfo).forEach(key => scope.setExtra(key, errorInfo[key]))
+            Object.keys(errorInfo).forEach(key =>
+              scope.setExtra(key, errorInfo[key])
+            )
           }
         }
       })

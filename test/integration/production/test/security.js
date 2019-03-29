@@ -1,8 +1,8 @@
 /* eslint-env jest */
+/* global webdriver */
 import { readFileSync } from 'fs'
 import { join, resolve as resolvePath } from 'path'
 import { renderViaHTTP, getBrowserBodyText, waitFor } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 

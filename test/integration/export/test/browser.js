@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import { check, getBrowserBodyText } from 'next-test-utils'
 
 export default function (context) {
