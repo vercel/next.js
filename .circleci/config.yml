@@ -31,6 +31,16 @@ jobs:
             JEST_JUNIT_CLASSNAME: '{filepath}'
       - store_test_results:
           path: ~/repo/reports
+  test-production:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Production Tests
+          command: '[[ ! -z $BROWSERSTACK_USERNAME ]] && yarn testall test/integration/production/ || echo "Not running for PR"'
   deploy:
     docker:
       - image: circleci/node:8-browsers
@@ -53,6 +63,9 @@ workflows:
     jobs:
       - build
       - test:
+          requires:
+            - build
+      - test-production:
           requires:
             - build
       - deploy:

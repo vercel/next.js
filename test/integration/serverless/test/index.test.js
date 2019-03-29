@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine, test */
+/* global jasmine, test, webdriver */
 import { join } from 'path'
 import { existsSync } from 'fs'
 import {
@@ -8,7 +8,6 @@ import {
   renderViaHTTP
 } from 'next-test-utils'
 import startServer from '../server'
-import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 
 const appDir = join(__dirname, '../')
