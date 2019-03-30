@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "8.0.4-canary.26",
+  "version": "8.0.4-canary.27",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -65,7 +65,7 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
-    "next-server": "8.0.4-canary.26",
+    "next-server": "8.0.4-canary.27",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.4",
