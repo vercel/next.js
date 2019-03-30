@@ -321,7 +321,7 @@ export async function renderToHTML(
                     {...props}
                   />
                 </LoadableContext.Provider>
-              </IsAmpContext.Provider>,
+              </IsAmpContext.Provider>
             </DataManagerContext.Provider>
           </RouterContext.Provider>,
 
