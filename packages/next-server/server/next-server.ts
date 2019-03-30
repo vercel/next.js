@@ -28,6 +28,8 @@ type ServerConstructor = {
   conf?: NextConfig,
 }
 
+const ENDING_IN_JSON_REGEX = /\.json$/
+
 export default class Server {
   dir: string
   quiet: boolean
@@ -191,6 +193,22 @@ export default class Server {
       },
     ]
 
+    // routes.push({
+    //   match: route('/api:path*'),
+    //   fn: async (req, res, params, parsedUrl) => {
+    //     res.dataOnly = true
+    //     const path = join('/', ...(params.path || []))
+    //     const { pathname, query } = parsedUrl
+    //     if (!pathname) {
+    //       throw new Error('pathname is undefined')
+    //     }
+
+    //     console.log(path)
+
+    //     await this.render(req, res, path, query, parsedUrl)
+    //   },
+    // })
+
     if (this.nextConfig.useFileSystemPublicRoutes) {
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -202,6 +220,12 @@ export default class Server {
           const { pathname, query } = parsedUrl
           if (!pathname) {
             throw new Error('pathname is undefined')
+          }
+
+          if (pathname.match(ENDING_IN_JSON_REGEX)) {
+            res.dataOnly = true
+            await this.render(req, res, pathname.replace(ENDING_IN_JSON_REGEX, ''), query, parsedUrl)
+            return
           }
 
           await this.render(req, res, pathname, query, parsedUrl)

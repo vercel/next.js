@@ -210,6 +210,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     },
     module: {
       rules: [
+        !isServer && {
+          test: /\.(js|mjs|jsx)$/,
+          include: [path.join(dir, 'data')],
+          use: 'next-data-loader'
+        },
         {
           test: /\.(js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],

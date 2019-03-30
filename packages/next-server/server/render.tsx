@@ -9,6 +9,10 @@ import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import LoadableCapture from '../lib/loadable-capture'
+import { DataManagerContext } from '../lib/data-manager-context'
+import { RouterContext } from '../lib/router-context'
+import { DataManager } from '..//lib/data-manager'
+
 import {
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
@@ -129,6 +133,7 @@ type RenderOpts = {
 function renderDocument(
   Document: React.ComponentType,
   {
+    dataManagerData,
     ampEnabled = false,
     props,
     docProps,
@@ -168,6 +173,7 @@ function renderDocument(
       <IsAmpContext.Provider value={amphtml}>
         <Document
           __NEXT_DATA__={{
+            dataManager: dataManagerData,
             props, // The result of getInitialProps
             page: pathname, // The rendered page
             query, // querystring parsed / passed by the user
@@ -176,7 +182,7 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             dynamicIds:
-              dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           ampEnabled={ampEnabled}
@@ -266,10 +272,12 @@ export async function renderToHTML(
     ]),
   ]
 
+  const dataManager = new DataManager()
+
   const reactLoadableModules: string[] = []
-  const renderPage = (
+  const renderPage = async (
     options: ComponentsEnhancer = {},
-  ): { html: string; head: any } => {
+  ): Promise<{ html: string; head: any }> => {
     const renderElementToString = staticMarkup
       ? renderToStaticMarkup
       : renderToString
@@ -289,20 +297,40 @@ export async function renderToHTML(
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    return render(
-      renderElementToString,
-      <IsAmpContext.Provider value={amphtml}>
-        <LoadableCapture
-          report={(moduleName) => reactLoadableModules.push(moduleName)}
-        >
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </LoadableCapture>
-      </IsAmpContext.Provider>,
-    )
+    const renderSuspense = async () => {
+      try {
+        return await render(
+          renderElementToString,
+          <RouterContext.Provider value={router}>
+            <DataManagerContext.Provider value={dataManager}>
+              <IsAmpContext.Provider value={amphtml}>
+                <LoadableCapture
+                  report={(moduleName) => reactLoadableModules.push(moduleName)}
+                >
+                  <EnhancedApp
+                    Component={EnhancedComponent}
+                    router={router}
+                    {...props}
+                  />
+                </LoadableCapture>
+              </IsAmpContext.Provider>
+            </DataManagerContext.Provider>
+          </RouterContext.Provider>,
+
+        )
+      } catch (err) {
+        console.log(err)
+        if (typeof err.then !== 'undefined') {
+          await err
+          return await renderSuspense()
+        }
+        throw err
+      }
+    }
+
+    const res = await renderSuspense()
+
+    return res
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -314,8 +342,15 @@ export async function renderToHTML(
   ]
   const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
 
+  const dataManagerData = JSON.stringify([...dataManager.getData()])
+
+  if (res.dataOnly) {
+    return dataManagerData
+  }
+
   return renderDocument(Document, {
     ...renderOpts,
+    dataManagerData,
     props,
     docProps,
     pathname,
