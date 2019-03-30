@@ -222,12 +222,6 @@ export default class Server {
             throw new Error('pathname is undefined')
           }
 
-          if (pathname.match(ENDING_IN_JSON_REGEX)) {
-            res.dataOnly = true
-            await this.render(req, res, pathname.replace(ENDING_IN_JSON_REGEX, ''), query, parsedUrl)
-            return
-          }
-
           await this.render(req, res, pathname, query, parsedUrl)
         },
       })
@@ -284,12 +278,19 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
+    const isDataRequest = ENDING_IN_JSON_REGEX.test(pathname)
+
+    if (isDataRequest) {
+      pathname = pathname.replace(ENDING_IN_JSON_REGEX, '')
+    }
+
     if (isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
       amphtml: query.amp && this.nextConfig.experimental.amp,
+      dataOnly: isDataRequest,
     })
     // Request was ended by the user
     if (html === null) {
@@ -318,9 +319,10 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, hasAmp }: {
+    { amphtml, dataOnly, hasAmp }: {
       amphtml?: boolean,
       hasAmp?: boolean,
+      dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {
     try {
@@ -330,7 +332,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml, hasAmp },
+        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
       )
       return html
     } catch (err) {

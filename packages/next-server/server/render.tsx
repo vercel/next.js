@@ -121,7 +121,8 @@ type RenderOpts = {
   dev?: boolean
   ampPath?: string
   amphtml?: boolean
-  hasAmp?: boolean
+  hasAmp?: boolean,
+  dataOnly?: boolean,
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
@@ -154,6 +155,7 @@ function renderDocument(
     files,
     dynamicImports,
   }: RenderOpts & {
+    dataManagerData: any,
     props: any
     docProps: any
     pathname: string
@@ -297,7 +299,7 @@ export async function renderToHTML(
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    const renderSuspense = async () => {
+    const renderSuspense = async (): Promise<any> => {
       try {
         return await render(
           renderElementToString,
@@ -319,7 +321,6 @@ export async function renderToHTML(
 
         )
       } catch (err) {
-        console.log(err)
         if (typeof err.then !== 'undefined') {
           await err
           return await renderSuspense()
@@ -344,7 +345,7 @@ export async function renderToHTML(
 
   const dataManagerData = JSON.stringify([...dataManager.getData()])
 
-  if (res.dataOnly) {
+  if (renderOpts.dataOnly) {
     return dataManagerData
   }
 

@@ -208,6 +208,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ...nodePathList // Support for NODE_PATH environment variable
       ]
     },
+    // @ts-ignore this is filtered
     module: {
       rules: [
         !isServer && {
