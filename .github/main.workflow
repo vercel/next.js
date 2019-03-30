@@ -5,7 +5,7 @@ workflow "Generate pull request stats" {
 
 workflow "Generate release stats" {
   on = "release"
-  resolve = ["PR Stats"]
+  resolves = ["PR Stats"]
 }
 
 action "PR Stats" {
