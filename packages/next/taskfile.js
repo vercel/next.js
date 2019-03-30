@@ -7,7 +7,8 @@ const babelOpts = {
       modules: 'commonjs',
       'targets': {
         'browsers': ['IE 11']
-      }
+      },
+      exclude: ['transform-typeof-symbol']
     }]
   ],
   plugins: [
@@ -18,6 +19,30 @@ const babelOpts = {
       useESModules: false
     }]
   ]
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_arg (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('arg')))
+    .ncc({ packageName: 'arg' })
+    .target('dist/compiled/arg')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_resolve (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('resolve')))
+    .ncc({ packageName: 'resolve' })
+    .target('dist/compiled/resolve')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_nanoid (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('nanoid')))
+    .ncc({ packageName: 'nanoid' })
+    .target('dist/compiled/nanoid')
 }
 
 // eslint-disable-next-line camelcase
@@ -37,7 +62,7 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_unistore', 'ncc_text_table'])
+  await task.parallel(['ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {
@@ -98,6 +123,7 @@ export default async function (task) {
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextexport')
   await task.watch('client/**/*.+(js|ts|tsx)', 'client')
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
+  await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
 }
 
 export async function release (task) {

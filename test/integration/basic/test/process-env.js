@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 
 export default (context) => {
   describe('process.env', () => {

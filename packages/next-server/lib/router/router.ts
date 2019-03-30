@@ -4,7 +4,10 @@ import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
 import { formatWithValidation, getURL, loadGetInitialProps } from '../utils';
-import {toRoute} from './to-route'
+
+function toRoute(path: string): string {
+  return path.replace(/\/$/, '') || '/'
+}
 
 export interface IRouterInterface {
   route: string
@@ -79,7 +82,9 @@ export default class Router implements IRouterInterface {
       // TODO: let's remove this once the Firefox bug is resolved
       if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
         window.addEventListener('unload', () => {
-          if (window.location.search) window.location.replace(window.location.toString())
+          try {
+            if (window.location.search) window.location.replace(window.location.toString())
+          } catch (_) {/* since it's a workaround, ignore */}
         })
       }
     }

@@ -1,9 +1,8 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, webdriver */
 import { join } from 'path'
 import getPort from 'get-port'
 import clone from 'clone'
-import webdriver from 'next-webdriver'
 import {
   initNextServerScript,
   killApp,
@@ -32,7 +31,7 @@ const startServer = async (optEnv = {}) => {
     optEnv
   )
 
-  server = await initNextServerScript(scriptPath, /Ready on/, env)
+  server = await initNextServerScript(scriptPath, /Ready on/, env, /ReferenceError: options is not defined/)
 }
 
 describe('Custom Server', () => {

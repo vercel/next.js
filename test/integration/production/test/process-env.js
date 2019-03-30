@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import { readFile } from 'fs'
 import { promisify } from 'util'
 import { join } from 'path'

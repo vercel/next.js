@@ -18,8 +18,12 @@ pids
 coverage
 
 # test output
-test/**/out
+test/**/out*
 .DS_Store
 
 # Editors
 **/.idea
+
+# example output
+examples/**/out
+

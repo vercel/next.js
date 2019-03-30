@@ -39,10 +39,16 @@ export default function (render, fetch) {
       expect(html.includes('next-head, but only once.')).toBeTruthy()
     })
 
+    test('header renders default viewport', async () => {
+      const html = await (render('/default-head'))
+      expect(html).toContain('<meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1" class="next-head"/>')
+    })
+
     test('header helper renders header information', async () => {
       const html = await (render('/head'))
       expect(html.includes('<meta charSet="iso-8859-5" class="next-head"/>')).toBeTruthy()
       expect(html.includes('<meta content="my meta" class="next-head"/>')).toBeTruthy()
+      expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1" class="next-head"/>')
       expect(html.includes('I can have meta tags')).toBeTruthy()
     })
 
@@ -50,6 +56,9 @@ export default function (render, fetch) {
       const html = await (render('/head'))
       expect(html).toContain('<meta charSet="iso-8859-5" class="next-head"/>')
       expect(html).not.toContain('<meta charSet="utf-8" class="next-head"/>')
+      expect(html).toContain('<meta name="viewport" content="width=device-width,initial-scale=1" class="next-head"/>')
+      expect(html.match(/<meta name="viewport" /g).length).toBe(1, 'Should contain only one viewport')
+      expect(html).not.toContain('<meta name="viewport" content="width=device-width"/>')
       expect(html).toContain('<meta content="my meta" class="next-head"/>')
       expect(html).toContain('<link rel="stylesheet" href="/dup-style.css" class="next-head"/><link rel="stylesheet" href="/dup-style.css" class="next-head"/>')
       expect(html).toContain('<link rel="stylesheet" href="dedupe-style.css" class="next-head"/>')
