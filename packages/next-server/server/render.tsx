@@ -299,7 +299,14 @@ export async function renderToHTML(
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
 
-    const renderSuspense = async (): Promise<any> => {
+    let recursionCount = 0
+
+    const renderTree = async (): Promise<any> => {
+      recursionCount++
+      // This is temporary, we can remove it once the API is finished.
+      if (recursionCount > 100) {
+        throw new Error('Did 100 promise recursions, bailing out to avoid infinite loop.')
+      }
       try {
         return await render(
           renderElementToString,
@@ -323,13 +330,13 @@ export async function renderToHTML(
       } catch (err) {
         if (typeof err.then !== 'undefined') {
           await err
-          return await renderSuspense()
+          return await renderTree()
         }
         throw err
       }
     }
 
-    const res = await renderSuspense()
+    const res = await renderTree()
 
     return res
   }
