@@ -193,22 +193,6 @@ export default class Server {
       },
     ]
 
-    // routes.push({
-    //   match: route('/api:path*'),
-    //   fn: async (req, res, params, parsedUrl) => {
-    //     res.dataOnly = true
-    //     const path = join('/', ...(params.path || []))
-    //     const { pathname, query } = parsedUrl
-    //     if (!pathname) {
-    //       throw new Error('pathname is undefined')
-    //     }
-
-    //     console.log(path)
-
-    //     await this.render(req, res, path, query, parsedUrl)
-    //   },
-    // })
-
     if (this.nextConfig.useFileSystemPublicRoutes) {
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
