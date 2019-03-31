@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
 
@@ -45,11 +45,13 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /Nested 2/)
           await check(() => browser.elementByCss('body').text(), /Browser hydrated/)
 
-          const logs = await browser.log('browser')
+          if (browser.log) {
+            const logs = await browser.log('browser')
 
-          logs.forEach(logItem => {
-            expect(logItem.message).not.toMatch(/Expected server HTML to contain/)
-          })
+            logs.forEach(logItem => {
+              expect(logItem.message).not.toMatch(/Expected server HTML to contain/)
+            })
+          }
         } finally {
           if (browser) {
             await browser.close()
