@@ -116,8 +116,10 @@ export function runNextCommand (argv, options = {}) {
 
 export function runNextCommandDev (argv, stdOut) {
   const cwd = path.dirname(require.resolve('next/package'))
+  const env = { ...process.env, NODE_ENV: undefined }
+
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd })
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
 
     function handleStdout (data) {
       const message = data.toString()
