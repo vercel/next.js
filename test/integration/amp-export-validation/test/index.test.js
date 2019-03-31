@@ -25,12 +25,12 @@ describe('AMP Validation on Export', () => {
   })
 
   it('should export both clean and dirty optimized pages', async () => {
-    const toCheck = ['first', 'second']
+    const toCheck = ['first', 'second', 'third']
     await Promise.all(toCheck.map(async page => {
       const dirty = await readFile(join(outDir, `${page}/index.html`))
       const clean = await readFile(join(outDir, `${page}.amp/index.html`))
       await validateAMP(clean.toString())
-      await validateAMP(dirty.toString(), true)
+      if (page !== 'third') await validateAMP(dirty.toString(), true)
     }))
   })
 

@@ -71,6 +71,8 @@ export default async function (dir, options, configuration) {
         defaultPathMap[nonAmp].query.ampPath = path
         // clean optimized
         defaultPathMap[path].query.amp = 1
+      } else {
+        defaultPathMap[path].query.amp = 1
       }
     } else {
       const ampPath = tryAmp(defaultPathMap, path)
