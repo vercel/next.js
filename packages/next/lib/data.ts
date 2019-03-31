@@ -3,11 +3,14 @@ import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import fetch from 'unfetch'
 
-export function createHook(key: string, fetcher: () => Promise<any>) {
+export function createHook(fetcher: () => Promise<any>, options: {key: string}) {
+  if (!options.key) {
+    throw new Error('key not provided to createHook options.')
+  }
   return function useData() {
     const router: import('next-server/lib/router/router').default = useContext(RouterContext)
     const dataManager: import('next-server/lib/data-manager').DataManager = useContext(DataManagerContext)
-    const existing = dataManager.get(key)
+    const existing = dataManager.get(options.key)
     if (existing && existing.status === 'resolved') {
       return existing.result
     }
@@ -20,7 +23,7 @@ export function createHook(key: string, fetcher: () => Promise<any>) {
       throw res
     } else {
       const res = fetcher().then((result) => {
-        dataManager.set(key, {
+        dataManager.set(options.key, {
           status: 'resolved',
           result,
         })
