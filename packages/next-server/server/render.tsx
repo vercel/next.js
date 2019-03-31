@@ -19,6 +19,7 @@ import {
 } from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { IsAmpContext } from '../lib/amphtml-context'
+import { string } from 'prop-types';
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer =
@@ -274,17 +275,17 @@ export async function renderToHTML(
       ...getPageFiles(buildManifest, '/_app'),
     ]),
   ]
-
-  const dataManager = new DataManager()
+  let dataManager: DataManager | undefined
+  if (ampBindInitData) {
+    dataManager = new DataManager()
+  }
 
   const reactLoadableModules: string[] = []
-  const renderPage = async (
-    options: ComponentsEnhancer = {},
-  ): Promise<{ html: string; head: any }> => {
-    const renderElementToString = staticMarkup
-      ? renderToStaticMarkup
-      : renderToString
+  const renderElementToString = staticMarkup
+    ? renderToStaticMarkup
+    : renderToString
 
+  const renderPageCheck = () => {
     if (ctx.err && ErrorDebug) {
       return render(renderElementToString, <ErrorDebug error={ctx.err} />)
     }
@@ -294,15 +295,70 @@ export async function renderToHTML(
         `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
       )
     }
+  }
+  let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
 
-    const {
-      App: EnhancedApp,
-      Component: EnhancedComponent,
-    } = enhanceComponents(options, App, Component)
+  if (ampBindInitData) {
+    renderPage = async (
+      options: ComponentsEnhancer = {},
+    ): Promise<{ html: string; head: any }> => {
+      renderPageCheck()
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
 
-    if (!ampBindInitData) {
+      let recursionCount = 0
+
+      const renderTree = async (): Promise<any> => {
+        recursionCount++
+        // This is temporary, we can remove it once the API is finished.
+        if (recursionCount > 100) {
+          throw new Error('Did 100 promise recursions, bailing out to avoid infinite loop.')
+        }
+        try {
+          return await render(
+            renderElementToString,
+            <RouterContext.Provider value={router}>
+              <DataManagerContext.Provider value={dataManager}>
+                <IsAmpContext.Provider value={amphtml}>
+                  <LoadableContext.Provider
+                    value={(moduleName) => reactLoadableModules.push(moduleName)}
+                  >
+                    <EnhancedApp
+                      Component={EnhancedComponent}
+                      router={router}
+                      {...props}
+                    />
+                  </LoadableContext.Provider>
+                </IsAmpContext.Provider>
+              </DataManagerContext.Provider>
+            </RouterContext.Provider>,
+
+          )
+        } catch (err) {
+          if (typeof err.then !== 'undefined') {
+            await err
+            return await renderTree()
+          }
+          throw err
+        }
+      }
+      const res = await renderTree()
+      return res
+    }
+  } else {
+    renderPage = (
+      options: ComponentsEnhancer = {},
+    ): { html: string; head: any } => {
+      renderPageCheck()
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
+
       return render(
-        renderElementToString,
+        staticMarkup ? renderToStaticMarkup : renderToString,
         <IsAmpContext.Provider value={amphtml}>
           <LoadableContext.Provider
             value={(moduleName) => reactLoadableModules.push(moduleName)}
@@ -316,47 +372,6 @@ export async function renderToHTML(
         </IsAmpContext.Provider>,
       )
     }
-
-    let recursionCount = 0
-
-    const renderTree = async (): Promise<any> => {
-      recursionCount++
-      // This is temporary, we can remove it once the API is finished.
-      if (recursionCount > 100) {
-        throw new Error('Did 100 promise recursions, bailing out to avoid infinite loop.')
-      }
-      try {
-        return await render(
-          renderElementToString,
-          <RouterContext.Provider value={router}>
-            <DataManagerContext.Provider value={dataManager}>
-              <IsAmpContext.Provider value={amphtml}>
-                <LoadableContext.Provider
-                  value={(moduleName) => reactLoadableModules.push(moduleName)}
-                >
-                  <EnhancedApp
-                    Component={EnhancedComponent}
-                    router={router}
-                    {...props}
-                  />
-                </LoadableContext.Provider>
-              </IsAmpContext.Provider>
-            </DataManagerContext.Provider>
-          </RouterContext.Provider>,
-
-        )
-      } catch (err) {
-        if (typeof err.then !== 'undefined') {
-          await err
-          return await renderTree()
-        }
-        throw err
-      }
-    }
-
-    const res = await renderTree()
-
-    return res
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -368,7 +383,10 @@ export async function renderToHTML(
   ]
   const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
 
-  const dataManagerData = JSON.stringify([...dataManager.getData()])
+  let dataManagerData: string = ''
+  if (dataManager) {
+    dataManagerData = JSON.stringify([...dataManager.getData()])
+  }
 
   if (renderOpts.dataOnly) {
     return dataManagerData
