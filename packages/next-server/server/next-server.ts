@@ -38,6 +38,7 @@ export default class Server {
   buildId: string
   renderOpts: {
     ampEnabled: boolean
+    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -76,6 +77,7 @@ export default class Server {
     this.buildId = this.readBuildId()
     this.renderOpts = {
       ampEnabled: this.nextConfig.experimental.amp,
+      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,

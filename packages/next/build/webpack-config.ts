@@ -228,7 +228,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     // @ts-ignore this is filtered
     module: {
       rules: [
-        !isServer && {
+        config.experimental.ampBindInitData && !isServer && {
           test: /\.(js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
           use: 'next-data-loader'

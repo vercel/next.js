@@ -111,6 +111,7 @@ function render(
 
 type RenderOpts = {
   ampEnabled: boolean
+  ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
   runtimeConfig?: { [key: string]: any }
@@ -213,6 +214,7 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
+    ampBindInitData = false,
     staticMarkup = false,
     amphtml = false,
     hasAmp = false,
@@ -297,6 +299,23 @@ export async function renderToHTML(
       App: EnhancedApp,
       Component: EnhancedComponent,
     } = enhanceComponents(options, App, Component)
+
+    if (!ampBindInitData) {
+      return render(
+        renderElementToString,
+        <IsAmpContext.Provider value={amphtml}>
+          <LoadableContext.Provider
+            value={(moduleName) => reactLoadableModules.push(moduleName)}
+          >
+            <EnhancedApp
+              Component={EnhancedComponent}
+              router={router}
+              {...props}
+            />
+          </LoadableContext.Provider>
+        </IsAmpContext.Provider>,
+      )
+    }
 
     let recursionCount = 0
 
