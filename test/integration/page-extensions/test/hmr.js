@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { waitFor } from 'next-test-utils'

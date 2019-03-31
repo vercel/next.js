@@ -1,9 +1,8 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, webdriver */
 import { join } from 'path'
 import getPort from 'get-port'
 import clone from 'clone'
-import webdriver from 'next-webdriver'
 import {
   initNextServerScript,
   killApp,

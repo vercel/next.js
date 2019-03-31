@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
 import { join } from 'path'
 import { waitFor, check, getBrowserBodyText } from 'next-test-utils'
@@ -135,15 +135,15 @@ export default (context, renderViaHTTP) => {
           // Change the page
           writeFileSync(pagePath, editedContent, 'utf8')
 
-          // wait for 5 seconds
-          await waitFor(5000)
-
           try {
             // Check whether the this page has reloaded or not.
-            const editedPTag = await browser.elementByCss('.hmr-style-page p')
-            const editedFontSize = await editedPTag.getComputedCss('font-size')
-
-            expect(editedFontSize).toBe('200px')
+            await check(
+              async () => {
+                const editedPTag = await browser.elementByCss('.hmr-style-page p')
+                return editedPTag.getComputedCss('font-size')
+              },
+              /200px/
+            )
           } finally {
             // Finally is used so that we revert the content back to the original regardless of the test outcome
             // restore the about page content.
@@ -173,14 +173,14 @@ export default (context, renderViaHTTP) => {
           // Change the page
           writeFileSync(pagePath, editedContent, 'utf8')
 
-          // wait for 5 seconds
-          await waitFor(5000)
-
           // Check whether the this page has reloaded or not.
-          const editedPTag = await browser.elementByCss('.hmr-style-page p')
-          const editedFontSize = await editedPTag.getComputedCss('font-size')
-
-          expect(editedFontSize).toBe('200px')
+          await check(
+            async () => {
+              const editedPTag = await browser.elementByCss('.hmr-style-page p')
+              return editedPTag.getComputedCss('font-size')
+            },
+            /200px/
+          )
         } finally {
           if (browser) {
             await browser.close()

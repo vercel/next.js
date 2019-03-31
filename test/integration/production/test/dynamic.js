@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import cheerio from 'cheerio'
 import { waitFor, check } from 'next-test-utils'
 
