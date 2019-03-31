@@ -82,7 +82,9 @@ export default class Router implements IRouterInterface {
       // TODO: let's remove this once the Firefox bug is resolved
       if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
         window.addEventListener('unload', () => {
-          if (window.location.search) window.location.replace(window.location.toString())
+          try {
+            if (window.location.search) window.location.replace(window.location.toString())
+          } catch (_) {/* since it's a workaround, ignore */}
         })
       }
     }

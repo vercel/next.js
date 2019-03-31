@@ -13,7 +13,7 @@ export default class Preact extends React.Component {
   render () {
     return (
       <div>
-        <p>Preact has {this.props.stars} ⭐️</p>
+        <p>Preact has {this.props.stars} ⭝︝</p>
         <Link prefetch href='/'>
           <a>I bet next has more stars (?)</a>
         </Link>

@@ -58,7 +58,7 @@ function getWebpackStatusPhase(status: WebpackStatus): WebpackStatusPhase {
   return WebpackStatusPhase.COMPILED
 }
 
-function formatAmpMessages(amp: AmpPageStatus) {
+export function formatAmpMessages(amp: AmpPageStatus) {
   let output = chalk.bold('Amp Validation') + '\n\n'
   let messages: string[][] = []
 
