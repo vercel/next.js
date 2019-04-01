@@ -87,5 +87,7 @@ function getBrowser (url, timeout) {
   })
 }
 
-if (global.isBrowserStack) webdriver = global.bsBrowser
+if (global.isBrowserStack) {
+  webdriver = (...args) => global.bsWd(...args)
+}
 export default webdriver
