@@ -6,7 +6,6 @@ const fetch = require('node-fetch')
 const getPort = require('get-port')
 const NodeEnvironment = require('jest-environment-node')
 const {
-  HEADLESS,
   BROWSER_NAME,
   BROWSERSTACK,
   BROWSERSTACK_USERNAME,
@@ -15,7 +14,6 @@ const {
 
 let browser
 let initialWindow
-let driverPort = 9515
 let browserOptions = {
   browserName: BROWSER_NAME || 'chrome'
 }
@@ -57,8 +55,6 @@ if (isBrowserStack) {
     ...(isSafari ? safariOpts : {}),
     ...(isFirefox ? firefoxOpts : {})
   }
-} else if (HEADLESS !== 'false') {
-  browserOptions.chromeOptions = { args: ['--headless'] }
 }
 
 const newTabPg = `
@@ -74,22 +70,20 @@ const newTabPg = `
 `
 
 class CustomEnvironment extends NodeEnvironment {
-  async createBrowser (fromWebdriver = false) {
+  async createBrowser () {
     // always create new browser session if not BrowserStack
-    if ((!browser && isBrowserStack) || fromWebdriver) {
-      browser = isBrowserStack
-        ? wd.promiseChainRemote(
-          'hub-cloud.browserstack.com', // seleniumHost
-          80, // seleniumPort
-          BROWSERSTACK_USERNAME,
-          BROWSERSTACK_ACCESS_KEY
-        )
-        : wd.promiseChainRemote(`http://localhost:${driverPort}/`)
+    if ((!browser && isBrowserStack)) {
+      browser = wd.promiseChainRemote(
+        'hub-cloud.browserstack.com', // seleniumHost
+        80, // seleniumPort
+        BROWSERSTACK_USERNAME,
+        BROWSERSTACK_ACCESS_KEY
+      )
 
       // Setup the browser instance
       await browser.init(browserOptions)
-      if (isBrowserStack) initialWindow = await browser.windowHandle()
-      global.browser = browser
+      initialWindow = await browser.windowHandle()
+      global.bsBrowser = browser
     }
 
     if (isBrowserStack) {
@@ -128,12 +122,10 @@ class CustomEnvironment extends NodeEnvironment {
       }
     }
     this.global.browserName = BROWSER_NAME
-
+    this.global.isBrowserStack = isBrowserStack
     // Mock current browser set up
-    this.global.webdriver = async (appPort, pathname) => {
-      if (!isBrowserStack) await this.createBrowser(true)
+    this.global.bsWd = async (appPort, pathname) => {
       const url = `http://${deviceIP}:${appPort}${pathname}`
-
       console.log(`\n> Loading browser with ${url}\n`)
       if (isBrowserStack) await this.freshWindow()
 
