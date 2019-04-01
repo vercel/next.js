@@ -1,5 +1,6 @@
 /* eslint-env jest */
-/* global jasmine, webdriver */
+/* global jasmine */
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   nextServer,
