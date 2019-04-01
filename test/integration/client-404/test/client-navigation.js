@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global webdriver */
+import webdriver from 'next-webdriver'
 
 export default (context) => {
   describe('Client Navigation 404', () => {
