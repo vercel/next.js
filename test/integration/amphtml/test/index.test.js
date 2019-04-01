@@ -1,7 +1,8 @@
 /* eslint-env jest */
-/* global jasmine, webdriver */
+/* global jasmine */
 import { join } from 'path'
 import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
 import { validateAMP } from 'amp-test-utils'
 import { readFileSync, writeFileSync } from 'fs'
 import {
