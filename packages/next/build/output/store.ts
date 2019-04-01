@@ -30,7 +30,7 @@ store.subscribe(state => {
     console.log(chalk.cyan('Starting the development server ...'))
     if (state.appUrl) {
       console.log()
-      console.log(`  > Waiting on ${state.appUrl!}`)
+      console.log(`> Waiting on ${state.appUrl!}`)
     }
     return
   }
@@ -57,7 +57,7 @@ store.subscribe(state => {
   console.log(chalk.green('Compiled successfully!'))
   if (state.appUrl) {
     console.log()
-    console.log(`  > Ready on ${state.appUrl!}`)
+    console.log(`> Ready on ${state.appUrl!}`)
   }
   console.log()
   console.log('Note that pages will be compiled when you first load them.')
