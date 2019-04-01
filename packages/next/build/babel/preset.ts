@@ -78,7 +78,9 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
       isTest && require('babel-plugin-dynamic-import-node'),
       require('./plugins/react-loadable-plugin'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
-      require('@babel/plugin-proposal-object-rest-spread'),
+      [require('@babel/plugin-proposal-object-rest-spread'), {
+        useBuiltIns: true
+      }],
       [require('@babel/plugin-transform-runtime'), {
         corejs: 2,
         helpers: true,
