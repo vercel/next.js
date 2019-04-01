@@ -1,5 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   nextServer,
@@ -8,7 +9,6 @@ import {
   stopApp,
   runNextCommand
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 

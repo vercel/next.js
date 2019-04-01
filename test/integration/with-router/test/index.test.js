@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 import {
   getReactErrorOverlayContent,
   nextServer,
