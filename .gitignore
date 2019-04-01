@@ -18,7 +18,7 @@ pids
 coverage
 
 # test output
-test/**/out
+test/**/out*
 .DS_Store
 
 # Editors
@@ -26,3 +26,4 @@ test/**/out
 
 # example output
 examples/**/out
+

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global webdriver */
 import { join } from 'path'
 import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
 
@@ -40,9 +40,8 @@ export default (context, renderViaHTTP) => {
     it('should have installed the react-overlay-editor editor handler', async () => {
       let browser
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
-      aboutPage.replace('</div>', 'div')
-
       try {
+        aboutPage.replace('</div>', 'div')
         browser = await webdriver(context.appPort, '/hmr/about')
 
         // react-error-overlay uses the following inline style if an editorHandler is installed
@@ -76,8 +75,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('</div>', 'div')
 
@@ -147,9 +148,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser
-          .elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export', 'aa=20;\nexport')
 
@@ -174,9 +176,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('return', 'throw new Error("an-expected-error");\nreturn')
 
@@ -210,8 +213,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default {};\nexport const fn =')
 
@@ -249,8 +254,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default () => /search/;\nexport const fn =')
 
@@ -288,8 +295,10 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       try {
         browser = await webdriver(context.appPort, '/hmr/about')
-        const text = await browser.elementByCss('p').text()
-        expect(text).toBe('This is the about page.')
+        await check(
+          () => getBrowserBodyText(browser),
+          /This is the about page/
+        )
 
         aboutPage.replace('export default', 'export default undefined;\nexport const fn =')
 

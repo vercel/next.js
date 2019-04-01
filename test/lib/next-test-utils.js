@@ -71,10 +71,15 @@ export function findPort () {
 }
 
 export function runNextCommand (argv, options = {}) {
-  const cwd = path.dirname(require.resolve('next/package'))
+  const nextDir = path.dirname(require.resolve('next/package'))
+  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const cwd = options.cwd || nextDir
+  // Let Next.js decide the environment
+  const env = { ...process.env, ...options.env, NODE_ENV: undefined }
+
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
-    const instance = spawn('node', ['dist/bin/next', ...argv], { ...options.spawnOptions, cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+    const instance = spawn('node', [nextBin, ...argv], { ...options.spawnOptions, cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
 
     if (typeof options.instance === 'function') {
       options.instance(instance)
@@ -111,8 +116,10 @@ export function runNextCommand (argv, options = {}) {
 
 export function runNextCommandDev (argv, stdOut) {
   const cwd = path.dirname(require.resolve('next/package'))
+  const env = { ...process.env, NODE_ENV: undefined }
+
   return new Promise((resolve, reject) => {
-    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd })
+    const instance = spawn('node', ['dist/bin/next', ...argv], { cwd, env })
 
     function handleStdout (data) {
       const message = data.toString()

@@ -186,6 +186,12 @@ export class Head extends Component {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
+      } else if (type === 'script') {
+        badProp = '<script'
+        Object.keys(props).forEach(prop => {
+          badProp += ` ${prop}="${props[prop]}"`
+        })
+        badProp += '/>'
       }
 
       if (badProp) {
