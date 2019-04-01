@@ -1,5 +1,6 @@
 /* eslint-env jest */
-/* global jasmine, webdriver, browserName */
+/* global jasmine, browserName */
+import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {

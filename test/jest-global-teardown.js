@@ -1,7 +1,7 @@
 'use strict'
 
 let globalTeardown
-const browser = global.browser
+const browser = global.bsBrowser
 
 if (process.env.BROWSERSTACK) {
   globalTeardown = () => global.browserStackLocal.killAllProcesses(() => {})

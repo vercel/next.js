@@ -1,5 +1,6 @@
 /* eslint-env jest */
-/* global jasmine, test, webdriver */
+/* global jasmine, test */
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import {
