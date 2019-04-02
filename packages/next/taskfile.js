@@ -15,8 +15,11 @@ const babelOpts = {
     ['@babel/plugin-transform-runtime', {
       corejs: 2,
       helpers: true,
-      regenerator: true,
+      regenerator: false,
       useESModules: false
+    }],
+    ['babel-plugin-transform-async-to-promises', {
+      inlineHelpers: true
     }]
   ]
 }
