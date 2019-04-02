@@ -40,7 +40,7 @@ jobs:
           at: .
       - run:
           name: Production Tests
-          command: '[[ ! -z $BROWSERSTACK_USERNAME ]] && yarn testall test/integration/production/ || echo "Not running for PR"'
+          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'ie'
