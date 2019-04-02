@@ -1,4 +1,4 @@
-import { Compiler, Plugin, Stats } from 'webpack'
+import { Compiler, Plugin } from 'webpack'
 import path from 'path'
 import { EOL } from 'os'
 
@@ -29,7 +29,14 @@ function getFiles(dir: string, modules: any[]): string[] {
       (acc: any[], val: any) =>
         val.modules
           ? acc.concat(getFiles(dir, val.modules))
-          : (acc.push(getFileByIdentifier(val.identifier)), acc),
+          : (acc.push(
+              getFileByIdentifier(
+                typeof val.identifier === 'function'
+                  ? val.identifier()
+                  : val.identifier
+              )
+            ),
+            acc),
       []
     )
     .filter(Boolean)
@@ -45,26 +52,42 @@ export class ChunkGraphPlugin implements Plugin {
   }
 
   apply(compiler: Compiler) {
+    const { dir } = this
     compiler.hooks.emit.tap('ChunkGraphPlugin', compilation => {
-      const stats = compilation.getStats().toJson()
-      const modules = [
-        ...(stats.chunks as any[])
-          .reduce(
-            (acc: any[], chunk: any) => acc.concat(chunk.modules),
-            [] as any[]
-          )
-          .concat(stats.modules as any[])
-          .filter(Boolean)
-          .reduce((acc: Map<any, any>, module: any) => {
-            acc.set(module.id, module)
-            return acc
-          }, new Map<any, any>())
-          .values(),
-      ]
+      const manifest: { [chunkName: string]: string[] } = {}
 
-      const files = getFiles(this.dir, modules)
-      const json = JSON.stringify({ files }, null, 2) + EOL
+      compilation.chunks.forEach(chunk => {
+        if (!chunk.hasEntryModule()) {
+          return
+        }
 
+        const chunkModules = new Map<any, any>()
+
+        const queue = new Set<any>(chunk.groupsIterable)
+        const chunksProcessed = new Set<any>()
+
+        for (const chunkGroup of queue) {
+          for (const chunk of chunkGroup.chunks) {
+            if (!chunksProcessed.has(chunk)) {
+              chunksProcessed.add(chunk)
+              for (const m of chunk.modulesIterable) {
+                chunkModules.set(m.id, m)
+              }
+            }
+          }
+          for (const child of chunkGroup.childrenIterable) {
+            queue.add(child)
+          }
+        }
+
+        const modules = [...chunkModules.values()]
+        const files = getFiles(dir, modules).filter(
+          val => !val.includes('node_modules')
+        )
+        manifest[chunk.name] = files
+      })
+
+      const json = JSON.stringify(manifest, null, 2) + EOL
       compilation.assets[this.filename] = {
         source() {
           return json
