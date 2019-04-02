@@ -62,15 +62,21 @@ export default async function (dir, options, configuration) {
       defaultPathMap[path].query = { amphtml: true }
       const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
       if (!defaultPathMap[nonAmp]) {
-        // dirty optimized
-        defaultPathMap[nonAmp] = {
-          ...defaultPathMap[path],
-          query: { ...defaultPathMap[path].query }
+        if (!nextConfig.experimental.noDirtyAmp) {
+          // dirty optimized
+          defaultPathMap[nonAmp] = {
+            ...defaultPathMap[path],
+            query: { ...defaultPathMap[path].query }
+          }
+          defaultPathMap[nonAmp].query.ampOnly = true
+          defaultPathMap[nonAmp].query.ampPath = path
+          // clean optimized
+          defaultPathMap[path].query.amp = 1
+        } else {
+          // dirty optimizing is disabled
+          defaultPathMap[path].query.amp = 1
+          defaultPathMap[path].query.ampOnly = true
         }
-        defaultPathMap[nonAmp].query.ampOnly = true
-        defaultPathMap[nonAmp].query.ampPath = path
-        // clean optimized
-        defaultPathMap[path].query.amp = 1
       } else {
         defaultPathMap[path].query.amp = 1
       }

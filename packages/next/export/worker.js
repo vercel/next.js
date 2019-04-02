@@ -72,7 +72,7 @@ process.on(
         const components = await loadComponents(distDir, buildId, page)
         const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
 
-        if (ampOpts.amphtml && !ampOnly) {
+        if (ampOpts.amphtml && query.amp) {
           const validator = await AmpHtmlValidator.getInstance()
           const result = validator.validateString(html)
           const errors = result.errors.filter(e => e.severity === 'ERROR')
