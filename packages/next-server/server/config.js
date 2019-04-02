@@ -22,6 +22,7 @@ const defaultConfig = {
   },
   experimental: {
     amp: false,
+    noDirtyAmp: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

@@ -19,6 +19,7 @@ import {
 } from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { IsAmpContext } from '../lib/amphtml-context'
+import optimizeAmp from './optimize-amp'
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer =
@@ -111,6 +112,7 @@ function render(
 
 type RenderOpts = {
   ampEnabled: boolean
+  noDirtyAmp: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
@@ -216,6 +218,7 @@ export async function renderToHTML(
     dev = false,
     ampBindInitData = false,
     staticMarkup = false,
+    noDirtyAmp = false,
     amphtml = false,
     hasAmp = false,
     ampPath = '',
@@ -399,7 +402,7 @@ export async function renderToHTML(
     return dataManagerData
   }
 
-  return renderDocument(Document, {
+  let html = renderDocument(Document, {
     ...renderOpts,
     dataManagerData,
     props,
@@ -414,6 +417,11 @@ export async function renderToHTML(
     files,
     devFiles,
   })
+
+  if (amphtml && html) {
+    html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+  }
+  return html
 }
 
 function errorToJSON(err: Error): Error {
