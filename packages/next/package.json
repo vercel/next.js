@@ -56,6 +56,7 @@
     "babel-loader": "8.0.2",
     "babel-plugin-dynamic-import-node": "2.2.0",
     "babel-plugin-react-require": "3.0.0",
+    "babel-plugin-transform-async-to-promises": "0.8.7",
     "babel-plugin-transform-react-remove-prop-types": "0.4.15",
     "chalk": "2.4.2",
     "find-cache-dir": "2.0.0",
