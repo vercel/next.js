@@ -2,6 +2,7 @@ import { Compiler, Plugin } from 'webpack'
 import path from 'path'
 import { EOL } from 'os'
 import { parse } from 'querystring'
+import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
 
 function getFiles(dir: string, modules: any[]): string[] {
   if (!(modules && modules.length)) {
@@ -55,7 +56,14 @@ export class ChunkGraphPlugin implements Plugin {
   apply(compiler: Compiler) {
     const { dir } = this
     compiler.hooks.emit.tap('ChunkGraphPlugin', compilation => {
-      const manifest: { [chunkName: string]: string[] } = {}
+      type StringDictionary = { [pageName: string]: string[] }
+      const manifest: { pages: StringDictionary; chunks: StringDictionary } = {
+        pages: {},
+        chunks: {},
+      }
+
+      let clientRuntime = [] as string[]
+      const pages: StringDictionary = {}
 
       compilation.chunks.forEach(chunk => {
         if (!chunk.hasEntryModule()) {
@@ -86,7 +94,7 @@ export class ChunkGraphPlugin implements Plugin {
           .filter(val => !val.includes('node_modules'))
           .sort()
 
-        let { name } = chunk
+        let pageName: string | undefined
         if (chunk.entryModule && chunk.entryModule.loaders) {
           const entryLoader = chunk.entryModule.loaders.find(
             ({
@@ -100,13 +108,25 @@ export class ChunkGraphPlugin implements Plugin {
           )
           if (entryLoader) {
             const { page } = parse(entryLoader.options)
-            if (page) {
-              name = `page::${page}`
+            if (typeof page === 'string' && page) {
+              pageName = page
             }
           }
         }
 
-        manifest[name] = files
+        if (pageName) {
+          pages[pageName] = files
+        } else {
+          if (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN) {
+            clientRuntime = files
+          } else {
+            manifest.chunks[chunk.name] = files
+          }
+        }
+
+        for (const page in pages) {
+          manifest.pages[page] = [...pages[page], ...clientRuntime]
+        }
       })
 
       const json = JSON.stringify(manifest, null, 2) + EOL
