@@ -1,4 +1,6 @@
 import babelLoader from 'babel-loader'
+import hash from 'string-hash'
+import { basename } from 'path'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
@@ -21,6 +23,7 @@ module.exports = babelLoader.custom(babel => {
       return { loader, custom }
     },
     config (cfg, { source, customOptions: { isServer } }) {
+      const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
         for (const file of [cfg.babelrc, cfg.config]) {
@@ -34,6 +37,12 @@ module.exports = babelLoader.custom(babel => {
       } else {
         // Add our default preset if the no "babelrc" found.
         options.presets = [...options.presets, presetItem]
+      }
+
+      if (isServer && source.indexOf('next/data') !== -1) {
+        const nextDataPlugin = babel.createConfigItem([require('../../babel/plugins/next-data'), { key: basename(filename) + '-' + hash(filename) }], { type: 'plugin' })
+        options.plugins = options.plugins || []
+        options.plugins.push(nextDataPlugin)
       }
 
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements

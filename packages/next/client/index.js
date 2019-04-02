@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
-import { createRouter } from 'next/router'
+import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
 import PageLoader from './page-loader'
@@ -9,6 +9,9 @@ import * as envConfig from 'next-server/config'
 import { ErrorBoundary } from './error-boundary'
 import Loadable from 'next-server/dist/lib/loadable'
 import { HeadManagerContext } from 'next-server/dist/lib/head-manager-context'
+import { DataManagerContext } from 'next-server/dist/lib/data-manager-context'
+import { RouterContext } from 'next-server/dist/lib/router-context'
+import { DataManager } from 'next-server/dist/lib/data-manager'
 
 // Polyfill Promise globally
 // This is needed because Webpack's dynamic loading(common chunks) code
@@ -32,6 +35,9 @@ const {
   runtimeConfig,
   dynamicIds
 } = data
+
+const d = JSON.parse(window.__NEXT_DATA__.dataManager)
+export const dataManager = new DataManager(d)
 
 const prefix = assetPrefix || ''
 
@@ -183,17 +189,25 @@ async function doRender ({ App, Component, props, err }) {
   // In development runtime errors are caught by react-error-overlay.
   if (process.env.NODE_ENV === 'development') {
     renderReactElement((
-      <HeadManagerContext.Provider value={headManager.updateHead}>
-        <App {...appProps} />
-      </HeadManagerContext.Provider>
+      <Suspense fallback={<div>Loading...</div>}>
+        <RouterContext.Provider value={makePublicRouterInstance(router)}>
+          <DataManagerContext.Provider value={dataManager}>
+            <HeadManagerContext.Provider value={headManager.updateHead}>
+              <App {...appProps} />
+            </HeadManagerContext.Provider>
+          </DataManagerContext.Provider>
+        </RouterContext.Provider>
+      </Suspense>
     ), appContainer)
   } else {
     // In production we catch runtime errors using componentDidCatch which will trigger renderError.
     renderReactElement((
       <ErrorBoundary fn={(error) => renderError({ App, err: error }).catch(err => console.error('Error rendering page: ', err))}>
-        <HeadManagerContext.Provider value={headManager.updateHead}>
-          <App {...appProps} />
-        </HeadManagerContext.Provider>
+        <Suspense fallback={<div>Loading...</div>}>
+          <HeadManagerContext.Provider value={headManager.updateHead}>
+            <App {...appProps} />
+          </HeadManagerContext.Provider>
+        </Suspense>
       </ErrorBoundary>
     ), appContainer)
   }

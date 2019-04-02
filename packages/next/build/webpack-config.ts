@@ -225,8 +225,14 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ...nodePathList // Support for NODE_PATH environment variable
       ]
     },
+    // @ts-ignore this is filtered
     module: {
       rules: [
+        config.experimental.ampBindInitData && !isServer && {
+          test: /\.(js|mjs|jsx)$/,
+          include: [path.join(dir, 'data')],
+          use: 'next-data-loader'
+        },
         {
           test: /\.(js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],

@@ -15,8 +15,8 @@ export default class Document extends Component {
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
-  static getInitialProps({ renderPage }) {
-    const { html, head } = renderPage()
+  static async getInitialProps({ renderPage }) {
+    const { html, head } = await renderPage()
     const styles = flush()
     return { html, head, styles }
   }

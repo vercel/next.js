@@ -28,6 +28,8 @@ type ServerConstructor = {
   conf?: NextConfig,
 }
 
+const ENDING_IN_JSON_REGEX = /\.json$/
+
 export default class Server {
   dir: string
   quiet: boolean
@@ -36,6 +38,7 @@ export default class Server {
   buildId: string
   renderOpts: {
     ampEnabled: boolean
+    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -74,6 +77,7 @@ export default class Server {
     this.buildId = this.readBuildId()
     this.renderOpts = {
       ampEnabled: this.nextConfig.experimental.amp,
+      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -260,12 +264,19 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
+    const isDataRequest = ENDING_IN_JSON_REGEX.test(pathname)
+
+    if (isDataRequest) {
+      pathname = pathname.replace(ENDING_IN_JSON_REGEX, '')
+    }
+
     if (isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
       amphtml: query.amp && this.nextConfig.experimental.amp,
+      dataOnly: isDataRequest,
     })
     // Request was ended by the user
     if (html === null) {
@@ -291,9 +302,10 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, hasAmp }: {
+    { amphtml, dataOnly, hasAmp }: {
       amphtml?: boolean,
       hasAmp?: boolean,
+      dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {
     try {
@@ -303,7 +315,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml, hasAmp },
+        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
       )
       return html
     } catch (err) {
