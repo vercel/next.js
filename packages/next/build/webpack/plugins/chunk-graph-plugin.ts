@@ -1,6 +1,7 @@
 import { Compiler, Plugin } from 'webpack'
 import path from 'path'
 import { EOL } from 'os'
+import { parse } from 'querystring'
 
 function getFiles(dir: string, modules: any[]): string[] {
   if (!(modules && modules.length)) {
@@ -85,7 +86,27 @@ export class ChunkGraphPlugin implements Plugin {
           .filter(val => !val.includes('node_modules'))
           .sort()
 
-        manifest[chunk.name] = files
+        let { name } = chunk
+        if (chunk.entryModule && chunk.entryModule.loaders) {
+          const entryLoader = chunk.entryModule.loaders.find(
+            ({
+              loader,
+              options,
+            }: {
+              loader?: string | null
+              options?: string | null
+            }) =>
+              loader && loader.includes('next-client-pages-loader') && options
+          )
+          if (entryLoader) {
+            const { page } = parse(entryLoader.options)
+            if (page) {
+              name = `page::${page}`
+            }
+          }
+        }
+
+        manifest[name] = files
       })
 
       const json = JSON.stringify(manifest, null, 2) + EOL
