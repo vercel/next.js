@@ -1,6 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join, resolve } from 'path'
+import { join, resolve, relative } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import { BUILD_ID_FILE, CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
 import {
@@ -57,7 +57,7 @@ describe('Production Usage', () => {
       expect(existsSync(cgf)).toBeTruthy()
       expect(
         JSON.parse(readFileSync(cgf, 'utf8')).pages['/'].includes(
-          resolve(__dirname, '..', 'pages', 'index.js')
+          relative(appDir, resolve(__dirname, '..', 'pages', 'index.js'))
         )
       )
     })
