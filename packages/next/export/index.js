@@ -59,10 +59,26 @@ export default async function (dir, options, configuration) {
     const isAmp = path.indexOf('.amp') > -1
 
     if (isAmp) {
-      defaultPathMap[path].query = { amp: 1 }
+      defaultPathMap[path].query = { amphtml: true }
       const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
       if (!defaultPathMap[nonAmp]) {
-        defaultPathMap[path].query.ampOnly = true
+        if (!nextConfig.experimental.noDirtyAmp) {
+          // dirty optimized
+          defaultPathMap[nonAmp] = {
+            ...defaultPathMap[path],
+            query: { ...defaultPathMap[path].query }
+          }
+          defaultPathMap[nonAmp].query.ampOnly = true
+          defaultPathMap[nonAmp].query.ampPath = path
+          // clean optimized
+          defaultPathMap[path].query.amp = 1
+        } else {
+          // dirty optimizing is disabled
+          defaultPathMap[path].query.amp = 1
+          defaultPathMap[path].query.ampOnly = true
+        }
+      } else {
+        defaultPathMap[path].query.amp = 1
       }
     } else {
       const ampPath = tryAmp(defaultPathMap, path)

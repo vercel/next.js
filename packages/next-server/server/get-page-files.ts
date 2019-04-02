@@ -10,9 +10,10 @@ export type BuildManifest = {
 
 export function getPageFiles(buildManifest: BuildManifest, page: string): string[] {
   const normalizedPage = normalizePagePath(page)
-  const files = buildManifest.pages[normalizedPage]
+  let files = buildManifest.pages[normalizedPage]
   if (!files) {
     page = tryAmp(buildManifest.pages, normalizedPage)
+    files = buildManifest.pages[page]
   }
 
   if (!files) {

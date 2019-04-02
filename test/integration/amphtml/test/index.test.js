@@ -1,7 +1,9 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { validateAMP } from 'amp-test-utils'
 import { readFileSync, writeFileSync } from 'fs'
 import {
   nextServer,
@@ -15,8 +17,7 @@ import {
   launchApp,
   killApp
 } from 'next-test-utils'
-import cheerio from 'cheerio'
-import amphtmlValidator from 'amphtml-validator'
+
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -24,23 +25,6 @@ let app
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
 const context = {}
-
-async function validateAMP (html) {
-  const validator = await amphtmlValidator.getInstance()
-  const result = validator.validateString(html)
-  if (result.status !== 'PASS') {
-    for (let ii = 0; ii < result.errors.length; ii++) {
-      const error = result.errors[ii]
-      let msg =
-        'line ' + error.line + ', col ' + error.col + ': ' + error.message
-      if (error.specUrl !== null) {
-        msg += ' (see ' + error.specUrl + ')'
-      }
-      ;(error.severity === 'ERROR' ? console.error : console.warn)(msg)
-    }
-  }
-  expect(result.status).toBe('PASS')
-}
 
 describe('AMP Usage', () => {
   beforeAll(async () => {
@@ -114,6 +98,16 @@ describe('AMP Usage', () => {
       expect(html).not.toMatch(/src='\/im-not-allowed\.js'/)
       expect(html).not.toMatch(/console\.log("I'm not either :p")'/)
     })
+
+    it('should optimize dirty when ?amp=1 is not specified', async () => {
+      const html = await renderViaHTTP(appPort, '/only-amp')
+      await validateAMP(html, true)
+    })
+
+    it('should optimize clean when ?amp=1 is specified', async () => {
+      const html = await renderViaHTTP(appPort, '/only-amp?amp=1')
+      await validateAMP(html)
+    })
   })
 
   describe('With AMP context', () => {
@@ -165,7 +159,6 @@ describe('AMP Usage', () => {
     it('should render a canonical regardless of amp-only status (implicit)', async () => {
       const html = await renderViaHTTP(appPort, '/only-amp')
       const $ = cheerio.load(html)
-      await validateAMP(html)
       expect(
         $('link[rel=canonical]')
           .first()
@@ -192,6 +185,16 @@ describe('AMP Usage', () => {
           .first()
           .attr('href')
       ).not.toBeTruthy()
+    })
+
+    it('should render amphtml link tag with dirty AMP page', async () => {
+      const html = await renderViaHTTP(appPort, '/only-amp')
+      const $ = cheerio.load(html)
+      expect(
+        $('link[rel=amphtml]')
+          .first()
+          .attr('href')
+      ).toBe('/only-amp?amp=1')
     })
 
     it('should remove conflicting amp tags', async () => {
