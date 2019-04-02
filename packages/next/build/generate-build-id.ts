@@ -4,7 +4,7 @@ export async function generateBuildId (generate: () => string|null, fallback: ()
   if (buildId === null) {
     // We also create a new buildId if it starts with `ad` to avoid false 
     // positives with ad blockers
-    while (!buildId || buildId.startsWith('ad')) {
+    while (!buildId || /ad/i.test(buildId)) {
       buildId = fallback()
     }
   }
