@@ -1,8 +1,8 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
-import { existsSync } from 'fs'
-import { BUILD_ID_FILE } from 'next-server/constants'
+import { join, resolve, relative } from 'path'
+import { existsSync, readFileSync } from 'fs'
+import { BUILD_ID_FILE, CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
 import {
   nextServer,
   nextBuild,
@@ -40,10 +40,26 @@ describe('Production Usage', () => {
 
   describe('File locations', () => {
     it('should build the app within the given `dist` directory', () => {
-      expect(existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))).toBeTruthy()
+      expect(
+        existsSync(join(__dirname, `/../dist/${BUILD_ID_FILE}`))
+      ).toBeTruthy()
     })
     it('should not build the app within the default `.next` directory', () => {
-      expect(existsSync(join(__dirname, `/../.next/${BUILD_ID_FILE}`))).toBeFalsy()
+      expect(
+        existsSync(join(__dirname, `/../.next/${BUILD_ID_FILE}`))
+      ).toBeFalsy()
+    })
+  })
+
+  describe('Module collection', () => {
+    it('should build a chunk graph file', () => {
+      const cgf = join(__dirname, `/../dist/${CHUNK_GRAPH_MANIFEST}`)
+      expect(existsSync(cgf)).toBeTruthy()
+      expect(
+        JSON.parse(readFileSync(cgf, 'utf8')).pages['/'].includes(
+          relative(appDir, resolve(__dirname, '..', 'pages', 'index.js'))
+        )
+      )
     })
   })
 })
