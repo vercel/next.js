@@ -56,7 +56,7 @@ describe('Production Usage', () => {
       const cgf = join(__dirname, `/../dist/${CHUNK_GRAPH_MANIFEST}`)
       expect(existsSync(cgf)).toBeTruthy()
       expect(
-        JSON.parse(readFileSync(cgf, 'utf8')).files.includes(
+        JSON.parse(readFileSync(cgf, 'utf8')).pages['/'].includes(
           resolve(__dirname, '..', 'pages', 'index.js')
         )
       )
