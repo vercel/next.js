@@ -81,9 +81,10 @@ export class ChunkGraphPlugin implements Plugin {
         }
 
         const modules = [...chunkModules.values()]
-        const files = getFiles(dir, modules).filter(
-          val => !val.includes('node_modules')
-        )
+        const files = getFiles(dir, modules)
+          .filter(val => !val.includes('node_modules'))
+          .sort()
+
         manifest[chunk.name] = files
       })
 
