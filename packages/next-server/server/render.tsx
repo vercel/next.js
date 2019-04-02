@@ -287,21 +287,27 @@ export async function renderToHTML(
     ? renderToStaticMarkup
     : renderToString
 
+  const renderPageError = (): {html: string, head: any} | void => {
+    if (ctx.err && ErrorDebug) {
+      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
+    }
+
+    if (dev && (props.router || props.Component)) {
+      throw new Error(
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
+      )
+    }
+  }
+
   let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
 
   if (ampBindInitData) {
     renderPage = async (
       options: ComponentsEnhancer = {},
     ): Promise<{ html: string; head: any }> => {
-      if (ctx.err && ErrorDebug) {
-        return render(renderElementToString, <ErrorDebug error={ctx.err} />)
-      }
+      const renderError = renderPageError()
+      if (renderError) return renderError
 
-      if (dev && (props.router || props.Component)) {
-        throw new Error(
-          `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
-        )
-      }
       const {
         App: EnhancedApp,
         Component: EnhancedComponent,
@@ -348,40 +354,33 @@ export async function renderToHTML(
     }
   } else {
     renderPage = (
-    options: ComponentsEnhancer = {},
-  ): { html: string; head: any } => {
-    if (ctx.err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
-    }
+      options: ComponentsEnhancer = {},
+    ): { html: string; head: any } => {
+      const renderError = renderPageError()
+      if (renderError) return renderError
 
-    if (dev && (props.router || props.Component)) {
-      throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
+
+      return render(
+        renderElementToString,
+        <RouterContext.Provider value={router}>
+          <IsAmpContext.Provider value={amphtml}>
+            <LoadableContext.Provider
+              value={(moduleName) => reactLoadableModules.push(moduleName)}
+            >
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            </LoadableContext.Provider>
+          </IsAmpContext.Provider>
+        </RouterContext.Provider>,
       )
     }
-
-    const {
-      App: EnhancedApp,
-      Component: EnhancedComponent,
-    } = enhanceComponents(options, App, Component)
-
-    return render(
-      renderElementToString,
-      <RouterContext.Provider value={router}>
-        <IsAmpContext.Provider value={amphtml}>
-          <LoadableContext.Provider
-            value={(moduleName) => reactLoadableModules.push(moduleName)}
-          >
-            <EnhancedApp
-              Component={EnhancedComponent}
-              router={router}
-              {...props}
-            />
-          </LoadableContext.Provider>
-        </IsAmpContext.Provider>
-      </RouterContext.Provider>,
-    )
-  }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -418,7 +417,7 @@ export async function renderToHTML(
     devFiles,
   })
 
-  if (amphtml && html) {
+  if (!dev && amphtml && html) {
     html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
   }
   return html
