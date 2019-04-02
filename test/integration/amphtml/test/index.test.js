@@ -99,6 +99,11 @@ describe('AMP Usage', () => {
       expect(html).not.toMatch(/console\.log("I'm not either :p")'/)
     })
 
+    it('should not drop custom amp scripts', async () => {
+      const html = await renderViaHTTP(appPort, '/amp-script?amp=1')
+      await validateAMP(html)
+    })
+
     it('should optimize dirty when ?amp=1 is not specified', async () => {
       const html = await renderViaHTTP(appPort, '/only-amp')
       await validateAMP(html, true)

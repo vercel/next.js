@@ -14,6 +14,7 @@
     "client.js",
     "config.js",
     "constants.js",
+    "data.js",
     "document.js",
     "dynamic.js",
     "error.js",
