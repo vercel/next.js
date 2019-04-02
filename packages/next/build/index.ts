@@ -1,8 +1,5 @@
-import {
-  join as pathJoin,
-  relative as pathRelative,
-  isAbsolute as pathIsAbsolute,
-} from 'path'
+import path from 'path'
+import fs from 'fs'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import loadConfig from 'next-server/next-config'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
@@ -44,10 +41,21 @@ function printTreeView(list: string[]) {
   console.log()
 }
 
+function flatten<T>(arr: T[][]): T[] {
+  return arr.reduce((acc, val) => acc.concat(val), [] as T[])
+}
+
+function getPossibleFiles(pageExtensions: string[], pages: string[]) {
+  const res = pages.map(page =>
+    [page].concat(pageExtensions.map(e => `${page}.${e}`))
+  )
+  return flatten<string>(res)
+}
+
 export default async function build(
   dir: string,
   conf = null,
-  { pages = [] as string[] } = {}
+  { pages: _pages = [] as string[] } = {}
 ): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
@@ -60,14 +68,48 @@ export default async function build(
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const buildId = await generateBuildId(config.generateBuildId, nanoid)
-  const distDir = pathJoin(dir, config.distDir)
-  const pagesDir = pathJoin(dir, 'pages')
+  const distDir = path.join(dir, config.distDir)
+  const pagesDir = path.join(dir, 'pages')
+
+  const pages =
+    Array.isArray(_pages) && _pages.length
+      ? _pages
+      : process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+      ? [process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE]
+      : []
 
   let pagePaths
   if (pages && pages.length) {
-    // TODO: smart resolve these pages and check for them
-    pagePaths = pages.map(page =>
-      '/'.concat(pathIsAbsolute(page) ? pathRelative(pagesDir, page) : page)
+    if (config.target !== 'serverless') {
+      throw new Error(
+        'Cannot use selective page building without the serverless target.'
+      )
+    }
+
+    const explodedPages = flatten<string>(pages.map(p => p.split(','))).map(
+      p => {
+        let resolvedPage: string | undefined
+        if (path.isAbsolute(p)) {
+          resolvedPage = getPossibleFiles(config.pageExtensions, [
+            path.join(pagesDir, p),
+            p,
+          ]).find(f => fs.existsSync(f))
+        } else {
+          resolvedPage = getPossibleFiles(config.pageExtensions, [
+            path.join(pagesDir, p),
+            path.join(dir, p),
+          ]).find(f => fs.existsSync(f))
+        }
+        return { original: p, resolved: resolvedPage || null }
+      }
+    )
+
+    const missingPage = explodedPages.find(({ resolved }) => !resolved)
+    if (missingPage) {
+      throw new Error(`Unable to identify page: ${missingPage.original}`)
+    }
+    pagePaths = explodedPages.map(
+      page => '/' + path.relative(pagesDir, page.resolved!)
     )
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
@@ -86,6 +128,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.client,
+      __selectivePageBuilding: pages && Boolean(pages.length),
     }),
     getBaseWebpackConfig(dir, {
       buildId,
@@ -93,6 +136,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.server,
+      __selectivePageBuilding: pages && Boolean(pages.length),
     }),
   ])
 

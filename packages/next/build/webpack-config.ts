@@ -18,7 +18,7 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, __selectivePageBuilding = false}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, __selectivePageBuilding?: boolean}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -74,8 +74,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     cache: true,
     cpus: config.experimental.cpus,
   }
-
-  const sharedRuntime = config.experimental.sharedRuntime && target === 'serverless'
 
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
@@ -145,15 +143,15 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         })
       ] : undefined
     } : {
-      runtimeChunk: (!sharedRuntime || dev) ? {
+      runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
-      } : false,
+      },
       splitChunks: dev ? {
         cacheGroups: {
           default: false,
           vendors: false
         }
-      } : sharedRuntime ? {
+      } : __selectivePageBuilding ? {
         cacheGroups: {
           default: false,
           vendors: false,
@@ -318,7 +316,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
       // On the client we want to share the same runtime cache
-      !dev && !isServer && sharedRuntime && new SharedRuntimePlugin(),
+      !isServer && __selectivePageBuilding && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
