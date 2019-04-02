@@ -5,14 +5,16 @@ export default () => {
     fetchOptionsOverride (options) {
       options.url = 'https://graphql-pokemon.now.sh'
     },
-    operation: { query: `
+    operation: {
+      query: `
         {
           pokemon(name: "Pikachu") {
             name
             image
           }
         }
-     ` }
+     `
+    }
   })
 
   const { data } = cacheValue

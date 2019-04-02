@@ -7,7 +7,8 @@ const babelOpts = {
       modules: 'commonjs',
       'targets': {
         'browsers': ['IE 11']
-      }
+      },
+      exclude: ['transform-typeof-symbol']
     }]
   ],
   plugins: [
@@ -122,6 +123,7 @@ export default async function (task) {
   await task.watch('export/**/*.+(js|ts|tsx)', 'nextexport')
   await task.watch('client/**/*.+(js|ts|tsx)', 'client')
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
+  await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
 }
 
 export async function release (task) {

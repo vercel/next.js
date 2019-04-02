@@ -24,10 +24,6 @@ export default class Error extends React.Component {
     return (
       <div style={styles.error}>
         <Head>
-          <meta
-            name='viewport'
-            content='width=device-width, initial-scale=1.0'
-          />
           <title>
             {statusCode}: {title}
           </title>
