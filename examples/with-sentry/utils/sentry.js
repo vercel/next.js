@@ -1,6 +1,7 @@
 // NOTE: This require will be replaced with `@sentry/browser` when
 // process.browser === true thanks to the webpack config in next.config.js
 const Sentry = require('@sentry/node')
+const SentryIntegrations = require('@sentry/integrations')
 const Cookie = require('js-cookie')
 
 module.exports = (release = process.env.SENTRY_RELEASE) => {
@@ -22,7 +23,7 @@ module.exports = (release = process.env.SENTRY_RELEASE) => {
 
     // Instead, dump the errors to the console
     sentryOptions.integrations = [
-      new Sentry.Integrations.Debug({
+      new SentryIntegrations.Debug({
         // Trigger DevTools debugger instead of using console.log
         debugger: false
       })
