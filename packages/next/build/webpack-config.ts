@@ -264,7 +264,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, __debug
         'process.crossOrigin': JSON.stringify(config.crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
-        ...((dev || __debug) && !isServer ? {
+        ...(dev && !isServer ? {
           'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
         } : {}),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash)
