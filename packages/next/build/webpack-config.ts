@@ -18,7 +18,7 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, isServer = false, buildId, config, target = 'server', entrypoints, __selectivePageBuilding = false}: {dev?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, __selectivePageBuilding?: boolean}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, __debug = false, isServer = false, buildId, config, target = 'server', entrypoints, __selectivePageBuilding = false}: {dev?: boolean, __debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, __selectivePageBuilding?: boolean}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -77,7 +77,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
 
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
-    devtool: dev ? 'cheap-module-source-map' : false,
+    devtool: (dev || __debug) ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
     externals: isServer && target !== 'serverless' ? [
@@ -178,8 +178,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
           }
         }
       },
-      minimize: !dev,
-      minimizer: !dev ? [
+      minimize: !(dev || __debug),
+      minimizer: !(dev || __debug) ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
             safari10: true
