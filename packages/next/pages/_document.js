@@ -255,8 +255,8 @@ export class Head extends Component {
             {page !== '/_error' && (
               <link
                 rel="preload"
-                href={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(
-                  page
+                href={`${assetPrefix}/_next/static/pages${getPagePathname(
+                  page, buildId
                 )}${_devOnlyInvalidateCacheQueryString}`}
                 as="script"
                 nonce={this.props.nonce}
@@ -265,7 +265,7 @@ export class Head extends Component {
             )}
             <link
               rel="preload"
-              href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`}
+              href={`${assetPrefix}/_next/static/pages/_app.${buildId}.js${_devOnlyInvalidateCacheQueryString}`}
               as="script"
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -454,8 +454,8 @@ export class NextScript extends Component {
           <script
             async
             id={`__NEXT_PAGE__${page}`}
-            src={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(
-              page
+            src={`${assetPrefix}/_next/static/pages${getPagePathname(
+              page, buildId
             )}${_devOnlyInvalidateCacheQueryString}`}
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -464,7 +464,7 @@ export class NextScript extends Component {
         <script
           async
           id={`__NEXT_PAGE__/_app`}
-          src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`}
+          src={`${assetPrefix}/_next/static/pages/_app.${buildId}.js${_devOnlyInvalidateCacheQueryString}`}
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
@@ -475,10 +475,10 @@ export class NextScript extends Component {
   }
 }
 
-function getPagePathname(page) {
+function getPagePathname(page, buildId) {
   if (page === '/') {
-    return '/index.js'
+    return `/index.${buildId}.js`
   }
 
-  return `${page}.js`
+  return `${page}.${buildId}.js`
 }

@@ -325,7 +325,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, __debug
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(buildId),
+      target === 'serverless' && new ServerlessPlugin(buildId, { isServer }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),

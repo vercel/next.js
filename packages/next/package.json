@@ -116,7 +116,7 @@
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.15.2",
     "arg": "4.1.0",
-    "nanoid": "1.2.1",
+    "nanoid": "2.0.1",
     "resolve": "1.5.0",
     "taskr": "1.1.0",
     "text-table": "0.2.0",

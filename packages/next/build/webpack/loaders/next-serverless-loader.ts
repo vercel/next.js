@@ -43,7 +43,6 @@ const nextServerlessLoader: loader.Loader = function () {
         Document,
         buildManifest,
         reactLoadableManifest,
-        buildId: "__NEXT_REPLACE__BUILD_ID__",
         assetPrefix: "${assetPrefix}"
       }
       const parsedUrl = parse(req.url, true)
