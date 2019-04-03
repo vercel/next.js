@@ -1,5 +1,4 @@
 /* eslint-env jest */
-
 import webdriver from 'next-webdriver'
 
 export default (context) => {

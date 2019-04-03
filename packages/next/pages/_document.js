@@ -15,8 +15,8 @@ export default class Document extends Component {
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
-  static getInitialProps({ renderPage }) {
-    const { html, head } = renderPage()
+  static async getInitialProps({ renderPage }) {
+    const { html, head } = await renderPage()
     const styles = flush()
     return { html, head, styles }
   }
@@ -158,6 +158,7 @@ export class Head extends Component {
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId } = __NEXT_DATA__
+    const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
     let { head } = this.context._documentProps
     let children = this.props.children
@@ -186,6 +187,12 @@ export class Head extends Component {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
+      } else if (type === 'script' && !(props.src && props.src.indexOf('ampproject') > -1)) {
+        badProp = '<script'
+        Object.keys(props).forEach(prop => {
+          badProp += ` ${prop}="${props[prop]}"`
+        })
+        badProp += '/>'
       }
 
       if (badProp) {
@@ -205,6 +212,7 @@ export class Head extends Component {
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
             <link rel="canonical" href={cleanAmpPath(page)} />
+            {isDirtyAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"

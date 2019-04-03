@@ -1,8 +1,8 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
-import webdriver from 'next-webdriver'
 import AbortController from 'abort-controller'
 import {
   renderViaHTTP,

@@ -58,6 +58,7 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
+    exclude: ['transform-typeof-symbol'],
     ...options['preset-env']
   }
   return {
@@ -73,9 +74,13 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
     plugins: [
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
+      // Transform dynamic import to require
+      isTest && require('babel-plugin-dynamic-import-node'),
       require('./plugins/react-loadable-plugin'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
-      require('@babel/plugin-proposal-object-rest-spread'),
+      [require('@babel/plugin-proposal-object-rest-spread'), {
+        useBuiltIns: true
+      }],
       [require('@babel/plugin-transform-runtime'), {
         corejs: 2,
         helpers: true,

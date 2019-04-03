@@ -80,9 +80,12 @@ export default class Router implements IRouterInterface {
         // https://github.com/zeit/next.js/issues/3817
         // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
         // TODO: let's remove this once the Firefox bug is resolved
-        if (window.location.search && navigator.userAgent &&
-          navigator.userAgent.match(/firefox/i)) {
-          window.location.replace(window.location.toString())
+        if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
+          window.addEventListener('unload', () => {
+            try {
+              if (window.location.search) window.location.replace(window.location.toString())
+            } catch (_) {/* since it's a workaround, ignore */}
+          })
         }
         // Workaround for popstate firing on initial page load when
         // navigating back from an external site

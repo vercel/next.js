@@ -2,6 +2,17 @@ declare module '@babel/plugin-transform-modules-commonjs';
 declare module 'next-server/next-config';
 declare module 'next-server/constants';
 declare module 'webpack/lib/GraphHelpers';
+declare module 'unfetch'
+
+declare module 'next-server/dist/lib/data-manager-context' {
+  import * as all from 'next-server/lib/data-manager-context'
+  export = all
+}
+
+declare module 'next-server/dist/lib/router-context' {
+  import * as all from 'next-server/lib/router-context'
+  export = all
+}
 
 
 declare module 'next/dist/compiled/nanoid/index.js' {

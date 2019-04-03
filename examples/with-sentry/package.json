@@ -7,8 +7,9 @@
     "start": "SENTRY_DSN=abc123 NODE_ENV=production node server.js"
   },
   "dependencies": {
-    "@sentry/browser": "^4.6.1",
-    "@sentry/node": "^4.6.1",
+    "@sentry/browser": "^5.0.3",
+    "@sentry/node": "^5.0.3",
+    "@sentry/integrations": "^5.0.3",
     "@zeit/next-source-maps": "0.0.4-canary.1",
     "cookie-parser": "1.4.4",
     "express": "^4.16.4",
