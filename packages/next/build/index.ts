@@ -123,6 +123,9 @@ export default async function build(
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
+      __debug:
+        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
+        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1',
       buildId,
       isServer: false,
       config,
@@ -131,6 +134,9 @@ export default async function build(
       __selectivePageBuilding: pages && Boolean(pages.length),
     }),
     getBaseWebpackConfig(dir, {
+      __debug:
+        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
+        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1',
       buildId,
       isServer: true,
       config,
