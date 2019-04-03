@@ -63,7 +63,7 @@ export default async function build(
     )
   }
 
-  const debugMode =
+  const debug =
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1'
 
@@ -71,7 +71,7 @@ export default async function build(
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = debugMode
+  const buildId = debug
     ? 'unoptimized-build'
     : await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
@@ -129,7 +129,7 @@ export default async function build(
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
-      __debug: debugMode,
+      debug,
       buildId,
       isServer: false,
       config,
@@ -138,7 +138,7 @@ export default async function build(
       __selectivePageBuilding: pages && Boolean(pages.length),
     }),
     getBaseWebpackConfig(dir, {
-      __debug: debugMode,
+      debug,
       buildId,
       isServer: true,
       config,
