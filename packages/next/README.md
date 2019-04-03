@@ -1704,7 +1704,7 @@ export default Index
 
 #### Runtime configuration
 
-> :warning: Note that this option is not available when using `target: 'serverless'`
+> **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > :warning: Generally you want to use build-time configuration to provide your configuration.
 > The reason for this is that runtime configuration adds a small rendering / initialization overhead.
