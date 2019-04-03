@@ -30,8 +30,7 @@ const defaultConfig = {
     ),
     ampBindInitData: false,
     exportTrailingSlash: true,
-    profiling: false,
-    sharedRuntime: false
+    profiling: false
   }
 }
 
