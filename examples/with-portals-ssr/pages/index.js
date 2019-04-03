@@ -30,26 +30,33 @@ export default class Index extends React.Component {
         </button>
         {this.state.opened && (
           <UniversalPortal selector='#modal'>
-            <div style={{
-              position: 'fixed',
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0
-            }}>
-              <div style={{
-                backgroundColor: 'white',
-                position: 'absolute',
-                top: '10%',
-                right: '10%',
-                bottom: '10%',
-                left: '10%',
-                padding: '1em'
-              }}>
+            <div
+              style={{
+                position: 'fixed',
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: 'white',
+                  position: 'absolute',
+                  top: '10%',
+                  right: '10%',
+                  bottom: '10%',
+                  left: '10%',
+                  padding: '1em'
+                }}
+              >
                 <p>
                   This modal is rendered using{' '}
-                  <a href='https://www.npmjs.com/package/@jesstelford/react-portal-universal'><code>@jesstelford/react-portal-universal</code></a>.
+                  <a href='https://www.npmjs.com/package/@jesstelford/react-portal-universal'>
+                    <code>@jesstelford/react-portal-universal</code>
+                  </a>
+                  .
                 </p>
                 <button type='button' onClick={this.close}>
                   Close Modal

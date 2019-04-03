@@ -1,10 +1,10 @@
 import { all } from 'redux-saga/effects'
-
-import clock from './clock/sagas'
-import placeholder from './placeholder/sagas'
+import 'isomorphic-unfetch'
+import clockSaga from './clock/sagas'
+import placeholderSaga from './placeholder/sagas'
 
 function * rootSaga () {
-  yield all([clock, placeholder])
+  yield all([clockSaga, placeholderSaga])
 }
 
 export default rootSaga

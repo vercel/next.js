@@ -28,6 +28,8 @@ type ServerConstructor = {
   conf?: NextConfig,
 }
 
+const ENDING_IN_JSON_REGEX = /\.json$/
+
 export default class Server {
   dir: string
   quiet: boolean
@@ -36,6 +38,8 @@ export default class Server {
   buildId: string
   renderOpts: {
     ampEnabled: boolean
+    noDirtyAmp: boolean
+    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -74,6 +78,8 @@ export default class Server {
     this.buildId = this.readBuildId()
     this.renderOpts = {
       ampEnabled: this.nextConfig.experimental.amp,
+      noDirtyAmp: this.nextConfig.experimental.noDirtyAmp,
+      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -260,21 +266,25 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
+    const isDataRequest = ENDING_IN_JSON_REGEX.test(pathname)
+
+    if (isDataRequest) {
+      pathname = pathname.replace(ENDING_IN_JSON_REGEX, '')
+    }
+
     if (isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
       amphtml: query.amp && this.nextConfig.experimental.amp,
+      dataOnly: isDataRequest,
     })
     // Request was ended by the user
     if (html === null) {
       return
     }
 
-    if (this.nextConfig.poweredByHeader) {
-      res.setHeader('X-Powered-By', 'Next.js ' + process.env.__NEXT_VERSION)
-    }
     return this.sendHTML(req, res, html)
   }
 
@@ -285,8 +295,8 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname)
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
+    const result = await loadComponents(this.distDir, this.buildId, pathname, opts)
+    return renderToHTML(req, res, pathname, query, { ...result, ...opts, hasAmp: result.hasAmp  })
   }
 
   public async renderToHTML(
@@ -294,7 +304,11 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml }: { amphtml?: boolean } = {},
+    { amphtml, dataOnly, hasAmp }: {
+      amphtml?: boolean,
+      hasAmp?: boolean,
+      dataOnly?: boolean,
+    } = {},
   ): Promise<string | null> {
     try {
       // To make sure the try/catch is executed
@@ -303,7 +317,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml },
+        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
       )
       return html
     } catch (err) {

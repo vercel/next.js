@@ -1,8 +1,8 @@
 /* eslint-env jest */
 /* global jasmine */
+import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
-import webdriver from 'next-webdriver'
 import AbortController from 'abort-controller'
 import {
   renderViaHTTP,
@@ -99,7 +99,7 @@ describe('On Demand Entries', () => {
       }, /Hello/)
     } finally {
       if (browser) {
-        browser.close()
+        await browser.close()
       }
     }
   })

@@ -1,9 +1,9 @@
 /* eslint-env jest */
-/* global jasmine */
+/* global jasmine, browserName */
+import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
-  pkg,
   nextServer,
   runNextCommand,
   startApp,
@@ -11,7 +11,6 @@ import {
   renderViaHTTP,
   waitFor
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
@@ -28,9 +27,8 @@ const context = {}
 
 describe('Production Usage', () => {
   beforeAll(async () => {
-    await runNextCommand(['build', appDir], {
-      spawnOptions: { env: { ...process.env, NODE_ENV: 'production' } }
-    })
+    await runNextCommand(['build', appDir])
+
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
@@ -151,7 +149,7 @@ describe('Production Usage', () => {
         .elementByCss('div').text()
 
       expect(text).toBe('About Page')
-      browser.close()
+      await browser.close()
     })
 
     it('should navigate to nested index via client side', async () => {
@@ -162,7 +160,7 @@ describe('Production Usage', () => {
         .elementByCss('p').text()
 
       expect(text).toBe('Hello World')
-      browser.close()
+      await browser.close()
     })
   })
 
@@ -176,7 +174,7 @@ describe('Production Usage', () => {
       const headingText = await browser.elementByCss('h1').text()
       // This makes sure we render statusCode on the client side correctly
       expect(headingText).toBe('500')
-      browser.close()
+      await browser.close()
     })
 
     it('should render a client side component error', async () => {
@@ -184,7 +182,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/An unexpected error has occurred\./)
-      browser.close()
+      await browser.close()
     })
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
@@ -192,7 +190,7 @@ describe('Production Usage', () => {
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
-      browser.close()
+      await browser.close()
     })
   })
 
@@ -236,117 +234,81 @@ describe('Production Usage', () => {
         .elementByCss('#counter').text()
       expect(counterAfter404Page).toBe('Counter: 0')
 
-      browser.close()
+      await browser.close()
     })
 
-    it('should add preload tags when Link prefetch prop is used', async () => {
-      const browser = await webdriver(appPort, '/prefetch')
-      const elements = await browser.elementsByCss('link[rel=preload]')
-      expect(elements.length).toBe(9)
-      await Promise.all(
-        elements.map(async (element) => {
-          const rel = await element.getAttribute('rel')
-          const as = await element.getAttribute('as')
-          expect(rel).toBe('preload')
-          expect(as).toBe('script')
-        })
-      )
-      browser.close()
-    })
-
-    // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
-    // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-    it('It does not add a timestamp to link tags with preload attribute', async () => {
-      const browser = await webdriver(appPort, '/prefetch')
-      const links = await browser.elementsByCss('link[rel=preload]')
-      await Promise.all(
-        links.map(async (element) => {
-          const href = await element.getAttribute('href')
-          expect(href).not.toMatch(/\?ts=/)
-        })
-      )
-      const scripts = await browser.elementsByCss('script[src]')
-      await Promise.all(
-        scripts.map(async (element) => {
-          const src = await element.getAttribute('src')
-          expect(src).not.toMatch(/\?ts=/)
-        })
-      )
-      browser.close()
-    })
-
-    it('should reload the page on page script error with prefetch', async () => {
-      const browser = await webdriver(appPort, '/counter')
-      const counter = await browser
-        .elementByCss('#increase').click().click()
-        .elementByCss('#counter').text()
-      expect(counter).toBe('Counter: 2')
-
-      // Let the browser to prefetch the page and error it on the console.
-      await waitFor(3000)
-      const browserLogs = await browser.log('browser')
-      let foundLog = false
-      browserLogs.forEach((log) => {
-        if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
-          foundLog = true
-        }
+    if (browserName === 'chrome') {
+      it('should add preload tags when Link prefetch prop is used', async () => {
+        const browser = await webdriver(appPort, '/prefetch')
+        const elements = await browser.elementsByCss('link[rel=preload]')
+        expect(elements.length).toBe(9)
+        await Promise.all(
+          elements.map(async (element) => {
+            const rel = await element.getAttribute('rel')
+            const as = await element.getAttribute('as')
+            expect(rel).toBe('preload')
+            expect(as).toBe('script')
+          })
+        )
+        await browser.close()
       })
 
-      expect(foundLog).toBe(true)
+      // This is a workaround to fix https://github.com/zeit/next.js/issues/5860
+      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+      it('It does not add a timestamp to link tags with preload attribute', async () => {
+        const browser = await webdriver(appPort, '/prefetch')
+        const links = await browser.elementsByCss('link[rel=preload]')
+        await Promise.all(
+          links.map(async (element) => {
+            const href = await element.getAttribute('href')
+            expect(href).not.toMatch(/\?ts=/)
+          })
+        )
+        const scripts = await browser.elementsByCss('script[src]')
+        await Promise.all(
+          scripts.map(async (element) => {
+            const src = await element.getAttribute('src')
+            expect(src).not.toMatch(/\?ts=/)
+          })
+        )
+        await browser.close()
+      })
 
-      // When we go to the 404 page, it'll do a hard reload.
-      // So, it's possible for the front proxy to load a page from another zone.
-      // Since the page is reloaded, when we go back to the counter page again,
-      // previous counter value should be gone.
-      const counterAfter404Page = await browser
-        .elementByCss('#no-such-page-prefetch').click()
-        .waitForElementByCss('h1')
-        .back()
-        .waitForElementByCss('#counter-page')
-        .elementByCss('#counter').text()
-      expect(counterAfter404Page).toBe('Counter: 0')
+      it('should reload the page on page script error with prefetch', async () => {
+        const browser = await webdriver(appPort, '/counter')
+        if (!browser.log) return
+        const counter = await browser
+          .elementByCss('#increase').click().click()
+          .elementByCss('#counter').text()
+        expect(counter).toBe('Counter: 2')
 
-      browser.close()
-    })
-  })
-
-  describe('X-Powered-By header', () => {
-    it('should set it by default', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const headers = {}
-      const res = {
-        getHeader (key) {
-          return headers[key]
-        },
-        setHeader (key, value) {
-          headers[key] = value
-        },
-        end () {}
-      }
-
-      await app.render(req, res, req.url)
-      expect(headers['X-Powered-By']).toEqual(`Next.js ${pkg.version}`)
-    })
-
-    it('should not set it when poweredByHeader==false', async () => {
-      const req = { url: '/stateless', headers: {} }
-      const originalConfigValue = app.nextConfig.poweredByHeader
-      app.nextConfig.poweredByHeader = false
-      const res = {
-        getHeader () {
-          return false
-        },
-        setHeader (key, value) {
-          if (key === 'XPoweredBy') {
-            throw new Error('Should not set the XPoweredBy header')
+        // Let the browser to prefetch the page and error it on the console.
+        await waitFor(3000)
+        const browserLogs = await browser.log('browser')
+        let foundLog = false
+        browserLogs.forEach((log) => {
+          if (log.message.match(/\/no-such-page\.js - Failed to load resource/)) {
+            foundLog = true
           }
-        },
-        end () {}
-      }
+        })
 
-      await app.render(req, res, req.url)
-      app.nextConfig.poweredByHeader = originalConfigValue
-    })
+        expect(foundLog).toBe(true)
+
+        // When we go to the 404 page, it'll do a hard reload.
+        // So, it's possible for the front proxy to load a page from another zone.
+        // Since the page is reloaded, when we go back to the counter page again,
+        // previous counter value should be gone.
+        const counterAfter404Page = await browser
+          .elementByCss('#no-such-page-prefetch').click()
+          .waitForElementByCss('h1')
+          .back()
+          .waitForElementByCss('#counter-page')
+          .elementByCss('#counter').text()
+        expect(counterAfter404Page).toBe('Counter: 0')
+
+        await browser.close()
+      })
+    }
   })
 
   it('should not expose the compiled page file in development', async () => {
@@ -383,5 +345,5 @@ describe('Production Usage', () => {
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
-  security(context)
+  if (browserName === 'chrome') security(context)
 })

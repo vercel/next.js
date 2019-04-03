@@ -5,7 +5,7 @@ import waitPort from 'wait-port'
 const doHeadless = process.env.HEADLESS !== 'false'
 let driverPort = 9515
 
-export default async function (appPort, pathname) {
+let webdriver = async function (appPort, pathname) {
   if (typeof appPort === 'undefined') {
     throw new Error('appPort is undefined')
   }
@@ -86,3 +86,8 @@ function getBrowser (url, timeout) {
     })
   })
 }
+
+if (global.isBrowserStack) {
+  webdriver = (...args) => global.bsWd(...args)
+}
+export default webdriver

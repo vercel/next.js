@@ -1,5 +1,4 @@
 /* eslint-env jest */
-
 import webdriver from 'next-webdriver'
 import { waitFor } from 'next-test-utils' /* check, File */
 import { readFileSync, writeFileSync } from 'fs'
@@ -19,7 +18,7 @@ export default (context, render) => {
       expect(serverText).toBe('')
       expect(serverClientText).toBe('/static')
       expect(envValue).toBe('hello')
-      browser.close()
+      await browser.close()
     })
 
     it('should update css styles using hmr', async () => {
@@ -54,7 +53,7 @@ export default (context, render) => {
         }
       } finally {
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })
@@ -103,7 +102,7 @@ export default (context, render) => {
     //     throw err
     //   } finally {
     //     if (browser) {
-    //       browser.close()
+    //       await browser.close()
     //     }
     //   }
     // })
