@@ -204,9 +204,13 @@ async function doRender ({ App, Component, props, err }) {
     renderReactElement((
       <ErrorBoundary fn={(error) => renderError({ App, err: error }).catch(err => console.error('Error rendering page: ', err))}>
         <Suspense fallback={<div>Loading...</div>}>
-          <HeadManagerContext.Provider value={headManager.updateHead}>
-            <App {...appProps} />
-          </HeadManagerContext.Provider>
+          <RouterContext.Provider value={makePublicRouterInstance(router)}>
+            <DataManagerContext.Provider value={dataManager}>
+              <HeadManagerContext.Provider value={headManager.updateHead}>
+                <App {...appProps} />
+              </HeadManagerContext.Provider>
+            </DataManagerContext.Provider>
+          </RouterContext.Provider>
         </Suspense>
       </ErrorBoundary>
     ), appContainer)
