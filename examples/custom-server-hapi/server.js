@@ -31,7 +31,7 @@ app.prepare().then(async () => {
     path: '/_next/{p*}' /* next specific routes */,
     handler: nextHandlerWrapper(app)
   })
-  
+
   server.route({
     method: 'GET',
     path: '/static/{p*}' /* use next to handle static files */,
