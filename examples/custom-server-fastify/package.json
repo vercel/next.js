@@ -2,7 +2,7 @@
   "name": "custom-server-fastify",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next",
+    "dev": "node ./server.js",
     "build": "next build",
     "start": "cross-env NODE_ENV=production node ./server.js"
   },
