@@ -48,10 +48,11 @@
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
   - [Dynamic Import](#dynamic-import)
-    - [1. Basic Usage (Also does SSR)](#1-basic-usage-also-does-ssr)
-    - [2. With Custom Loading Component](#2-with-custom-loading-component)
-    - [3. With No SSR](#3-with-no-ssr)
-    - [4. With Multiple Modules At Once](#4-with-multiple-modules-at-once)
+    - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
+    - [With Named Exports](#with-named-exports)
+    - [With Custom Loading Component](#with-custom-loading-component)
+    - [With No SSR](#with-no-ssr)
+    - [With Multiple Modules At Once](#with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
     - [Customizing `renderPage`](#customizing-renderpage)
@@ -1836,7 +1837,7 @@ Using the serverless target, you can deploy Next.js to [ZEIT Now](https://zeit.c
 
 #### One Level Lower
 
-Next.js provides low-level APIs for serverless deployments as hosting platforms have different function signatures. In general you will want to wrap the output of a Next.js serverless build with a compatability layer.
+Next.js provides low-level APIs for serverless deployments as hosting platforms have different function signatures. In general you will want to wrap the output of a Next.js serverless build with a compatibility layer.
 
 For example if the platform supports the Node.js [`http.Server`](https://nodejs.org/api/http.html#http_class_http_server) class:
 
