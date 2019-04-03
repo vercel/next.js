@@ -18,7 +18,7 @@ function generateArgsKey(args: Args[]) {
   }, '')
 }
 
-export function createHook(fetcher: (...args: any) => Promise<any>, options: {key: string}) {
+export function createHook(fetcher: (...args: Args[]) => Promise<any>, options: {key: string}) {
   if (!options.key) {
     throw new Error('key not provided to createHook options.')
   }
