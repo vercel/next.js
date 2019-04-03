@@ -32,9 +32,12 @@ process.on(
       const work = async path => {
         await sema.acquire()
         const { page, query = {} } = exportPathMap[path]
-        const ampOpts = { amphtml: Boolean(query.amp), hasAmp: query.hasAmp, ampPath: query.ampPath }
+        const ampOpts = { amphtml: query.amphtml, hasAmp: query.hasAmp, ampPath: query.ampPath }
+        const ampOnly = query.ampOnly
+        delete query.ampOnly
         delete query.hasAmp
         delete query.ampPath
+        delete query.amphtml
 
         const req = { url: path }
         const res = {}
@@ -43,9 +46,9 @@ process.on(
           publicRuntimeConfig: renderOpts.runtimeConfig
         })
 
-        if (query.ampOnly) {
-          delete query.ampOnly
+        if (ampOnly) {
           path = cleanAmpPath(path)
+          ampOpts.ampPath = path + '.amp'
         }
 
         // replace /docs/index.amp with /docs.amp
@@ -69,7 +72,7 @@ process.on(
         const components = await loadComponents(distDir, buildId, page)
         const html = await renderToHTML(req, res, page, query, { ...components, ...renderOpts, ...ampOpts })
 
-        if (ampOpts.amphtml) {
+        if (ampOpts.amphtml && query.amp) {
           const validator = await AmpHtmlValidator.getInstance()
           const result = validator.validateString(html)
           const errors = result.errors.filter(e => e.severity === 'ERROR')
