@@ -33,7 +33,11 @@ export function createHook(fetcher: (...args: Args[]) => Promise<any>, options: 
 
     // @ts-ignore webpack optimization
     if (process.browser) {
-      const res = fetch(router.route === '/' ? 'index.json' : router.route + '.json?' + stringify(router.query)).then((res: any) => res.json()).then((result: any) => {
+      const res = fetch(router.route + '?' + stringify(router.query), {
+        headers: {
+          accept: 'application/amp.bind+json',
+        },
+      }).then((res: any) => res.json()).then((result: any) => {
         dataManager.overwrite(result)
       })
       throw res
