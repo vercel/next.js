@@ -4,14 +4,16 @@ import { composeWithDevTools } from 'redux-devtools-extension'
 const exampleInitialState = {
   lastUpdate: 0,
   light: false,
-  count: 0
+  count: 0,
+  exampleData: []
 }
 
 export const actionTypes = {
   TICK: 'TICK',
   INCREMENT: 'INCREMENT',
   DECREMENT: 'DECREMENT',
-  RESET: 'RESET'
+  RESET: 'RESET',
+  LOAD_EXAMPLE_DATA: 'LOAD_EXAMPLE_DATA'
 }
 
 // REDUCERS
@@ -33,6 +35,10 @@ export const reducer = (state = exampleInitialState, action) => {
     case actionTypes.RESET:
       return Object.assign({}, state, {
         count: exampleInitialState.count
+      })
+    case actionTypes.LOAD_EXAMPLE_DATA:
+      return Object.assign({}, state, {
+        exampleData: action.data
       })
     default:
       return state
@@ -57,6 +63,10 @@ export const decrementCount = () => {
 
 export const resetCount = () => {
   return { type: actionTypes.RESET }
+}
+
+export const loadExampleData = data => {
+  return { type: actionTypes.LOAD_EXAMPLE_DATA, data }
 }
 
 export function initializeStore (initialState = exampleInitialState) {
