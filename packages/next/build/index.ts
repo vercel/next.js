@@ -86,14 +86,14 @@ export default async function build(
 
   const __selectivePageBuilding = pages ? Boolean(pages.length) : false
 
+  if (__selectivePageBuilding && config.target !== 'serverless') {
+    throw new Error(
+      'Cannot use selective page building without the serverless target.'
+    )
+  }
+
   let pagePaths
   if (__selectivePageBuilding && pages[0] !== '**') {
-    if (config.target !== 'serverless') {
-      throw new Error(
-        'Cannot use selective page building without the serverless target.'
-      )
-    }
-
     const explodedPages = flatten<string>(pages.map(p => p.split(','))).map(
       p => {
         let resolvedPage: string | undefined
