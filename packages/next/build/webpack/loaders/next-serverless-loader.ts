@@ -46,6 +46,7 @@ const nextServerlessLoader: loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
+        dynamicBuildId: true,
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${Boolean(ampBindInitData)}
       }

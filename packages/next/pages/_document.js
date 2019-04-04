@@ -157,7 +157,7 @@ export class Head extends Component {
       __NEXT_DATA__,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
-    const { page, buildId } = __NEXT_DATA__
+    const { page, buildId, dynamicBuildId } = __NEXT_DATA__
     const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
     let { head } = this.context._documentProps
@@ -178,29 +178,38 @@ export class Head extends Component {
         )
     }
     // show warning and remove conflicting amp head tags
-    head = !amphtml ? head : React.Children.map(head, child => {
-      if (!child) return child
-      const { type, props } = child
-      let badProp
+    head = !amphtml
+      ? head
+      : React.Children.map(head, child => {
+          if (!child) return child
+          const { type, props } = child
+          let badProp
 
-      if (type === 'meta' && props.name === 'viewport') {
-        badProp = 'name="viewport"'
-      } else if (type === 'link' && props.rel === 'canonical') {
-        badProp = 'rel="canonical"'
-      } else if (type === 'script' && !(props.src && props.src.indexOf('ampproject') > -1)) {
-        badProp = '<script'
-        Object.keys(props).forEach(prop => {
-          badProp += ` ${prop}="${props[prop]}"`
+          if (type === 'meta' && props.name === 'viewport') {
+            badProp = 'name="viewport"'
+          } else if (type === 'link' && props.rel === 'canonical') {
+            badProp = 'rel="canonical"'
+          } else if (
+            type === 'script' &&
+            !(props.src && props.src.indexOf('ampproject') > -1)
+          ) {
+            badProp = '<script'
+            Object.keys(props).forEach(prop => {
+              badProp += ` ${prop}="${props[prop]}"`
+            })
+            badProp += '/>'
+          }
+
+          if (badProp) {
+            console.warn(
+              `Found conflicting amp tag "${
+                child.type
+              }" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`
+            )
+            return null
+          }
+          return child
         })
-        badProp += '/>'
-      }
-
-      if (badProp) {
-        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
-        return null
-      }
-      return child
-    })
     return (
       <head {...this.props}>
         {children}
@@ -212,7 +221,9 @@ export class Head extends Component {
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
             <link rel="canonical" href={cleanAmpPath(page)} />
-            {isDirtyAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
+            {isDirtyAmp && (
+              <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />
+            )}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -228,7 +239,7 @@ export class Head extends Component {
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-                    .replace(/\/\*@ sourceURL=.*?\*\//g, '')
+                    .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
                 }}
               />
             )}
@@ -251,13 +262,19 @@ export class Head extends Component {
         )}
         {!amphtml && (
           <>
-            {ampEnabled && hasAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
+            {ampEnabled && hasAmp && (
+              <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />
+            )}
             {page !== '/_error' && (
               <link
                 rel="preload"
-                href={`${assetPrefix}/_next/static/pages${getPagePathname(
-                  page, buildId
-                )}${_devOnlyInvalidateCacheQueryString}`}
+                href={
+                  assetPrefix +
+                  (dynamicBuildId
+                    ? `/_next/static/pages${getPageFile(page, buildId)}`
+                    : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+                  _devOnlyInvalidateCacheQueryString
+                }
                 as="script"
                 nonce={this.props.nonce}
                 crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -265,7 +282,13 @@ export class Head extends Component {
             )}
             <link
               rel="preload"
-              href={`${assetPrefix}/_next/static/pages/_app.${buildId}.js${_devOnlyInvalidateCacheQueryString}`}
+              href={
+                assetPrefix +
+                (dynamicBuildId
+                  ? `/_next/static/pages/_app.${buildId}.js`
+                  : `/_next/static/${buildId}/pages/_app.js`) +
+                _devOnlyInvalidateCacheQueryString
+              }
               as="script"
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -416,7 +439,7 @@ export class NextScript extends Component {
       )
     }
 
-    const { page, buildId } = __NEXT_DATA__
+    const { page, buildId, dynamicBuildId } = __NEXT_DATA__
 
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
@@ -454,9 +477,13 @@ export class NextScript extends Component {
           <script
             async
             id={`__NEXT_PAGE__${page}`}
-            src={`${assetPrefix}/_next/static/pages${getPagePathname(
-              page, buildId
-            )}${_devOnlyInvalidateCacheQueryString}`}
+            src={
+              assetPrefix +
+              (dynamicBuildId
+                ? `/_next/static/pages${getPageFile(page, buildId)}`
+                : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+              _devOnlyInvalidateCacheQueryString
+            }
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
           />
@@ -464,7 +491,13 @@ export class NextScript extends Component {
         <script
           async
           id={`__NEXT_PAGE__/_app`}
-          src={`${assetPrefix}/_next/static/pages/_app.${buildId}.js${_devOnlyInvalidateCacheQueryString}`}
+          src={
+            assetPrefix +
+            (dynamicBuildId
+              ? `/_next/static/pages/_app.${buildId}.js`
+              : `/_next/static/${buildId}/pages/_app.js`) +
+            _devOnlyInvalidateCacheQueryString
+          }
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
@@ -475,10 +508,10 @@ export class NextScript extends Component {
   }
 }
 
-function getPagePathname(page, buildId) {
+function getPageFile(page, buildId) {
   if (page === '/') {
-    return `/index.${buildId}.js`
+    return `/index${buildId ? `.${buildId}` : ''}.js`
   }
 
-  return `${page}.${buildId}.js`
+  return `${page}${buildId ? `.${buildId}` : ''}.js`
 }
