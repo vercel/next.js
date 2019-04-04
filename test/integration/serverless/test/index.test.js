@@ -44,6 +44,12 @@ describe('Serverless', () => {
     expect(html).toMatch(/This page could not be found/)
   })
 
+  it('should render an AMP page', async () => {
+    const html = await renderViaHTTP(appPort, '/amp')
+    expect(html).toMatch(/Hi Im an AMP page/)
+    expect(html).toMatch(/ampproject\.org/)
+  })
+
   it('should render correctly when importing isomorphic-unfetch', async () => {
     const url = `http://localhost:${appPort}/fetch`
     const res = await fetch(url)

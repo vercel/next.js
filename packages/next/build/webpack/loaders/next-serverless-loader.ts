@@ -58,7 +58,7 @@ const nextServerlessLoader: loader.Loader = function () {
         const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
           {
             Component,
-            amphtml: parsedUrl.query.amp && amp
+            amphtml: options.ampEnabled && (parsedUrl.query.amp || ${page.endsWith('.amp')}),
             dataOnly: req.headers && req.headers.accept === 'application/amp.bind+json',
           }, 
           options, 
