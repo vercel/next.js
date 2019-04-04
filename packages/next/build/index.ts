@@ -121,7 +121,7 @@ export default async function build(
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
-  const appPath = pages['/_app']
+  const appPath = mappedPages['/_app']
   const entrypoints = createEntrypoints(
     mappedPages,
     config.target,
@@ -136,7 +136,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.client,
-      appPath
+      appPath,
       __selectivePageBuilding: pages && Boolean(pages.length),
     }),
     getBaseWebpackConfig(dir, {
@@ -146,7 +146,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.server,
-      appPath
+      appPath,
       __selectivePageBuilding: pages && Boolean(pages.length),
     }),
   ])
