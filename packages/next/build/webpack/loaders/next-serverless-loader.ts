@@ -11,6 +11,7 @@ export type ServerlessLoaderQuery = {
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
   assetPrefix: string,
+  ampEnabled: boolean,
   ampBindInitData: boolean,
   generateEtags: string
 }
@@ -21,6 +22,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absolutePagePath,
     page,
     assetPrefix,
+    ampEnabled,
     ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -47,19 +49,19 @@ const nextServerlessLoader: loader.Loader = function () {
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
         assetPrefix: "${assetPrefix}",
-        ampBindInitData: ${Boolean(ampBindInitData)}
+        ampEnabled: ${!!ampEnabled},
+        ampBindInitData: ${!!ampBindInitData}
       }
       const parsedUrl = parse(req.url, true)
-      const isDataRequest = (
-        options.ampBindInitData &&
-        parsedUrl.pathname.endsWith('.json')
-      )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
         const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
-          {}, 
+          {
+            Component,
+            amphtml: parsedUrl.query.amp && amp
+            dataOnly: req.headers && req.headers.accept === 'application/amp.bind+json',
+          }, 
           options, 
-          { Component, dataOnly: isDataRequest }
         ))
         return result
       } catch (err) {
