@@ -1,5 +1,7 @@
 import { createStore, applyMiddleware } from 'redux'
 import { composeWithDevTools } from 'redux-devtools-extension'
+import { persistReducer } from 'redux-persist'
+import storage from 'redux-persist/lib/storage'
 
 const exampleInitialState = {
   lastUpdate: 0,
@@ -79,9 +81,17 @@ export const loadingExampleDataFailure = () => {
   return { type: actionTypes.LOADING_DATA_FAILURE }
 }
 
+const persistConfig = {
+  key: 'primary',
+  storage,
+  whitelist: ['exampleData'] // place to select which state you want to persist
+}
+
+const persistedReducer = persistReducer(persistConfig, reducer)
+
 export function initializeStore (initialState = exampleInitialState) {
   return createStore(
-    reducer,
+    persistedReducer,
     initialState,
     composeWithDevTools(applyMiddleware())
   )
