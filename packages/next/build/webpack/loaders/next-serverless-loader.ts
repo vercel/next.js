@@ -50,11 +50,17 @@ const nextServerlessLoader: loader.Loader = function () {
         ampBindInitData: ${Boolean(ampBindInitData)}
       }
       const parsedUrl = parse(req.url, true)
+      const isDataRequest = (
+        options.ampBindInitData &&
+        parsedUrl.pathname.endsWith('.json')
+      )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign({}, options, {
-          Component
-        }))
+        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
+          {}, 
+          options, 
+          { Component, dataOnly: isDataRequest }
+        ))
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
