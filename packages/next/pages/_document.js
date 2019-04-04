@@ -187,10 +187,7 @@ export class Head extends Component {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
-      } else if (
-        type === 'script' &&
-        !(props.src && props.src.indexOf('ampproject') > -1)
-      ) {
+      } else if (type === 'script' && !(props.src && props.src.indexOf('ampproject') > -1)) {
         badProp = '<script'
         Object.keys(props).forEach(prop => {
           badProp += ` ${prop}="${props[prop]}"`
@@ -199,11 +196,7 @@ export class Head extends Component {
       }
 
       if (badProp) {
-        console.warn(
-          `Found conflicting amp tag "${
-            child.type
-          }" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`
-        )
+        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
         return null
       }
       return child
@@ -219,9 +212,7 @@ export class Head extends Component {
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
             <link rel="canonical" href={cleanAmpPath(page)} />
-            {isDirtyAmp && (
-              <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />
-            )}
+            {isDirtyAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -237,7 +228,7 @@ export class Head extends Component {
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-                    .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+                    .replace(/\/\*@ sourceURL=.*?\*\//g, '')
                 }}
               />
             )}
