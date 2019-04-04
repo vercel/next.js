@@ -84,8 +84,10 @@ export default async function build(
       ? [process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE]
       : []
 
+  const __selectivePageBuilding = pages ? Boolean(pages.length) : false
+
   let pagePaths
-  if (pages && pages.length) {
+  if (__selectivePageBuilding) {
     if (config.target !== 'serverless') {
       throw new Error(
         'Cannot use selective page building without the serverless target.'
@@ -120,7 +122,6 @@ export default async function build(
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
-  const __selectivePageBuilding = pages ? Boolean(pages.length) : false
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
