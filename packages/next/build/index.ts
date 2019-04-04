@@ -87,7 +87,7 @@ export default async function build(
   const __selectivePageBuilding = pages ? Boolean(pages.length) : false
 
   let pagePaths
-  if (__selectivePageBuilding) {
+  if (__selectivePageBuilding && pages[0] !== '**') {
     if (config.target !== 'serverless') {
       throw new Error(
         'Cannot use selective page building without the serverless target.'
