@@ -266,19 +266,13 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
-    const isDataRequest = ENDING_IN_JSON_REGEX.test(pathname)
-
-    if (isDataRequest) {
-      pathname = pathname.replace(ENDING_IN_JSON_REGEX, '')
-    }
-
     if (isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
       amphtml: query.amp && this.nextConfig.experimental.amp,
-      dataOnly: isDataRequest,
+      dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
     })
     // Request was ended by the user
     if (html === null) {

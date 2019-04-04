@@ -43,6 +43,7 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     distDir: DOT_NEXT_ALIAS,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
+    ampEnabled: config.experimental.amp,
     ampBindInitData: config.experimental.ampBindInitData
   }
 
