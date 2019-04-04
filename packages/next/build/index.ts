@@ -84,8 +84,10 @@ export default async function build(
       ? [process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE]
       : []
 
+  const __selectivePageBuilding = pages ? Boolean(pages.length) : false
+
   let pagePaths
-  if (pages && pages.length) {
+  if (__selectivePageBuilding) {
     if (config.target !== 'serverless') {
       throw new Error(
         'Cannot use selective page building without the serverless target.'
@@ -125,6 +127,7 @@ export default async function build(
     mappedPages,
     config.target,
     buildId,
+    __selectivePageBuilding,
     config
   )
   const configs = await Promise.all([
@@ -135,7 +138,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.client,
-      __selectivePageBuilding: pages && Boolean(pages.length),
+      __selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
       debug,
@@ -144,7 +147,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.server,
-      __selectivePageBuilding: pages && Boolean(pages.length),
+      __selectivePageBuilding,
     }),
   ])
 
@@ -203,5 +206,5 @@ export default async function build(
 
   printTreeView(Object.keys(mappedPages))
 
-  await writeBuildId(distDir, buildId)
+  await writeBuildId(distDir, buildId, __selectivePageBuilding)
 }

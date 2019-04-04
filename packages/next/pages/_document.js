@@ -157,7 +157,7 @@ export class Head extends Component {
       __NEXT_DATA__,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
-    const { page, buildId } = __NEXT_DATA__
+    const { page, buildId, dynamicBuildId } = __NEXT_DATA__
     const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
     let { head } = this.context._documentProps
@@ -255,9 +255,13 @@ export class Head extends Component {
             {page !== '/_error' && (
               <link
                 rel="preload"
-                href={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(
-                  page
-                )}${_devOnlyInvalidateCacheQueryString}`}
+                href={
+                  assetPrefix +
+                  (dynamicBuildId
+                    ? `/_next/static/pages${getPageFile(page, buildId)}`
+                    : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+                  _devOnlyInvalidateCacheQueryString
+                }
                 as="script"
                 nonce={this.props.nonce}
                 crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -265,7 +269,13 @@ export class Head extends Component {
             )}
             <link
               rel="preload"
-              href={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`}
+              href={
+                assetPrefix +
+                (dynamicBuildId
+                  ? `/_next/static/pages/_app.${buildId}.js`
+                  : `/_next/static/${buildId}/pages/_app.js`) +
+                _devOnlyInvalidateCacheQueryString
+              }
               as="script"
               nonce={this.props.nonce}
               crossOrigin={this.props.crossOrigin || process.crossOrigin}
@@ -416,7 +426,7 @@ export class NextScript extends Component {
       )
     }
 
-    const { page, buildId } = __NEXT_DATA__
+    const { page, buildId, dynamicBuildId } = __NEXT_DATA__
 
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
@@ -454,9 +464,13 @@ export class NextScript extends Component {
           <script
             async
             id={`__NEXT_PAGE__${page}`}
-            src={`${assetPrefix}/_next/static/${buildId}/pages${getPagePathname(
-              page
-            )}${_devOnlyInvalidateCacheQueryString}`}
+            src={
+              assetPrefix +
+              (dynamicBuildId
+                ? `/_next/static/pages${getPageFile(page, buildId)}`
+                : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
+              _devOnlyInvalidateCacheQueryString
+            }
             nonce={this.props.nonce}
             crossOrigin={this.props.crossOrigin || process.crossOrigin}
           />
@@ -464,7 +478,13 @@ export class NextScript extends Component {
         <script
           async
           id={`__NEXT_PAGE__/_app`}
-          src={`${assetPrefix}/_next/static/${buildId}/pages/_app.js${_devOnlyInvalidateCacheQueryString}`}
+          src={
+            assetPrefix +
+            (dynamicBuildId
+              ? `/_next/static/pages/_app.${buildId}.js`
+              : `/_next/static/${buildId}/pages/_app.js`) +
+            _devOnlyInvalidateCacheQueryString
+          }
           nonce={this.props.nonce}
           crossOrigin={this.props.crossOrigin || process.crossOrigin}
         />
@@ -475,10 +495,10 @@ export class NextScript extends Component {
   }
 }
 
-function getPagePathname(page) {
+function getPageFile(page, buildId) {
   if (page === '/') {
-    return '/index.js'
+    return buildId ? `/index.${buildId}.js` : '/index.js'
   }
 
-  return `${page}.js`
+  return buildId ? `${page}.${buildId}.js` : `${page}.js`
 }

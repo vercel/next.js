@@ -14,6 +14,7 @@ export type ServerlessLoaderQuery = {
   ampEnabled: boolean | string,
   ampBindInitData: boolean | string,
   generateEtags: string
+  dynamicBuildId?: string | boolean
 }
 
 const nextServerlessLoader: loader.Loader = function () {
@@ -27,7 +28,8 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
-    generateEtags
+    generateEtags,
+    dynamicBuildId
   }: ServerlessLoaderQuery = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(/\\/g, '/')
@@ -48,6 +50,7 @@ const nextServerlessLoader: loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
+        dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
         assetPrefix: "${assetPrefix}",
         ampEnabled: ${ampEnabled === true || ampEnabled === 'true'},
         ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
