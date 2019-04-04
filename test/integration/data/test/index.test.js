@@ -6,6 +6,7 @@ import {
   killApp,
   findPort,
   launchApp,
+  fetchViaHTTP,
   renderViaHTTP
 } from 'next-test-utils'
 
@@ -21,8 +22,13 @@ describe('AMP Bind Initial Data', () => {
   })
   afterAll(() => killApp(server))
 
-  it('responds with json with .json extension on page', async () => {
-    const data = await renderViaHTTP(appPort, '/index.json')
+  it('responds with json with accept header on page', async () => {
+    const data = await fetchViaHTTP(appPort, '/', null, {
+      headers: {
+        accept: 'application/amp.bind+json'
+      }
+    }).then(res => res.ok && res.text())
+
     let isJSON = false
     try {
       JSON.parse(data)
