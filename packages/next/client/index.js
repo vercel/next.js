@@ -31,6 +31,7 @@ const {
   page,
   query,
   buildId,
+  dynamicBuildId,
   assetPrefix,
   runtimeConfig,
   dynamicIds
@@ -98,6 +99,10 @@ export default async ({
   }
 
   await Loadable.preloadReady(dynamicIds || [])
+
+  if (dynamicBuildId === true) {
+    pageLoader.onDynamicBuildId()
+  }
 
   router = createRouter(page, query, asPath, {
     initialProps: props,

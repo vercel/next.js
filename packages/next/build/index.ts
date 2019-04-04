@@ -205,5 +205,5 @@ export default async function build(
 
   printTreeView(Object.keys(mappedPages))
 
-  await writeBuildId(distDir, buildId)
+  await writeBuildId(distDir, buildId, __selectivePageBuilding)
 }
