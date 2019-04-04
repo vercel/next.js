@@ -3,6 +3,8 @@ import path from 'path'
 import { EOL } from 'os'
 import { parse } from 'querystring'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
+import fs from 'fs'
+import { createHash } from 'crypto'
 
 function getFiles(dir: string, modules: any[]): string[] {
   if (!(modules && modules.length)) {
@@ -57,13 +59,19 @@ export class ChunkGraphPlugin implements Plugin {
     const { dir } = this
     compiler.hooks.emit.tap('ChunkGraphPlugin', compilation => {
       type StringDictionary = { [pageName: string]: string[] }
-      const manifest: { pages: StringDictionary; chunks: StringDictionary } = {
+      const manifest: {
+        pages: StringDictionary
+        chunks: StringDictionary
+        hashes: StringDictionary
+      } = {
         pages: {},
         chunks: {},
+        hashes: {},
       }
 
       let clientRuntime = [] as string[]
       const pages: StringDictionary = {}
+      const allFiles = new Set()
 
       compilation.chunks.forEach(chunk => {
         if (!chunk.hasEntryModule()) {
@@ -94,6 +102,8 @@ export class ChunkGraphPlugin implements Plugin {
           .filter(val => !val.includes('node_modules'))
           .map(f => path.relative(dir, f))
           .sort()
+
+        files.forEach(f => allFiles.add(f))
 
         let pageName: string | undefined
         if (chunk.entryModule && chunk.entryModule.loaders) {
@@ -129,6 +139,21 @@ export class ChunkGraphPlugin implements Plugin {
           manifest.pages[page] = [...pages[page], ...clientRuntime]
         }
       })
+
+      manifest.hashes = ([...allFiles] as string[]).sort().reduce(
+        (acc, cur) =>
+          Object.assign(
+            acc,
+            fs.existsSync(path.join(dir, cur))
+              ? {
+                  [cur]: createHash('sha1')
+                    .update(fs.readFileSync(path.join(dir, cur)))
+                    .digest('hex'),
+                }
+              : undefined
+          ),
+        {}
+      )
 
       const json = JSON.stringify(manifest, null, 2) + EOL
       compilation.assets[this.filename] = {
