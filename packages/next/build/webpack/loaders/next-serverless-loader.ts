@@ -52,7 +52,7 @@ const nextServerlessLoader: loader.Loader = function () {
       const parsedUrl = parse(req.url, true)
       const isDataRequest = (
         options.ampBindInitData &&
-        parsedUrl.pathname.split('.').pop() === 'json'
+        parsedUrl.pathname.endsWith('.json')
       )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
