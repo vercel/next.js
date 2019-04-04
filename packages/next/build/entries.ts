@@ -32,7 +32,7 @@ type Entrypoints = {
   server: WebpackEntrypoints
 }
 
-export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverless', buildId: string, config: any): Entrypoints {
+export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverless', buildId: string, dynamicBuildId: boolean, config: any): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
 
@@ -44,7 +44,8 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     ampEnabled: config.experimental.amp,
-    ampBindInitData: config.experimental.ampBindInitData
+    ampBindInitData: config.experimental.ampBindInitData,
+    dynamicBuildId
   }
 
   Object.keys(pages).forEach((page) => {
