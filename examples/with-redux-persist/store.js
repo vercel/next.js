@@ -5,7 +5,8 @@ const exampleInitialState = {
   lastUpdate: 0,
   light: false,
   count: 0,
-  exampleData: []
+  exampleData: [],
+  error: null
 }
 
 export const actionTypes = {
@@ -13,7 +14,8 @@ export const actionTypes = {
   INCREMENT: 'INCREMENT',
   DECREMENT: 'DECREMENT',
   RESET: 'RESET',
-  LOAD_EXAMPLE_DATA: 'LOAD_EXAMPLE_DATA'
+  LOAD_EXAMPLE_DATA: 'LOAD_EXAMPLE_DATA',
+  LOADING_DATA_FAILURE: 'LOADING_DATA_FAILURE'
 }
 
 // REDUCERS
@@ -39,6 +41,10 @@ export const reducer = (state = exampleInitialState, action) => {
     case actionTypes.LOAD_EXAMPLE_DATA:
       return Object.assign({}, state, {
         exampleData: action.data
+      })
+    case actionTypes.LOADING_DATA_FAILURE:
+      return Object.assign({}, state, {
+        error: true
       })
     default:
       return state
@@ -67,6 +73,10 @@ export const resetCount = () => {
 
 export const loadExampleData = data => {
   return { type: actionTypes.LOAD_EXAMPLE_DATA, data }
+}
+
+export const loadingExampleDataFailure = () => {
+  return { type: actionTypes.LOADING_DATA_FAILURE }
 }
 
 export function initializeStore (initialState = exampleInitialState) {
