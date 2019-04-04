@@ -11,6 +11,7 @@ export type ServerlessLoaderQuery = {
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
   assetPrefix: string,
+  ampBindInitData: boolean,
   generateEtags: string
 }
 
@@ -20,6 +21,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absolutePagePath,
     page,
     assetPrefix,
+    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
@@ -44,7 +46,8 @@ const nextServerlessLoader: loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
-        assetPrefix: "${assetPrefix}"
+        assetPrefix: "${assetPrefix}",
+        ampBindInitData: ${Boolean(ampBindInitData)}
       }
       const parsedUrl = parse(req.url, true)
       try {
