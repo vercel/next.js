@@ -79,8 +79,6 @@ export default class PageLoader {
   }
 
   onDynamicBuildId () {
-    const _this = this
-
     this.promisedBuildId = new Promise(resolve => {
       unfetch(`${this.assetPrefix}/_next/static/HEAD_BUILD_ID`)
         .then(res => {
@@ -94,7 +92,7 @@ export default class PageLoader {
         })
         .then(res => res.text())
         .then(buildId => {
-          _this.buildId = buildId.trim()
+          this.buildId = buildId.trim()
         })
         .catch(() => {
           // When this fails it's not a _huge_ deal, preload wont work and page
