@@ -8,7 +8,6 @@ const defaultConfig = {
   env: [],
   webpack: null,
   webpackDevMiddleware: null,
-  poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
   configOrigin: 'default',
@@ -23,13 +22,15 @@ const defaultConfig = {
   },
   experimental: {
     amp: false,
+    noDirtyAmp: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    profiling: false,
-    exportTrailingSlash: true
+    ampBindInitData: false,
+    exportTrailingSlash: true,
+    profiling: false
   }
 }
 

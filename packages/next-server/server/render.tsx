@@ -3,12 +3,15 @@ import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import {IRouterInterface} from '../lib/router/router'
-import {toRoute} from '../lib/router/to-route'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
-import LoadableCapture from '../lib/loadable-capture'
+import { DataManagerContext } from '../lib/data-manager-context'
+import {LoadableContext} from '../lib/loadable-context'
+import { RouterContext } from '../lib/router-context'
+import { DataManager } from '..//lib/data-manager'
+
 import {
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
@@ -16,6 +19,7 @@ import {
 } from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { IsAmpContext } from '../lib/amphtml-context'
+import optimizeAmp from './optimize-amp'
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer =
@@ -36,7 +40,7 @@ class ServerRouter implements IRouterInterface {
   static events: MittEmitter = mitt()
 
   constructor(pathname: string, query: any, as: string) {
-    this.route = toRoute(pathname)
+    this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -108,6 +112,8 @@ function render(
 
 type RenderOpts = {
   ampEnabled: boolean
+  noDirtyAmp: boolean
+  ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
   runtimeConfig?: { [key: string]: any }
@@ -115,7 +121,10 @@ type RenderOpts = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
+  ampPath?: string
   amphtml?: boolean
+  hasAmp?: boolean,
+  dataOnly?: boolean,
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
@@ -127,6 +136,7 @@ type RenderOpts = {
 function renderDocument(
   Document: React.ComponentType,
   {
+    dataManagerData,
     ampEnabled = false,
     props,
     docProps,
@@ -139,17 +149,22 @@ function renderDocument(
     dynamicImportsIds,
     err,
     dev,
+    ampPath,
     amphtml,
+    hasAmp,
     staticMarkup,
     devFiles,
     files,
     dynamicImports,
   }: RenderOpts & {
+    dataManagerData: any,
     props: any
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    ampPath: string,
     amphtml: boolean
+    hasAmp: boolean,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -162,6 +177,7 @@ function renderDocument(
       <IsAmpContext.Provider value={amphtml}>
         <Document
           __NEXT_DATA__={{
+            dataManager: dataManagerData,
             props, // The result of getInitialProps
             page: pathname, // The rendered page
             query, // querystring parsed / passed by the user
@@ -170,11 +186,13 @@ function renderDocument(
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
             dynamicIds:
-              dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           ampEnabled={ampEnabled}
+          ampPath={ampPath}
           amphtml={amphtml}
+          hasAmp={hasAmp}
           staticMarkup={staticMarkup}
           devFiles={devFiles}
           files={files}
@@ -198,8 +216,12 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
+    ampBindInitData = false,
     staticMarkup = false,
+    noDirtyAmp = false,
     amphtml = false,
+    hasAmp = false,
+    ampPath = '',
     App,
     Document,
     Component,
@@ -250,15 +272,17 @@ export async function renderToHTML(
 
   const devFiles = buildManifest.devFiles
   const files = getPageFiles(buildManifest, pathname)
+  let dataManager: DataManager | undefined
+  if (ampBindInitData) {
+    dataManager = new DataManager()
+  }
 
   const reactLoadableModules: string[] = []
-  const renderPage = (
-    options: ComponentsEnhancer = {},
-  ): { html: string; head: any } => {
-    const renderElementToString = staticMarkup
-      ? renderToStaticMarkup
-      : renderToString
+  const renderElementToString = staticMarkup
+    ? renderToStaticMarkup
+    : renderToString
 
+  const renderPageError = (): {html: string, head: any} | void => {
     if (ctx.err && ErrorDebug) {
       return render(renderElementToString, <ErrorDebug error={ctx.err} />)
     }
@@ -268,26 +292,90 @@ export async function renderToHTML(
         `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
       )
     }
+  }
 
-    const {
-      App: EnhancedApp,
-      Component: EnhancedComponent,
-    } = enhanceComponents(options, App, Component)
+  let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
 
-    return render(
-      renderElementToString,
-      <IsAmpContext.Provider value={amphtml}>
-        <LoadableCapture
-          report={(moduleName) => reactLoadableModules.push(moduleName)}
-        >
-          <EnhancedApp
-            Component={EnhancedComponent}
-            router={router}
-            {...props}
-          />
-        </LoadableCapture>
-      </IsAmpContext.Provider>,
-    )
+  if (ampBindInitData) {
+    renderPage = async (
+      options: ComponentsEnhancer = {},
+    ): Promise<{ html: string; head: any }> => {
+      const renderError = renderPageError()
+      if (renderError) return renderError
+
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
+
+      let recursionCount = 0
+
+      const renderTree = async (): Promise<any> => {
+        recursionCount++
+        // This is temporary, we can remove it once the API is finished.
+        if (recursionCount > 100) {
+          throw new Error('Did 100 promise recursions, bailing out to avoid infinite loop.')
+        }
+        try {
+          return await render(
+            renderElementToString,
+            <RouterContext.Provider value={router}>
+              <DataManagerContext.Provider value={dataManager}>
+                <IsAmpContext.Provider value={amphtml}>
+                  <LoadableContext.Provider
+                    value={(moduleName) => reactLoadableModules.push(moduleName)}
+                  >
+                    <EnhancedApp
+                      Component={EnhancedComponent}
+                      router={router}
+                      {...props}
+                    />
+                  </LoadableContext.Provider>
+                </IsAmpContext.Provider>
+              </DataManagerContext.Provider>
+            </RouterContext.Provider>,
+
+          )
+        } catch (err) {
+          if (typeof err.then !== 'undefined') {
+            await err
+            return await renderTree()
+          }
+          throw err
+        }
+      }
+      const res = await renderTree()
+      return res
+    }
+  } else {
+    renderPage = (
+      options: ComponentsEnhancer = {},
+    ): { html: string; head: any } => {
+      const renderError = renderPageError()
+      if (renderError) return renderError
+
+      const {
+        App: EnhancedApp,
+        Component: EnhancedComponent,
+      } = enhanceComponents(options, App, Component)
+
+      return render(
+        renderElementToString,
+        <RouterContext.Provider value={router}>
+          <IsAmpContext.Provider value={amphtml}>
+            <LoadableContext.Provider
+              value={(moduleName) => reactLoadableModules.push(moduleName)}
+            >
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            </LoadableContext.Provider>
+          </IsAmpContext.Provider>
+        </RouterContext.Provider>,
+      )
+    }
   }
 
   const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
@@ -299,18 +387,35 @@ export async function renderToHTML(
   ]
   const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
 
-  return renderDocument(Document, {
+  let dataManagerData = '[]'
+  if (dataManager) {
+    dataManagerData = JSON.stringify([...dataManager.getData()])
+  }
+
+  if (renderOpts.dataOnly) {
+    return dataManagerData
+  }
+
+  let html = renderDocument(Document, {
     ...renderOpts,
+    dataManagerData,
     props,
     docProps,
     pathname,
+    ampPath,
     amphtml,
+    hasAmp,
     query,
     dynamicImportsIds,
     dynamicImports,
     files,
     devFiles,
   })
+
+  if (!dev && amphtml && html) {
+    html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+  }
+  return html
 }
 
 function errorToJSON(err: Error): Error {

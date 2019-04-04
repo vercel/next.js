@@ -29,9 +29,7 @@ export default class extends Document {
   render () {
     return (
       <html {...this.helmetHtmlAttrComponents}>
-        <Head>
-          {this.helmetHeadComponents}
-        </Head>
+        <Head>{this.helmetHeadComponents}</Head>
         <body {...this.helmetBodyAttrComponents}>
           <Main />
           <NextScript />

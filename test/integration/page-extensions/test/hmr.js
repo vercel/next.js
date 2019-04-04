@@ -32,7 +32,7 @@ export default (context, renderViaHTTP) => {
         // restore the about page content.
         writeFileSync(pagePath, originalContent, 'utf8')
         if (browser) {
-          browser.close()
+          await browser.close()
         }
       }
     })

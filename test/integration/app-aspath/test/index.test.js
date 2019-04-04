@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
-import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync } from 'fs'
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   renderViaHTTP,
@@ -48,6 +48,6 @@ describe('App asPath', () => {
 
     // Change back to the original content
     writeFileSync(appPath, originalContent, 'utf8')
-    browser.quit()
+    await browser.close()
   })
 })

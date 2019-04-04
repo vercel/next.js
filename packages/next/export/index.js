@@ -5,10 +5,13 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
+import { tryAmp } from 'next-server/dist/server/require'
+import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { formatAmpMessages } from '../build/output/index'
 
 const mkdirp = promisify(mkdirpModule)
 
@@ -52,6 +55,39 @@ export default async function (dir, options, configuration) {
     defaultPathMap[page] = { page }
   }
 
+  Object.keys(defaultPathMap).forEach(path => {
+    const isAmp = path.indexOf('.amp') > -1
+
+    if (isAmp) {
+      defaultPathMap[path].query = { amphtml: true }
+      const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
+      if (!defaultPathMap[nonAmp]) {
+        if (!nextConfig.experimental.noDirtyAmp) {
+          // dirty optimized
+          defaultPathMap[nonAmp] = {
+            ...defaultPathMap[path],
+            query: { ...defaultPathMap[path].query }
+          }
+          defaultPathMap[nonAmp].query.ampOnly = true
+          defaultPathMap[nonAmp].query.ampPath = path
+          // clean optimized
+          defaultPathMap[path].query.amp = 1
+        } else {
+          // dirty optimizing is disabled
+          defaultPathMap[path].query.amp = 1
+          defaultPathMap[path].query.ampOnly = true
+        }
+      } else {
+        defaultPathMap[path].query.amp = 1
+      }
+    } else {
+      const ampPath = tryAmp(defaultPathMap, path)
+      if (ampPath !== path) {
+        defaultPathMap[path].query = { hasAmp: true, ampPath: ampPath.replace(/(?<!^)\/index\.amp$/, '.amp') }
+      }
+    }
+  })
+
   // Initialize the output directory
   const outDir = options.outdir
   await recursiveDelete(join(outDir))
@@ -93,7 +129,8 @@ export default async function (dir, options, configuration) {
     distDir,
     dev: false,
     staticMarkup: false,
-    hotReloader: null
+    hotReloader: null,
+    ampEnabled: nextConfig.experimental.amp
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -123,6 +160,9 @@ export default async function (dir, options, configuration) {
     return result
   }, [])
 
+  const ampValidations = {}
+  let hadValidationError = false
+
   await Promise.all(
     chunks.map(
       chunk =>
@@ -147,11 +187,21 @@ export default async function (dir, options, configuration) {
               reject(payload)
             } else if (type === 'done') {
               resolve()
+            } else if (type === 'amp-validation') {
+              ampValidations[payload.page] = payload.result
+              hadValidationError = hadValidationError || payload.result.errors.length
             }
           })
         })
     )
   )
+
+  if (Object.keys(ampValidations).length) {
+    console.log(formatAmpMessages(ampValidations))
+  }
+  if (hadValidationError) {
+    throw new Error(`AMP Validation caused the export to fail. https://err.sh/zeit/next.js/amp-export-validation`)
+  }
 
   // Add an empty line to the console for the better readability.
   log('')

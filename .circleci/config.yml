@@ -12,20 +12,65 @@ jobs:
       - run:
           name: Linting
           command: yarn lint
+      - persist_to_workspace:
+          root: ~/repo
+          paths: ['.']
+  test:
+    parallelism: 3
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: .
       - run:
           name: Tests
-          command: yarn test
+          command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname)
+          environment:
+            JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
+            JEST_JUNIT_CLASSNAME: '{filepath}'
+      - store_test_results:
+          path: ~/repo/reports
+  test-production:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Production Tests
+          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
+          environment:
+            BROWSERSTACK: 'true'
+            BROWSER_NAME: 'ie'
+  deploy:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: .
       - run:
           name: Potentially save npm token
-          command: "([[ ! -z $NPM_TOKEN ]] && echo \"//registry.npmjs.org/:_authToken=$NPM_TOKEN\" >> ~/.npmrc) || echo \"Did not write npm token\""
+          command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
       - run:
           name: Potentially publish canary release
-          command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --npm-tag canary --yes; else  echo \"Did not publish\"; fi"
+          command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --npm-tag canary --yes; else  echo "Did not publish"; fi'
       - run:
           name: Potentially publish stable release
-          command: "if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo \"Did not publish\"; fi"
+          command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo "Did not publish"; fi'
 workflows:
   version: 2
-  build-and-deploy:
+  build-test-and-deploy:
     jobs:
       - build
+      - test:
+          requires:
+            - build
+      - test-production:
+          requires:
+            - build
+      - deploy:
+          requires:
+            - test

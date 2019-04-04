@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { resolve } from 'path'
-import arg from 'arg'
+import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
 import { cliCommand } from '../bin/next'
 

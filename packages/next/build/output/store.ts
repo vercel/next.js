@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import createStore from 'next/dist/compiled/unistore'
 import readline from 'readline'
 import { onExit } from './exit'
+import stripAnsi from 'strip-ansi'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null }
@@ -21,8 +22,10 @@ onExit(() => {
   process.stdout.write('\u001b[?25h')
 })
 store.subscribe(state => {
-  readline.cursorTo(process.stdout, 0, 0)
-  readline.clearScreenDown(process.stdout)
+  if (process.stdout.isTTY) {
+    readline.cursorTo(process.stdout, 0, 0)
+    readline.clearScreenDown(process.stdout)
+  }
 
   if (state.bootstrap) {
     console.log(chalk.cyan('Starting the development server ...'))
@@ -37,10 +40,22 @@ store.subscribe(state => {
     console.log('Compiling ...')
     return
   }
-
+  
   if (state.errors) {
     console.log(chalk.red('Failed to compile.'))
     console.log()
+    const cleanError = stripAnsi(state.errors[0])
+    if (cleanError.indexOf('SyntaxError') > -1) {
+      const matches = cleanError.match(/\[.*\]=/)
+      if (matches) {
+        for (const match of matches) {
+          const prop = (match.split(']').shift() || '').substr(1)
+          console.log(`AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://err.sh/zeit/next.js/amp-bind-jsx-alt`)
+        }
+        console.log()
+        return
+      }
+    }
     console.log(state.errors[0])
     return
   }
