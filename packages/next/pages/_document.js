@@ -508,8 +508,8 @@ export class NextScript extends Component {
 
 function getPageFile(page, buildId) {
   if (page === '/') {
-    return `/index${buildId ? `.${buildId}` : ''}.js`
+    return buildId ? `/index.${buildId}.js` : '/index.js'
   }
 
-  return `${page}${buildId ? `.${buildId}` : ''}.js`
+  return buildId ? `${page}.${buildId}.js` : `${page}.js`
 }
