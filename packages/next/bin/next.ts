@@ -14,7 +14,7 @@ import arg from 'next/dist/compiled/arg/index.js'
 const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
-  throw new Error(`The version of React you are using doesn't appear to support 'Suspense' which we rely on for Next.js. Please upgrade to a version of that matches the React peerDependencies.`)
+  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom"`)
 }
 
 const defaultCommand = 'dev'
