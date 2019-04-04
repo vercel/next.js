@@ -11,8 +11,8 @@ export type ServerlessLoaderQuery = {
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
   assetPrefix: string,
-  ampEnabled: boolean,
-  ampBindInitData: boolean,
+  ampEnabled: boolean | string,
+  ampBindInitData: boolean | string,
   generateEtags: string
 }
 
@@ -49,8 +49,8 @@ const nextServerlessLoader: loader.Loader = function () {
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
         assetPrefix: "${assetPrefix}",
-        ampEnabled: ${!!ampEnabled},
-        ampBindInitData: ${!!ampBindInitData}
+        ampEnabled: ${ampEnabled === true || ampEnabled === 'true'},
+        ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
       try {
@@ -59,7 +59,7 @@ const nextServerlessLoader: loader.Loader = function () {
           {
             Component,
             amphtml: options.ampEnabled && (parsedUrl.query.amp || ${page.endsWith('.amp')}),
-            dataOnly: req.headers && req.headers.accept === 'application/amp.bind+json',
+            dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           }, 
           options, 
         ))

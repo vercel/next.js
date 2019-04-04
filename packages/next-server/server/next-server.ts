@@ -272,7 +272,7 @@ export default class Server {
 
     const html = await this.renderToHTML(req, res, pathname, query, {
       amphtml: query.amp && this.nextConfig.experimental.amp,
-      dataOnly: req.headers && req.headers.accept === 'application/amp.bind+json',
+      dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
     })
     // Request was ended by the user
     if (html === null) {
