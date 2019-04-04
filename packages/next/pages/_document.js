@@ -178,38 +178,36 @@ export class Head extends Component {
         )
     }
     // show warning and remove conflicting amp head tags
-    head = !amphtml
-      ? head
-      : React.Children.map(head, child => {
-          if (!child) return child
-          const { type, props } = child
-          let badProp
+    head = !amphtml ? head : React.Children.map(head, child => {
+      if (!child) return child
+      const { type, props } = child
+      let badProp
 
-          if (type === 'meta' && props.name === 'viewport') {
-            badProp = 'name="viewport"'
-          } else if (type === 'link' && props.rel === 'canonical') {
-            badProp = 'rel="canonical"'
-          } else if (
-            type === 'script' &&
-            !(props.src && props.src.indexOf('ampproject') > -1)
-          ) {
-            badProp = '<script'
-            Object.keys(props).forEach(prop => {
-              badProp += ` ${prop}="${props[prop]}"`
-            })
-            badProp += '/>'
-          }
-
-          if (badProp) {
-            console.warn(
-              `Found conflicting amp tag "${
-                child.type
-              }" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`
-            )
-            return null
-          }
-          return child
+      if (type === 'meta' && props.name === 'viewport') {
+        badProp = 'name="viewport"'
+      } else if (type === 'link' && props.rel === 'canonical') {
+        badProp = 'rel="canonical"'
+      } else if (
+        type === 'script' &&
+        !(props.src && props.src.indexOf('ampproject') > -1)
+      ) {
+        badProp = '<script'
+        Object.keys(props).forEach(prop => {
+          badProp += ` ${prop}="${props[prop]}"`
         })
+        badProp += '/>'
+      }
+
+      if (badProp) {
+        console.warn(
+          `Found conflicting amp tag "${
+            child.type
+          }" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`
+        )
+        return null
+      }
+      return child
+    })
     return (
       <head {...this.props}>
         {children}
