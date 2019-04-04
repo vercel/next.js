@@ -75,18 +75,6 @@ export default class Router implements IRouterInterface {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
-
-      // Workaround for weird Firefox bug, see below links
-      // https://github.com/zeit/next.js/issues/3817
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
-      // TODO: let's remove this once the Firefox bug is resolved
-      if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
-        window.addEventListener('unload', () => {
-          try {
-            if (window.location.search) window.location.replace(window.location.toString())
-          } catch (_) {/* since it's a workaround, ignore */}
-        })
-      }
     }
   }
 
