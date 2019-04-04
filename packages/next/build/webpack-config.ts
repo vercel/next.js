@@ -240,9 +240,20 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         },
         {
           test: /\.(js|mjs|jsx)$/,
-          include: [dir, /next-server[\\/]dist[\\/]lib/],
+          include: [
+            dir,
+            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]client/,
+            /next[\\/]dist[\\/]pages/,
+          ],
           exclude: (path: string) => {
             if (/next-server[\\/]dist[\\/]lib/.test(path)) {
+              return false
+            }
+            if (/next[\\/]dist[\\/]client/.test(path)) {
+              return false
+            }
+            if (/next[\\/]dist[\\/]pages/.test(path)) {
               return false
             }
 

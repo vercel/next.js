@@ -6,7 +6,7 @@ const babelOpts = {
     ['@babel/preset-env', {
       modules: 'commonjs',
       'targets': {
-        'browsers': ['IE 11']
+        'esmodules': true
       },
       exclude: ['transform-typeof-symbol']
     }]
@@ -17,9 +17,6 @@ const babelOpts = {
       helpers: true,
       regenerator: false,
       useESModules: false
-    }],
-    ['babel-plugin-transform-async-to-promises', {
-      inlineHelpers: true
     }]
   ]
 }
