@@ -11,6 +11,12 @@ import arg from 'next/dist/compiled/arg/index.js'
   }
 })
 
+const React = require('react')
+
+if (typeof React.Suspense === 'undefined') {
+  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
+}
+
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: {[command: string]: () => Promise<cliCommand>} = {
