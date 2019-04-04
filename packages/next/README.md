@@ -1701,6 +1701,17 @@ function Index() {
 
 export default Index
 ```
+> **Warning:** Note that it is not possible to destructure process.env variables due to the webpack `DefinePlugin` replacing process.env.XXXX inline at build time
+
+```js 
+// Will not work
+const { CUSTOM_KEY, CUSTOM_SECRET } = process.env;
+AuthMethod({ key: CUSTOM_KEY, secret: CUSTOM_SECRET });
+
+// Will work as replaced inline
+AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET });
+```
+
 
 #### Runtime configuration
 
