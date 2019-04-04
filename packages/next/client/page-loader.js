@@ -97,6 +97,11 @@ export default class PageLoader {
         .catch(() => {
           // When this fails it's not a _huge_ deal, preload wont work and page
           // navigation will 404, triggering a SSR refresh
+          console.warn(
+            'Failed to load BUILD_ID from server. ' +
+              'The following client-side page transition will likely 404 and cause a SSR.\n' +
+              'http://err.sh/zeit/next.js/head-build-id'
+          )
         })
         .then(resolve, resolve)
     })
