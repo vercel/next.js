@@ -120,7 +120,7 @@ export default async function build(
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
-  const __selectivePageBuilding = pages && Boolean(pages.length)
+  const __selectivePageBuilding = pages ? Boolean(pages.length) : false
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,

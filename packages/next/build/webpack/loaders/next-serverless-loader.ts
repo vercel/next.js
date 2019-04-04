@@ -13,7 +13,7 @@ export type ServerlessLoaderQuery = {
   assetPrefix: string,
   ampBindInitData: boolean,
   generateEtags: string
-  dynamicBuildId?: boolean
+  dynamicBuildId?: string | boolean
 }
 
 const nextServerlessLoader: loader.Loader = function () {
@@ -48,7 +48,7 @@ const nextServerlessLoader: loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
-        dynamicBuildId: ${!!dynamicBuildId},
+        dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
         assetPrefix: "${assetPrefix}",
         ampBindInitData: ${Boolean(ampBindInitData)}
       }
