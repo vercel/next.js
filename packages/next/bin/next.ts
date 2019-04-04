@@ -1,30 +1,5 @@
 #!/usr/bin/env node
-import Module from 'module'
-import { join, dirname } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
-
-const nextPkg = require('next/package.json')
-const peerVersion = (dep: string): { version: string, parts: number[] } => {
-  const version: string = nextPkg.peerDependencies[dep]
-  return {
-    version,
-    parts: version
-      .substr(1)
-      .split('.')
-      .map((p: string): number => parseInt(p, 10)),
-  }
-}
-const resolveCwd = (moduleId: string): string => {
-  const fromDir = process.cwd()
-  const fromFile = join(fromDir, 'pages/noop.js')
-  // @ts-ignore property _resolveFileName does not exist
-  return Module._resolveFilename(moduleId, {
-    id: fromFile,
-    filename: fromFile,
-    // @ts-ignore property _nodeModulePaths does not exist
-    paths: Module._nodeModulePaths(fromDir),
-  })
-}
 
 ['react', 'react-dom'].forEach((dependency) => {
   try {
@@ -34,26 +9,13 @@ const resolveCwd = (moduleId: string): string => {
     // tslint:disable-next-line
     console.warn(`The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install --save ${dependency}'`)
   }
-
-  const reactDir = dirname(resolveCwd(dependency))
-  const reactPkg = require(join(reactDir, 'package.json'))
-  const version = reactPkg.version
-  const versionParts = version.split('.')
-  const { version: minVersion, parts: minParts } = peerVersion(dependency)
-  const invalidVersion = (): void => {
-    // tslint:disable-next-line
-    console.warn(`The module ${dependency} with version ${version} does not meet the minimum version specified ${minVersion} by Next.js. Please upgrade the dependency to at least ${minVersion}.`)
-    process.exit(1)
-  }
-
-  for (let i = 0; i < minParts.length; i++) {
-    const isInvalid = versionParts[i] < minParts[i]
-    if (isInvalid) {
-      invalidVersion()
-      break
-    }
-  }
 })
+
+const React = require('react')
+
+if (typeof React.Suspense === 'undefined') {
+  throw new Error(`The version of React you are using doesn't appear to support 'Suspense' which we rely on for Next.js. Please upgrade to a version of that matches the React peerDependencies.`)
+}
 
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
