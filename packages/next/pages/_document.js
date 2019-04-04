@@ -251,9 +251,7 @@ export class Head extends Component {
         )}
         {!amphtml && (
           <>
-            {ampEnabled && hasAmp && (
-              <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />
-            )}
+            {ampEnabled && hasAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
             {page !== '/_error' && (
               <link
                 rel="preload"
