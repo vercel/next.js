@@ -134,11 +134,11 @@ export class ChunkGraphPlugin implements Plugin {
             manifest.chunks[chunk.name] = files
           }
         }
-
-        for (const page in pages) {
-          manifest.pages[page] = [...pages[page], ...clientRuntime]
-        }
       })
+
+      for (const page in pages) {
+        manifest.pages[page] = [...pages[page], ...clientRuntime]
+      }
 
       manifest.hashes = ([...allFiles] as string[]).sort().reduce(
         (acc, cur) =>
