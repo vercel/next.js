@@ -277,7 +277,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      !isServer && __selectivePageBuilding && new ChunkGraphPlugin(path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST }),
+      !isServer && __selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST }),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations
         // This is because the client compilation generates the build manifest that's used on the server side
