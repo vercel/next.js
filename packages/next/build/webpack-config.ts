@@ -158,7 +158,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           react: {
             name: 'commons',
             chunks: 'all',
-            test: /[\\/]node_modules[\\/](react|react-dom|styled-jsx)[\\/]/
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
           }
         }
       } : {
