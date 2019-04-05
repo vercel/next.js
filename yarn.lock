@@ -1571,6 +1571,11 @@
   dependencies:
     "@types/node" "*"
 
+"@types/escape-string-regexp@1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@types/escape-string-regexp/-/escape-string-regexp-1.0.0.tgz#052d16d87db583b72daceae4eaabddb66954424c"
+  integrity sha512-KAruqgk9/340M4MYYasdBET+lyYN8KMXUuRKWO72f4SbmIMMFp9nnJiXUkJS0HC2SFe4x0R/fLozXIzqoUfSjA==
+
 "@types/etag@1.8.0":
   version "1.8.0"
   resolved "https://registry.yarnpkg.com/@types/etag/-/etag-1.8.0.tgz#37f0b1f3ea46da7ae319bbedb607e375b4c99f7e"
@@ -4780,7 +4785,7 @@ escape-html@~1.0.3:
   resolved "https://registry.yarnpkg.com/escape-html/-/escape-html-1.0.3.tgz#0258eae4d3d0c0974de1c169188ef0051d1d1988"
   integrity sha1-Aljq5NPQwJdN4cFpGI7wBR0dGYg=
 
-escape-string-regexp@^1.0.2, escape-string-regexp@^1.0.5:
+escape-string-regexp@1.0.5, escape-string-regexp@^1.0.2, escape-string-regexp@^1.0.5:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-1.0.5.tgz#1b61c0562190a8dff6ae3bb2cf0200ca130b86d4"
   integrity sha1-G2HAViGQqN/2rjuyzwIAyhMLhtQ=
