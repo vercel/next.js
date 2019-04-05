@@ -334,19 +334,30 @@ export async function renderToHTML(
       </RouterContext.Provider>
 
       const element = <Application/>
-      await ssrPrepass(element)
-      if (renderOpts.dataOnly) {
-        return {
-          html: '',
-          head: [],
-          dataOnly: true,
-        }
-      }
 
-      return await render(
-        renderElementToString,
-        element,
-      )
+      try {
+        return render(
+          renderElementToString,
+          element,
+        )
+      } catch (err) {
+        if (err && typeof err === 'object' && typeof err.then === 'function') {
+          await ssrPrepass(element)
+          if (renderOpts.dataOnly) {
+            return {
+              html: '',
+              head: [],
+              dataOnly: true,
+            }
+          } else {
+            return render(
+              renderElementToString,
+              element,
+            )
+          }
+        }
+        throw err
+      }
     }
   } else {
     renderPage = (
