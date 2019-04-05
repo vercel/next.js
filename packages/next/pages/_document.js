@@ -16,9 +16,9 @@ export default class Document extends Component {
   }
 
   static async getInitialProps({ renderPage }) {
-    const { html, head } = await renderPage()
+    const { html, head, dataOnly } = await renderPage()
     const styles = flush()
-    return { html, head, styles }
+    return { html, head, styles, dataOnly }
   }
 
   getChildContext() {

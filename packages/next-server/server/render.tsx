@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
+import ssrPrepass from 'react-ssr-prepass'
 import {IRouterInterface} from '../lib/router/router'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
@@ -307,7 +308,7 @@ export async function renderToHTML(
   if (ampBindInitData) {
     renderPage = async (
       options: ComponentsEnhancer = {},
-    ): Promise<{ html: string; head: any }> => {
+    ): Promise<{ html: string; head: any, dataOnly?: true}> => {
       const renderError = renderPageError()
       if (renderError) return renderError
 
@@ -316,44 +317,36 @@ export async function renderToHTML(
         Component: EnhancedComponent,
       } = enhanceComponents(options, App, Component)
 
-      let recursionCount = 0
+      const Application = () => <RouterContext.Provider value={router}>
+        <DataManagerContext.Provider value={dataManager}>
+          <IsAmpContext.Provider value={amphtml}>
+            <LoadableContext.Provider
+              value={(moduleName) => reactLoadableModules.push(moduleName)}
+            >
+              <EnhancedApp
+                Component={EnhancedComponent}
+                router={router}
+                {...props}
+              />
+            </LoadableContext.Provider>
+          </IsAmpContext.Provider>
+        </DataManagerContext.Provider>
+      </RouterContext.Provider>
 
-      const renderTree = async (): Promise<any> => {
-        recursionCount++
-        // This is temporary, we can remove it once the API is finished.
-        if (recursionCount > 100) {
-          throw new Error('Did 100 promise recursions, bailing out to avoid infinite loop.')
-        }
-        try {
-          return await render(
-            renderElementToString,
-            <RouterContext.Provider value={router}>
-              <DataManagerContext.Provider value={dataManager}>
-                <IsAmpContext.Provider value={amphtml}>
-                  <LoadableContext.Provider
-                    value={(moduleName) => reactLoadableModules.push(moduleName)}
-                  >
-                    <EnhancedApp
-                      Component={EnhancedComponent}
-                      router={router}
-                      {...props}
-                    />
-                  </LoadableContext.Provider>
-                </IsAmpContext.Provider>
-              </DataManagerContext.Provider>
-            </RouterContext.Provider>,
-
-          )
-        } catch (err) {
-          if (typeof err.then !== 'undefined') {
-            await err
-            return await renderTree()
-          }
-          throw err
+      const element = <Application/>
+      await ssrPrepass(element)
+      if (renderOpts.dataOnly) {
+        return {
+          html: '',
+          head: [],
+          dataOnly: true,
         }
       }
-      const res = await renderTree()
-      return res
+
+      return await render(
+        renderElementToString,
+        element,
+      )
     }
   } else {
     renderPage = (
@@ -390,19 +383,19 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
-  const dynamicImports = [
-    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
-  ]
-  const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
-
   let dataManagerData = '[]'
   if (dataManager) {
     dataManagerData = JSON.stringify([...dataManager.getData()])
   }
 
-  if (renderOpts.dataOnly) {
+  if (docProps.dataOnly) {
     return dataManagerData
   }
+
+  const dynamicImports = [
+    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
+  ]
+  const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
 
   let html = renderDocument(Document, {
     ...renderOpts,
