@@ -9,9 +9,10 @@ import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
+import { RequestContext } from '../lib/request-context'
 import {LoadableContext} from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { DataManager } from '..//lib/data-manager'
+import { DataManager } from '../lib/data-manager'
 
 import {
   getDynamicImportBundles,
@@ -317,36 +318,49 @@ export async function renderToHTML(
         Component: EnhancedComponent,
       } = enhanceComponents(options, App, Component)
 
-      const Application = () => <RouterContext.Provider value={router}>
-        <DataManagerContext.Provider value={dataManager}>
-          <IsAmpContext.Provider value={amphtml}>
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </LoadableContext.Provider>
-          </IsAmpContext.Provider>
-        </DataManagerContext.Provider>
-      </RouterContext.Provider>
+      const Application = () => <RequestContext.Provider value={req}>
+        <RouterContext.Provider value={router}>
+          <DataManagerContext.Provider value={dataManager}>
+            <IsAmpContext.Provider value={amphtml}>
+              <LoadableContext.Provider
+                value={(moduleName) => reactLoadableModules.push(moduleName)}
+              >
+                <EnhancedApp
+                  Component={EnhancedComponent}
+                  router={router}
+                  {...props}
+                />
+              </LoadableContext.Provider>
+            </IsAmpContext.Provider>
+          </DataManagerContext.Provider>
+        </RouterContext.Provider>
+      </RequestContext.Provider>
 
       const element = <Application/>
-      await ssrPrepass(element)
-      if (renderOpts.dataOnly) {
-        return {
-          html: '',
-          head: [],
-          dataOnly: true,
-        }
-      }
 
-      return await render(
-        renderElementToString,
-        element,
-      )
+      try {
+        return render(
+          renderElementToString,
+          element,
+        )
+      } catch (err) {
+        if (err && typeof err === 'object' && typeof err.then === 'function') {
+          await ssrPrepass(element)
+          if (renderOpts.dataOnly) {
+            return {
+              html: '',
+              head: [],
+              dataOnly: true,
+            }
+          } else {
+            return render(
+              renderElementToString,
+              element,
+            )
+          }
+        }
+        throw err
+      }
     }
   } else {
     renderPage = (
@@ -362,19 +376,21 @@ export async function renderToHTML(
 
       return render(
         renderElementToString,
-        <RouterContext.Provider value={router}>
-          <IsAmpContext.Provider value={amphtml}>
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </LoadableContext.Provider>
-          </IsAmpContext.Provider>
-        </RouterContext.Provider>,
+        <RequestContext.Provider value={req}>
+          <RouterContext.Provider value={router}>
+            <IsAmpContext.Provider value={amphtml}>
+              <LoadableContext.Provider
+                value={(moduleName) => reactLoadableModules.push(moduleName)}
+              >
+                <EnhancedApp
+                  Component={EnhancedComponent}
+                  router={router}
+                  {...props}
+                />
+              </LoadableContext.Provider>
+            </IsAmpContext.Provider>
+          </RouterContext.Provider>
+        </RequestContext.Provider>,
       )
     }
   }
