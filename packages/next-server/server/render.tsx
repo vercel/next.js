@@ -22,7 +22,6 @@ import {
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { IsAmpContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
-import { RequestContext } from '../dist/lib/request-context';
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer =
