@@ -9,9 +9,10 @@ import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
+import { RequestContext } from '../lib/request-context'
 import {LoadableContext} from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { DataManager } from '..//lib/data-manager'
+import { DataManager } from '../lib/data-manager'
 
 import {
   getDynamicImportBundles,
@@ -317,21 +318,23 @@ export async function renderToHTML(
         Component: EnhancedComponent,
       } = enhanceComponents(options, App, Component)
 
-      const Application = () => <RouterContext.Provider value={router}>
-        <DataManagerContext.Provider value={dataManager}>
-          <IsAmpContext.Provider value={amphtml}>
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </LoadableContext.Provider>
-          </IsAmpContext.Provider>
-        </DataManagerContext.Provider>
-      </RouterContext.Provider>
+      const Application = () => <RequestContext.Provider value={req}>
+        <RouterContext.Provider value={router}>
+          <DataManagerContext.Provider value={dataManager}>
+            <IsAmpContext.Provider value={amphtml}>
+              <LoadableContext.Provider
+                value={(moduleName) => reactLoadableModules.push(moduleName)}
+              >
+                <EnhancedApp
+                  Component={EnhancedComponent}
+                  router={router}
+                  {...props}
+                />
+              </LoadableContext.Provider>
+            </IsAmpContext.Provider>
+          </DataManagerContext.Provider>
+        </RouterContext.Provider>
+      </RequestContext.Provider>
 
       const element = <Application/>
 
@@ -373,19 +376,21 @@ export async function renderToHTML(
 
       return render(
         renderElementToString,
-        <RouterContext.Provider value={router}>
-          <IsAmpContext.Provider value={amphtml}>
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </LoadableContext.Provider>
-          </IsAmpContext.Provider>
-        </RouterContext.Provider>,
+        <RequestContext.Provider value={req}>
+          <RouterContext.Provider value={router}>
+            <IsAmpContext.Provider value={amphtml}>
+              <LoadableContext.Provider
+                value={(moduleName) => reactLoadableModules.push(moduleName)}
+              >
+                <EnhancedApp
+                  Component={EnhancedComponent}
+                  router={router}
+                  {...props}
+                />
+              </LoadableContext.Provider>
+            </IsAmpContext.Provider>
+          </RouterContext.Provider>
+        </RequestContext.Provider>,
       )
     }
   }
