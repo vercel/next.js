@@ -142,7 +142,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           }
         })
       ] : undefined
-    } : {
+    } : Object.assign({
       runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       },
@@ -186,7 +186,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           }
         })
       ] : undefined,
-    },
+    }, __selectivePageBuilding ? {
+      providedExports: false,
+      usedExports: false,
+      concatenateModules: false,
+    } : undefined),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
