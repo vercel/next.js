@@ -341,7 +341,7 @@ export async function renderToHTML(
           element,
         )
       } catch (err) {
-        if (err && typeof err.then === 'function') {
+        if (err && typeof err === 'object' && typeof err.then === 'function') {
           await ssrPrepass(element)
           if (renderOpts.dataOnly) {
             return {
