@@ -72,7 +72,7 @@
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.4",
-    "react-is": "16.6.3",
+    "react-is": "16.8.6",
     "recursive-copy": "2.0.6",
     "serialize-javascript": "1.6.1",
     "source-map": "0.6.1",
