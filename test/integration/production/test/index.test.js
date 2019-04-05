@@ -164,6 +164,23 @@ describe('Production Usage', () => {
     })
   })
 
+  it('should navigate to external site and back', async () => {
+    const browser = await webdriver(appPort, '/external-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
       const browser = await webdriver(appPort, '/error-in-ssr-render')
