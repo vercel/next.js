@@ -63,11 +63,17 @@ export default async function build(
     )
   }
 
+  const debug =
+    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
+    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1'
+
   console.log('Creating an optimized production build ...')
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = await generateBuildId(config.generateBuildId, nanoid)
+  const buildId = debug
+    ? 'unoptimized-build'
+    : await generateBuildId(config.generateBuildId, nanoid)
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
@@ -78,14 +84,16 @@ export default async function build(
       ? [process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE]
       : []
 
-  let pagePaths
-  if (pages && pages.length) {
-    if (config.target !== 'serverless') {
-      throw new Error(
-        'Cannot use selective page building without the serverless target.'
-      )
-    }
+  const __selectivePageBuilding = pages ? Boolean(pages.length) : false
 
+  if (__selectivePageBuilding && config.target !== 'serverless') {
+    throw new Error(
+      'Cannot use selective page building without the serverless target.'
+    )
+  }
+
+  let pagePaths
+  if (__selectivePageBuilding && pages[0] !== '**') {
     const explodedPages = flatten<string>(pages.map(p => p.split(','))).map(
       p => {
         let resolvedPage: string | undefined
@@ -119,30 +127,27 @@ export default async function build(
     mappedPages,
     config.target,
     buildId,
+    __selectivePageBuilding,
     config
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
-      __debug:
-        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
-        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1',
+      debug,
       buildId,
       isServer: false,
       config,
       target: config.target,
       entrypoints: entrypoints.client,
-      __selectivePageBuilding: pages && Boolean(pages.length),
+      __selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
-      __debug:
-        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
-        process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1',
+      debug,
       buildId,
       isServer: true,
       config,
       target: config.target,
       entrypoints: entrypoints.server,
-      __selectivePageBuilding: pages && Boolean(pages.length),
+      __selectivePageBuilding,
     }),
   ])
 
@@ -201,5 +206,5 @@ export default async function build(
 
   printTreeView(Object.keys(mappedPages))
 
-  await writeBuildId(distDir, buildId)
+  await writeBuildId(distDir, buildId, __selectivePageBuilding)
 }

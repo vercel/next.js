@@ -2,15 +2,17 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
+import ssrPrepass from 'react-ssr-prepass'
 import {IRouterInterface} from '../lib/router/router'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
+import { RequestContext } from '../lib/request-context'
 import {LoadableContext} from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
-import { DataManager } from '..//lib/data-manager'
+import { DataManager } from '../lib/data-manager'
 
 import {
   getDynamicImportBundles,
@@ -116,6 +118,7 @@ type RenderOpts = {
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
+  dynamicBuildId?: boolean
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
@@ -143,6 +146,7 @@ function renderDocument(
     pathname,
     query,
     buildId,
+    dynamicBuildId = false,
     assetPrefix,
     runtimeConfig,
     nextExport,
@@ -182,6 +186,7 @@ function renderDocument(
             page: pathname, // The rendered page
             query, // querystring parsed / passed by the user
             buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+            dynamicBuildId, // Specifies if the buildId should by dynamically fetched
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
@@ -304,7 +309,7 @@ export async function renderToHTML(
   if (ampBindInitData) {
     renderPage = async (
       options: ComponentsEnhancer = {},
-    ): Promise<{ html: string; head: any }> => {
+    ): Promise<{ html: string; head: any, dataOnly?: true}> => {
       const renderError = renderPageError()
       if (renderError) return renderError
 
@@ -313,44 +318,49 @@ export async function renderToHTML(
         Component: EnhancedComponent,
       } = enhanceComponents(options, App, Component)
 
-      let recursionCount = 0
+      const Application = () => <RequestContext.Provider value={req}>
+        <RouterContext.Provider value={router}>
+          <DataManagerContext.Provider value={dataManager}>
+            <IsAmpContext.Provider value={amphtml}>
+              <LoadableContext.Provider
+                value={(moduleName) => reactLoadableModules.push(moduleName)}
+              >
+                <EnhancedApp
+                  Component={EnhancedComponent}
+                  router={router}
+                  {...props}
+                />
+              </LoadableContext.Provider>
+            </IsAmpContext.Provider>
+          </DataManagerContext.Provider>
+        </RouterContext.Provider>
+      </RequestContext.Provider>
 
-      const renderTree = async (): Promise<any> => {
-        recursionCount++
-        // This is temporary, we can remove it once the API is finished.
-        if (recursionCount > 100) {
-          throw new Error('Did 100 promise recursions, bailing out to avoid infinite loop.')
-        }
-        try {
-          return await render(
-            renderElementToString,
-            <RouterContext.Provider value={router}>
-              <DataManagerContext.Provider value={dataManager}>
-                <IsAmpContext.Provider value={amphtml}>
-                  <LoadableContext.Provider
-                    value={(moduleName) => reactLoadableModules.push(moduleName)}
-                  >
-                    <EnhancedApp
-                      Component={EnhancedComponent}
-                      router={router}
-                      {...props}
-                    />
-                  </LoadableContext.Provider>
-                </IsAmpContext.Provider>
-              </DataManagerContext.Provider>
-            </RouterContext.Provider>,
+      const element = <Application/>
 
-          )
-        } catch (err) {
-          if (typeof err.then !== 'undefined') {
-            await err
-            return await renderTree()
+      try {
+        return render(
+          renderElementToString,
+          element,
+        )
+      } catch (err) {
+        if (err && typeof err === 'object' && typeof err.then === 'function') {
+          await ssrPrepass(element)
+          if (renderOpts.dataOnly) {
+            return {
+              html: '',
+              head: [],
+              dataOnly: true,
+            }
+          } else {
+            return render(
+              renderElementToString,
+              element,
+            )
           }
-          throw err
         }
+        throw err
       }
-      const res = await renderTree()
-      return res
     }
   } else {
     renderPage = (
@@ -366,19 +376,21 @@ export async function renderToHTML(
 
       return render(
         renderElementToString,
-        <RouterContext.Provider value={router}>
-          <IsAmpContext.Provider value={amphtml}>
-            <LoadableContext.Provider
-              value={(moduleName) => reactLoadableModules.push(moduleName)}
-            >
-              <EnhancedApp
-                Component={EnhancedComponent}
-                router={router}
-                {...props}
-              />
-            </LoadableContext.Provider>
-          </IsAmpContext.Provider>
-        </RouterContext.Provider>,
+        <RequestContext.Provider value={req}>
+          <RouterContext.Provider value={router}>
+            <IsAmpContext.Provider value={amphtml}>
+              <LoadableContext.Provider
+                value={(moduleName) => reactLoadableModules.push(moduleName)}
+              >
+                <EnhancedApp
+                  Component={EnhancedComponent}
+                  router={router}
+                  {...props}
+                />
+              </LoadableContext.Provider>
+            </IsAmpContext.Provider>
+          </RouterContext.Provider>
+        </RequestContext.Provider>,
       )
     }
   }
@@ -387,19 +399,19 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
-  const dynamicImports = [
-    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
-  ]
-  const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
-
   let dataManagerData = '[]'
   if (dataManager) {
     dataManagerData = JSON.stringify([...dataManager.getData()])
   }
 
-  if (renderOpts.dataOnly) {
+  if (docProps.dataOnly) {
     return dataManagerData
   }
+
+  const dynamicImports = [
+    ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
+  ]
+  const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
 
   let html = renderDocument(Document, {
     ...renderOpts,
