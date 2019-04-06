@@ -25,7 +25,7 @@ export function createHook(fetcher: (...args: Args[]) => Promise<any>, options: 
   return function useData(...args: Array<string|number>) {
     const router: import('next-server/lib/router/router').default = useContext(RouterContext)
     const dataManager: import('next-server/lib/data-manager').DataManager = useContext(DataManagerContext)
-    const key = `${router.route}${options.key}${generateArgsKey(args)}`
+    const key = `${options.key}${generateArgsKey(args)}`
     const existing = dataManager.get(key)
     if (existing && existing.status === 'resolved') {
       return existing.result
