@@ -52,6 +52,73 @@ function getPossibleFiles(pageExtensions: string[], pages: string[]) {
   return flatten<string>(res)
 }
 
+export async function getSpecifiedPages(
+  dir: string,
+  pages: string[],
+  pageExtensions: string[]
+) {
+  const pagesDir = path.join(dir, 'pages')
+
+  const reservedPages = ['/_app', '/_document', '/_error']
+  pages.push(...reservedPages)
+
+  const searchAllPages = pages.some(p => p.includes('**'))
+
+  let pagePaths: string[]
+  const explodedPages = [
+    ...new Set(
+      flatten<string>(pages.map(p => p.split(',').filter(p => p !== '**')))
+    ),
+  ].map(p => {
+    let removePage = false
+    if (p.startsWith('-')) {
+      p = p.substring(1)
+      removePage = true
+    }
+
+    let resolvedPage: string | undefined
+    if (path.isAbsolute(p)) {
+      resolvedPage = getPossibleFiles(pageExtensions, [
+        path.join(pagesDir, p),
+        p,
+      ]).find(f => fs.existsSync(f))
+    } else {
+      resolvedPage = getPossibleFiles(pageExtensions, [
+        path.join(pagesDir, p),
+        path.join(dir, p),
+      ]).find(f => fs.existsSync(f))
+    }
+    return { original: p, resolved: resolvedPage || null, removePage }
+  })
+
+  const missingPage = explodedPages.find(
+    ({ original, resolved }) => !resolved && !reservedPages.includes(original)
+  )
+  if (missingPage) {
+    throw new Error(`Unable to identify page: ${missingPage.original}`)
+  }
+  const resolvedPagePaths = explodedPages
+    .filter(page => page.resolved)
+    .map(page => ({
+      ignore: page.removePage,
+      pathname: '/' + path.relative(pagesDir, page.resolved!),
+    }))
+
+  if (searchAllPages) {
+    const pageSet = new Set(await collectPages(pagesDir, pageExtensions))
+
+    resolvedPagePaths
+      .filter(p => p.ignore)
+      .forEach(p => pageSet.delete(p.pathname))
+
+    pagePaths = [...pageSet]
+  } else {
+    pagePaths = resolvedPagePaths.filter(p => !p.ignore).map(p => p.pathname)
+  }
+
+  return pagePaths.sort()
+}
+
 export default async function build(
   dir: string,
   conf = null,
@@ -97,32 +164,8 @@ export default async function build(
   }
 
   let pagePaths
-  if (__selectivePageBuilding && pages[0] !== '**') {
-    const explodedPages = flatten<string>(pages.map(p => p.split(','))).map(
-      p => {
-        let resolvedPage: string | undefined
-        if (path.isAbsolute(p)) {
-          resolvedPage = getPossibleFiles(config.pageExtensions, [
-            path.join(pagesDir, p),
-            p,
-          ]).find(f => fs.existsSync(f))
-        } else {
-          resolvedPage = getPossibleFiles(config.pageExtensions, [
-            path.join(pagesDir, p),
-            path.join(dir, p),
-          ]).find(f => fs.existsSync(f))
-        }
-        return { original: p, resolved: resolvedPage || null }
-      }
-    )
-
-    const missingPage = explodedPages.find(({ resolved }) => !resolved)
-    if (missingPage) {
-      throw new Error(`Unable to identify page: ${missingPage.original}`)
-    }
-    pagePaths = explodedPages.map(
-      page => '/' + path.relative(pagesDir, page.resolved!)
-    )
+  if (__selectivePageBuilding) {
+    pagePaths = await getSpecifiedPages(dir, pages, config.pageExtensions)
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
