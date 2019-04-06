@@ -67,7 +67,11 @@ export default async function build(
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1'
 
-  console.log('Creating an optimized production build ...')
+  console.log(
+    debug
+      ? 'Creating a development build ...'
+      : 'Creating an optimized production build ...'
+  )
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
