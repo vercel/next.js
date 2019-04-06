@@ -181,6 +181,28 @@ describe('Production Usage', () => {
     expect(newText).toBe('server')
   })
 
+  it('should change query correctly', async () => {
+    const browser = await webdriver(appPort, '/query?id=0')
+    let id = await browser.elementByCss('#q0').text()
+    expect(id).toBe('0')
+
+    await browser
+      .elementByCss('#first')
+      .click()
+      .waitForElementByCss('#q1')
+
+    id = await browser.elementByCss('#q1').text()
+    expect(id).toBe('1')
+
+    await browser
+      .elementByCss('#second')
+      .click()
+      .waitForElementByCss('#q2')
+
+    id = await browser.elementByCss('#q2').text()
+    expect(id).toBe('2')
+  })
+
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
       const browser = await webdriver(appPort, '/error-in-ssr-render')
