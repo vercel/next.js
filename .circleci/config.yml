@@ -31,7 +31,7 @@ jobs:
             JEST_JUNIT_CLASSNAME: '{filepath}'
       - store_test_results:
           path: ~/repo/reports
-  test-production:
+  test-ie11:
     docker:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
@@ -39,7 +39,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: Production Tests
+          name: Test in ie11
           command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
           environment:
             BROWSERSTACK: 'true'
@@ -68,7 +68,7 @@ workflows:
       - test:
           requires:
             - build
-      - test-production:
+      - test-ie11:
           requires:
             - build
       - deploy:

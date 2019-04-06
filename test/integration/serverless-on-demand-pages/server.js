@@ -10,27 +10,15 @@ module.exports = function start (port = 0) {
     app.get('/', (req, res) => {
       require('./.next/serverless/pages/index.js').render(req, res)
     })
-    app.get('/abc', (req, res) => {
-      require('./.next/serverless/pages/abc.js').render(req, res)
-    })
     app.get('/fetch', (req, res) => {
       require('./.next/serverless/pages/fetch.js').render(req, res)
-    })
-    app.get('/dynamic', (req, res) => {
-      require('./.next/serverless/pages/dynamic.js').render(req, res)
-    })
-    app.get('/dynamic-two', (req, res) => {
-      require('./.next/serverless/pages/dynamic-two.js').render(req, res)
-    })
-    app.get('/amp', (req, res) => {
-      require('./.next/serverless/pages/some.amp.js').render(req, res)
     })
     app.get('/404', (req, res) => {
       require('./.next/serverless/pages/_error.js').render(req, res)
     })
     const server = new http.Server(app)
 
-    server.listen(port, (err) => {
+    server.listen(port, err => {
       if (err) {
         return reject(err)
       }

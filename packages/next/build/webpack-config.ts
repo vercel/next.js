@@ -142,7 +142,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           }
         })
       ] : undefined
-    } : {
+    } : Object.assign({
       runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       },
@@ -186,7 +186,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           }
         })
       ] : undefined,
-    },
+    }, __selectivePageBuilding ? {
+      providedExports: false,
+      usedExports: false,
+      concatenateModules: false,
+    } : undefined),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
@@ -267,12 +271,13 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         ...(dev && !isServer ? {
           'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
         } : {}),
+        'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash)
       }),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      !isServer && new ChunkGraphPlugin(path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST }),
+      !isServer && __selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST }),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations
         // This is because the client compilation generates the build manifest that's used on the server side
@@ -311,7 +316,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       !dev && new webpack.HashedModuleIdsPlugin(),
       // This must come after HashedModuleIdsPlugin (it sets any modules that
       // were missed by HashedModuleIdsPlugin)
-      !dev && new AllModulesIdentifiedPlugin(),
+      !dev && __selectivePageBuilding && new AllModulesIdentifiedPlugin(dir),
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
@@ -325,7 +330,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && isServer && new ServerlessPlugin(buildId),
+      target === 'serverless' && (isServer || __selectivePageBuilding) && new ServerlessPlugin(buildId, { isServer }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),
