@@ -96,13 +96,19 @@ export default async function build(
     )
   }
 
+  const reservedPages = ['/_app', '/_document', '/_error']
+
   let pagePaths
   if (__selectivePageBuilding) {
+    pages.push(...reservedPages)
+
     const searchAllPages = pages.some(p => p.includes('**'))
 
-    const explodedPages = flatten<string>(
-      pages.map(p => p.split(',').filter(p => p !== '**'))
-    ).map(p => {
+    const explodedPages = [
+      ...new Set(
+        flatten<string>(pages.map(p => p.split(',').filter(p => p !== '**')))
+      ),
+    ].map(p => {
       let removePage = false
       if (p.startsWith('-')) {
         p = p.substring(1)
@@ -124,14 +130,18 @@ export default async function build(
       return { original: p, resolved: resolvedPage || null, removePage }
     })
 
-    const missingPage = explodedPages.find(({ resolved }) => !resolved)
+    const missingPage = explodedPages.find(
+      ({ original, resolved }) => !resolved && !reservedPages.includes(original)
+    )
     if (missingPage) {
       throw new Error(`Unable to identify page: ${missingPage.original}`)
     }
-    const resolvedPagePaths = explodedPages.map(page => ({
-      ignore: page.removePage,
-      pathname: '/' + path.relative(pagesDir, page.resolved!),
-    }))
+    const resolvedPagePaths = explodedPages
+      .filter(page => page.resolved)
+      .map(page => ({
+        ignore: page.removePage,
+        pathname: '/' + path.relative(pagesDir, page.resolved!),
+      }))
 
     if (searchAllPages) {
       const pageSet = new Set(
