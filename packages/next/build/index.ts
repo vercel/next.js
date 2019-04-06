@@ -97,32 +97,55 @@ export default async function build(
   }
 
   let pagePaths
-  if (__selectivePageBuilding && pages[0] !== '**') {
-    const explodedPages = flatten<string>(pages.map(p => p.split(','))).map(
-      p => {
-        let resolvedPage: string | undefined
-        if (path.isAbsolute(p)) {
-          resolvedPage = getPossibleFiles(config.pageExtensions, [
-            path.join(pagesDir, p),
-            p,
-          ]).find(f => fs.existsSync(f))
-        } else {
-          resolvedPage = getPossibleFiles(config.pageExtensions, [
-            path.join(pagesDir, p),
-            path.join(dir, p),
-          ]).find(f => fs.existsSync(f))
-        }
-        return { original: p, resolved: resolvedPage || null }
+  if (__selectivePageBuilding) {
+    const searchAllPages = pages.some(p => p.includes('**'))
+
+    const explodedPages = flatten<string>(
+      pages.map(p => p.split(',').filter(p => p !== '**'))
+    ).map(p => {
+      let removePage = false
+      if (p.startsWith('-')) {
+        p = p.substring(1)
+        removePage = true
       }
-    )
+
+      let resolvedPage: string | undefined
+      if (path.isAbsolute(p)) {
+        resolvedPage = getPossibleFiles(config.pageExtensions, [
+          path.join(pagesDir, p),
+          p,
+        ]).find(f => fs.existsSync(f))
+      } else {
+        resolvedPage = getPossibleFiles(config.pageExtensions, [
+          path.join(pagesDir, p),
+          path.join(dir, p),
+        ]).find(f => fs.existsSync(f))
+      }
+      return { original: p, resolved: resolvedPage || null, removePage }
+    })
 
     const missingPage = explodedPages.find(({ resolved }) => !resolved)
     if (missingPage) {
       throw new Error(`Unable to identify page: ${missingPage.original}`)
     }
-    pagePaths = explodedPages.map(
-      page => '/' + path.relative(pagesDir, page.resolved!)
-    )
+    const resolvedPagePaths = explodedPages.map(page => ({
+      ignore: page.removePage,
+      pathname: '/' + path.relative(pagesDir, page.resolved!),
+    }))
+
+    if (searchAllPages) {
+      const pageSet = new Set(
+        await collectPages(pagesDir, config.pageExtensions)
+      )
+
+      resolvedPagePaths
+        .filter(p => p.ignore)
+        .forEach(p => pageSet.delete(p.pathname))
+
+      pagePaths = [...pageSet]
+    } else {
+      pagePaths = resolvedPagePaths.filter(p => !p.ignore).map(p => p.pathname)
+    }
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
