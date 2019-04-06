@@ -69,7 +69,7 @@ export default async function build(
 
   console.log(
     debug
-      ? 'Creating an unoptimized build ...'
+      ? 'Creating a development build ...'
       : 'Creating an optimized production build ...'
   )
   console.log()
