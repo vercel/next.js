@@ -43,6 +43,9 @@ const nextStart: cliCommand = (argv) => {
 
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
+  if (!process.env.NODE_ENV || process.env.NODE_ENV === 'development') {
+    process.env.NODE_ENV = 'production'
+  }
   startServer({dir}, port, args['--hostname'])
     .then(async (app) => {
       // tslint:disable-next-line
