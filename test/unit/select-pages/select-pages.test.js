@@ -1,5 +1,8 @@
 /* eslint-env jest */
-import { getSpecifiedPages } from 'next/dist/build'
+import { getSpecifiedPages as _getSpecifiedPages } from 'next/dist/build'
+
+const getSpecifiedPages = async (...args) =>
+  (await _getSpecifiedPages(...args)).map(pg => pg.replace(/\\+/g, '/'))
 
 describe('getSpecifiedPages', () => {
   it('should only choose selected', async () => {
