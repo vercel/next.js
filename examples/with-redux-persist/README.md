@@ -1,6 +1,6 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux-persist)
 
-# Redux example
+# Redux Persist example
 
 ## How to use
 
@@ -9,9 +9,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-redux with-redux-app
+npx create-next-app --example with-redux-persist with-redux-persist-app
 # or
-yarn create next-app --example with-redux with-redux-app
+yarn create next-app --example with-redux-persist with-redux-persist-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example with-redux with-redux-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux
-cd with-redux
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-redux-persist
+cd with-redux-persist
 ```
 
 Install it and run:
@@ -41,18 +41,16 @@ now
 
 ## The idea behind the example
 
-This example shows how to integrate Redux in Next.js.
+This example shows how to integrate Redux with the power of Redux Persist in Next.js.
 
-Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use redux that also works with Next.js's universal rendering approach.
+With the advantage of having a global state for your app using `redux`. You'll also require some of your state values to be available offline. There comes `redux-persist` using which you can persist your state in browser's local storage. While there are various ways of persisting your states which you can always find in there [documentation](https://github.com/rt2zz/redux-persist/blob/master/README.md). This is an example of how you can integrate `redux-persist` with redux along with Next.js's universal rendering approach.
 
-In the first example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color (black) than the client one (grey).
+In this example, we are going to use the Next.js example [with-redux](https://github.com/zeit/next.js/tree/master/examples/with-redux-persist) to see how you can add a layer of persistence for the global redux state. To know more about how to create a Next.js project with Redux, you can browse the example project [with-redux](https://github.com/zeit/next.js/tree/master/examples/with-redux) to know more about its implementation.
 
-The Redux `Provider` is implemented in `pages/_app.js`. Since the `MyApp` component is wrapped in `withReduxStore` the redux store will be automatically initialized and provided to `MyApp`, which in turn passes it off to `react-redux`'s `Provider` component.
+The Redux Persist has been initialized in `store.js`. You can add more if you need something more with `redux-persist` by following their docs. To wrap out our component in the `Persist Gate` which rehydrates the global state with the persisted values, we'll have to make some modifications in the implementation of Redux in `pages/_app.js` and `pages/_document.js`.
 
-All pages have access to the redux store using `connect` from `react-redux`.
+While you can always see the example to start with your own project, but if you want to see the changes, you can do yourself to add `redux-persist`, you can always go to the [commit](https://github.com/ashwamegh/next.js/commit/6fa470290279d9363f79cf9a401a05e8de07c2e2) where I have made the modification.
 
-On the server side every request initializes a new store, because otherwise different user data can be mixed up. On the client side the same store is used, even between page changes.
+The example under `components/data-list.js`, shows a simple component that fetches data after being mounted and then dispatches an action to populate the redux state `example-data` with the same data. And if you see `store.js`, we have whitelisted `example-data` state to be persisted. So once the redux state receives the data, it will be persisted to the browser's local storage by `redux-persist`. So if you open the app next time and there is no Internet connection or whatsoever condition, the app will load the persisted data and will render it on the screen.
 
-The example under `components/counter.js`, shows a simple incremental counter implementing a common Redux pattern of mapping state to props. Again, the first render is happening in the server and instead of starting the count at 0, it will dispatch an action in redux that starts the count at 1. This continues to highlight how each navigation triggers a server render first and then a client render when switching pages on the client side
-
-For simplicity and readability, Reducers, Actions, and Store creators are all in the same file: `store.js`
+For simplicity and readability, Reducers, Actions, Redux Persist configuration, and Store creators are all in the same file: `store.js`
