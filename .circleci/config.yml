@@ -16,7 +16,7 @@ jobs:
           root: ~/repo
           paths: ['.']
   test:
-    parallelism: 3
+    parallelism: 4
     docker:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
