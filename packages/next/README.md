@@ -924,19 +924,7 @@ export default withRouter(MyLink)
 
 Typically you start your next server with `next start`. It's possible, however, to start a server 100% programmatically in order to customize routes, use route patterns, etc.
 
-When using a custom server with a server file, for example called `server.js`, make sure you update the scripts key in `package.json` to:
-
-```json
-{
-  "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "start": "NODE_ENV=production node server.js"
-  }
-}
-```
-
-This example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
+Custom server code resides in `next.server.js` file. Following example makes `/a` resolve to `./pages/b`, and `/b` resolve to `./pages/a`:
 
 ```js
 // This file doesn't go through babel or webpack transformation.
@@ -950,24 +938,19 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-app.prepare().then(() => {
-  createServer((req, res) => {
-    // Be sure to pass `true` as the second argument to `url.parse`.
-    // This tells it to parse the query portion of the URL.
-    const parsedUrl = parse(req.url, true)
-    const { pathname, query } = parsedUrl
+module.exports = createServer((req, res) => {
+  // Be sure to pass `true` as the second argument to `url.parse`.
+  // This tells it to parse the query portion of the URL.
+  const parsedUrl = parse(req.url, true)
+  const { pathname, query } = parsedUrl
 
-    if (pathname === '/a') {
-      app.render(req, res, '/b', query)
-    } else if (pathname === '/b') {
-      app.render(req, res, '/a', query)
-    } else {
-      handle(req, res, parsedUrl)
-    }
-  }).listen(3000, err => {
-    if (err) throw err
-    console.log('> Ready on http://localhost:3000')
-  })
+  if (pathname === '/a') {
+    app.render(req, res, '/b', query)
+  } else if (pathname === '/b') {
+    app.render(req, res, '/a', query)
+  } else {
+    handle(req, res, parsedUrl)
+  }
 })
 ```
 
@@ -981,8 +964,6 @@ Supported options:
 - `dir` (`string`) where the Next project is located - default `'.'`
 - `quiet` (`bool`) Hide error messages containing server information - default `false`
 - `conf` (`object`) the same object you would use in `next.config.js` - default `{}`
-
-Then, change your `start` script to `NODE_ENV=production node server.js`.
 
 #### Disabling file-system routing
 
