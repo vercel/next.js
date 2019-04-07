@@ -77,8 +77,8 @@ export class ChunkGraphPlugin implements Plugin {
         hashes: {},
       }
 
-      let clientRuntime = [] as string[]
-      let clientRuntimeChunks = [] as string[]
+      const sharedFiles = [] as string[]
+      const sharedChunks = [] as string[]
       const pages: StringDictionary = {}
       const pageChunks: StringDictionary = {}
       const allFiles = new Set()
@@ -139,12 +139,21 @@ export class ChunkGraphPlugin implements Plugin {
         }
 
         if (pageName) {
-          pages[pageName] = files
-          pageChunks[pageName] = [...involvedChunks]
+          if (
+            pageName === '/_app' ||
+            pageName === '/_error' ||
+            pageName === '/_document'
+          ) {
+            sharedFiles.push(...files)
+            sharedChunks.push(...involvedChunks)
+          } else {
+            pages[pageName] = files
+            pageChunks[pageName] = [...involvedChunks]
+          }
         } else {
           if (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN) {
-            clientRuntime = files
-            clientRuntimeChunks = [...involvedChunks]
+            sharedFiles.push(...files)
+            sharedChunks.push(...involvedChunks)
           } else {
             manifest.chunks[chunk.name] = files
           }
@@ -152,7 +161,7 @@ export class ChunkGraphPlugin implements Plugin {
       })
 
       for (const page in pages) {
-        manifest.pages[page] = [...pages[page], ...clientRuntime]
+        manifest.pages[page] = [...pages[page], ...sharedFiles]
         manifest.pageChunks[page] = [
           ...new Set([
             ...pageChunks[page],
@@ -163,7 +172,7 @@ export class ChunkGraphPlugin implements Plugin {
                     .replace(/[.]js$/, `.${this.buildId}.js`)
                 : name
             ),
-            ...clientRuntimeChunks,
+            ...sharedChunks,
           ]),
         ].sort()
       }
