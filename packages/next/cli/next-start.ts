@@ -50,7 +50,6 @@ const nextStart: cliCommand = (argv) => {
     .then(async (app) => {
       // tslint:disable-next-line
       console.log(`> Ready on http://${args['--hostname'] || 'localhost'}:${port}`)
-      await app.prepare()
     })
     .catch((err) => {
       // tslint:disable-next-line
