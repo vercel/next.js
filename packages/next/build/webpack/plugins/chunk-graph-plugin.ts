@@ -160,19 +160,21 @@ export class ChunkGraphPlugin implements Plugin {
         }
       })
 
+      const getLambdaChunk = (name: string) =>
+        name.includes(this.buildId)
+          ? name
+              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), '')
+              .replace(/[.]js$/, `.${this.buildId}.js`)
+          : name
+
       for (const page in pages) {
         manifest.pages[page] = [...pages[page], ...sharedFiles]
         manifest.pageChunks[page] = [
           ...new Set([
             ...pageChunks[page],
-            ...pageChunks[page].map(name =>
-              name.includes(this.buildId)
-                ? name
-                    .replace(new RegExp(`${this.buildId}[\\/\\\\]`), '')
-                    .replace(/[.]js$/, `.${this.buildId}.js`)
-                : name
-            ),
+            ...pageChunks[page].map(getLambdaChunk),
             ...sharedChunks,
+            ...sharedChunks.map(getLambdaChunk),
           ]),
         ].sort()
       }
