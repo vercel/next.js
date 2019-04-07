@@ -258,7 +258,7 @@ export class Head extends Component {
                 href={
                   assetPrefix +
                   (dynamicBuildId
-                    ? `/_next/static/pages${getPageFile(page, buildId)}`
+                    ? `/_next/static/client/pages${getPageFile(page, buildId)}`
                     : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
                   _devOnlyInvalidateCacheQueryString
                 }
@@ -272,7 +272,7 @@ export class Head extends Component {
               href={
                 assetPrefix +
                 (dynamicBuildId
-                  ? `/_next/static/pages/_app.${buildId}.js`
+                  ? `/_next/static/client/pages/_app.${buildId}.js`
                   : `/_next/static/${buildId}/pages/_app.js`) +
                 _devOnlyInvalidateCacheQueryString
               }
@@ -467,7 +467,7 @@ export class NextScript extends Component {
             src={
               assetPrefix +
               (dynamicBuildId
-                ? `/_next/static/pages${getPageFile(page, buildId)}`
+                ? `/_next/static/client/pages${getPageFile(page, buildId)}`
                 : `/_next/static/${buildId}/pages${getPageFile(page)}`) +
               _devOnlyInvalidateCacheQueryString
             }
@@ -481,7 +481,7 @@ export class NextScript extends Component {
           src={
             assetPrefix +
             (dynamicBuildId
-              ? `/_next/static/pages/_app.${buildId}.js`
+              ? `/_next/static/client/pages/_app.${buildId}.js`
               : `/_next/static/${buildId}/pages/_app.js`) +
             _devOnlyInvalidateCacheQueryString
           }
