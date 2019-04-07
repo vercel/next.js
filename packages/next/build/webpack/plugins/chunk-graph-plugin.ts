@@ -163,7 +163,7 @@ export class ChunkGraphPlugin implements Plugin {
       const getLambdaChunk = (name: string) =>
         name.includes(this.buildId)
           ? name
-              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), '')
+              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
               .replace(/[.]js$/, `.${this.buildId}.js`)
           : name
 

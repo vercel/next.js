@@ -94,7 +94,7 @@ export class ServerlessPlugin {
         for (const name of assetNames) {
           compilation.assets[
             name
-              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), '')
+              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
               .replace(/[.]js$/, `.${this.buildId}.js`)
           ] = compilation.assets[name]
         }
