@@ -182,12 +182,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     } : undefined),
     recordsPath: path.join(outputPath, 'records.json'),
     context: dir,
-    // Kept as function to be backwards compatible
-    entry: async () => {
-      return {
-        ...clientEntries ? clientEntries : {},
-        ...entrypoints
-      }
+    entry: {
+      ...clientEntries ? clientEntries : {},
+      ...entrypoints
     },
     output: {
       path: outputPath,
@@ -339,10 +336,13 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
   }
 
   // Backwards compat for `main.js` entry key
-  const originalEntry: any = webpackConfig.entry
+  const originalEntry: webpack.Configuration['entry'] = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
-    webpackConfig.entry = async () => {
-      const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
+    const mergeEntry = (entry: string | string[] | webpack.Entry) => {
+      if (typeof entry === 'string' || Array.isArray(entry)) {
+        console.warn('> The entry config for webpack must be an object. https://err.sh/zeit/next.js/invalid-entry.md')
+        return entry
+      }
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
@@ -354,6 +354,14 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       delete entry['main.js']
 
       return entry
+    }
+    if (typeof originalEntry === 'function') {
+      webpackConfig.entry = async () => {
+        const entry = await originalEntry()
+        return mergeEntry(entry)
+      }
+    } else {
+      webpackConfig.entry = mergeEntry(originalEntry)
     }
   }
 
