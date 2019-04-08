@@ -1,0 +1,20 @@
+{
+  "name": "with-static-export-and-dynamic-routes",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.15.3",
+    "next": "^8.0.4",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "serve": "11.0.0",
+    "uri-templates": "^0.2.0"
+  },
+  "scripts": {
+    "dev": "node .",
+    "build": "next build",
+    "preexport": "npm run build",
+    "export": "next export",
+    "prestart": "npm run export && node scripts/build-serve-config.js",
+    "start": "serve out"
+  }
+}
