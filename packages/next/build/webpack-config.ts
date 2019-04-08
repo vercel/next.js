@@ -209,7 +209,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         }
         return '[name]'
       },
-      libraryTarget: isServer ? 'commonjs2' : 'jsonp',
+      libraryTarget: isServer ? 'commonjs2' : 'var',
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
