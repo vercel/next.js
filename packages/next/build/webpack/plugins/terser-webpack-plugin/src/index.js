@@ -26,12 +26,7 @@ export class TerserPlugin {
       warningsFilter,
       sourceMap,
       cache,
-      terserOptions: {
-        output: {
-          comments: /^\**!|@preserve|@license|@cc_on/i,
-        },
-        ...terserOptions,
-      },
+      terserOptions: terserOptions,
     };
   }
 
