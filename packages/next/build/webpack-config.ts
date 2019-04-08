@@ -47,7 +47,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
-    extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    extensions: isServer ? ['.js', '.mjs', '.jsx', '.json', '.wasm'] : ['.mjs', '.js', '.jsx', '.json', '.wasm'],
     modules: [
       'node_modules',
       ...nodePathList // Support for NODE_PATH environment variable
