@@ -189,7 +189,7 @@ export default class Router implements IRouterInterface {
     return this.change('replaceState', url, as, options)
   }
 
-  change(method: string, _url: string, _as: string, options: any): any {
+  change(method: string, _url: string, _as: string, options: any): Promise<any> {
     return new Promise((resolve, reject) => {
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
