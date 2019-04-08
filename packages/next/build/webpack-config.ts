@@ -47,7 +47,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
-    extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    extensions: isServer ? ['.js', '.mjs', '.jsx', '.json', '.wasm'] : ['.mjs', '.js', '.jsx', '.json', '.wasm'],
     modules: [
       'node_modules',
       ...nodePathList // Support for NODE_PATH environment variable
@@ -212,9 +212,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     resolve: resolveConfig,
     resolveLoader: {
       modules: [
-        NEXT_PROJECT_ROOT_NODE_MODULES,
-        'node_modules',
         path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
+        'node_modules',
         ...nodePathList // Support for NODE_PATH environment variable
       ]
     },
