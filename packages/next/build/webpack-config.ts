@@ -130,18 +130,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     ],
     optimization: isServer ? {
       splitChunks: false,
-      minimize: target === 'serverless',
-      minimizer: target === 'serverless' ? [
-        new TerserPlugin({...terserPluginConfig,
-          terserOptions: {
-            compress: false,
-            mangle: false,
-            module: false,
-            keep_classnames: true,
-            keep_fnames: true
-          }
-        })
-      ] : undefined
+      minimize: false
     } : Object.assign({
       runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
