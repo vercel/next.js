@@ -4,7 +4,6 @@ import { promisify } from 'util';
 import workerFarm from 'worker-farm';
 import { writeFile, readFile } from 'fs';
 import findCacheDir from 'find-cache-dir';
-import serialize from 'serialize-javascript';
 
 const worker = require.resolve('./worker');
 const writeFileP = promisify(writeFile)
@@ -36,7 +35,7 @@ export default class TaskRunner {
       this.workers = workerFarm(workerOptions, worker);
       this.boundWorkers = (options, cb) => {
         try {
-          this.workers(serialize(options), cb);
+          this.workers(options, cb);
         } catch (error) {
           // worker-farm can fail with ENOMEM or something else
           cb(error);
@@ -65,7 +64,7 @@ export default class TaskRunner {
 
     tasks.forEach((task, index) => {
       const cachePath = join(
-        this.cacheDir, 
+        this.cacheDir,
         task.cacheKey
       )
 
