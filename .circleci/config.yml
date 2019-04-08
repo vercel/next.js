@@ -71,6 +71,14 @@ workflows:
       - test-ie11:
           requires:
             - build
+          branches:
+            only:
+              - master
+              - canary
       - deploy:
           requires:
             - test
+          branches:
+            only:
+              - master
+              - canary
