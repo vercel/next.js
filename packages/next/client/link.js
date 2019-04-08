@@ -91,6 +91,7 @@ class Link extends Component {
         if (scroll) {
           window.scrollTo(0, 0)
           document.body.focus()
+          success()
         }
       })
       .catch((err) => {

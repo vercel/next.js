@@ -248,15 +248,16 @@ export default class Router implements IRouterInterface {
         const hash = window.location.hash.substring(1)
 
         // @ts-ignore pathname is always defined
-        this.set(route, pathname, query, as, { ...routeInfo, hash })
-
         if (error) {
           Router.events.emit('routeChangeError', error, as)
           throw error
         }
 
-        Router.events.emit('routeChangeComplete', as)
-        return resolve(true)
+        return resolve(() => {
+          this.set(route, pathname, query, as, { ...routeInfo, hash })
+          Router.events.emit('routeChangeComplete', as)
+          return true
+        })
       }, reject)
     })
   }
