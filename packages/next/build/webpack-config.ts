@@ -47,7 +47,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
-    extensions: isServer ? ['.wasm', '.js', '.mjs', '.jsx', '.json'] : ['.wasm', '.mjs', '.js', '.jsx', '.json'],
+    extensions: isServer ? ['.js', '.mjs', '.jsx', '.json', '.wasm'] : ['.mjs', '.js', '.jsx', '.json', '.wasm'],
     modules: [
       'node_modules',
       ...nodePathList // Support for NODE_PATH environment variable
@@ -130,18 +130,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     ],
     optimization: isServer ? {
       splitChunks: false,
-      minimize: target === 'serverless',
-      minimizer: target === 'serverless' ? [
-        new TerserPlugin({...terserPluginConfig,
-          terserOptions: {
-            compress: false,
-            mangle: false,
-            module: false,
-            keep_classnames: true,
-            keep_fnames: true
-          }
-        })
-      ] : undefined
+      minimize: false
     } : Object.assign({
       runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
@@ -209,7 +198,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         }
         return '[name]'
       },
-      libraryTarget: isServer ? 'commonjs2' : 'jsonp',
+      libraryTarget: isServer ? 'commonjs2' : 'var',
       hotUpdateChunkFilename: 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
@@ -223,9 +212,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     resolve: resolveConfig,
     resolveLoader: {
       modules: [
-        NEXT_PROJECT_ROOT_NODE_MODULES,
-        'node_modules',
         path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
+        'node_modules',
         ...nodePathList // Support for NODE_PATH environment variable
       ]
     },

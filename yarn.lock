@@ -2613,10 +2613,10 @@ babel-plugin-syntax-object-rest-spread@^6.13.0:
   resolved "https://registry.yarnpkg.com/babel-plugin-syntax-object-rest-spread/-/babel-plugin-syntax-object-rest-spread-6.13.0.tgz#fd6536f2bce13836ffa3a5458c4903a597bb3bf5"
   integrity sha1-/WU28rzhODb/o6VFjEkDpZe7O/U=
 
-babel-plugin-transform-async-to-promises@0.8.7:
-  version "0.8.7"
-  resolved "https://registry.yarnpkg.com/babel-plugin-transform-async-to-promises/-/babel-plugin-transform-async-to-promises-0.8.7.tgz#8e9d214f54a0fabba4088dda4c8df214d4698429"
-  integrity sha512-znRrOjUy8gDHs6c40dpqVnYrzvCEWyISnLVS1U1ZJvahX2YF19tI8Rq3tI7u7SFe4bE48oceEVY437pYDnRYpQ==
+babel-plugin-transform-async-to-promises@0.8.9:
+  version "0.8.9"
+  resolved "https://registry.yarnpkg.com/babel-plugin-transform-async-to-promises/-/babel-plugin-transform-async-to-promises-0.8.9.tgz#a214630248c349b2390930d03588b57958fedcfc"
+  integrity sha512-m5wjgvuaycQjDDo1gIywcPyF2IMwgk+c/Ks3ZSyjo2+n2QWbzMT+CoJAvLYHn6wb9of6iSFbsR7UAjDCTvWoQA==
 
 babel-plugin-transform-react-remove-prop-types@0.4.15:
   version "0.4.15"
