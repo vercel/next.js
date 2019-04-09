@@ -75,18 +75,6 @@ export default class Router implements IRouterInterface {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
-
-      // Workaround for weird Firefox bug, see below links
-      // https://github.com/zeit/next.js/issues/3817
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
-      // TODO: let's remove this once the Firefox bug is resolved
-      if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
-        window.addEventListener('unload', () => {
-          try {
-            if (window.location.search) window.location.replace(window.location.toString())
-          } catch (_) {/* since it's a workaround, ignore */}
-        })
-      }
     }
   }
 
@@ -431,7 +419,7 @@ export default class Router implements IRouterInterface {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') return
+      if (process.env.NODE_ENV !== 'production' || process.env.__NEXT_EXPERIMENTAL_DEBUG) return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined

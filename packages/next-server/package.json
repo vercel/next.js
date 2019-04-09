@@ -1,6 +1,6 @@
 {
   "name": "next-server",
-  "version": "8.0.4-canary.26",
+  "version": "8.0.5-canary.25",
   "main": "./index.js",
   "license": "MIT",
   "files": [
@@ -27,11 +27,14 @@
     ]
   },
   "dependencies": {
+    "amp-toolbox-optimizer": "0.5.2-beta.6",
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
+    "react-is": "16.8.6",
+    "react-ssr-prepass": "1.0.2",
     "send": "0.16.1",
     "url": "0.11.0"
   },

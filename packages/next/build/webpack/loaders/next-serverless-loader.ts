@@ -11,7 +11,10 @@ export type ServerlessLoaderQuery = {
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
   assetPrefix: string,
+  ampEnabled: boolean | string,
+  ampBindInitData: boolean | string,
   generateEtags: string
+  dynamicBuildId?: string | boolean
 }
 
 const nextServerlessLoader: loader.Loader = function () {
@@ -20,10 +23,13 @@ const nextServerlessLoader: loader.Loader = function () {
     absolutePagePath,
     page,
     assetPrefix,
+    ampEnabled,
+    ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
-    generateEtags
+    generateEtags,
+    dynamicBuildId
   }: ServerlessLoaderQuery = typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
   const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
   const reactLoadableManifest = join(distDir, REACT_LOADABLE_MANIFEST).replace(/\\/g, '/')
@@ -44,14 +50,22 @@ const nextServerlessLoader: loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
         buildId: "__NEXT_REPLACE__BUILD_ID__",
-        assetPrefix: "${assetPrefix}"
+        dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
+        assetPrefix: "${assetPrefix}",
+        ampEnabled: ${ampEnabled === true || ampEnabled === 'true'},
+        ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign({}, options, {
-          Component
-        }))
+        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
+          {
+            Component,
+            amphtml: options.ampEnabled && (parsedUrl.query.amp || ${page.endsWith('.amp')}),
+            dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
+          }, 
+          options, 
+        ))
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {

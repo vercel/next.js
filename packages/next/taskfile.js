@@ -7,15 +7,19 @@ const babelOpts = {
       modules: 'commonjs',
       'targets': {
         'browsers': ['IE 11']
-      }
+      },
+      exclude: ['transform-typeof-symbol']
     }]
   ],
   plugins: [
     ['@babel/plugin-transform-runtime', {
       corejs: 2,
       helpers: true,
-      regenerator: true,
+      regenerator: false,
       useESModules: false
+    }],
+    ['babel-plugin-transform-async-to-promises', {
+      inlineHelpers: true
     }]
   ]
 }

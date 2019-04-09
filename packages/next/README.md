@@ -48,10 +48,11 @@
     - [Disabling file-system routing](#disabling-file-system-routing)
     - [Dynamic assetPrefix](#dynamic-assetprefix)
   - [Dynamic Import](#dynamic-import)
-    - [1. Basic Usage (Also does SSR)](#1-basic-usage-also-does-ssr)
-    - [2. With Custom Loading Component](#2-with-custom-loading-component)
-    - [3. With No SSR](#3-with-no-ssr)
-    - [4. With Multiple Modules At Once](#4-with-multiple-modules-at-once)
+    - [Basic Usage (Also does SSR)](#basic-usage-also-does-ssr)
+    - [With Named Exports](#with-named-exports)
+    - [With Custom Loading Component](#with-custom-loading-component)
+    - [With No SSR](#with-no-ssr)
+    - [With Multiple Modules At Once](#with-multiple-modules-at-once)
   - [Custom `<App>`](#custom-app)
   - [Custom `<Document>`](#custom-document)
     - [Customizing `renderPage`](#customizing-renderpage)
@@ -1700,10 +1701,21 @@ function Index() {
 
 export default Index
 ```
+> **Warning:** Note that it is not possible to destructure process.env variables due to the webpack `DefinePlugin` replacing process.env.XXXX inline at build time
+
+```js 
+// Will not work
+const { CUSTOM_KEY, CUSTOM_SECRET } = process.env;
+AuthMethod({ key: CUSTOM_KEY, secret: CUSTOM_SECRET });
+
+// Will work as replaced inline
+AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET });
+```
+
 
 #### Runtime configuration
 
-> :warning: Note that this option is not available when using `target: 'serverless'`
+> **Warning:** Note that this option is not available when using `target: 'serverless'`
 
 > :warning: Generally you want to use build-time configuration to provide your configuration.
 > The reason for this is that runtime configuration adds a small rendering / initialization overhead.
