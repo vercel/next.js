@@ -32,7 +32,7 @@ const startServer = async (optEnv = {}) => {
     optEnv
   )
 
-  server = await initNextServerScript(scriptPath, /Ready on/, env, /ReferenceError: options is not defined/)
+  server = await initNextServerScript(scriptPath, /ready on/i, env, /ReferenceError: options is not defined/)
 }
 
 describe('Custom Server', () => {
