@@ -8,7 +8,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CHUNK_GRAPH_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
-import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
+import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
@@ -174,7 +174,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       minimizer: !(dev || debug) ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
-            safari10: true
+            safari10: true,
+            ...(__selectivePageBuilding ? { compress: false, mangle: true } : undefined)
           }
         })
       ] : undefined,
@@ -223,6 +224,13 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     // @ts-ignore this is filtered
     module: {
       rules: [
+        __selectivePageBuilding && !isServer && {
+          test: /\.(js|mjs|jsx)$/,
+          use: {
+            loader: 'next-minify-loader',
+            options: { terserOptions: { safari10: true, compress: true, mangle: false } }
+          }
+        },
         config.experimental.ampBindInitData && !isServer && {
           test: /\.(js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
