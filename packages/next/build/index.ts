@@ -111,7 +111,7 @@ export async function getSpecifiedPages(
 
     resolvedPagePaths
       .filter(p => p.ignore)
-      .forEach(p => pageSet.delete(p.pathname))
+      .forEach(p => pageSet.delete(p.pathname.replace('/', path.sep)))
 
     pagePaths = [...pageSet]
   } else {
