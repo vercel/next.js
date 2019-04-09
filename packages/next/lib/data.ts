@@ -25,10 +25,16 @@ export function createHook(fetcher: (...args: Args[]) => Promise<any>, options: 
   return function useData(...args: Array<string|number>) {
     const router: import('next-server/lib/router/router').default = useContext(RouterContext)
     const dataManager: import('next-server/lib/data-manager').DataManager = useContext(DataManagerContext)
-    const key = `${router.route}${options.key}${generateArgsKey(args)}`
+    const key = `${options.key}${generateArgsKey(args)}`
     const existing = dataManager.get(key)
-    if (existing && existing.status === 'resolved') {
-      return existing.result
+
+    if (existing) {
+      if (existing.status === 'resolved') {
+        return existing.result
+      }
+      if (existing === 'mismatched-key') {
+        throw new Error('matching key was missing from returned data. make sure arguments match between the client and server')
+      }
     }
 
     // @ts-ignore webpack optimization
@@ -38,6 +44,10 @@ export function createHook(fetcher: (...args: Args[]) => Promise<any>, options: 
           accept: 'application/amp.bind+json',
         },
       }).then((res: any) => res.json()).then((result: any) => {
+        const hasKey = result.some((pair: [string, any]) => pair[0] === key)
+        if (!hasKey) {
+          result = [[key, 'mismatched-key']]
+        }
         dataManager.overwrite(result)
       })
       throw res

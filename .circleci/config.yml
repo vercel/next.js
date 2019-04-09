@@ -16,7 +16,7 @@ jobs:
           root: ~/repo
           paths: ['.']
   test:
-    parallelism: 3
+    parallelism: 4
     docker:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
@@ -97,17 +97,37 @@ workflows:
       - test-ie11:
           requires:
             - build
+          filters:
+            branches:
+              only:
+                - master
+                - canary
       - test-safari:
           requires:
             - build
             - test
             - test-ie11
+          filters:
+            branches:
+              only:
+                - master
+                - canary
       - test-firefox:
           requires:
             - build
             - test
             - test-ie11
             - test-safari
+          filters:
+            branches:
+              only:
+                - master
+                - canary
       - deploy:
           requires:
             - test
+          filters:
+            branches:
+              only:
+                - master
+                - canary

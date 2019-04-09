@@ -77,8 +77,8 @@ export class ChunkGraphPlugin implements Plugin {
         hashes: {},
       }
 
-      let clientRuntime = [] as string[]
-      let clientRuntimeChunks = [] as string[]
+      const sharedFiles = [] as string[]
+      const sharedChunks = [] as string[]
       const pages: StringDictionary = {}
       const pageChunks: StringDictionary = {}
       const allFiles = new Set()
@@ -139,31 +139,42 @@ export class ChunkGraphPlugin implements Plugin {
         }
 
         if (pageName) {
-          pages[pageName] = files
-          pageChunks[pageName] = [...involvedChunks]
+          if (
+            pageName === '/_app' ||
+            pageName === '/_error' ||
+            pageName === '/_document'
+          ) {
+            sharedFiles.push(...files)
+            sharedChunks.push(...involvedChunks)
+          } else {
+            pages[pageName] = files
+            pageChunks[pageName] = [...involvedChunks]
+          }
         } else {
           if (chunk.name === CLIENT_STATIC_FILES_RUNTIME_MAIN) {
-            clientRuntime = files
-            clientRuntimeChunks = [...involvedChunks]
+            sharedFiles.push(...files)
+            sharedChunks.push(...involvedChunks)
           } else {
             manifest.chunks[chunk.name] = files
           }
         }
       })
 
+      const getLambdaChunk = (name: string) =>
+        name.includes(this.buildId)
+          ? name
+              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
+              .replace(/[.]js$/, `.${this.buildId}.js`)
+          : name
+
       for (const page in pages) {
-        manifest.pages[page] = [...pages[page], ...clientRuntime]
+        manifest.pages[page] = [...pages[page], ...sharedFiles]
         manifest.pageChunks[page] = [
           ...new Set([
             ...pageChunks[page],
-            ...pageChunks[page].map(name =>
-              name.includes(this.buildId)
-                ? name
-                    .replace(new RegExp(`${this.buildId}[\\/\\\\]`), '')
-                    .replace(/[.]js$/, `.${this.buildId}.js`)
-                : name
-            ),
-            ...clientRuntimeChunks,
+            ...pageChunks[page].map(getLambdaChunk),
+            ...sharedChunks,
+            ...sharedChunks.map(getLambdaChunk),
           ]),
         ].sort()
       }

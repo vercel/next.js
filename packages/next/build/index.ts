@@ -47,7 +47,9 @@ function flatten<T>(arr: T[][]): T[] {
 
 function getPossibleFiles(pageExtensions: string[], pages: string[]) {
   const res = pages.map(page =>
-    [page].concat(pageExtensions.map(e => `${page}.${e}`))
+    [page]
+      .concat(pageExtensions.map(e => `${page}.${e}`))
+      .concat(pageExtensions.map(e => `${path.join(page, 'index')}.${e}`))
   )
   return flatten<string>(res)
 }
@@ -81,12 +83,12 @@ export async function getSpecifiedPages(
       resolvedPage = getPossibleFiles(pageExtensions, [
         path.join(pagesDir, p),
         p,
-      ]).find(f => fs.existsSync(f))
+      ]).find(f => fs.existsSync(f) && fs.lstatSync(f).isFile())
     } else {
       resolvedPage = getPossibleFiles(pageExtensions, [
         path.join(pagesDir, p),
         path.join(dir, p),
-      ]).find(f => fs.existsSync(f))
+      ]).find(f => fs.existsSync(f) && fs.lstatSync(f).isFile())
     }
     return { original: p, resolved: resolvedPage || null, removePage }
   })
