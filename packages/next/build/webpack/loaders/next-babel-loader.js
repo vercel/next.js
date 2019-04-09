@@ -16,7 +16,9 @@ module.exports = babelLoader.custom(babel => {
       }
       const loader = Object.assign({
         cacheCompression: false,
-        cacheDirectory: true
+        cacheDirectory: true,
+        // increment 'a' to invalidate cache
+        cacheIdentifier: 'next-cache-' + 'a'
       }, opts)
       delete loader.isServer
 
