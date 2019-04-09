@@ -67,14 +67,14 @@ store.subscribe(state => {
 
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
-    Log.info(`waiting on ${state.appUrl!}`)
+    Log.info(`ready on ${state.appUrl!}`)
     return
   }
 
   if (state.appUrl) {
     Log.ready('compiled successfully')
     if (state.appUrl) {
-      Log.info(`waiting on ${state.appUrl!}`)
+      Log.info(`ready on ${state.appUrl!}`)
     }
   }
 })
