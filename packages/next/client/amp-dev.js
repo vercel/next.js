@@ -12,6 +12,8 @@ const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
 let { assetPrefix, page } = data
 assetPrefix = assetPrefix || ''
 let mostRecentHash = null
+/* eslint-disable-next-line */
+let curHash = __webpack_hash__
 const hotUpdatePath = assetPrefix + (assetPrefix.endsWith('/') ? '' : '/') + '_next/static/webpack/'
 
 // Is there a newer version of this code available?
@@ -33,11 +35,15 @@ async function tryApplyUpdates () {
     return
   }
   try {
-    /* eslint-disable-next-line */
-    const res = await fetch(`${hotUpdatePath}${__webpack_hash__}.hot-update.json`)
+    const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
     const data = await res.json()
-    const pageUpdated = Object.keys(data.c).some(mod => mod.indexOf(page) !== -1)
-    if (pageUpdated) window.location.reload()
+    const pageUpdated = Object.keys(data.c)
+      .some(mod => mod.indexOf(page) !== -1)
+    if (pageUpdated) {
+      window.location.reload()
+    } else {
+      curHash = mostRecentHash
+    }
   } catch (err) {
     console.error('Error occurred checking for update', err)
   }
