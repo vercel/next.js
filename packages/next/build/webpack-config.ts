@@ -129,9 +129,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       'amp-toolbox-optimizer' // except this one
     ],
     optimization: isServer ? {
+      nodeEnv: false,
       splitChunks: false,
       minimize: false
     } : Object.assign({
+      nodeEnv: false,
       runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       },
@@ -253,6 +255,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
             [`process.env.${key}`]: JSON.stringify(config.env[key])
           }
         }, {})),
+        'process.env.NODE_ENV': JSON.stringify(webpackMode),
         'process.crossOrigin': JSON.stringify(config.crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
