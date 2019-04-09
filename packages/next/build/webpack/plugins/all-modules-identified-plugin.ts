@@ -5,6 +5,8 @@ import path from 'path'
 /**
  * From escape-string-regexp: https://github.com/sindresorhus/escape-string-regexp
  * brought here to reduce the bundle size
+ * MIT License
+ * Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
  */
 const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
 const escapeRegex = (str: string) => {
