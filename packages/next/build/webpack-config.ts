@@ -210,7 +210,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
     },
-    performance: { hints: false },
+    performance: false,
     resolve: resolveConfig,
     resolveLoader: {
       modules: [
