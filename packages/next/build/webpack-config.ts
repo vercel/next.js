@@ -128,12 +128,13 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       // So that the serverless bundles have 0 runtime dependencies
       'amp-toolbox-optimizer' // except this one
     ],
-    optimization: isServer ? {
+    optimization: Object.assign({
+      checkWasmTypes: false,
       nodeEnv: false,
+    }, isServer ? {
       splitChunks: false,
       minimize: false
-    } : Object.assign({
-      nodeEnv: false,
+    } : {
       runtimeChunk: __selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       },
