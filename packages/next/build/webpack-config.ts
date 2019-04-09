@@ -75,10 +75,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     cpus: config.experimental.cpus,
   }
 
-  const terserOptions = {
-    safari10: true
-  }
-
   let webpackConfig: webpack.Configuration = {
     mode: webpackMode,
     devtool: (dev || debug) ? 'cheap-module-source-map' : false,
@@ -173,10 +169,13 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           }
         }
       },
-      minimize: !(dev || debug || __selectivePageBuilding),
-      minimizer: !(dev || debug || __selectivePageBuilding) ? [
+      minimize: !(dev || debug),
+      minimizer: !(dev || debug) ? [
         new TerserPlugin({...terserPluginConfig,
-          terserOptions
+          terserOptions: {
+            safari10: true,
+            ...(__selectivePageBuilding ? { compress: false, mangle: true } : undefined)
+          }
         })
       ] : undefined,
     }, __selectivePageBuilding ? {
@@ -228,7 +227,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           test: /\.(js|mjs|jsx)$/,
           use: {
             loader: 'next-minify-loader',
-            options: { terserOptions }
+            options: { terserOptions: { safari10: true, compress: true, mangle: false } }
           }
         },
         config.experimental.ampBindInitData && !isServer && {

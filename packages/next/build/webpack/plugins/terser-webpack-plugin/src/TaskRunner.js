@@ -5,6 +5,7 @@ import workerFarm from 'worker-farm';
 import { writeFile, readFile } from 'fs';
 import findCacheDir from 'find-cache-dir';
 import serialize from 'serialize-javascript';
+import Sema from 'async-sema';
 
 const worker = require.resolve('./worker');
 const writeFileP = promisify(writeFile)
@@ -16,6 +17,7 @@ export default class TaskRunner {
     // In some cases cpus() returns undefined
     // https://github.com/nodejs/node/issues/19022
     this.maxConcurrentWorkers = cpus
+    this.sema = new Sema(cpus * 3)
   }
 
   run(tasks, callback) {
@@ -55,6 +57,7 @@ export default class TaskRunner {
     let toRun = tasks.length;
     const results = [];
     const step = (index, data) => {
+      this.sema.release();
       toRun -= 1;
       results[index] = data;
 
@@ -65,7 +68,7 @@ export default class TaskRunner {
 
     tasks.forEach((task, index) => {
       const cachePath = join(
-        this.cacheDir, 
+        this.cacheDir,
         task.cacheKey
       )
 
@@ -84,13 +87,15 @@ export default class TaskRunner {
         });
       };
 
-      if (this.cacheDir) {
-        readFileP(cachePath, 'utf8')
-          .then(data => step(index, JSON.parse(data)))
-          .catch(() => enqueue())
-      } else {
-        enqueue();
-      }
+      this.sema.acquire().then(() => {
+        if (this.cacheDir) {
+          readFileP(cachePath, 'utf8')
+            .then(data => step(index, JSON.parse(data)))
+            .catch(() => enqueue())
+        } else {
+          enqueue();
+        }
+      })
     });
   }
 
