@@ -44,6 +44,32 @@ jobs:
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'ie'
+  test-safari:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Test in Safari
+          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
+          environment:
+            BROWSERSTACK: 'true'
+            BROWSER_NAME: 'safari'
+  test-firefox:
+    docker:
+      - image: circleci/node:8-browsers
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Test in Firefox
+          command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
+          environment:
+            BROWSERSTACK: 'true'
+            BROWSER_NAME: 'firefox'
   deploy:
     docker:
       - image: circleci/node:8-browsers
@@ -71,6 +97,27 @@ workflows:
       - test-ie11:
           requires:
             - build
+          filters:
+            branches:
+              only:
+                - master
+                - canary
+      - test-safari:
+          requires:
+            - build
+            - test
+            - test-ie11
+          filters:
+            branches:
+              only:
+                - master
+                - canary
+      - test-firefox:
+          requires:
+            - build
+            - test
+            - test-ie11
+            - test-safari
           filters:
             branches:
               only:
