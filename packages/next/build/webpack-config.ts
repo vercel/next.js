@@ -224,15 +224,13 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     // @ts-ignore this is filtered
     module: {
       rules: [
-        // __selectivePageBuilding && !isServer && {
-        //   test: /\.(js|mjs|jsx)$/,
-        //   use: {
-        //     loader: 'next-minify-loader',
-        //     options: {
-        //       terserOptions
-        //     }
-        //   }
-        // },
+        __selectivePageBuilding && !isServer && {
+          test: /\.(js|mjs|jsx)$/,
+          use: {
+            loader: 'next-minify-loader',
+            options: { terserOptions }
+          }
+        },
         config.experimental.ampBindInitData && !isServer && {
           test: /\.(js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
