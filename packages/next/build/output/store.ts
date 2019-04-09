@@ -1,6 +1,7 @@
-import chalk from 'chalk'
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'strip-ansi'
+
+import * as Log from './log'
 
 export type OutputState =
   | { bootstrap: true; appUrl: string | null }
@@ -14,28 +15,38 @@ export type OutputState =
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
 
-let lastState: string | null = null
+let lastStore: OutputState = {} as any
+function hasStoreChanged(nextStore: OutputState) {
+  if (
+    [...new Set([...Object.keys(lastStore), ...Object.keys(nextStore)])].every(
+      key => Object.is((lastStore as any)[key], (nextStore as any)[key])
+    )
+  ) {
+    return false
+  }
+
+  lastStore = nextStore
+  return true
+}
+
 store.subscribe(state => {
+  if (!hasStoreChanged(state)) {
+    return
+  }
+
   if (state.bootstrap) {
-    if (lastState !== 'start') console.log(`[${chalk.cyan('start')}] ...`)
-    lastState = 'start'
+    Log.wait('starting the development server ...')
+    Log.info(`waiting on ${state.appUrl!} ...`)
     return
   }
 
   if (state.loading) {
-    if (lastState !== 'load') console.log(`[${chalk.cyan('build')}] ...`)
-    lastState = 'load'
+    Log.wait('compiling ...')
     return
   }
 
   if (state.errors) {
-    const {
-      errors: [err = ''],
-    } = state
-    const newState = `error - ${err.toString()}`
-    if (lastState !== newState)
-      console.log(`[${chalk.red('error')}]`, state.errors[0])
-    lastState = newState
+    Log.error(state.errors[0])
 
     const cleanError = stripAnsi(state.errors[0])
     if (cleanError.indexOf('SyntaxError') > -1) {
@@ -55,17 +66,15 @@ store.subscribe(state => {
   }
 
   if (state.warnings) {
-    const { warnings } = state
-    const newState = `warning - ${warnings.join('\n\n')}`
-    if (lastState !== newState)
-      console.log(`[${chalk.yellow(' warn')}]`, state.warnings.join('\n\n'))
-    lastState = newState
+    Log.warn(state.warnings.join('\n\n'))
+    Log.info(`waiting on ${state.appUrl!}`)
     return
   }
 
   if (state.appUrl) {
-    if (lastState !== 'ready')
-      console.log(`[${chalk.green('ready')}] ${state.appUrl!}`)
-    lastState = 'ready'
+    Log.ready('compiled successfully')
+    if (state.appUrl) {
+      Log.info(`waiting on ${state.appUrl!}`)
+    }
   }
 })
