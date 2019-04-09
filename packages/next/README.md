@@ -1536,7 +1536,7 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
 - [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
 
-_Warning: The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property_
+> **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
 
 Multiple configurations can be combined together with function composition. For example:
 
@@ -1703,7 +1703,7 @@ export default Index
 ```
 > **Warning:** Note that it is not possible to destructure process.env variables due to the webpack `DefinePlugin` replacing process.env.XXXX inline at build time
 
-```js 
+```js
 // Will not work
 const { CUSTOM_KEY, CUSTOM_SECRET } = process.env;
 AuthMethod({ key: CUSTOM_KEY, secret: CUSTOM_SECRET });
@@ -1717,8 +1717,8 @@ AuthMethod({ key: process.env.CUSTOM_KEY, secret: process.env.CUSTOM_SECRET });
 
 > **Warning:** Note that this option is not available when using `target: 'serverless'`
 
-> :warning: Generally you want to use build-time configuration to provide your configuration.
-> The reason for this is that runtime configuration adds a small rendering / initialization overhead.
+> **Warning:** Generally you want to use build-time configuration to provide your configuration.
+The reason for this is that runtime configuration adds a small rendering / initialization overhead.
 
 The `next/config` module gives your app access to the `publicRuntimeConfig` and `serverRuntimeConfig` stored in your `next.config.js`.
 
