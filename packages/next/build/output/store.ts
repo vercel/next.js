@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import createStore from 'next/dist/compiled/unistore'
-import { onExit } from './exit'
 import stripAnsi from 'strip-ansi'
 
 export type OutputState =
@@ -14,10 +13,6 @@ export type OutputState =
         }))
 
 export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
-
-onExit(() => {
-  console.log(`[${chalk.cyan('done')}]`)
-})
 
 let lastState: string | null = null
 store.subscribe(state => {
