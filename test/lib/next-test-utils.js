@@ -123,7 +123,7 @@ export function runNextCommandDev (argv, stdOut) {
 
     function handleStdout (data) {
       const message = data.toString()
-      if (/ready on/.test(message)) {
+      if (/ready on/i.test(message)) {
         resolve(stdOut ? message : instance)
       }
       process.stdout.write(message)
