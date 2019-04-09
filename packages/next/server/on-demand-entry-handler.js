@@ -258,7 +258,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
         }
 
-        Log.event(`request page: ${normalizedPage}`)
+        Log.event(`build page: ${normalizedPage}`)
 
         entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
         doneCallbacks.once(normalizedPage, handleCallback)
