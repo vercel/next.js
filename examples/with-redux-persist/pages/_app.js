@@ -3,6 +3,7 @@ import React from 'react'
 import withReduxStore from '../lib/with-redux-store'
 import { Provider } from 'react-redux'
 import { persistStore } from 'redux-persist'
+import { PersistGate } from 'redux-persist/integration/react'
 
 class MyApp extends App {
   constructor (props) {
@@ -15,7 +16,9 @@ class MyApp extends App {
     return (
       <Container>
         <Provider store={reduxStore}>
-          <Component {...pageProps} />
+          <PersistGate loading={null} persistor={this.persistor}>
+            <Component {...pageProps} />
+          </PersistGate>
         </Provider>
       </Container>
     )
