@@ -5,11 +5,18 @@ import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
+import { recursiveDelete } from '../lib/recursive-delete'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
+import { FlyingShuttle } from './flying-shuttle'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
-import { collectPages, getSpecifiedPages, printTreeView } from './utils'
+import {
+  collectPages,
+  getFileForPage,
+  getSpecifiedPages,
+  printTreeView,
+} from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
 
@@ -54,7 +61,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
-  let pagePaths
+  let flyingShuttle: FlyingShuttle | undefined
+  if (isFlyingShuttle) {
+    console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
+    console.log()
+
+    await recursiveDelete(distDir)
+
+    flyingShuttle = new FlyingShuttle({
+      buildId,
+      pagesDirectory: pagesDir,
+      distDirectory: distDir,
+    })
+  }
+
+  let pagePaths: string[]
   if (process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE) {
     pagePaths = await getSpecifiedPages(
       dir,
@@ -64,6 +85,45 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
+
+  if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
+    const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
+    for (const unchangedPage of _unchangedPages) {
+      const recalled = await flyingShuttle.restorePage(unchangedPage)
+      if (recalled) {
+        continue
+      }
+
+      _unchangedPages.delete(unchangedPage)
+    }
+
+    const unchangedPages = await Promise.all(
+      [..._unchangedPages].map(async page => {
+        const file = await getFileForPage({
+          page,
+          pagesDirectory: pagesDir,
+          pageExtensions: config.pageExtensions,
+        })
+        if (file) {
+          return file
+        }
+
+        return Promise.reject(
+          new Error(
+            `Failed to locate page file: ${page}. ` +
+              `Did pageExtensions change? We can't recover from this yet.`
+          )
+        )
+      })
+    )
+
+    const pageSet = new Set(pagePaths)
+    for (const unchangedPage of unchangedPages) {
+      pageSet.delete(unchangedPage)
+    }
+    pagePaths = [...pageSet]
+  }
+
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
@@ -120,6 +180,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   result = formatWebpackMessages(result)
 
+  if (isFlyingShuttle) {
+    console.log()
+  }
+
   if (result.errors.length > 0) {
     // Only keep the first error. Others are often indicative
     // of the same problem, but confuse the reader with noise.
@@ -147,6 +211,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   printTreeView(Object.keys(mappedPages))
+
+  if (flyingShuttle) {
+    await flyingShuttle.save()
+  }
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 }
