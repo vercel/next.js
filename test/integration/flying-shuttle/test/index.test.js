@@ -26,8 +26,7 @@ describe('Flying Shuttle', () => {
       await fs.mkdirp(path.join(appDir, '.next-first'))
 
       const { stdout } = await runNextCommand(['build', appDir], {
-        stdout: true,
-        stderr: true
+        stdout: true
       })
       const buildText = stripAnsi(stdout)
       expect(buildText).toMatch(/could not locate flying shuttle/)
