@@ -1,0 +1,69 @@
+import BlogPost from "../../components/layouts/blog-post";
+
+export const meta = {
+  published: true,
+  publishedAt: "2019-03-03",
+  title: "Dapibus Dolor Consectetur Vestibulum",
+  summary:
+    "The Strange Case of Dr. Jekyll and Mr. Hyde tells the story of a lawyer investigating the connection of two persons, Dr. Henry Jekyll and Mr. Edward Hyde. Chief among the novel’s supporting cast is a man by the name of Mr. Poole, Dr. Jekyll’s loyal butler."
+};
+
+export default ({ children, url }) => (
+  <BlogPost path={url.pathname} meta={meta}>
+    {children}
+  </BlogPost>
+);
+
+Computed values are another reason people sometimes attempt to copy props into state. For example, imagine that we determined the _button text_ color based on an expensive computation with background `color` as an argument:
+
+```jsx{1}
+// prettier-ignore
+<form>
+  <ErrorBoundary>
+    <CartDescription items={props.items} />
+  </ErrorBoundary>
+  <ErrorBoundary>    {/* Uh oh! Something broke in here 😢 */}    <CreditCardInput />  </ErrorBoundary>  <ErrorBoundary>
+    <CheckoutButton cartId={props.id} />
+  </ErrorBoundary>
+</form>
+```
+
+```jsx{5}
+// prettier-ignore
+class Button extends React.Component {
+  render() {
+    return (
+    <button>
+      {this.props.children}
+    </button>
+    );
+  }
+}
+```
+
+```jsx{9}
+class Button extends React.Component {
+  state = {
+    textColor: slowlyCalculateTextColor(this.props.color)
+  };
+  render() {
+    return (
+      <button
+        className={
+          "Button-" + this.props.color + " Button-text-" + this.state.textColor // 🔴 Stale on `color` prop updates
+        }
+      >
+        {this.props.children}
+      </button>
+    );
+  }
+}
+```
+
+Nullam quis risus eget urna mollis ornare vel eu leo. Donec ullamcorper nulla non metus auctor fringilla. Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Praesent commodo cursus magna, vel scelerisque nisl consectetur et. Maecenas faucibus mollis interdum. Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+
+Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nullam quis risus eget urna mollis ornare vel eu leo. Curabitur blandit tempus porttitor. Curabitur blandit tempus porttitor.
+
+Vivamus sagittis lacus vel augue laoreet rutrum faucibus dolor auctor. Donec id elit non mi porta gravida at eget metus. Cras justo odio, dapibus ac facilisis in, egestas eget quam. Nullam quis risus eget urna mollis ornare vel eu leo. Donec id elit non mi porta gravida at eget metus. Sed posuere consectetur est at lobortis.
+
+Maecenas sed diam eget risus varius blandit sit amet non magna. Etiam porta sem malesuada magna mollis euismod. Maecenas faucibus mollis interdum. Vestibulum id ligula porta felis euismod semper. Nullam quis risus eget urna mollis ornare vel eu leo. Cras justo odio, dapibus ac facilisis in, egestas eget quam.

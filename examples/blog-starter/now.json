@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "name": "nextjs-blog-starter",
+  "builds": [{ "src": "package.json", "use": "@now/next" }],
+  "routes": [{ "src": "/(.*)", "dest": "/$1" }]
+}

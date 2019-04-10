@@ -1,0 +1,41 @@
+{
+  "name": "nextjs-blog-starter",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "now-build": "next build",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@mapbox/rehype-prism": "^0.3.1",
+    "@zeit/next-mdx": "^1.2.0",
+    "babel-plugin-macros": "^2.5.0",
+    "babel-plugin-preval": "^3.0.1",
+    "date-fns": "^1.30.1",
+    "gatsby-remark-prismjs": "^3.2.6",
+    "hast-util-to-string": "^1.0.1",
+    "mime": "^2.4.0",
+    "next": "^8.0.3",
+    "prism-themes": "^1.0.1",
+    "prismjs": "^1.15.0",
+    "react": "^16.8.3",
+    "react-dom": "^16.8.3",
+    "refractor": "^2.6.2",
+    "unist-util-visit": "^1.4.0"
+  },
+  "devDependencies": {
+    "dedent": "^0.7.0",
+    "hast-util-to-html": "^5.0.0",
+    "jest": "^24.5.0",
+    "parse-numeric-range": "^0.0.2",
+    "prettier": "^1.16.4",
+    "react-refractor": "^1.0.1",
+    "rehype": "^7.0.0",
+    "rehype-parse": "^6.0.0",
+    "unified": "^7.1.0"
+  },
+  "jest": {
+    "testRegex": "/test\\.js$"
+  }
+}

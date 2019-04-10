@@ -1,0 +1,20 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`finds code and highlights it 1`] = `
+"<div>
+    <pre class=\\"language-jsx\\"><code class=\\"language-jsx{4}\\">
+    <span class=\\"token keyword\\">class</span> <span class=\\"token class-name\\">Button</span> <span class=\\"token keyword\\">extends</span> <span class=\\"token class-name\\">React<span class=\\"token punctuation\\">.</span>Component</span> <span class=\\"token punctuation\\">{</span>
+      state <span class=\\"token operator\\">=</span> <span class=\\"token punctuation\\">{</span>
+<div class=\\"mdx-marker\\">        textColor<span class=\\"token punctuation\\">:</span> <span class=\\"token function\\">slowlyCalculateTextColor</span><span class=\\"token punctuation\\">(</span><span class=\\"token keyword\\">this</span><span class=\\"token punctuation\\">.</span>props<span class=\\"token punctuation\\">.</span>color<span class=\\"token punctuation\\">)</span>
+</div>      <span class=\\"token punctuation\\">}</span><span class=\\"token punctuation\\">;</span>
+      <span class=\\"token function\\">render</span><span class=\\"token punctuation\\">(</span><span class=\\"token punctuation\\">)</span> <span class=\\"token punctuation\\">{</span>
+        <span class=\\"token keyword\\">return</span> <span class=\\"token punctuation\\">(</span>
+          
+            <span class=\\"token punctuation\\">{</span><span class=\\"token keyword\\">this</span><span class=\\"token punctuation\\">.</span>props<span class=\\"token punctuation\\">.</span>children<span class=\\"token punctuation\\">}</span>
+          
+        <span class=\\"token punctuation\\">)</span><span class=\\"token punctuation\\">;</span>
+      <span class=\\"token punctuation\\">}</span>
+    <span class=\\"token punctuation\\">}</span>
+    </code></pre>
+</div>"
+`;
