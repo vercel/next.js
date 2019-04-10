@@ -18,7 +18,7 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -277,7 +277,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      !isServer && selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST }),
+      !isServer && selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST, selectivePageBuildingCacheIdentifier }),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations
         // This is because the client compilation generates the build manifest that's used on the server side

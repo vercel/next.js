@@ -1,7 +1,13 @@
+import crypto from 'crypto'
+import findUp from 'find-up'
 import fs from 'fs'
 import path from 'path'
+import { promisify } from 'util'
 
 import { recursiveReadDir } from '../lib/recursive-readdir'
+
+const fsExists = promisify(fs.exists)
+const fsReadFile = promisify(fs.readFile)
 
 export function collectPages(
   directory: string,
@@ -101,4 +107,45 @@ export async function getSpecifiedPages(
     .filter(page => page.resolved)
     .map(page => '/' + path.relative(pagesDir, page.resolved!))
   return resolvedPagePaths.sort()
+}
+
+export async function getCacheIdentifier({
+  pagesDirectory,
+  env = {},
+}: {
+  pagesDirectory: string
+  env?: any
+}) {
+  let selectivePageBuildingCacheIdentifier = ''
+
+  const envObject = env
+    ? Object.keys(env)
+        .sort()
+        // eslint-disable-next-line
+        .reduce((a, c) => ((a[c] = env[c]), a), {} as any)
+    : {}
+
+  selectivePageBuildingCacheIdentifier += JSON.stringify(envObject)
+
+  const pkgPath = await findUp('package.json', { cwd: pagesDirectory })
+  if (pkgPath) {
+    const yarnLock = path.join(path.dirname(pkgPath), 'yarn.lock')
+    const packageLock = path.join(path.dirname(pkgPath), 'package-lock.json')
+
+    if (await fsExists(yarnLock)) {
+      selectivePageBuildingCacheIdentifier += await fsReadFile(yarnLock, 'utf8')
+    } else if (await fsExists(packageLock)) {
+      selectivePageBuildingCacheIdentifier += await fsReadFile(
+        packageLock,
+        'utf8'
+      )
+    } else {
+      selectivePageBuildingCacheIdentifier += JSON.stringify(require(pkgPath))
+    }
+  }
+
+  return crypto
+    .createHash('sha1')
+    .update(selectivePageBuildingCacheIdentifier)
+    .digest('hex')
 }

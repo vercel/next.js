@@ -33,6 +33,7 @@ export class FlyingShuttle {
   private buildId: string
   private pagesDirectory: string
   private distDirectory: string
+  private cacheIdentifier: string
 
   private _shuttleBuildId: string | undefined
   private _restoreSema = new Sema(1)
@@ -47,10 +48,12 @@ export class FlyingShuttle {
     buildId,
     pagesDirectory,
     distDirectory,
+    cacheIdentifier,
   }: {
     buildId: string
     pagesDirectory: string
     distDirectory: string
+    cacheIdentifier: string
   }) {
     this.shuttleDirectory = findCacheDir({
       name: 'next-flying-shuttle',
@@ -60,6 +63,7 @@ export class FlyingShuttle {
     this.buildId = buildId
     this.pagesDirectory = pagesDirectory
     this.distDirectory = distDirectory
+    this.cacheIdentifier = cacheIdentifier
   }
 
   hasShuttle = async () => {
@@ -110,9 +114,9 @@ export class FlyingShuttle {
           return
         }
 
-        // TODO: hash needs to include Next.js environment variables and packages
         const hash = crypto
           .createHash('sha1')
+          .update(this.cacheIdentifier)
           .update(await fsReadFile(filePath))
           .digest('hex')
         fileChanged.set(file, hash !== hashes[file])

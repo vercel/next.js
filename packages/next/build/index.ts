@@ -13,6 +13,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import {
   collectPages,
+  getCacheIdentifier,
   getFileForPage,
   getSpecifiedPages,
   printTreeView,
@@ -61,6 +62,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  const selectivePageBuildingCacheIdentifier = selectivePageBuilding
+    ? await getCacheIdentifier({
+        pagesDirectory: pagesDir,
+        env: config.env || {},
+      })
+    : 'noop'
+
   let flyingShuttle: FlyingShuttle | undefined
   if (isFlyingShuttle) {
     console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
@@ -72,6 +80,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       buildId,
       pagesDirectory: pagesDir,
       distDirectory: distDir,
+      cacheIdentifier: selectivePageBuildingCacheIdentifier,
     })
   }
 
@@ -139,6 +148,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: false,
       config,
       target: config.target,
+      selectivePageBuildingCacheIdentifier,
       entrypoints: entrypoints.client,
       selectivePageBuilding,
     }),
@@ -148,6 +158,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: true,
       config,
       target: config.target,
+      selectivePageBuildingCacheIdentifier,
       entrypoints: entrypoints.server,
       selectivePageBuilding,
     }),
