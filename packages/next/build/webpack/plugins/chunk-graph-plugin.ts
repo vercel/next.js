@@ -69,7 +69,7 @@ export class ChunkGraphPlugin implements Plugin {
         pages: StringDictionary
         pageChunks: StringDictionary
         chunks: StringDictionary
-        hashes: StringDictionary
+        hashes: { [pageName: string]: string }
       } = {
         pages: {},
         pageChunks: {},
