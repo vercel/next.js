@@ -1,6 +1,10 @@
-import babelLoader from 'babel-loader'
+import fs from 'fs'
 import hash from 'string-hash'
-import { basename } from 'path'
+import { join, basename } from 'path'
+import babelLoader from 'babel-loader'
+
+// increment 'a' to invalidate cache
+let cacheKey = 'babel-cache-' + 'a' + '-'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
@@ -14,11 +18,25 @@ module.exports = babelLoader.custom(babel => {
       const custom = {
         isServer: opts.isServer
       }
+
+      // Make sure we haven't already calculated it
+      if (cacheKey.endsWith('-')) {
+        const { babelrc, config } = babel.loadPartialConfig({
+          cwd: opts.cwd,
+          filename: join(opts.cwd, 'noop.js')
+        })
+
+        for (const cfg of [babelrc, config]) {
+          if (!cfg) continue
+          cacheKey += hash(fs.readFileSync(cfg, 'utf8'))
+        }
+        if (!babelrc && !config) cacheKey += 'no-ext-cfg'
+      }
+
       const loader = Object.assign({
         cacheCompression: false,
         cacheDirectory: true,
-        // increment 'a' to invalidate cache
-        cacheIdentifier: 'next-cache-' + 'a'
+        cacheIdentifier: cacheKey
       }, opts)
       delete loader.isServer
 
