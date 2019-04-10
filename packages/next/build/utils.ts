@@ -45,6 +45,24 @@ function getPossibleFiles(pageExtensions: string[], pages: string[]) {
   return flatten<string>(res)
 }
 
+export async function getFileForPage({
+  page,
+  pagesDirectory,
+  pageExtensions,
+}: {
+  page: string
+  pagesDirectory: string
+  pageExtensions: string[]
+}) {
+  const theFile = getPossibleFiles(pageExtensions, [
+    path.join(pagesDirectory, page),
+  ]).find(f => fs.existsSync(f) && fs.lstatSync(f).isFile())
+  if (theFile) {
+    return path.sep + path.relative(pagesDirectory, theFile)
+  }
+  return theFile
+}
+
 export async function getSpecifiedPages(
   dir: string,
   pagesString: string,
