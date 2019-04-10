@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import findUp from 'find-up'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
@@ -45,6 +46,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
+  let envString = ''
+  let pkgsString = ''
+
   const isFlyingShuttle = Boolean(
     config.experimental.flyingShuttle &&
       !process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
@@ -61,6 +65,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
     )
   }
 
+  if (selectivePageBuilding) {
+    envString = config.env ? JSON.stringify(config.env) : ''
+    const pkgPath = await findUp('package.json', { cwd: pagesDir })
+    const { dependencies, devDependencies }: any = pkgPath ? require(pkgPath) : {}
+
+    if (dependencies) pkgsString += JSON.stringify(dependencies)
+    if (devDependencies) pkgsString += JSON.stringify(devDependencies)
+  }
+
   let flyingShuttle: FlyingShuttle | undefined
   if (isFlyingShuttle) {
     console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
@@ -70,6 +83,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     flyingShuttle = new FlyingShuttle({
       buildId,
+      envString,
+      pkgsString,
       pagesDirectory: pagesDir,
       distDirectory: distDir,
     })
@@ -139,6 +154,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: false,
       config,
       target: config.target,
+      envString,
+      pkgsString,
       entrypoints: entrypoints.client,
       selectivePageBuilding,
     }),
@@ -148,6 +165,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: true,
       config,
       target: config.target,
+      envString,
+      pkgsString,
       entrypoints: entrypoints.server,
       selectivePageBuilding,
     }),

@@ -1,7 +1,7 @@
 import Sema from 'async-sema'
 import crypto from 'crypto'
 import findCacheDir from 'find-cache-dir'
-import fs from 'fs'
+import fs, { readFile } from 'fs'
 import mkdirpModule from 'mkdirp'
 import { CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
 import { EOL } from 'os'
@@ -33,6 +33,8 @@ export class FlyingShuttle {
   private buildId: string
   private pagesDirectory: string
   private distDirectory: string
+  private envString: string
+  private pkgsString: string
 
   private _shuttleBuildId: string | undefined
   private _restoreSema = new Sema(1)
@@ -47,10 +49,14 @@ export class FlyingShuttle {
     buildId,
     pagesDirectory,
     distDirectory,
+    envString,
+    pkgsString,
   }: {
     buildId: string
     pagesDirectory: string
     distDirectory: string
+    envString: string
+    pkgsString: string
   }) {
     this.shuttleDirectory = findCacheDir({
       name: 'next-flying-shuttle',
@@ -60,6 +66,8 @@ export class FlyingShuttle {
     this.buildId = buildId
     this.pagesDirectory = pagesDirectory
     this.distDirectory = distDirectory
+    this.envString = envString
+    this.pkgsString = pkgsString
   }
 
   hasShuttle = async () => {
@@ -110,10 +118,11 @@ export class FlyingShuttle {
           return
         }
 
-        // TODO: hash needs to include Next.js environment variables and packages
         const hash = crypto
           .createHash('sha1')
           .update(await fsReadFile(filePath))
+          .update(this.envString)
+          .update(this.pkgsString)
           .digest('hex')
         fileChanged.set(file, hash !== hashes[file])
       })
