@@ -1,7 +1,7 @@
 import Sema from 'async-sema'
 import crypto from 'crypto'
 import findCacheDir from 'find-cache-dir'
-import fs, { readFile } from 'fs'
+import fs from 'fs'
 import mkdirpModule from 'mkdirp'
 import { CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
 import { EOL } from 'os'
