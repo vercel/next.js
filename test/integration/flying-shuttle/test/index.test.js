@@ -58,8 +58,7 @@ describe('Flying Shuttle', () => {
       )
 
       const { stdout } = await runNextCommand(['build', appDir], {
-        stdout: true,
-        stderr: true
+        stdout: true
       })
       const buildText = stripAnsi(stdout)
       expect(buildText).toMatch(/found 2 changed and 1 unchanged page/)
