@@ -70,7 +70,7 @@ describe('Flying Shuttle', () => {
       )
 
       secondServer = await startServer(0, path.join(appDir, '.next-second'))
-      secondAppPort = server.address().port
+      secondAppPort = secondServer.address().port
     }
   })
   afterAll(async () => {
@@ -155,15 +155,14 @@ describe('Flying Shuttle', () => {
     expect(html).toMatch(/omega lol/)
     expect(html).toMatch(/Welcome to Next/)
   })
-  it('should render /other', async () => {
+  it('should 404 /other', async () => {
     const html = await renderViaHTTP(secondAppPort, '/other')
-    expect(html).toMatch(/omega lol/)
-    expect(html).toMatch(/Welcome to Other Next/)
+    expect(html).toMatch(/Cannot GET \/other/)
   })
   it('should render /about', async () => {
     const html = await renderViaHTTP(secondAppPort, '/about')
     expect(html).toMatch(/omega lol/)
-    expect(html).toMatch(/All About/)
+    expect(html).toMatch(/Everything About/)
   })
 
   it('should hydrate correctly /index', async () => {
@@ -179,15 +178,11 @@ describe('Flying Shuttle', () => {
       await browser.close()
     }
   })
-  it('should hydrate correctly /other', async () => {
+  it('should 404 on /other', async () => {
     const browser = await webdriver(secondAppPort, '/other')
     try {
-      let text = await browser.text()
-      await waitFor(3000)
-      text = await browser.text()
-
-      expect(text).toMatch(/omega lol/)
-      expect(text).toMatch(/Welcome to Other Next/)
+      const text = await browser.text()
+      expect(text).toMatch(/Cannot GET \/other/)
     } finally {
       await browser.close()
     }
@@ -200,7 +195,7 @@ describe('Flying Shuttle', () => {
       text = await browser.text()
 
       expect(text).toMatch(/omega lol/)
-      expect(text).toMatch(/All About/)
+      expect(text).toMatch(/Everything About/)
     } finally {
       await browser.close()
     }

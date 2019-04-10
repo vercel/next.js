@@ -19,11 +19,9 @@ module.exports = function start (
       )
     })
     try {
+      const o = require(path.join(directory, 'serverless/pages/other.js'))
       app.get('/other', (req, res) => {
-        require(path.join(directory, 'serverless/pages/other.js')).render(
-          req,
-          res
-        )
+        o.render(req, res)
       })
     } catch (_) {
       // ignored
