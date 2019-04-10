@@ -57,14 +57,15 @@ function getPossibleFiles(pageExtensions: string[], pages: string[]) {
 export async function getSpecifiedPages(
   dir: string,
   pages: string[],
-  pageExtensions: string[]
+  pageExtensions: string[],
+  assumeAll: boolean
 ) {
   const pagesDir = path.join(dir, 'pages')
 
   const reservedPages = ['/_app', '/_document', '/_error']
   pages.push(...reservedPages)
 
-  const searchAllPages = pages.some(p => p.includes('**'))
+  const searchAllPages = assumeAll || pages.some(p => p.includes('**'))
 
   let pagePaths: string[]
   const explodedPages = [
@@ -157,17 +158,22 @@ export default async function build(
       ? [process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE]
       : []
 
-  const __selectivePageBuilding = pages ? Boolean(pages.length) : false
+  const selectivePageBuilding = pages ? Boolean(pages.length) : false
 
-  if (__selectivePageBuilding && config.target !== 'serverless') {
+  if (selectivePageBuilding && config.target !== 'serverless') {
     throw new Error(
       'Cannot use selective page building without the serverless target.'
     )
   }
 
   let pagePaths
-  if (__selectivePageBuilding) {
-    pagePaths = await getSpecifiedPages(dir, pages, config.pageExtensions)
+  if (selectivePageBuilding) {
+    pagePaths = await getSpecifiedPages(
+      dir,
+      pages,
+      config.pageExtensions,
+      config.experimental.flyingShuttle
+    )
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
@@ -176,7 +182,7 @@ export default async function build(
     mappedPages,
     config.target,
     buildId,
-    __selectivePageBuilding,
+    selectivePageBuilding,
     config
   )
   const configs = await Promise.all([
@@ -187,7 +193,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.client,
-      __selectivePageBuilding,
+      selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
       debug,
@@ -196,7 +202,7 @@ export default async function build(
       config,
       target: config.target,
       entrypoints: entrypoints.server,
-      __selectivePageBuilding,
+      selectivePageBuilding,
     }),
   ])
 
@@ -255,5 +261,5 @@ export default async function build(
 
   printTreeView(Object.keys(mappedPages))
 
-  await writeBuildId(distDir, buildId, __selectivePageBuilding)
+  await writeBuildId(distDir, buildId, selectivePageBuilding)
 }
