@@ -80,9 +80,13 @@ export class FlyingShuttle {
     if (this._shuttleBuildId) {
       return this._shuttleBuildId
     }
-    const contents = fs
-      .readFileSync(path.join(this.shuttleDirectory, FILE_BUILD_ID), 'utf8')
-      .trim()
+
+    const headBuildIdPath = path.join(this.shuttleDirectory, FILE_BUILD_ID)
+    if (!fs.existsSync(headBuildIdPath)) {
+      return (this._shuttleBuildId = undefined)
+    }
+
+    const contents = fs.readFileSync(headBuildIdPath, 'utf8').trim()
     return (this._shuttleBuildId = contents)
   }
 
