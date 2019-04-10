@@ -216,5 +216,5 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await flyingShuttle.save()
   }
 
-  await writeBuildId(distDir, buildId)
+  await writeBuildId(distDir, buildId, selectivePageBuilding)
 }
