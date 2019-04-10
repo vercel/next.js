@@ -37,13 +37,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
+  const flyingShuttle = Boolean(config.experimental.flyingShuttle)
   const selectivePageBuilding = Boolean(
-    config.experimental.flyingShuttle ||
-      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+    flyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
   if (selectivePageBuilding && config.target !== 'serverless') {
-    throw new Error('Cannot use flying shuttle without the serverless target.')
+    throw new Error(
+      `Cannot use ${
+        flyingShuttle ? 'flying shuttle' : '`now dev`'
+      } without the serverless target.`
+    )
   }
 
   let pagePaths
