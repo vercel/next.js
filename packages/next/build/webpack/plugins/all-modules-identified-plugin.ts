@@ -1,7 +1,20 @@
 import { Compiler, Plugin } from 'webpack'
 import { createHash } from 'crypto'
-import escapeRegex from 'escape-string-regexp'
 import path from 'path'
+
+/**
+ * From escape-string-regexp: https://github.com/sindresorhus/escape-string-regexp
+ * brought here to reduce the bundle size
+ * MIT License
+ * Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
+ */
+const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g;
+const escapeRegex = (str: string) => {
+	if (typeof str !== 'string') {
+		throw new TypeError('Expected a string');
+	}
+	return str.replace(matchOperatorsRe, '\\$&');
+};
 
 function getRawModuleIdentifier(m: any, dir: string) {
   // webpack impl:
