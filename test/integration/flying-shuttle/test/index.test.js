@@ -8,13 +8,13 @@ import { nextBuild } from 'next-test-utils'
 const appDir = join(__dirname, '../')
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 
-describe('Chunk Graph on Build', () => {
+describe('Flying Shuttle', () => {
   beforeAll(async () => {
-    await nextBuild(appDir, ['--experimental-page', '/'])
+    await nextBuild(appDir)
   })
 
-  describe('Module collection', () => {
-    it('should build a chunk graph file', () => {
+  describe('Chunk Graph Module file', () => {
+    it('should emit a manifest file', () => {
       const cgf = join(__dirname, `/../.next/${CHUNK_GRAPH_MANIFEST}`)
       expect(existsSync(cgf)).toBeTruthy()
       expect(
