@@ -50,20 +50,21 @@ export class ChunkGraphPlugin implements Plugin {
   private buildId: string
   private dir: string
   private filename: string
-  private pkgsString: string
-  private envString: string
+  private selectivePageBuildingCacheIdentifier: string
 
   constructor(
     buildId: string,
     dir: string,
-    { filename, envString, pkgsString }: 
-    { filename?: string, envString?: string, pkgsString?: string } = {}
+    {
+      filename,
+      selectivePageBuildingCacheIdentifier,
+    }: { filename?: string; selectivePageBuildingCacheIdentifier?: string } = {}
   ) {
     this.buildId = buildId
     this.dir = dir
     this.filename = filename || 'chunk-graph-manifest.json'
-    this.envString = envString || ''
-    this.pkgsString = pkgsString || ''
+    this.selectivePageBuildingCacheIdentifier =
+      selectivePageBuildingCacheIdentifier || ''
   }
 
   apply(compiler: Compiler) {
@@ -191,9 +192,8 @@ export class ChunkGraphPlugin implements Plugin {
             fs.existsSync(path.join(dir, cur))
               ? {
                   [cur]: createHash('sha1')
+                    .update(this.selectivePageBuildingCacheIdentifier)
                     .update(fs.readFileSync(path.join(dir, cur)))
-                    .update(this.envString)
-                    .update(this.pkgsString)
                     .digest('hex'),
                 }
               : undefined
