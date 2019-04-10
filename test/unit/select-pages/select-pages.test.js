@@ -44,23 +44,4 @@ describe('getSpecifiedPages', () => {
       await getSpecifiedPages(__dirname, ['a', 'c,b'], ['js', 'jsx', 'mdx'])
     )
   })
-
-  it('should select all', async () => {
-    expect(await getSpecifiedPages(__dirname, ['**'], ['js'])).toMatchSnapshot()
-    expect(
-      await getSpecifiedPages(__dirname, ['**'], ['js', 'mdx', 'jsx'])
-    ).toMatchSnapshot()
-  })
-
-  it('should filter pages', async () => {
-    expect(
-      await getSpecifiedPages(__dirname, ['**', '-a'], ['js'])
-    ).toMatchSnapshot()
-    expect(
-      await getSpecifiedPages(__dirname, ['**', '-a'], ['js', 'mdx', 'jsx'])
-    ).toMatchSnapshot()
-    expect(
-      await getSpecifiedPages(__dirname, ['**,-a', '-c'], ['js', 'mdx', 'jsx'])
-    ).toMatchSnapshot()
-  })
 })
