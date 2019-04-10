@@ -25,7 +25,6 @@ class DataList extends Component {
             return
           }
           response.json().then(function (data) {
-            console.log(data)
             loadExampleData(data)
             self.setState({ isDataLoading: false })
           })
