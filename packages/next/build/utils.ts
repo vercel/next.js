@@ -36,9 +36,10 @@ function flatten<T>(arr: T[][]): T[] {
 
 function getPossibleFiles(pageExtensions: string[], pages: string[]) {
   const res = pages.map(page =>
-    [page]
-      .concat(pageExtensions.map(e => `${page}.${e}`))
+    pageExtensions
+      .map(e => `${page}.${e}`)
       .concat(pageExtensions.map(e => `${path.join(page, 'index')}.${e}`))
+      .concat(page)
   )
   return flatten<string>(res)
 }
