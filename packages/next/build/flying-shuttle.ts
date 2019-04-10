@@ -129,6 +129,8 @@ export class FlyingShuttle {
     if (unchangedPages.length) {
       const u = unchangedPages.length
       Log.info(`found ${u} unchanged page${u > 1 ? 's' : ''}`)
+    } else {
+      Log.warn(`flying shuttle had no pages we can reuse`)
     }
 
     return unchangedPages
