@@ -1583,6 +1583,11 @@
   resolved "https://registry.yarnpkg.com/@types/find-cache-dir/-/find-cache-dir-2.0.0.tgz#6ee79b947b8e51ce8c565fc8278822b2605609db"
   integrity sha512-LHAReDNv7IVTE2Q+nPcRBgUZAUKPJIvR7efMrWgx69442KMoMK+QYjtTtK9WGUdaqUYVLkd/0cvCfb55LFWsVw==
 
+"@types/find-up@2.1.1":
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/@types/find-up/-/find-up-2.1.1.tgz#1cd2d240f1ad1f48d32346074724dc3107248a11"
+  integrity sha512-60LC501bQRN9/3yfVaEEMd7IndaufffL56PBRAejPpUrY304Ps1jfnjNqPw5jmM5R8JHWiKBAe5IHzNcPV41AA==
+
 "@types/fresh@0.5.0":
   version "0.5.0"
   resolved "https://registry.yarnpkg.com/@types/fresh/-/fresh-0.5.0.tgz#4d09231027d69c4369cfb01a9af5ef083d0d285f"

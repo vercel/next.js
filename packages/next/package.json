@@ -105,6 +105,7 @@
     "@types/cross-spawn": "6.0.0",
     "@types/etag": "1.8.0",
     "@types/find-cache-dir": "2.0.0",
+    "@types/find-up": "2.1.1",
     "@types/fresh": "0.5.0",
     "@types/loader-utils": "1.1.3",
     "@types/mkdirp": "0.5.2",
