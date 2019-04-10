@@ -41,3 +41,4 @@ now
 
 ## The idea behind the example
 
+With this example you will be able to create a blog using Next.js and MDX. The setup is so you can write your posts inside the `/pages/blog` folder and the configuration will read them and provide an object you can work with.
