@@ -435,7 +435,7 @@ FetchTransport.prototype.open = function (xhr, onStartCallback, onProgressCallba
   }).then(function(result) {
     onFinishCallback()
     return result
-  })['catch'](function(error) {
+  }, function(error) {
     onFinishCallback()
     return Promise.reject(error)
   })
