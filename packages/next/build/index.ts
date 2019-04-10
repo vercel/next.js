@@ -1,16 +1,17 @@
-import path from 'path'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
-import loadConfig from 'next-server/next-config'
-import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
-import getBaseWebpackConfig from './webpack-config'
-import { generateBuildId } from './generate-build-id'
-import { writeBuildId } from './write-build-id'
-import { isWriteable } from './is-writeable'
-import { runCompiler, CompilerResult } from './compiler'
-import { createPagesMapping, createEntrypoints } from './entries'
-import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
-import { collectPages, printTreeView, getSpecifiedPages } from './utils'
+import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
+import loadConfig from 'next-server/next-config'
+import nanoid from 'next/dist/compiled/nanoid/index.js'
+import path from 'path'
+
+import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
+import { CompilerResult, runCompiler } from './compiler'
+import { createEntrypoints, createPagesMapping } from './entries'
+import { generateBuildId } from './generate-build-id'
+import { isWriteable } from './is-writeable'
+import { collectPages, getSpecifiedPages, printTreeView } from './utils'
+import getBaseWebpackConfig from './webpack-config'
+import { writeBuildId } from './write-build-id'
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -37,15 +38,18 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
-  const flyingShuttle = Boolean(config.experimental.flyingShuttle)
+  const isFlyingShuttle = Boolean(
+    config.experimental.flyingShuttle &&
+      !process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+  )
   const selectivePageBuilding = Boolean(
-    flyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+    isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
   if (selectivePageBuilding && config.target !== 'serverless') {
     throw new Error(
       `Cannot use ${
-        flyingShuttle ? 'flying shuttle' : '`now dev`'
+        isFlyingShuttle ? 'flying shuttle' : '`now dev`'
       } without the serverless target.`
     )
   }
