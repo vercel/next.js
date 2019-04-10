@@ -56,29 +56,16 @@ function getPossibleFiles(pageExtensions: string[], pages: string[]) {
 
 export async function getSpecifiedPages(
   dir: string,
-  pages: string[],
-  pageExtensions: string[],
-  assumeAll: boolean
+  pagesString: string,
+  pageExtensions: string[]
 ) {
   const pagesDir = path.join(dir, 'pages')
 
   const reservedPages = ['/_app', '/_document', '/_error']
-  pages.push(...reservedPages)
 
-  const searchAllPages = assumeAll || pages.some(p => p.includes('**'))
-
-  let pagePaths: string[]
   const explodedPages = [
-    ...new Set(
-      flatten<string>(pages.map(p => p.split(',').filter(p => p !== '**')))
-    ),
+    ...new Set([...pagesString.split(','), ...reservedPages]),
   ].map(p => {
-    let removePage = false
-    if (p.startsWith('-')) {
-      p = p.substring(1)
-      removePage = true
-    }
-
     let resolvedPage: string | undefined
     if (path.isAbsolute(p)) {
       resolvedPage = getPossibleFiles(pageExtensions, [
@@ -91,7 +78,7 @@ export async function getSpecifiedPages(
         path.join(dir, p),
       ]).find(f => fs.existsSync(f) && fs.lstatSync(f).isFile())
     }
-    return { original: p, resolved: resolvedPage || null, removePage }
+    return { original: p, resolved: resolvedPage || null }
   })
 
   const missingPage = explodedPages.find(
@@ -100,33 +87,14 @@ export async function getSpecifiedPages(
   if (missingPage) {
     throw new Error(`Unable to identify page: ${missingPage.original}`)
   }
+
   const resolvedPagePaths = explodedPages
     .filter(page => page.resolved)
-    .map(page => ({
-      ignore: page.removePage,
-      pathname: '/' + path.relative(pagesDir, page.resolved!),
-    }))
-
-  if (searchAllPages) {
-    const pageSet = new Set(await collectPages(pagesDir, pageExtensions))
-
-    resolvedPagePaths
-      .filter(p => p.ignore)
-      .forEach(p => pageSet.delete(p.pathname.replace('/', path.sep)))
-
-    pagePaths = [...pageSet]
-  } else {
-    pagePaths = resolvedPagePaths.filter(p => !p.ignore).map(p => p.pathname)
-  }
-
-  return pagePaths.sort()
+    .map(page => '/' + path.relative(pagesDir, page.resolved!))
+  return resolvedPagePaths.sort()
 }
 
-export default async function build(
-  dir: string,
-  conf = null,
-  { pages: _pages = [] as string[] } = {}
-): Promise<void> {
+export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
@@ -151,28 +119,21 @@ export default async function build(
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
-  const pages =
-    Array.isArray(_pages) && _pages.length
-      ? _pages
-      : process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
-      ? [process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE]
-      : []
-
-  const selectivePageBuilding = pages ? Boolean(pages.length) : false
+  const selectivePageBuilding = Boolean(
+    config.experimental.flyingShuttle ||
+      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+  )
 
   if (selectivePageBuilding && config.target !== 'serverless') {
-    throw new Error(
-      'Cannot use selective page building without the serverless target.'
-    )
+    throw new Error('Cannot use flying shuttle without the serverless target.')
   }
 
   let pagePaths
-  if (selectivePageBuilding) {
+  if (process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE) {
     pagePaths = await getSpecifiedPages(
       dir,
-      pages,
-      config.pageExtensions,
-      config.experimental.flyingShuttle
+      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE!,
+      config.pageExtensions
     )
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
@@ -182,7 +143,7 @@ export default async function build(
     mappedPages,
     config.target,
     buildId,
-    selectivePageBuilding,
+    /* dynamicBuildId */ selectivePageBuilding,
     config
   )
   const configs = await Promise.all([
