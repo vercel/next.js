@@ -21,7 +21,6 @@ const defaultConfig = {
     pagesBufferLength: 2
   },
   experimental: {
-    amp: false,
     noDirtyAmp: false,
     cpus: Math.max(
       1,
