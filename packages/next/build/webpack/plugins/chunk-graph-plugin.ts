@@ -1,10 +1,10 @@
-import { Compiler, Plugin } from 'webpack'
-import path from 'path'
-import { EOL } from 'os'
-import { parse } from 'querystring'
-import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
-import fs from 'fs'
 import { createHash } from 'crypto'
+import fs from 'fs'
+import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
+import { EOL } from 'os'
+import path from 'path'
+import { parse } from 'querystring'
+import { Compiler, Plugin } from 'webpack'
 
 function getFiles(dir: string, modules: any[]): string[] {
   if (!(modules && modules.length)) {

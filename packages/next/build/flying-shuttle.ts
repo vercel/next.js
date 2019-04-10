@@ -1,8 +1,10 @@
+import Sema from 'async-sema'
 import crypto from 'crypto'
 import findCacheDir from 'find-cache-dir'
 import fs from 'fs'
 import mkdirpModule from 'mkdirp'
 import { CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
+import { EOL } from 'os'
 import path from 'path'
 import { promisify } from 'util'
 
@@ -32,6 +34,15 @@ export class FlyingShuttle {
   private pagesDirectory: string
   private distDirectory: string
 
+  private _shuttleBuildId: string | undefined
+  private _restoreSema = new Sema(1)
+  private _recalledManifest: ChunkGraphManifest = {
+    pages: {},
+    pageChunks: {},
+    chunks: {},
+    hashes: {},
+  }
+
   constructor({
     buildId,
     pagesDirectory,
@@ -52,9 +63,9 @@ export class FlyingShuttle {
   }
 
   hasShuttle = async () => {
-    const found = await promisify(fs.exists)(
-      path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)
-    )
+    const found =
+      this.shuttleBuildId &&
+      (await fsExists(path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)))
 
     if (found) {
       Log.info('flying shuttle is docked')
@@ -63,6 +74,16 @@ export class FlyingShuttle {
     }
 
     return found
+  }
+
+  get shuttleBuildId() {
+    if (this._shuttleBuildId) {
+      return this._shuttleBuildId
+    }
+    const contents = fs
+      .readFileSync(path.join(this.shuttleDirectory, FILE_BUILD_ID), 'utf8')
+      .trim()
+    return (this._shuttleBuildId = contents)
   }
 
   getUnchangedPages = async () => {
@@ -114,7 +135,93 @@ export class FlyingShuttle {
   }
 
   restorePage = async (page: string): Promise<boolean> => {
-    return false
+    await this._restoreSema.acquire()
+    try {
+      const manifestPath = path.join(
+        this.shuttleDirectory,
+        CHUNK_GRAPH_MANIFEST
+      )
+      const manifest = require(manifestPath) as ChunkGraphManifest
+
+      const { pages, pageChunks, hashes } = manifest
+      if (!(pages.hasOwnProperty(page) && pageChunks.hasOwnProperty(page))) {
+        Log.warn(`unable to find ${page} in shuttle`)
+        return false
+      }
+
+      const serverless = path.join(
+        'serverless/pages',
+        `${page === '/' ? 'index' : page}.js`
+      )
+      const files = [serverless, ...pageChunks[page]]
+
+      const filesExists = await Promise.all(
+        files
+          .map(f => path.join(this.shuttleDirectory, DIR_FILES_NAME, f))
+          .map(f => fsExists(f))
+      )
+      if (!filesExists.every(Boolean)) {
+        Log.warn(`unable to locate files for ${page} in shuttle`)
+        return false
+      }
+
+      const rewriteRegex = new RegExp(`${this.shuttleBuildId}[\\/\\\\]`)
+      const movedPageChunks: string[] = []
+      await Promise.all(
+        files.map(async recallFileName => {
+          if (!rewriteRegex.test(recallFileName)) {
+            const recallPath = path.join(this.distDirectory, recallFileName)
+            const recallPathExists = await fsExists(recallPath)
+
+            if (!recallPathExists) {
+              await mkdirp(path.dirname(recallPath))
+              await fsCopyFile(
+                path.join(
+                  this.shuttleDirectory,
+                  DIR_FILES_NAME,
+                  recallFileName
+                ),
+                recallPath
+              )
+            }
+
+            movedPageChunks.push(recallFileName)
+            return
+          }
+
+          const newFileName = recallFileName.replace(
+            rewriteRegex,
+            `${this.buildId}/`
+          )
+          const recallPath = path.join(this.distDirectory, newFileName)
+          const recallPathExists = await fsExists(recallPath)
+          if (!recallPathExists) {
+            await mkdirp(path.dirname(recallPath))
+            await fsCopyFile(
+              path.join(this.shuttleDirectory, DIR_FILES_NAME, recallFileName),
+              recallPath
+            )
+          }
+          movedPageChunks.push(newFileName)
+        })
+      )
+
+      this._recalledManifest.pages[page] = pages[page]
+      this._recalledManifest.pageChunks[page] = movedPageChunks.filter(
+        f => f !== serverless
+      )
+      this._recalledManifest.hashes = Object.assign(
+        {},
+        this._recalledManifest.hashes,
+        pages[page].reduce(
+          (acc, cur) => Object.assign(acc, { [cur]: hashes[cur] }),
+          {}
+        )
+      )
+      return true
+    } finally {
+      this._restoreSema.release()
+    }
   }
 
   save = async () => {
@@ -129,26 +236,56 @@ export class FlyingShuttle {
       return
     }
 
-    const manifest = JSON.parse(
+    const nextManifest = JSON.parse(
       await fsReadFile(nextManifestPath, 'utf8')
     ) as ChunkGraphManifest
-    if (manifest.chunks && Object.keys(manifest.chunks).length) {
+    if (nextManifest.chunks && Object.keys(nextManifest.chunks).length) {
       Log.warn('build emitted assets that cannot fit in flying shuttle')
       return
     }
 
+    const storeManifest: ChunkGraphManifest = {
+      pages: Object.assign(
+        {},
+        this._recalledManifest.pages,
+        nextManifest.pages
+      ),
+      pageChunks: Object.assign(
+        {},
+        this._recalledManifest.pageChunks,
+        nextManifest.pageChunks
+      ),
+      chunks: Object.assign(
+        {},
+        this._recalledManifest.chunks,
+        nextManifest.chunks
+      ),
+      hashes: Object.assign(
+        {},
+        this._recalledManifest.hashes,
+        nextManifest.hashes
+      ),
+    }
+
+    await fsWriteFile(
+      path.join(this.shuttleDirectory, FILE_BUILD_ID),
+      this.buildId
+    )
+
     const usedChunks = new Set()
-    const pages = Object.keys(manifest.pageChunks)
+    const pages = Object.keys(storeManifest.pageChunks)
     pages.forEach(page => {
-      manifest.pageChunks[page].forEach(file => usedChunks.add(file))
+      storeManifest.pageChunks[page].forEach(file => usedChunks.add(file))
       usedChunks.add(
         path.join('serverless/pages', `${page === '/' ? 'index' : page}.js`)
       )
     })
-    await fsCopyFile(
-      nextManifestPath,
-      path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)
+
+    await fsWriteFile(
+      path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST),
+      JSON.stringify(storeManifest, null, 2) + EOL
     )
+
     await Promise.all(
       [...usedChunks].map(async usedChunk => {
         const target = path.join(
@@ -159,10 +296,6 @@ export class FlyingShuttle {
         await mkdirp(path.dirname(target))
         return fsCopyFile(path.join(this.distDirectory, usedChunk), target)
       })
-    )
-    await fsWriteFile(
-      path.join(this.shuttleDirectory, FILE_BUILD_ID),
-      this.buildId
     )
 
     Log.info(`flying shuttle payload: ${usedChunks.size + 2} files`)

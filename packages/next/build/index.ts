@@ -13,9 +13,9 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import {
   collectPages,
+  getFileForPage,
   getSpecifiedPages,
   printTreeView,
-  getFileForPage,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
