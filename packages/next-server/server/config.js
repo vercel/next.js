@@ -30,7 +30,8 @@ const defaultConfig = {
     ),
     ampBindInitData: false,
     exportTrailingSlash: true,
-    profiling: false
+    profiling: false,
+    flyingShuttle: false
   }
 }
 

@@ -1,10 +1,10 @@
-import { Compiler, Plugin } from 'webpack'
-import path from 'path'
-import { EOL } from 'os'
-import { parse } from 'querystring'
-import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
-import fs from 'fs'
 import { createHash } from 'crypto'
+import fs from 'fs'
+import { CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
+import { EOL } from 'os'
+import path from 'path'
+import { parse } from 'querystring'
+import { Compiler, Plugin } from 'webpack'
 
 function getFiles(dir: string, modules: any[]): string[] {
   if (!(modules && modules.length)) {
@@ -50,15 +50,21 @@ export class ChunkGraphPlugin implements Plugin {
   private buildId: string
   private dir: string
   private filename: string
+  private selectivePageBuildingCacheIdentifier: string
 
   constructor(
     buildId: string,
     dir: string,
-    { filename }: { filename?: string } = {}
+    {
+      filename,
+      selectivePageBuildingCacheIdentifier,
+    }: { filename?: string; selectivePageBuildingCacheIdentifier?: string } = {}
   ) {
     this.buildId = buildId
     this.dir = dir
     this.filename = filename || 'chunk-graph-manifest.json'
+    this.selectivePageBuildingCacheIdentifier =
+      selectivePageBuildingCacheIdentifier || ''
   }
 
   apply(compiler: Compiler) {
@@ -69,7 +75,7 @@ export class ChunkGraphPlugin implements Plugin {
         pages: StringDictionary
         pageChunks: StringDictionary
         chunks: StringDictionary
-        hashes: StringDictionary
+        hashes: { [pageName: string]: string }
       } = {
         pages: {},
         pageChunks: {},
@@ -186,6 +192,7 @@ export class ChunkGraphPlugin implements Plugin {
             fs.existsSync(path.join(dir, cur))
               ? {
                   [cur]: createHash('sha1')
+                    .update(this.selectivePageBuildingCacheIdentifier)
                     .update(fs.readFileSync(path.join(dir, cur)))
                     .digest('hex'),
                 }
