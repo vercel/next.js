@@ -80,7 +80,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     devtool: (dev || debug) ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
-    externals: isServer && target !== 'serverless' ? [
+    externals: !isServer ? undefined : target !== 'serverless' ? [
       (context, request, callback) => {
         const notExternalModules = [
           'next/app', 'next/document', 'next/link', 'next/error',
