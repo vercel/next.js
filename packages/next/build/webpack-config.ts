@@ -184,7 +184,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       usedExports: false,
       concatenateModules: false,
     } : undefined),
-    recordsPath: path.join(outputPath, 'records.json'),
+    recordsPath: selectivePageBuilding ? undefined : path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
