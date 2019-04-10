@@ -1,5 +1,6 @@
-import path from 'path'
 import fs from 'fs'
+import path from 'path'
+
 import { recursiveReadDir } from '../lib/recursive-readdir'
 
 export function collectPages(
