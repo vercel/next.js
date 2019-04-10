@@ -1,5 +1,4 @@
 import path from 'path'
-import fs from 'fs'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import loadConfig from 'next-server/next-config'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
@@ -8,91 +7,10 @@ import { generateBuildId } from './generate-build-id'
 import { writeBuildId } from './write-build-id'
 import { isWriteable } from './is-writeable'
 import { runCompiler, CompilerResult } from './compiler'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { createPagesMapping, createEntrypoints } from './entries'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
-
-function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
-}
-
-function printTreeView(list: string[]) {
-  list
-    .sort((a, b) => (a > b ? 1 : -1))
-    .forEach((item, i) => {
-      const corner =
-        i === 0
-          ? list.length === 1
-            ? '─'
-            : '┌'
-          : i === list.length - 1
-          ? '└'
-          : '├'
-      console.log(` \x1b[90m${corner}\x1b[39m ${item}`)
-    })
-
-  console.log()
-}
-
-function flatten<T>(arr: T[][]): T[] {
-  return arr.reduce((acc, val) => acc.concat(val), [] as T[])
-}
-
-function getPossibleFiles(pageExtensions: string[], pages: string[]) {
-  const res = pages.map(page =>
-    [page]
-      .concat(pageExtensions.map(e => `${page}.${e}`))
-      .concat(pageExtensions.map(e => `${path.join(page, 'index')}.${e}`))
-  )
-  return flatten<string>(res)
-}
-
-export async function getSpecifiedPages(
-  dir: string,
-  pagesString: string,
-  pageExtensions: string[]
-) {
-  const pagesDir = path.join(dir, 'pages')
-
-  const reservedPages = ['/_app', '/_document', '/_error']
-
-  const explodedPages = [
-    ...new Set([...pagesString.split(','), ...reservedPages]),
-  ].map(p => {
-    let resolvedPage: string | undefined
-    if (path.isAbsolute(p)) {
-      resolvedPage = getPossibleFiles(pageExtensions, [
-        path.join(pagesDir, p),
-        p,
-      ]).find(f => fs.existsSync(f) && fs.lstatSync(f).isFile())
-    } else {
-      resolvedPage = getPossibleFiles(pageExtensions, [
-        path.join(pagesDir, p),
-        path.join(dir, p),
-      ]).find(f => fs.existsSync(f) && fs.lstatSync(f).isFile())
-    }
-    return { original: p, resolved: resolvedPage || null }
-  })
-
-  const missingPage = explodedPages.find(
-    ({ original, resolved }) => !resolved && !reservedPages.includes(original)
-  )
-  if (missingPage) {
-    throw new Error(`Unable to identify page: ${missingPage.original}`)
-  }
-
-  const resolvedPagePaths = explodedPages
-    .filter(page => page.resolved)
-    .map(page => '/' + path.relative(pagesDir, page.resolved!))
-  return resolvedPagePaths.sort()
-}
+import { collectPages, printTreeView, getSpecifiedPages } from './utils'
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -119,13 +37,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distDir = path.join(dir, config.distDir)
   const pagesDir = path.join(dir, 'pages')
 
+  const flyingShuttle = Boolean(config.experimental.flyingShuttle)
   const selectivePageBuilding = Boolean(
-    config.experimental.flyingShuttle ||
-      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+    flyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
   if (selectivePageBuilding && config.target !== 'serverless') {
-    throw new Error('Cannot use flying shuttle without the serverless target.')
+    throw new Error(
+      `Cannot use ${
+        flyingShuttle ? 'flying shuttle' : '`now dev`'
+      } without the serverless target.`
+    )
   }
 
   let pagePaths

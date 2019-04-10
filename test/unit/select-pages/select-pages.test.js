@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { getSpecifiedPages as _getSpecifiedPages } from 'next/dist/build'
+import { getSpecifiedPages as _getSpecifiedPages } from 'next/dist/build/utils'
 
 const getSpecifiedPages = async (...args) =>
   (await _getSpecifiedPages(...args)).map(pg => pg.replace(/\\+/g, '/'))
