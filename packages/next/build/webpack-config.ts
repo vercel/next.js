@@ -22,7 +22,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { isServer, cwd: dir }
+      options: { isServer, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -226,6 +226,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       rules: [
         selectivePageBuilding && !isServer && {
           test: /\.(js|mjs|jsx)$/,
+          exclude: /\.min\.(js|mjs|jsx)$/,
           use: {
             loader: 'next-minify-loader',
             options: { terserOptions: { safari10: true, compress: true, mangle: false } }
