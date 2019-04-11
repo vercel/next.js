@@ -59,17 +59,17 @@ describe('getPagePath', () => {
 
 describe('requirePage', () => {
   it('Should require /index.js when using /', async () => {
-    const page = (await requirePage('/', distDir)).mod
+    const page = (await requirePage('/', distDir))
     expect(page.test).toBe('hello')
   })
 
   it('Should require /index.js when using /index', async () => {
-    const page = (await requirePage('/index', distDir)).mod
+    const page = (await requirePage('/index', distDir))
     expect(page.test).toBe('hello')
   })
 
   it('Should require /world.js when using /world', async () => {
-    const page = (await requirePage('/world', distDir)).mod
+    const page = (await requirePage('/world', distDir))
     expect(page.test).toBe('world')
   })
 

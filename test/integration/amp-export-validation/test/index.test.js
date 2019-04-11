@@ -35,7 +35,7 @@ describe('AMP Validation on Export', () => {
   })
 
   it('should disable dirty AMP with noDirtyAmp set', async () => {
-    nextConfig.replace(`amp: true`, `amp: true,noDirtyAmp: true`)
+    nextConfig.replace(`// exportPathMap`, `experimental: { noDirtyAmp: true } `)
     await nextExport(appDir, { outdir: outDir })
     const ampOnly = ['first', 'second', 'third']
     await Promise.all(ampOnly.map(async page => {
@@ -50,7 +50,7 @@ describe('AMP Validation on Export', () => {
     nextConfig.replace('// exportPathMap',
       `exportPathMap: function(defaultMap) {
       return {
-        '/cat': defaultMap['/cat.amp'],
+        '/cat': { page: '/cat', query: { amp: 1 } },
       }
     },`)
 
@@ -67,7 +67,7 @@ describe('AMP Validation on Export', () => {
     nextConfig.replace('// exportPathMap',
       `exportPathMap: function(defaultMap) {
       return {
-        '/dog': defaultMap['/dog.amp'],
+        '/dog': { page: '/dog', query: { amp: 1 }},
       }
     },`)
 
@@ -84,7 +84,7 @@ describe('AMP Validation on Export', () => {
     nextConfig.replace('// exportPathMap',
       `exportPathMap: function(defaultMap) {
       return {
-        '/dog-cat': defaultMap['/dog-cat.amp'],
+        '/dog-cat': { page: '/dog-cat', query: { amp: 1 } },
       }
     },`)
 
