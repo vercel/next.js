@@ -14,6 +14,7 @@ export function getPagePath(page: string, distDir: string): string {
 
   try {
     page = normalizePagePath(page)
+    page = page === '/' ? '/index' : page
   } catch (err) {
     // tslint:disable-next-line
     console.error(err)
@@ -27,7 +28,7 @@ export function getPagePath(page: string, distDir: string): string {
   return join(serverBuildPath, pagesManifest[page])
 }
 
-export default function requirePage(page: string, distDir: string): any {
+export function requirePage(page: string, distDir: string): any {
   const pagePath = getPagePath(page, distDir)
   return require(pagePath)
 }
