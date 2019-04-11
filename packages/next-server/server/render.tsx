@@ -436,7 +436,8 @@ export async function renderToHTML(
   if (amphtml && html) {
     html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
 
-    if (renderOpts.ampValidator) {
+    // don't validate dirty AMP
+    if (renderOpts.ampValidator && query.amp) {
       await renderOpts.ampValidator(html, pathname)
     }
   }

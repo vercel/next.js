@@ -32,7 +32,7 @@ process.on(
     try {
       const work = async path => {
         await sema.acquire()
-        const ampPath = `${path}.amp`
+        const ampPath = `${path === '/' ? '/index' : path}.amp`
         const { page, query = {} } = exportPathMap[path]
         delete query.ampOnly
         delete query.hasAmp

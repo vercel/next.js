@@ -1,15 +1,18 @@
 import React from 'react'
 import {AmpModeContext} from './amphtml-context'
 
-export function isAmp({ enabled= false} = {}) {
-  return enabled
+export function isAmp({
+  enabled= false,
+  hybrid= false,
+  hasQuery= false,
+} = {}) {
+  return enabled && (!hybrid || (hybrid && hasQuery))
 }
 
 export function useAmp() {
   const ampMode = React.useContext(AmpModeContext)
-  const { hybrid, hasQuery } = ampMode
-  // this returns false for dirty AMP
-  return isAmp(ampMode) && (!hybrid || (hybrid && hasQuery))
+  // un-comment below to not be considered AMP in dirty mode
+  return isAmp(ampMode) // && ampMode.hasQuery
 }
 
 export function withAmp(
