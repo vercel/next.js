@@ -27,58 +27,51 @@ function buildManifest (compiler, compilation) {
   let context = compiler.options.context
   let manifest = {}
 
-  compilation.chunks.forEach(chunk => {
-    // If chunk is not an entry point skip them
-    if (chunk.hasEntryModule()) {
-      const dynamicChunks = chunk.getAllAsyncChunks()
-      if (dynamicChunks.size !== 0) {
-        for (const dynamicChunk of dynamicChunks) {
-          for (const file of dynamicChunk.files) {
-            // If it doesn't end in `.js` Next.js can't handle it right now.
-            if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+  compilation.chunkGroups.forEach(chunkGroup => {
+    if (chunkGroup.isInitial()) {
+      return
+    }
+
+    chunkGroup.origins.forEach(chunkGroupOrigin => {
+      const { request } = chunkGroupOrigin
+
+      chunkGroup.chunks.forEach(chunk => {
+        chunk.files.forEach(file => {
+          if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+            return
+          }
+
+          let publicPath = url.resolve(
+            compilation.outputOptions.publicPath || '',
+            file
+          )
+
+          for (const module of chunk.modulesIterable) {
+            let id = module.id
+            let name =
+              typeof module.libIdent === 'function'
+                ? module.libIdent({ context })
+                : null
+
+            if (!manifest[request]) {
+              manifest[request] = []
+            }
+
+            // Avoid duplicate files
+            if (manifest[request].some(item => item.file === file)) {
               continue
             }
 
-            let publicPath = url.resolve(
-              compilation.outputOptions.publicPath || '',
-              file
-            )
-
-            for (const module of dynamicChunk.modulesIterable) {
-              let id = module.id
-              let name =
-                typeof module.libIdent === 'function'
-                  ? module.libIdent({ context })
-                  : null
-
-              let currentModule = module
-              if (module.constructor.name === 'ConcatenatedModule') {
-                currentModule = module.rootModule
-              }
-              if (!manifest[currentModule.rawRequest]) {
-                manifest[currentModule.rawRequest] = []
-              }
-
-              // Avoid duplicate files
-              if (
-                manifest[currentModule.rawRequest].some(
-                  item => item.file === file
-                )
-              ) {
-                continue
-              }
-
-              manifest[currentModule.rawRequest].push({
-                id,
-                name,
-                file,
-                publicPath
-              })
-            }
+            manifest[request].push({
+              id,
+              name,
+              file,
+              publicPath
+            })
           }
-        }
-      }
-    }
+        })
+      })
+    })
   })
 
   manifest = Object.keys(manifest)
