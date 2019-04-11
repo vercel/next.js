@@ -61,14 +61,16 @@ module.exports = babelLoader.custom(babel => {
       if (asyncToPromises) {
         const asyncToPromisesPlugin = babel.createConfigItem(['babel-plugin-transform-async-to-promises', {
           inlineHelpers: true
-        }])
+        }], { type: 'plugin' })
         options.plugins = options.plugins || []
         options.plugins.push(asyncToPromisesPlugin)
 
         const regeneratorPlugin = options.plugins.find(plugin => {
           return plugin[0] === require('@babel/plugin-transform-runtime')
         })
-        regeneratorPlugin[1].regenerator = false
+        if (regeneratorPlugin) {
+          regeneratorPlugin[1].regenerator = false
+        }
 
         const babelPresetEnv = (options.presets || []).find((preset = []) => {
           return preset[0] === require('@babel/preset-env').default
@@ -79,6 +81,7 @@ module.exports = babelLoader.custom(babel => {
             'transform-regenerator',
             'transform-async-to-generator'
           ])
+            .filter('transform-typeof-symbol')
         }
       }
 

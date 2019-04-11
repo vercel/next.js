@@ -58,6 +58,7 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
+    exclude: ['transform-typeof-symbol'],
     ...options['preset-env']
   }
   return {
