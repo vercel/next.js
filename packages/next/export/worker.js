@@ -25,6 +25,7 @@ process.on(
     exportPathMap,
     outDir,
     renderOpts,
+    noDirtyAmp,
     serverRuntimeConfig,
     concurrency
   }) => {
@@ -86,9 +87,12 @@ process.on(
         }
 
         if (curRenderOpts.amphtml && query.amp) {
-          await validateAmp(path)
+          await validateAmp(html, path)
         }
-        if ((curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp) {
+        if (
+          (curRenderOpts.amphtml && !query.amp && !noDirtyAmp) ||
+          curRenderOpts.hasAmp
+        ) {
           // we need to render a clean AMP version
           const ampHtmlFilename = `${ampPath}${sep}index.html`
           const ampBaseDir = join(outDir, dirname(ampHtmlFilename))

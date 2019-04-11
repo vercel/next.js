@@ -94,7 +94,8 @@ export default async function (dir, options, configuration) {
     distDir,
     dev: false,
     staticMarkup: false,
-    hotReloader: null
+    hotReloader: null,
+    noDirtyAmp: nextConfig.experimental.noDirtyAmp
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
