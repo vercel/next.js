@@ -83,7 +83,7 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
       [require('@babel/plugin-transform-runtime'), {
         corejs: 2,
         helpers: true,
-        regenerator: false,
+        regenerator: true,
         useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
         ...options['transform-runtime']
       }],

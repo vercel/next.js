@@ -32,6 +32,7 @@ module.exports = babelLoader.custom(babel => {
       }, opts)
 
       delete loader.isServer
+      delete loader.asyncToPromises
       return { loader, custom }
     },
     config (cfg, { source, customOptions: { isServer, asyncToPromises } }) {
@@ -64,11 +65,16 @@ module.exports = babelLoader.custom(babel => {
         options.plugins = options.plugins || []
         options.plugins.push(asyncToPromisesPlugin)
 
+        const regeneratorPlugin = options.plugins.find(plugin => {
+          return plugin[0] === require('@babel/plugin-transform-runtime')
+        })
+        regeneratorPlugin[1].regenerator = false
+
         const babelPresetEnv = (options.presets || []).find((preset = []) => {
           return preset[0] === require('@babel/preset-env').default
         })
         if (babelPresetEnv) {
-          babelPresetEnv.exclude = (options.presets[0][1].exclude || []).concat([
+          babelPresetEnv[1].exclude = (options.presets[0][1].exclude || []).concat([
             'transform-typeof-symbol',
             'transform-regenerator',
             'transform-async-to-generator'
