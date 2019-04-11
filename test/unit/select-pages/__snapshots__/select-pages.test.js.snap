@@ -1,29 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`getSpecifiedPages should filter pages 1`] = `
-Array [
-  "/_app.js",
-  "/_document.js",
-]
-`;
-
-exports[`getSpecifiedPages should filter pages 2`] = `
-Array [
-  "/_app.js",
-  "/_document.js",
-  "/b.jsx",
-  "/c/index.mdx",
-]
-`;
-
-exports[`getSpecifiedPages should filter pages 3`] = `
-Array [
-  "/_app.js",
-  "/_document.js",
-  "/b.jsx",
-]
-`;
-
 exports[`getSpecifiedPages should only choose selected 1`] = `
 Array [
   "/_app.js",
@@ -51,24 +27,6 @@ Array [
 `;
 
 exports[`getSpecifiedPages should only choose selected 4`] = `
-Array [
-  "/_app.js",
-  "/_document.js",
-  "/a.js",
-  "/b.jsx",
-  "/c/index.mdx",
-]
-`;
-
-exports[`getSpecifiedPages should select all 1`] = `
-Array [
-  "/_app.js",
-  "/_document.js",
-  "/a.js",
-]
-`;
-
-exports[`getSpecifiedPages should select all 2`] = `
 Array [
   "/_app.js",
   "/_document.js",

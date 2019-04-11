@@ -391,12 +391,12 @@ export default class HotReloader {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
-  async ensurePage (page, amp, ampEnabled) {
+  async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    return this.onDemandEntries.ensurePage(page, amp, ampEnabled)
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 

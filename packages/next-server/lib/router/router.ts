@@ -75,6 +75,14 @@ export default class Router implements IRouterInterface {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
+      window.addEventListener('unload', () => {
+        // Workaround for popstate firing on initial page load when
+        // navigating back from an external site
+        if (history.state) {
+          const { url, as, options }: any = history.state
+          this.changeState('replaceState', url, as, { ...options, fromExternal: true })
+        }
+      })
     }
   }
 
@@ -103,6 +111,12 @@ export default class Router implements IRouterInterface {
       // So, doing the following for (1) does no harm.
       const { pathname, query } = this
       this.changeState('replaceState', formatWithValidation({ pathname, query }), getURL())
+      return
+    }
+
+    // Make sure we don't re-render on initial load,
+    // can be caused by navigating back from an external site
+    if (e.state.options && e.state.options.fromExternal) {
       return
     }
 

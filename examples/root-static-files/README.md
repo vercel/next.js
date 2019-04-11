@@ -33,7 +33,13 @@ yarn
 yarn dev
 ```
 
-Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
+### Serverless
+
+With now version 2, using a custom server to route files from the static folder is no longer necessary.
+
+Simply adjust your `now.json` (similar to in this example) by using the [routes configuration](https://zeit.co/docs/v2/deployments/configuration/#routes).
+
+Afterwards, deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
 now
@@ -41,4 +47,4 @@ now
 
 ## The idea behind the example
 
-This example demonstrates how to serve files such as /robots.txt and /sitemap.xml from the root.
+This example demonstrates how to serve files such as /robots.txt and /sitemap.xml from the root in both a serverless and non-serverless environment.
