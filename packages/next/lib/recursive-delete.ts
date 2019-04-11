@@ -12,7 +12,13 @@ const unlinkFile = async (p: string, t = 1): Promise<void> => {
   try {
     await unlink(p)
   } catch (e) {
-    if ((e.code === 'EBUSY' || e.code === 'ENOTEMPTY' || e.code === 'EPERM' || e.code === 'EMFILE') && t < 3) {
+    if (
+      (e.code === 'EBUSY' ||
+        e.code === 'ENOTEMPTY' ||
+        e.code === 'EPERM' ||
+        e.code === 'EMFILE') &&
+      t < 3
+    ) {
       await sleep(t * 100)
       return unlinkFile(p, t++)
     }
@@ -28,34 +34,50 @@ const unlinkFile = async (p: string, t = 1): Promise<void> => {
 /**
  * Recursively delete directory contents
  * @param  {string} dir Directory to delete the contents of
- * @param  {RegExp} filter Filter for the file name, only the name part is considered, not the full path
- * @param  {boolean} ensure Esures that parameter dir exists, this is not passed recursively
+ * @param  {RegExp} [filter] Filter for the relative file path
+ * @param  {boolean} [ensure] Esures that parameter dir exists, this is not passed recursively
+ * @param  {string} [previousPath] Esures that parameter dir exists, this is not passed recursively
  * @returns Promise void
  */
-export async function recursiveDelete(dir: string, filter?: RegExp, ensure?: boolean): Promise<void> {
+export async function recursiveDelete(
+  dir: string,
+  filter?: RegExp,
+  previousPath: string = '',
+  ensure?: boolean,
+): Promise<void> {
   let result
   try {
     result = await readdir(dir)
   } catch (e) {
-    if (e.code === 'ENOENT' && !ensure) return
-
+    if (e.code === 'ENOENT' && !ensure) {
+      return
+    }
     throw e
   }
 
-  await Promise.all(result.map(async (part: string) => {
-    const absolutePath = join(dir, part)
-    const pathStat = await stat(absolutePath).catch((e) => {
-      if (e.code !== 'ENOENT') throw e
-    })
-    if (!pathStat) return
+  await Promise.all(
+    result.map(async (part: string) => {
+      const absolutePath = join(dir, part)
+      const pathStat = await stat(absolutePath).catch((e) => {
+        if (e.code !== 'ENOENT') throw e
+      })
+      if (!pathStat) {
+        return
+      }
 
-    if (pathStat.isDirectory()) {
-      await recursiveDelete(absolutePath, filter)
-      return rmdir(absolutePath)
-    }
+      if (pathStat.isDirectory()) {
+        const pp = join(previousPath, part)
+        await recursiveDelete(absolutePath, filter, pp)
 
-    if (!filter || filter.test(part)) {
-      return unlinkFile(absolutePath)
-    }
-  }))
+        if (!filter || filter.test(pp)) {
+          return rmdir(absolutePath)
+        }
+        return
+      }
+
+      if (!filter || filter.test(join(previousPath, part))) {
+        return unlinkFile(absolutePath)
+      }
+    }),
+  )
 }
