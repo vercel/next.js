@@ -413,6 +413,9 @@ export async function renderToHTML(
   const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
   const amphtml = isAmp(ampMode)
   const hasAmp = !amphtml && ampMode.enabled
+  // update renderOpts so export knows it's AMP
+  renderOpts.amphtml = amphtml
+  renderOpts.hasAmp = hasAmp
 
   let html = renderDocument(Document, {
     ...renderOpts,

@@ -24,15 +24,3 @@ export function cleanAmpPath(pathname: string): string {
     .replace(/\.amp$/, '')
     .replace(/\index$/, '')
 }
-
-export function isAmpPath(pathname: string): boolean {
-  return (pathname || '').endsWith('.amp')
-}
-
-export function isAmpFile(pathname: string): boolean {
-  if (isAmpPath(pathname)) return true
-  pathname = pathname || ''
-  const parts = pathname.split('.')
-  parts.pop() // remove extension
-  return isAmpPath(parts.join('.'))
-}
