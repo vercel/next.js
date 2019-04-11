@@ -22,7 +22,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { isServer, cwd: dir }
+      options: { isServer, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
     },
     // Backwards compat
     hotSelfAccept: {

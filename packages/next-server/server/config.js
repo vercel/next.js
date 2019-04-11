@@ -31,7 +31,8 @@ const defaultConfig = {
     ampBindInitData: false,
     exportTrailingSlash: true,
     profiling: false,
-    flyingShuttle: false
+    flyingShuttle: false,
+    asyncToPromises: false
   }
 }
 

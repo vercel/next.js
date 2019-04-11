@@ -76,9 +76,6 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
       }]
     ],
     plugins: [
-      ['babel-plugin-transform-async-to-promises', {
-        inlineHelpers: true
-      }],
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
       // Transform dynamic import to require

@@ -15,7 +15,8 @@ module.exports = babelLoader.custom(babel => {
   return {
     customOptions (opts) {
       const custom = {
-        isServer: opts.isServer
+        isServer: opts.isServer,
+        asyncToPromises: opts.asyncToPromises
       }
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign({
@@ -33,7 +34,7 @@ module.exports = babelLoader.custom(babel => {
       delete loader.isServer
       return { loader, custom }
     },
-    config (cfg, { source, customOptions: { isServer } }) {
+    config (cfg, { source, customOptions: { isServer, asyncToPromises } }) {
       const filename = this.resourcePath
       const options = Object.assign({}, cfg.options)
       if (cfg.hasFilesystemConfig()) {
@@ -54,6 +55,14 @@ module.exports = babelLoader.custom(babel => {
         const nextDataPlugin = babel.createConfigItem([require('../../babel/plugins/next-data'), { key: basename(filename) + '-' + hash(filename) }], { type: 'plugin' })
         options.plugins = options.plugins || []
         options.plugins.push(nextDataPlugin)
+      }
+
+      if (asyncToPromises) {
+        const asyncToPromisesPlugin = babel.createConfigItem(['babel-plugin-transform-async-to-promises', {
+          inlineHelpers: true
+        }])
+        options.plugins = options.plugins || []
+        options.plugins.push(asyncToPromisesPlugin)
       }
 
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
