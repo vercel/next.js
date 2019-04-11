@@ -8,7 +8,11 @@ const babelOpts = {
       'targets': {
         'browsers': ['IE 11']
       },
-      exclude: ['transform-typeof-symbol']
+      exclude: [
+        'transform-typeof-symbol',
+        'transform-regenerator',
+        'transform-async-to-generator'
+      ]
     }]
   ],
   plugins: [
@@ -19,7 +23,8 @@ const babelOpts = {
       useESModules: false
     }],
     ['babel-plugin-transform-async-to-promises', {
-      inlineHelpers: true
+      inlineHelpers: true,
+      externalHelpers: true
     }]
   ]
 }

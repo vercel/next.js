@@ -72,12 +72,14 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
         // This adds @babel/plugin-transform-react-jsx-source and
         // @babel/plugin-transform-react-jsx-self automatically in development
         development: isDevelopment || isTest,
+        useBuiltIns: true,
         ...options['preset-react']
       }]
     ],
     plugins: [
       ['babel-plugin-transform-async-to-promises', {
-        inlineHelpers: true
+        inlineHelpers: true,
+        externalHelpers: true
       }],
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
