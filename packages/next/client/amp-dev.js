@@ -37,8 +37,10 @@ async function tryApplyUpdates () {
   try {
     const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
     const data = await res.json()
+    const curPage = page === '/' ? 'index' : page
     const pageUpdated = Object.keys(data.c)
-      .some(mod => mod.indexOf(page) !== -1)
+      .some(mod => mod.indexOf(`pages/${curPage}`) !== -1)
+
     if (pageUpdated) {
       window.location.reload()
     } else {
