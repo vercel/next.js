@@ -63,6 +63,17 @@ module.exports = babelLoader.custom(babel => {
         }])
         options.plugins = options.plugins || []
         options.plugins.push(asyncToPromisesPlugin)
+
+        const babelPresetEnv = (options.presets || []).find((preset = []) => {
+          return preset[0] === require('@babel/preset-env').default
+        })
+        if (babelPresetEnv) {
+          babelPresetEnv.exclude = (options.presets[0][1].exclude || []).concat([
+            'transform-typeof-symbol',
+            'transform-regenerator',
+            'transform-async-to-generator'
+          ])
+        }
       }
 
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
