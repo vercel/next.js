@@ -1,7 +1,20 @@
-import { Compiler, Plugin } from 'webpack'
 import { createHash } from 'crypto'
-import escapeRegex from 'escape-string-regexp'
 import path from 'path'
+import { Compiler, Plugin } from 'webpack'
+
+/**
+ * From escape-string-regexp: https://github.com/sindresorhus/escape-string-regexp
+ * brought here to reduce the bundle size
+ * MIT License
+ * Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
+ */
+const matchOperatorsRe = /[|\\{}()[\]^$+*?.]/g
+const escapeRegex = (str: string) => {
+  if (typeof str !== 'string') {
+    throw new TypeError('Expected a string')
+  }
+  return str.replace(matchOperatorsRe, '\\$&')
+}
 
 function getRawModuleIdentifier(m: any, dir: string) {
   // webpack impl:
@@ -25,7 +38,7 @@ function getRawModuleIdentifier(m: any, dir: string) {
 
   const identifier = `${context}::${request}`
   console.warn(
-    `[module identifier] RawModule ${m.identifier()} => ${identifier}`
+    `> module identifier: RawModule ${m.identifier()} => ${identifier}`
   )
   return identifier
 }
@@ -45,7 +58,7 @@ function getMultiModuleIdentifier(m: any) {
 
   const identifier = ids.sort().join('::')
   console.warn(
-    `[module identifier] MultiModule ${m.identifier()} => ${identifier}`
+    `> module identifier: MultiModule ${m.identifier()} => ${identifier}`
   )
   return identifier
 }

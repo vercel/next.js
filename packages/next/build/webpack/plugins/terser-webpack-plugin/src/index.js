@@ -1,7 +1,7 @@
 /* eslint-disable
   no-param-reassign
 */
-import murmur from 'imurmurhash';
+import stringHash from 'string-hash'
 import { SourceMapConsumer } from 'source-map';
 import { SourceMapSource, RawSource } from 'webpack-sources';
 import RequestShortener from 'webpack/lib/RequestShortener';
@@ -26,12 +26,7 @@ export class TerserPlugin {
       warningsFilter,
       sourceMap,
       cache,
-      terserOptions: {
-        output: {
-          comments: /^\**!|@preserve|@license|@cc_on/i,
-        },
-        ...terserOptions,
-      },
+      terserOptions: terserOptions,
     };
   }
 
@@ -181,7 +176,7 @@ export class TerserPlugin {
 
             if (this.options.cache) {
               // increment 'a' to invalidate previous caches from different options
-              task.cacheKey = 'a' + murmur(input).result()
+              task.cacheKey = 'a' + stringHash(input)
               if (this.options.sourceMap) task.cacheKey += 's'
             }
 

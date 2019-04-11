@@ -1,6 +1,9 @@
-import babelLoader from 'babel-loader'
 import hash from 'string-hash'
-import { basename } from 'path'
+import { join, basename } from 'path'
+import babelLoader from 'babel-loader'
+
+// increment 'a' to invalidate cache
+const cacheKey = 'babel-cache-' + 'a' + '-'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
@@ -14,12 +17,20 @@ module.exports = babelLoader.custom(babel => {
       const custom = {
         isServer: opts.isServer
       }
+      const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign({
         cacheCompression: false,
-        cacheDirectory: true
+        cacheDirectory: true,
+        cacheIdentifier: cacheKey + JSON.stringify(
+          babel.loadPartialConfig({
+            filename,
+            cwd: opts.cwd,
+            sourceFileName: filename
+          }).options
+        )
       }, opts)
-      delete loader.isServer
 
+      delete loader.isServer
       return { loader, custom }
     },
     config (cfg, { source, customOptions: { isServer } }) {
