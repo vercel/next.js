@@ -85,12 +85,13 @@ class Link extends Component {
     }
 
     // replace state instead of push if prop is present
-    Router[this.props.replace ? 'replace' : 'push'](href, as, { shallow: this.props.shallow })
+    Router[this.props.replace ? 'replace' : 'push'](href, as, { shallow: this.props.shallow }, true)
       .then((success) => {
         if (!success) return
         if (scroll) {
           window.scrollTo(0, 0)
           document.body.focus()
+          success()
         }
       })
       .catch((err) => {

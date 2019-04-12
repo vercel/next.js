@@ -195,15 +195,15 @@ export default class Router implements IRouterInterface {
     window.history.back()
   }
 
-  push(url: string, as: string = url, options = {}) {
-    return this.change('pushState', url, as, options)
+  push(url: string, as: string = url, options = {}, link= false) {
+    return this.change('pushState', url, as, options, link)
   }
 
-  replace(url: string, as: string = url, options = {}) {
-    return this.change('replaceState', url, as, options)
+  replace(url: string, as: string = url, options = {}, link= false) {
+    return this.change('replaceState', url, as, options, link)
   }
 
-  change(method: string, _url: string, _as: string, options: any): Promise<boolean> {
+  change(method: string, _url: string, _as: string, options: any, link: boolean): Promise<any> {
     return new Promise((resolve, reject) => {
       // If url and as provided as an object representation,
       // we'll format them into the string version here.
@@ -261,16 +261,31 @@ export default class Router implements IRouterInterface {
         this.changeState(method, url, as, options)
         const hash = window.location.hash.substring(1)
 
-        // @ts-ignore pathname is always defined
-        this.set(route, pathname, query, as, { ...routeInfo, hash })
+        // if link component was clicked else next/Router was used
+        if (link) {
+          return resolve(() => {
+            // @ts-ignore pathname is always defined
+            this.set(route, pathname, query, as, { ...routeInfo, hash })
 
-        if (error) {
-          Router.events.emit('routeChangeError', error, as)
-          throw error
+            if (error) {
+              Router.events.emit('routeChangeError', error, as)
+              throw error
+            }
+
+            Router.events.emit('routeChangeComplete', as)
+          })
+        } else {
+          // @ts-ignore pathname is always defined
+          this.set(route, pathname, query, as, { ...routeInfo, hash })
+
+          if (error) {
+            Router.events.emit('routeChangeError', error, as)
+            throw error
+          }
+
+          Router.events.emit('routeChangeComplete', as)
+          return resolve(true)
         }
-
-        Router.events.emit('routeChangeComplete', as)
-        return resolve(true)
       }, reject)
     })
   }
