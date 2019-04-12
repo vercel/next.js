@@ -34,7 +34,6 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-typescript.js",
       "./taskfile-ncc.js",
       "./taskfile-babel.js"
     ]
@@ -93,6 +92,7 @@
   },
   "devDependencies": {
     "@babel/parser": "7.2.0",
+    "@babel/preset-typescript": "7.3.3",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
