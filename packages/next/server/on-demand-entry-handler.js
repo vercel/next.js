@@ -206,7 +206,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    async ensurePage (page, amp, ampEnabled) {
+    async ensurePage (page) {
       await this.waitUntilReloaded()
       let normalizedPagePath
       try {
@@ -216,8 +216,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions, amp, ampEnabled)
-      const isAmp = pagePath && pageExtensions.some(ext => pagePath.endsWith('amp.' + ext))
+      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions)
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -235,13 +234,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       page = posix.normalize(pageUrl)
-      const result = {
-        isAmp,
-        pathname: page,
-        hasAmp: !isAmp && await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled)
-      }
 
-      await new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
         const normalizedPage = normalizePage(page)
         const entryInfo = entries[normalizedPage]
@@ -270,8 +264,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           resolve()
         }
       })
-
-      return result
     },
 
     middleware () {

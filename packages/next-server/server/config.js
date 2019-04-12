@@ -21,7 +21,6 @@ const defaultConfig = {
     pagesBufferLength: 2
   },
   experimental: {
-    amp: false,
     noDirtyAmp: false,
     cpus: Math.max(
       1,
@@ -31,7 +30,8 @@ const defaultConfig = {
     ampBindInitData: false,
     exportTrailingSlash: true,
     profiling: false,
-    flyingShuttle: false
+    flyingShuttle: false,
+    asyncToPromises: false
   }
 }
 

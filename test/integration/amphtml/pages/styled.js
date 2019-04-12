@@ -1,7 +1,8 @@
 import Foo from '../components/Foo'
 import Bar from '../components/Bar'
+import { withAmp } from 'next/amp'
 
-export default () => (
+export default withAmp(() => (
   <div>
     <Foo />
     <Bar />
@@ -11,4 +12,4 @@ export default () => (
       }
     `}</style>
   </div>
-)
+))
