@@ -205,7 +205,7 @@ function renderDocument(
           dynamicImports={dynamicImports}
           assetPrefix={assetPrefix}
           {...docProps}
-        />,
+        />
       </AmpModeContext.Provider>,
     )
   )
