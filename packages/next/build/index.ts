@@ -74,7 +74,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
     console.log()
 
-    await recursiveDelete(distDir)
+    await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
 
     flyingShuttle = new FlyingShuttle({
       buildId,

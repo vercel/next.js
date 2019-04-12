@@ -13,15 +13,15 @@ import { RequestContext } from '../lib/request-context'
 import {LoadableContext} from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
-
 import {
+  ManifestItem,
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
-  ManifestItem,
 } from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
-import { IsAmpContext } from '../lib/amphtml-context'
+import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
+import { isAmp } from '../lib/amp';
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer =
@@ -113,7 +113,6 @@ function render(
 }
 
 type RenderOpts = {
-  ampEnabled: boolean
   noDirtyAmp: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
@@ -134,13 +133,13 @@ type RenderOpts = {
   Document: React.ComponentType
   App: React.ComponentType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
+  ampValidator?: (html: string, pathname: string) => Promise<void>,
 }
 
 function renderDocument(
   Document: React.ComponentType,
   {
     dataManagerData,
-    ampEnabled = false,
     props,
     docProps,
     pathname,
@@ -178,34 +177,31 @@ function renderDocument(
   return (
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
-      <IsAmpContext.Provider value={amphtml}>
-        <Document
-          __NEXT_DATA__={{
-            dataManager: dataManagerData,
-            props, // The result of getInitialProps
-            page: pathname, // The rendered page
-            query, // querystring parsed / passed by the user
-            buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-            dynamicBuildId, // Specifies if the buildId should by dynamically fetched
-            assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-            runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-            nextExport, // If this is a page exported by `next export`
-            dynamicIds:
-            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-            err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-          }}
-          ampEnabled={ampEnabled}
-          ampPath={ampPath}
-          amphtml={amphtml}
-          hasAmp={hasAmp}
-          staticMarkup={staticMarkup}
-          devFiles={devFiles}
-          files={files}
-          dynamicImports={dynamicImports}
-          assetPrefix={assetPrefix}
-          {...docProps}
-        />
-      </IsAmpContext.Provider>,
+      <Document
+        __NEXT_DATA__={{
+          dataManager: dataManagerData,
+          props, // The result of getInitialProps
+          page: pathname, // The rendered page
+          query, // querystring parsed / passed by the user
+          buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+          dynamicBuildId, // Specifies if the buildId should by dynamically fetched
+          assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+          runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+          nextExport, // If this is a page exported by `next export`
+          dynamicIds:
+          dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+          err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+        }}
+        ampPath={ampPath}
+        amphtml={amphtml}
+        hasAmp={hasAmp}
+        staticMarkup={staticMarkup}
+        devFiles={devFiles}
+        files={files}
+        dynamicImports={dynamicImports}
+        assetPrefix={assetPrefix}
+        {...docProps}
+      />,
     )
   )
 }
@@ -224,8 +220,6 @@ export async function renderToHTML(
     ampBindInitData = false,
     staticMarkup = false,
     noDirtyAmp = false,
-    amphtml = false,
-    hasAmp = false,
     ampPath = '',
     App,
     Document,
@@ -306,6 +300,11 @@ export async function renderToHTML(
 
   let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
 
+  const ampMode = {
+    enabled: false,
+    hasQuery: Boolean(query.amp),
+  }
+
   if (ampBindInitData) {
     renderPage = async (
       options: ComponentsEnhancer = {},
@@ -321,7 +320,7 @@ export async function renderToHTML(
       const Application = () => <RequestContext.Provider value={req}>
         <RouterContext.Provider value={router}>
           <DataManagerContext.Provider value={dataManager}>
-            <IsAmpContext.Provider value={amphtml}>
+            <AmpModeContext.Provider value={ampMode}>
               <LoadableContext.Provider
                 value={(moduleName) => reactLoadableModules.push(moduleName)}
               >
@@ -331,7 +330,7 @@ export async function renderToHTML(
                   {...props}
                 />
               </LoadableContext.Provider>
-            </IsAmpContext.Provider>
+            </AmpModeContext.Provider>
           </DataManagerContext.Provider>
         </RouterContext.Provider>
       </RequestContext.Provider>
@@ -378,7 +377,7 @@ export async function renderToHTML(
         renderElementToString,
         <RequestContext.Provider value={req}>
           <RouterContext.Provider value={router}>
-            <IsAmpContext.Provider value={amphtml}>
+            <AmpModeContext.Provider value={ampMode}>
               <LoadableContext.Provider
                 value={(moduleName) => reactLoadableModules.push(moduleName)}
               >
@@ -388,7 +387,7 @@ export async function renderToHTML(
                   {...props}
                 />
               </LoadableContext.Provider>
-            </IsAmpContext.Provider>
+            </AmpModeContext.Provider>
           </RouterContext.Provider>
         </RequestContext.Provider>,
       )
@@ -412,6 +411,11 @@ export async function renderToHTML(
     ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
   ]
   const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
+  const amphtml = isAmp(ampMode)
+  const hasAmp = !amphtml && ampMode.enabled
+  // update renderOpts so export knows it's AMP
+  renderOpts.amphtml = amphtml
+  renderOpts.hasAmp = hasAmp
 
   let html = renderDocument(Document, {
     ...renderOpts,
@@ -429,8 +433,13 @@ export async function renderToHTML(
     devFiles,
   })
 
-  if (!dev && amphtml && html) {
+  if (amphtml && html) {
     html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+
+    // don't validate dirty AMP
+    if (renderOpts.ampValidator && query.amp) {
+      await renderOpts.ampValidator(html, pathname)
+    }
   }
   return html
 }

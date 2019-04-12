@@ -1,8 +1,8 @@
 import Head from 'next/head'
-import { useAmp } from 'next/amp'
+import { useAmp, withAmp } from 'next/amp'
 import Byline from '../components/Byline'
 
-export default () => {
+export default withAmp(() => {
   const isAmp = useAmp()
 
   return (
@@ -87,4 +87,4 @@ export default () => {
       </p>
     </div>
   )
-}
+}, { hybrid: true })

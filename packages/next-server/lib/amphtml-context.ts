@@ -1,3 +1,3 @@
 import * as React from 'react'
 
-export const IsAmpContext: React.Context<any> = React.createContext(false)
+export const AmpModeContext: React.Context<any> = React.createContext({})
