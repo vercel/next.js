@@ -6,7 +6,7 @@ import BlueLayout from '../layouts/BlueLayout'
 const BluePage = () => {
   return (
     <p>
-      This is the <strong style={{ color: 'blue' }}>Blue</strong> page, it's
+      This is the <strong style={{ color: 'blue' }}>Blue</strong> ${"page, it's"}
       borders are blue
       <br />
       <br />
