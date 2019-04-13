@@ -16,7 +16,7 @@ const Social = () => {
           <Input controlLabel='Twitter' title='social' name='twitter' />
         </Col>
         <Col lg={8}>
-          <Input controlLabel='Github' title='social' name='github' />
+          <Input controlLabel='GitHub' title='social' name='github' />
         </Col>
       </Row>
     </div>
