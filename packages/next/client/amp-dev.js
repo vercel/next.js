@@ -49,6 +49,7 @@ async function tryApplyUpdates () {
     }
   } catch (err) {
     console.error('Error occurred checking for update', err)
+    document.location.reload(true)
   }
 }
 
