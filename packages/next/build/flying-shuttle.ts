@@ -1,6 +1,5 @@
 import Sema from 'async-sema'
 import crypto from 'crypto'
-import findCacheDir from 'find-cache-dir'
 import fs from 'fs'
 import mkdirpModule from 'mkdirp'
 import { CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
@@ -55,10 +54,13 @@ export class FlyingShuttle {
     distDirectory: string
     cacheIdentifier: string
   }) {
-    this.shuttleDirectory = findCacheDir({
-      name: 'next-flying-shuttle',
-      create: true,
-    })!
+    mkdirpModule.sync(
+      (this.shuttleDirectory = path.join(
+        distDirectory,
+        'cache',
+        'next-flying-shuttle'
+      ))
+    )
 
     this.buildId = buildId
     this.pagesDirectory = pagesDirectory

@@ -186,12 +186,20 @@ export class Head extends Component {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
-      } else if (type === 'script' && !(props.src && props.src.indexOf('ampproject') > -1)) {
-        badProp = '<script'
-        Object.keys(props).forEach(prop => {
-          badProp += ` ${prop}="${props[prop]}"`
-        })
-        badProp += '/>'
+      } else if (type === 'script') {
+        // only block if 
+        // 1. it has a src and isn't pointing to ampproject's CDN
+        // 2. it is using dangerouslySetInnerHTML without a type or
+        // a type of text/javascript
+        if ((props.src && props.src.indexOf('ampproject') < -1) ||
+          (props.dangerouslySetInnerHTML && (!props.type || props.type === 'text/javascript'))
+        ) {
+          badProp = '<script'
+          Object.keys(props).forEach(prop => {
+            badProp += ` ${prop}="${props[prop]}"`
+          })
+          badProp += '/>'
+        }
       }
 
       if (badProp) {

@@ -73,6 +73,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     sourceMap: false,
     cache: true,
     cpus: config.experimental.cpus,
+    distDir: distDir
   }
 
   let webpackConfig: webpack.Configuration = {
