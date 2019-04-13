@@ -29,7 +29,8 @@ function canApplyUpdates () {
   return module.hot.status() === 'idle'
 }
 
-// Attempt to update code on the fly, fall back to a hard reload.
+// This function reads code updates on the fly and hard
+// reloads the page when it has changed.
 async function tryApplyUpdates () {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     return
