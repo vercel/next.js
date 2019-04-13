@@ -43,7 +43,7 @@ async function tryApplyUpdates () {
       .some(mod => mod.indexOf(`pages/${curPage}`) !== -1)
 
     if (pageUpdated) {
-      window.location.reload()
+      document.location.reload(true)
     } else {
       curHash = mostRecentHash
     }
