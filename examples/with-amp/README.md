@@ -1,6 +1,10 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-amp)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/experimental-amp)
 
 # Google AMP
+
+## Warning
+
+This is an experimental feature that is subject to change (breaking) between releases.
 
 ## How to use
 
@@ -9,9 +13,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-amp with-amp-app
+npx create-next-app --example experimental-amp experimental-amp-app
 # or
-yarn create next-app --example with-amp with-amp-app
+yarn create next-app --example experimental-amp experimental-amp-app
 ```
 
 ### Download manually
@@ -19,8 +23,8 @@ yarn create next-app --example with-amp with-amp-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-amp
-cd with-amp
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/experimental-amp
+cd experimental-amp
 ```
 
 Install it and run:
@@ -41,4 +45,4 @@ now
 
 ## The idea behind the example
 
-Next.js allows the construction of custom Documents. This feature enable the usage of custom attributes and elements. In this case, AMP tags and attributes.
+The Next.js team is working on first-class AMP support. You can periodically fetch an updated version of this template to view our progress.
