@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-Next.js allows the construction of custom Documents. This feature enable the usage of custom attributes and elements. In this case, AMP tags and attributes.
+This example shows how to create AMP pages using Next.js. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page. 
