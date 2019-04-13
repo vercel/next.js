@@ -14,6 +14,15 @@ declare module 'next-server/dist/lib/router-context' {
   export = all
 }
 
+declare module 'next-server/dist/lib/router/router' {
+  import * as all from 'next-server/lib/router/router'
+  export = all
+}
+
+declare module 'next-server/dist/lib/request-context' {
+  import * as all from 'next-server/lib/request-context'
+  export = all
+}
 
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string;

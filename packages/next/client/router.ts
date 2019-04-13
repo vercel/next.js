@@ -1,8 +1,8 @@
 /* global window */
 import React from 'react'
-import _Router, { IRouterInterface } from 'next-server/lib/router/router'
-import { RouterContext } from 'next-server/lib/router-context'
-import { RequestContext } from 'next-server/lib/request-context'
+import _Router, { IRouterInterface } from 'next-server/dist/lib/router/router'
+import { RouterContext } from 'next-server/dist/lib/router-context'
+import { RequestContext } from 'next-server/dist/lib/request-context'
 
 type ClassArguments<T> = T extends new(...args: infer U) => any ? U : any
 
