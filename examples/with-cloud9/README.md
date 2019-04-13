@@ -3,7 +3,7 @@
 ## Install NVM and set node to the latest version ##
 
 Cloud 9 environment comes with a preinstalled nvm, but its better to use the latest
-version - follow the install instructions from the [NVM Github page](https://github.com/creationix/nvm)
+version - follow the install instructions from the [NVM GitHub page](https://github.com/creationix/nvm)
 
 Then download nvm package for the latest available node version and set it as default.
 For example, if the latest is 10.12.0, use the following commands:

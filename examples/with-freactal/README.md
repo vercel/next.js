@@ -47,7 +47,7 @@ When it comes to state management of the React webapp, Redux is the most popular
 
 ### example app
 
-In this example the `index` page renders list of public repos on Github for selected username. It fetches list of repos from public gihub api. First page of this list is rendered by SSR. *serverState* is then hydrated into the `Index` page. Button at the end of the list allows to load next page of repos list from the API on the client.
+In this example the `index` page renders list of public repos on GitHub for selected username. It fetches list of repos from public gihub api. First page of this list is rendered by SSR. *serverState* is then hydrated into the `Index` page. Button at the end of the list allows to load next page of repos list from the API on the client.
 
 ![](https://i.imgur.com/JFU0YUt.png)
 
