@@ -29,7 +29,8 @@ function canApplyUpdates () {
   return module.hot.status() === 'idle'
 }
 
-// Attempt to update code on the fly, fall back to a hard reload.
+// This function reads code updates on the fly and hard
+// reloads the page when it has changed.
 async function tryApplyUpdates () {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     return
@@ -42,12 +43,13 @@ async function tryApplyUpdates () {
       .some(mod => mod.indexOf(`pages/${curPage}`) !== -1)
 
     if (pageUpdated) {
-      window.location.reload()
+      document.location.reload(true)
     } else {
       curHash = mostRecentHash
     }
   } catch (err) {
     console.error('Error occurred checking for update', err)
+    document.location.reload(true)
   }
 }
 
