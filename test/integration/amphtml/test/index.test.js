@@ -119,12 +119,14 @@ describe('AMP Usage', () => {
     it('should render the normal page that uses the AMP hook', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook')
       expect(html).toMatch(/Hello others/)
+      expect(html).toMatch(/no AMP for you\.\.\./)
     })
 
     it('should render the AMP page that uses the AMP hook', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
       await validateAMP(html)
       expect(html).toMatch(/Hello AMP/)
+      expect(html).toMatch(/AMP Power!!!/)
     })
 
     it('should render nested normal page with AMP hook', async () => {

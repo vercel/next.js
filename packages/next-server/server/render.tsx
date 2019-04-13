@@ -126,6 +126,7 @@ type RenderOpts = {
   ampPath?: string
   amphtml?: boolean
   hasAmp?: boolean,
+  ampMode?: any,
   dataOnly?: boolean,
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
@@ -155,6 +156,7 @@ function renderDocument(
     ampPath,
     amphtml,
     hasAmp,
+    ampMode,
     staticMarkup,
     devFiles,
     files,
@@ -168,6 +170,7 @@ function renderDocument(
     ampPath: string,
     amphtml: boolean
     hasAmp: boolean,
+    ampMode: any,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -177,31 +180,33 @@ function renderDocument(
   return (
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
-      <Document
-        __NEXT_DATA__={{
-          dataManager: dataManagerData,
-          props, // The result of getInitialProps
-          page: pathname, // The rendered page
-          query, // querystring parsed / passed by the user
-          buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-          dynamicBuildId, // Specifies if the buildId should by dynamically fetched
-          assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-          runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-          nextExport, // If this is a page exported by `next export`
-          dynamicIds:
-          dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-          err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-        }}
-        ampPath={ampPath}
-        amphtml={amphtml}
-        hasAmp={hasAmp}
-        staticMarkup={staticMarkup}
-        devFiles={devFiles}
-        files={files}
-        dynamicImports={dynamicImports}
-        assetPrefix={assetPrefix}
-        {...docProps}
-      />,
+      <AmpModeContext.Provider value={ampMode}>
+        <Document
+          __NEXT_DATA__={{
+            dataManager: dataManagerData,
+            props, // The result of getInitialProps
+            page: pathname, // The rendered page
+            query, // querystring parsed / passed by the user
+            buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+            dynamicBuildId, // Specifies if the buildId should by dynamically fetched
+            assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+            runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+            nextExport, // If this is a page exported by `next export`
+            dynamicIds:
+            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+          }}
+          ampPath={ampPath}
+          amphtml={amphtml}
+          hasAmp={hasAmp}
+          staticMarkup={staticMarkup}
+          devFiles={devFiles}
+          files={files}
+          dynamicImports={dynamicImports}
+          assetPrefix={assetPrefix}
+          {...docProps}
+        />
+      </AmpModeContext.Provider>,
     )
   )
 }
@@ -420,6 +425,7 @@ export async function renderToHTML(
   let html = renderDocument(Document, {
     ...renderOpts,
     dataManagerData,
+    ampMode,
     props,
     docProps,
     pathname,
