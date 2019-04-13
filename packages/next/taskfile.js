@@ -33,7 +33,7 @@ const babelServerOpts = {
     ['@babel/preset-env', {
       modules: 'commonjs',
       targets: {
-        node: '8.0.0'
+        node: '8.3'
       },
       exclude: ['transform-typeof-symbol']
     }]

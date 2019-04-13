@@ -22,6 +22,10 @@ module.exports = function (task) {
       // Remove the extension if stripExtension is enabled or replace it with `.js`
       file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
     }
-    file.data = Buffer.from(output.code)
+    file.data = Buffer.from(setNextVersion(output.code))
   })
+}
+
+function setNextVersion (code) {
+  return code.replace(/process\.env\.__NEXT_VERSION/, `"${require('./package.json').version}"`)
 }
