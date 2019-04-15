@@ -113,12 +113,12 @@ function render(
 }
 
 type RenderOpts = {
-  noDirtyAmp: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
   dynamicBuildId?: boolean
   runtimeConfig?: { [key: string]: any }
+  dangerousAsPath: string
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
@@ -126,6 +126,7 @@ type RenderOpts = {
   ampPath?: string
   amphtml?: boolean
   hasAmp?: boolean,
+  ampMode?: any,
   dataOnly?: boolean,
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
@@ -150,11 +151,13 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     dynamicImportsIds,
+    dangerousAsPath,
     err,
     dev,
     ampPath,
     amphtml,
     hasAmp,
+    ampMode,
     staticMarkup,
     devFiles,
     files,
@@ -165,9 +168,11 @@ function renderDocument(
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    dangerousAsPath: string
     ampPath: string,
     amphtml: boolean
     hasAmp: boolean,
+    ampMode: any,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -177,31 +182,34 @@ function renderDocument(
   return (
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
-      <Document
-        __NEXT_DATA__={{
-          dataManager: dataManagerData,
-          props, // The result of getInitialProps
-          page: pathname, // The rendered page
-          query, // querystring parsed / passed by the user
-          buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
-          dynamicBuildId, // Specifies if the buildId should by dynamically fetched
-          assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
-          runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
-          nextExport, // If this is a page exported by `next export`
-          dynamicIds:
-          dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
-          err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
-        }}
-        ampPath={ampPath}
-        amphtml={amphtml}
-        hasAmp={hasAmp}
-        staticMarkup={staticMarkup}
-        devFiles={devFiles}
-        files={files}
-        dynamicImports={dynamicImports}
-        assetPrefix={assetPrefix}
-        {...docProps}
-      />,
+      <AmpModeContext.Provider value={ampMode}>
+        <Document
+          __NEXT_DATA__={{
+            dataManager: dataManagerData,
+            props, // The result of getInitialProps
+            page: pathname, // The rendered page
+            query, // querystring parsed / passed by the user
+            buildId, // buildId is used to facilitate caching of page bundles, we send it to the client so that pageloader knows where to load bundles
+            dynamicBuildId, // Specifies if the buildId should by dynamically fetched
+            assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+            runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
+            nextExport, // If this is a page exported by `next export`
+            dynamicIds:
+            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
+          }}
+          dangerousAsPath={dangerousAsPath}
+          ampPath={ampPath}
+          amphtml={amphtml}
+          hasAmp={hasAmp}
+          staticMarkup={staticMarkup}
+          devFiles={devFiles}
+          files={files}
+          dynamicImports={dynamicImports}
+          assetPrefix={assetPrefix}
+          {...docProps}
+        />
+      </AmpModeContext.Provider>,
     )
   )
 }
@@ -219,7 +227,6 @@ export async function renderToHTML(
     dev = false,
     ampBindInitData = false,
     staticMarkup = false,
-    noDirtyAmp = false,
     ampPath = '',
     App,
     Document,
@@ -302,7 +309,7 @@ export async function renderToHTML(
 
   const ampMode = {
     enabled: false,
-    hasQuery: Boolean(query.amp),
+    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
   }
 
   if (ampBindInitData) {
@@ -419,7 +426,9 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    dangerousAsPath: router.asPath,
     dataManagerData,
+    ampMode,
     props,
     docProps,
     pathname,
@@ -434,7 +443,7 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+    html = await optimizeAmp(html, { amphtml, query })
 
     // don't validate dirty AMP
     if (renderOpts.ampValidator && query.amp) {
