@@ -55,6 +55,13 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should have X-Powered-By header support', async () => {
+      const url = `http://localhost:${appPort}/`
+      const header = (await fetch(url)).headers.get('X-Powered-By')
+
+      expect(header).toBe('Next.js')
+    })
+
     it('should render 404 for routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/abcdefghijklmno`
       const res = await fetch(url)

@@ -7,6 +7,7 @@ module.exports = withCSS(withSass({
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60
   },
+  poweredByHeader: false,
   cssModules: true,
   serverRuntimeConfig: {
     mySecret: 'secret'
