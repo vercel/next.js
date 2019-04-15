@@ -197,7 +197,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   result = formatWebpackMessages(result)
 
   const pages = Object.keys(mappedPages)
-  const sema = new Sema(50, { capacity: pages.length })
+  const sema = new Sema(20, { capacity: pages.length })
 
   await Promise.all(pages.map(async page => {
     await sema.acquire()
