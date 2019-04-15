@@ -36,7 +36,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    noDirtyAmp: boolean
     ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
@@ -75,7 +74,6 @@ export default class Server {
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
-      noDirtyAmp: this.nextConfig.experimental.noDirtyAmp,
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       staticMarkup,

@@ -113,7 +113,6 @@ function render(
 }
 
 type RenderOpts = {
-  noDirtyAmp: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
@@ -228,7 +227,6 @@ export async function renderToHTML(
     dev = false,
     ampBindInitData = false,
     staticMarkup = false,
-    noDirtyAmp = false,
     ampPath = '',
     App,
     Document,
@@ -445,7 +443,7 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+    html = await optimizeAmp(html, { amphtml, query })
 
     // don't validate dirty AMP
     if (renderOpts.ampValidator && query.amp) {
