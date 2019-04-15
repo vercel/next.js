@@ -1,5 +1,5 @@
 {
-  "name": "with-amp",
+  "name": "amp",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",

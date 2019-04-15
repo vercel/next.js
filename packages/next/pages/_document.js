@@ -1,6 +1,6 @@
 /* eslint-disable */
-import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import React, { Component } from 'react'
 import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
@@ -8,6 +8,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
+
+function getAmpPath(ampPath, asPath) {
+  return ampPath ? ampPath
+    : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+}
 
 export default class Document extends Component {
   static childContextTypes = {
@@ -154,6 +159,7 @@ export class Head extends Component {
       ampPath,
       assetPrefix,
       __NEXT_DATA__,
+      dangerousAsPath,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId, dynamicBuildId } = __NEXT_DATA__
@@ -218,8 +224,8 @@ export class Head extends Component {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={cleanAmpPath(page)} />
-            {isDirtyAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
+            <link rel="canonical" href={cleanAmpPath(dangerousAsPath)} />
+            {isDirtyAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -258,7 +264,7 @@ export class Head extends Component {
         )}
         {!amphtml && (
           <>
-            {hasAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
+            {hasAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
             {page !== '/_error' && (
               <link
                 rel="preload"
