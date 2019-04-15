@@ -5,8 +5,6 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { tryAmp } from 'next-server/dist/server/require'
-import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
@@ -55,39 +53,6 @@ export default async function (dir, options, configuration) {
     defaultPathMap[page] = { page }
   }
 
-  Object.keys(defaultPathMap).forEach(path => {
-    const isAmp = path.indexOf('.amp') > -1
-
-    if (isAmp) {
-      defaultPathMap[path].query = { amphtml: true }
-      const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
-      if (!defaultPathMap[nonAmp]) {
-        if (!nextConfig.experimental.noDirtyAmp) {
-          // dirty optimized
-          defaultPathMap[nonAmp] = {
-            ...defaultPathMap[path],
-            query: { ...defaultPathMap[path].query }
-          }
-          defaultPathMap[nonAmp].query.ampOnly = true
-          defaultPathMap[nonAmp].query.ampPath = path
-          // clean optimized
-          defaultPathMap[path].query.amp = 1
-        } else {
-          // dirty optimizing is disabled
-          defaultPathMap[path].query.amp = 1
-          defaultPathMap[path].query.ampOnly = true
-        }
-      } else {
-        defaultPathMap[path].query.amp = 1
-      }
-    } else {
-      const ampPath = tryAmp(defaultPathMap, path)
-      if (ampPath !== path) {
-        defaultPathMap[path].query = { hasAmp: true, ampPath: ampPath.replace(/(?<!^)\/index\.amp$/, '.amp') }
-      }
-    }
-  })
-
   // Initialize the output directory
   const outDir = options.outdir
   await recursiveDelete(join(outDir))
@@ -130,7 +95,7 @@ export default async function (dir, options, configuration) {
     dev: false,
     staticMarkup: false,
     hotReloader: null,
-    ampEnabled: nextConfig.experimental.amp
+    noDirtyAmp: nextConfig.experimental.noDirtyAmp
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

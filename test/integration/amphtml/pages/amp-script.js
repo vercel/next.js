@@ -1,8 +1,9 @@
 import Head from 'next/head'
+import { withAmp } from 'next/amp'
 
 const date = new Date().toJSON()
 
-export default () => (
+export default withAmp(() => (
   <>
     <Head>
       <script
@@ -22,4 +23,4 @@ export default () => (
       {date}
     </amp-timeago>
   </>
-)
+))
