@@ -1921,7 +1921,7 @@ Both of these page modes provide a consistently fast experience for users access
 
 When using `next export` to statically pre-render pages Next.js will detect if the page supports AMP and change the exporting behavior based on that.
 
-For hybrid AMP `pages/about.js` would hold:
+Hybrid AMP (`pages/about.js`) would output:
 
 - `out/about/index.html` - with client-side React runtime
 - `out/about.amp/index.html` -  AMP page
