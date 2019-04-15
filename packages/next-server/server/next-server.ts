@@ -37,6 +37,7 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
+    poweredByHeader: boolean
     ampEnabled: boolean
     noDirtyAmp: boolean
     ampBindInitData: boolean
@@ -80,6 +81,7 @@ export default class Server {
       ampEnabled: this.nextConfig.experimental.amp,
       noDirtyAmp: this.nextConfig.experimental.noDirtyAmp,
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
+      poweredByHeader: this.nextConfig.poweredByHeader,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -250,8 +252,8 @@ export default class Server {
     res: ServerResponse,
     html: string,
   ) {
-    const { generateEtags } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags })
+    const { generateEtags, poweredByHeader } = this.renderOpts
+    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
 
   public async render(
