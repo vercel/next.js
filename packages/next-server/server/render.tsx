@@ -311,7 +311,7 @@ export async function renderToHTML(
 
   const ampMode = {
     enabled: false,
-    hasQuery: query.amp && /^(y|yes|true|1)/i.test(query.amp.toString()),
+    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
   }
 
   if (ampBindInitData) {
