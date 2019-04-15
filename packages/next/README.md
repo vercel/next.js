@@ -1924,7 +1924,7 @@ When using `next export` to statically pre-render pages Next.js will detect if t
 Hybrid AMP (`pages/about.js`) would output:
 
 - `out/about/index.html` - with client-side React runtime
-- `out/about.amp/index.html` -  AMP page
+- `out/about.amp/index.html` - AMP page
 
 For full AMP pages:
 
