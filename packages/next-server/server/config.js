@@ -30,6 +30,7 @@ const defaultConfig = {
     ),
     ampBindInitData: false,
     exportTrailingSlash: true,
+    terserLoader: false,
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false
