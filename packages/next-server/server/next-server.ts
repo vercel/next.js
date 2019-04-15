@@ -28,8 +28,6 @@ type ServerConstructor = {
   conf?: NextConfig,
 }
 
-const ENDING_IN_JSON_REGEX = /\.json$/
-
 export default class Server {
   dir: string
   quiet: boolean
@@ -38,7 +36,6 @@ export default class Server {
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
-    ampEnabled: boolean
     noDirtyAmp: boolean
     ampBindInitData: boolean
     staticMarkup: boolean
