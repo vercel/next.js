@@ -2,6 +2,7 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
+import fs from 'fs'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
@@ -28,6 +29,7 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
+  distDir,
   reload,
   pageExtensions,
   maxInactiveAge,
@@ -261,6 +263,13 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
         function handleCallback (err) {
           if (err) return reject(err)
+          const { name } = entries[normalizedPage]
+          const serverPage = join(dir, distDir, 'server', name)
+          const clientPage = join(dir, distDir, 'static', name)
+          const mod = require(serverPage)
+          if (mod.default && mod.default.__nextAmpOnly) {
+            fs.unlinkSync(clientPage)
+          }
           resolve()
         }
       })

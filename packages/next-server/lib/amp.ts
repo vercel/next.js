@@ -27,6 +27,7 @@ export function withAmp(
     return React.createElement(Component, props)
   }
 
+  WithAmpWrapper.__nextAmpOnly = !hybrid
   WithAmpWrapper.getInitialProps = Component.getInitialProps
   return WithAmpWrapper
 }
