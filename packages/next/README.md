@@ -1926,16 +1926,16 @@ Hybrid AMP (`pages/about.js`) would output:
 - `out/about/index.html` - with client-side React runtime
 - `out/about.amp/index.html` - AMP page
 
-For full AMP pages:
+AMP-only (`pages/about.js`) would output:
 
 - `out/about/index.html` - Optimized AMP page
-- `out/about.amp/index.html` -  AMP page
+- `out/about.amp/index.html` - AMP page
 
-During export we will automatically detect if a page is AMP only and apply these dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically take care of adding the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you. 
+During export Next.js automatically detects if a page is AMP-only and apply dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you. 
 
 ### Adding AMP Components
 
-To make AMP pages more interactive, the AMP community provides a bunch of components ([see some here](https://amp.dev/documentation/components/)). To add one of these components you add the script pointing to the component's code using `next/head` and then use it. See example below for more info.
+The AMP community provides [many components](https://amp.dev/documentation/components/) to make AMP pages more interactive. You can add these components to your page by using `next/head`:
 
 ```js
 // pages/hello.js
@@ -1968,9 +1968,12 @@ export default withAmp(function MyAmpPage() {
 })
 ```
 
-### AMP Validating
+### AMP Validation
 
-To help make sure only valid AMP pages are output we automatically test AMP pages with [amphtml-validator](https://www.npmjs.com/package/amphtml-validator). In development mode, any errors or warnings from validation will appear in the terminal where you started Next.js. During an export if there are validation errors, they will all be logged to the terminal at the end of the export and it will exit with status code 1 since it is not a valid export.
+AMP pages are automatically validated with [amphtml-validator](https://www.npmjs.com/package/amphtml-validator) during development. Errors and warnings will appear in the terminal where you started Next.js.
+
+Pages are also validated during `next export` and any warnings / errors will be printed to the terminal.
+Any AMP errors will cause `next export` to exit with status code `1` because the export is not valid AMP.
 
 ## Static HTML export
 
