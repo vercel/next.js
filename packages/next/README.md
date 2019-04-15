@@ -75,7 +75,7 @@
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
-- [AMP support](#amp-support)
+- [AMP Support](#amp-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Copying custom files](#copying-custom-files)
@@ -1879,7 +1879,7 @@ Next.js supports IE11 and all modern browsers out of the box using [`@babel/pres
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
-## AMP support
+## AMP Support
 
 ### Enabling AMP Support
 
