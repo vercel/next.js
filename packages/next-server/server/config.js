@@ -23,7 +23,6 @@ const defaultConfig = {
   },
   experimental: {
     amp: false,
-    noDirtyAmp: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -31,6 +30,7 @@ const defaultConfig = {
     ),
     ampBindInitData: false,
     exportTrailingSlash: true,
+    terserLoader: false,
     profiling: false,
     flyingShuttle: false,
     asyncToPromises: false

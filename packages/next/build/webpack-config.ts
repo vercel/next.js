@@ -179,7 +179,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
             safari10: true,
-            ...(selectivePageBuilding ? { compress: false, mangle: true } : undefined)
+            ...((selectivePageBuilding || config.experimental.terserLoader) ? { compress: false, mangle: true } : undefined)
           }
         })
       ] : undefined,
@@ -228,7 +228,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     // @ts-ignore this is filtered
     module: {
       rules: [
-        selectivePageBuilding && !isServer && {
+        (selectivePageBuilding || config.experimental.terserLoader) && !isServer && {
           test: /\.(js|mjs|jsx)$/,
           exclude: /\.min\.(js|mjs|jsx)$/,
           use: {
