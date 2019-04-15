@@ -75,6 +75,7 @@
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
+- [AMP support](#amp-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
   - [Copying custom files](#copying-custom-files)
@@ -1877,6 +1878,99 @@ For specific platform examples see [the examples section above](#serverless-depl
 Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
+
+## AMP support
+
+### Enabling AMP Support
+
+To enable AMP support for a page, first enable experimental AMP support in your `next.config.js` and then import `withAmp` from `next/amp` and wrap your page's component in it.
+
+```js
+// next.config.js
+module.exports = {
+  experimental: { amp: true }
+}
+
+// pages/about.js
+import { withAmp } from 'next/amp'
+
+export default withAmp(function AboutPage(props) {
+  return (
+    <h3>My AMP About Page!</h3>
+  )
+})
+```
+
+### AMP Page Modes
+
+AMP pages can specify two modes:
+
+- AMP-only (default)
+    - Pages have no Next.js or React client-side runtime
+    - Pages are automatically optimized with [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer), an optimizer that applies the same transformations as AMP caches (improves performance by up to 42%)
+    - Pages have a user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
+    - Opt-in via `withAmp(Component)`
+- Hybrid
+    - Pages are able to be rendered as traditional HTML (default) and AMP HTML (by adding `?amp=1` to the URL)
+    - The AMP version of the page is not optimized with AMP Optimizer so that it is indexable by search-engines
+    - Opt-in via `withAmp(Component, { hybrid: true })`
+
+Both of these page modes provide a consistently fast experience for users accessing pages through search engines.
+
+### AMP Behavior with `next export`
+
+When using `next export` to statically pre-render pages Next.js will detect if the page supports AMP and change the exporting behavior based on that.
+
+For hybrid AMP `pages/about.js` would hold:
+
+- `out/about/index.html` - with client-side React runtime
+- `out/about.amp/index.html` -  AMP page
+
+For full AMP pages:
+
+- `out/about/index.html` - Optimized AMP page
+- `out/about.amp/index.html` -  AMP page
+
+During export we will automatically detect if a page is AMP only and apply these dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically take care of adding the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you. 
+
+### Adding AMP Components
+
+To make AMP pages more interactive, the AMP community provides a bunch of components ([see some here](https://amp.dev/documentation/components/)). To add one of these components you add the script pointing to the component's code using `next/head` and then use it. See example below for more info.
+
+```js
+// pages/hello.js
+import Head from 'next/head'
+import { withAmp } from 'next/amp'
+
+export default withAmp(function MyAmpPage() {
+  return (
+    <div>
+      <Head>
+        <script
+          async
+          key="amp-timeago"
+          custom-element="amp-timeago"
+          src="https://cdn.ampproject.org/v0/amp-timeago-0.1.js"
+        />
+      </Head>
+
+      <p>Some time: {date.toJSON()}</p>
+      <amp-timeago
+        width="0"
+        height="15"
+        datetime={date.toJSON()}
+        layout="responsive"
+      >
+        .
+      </amp-timeago>
+    </div>
+  )
+})
+```
+
+### AMP Validating
+
+To help make sure only valid AMP pages are output we automatically test AMP pages with [amphtml-validator](https://www.npmjs.com/package/amphtml-validator). In development mode, any errors or warnings from validation will appear in the terminal where you started Next.js. During an export if there are validation errors, they will all be logged to the terminal at the end of the export and it will exit with status code 1 since it is not a valid export.
 
 ## Static HTML export
 
