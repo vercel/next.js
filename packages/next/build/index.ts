@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
+import { PHASE_PRODUCTION_BUILD, BLOCKED_PAGES } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import Sema from 'async-sema'
@@ -202,7 +202,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
   await Promise.all(pages.map(async page => {
     await sema.acquire()
     page = page === '/' ? '/index' : page
-    const serverPage = path.join(dir, config.distDir, 'server/static', buildId, 'pages', page + '.js')
+
+    if (BLOCKED_PAGES.includes(page)) {
+      return sema.release()
+    }
+    const serverPage = path.join(dir, config.distDir, config.target === 'serverless' ? 'serverless/pages' : `server/static/${buildId}/pages`, page + '.js')
     const clientPage = path.join(dir, config.distDir, 'static', buildId, 'pages', page + '.js')
 
     let mod = require(serverPage)
