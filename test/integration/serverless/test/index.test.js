@@ -50,6 +50,17 @@ describe('Serverless', () => {
     expect(html).toMatch(/ampproject\.org/)
   })
 
+  it('should have correct amphtml rel link', async () => {
+    const html = await renderViaHTTP(appPort, '/amp')
+    expect(html).toMatch(/Hi Im an AMP page/)
+    expect(html).toMatch(/rel="amphtml" href="\/amp\?amp=1"/)
+  })
+
+  it('should have correct canonical link', async () => {
+    const html = await renderViaHTTP(appPort, '/amp?amp=1')
+    expect(html).toMatch(/rel="canonical" href="\/amp"/)
+  })
+
   it('should render correctly when importing isomorphic-unfetch', async () => {
     const url = `http://localhost:${appPort}/fetch`
     const res = await fetch(url)

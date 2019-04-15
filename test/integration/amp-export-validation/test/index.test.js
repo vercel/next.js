@@ -35,7 +35,12 @@ describe('AMP Validation on Export', () => {
   })
 
   it('should disable dirty AMP with noDirtyAmp set', async () => {
-    nextConfig.replace(`// exportPathMap`, `experimental: { noDirtyAmp: true } `)
+    nextConfig.replace(/experimental:[\w\W]*?}/, `
+      experimental: {
+        amp: true,
+        noDirtyAmp: true
+      }
+    `)
     await nextExport(appDir, { outdir: outDir })
     const ampOnly = ['first', 'second', 'third']
     await Promise.all(ampOnly.map(async page => {
