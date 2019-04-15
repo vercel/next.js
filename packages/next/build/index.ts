@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
+import Sema from 'async-sema'
 import path from 'path'
 import fs from 'fs'
 
@@ -195,15 +196,21 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   result = formatWebpackMessages(result)
 
-  await Promise.all(Object.keys(mappedPages).map(page => {
+  const pages = Object.keys(mappedPages)
+  const sema = new Sema(50, { capacity: pages.length })
+
+  await Promise.all(pages.map(async page => {
+    await sema.acquire()
     page = page === '/' ? '/index' : page
     const serverPage = path.join(dir, config.distDir, 'server/static', buildId, 'pages', page + '.js')
     const clientPage = path.join(dir, config.distDir, 'static', buildId, 'pages', page + '.js')
 
-    const mod = require(serverPage)
-    if (mod.default && mod.default.__nextAmpOnly) {
-      return unlink(clientPage)
+    let mod = require(serverPage)
+    mod = mod.default || mod
+    if (mod && mod.__nextAmpOnly) {
+      await unlink(clientPage)
     }
+    sema.release()
   }))
 
   if (isFlyingShuttle) {
