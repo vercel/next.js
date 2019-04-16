@@ -5,7 +5,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { validateAMP } from 'amp-test-utils'
-import { readdirSync, readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 import {
   waitFor,
   nextServer,
@@ -294,13 +294,6 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
-
-      const files = readdirSync(join(
-        __dirname, '../.next/static/webpack'
-      ))
-
-      const file = files.find(path => path.indexOf('hot-update') > -1)
-      throw readFileSync(join(__dirname, '../.next/static/webpack', file), 'utf8')
     })
 
     it('should detect changes and refresh an AMP page', async () => {
