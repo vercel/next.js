@@ -1,31 +1,42 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps } from 'next-server/dist/lib/utils'
-import { makePublicRouterInstance } from 'next/router'
+import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext } from 'next-server/dist/lib/utils'
+import { Router, makePublicRouterInstance } from 'next/router'
 
-export default class App extends Component {
+// Export important types
+export { NextComponentType, IContext, IAppContext }
+
+export type AppClientContext = IAppContext<Router>
+
+export interface IAppProps {
+  Component: React.ComponentType
+  router: Router
+  pageProps: any
+}
+
+export default class App extends Component<IAppProps> {
   static childContextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   }
 
-  static async getInitialProps ({ Component, router, ctx }) {
+  static async getInitialProps({ Component, ctx }: AppClientContext) {
     const pageProps = await loadGetInitialProps(Component, ctx)
     return { pageProps }
   }
 
-  getChildContext () {
+  getChildContext() {
     return {
-      router: makePublicRouterInstance(this.props.router)
+      router: makePublicRouterInstance(this.props.router),
     }
   }
 
   // Kept here for backwards compatibility.
   // When someone ended App they could call `super.componentDidCatch`. This is now deprecated.
-  componentDidCatch (err) {
+  componentDidCatch(err: Error) {
     throw err
   }
 
-  render () {
+  render() {
     const { router, Component, pageProps } = this.props
     const url = createUrl(router)
     return (
@@ -37,17 +48,17 @@ export default class App extends Component {
 }
 
 export class Container extends Component {
-  componentDidMount () {
+  componentDidMount() {
     this.scrollToHash()
   }
 
-  componentDidUpdate () {
+  componentDidUpdate() {
     this.scrollToHash()
   }
 
-  scrollToHash () {
+  scrollToHash() {
     let { hash } = window.location
-    hash = hash ? hash.substring(1) : false
+    hash = hash && hash.substring(1)
     if (!hash) return
 
     const el = document.getElementById(hash)
@@ -58,7 +69,7 @@ export class Container extends Component {
     setTimeout(() => el.scrollIntoView(), 0)
   }
 
-  render () {
+  render() {
     return this.props.children
   }
 }
@@ -69,19 +80,19 @@ const warnUrl = execOnce(() => {
   }
 })
 
-export function createUrl (router) {
+export function createUrl(router: Router) {
   // This is to make sure we don't references the router object at call time
   const { pathname, asPath, query } = router
   return {
-    get query () {
+    get query() {
       warnUrl()
       return query
     },
-    get pathname () {
+    get pathname() {
       warnUrl()
       return pathname
     },
-    get asPath () {
+    get asPath() {
       warnUrl()
       return asPath
     },
@@ -89,27 +100,27 @@ export function createUrl (router) {
       warnUrl()
       router.back()
     },
-    push: (url, as) => {
+    push: (url: string, as?: string) => {
       warnUrl()
       return router.push(url, as)
     },
-    pushTo: (href, as) => {
+    pushTo: (href: string, as?: string) => {
       warnUrl()
-      const pushRoute = as ? href : null
+      const pushRoute = as ? href : ''
       const pushUrl = as || href
 
       return router.push(pushRoute, pushUrl)
     },
-    replace: (url, as) => {
+    replace: (url: string, as?: string) => {
       warnUrl()
       return router.replace(url, as)
     },
-    replaceTo: (href, as) => {
+    replaceTo: (href: string, as?: string) => {
       warnUrl()
-      const replaceRoute = as ? href : null
+      const replaceRoute = as ? href : ''
       const replaceUrl = as || href
 
       return router.replace(replaceRoute, replaceUrl)
-    }
+    },
   }
 }
