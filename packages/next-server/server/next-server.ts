@@ -28,8 +28,6 @@ type ServerConstructor = {
   conf?: NextConfig,
 }
 
-const ENDING_IN_JSON_REGEX = /\.json$/
-
 export default class Server {
   dir: string
   quiet: boolean
@@ -37,7 +35,7 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
-    noDirtyAmp: boolean
+    poweredByHeader: boolean
     ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
@@ -76,8 +74,8 @@ export default class Server {
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
-      noDirtyAmp: this.nextConfig.experimental.noDirtyAmp,
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
+      poweredByHeader: this.nextConfig.poweredByHeader,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -248,8 +246,8 @@ export default class Server {
     res: ServerResponse,
     html: string,
   ) {
-    const { generateEtags } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags })
+    const { generateEtags, poweredByHeader } = this.renderOpts
+    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
 
   public async render(
