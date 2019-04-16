@@ -1,21 +1,21 @@
 /* global window */
 import React from 'react'
-import _Router, { IRouterInterface } from 'next-server/dist/lib/router/router'
+import Router, { IRouterInterface } from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { RequestContext } from 'next-server/dist/lib/request-context'
 
 type ClassArguments<T> = T extends new(...args: infer U) => any ? U : any
 
-type RouterArgs = ClassArguments<typeof _Router>
+type RouterArgs = ClassArguments<typeof Router>
 
 interface ISingletonRouterBase {
-  router: _Router | null
+  router: Router | null
   readyCallbacks: Array<() => any>
   ready(cb: () => any): void
 }
 
-export interface IPublicRouterInstance extends IRouterInterface, Pick<_Router, | 'components' | 'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'> {
-  events: typeof _Router['events']
+export interface IPublicRouterInstance extends IRouterInterface, Pick<Router, | 'components' | 'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'> {
+  events: typeof Router['events']
 }
 
 export interface ISingletonRouter extends ISingletonRouterBase, IPublicRouterInstance {}
@@ -42,7 +42,7 @@ const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'befo
 // Events is a static property on the router, the router doesn't have to be initialized to use it
 Object.defineProperty(SingletonRouter, 'events', {
   get() {
-    return _Router.events
+    return Router.events
   },
 })
 
@@ -69,7 +69,7 @@ coreMethodFields.forEach((field) => {
 
 routerEvents.forEach((event) => {
   SingletonRouter.ready(() => {
-    _Router.events.on(event, (...args) => {
+    Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(1)}`
       const singletonRouter = SingletonRouter as any
       if (singletonRouter[eventField]) {
@@ -101,6 +101,9 @@ export default SingletonRouter as ISingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
+// Export the actual Router class, which is usually used inside the server
+export { Router }
+
 export function useRouter() {
   return React.useContext(RouterContext)
 }
@@ -117,18 +120,15 @@ export function useRequest() {
 // This is used in client side when we are initilizing the app.
 // This should **not** use inside the server.
 export const createRouter = (...args: RouterArgs) => {
-  SingletonRouter.router = new _Router(...args)
+  SingletonRouter.router = new Router(...args)
   SingletonRouter.readyCallbacks.forEach((cb) => cb())
   SingletonRouter.readyCallbacks = []
 
   return SingletonRouter.router
 }
 
-// Export the actual Router class, which is usually used inside the server
-export const Router = _Router
-
 // This function is used to create the `withRouter` router instance
-export function makePublicRouterInstance(router: _Router): IPublicRouterInstance {
+export function makePublicRouterInstance(router: Router): IPublicRouterInstance {
   const _router = router as any
   const instance = {} as any
 
@@ -142,7 +142,7 @@ export function makePublicRouterInstance(router: _Router): IPublicRouterInstance
   }
 
   // Events is a static property on the router, the router doesn't have to be initialized to use it
-  instance.events = _Router.events
+  instance.events = Router.events
 
   propertyFields.forEach((field) => {
     // Here we need to use Object.defineProperty because, we need to return
