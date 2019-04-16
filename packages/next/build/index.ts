@@ -206,14 +206,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     if (BLOCKED_PAGES.includes(page)) {
       return sema.release()
     }
-    const serverPage = path.join(dir, config.distDir, config.target === 'serverless' ? 'serverless/pages' : `server/static/${buildId}/pages`, page + '.js')
-    const clientPage = path.join(dir, config.distDir, 'static', buildId, 'pages', page + '.js')
+    const serverPage = path.join(distDir, config.target === 'serverless' ? 'serverless/pages' : `server/static/${buildId}/pages`, page + '.js')
+    const clientPage = path.join(distDir, 'static', buildId, 'pages', page + '.js')
 
-    let mod = require(serverPage)
-    mod = mod.default || mod
-    if (mod && mod.__nextAmpOnly) {
-      await unlink(clientPage)
-    }
+    try {
+      let mod = require(serverPage)
+      mod = mod.default || mod
+      if (mod && mod.__nextAmpOnly) {
+        await unlink(clientPage)
+      }
+    } catch (_) {}
     sema.release()
   }))
 

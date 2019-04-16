@@ -266,11 +266,13 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           const { name } = entries[normalizedPage]
           const serverPage = join(dir, distDir, 'server', name)
           const clientPage = join(dir, distDir, name)
-          let mod = require(serverPage)
-          mod = mod.default || mod
-          if (mod && mod.__nextAmpOnly) {
-            fs.unlinkSync(clientPage)
-          }
+          try {
+            let mod = require(serverPage)
+            mod = mod.default || mod
+            if (mod && mod.__nextAmpOnly) {
+              fs.unlinkSync(clientPage)
+            }
+          } catch (_) {}
           resolve()
         }
       })
