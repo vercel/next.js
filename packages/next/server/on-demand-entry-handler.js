@@ -275,7 +275,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
             }
           } catch (err) {
             if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
-              reject(err)
+              return reject(err)
             }
           }
           resolve()
