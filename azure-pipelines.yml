@@ -20,5 +20,5 @@ steps:
   displayName: 'Install dependencies'
 
 - script: |
-    yarn testonly --runInBand --forceExit test/integration/amphtml -t 'editing a page'
+    yarn testonly --runInBand --forceExit test/integration/amphtml
   displayName: 'Run tests'
