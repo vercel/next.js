@@ -1886,11 +1886,6 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 To enable AMP support for a page, first enable experimental AMP support in your `next.config.js` and then import `withAmp` from `next/amp` and wrap your page's component in it.
 
 ```js
-// next.config.js
-module.exports = {
-  experimental: { amp: true }
-}
-
 // pages/about.js
 import { withAmp } from 'next/amp'
 
