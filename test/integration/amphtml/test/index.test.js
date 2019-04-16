@@ -284,6 +284,13 @@ describe('AMP Usage', () => {
           /This is a cold AMP page/
         )
 
+        const files = readdirSync(join(
+          __dirname, '../.next/static/webpack'
+        ))
+
+        const file = files.find(path => path.indexOf('hot-update') > -1)
+        throw readFileSync(join(__dirname, '../.next/static/webpack', file), 'utf8')
+
         // add the original content
         writeFileSync(hmrTestPagePath, originalContent, 'utf8')
 
@@ -363,13 +370,6 @@ describe('AMP Usage', () => {
 
         // change the content
         writeFileSync(hmrTestPagePath, editedContent, 'utf8')
-
-        const files = readdirSync(join(
-          __dirname, '../.next/static/webpack'
-        ))
-
-        const file = files.find(path => path.indexOf('hot-update') > -1)
-        throw readFileSync(join(__dirname, '../.next/static/webpack', file), 'utf8')
 
         let checks = 5
         let i = 0
