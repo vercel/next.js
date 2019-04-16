@@ -344,6 +344,8 @@ export default class HotReloader {
       distDir: this.config.distDir,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
+      publicRuntimeConfig: this.config.publicRuntimeConfig,
+      serverRuntimeConfig: this.config.serverRuntimeConfig,
       ...this.config.onDemandEntries
     })
 

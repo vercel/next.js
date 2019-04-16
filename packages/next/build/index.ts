@@ -210,7 +210,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const clientPage = path.join(distDir, 'static', buildId, 'pages', page + '.js')
 
     try {
-      require('next/config').setConfig({})
+      require('next/config').setConfig({
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig
+      })
       let mod = require(serverPage)
       mod = mod.default || mod
       if (mod && mod.__nextAmpOnly) {

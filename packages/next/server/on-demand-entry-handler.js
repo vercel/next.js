@@ -33,7 +33,9 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength
+  pagesBufferLength,
+  publicRuntimeConfig,
+  serverRuntimeConfig
 }) {
   const pagesDir = join(dir, 'pages')
   const clients = new Map()
@@ -267,7 +269,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           let serverPage = join(dir, distDir, 'server', name)
           const clientPage = join(dir, distDir, name)
           try {
-            require('next/config').setConfig({})
+            require('next/config').setConfig({
+              serverRuntimeConfig,
+              publicRuntimeConfig
+            })
             let mod = require(serverPage)
             mod = mod.default || mod
             if (mod && mod.__nextAmpOnly) {
