@@ -272,7 +272,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
             if (mod && mod.__nextAmpOnly) {
               fs.unlinkSync(clientPage)
             }
-          } catch (_) {}
+          } catch (err) {
+            if (err.code !== 'ENOENT') {
+              throw err
+            }
+          }
           resolve()
         }
       })
