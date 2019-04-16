@@ -274,7 +274,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
               fs.unlinkSync(clientPage)
             }
           } catch (err) {
-            if (err.code !== 'ENOENT' && (err.message && !err.message.includes('Cannot find module'))) {
+            if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
               reject(err)
             }
           }

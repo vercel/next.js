@@ -217,7 +217,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
         await unlink(clientPage)
       }
     } catch (err) {
-      if (err.code !== 'ENOENT' || (err.message && !err.message.includes('Cannot find module'))) {
+      if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
         throw err
       }
     }
