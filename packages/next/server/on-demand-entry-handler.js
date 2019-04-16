@@ -267,13 +267,14 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           let serverPage = join(dir, distDir, 'server', name)
           const clientPage = join(dir, distDir, name)
           try {
+            require('next/config').setConfig({})
             let mod = require(serverPage)
             mod = mod.default || mod
             if (mod && mod.__nextAmpOnly) {
               fs.unlinkSync(clientPage)
             }
           } catch (err) {
-            if (err.code !== 'ENOENT') {
+            if (err.code !== 'ENOENT' && (err.message && !err.message.includes('Cannot find module'))) {
               reject(err)
             }
           }

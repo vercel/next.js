@@ -210,13 +210,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const clientPage = path.join(distDir, 'static', buildId, 'pages', page + '.js')
 
     try {
+      require('next/config').setConfig({})
       let mod = require(serverPage)
       mod = mod.default || mod
       if (mod && mod.__nextAmpOnly) {
         await unlink(clientPage)
       }
     } catch (err) {
-      if (err.code !== 'ENOENT') {
+      if (err.code !== 'ENOENT' || (err.message && !err.message.includes('Cannot find module'))) {
         throw err
       }
     }
