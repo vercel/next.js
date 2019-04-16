@@ -1,6 +1,6 @@
 /* eslint-env jest */
 /* global jasmine */
-import { join } from 'path'
+import path, { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { validateAMP } from 'amp-test-utils'
@@ -268,6 +268,10 @@ describe('AMP Usage', () => {
           'hmr',
           'test.js'
         )
+
+        if (path.sep === '\\') {
+          expect(await browser.elementByCss('html')).toMatch('\\hmr\\test')
+        }
 
         const originalContent = readFileSync(hmrTestPagePath, 'utf8')
         const editedContent = originalContent.replace(
