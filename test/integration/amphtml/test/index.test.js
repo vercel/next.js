@@ -152,6 +152,11 @@ describe('AMP Usage', () => {
       ).toBe('/use-amp-hook?amp=1')
     })
 
+    it('should render link rel amphtml with existing query', async () => {
+      const html = await renderViaHTTP(appPort, '/use-amp-hook?hello=1')
+      expect(html).not.toMatch(/&amp;amp=1/)
+    })
+
     it('should render the AMP page that uses the AMP hook', async () => {
       const html = await renderViaHTTP(appPort, '/use-amp-hook?amp=1')
       const $ = cheerio.load(html)
