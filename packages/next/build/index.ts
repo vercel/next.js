@@ -215,7 +215,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (mod && mod.__nextAmpOnly) {
         await unlink(clientPage)
       }
-    } catch (_) {}
+    } catch (err) {
+      if (err.code !== 'ENOENT') {
+        throw err
+      }
+    }
     sema.release()
   }))
 
