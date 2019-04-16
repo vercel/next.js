@@ -311,7 +311,7 @@ export default IndexPage
 
 In this case only the second `<meta name="viewport" />` is rendered.
 
-_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added._
 
 _Note: `<title>` and `<meta>` elements need to be contained as **direct** children of the `<Head>` element, or wrapped into maximum one level of `<React.Fragment>`, otherwise the metatags won't be correctly picked up on clientside navigation._
 
