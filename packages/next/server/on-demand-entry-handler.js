@@ -264,7 +264,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         function handleCallback (err) {
           if (err) return reject(err)
           const { name } = entries[normalizedPage]
-          const serverPage = join(dir, distDir, 'server', name)
+          let serverPage = join(dir, distDir, 'server', name)
           const clientPage = join(dir, distDir, name)
           try {
             let mod = require(serverPage)
@@ -274,7 +274,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
             }
           } catch (err) {
             if (err.code !== 'ENOENT') {
-              throw err
+              reject(err)
             }
           }
           resolve()
