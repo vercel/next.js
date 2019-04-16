@@ -1,10 +1,11 @@
+/* eslint-disable */
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { validateAMP } from 'amp-test-utils'
-import { readFileSync, writeFileSync } from 'fs'
+import { readdirSync, readFileSync, writeFileSync } from 'fs'
 import {
   waitFor,
   nextServer,
@@ -362,6 +363,13 @@ describe('AMP Usage', () => {
 
         // change the content
         writeFileSync(hmrTestPagePath, editedContent, 'utf8')
+
+        const files = readdirSync(join(
+          __dirname, '../.next/static/webpack'
+        ))
+
+        const file = files.find(path => path.indexOf('hot-update') > -1)
+        throw readFileSync(join(__dirname, '../.next/static/webpack', file), 'utf8')
 
         let checks = 5
         let i = 0

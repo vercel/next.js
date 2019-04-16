@@ -50,7 +50,6 @@ async function tryApplyUpdates () {
     if (pageUpdated) {
       document.location.reload(true)
     } else {
-      document.querySelector('span').innerHMTL = JSON.stringify(data)
       curHash = mostRecentHash
     }
   } catch (err) {
