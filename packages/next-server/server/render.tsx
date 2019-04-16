@@ -113,12 +113,12 @@ function render(
 }
 
 type RenderOpts = {
-  noDirtyAmp: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
   dynamicBuildId?: boolean
   runtimeConfig?: { [key: string]: any }
+  dangerousAsPath: string
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
@@ -151,6 +151,7 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     dynamicImportsIds,
+    dangerousAsPath,
     err,
     dev,
     ampPath,
@@ -167,6 +168,7 @@ function renderDocument(
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    dangerousAsPath: string
     ampPath: string,
     amphtml: boolean
     hasAmp: boolean,
@@ -196,6 +198,7 @@ function renderDocument(
             dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
+          dangerousAsPath={dangerousAsPath}
           ampPath={ampPath}
           amphtml={amphtml}
           hasAmp={hasAmp}
@@ -224,7 +227,6 @@ export async function renderToHTML(
     dev = false,
     ampBindInitData = false,
     staticMarkup = false,
-    noDirtyAmp = false,
     ampPath = '',
     App,
     Document,
@@ -307,7 +309,7 @@ export async function renderToHTML(
 
   const ampMode = {
     enabled: false,
-    hasQuery: Boolean(query.amp),
+    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
   }
 
   if (ampBindInitData) {
@@ -424,6 +426,7 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    dangerousAsPath: router.asPath,
     dataManagerData,
     ampMode,
     props,
@@ -440,7 +443,7 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+    html = await optimizeAmp(html, { amphtml, query })
 
     // don't validate dirty AMP
     if (renderOpts.ampValidator && query.amp) {

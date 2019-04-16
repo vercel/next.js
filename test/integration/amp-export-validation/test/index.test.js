@@ -34,18 +34,6 @@ describe('AMP Validation on Export', () => {
     }))
   })
 
-  it('should disable dirty AMP with noDirtyAmp set', async () => {
-    nextConfig.replace(`// exportPathMap`, `experimental: { noDirtyAmp: true } `)
-    await nextExport(appDir, { outdir: outDir })
-    const ampOnly = ['first', 'second', 'third']
-    await Promise.all(ampOnly.map(async page => {
-      const html = await readFile(join(outDir, `${
-        page + (page === 'third' ? '.amp' : '')}/index.html`))
-      await validateAMP(html.toString())
-    }))
-    nextConfig.restore()
-  })
-
   it('shows AMP warning without throwing error', async () => {
     nextConfig.replace('// exportPathMap',
       `exportPathMap: function(defaultMap) {

@@ -1,4 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-amp)
+[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/amp)
 
 # Google AMP
 
@@ -9,9 +9,9 @@
 Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-amp with-amp-app
+npx create-next-app --example amp amp-app
 # or
-yarn create next-app --example with-amp with-amp-app
+yarn create next-app --example amp amp-app
 ```
 
 ### Download manually
@@ -19,8 +19,8 @@ yarn create next-app --example with-amp with-amp-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-amp
-cd with-amp
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/amp
+cd amp
 ```
 
 Install it and run:
@@ -41,4 +41,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to create AMP pages using Next.js. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page. 
+This example shows how to create AMP pages using Next.js and the experimental AMP feature. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page. 

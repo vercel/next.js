@@ -20,7 +20,12 @@ export function isBlockedPage(pathname: string): boolean {
 }
 
 export function cleanAmpPath(pathname: string): string {
-  return (pathname || '')
-    .replace(/\.amp$/, '')
-    .replace(/\index$/, '')
+  if (pathname.match(/\?amp=(y|yes|true|1)/)) {
+    pathname = pathname.replace(/\?amp=(y|yes|true|1)/, '?')
+  }
+  if (pathname.match(/&amp=(y|yes|true|1)/)) {
+    pathname = pathname.replace(/\?amp=(y|yes|true|1)/, '')
+  }
+  pathname = pathname.replace(/\?$/, '')
+  return pathname
 }

@@ -21,7 +21,5 @@ app.prepare()
       handle(req, res, parsedUrl)
     }
   })
-  .listen(port, () => {
-    console.log(`> Ready on http://localhost:${port}`)
-  })
+  .listen(port)
 })
