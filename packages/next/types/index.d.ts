@@ -30,8 +30,8 @@ declare module 'next-server/dist/lib/request-context' {
 }
 
 declare module 'next-server/dist/lib/utils' {
-  export function loadGetInitialProps(Component: any, ctx: any): Promise<any>
-  export function execOnce(fn: any): (...args: any[]) => void
+  import * as all from 'next-server/lib/utils'
+  export = all
 }
 
 declare module 'next/dist/compiled/nanoid/index.js' {

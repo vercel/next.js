@@ -5,7 +5,7 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import ssrPrepass from 'react-ssr-prepass'
 import {IRouterInterface} from '../lib/router/router'
 import mitt, {MittEmitter} from '../lib/mitt';
-import { loadGetInitialProps, isResSent } from '../lib/utils'
+import { loadGetInitialProps, isResSent, ComponentsEnhancer, RenderPage, IAppContext, IDocumentContext } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
@@ -23,10 +23,7 @@ import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
 import { isAmp } from '../lib/amp';
 
-type Enhancer = (Component: React.ComponentType) => React.ComponentType
-type ComponentsEnhancer =
-  | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
-  | Enhancer
+type AppServerContext = IAppContext<ServerRouter>
 
 function noRouter() {
   const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
@@ -266,7 +263,7 @@ export async function renderToHTML(
   let props: any
 
   try {
-    props = await loadGetInitialProps(App, { Component, router, ctx })
+    props = await loadGetInitialProps<AppServerContext>(App, { Component, router, ctx })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -305,7 +302,7 @@ export async function renderToHTML(
     }
   }
 
-  let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
+  let renderPage: RenderPage
 
   const ampMode = {
     enabled: false,
@@ -401,7 +398,7 @@ export async function renderToHTML(
     }
   }
 
-  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
+  const docProps = await loadGetInitialProps<IDocumentContext>(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
@@ -410,7 +407,7 @@ export async function renderToHTML(
     dataManagerData = JSON.stringify([...dataManager.getData()])
   }
 
-  if (docProps.dataOnly) {
+  if (docProps && docProps.dataOnly) {
     return dataManagerData
   }
 

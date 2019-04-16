@@ -3,7 +3,7 @@
 import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps } from '../utils';
+import { formatWithValidation, getURL, loadGetInitialProps, IContext, IAppContext } from '../utils';
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -26,8 +26,6 @@ type RouteInfo = {
 type Subscription = (data: {App?: ComponentType} & RouteInfo) => void
 
 type BeforePopStateCallback = (state: any) => boolean
-
-type Context = any
 
 export default class Router implements IRouterInterface {
   route: string
@@ -463,13 +461,13 @@ export default class Router implements IRouterInterface {
     return Component
   }
 
-  async getInitialProps(Component: ComponentType, ctx: Context): Promise<any> {
+  async getInitialProps(Component: ComponentType, ctx: IContext): Promise<any> {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
     const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps(App, { Component, router: this, ctx })
+    const props = await loadGetInitialProps<IAppContext<Router>>(App, { Component, router: this, ctx })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null
