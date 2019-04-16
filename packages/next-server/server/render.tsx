@@ -444,12 +444,16 @@ export async function renderToHTML(
 
   if (amphtml && html) {
     html = await optimizeAmp(html, { amphtml, query })
-    html = html.replace(/&amp;amp=1/g, '&amp=1')
 
     // don't validate dirty AMP
     if (renderOpts.ampValidator && query.amp) {
       await renderOpts.ampValidator(html, pathname)
     }
+  }
+
+  if (amphtml || hasAmp) {
+    // fix &amp being escaped for amphtml rel link
+    html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
   return html
 }
