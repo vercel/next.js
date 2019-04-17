@@ -221,7 +221,6 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts,
 ): Promise<string | null> {
-  pathname = pathname === '/index' ? '/' : pathname
   const {
     err,
     dev = false,
