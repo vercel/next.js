@@ -16,7 +16,7 @@ export type ComponentsEnhancer =
 export type RenderPage = (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string, head: any }>
 
 export interface IContext {
-  err?: Error | null
+  err?: Error & { statusCode?: number } | null
   req?: IncomingMessage
   res?: ServerResponse
   pathname: string

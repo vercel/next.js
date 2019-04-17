@@ -9,6 +9,11 @@ declare module 'next/router' {
   export = all
 }
 
+declare module 'next-server/head' {
+  import * as all from 'next-server/lib/head'
+  export = all
+}
+
 declare module 'next-server/dist/lib/data-manager-context' {
   import * as all from 'next-server/lib/data-manager-context'
   export = all
@@ -69,6 +74,15 @@ declare module 'next/dist/compiled/arg/index.js' {
 
   export = arg;
 }
+
+// import { StyleHTMLAttributes, HTMLAttributes } from 'react'
+
+// declare module 'react' {
+//   interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
+//     jsx?: boolean
+//     global?: boolean
+//   }
+// }
 
 declare module 'autodll-webpack-plugin' {
   import webpack from 'webpack'
