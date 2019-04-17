@@ -9,15 +9,10 @@ export default withAmp(() => {
   return (
     <Layout>
       <Head>
-        <title>The Cat</title>
+        <title>The Cat (AMP-only Page)</title>
       </Head>
       <h1>The Cat</h1>
       <Byline author='Dan Zajdband' />
-      <p>
-        <a href={isAmp ? '/' : '/?amp=1'}>
-          {isAmp ? 'View Non-AMP' : 'View AMP'} Version
-        </a>
-      </p>
       <p className='caption'>Meowwwwwwww</p>
       <p>
         Cat ipsum dolor <a href={isAmp ? '/dog?amp=1' : '/dog'}>sit amet</a>,
