@@ -1,8 +1,10 @@
 import chalk from 'chalk'
-import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
+import { PHASE_PRODUCTION_BUILD, BLOCKED_PAGES } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
+import Sema from 'async-sema'
 import path from 'path'
+import fs from 'fs'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -20,6 +22,9 @@ import {
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { writeBuildId } from './write-build-id'
+import { promisify } from 'util'
+
+const unlink = promisify(fs.unlink)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -190,6 +195,37 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   result = formatWebpackMessages(result)
+
+  const pages = Object.keys(mappedPages)
+  const sema = new Sema(20, { capacity: pages.length })
+
+  await Promise.all(pages.map(async page => {
+    await sema.acquire()
+    page = page === '/' ? '/index' : page
+
+    if (BLOCKED_PAGES.includes(page)) {
+      return sema.release()
+    }
+    const serverPage = path.join(distDir, config.target === 'serverless' ? 'serverless/pages' : `server/static/${buildId}/pages`, page + '.js')
+    const clientPage = path.join(distDir, 'static', buildId, 'pages', page + '.js')
+
+    try {
+      require('next/config').setConfig({
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig
+      })
+      let mod = require(serverPage)
+      mod = mod.default || mod
+      if (mod && mod.__nextAmpOnly) {
+        await unlink(clientPage)
+      }
+    } catch (err) {
+      if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
+        throw err
+      }
+    }
+    sema.release()
+  }))
 
   if (isFlyingShuttle) {
     console.log()

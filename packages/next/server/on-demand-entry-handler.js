@@ -2,6 +2,7 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
+import fs from 'fs'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
@@ -28,10 +29,13 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
+  distDir,
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength
+  pagesBufferLength,
+  publicRuntimeConfig,
+  serverRuntimeConfig
 }) {
   const pagesDir = join(dir, 'pages')
   const clients = new Map()
@@ -261,6 +265,24 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
         function handleCallback (err) {
           if (err) return reject(err)
+          const { name } = entries[normalizedPage]
+          let serverPage = join(dir, distDir, 'server', name)
+          const clientPage = join(dir, distDir, name)
+          try {
+            require('next/config').setConfig({
+              serverRuntimeConfig,
+              publicRuntimeConfig
+            })
+            let mod = require(serverPage)
+            mod = mod.default || mod
+            if (mod && mod.__nextAmpOnly) {
+              fs.unlinkSync(clientPage)
+            }
+          } catch (err) {
+            if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
+              return reject(err)
+            }
+          }
           resolve()
         }
       })

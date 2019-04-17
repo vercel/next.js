@@ -311,7 +311,7 @@ export default IndexPage
 
 In this case only the second `<meta name="viewport" />` is rendered.
 
-_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added_
+_Note: The contents of `<head>` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `<head>`, without making assumptions about what other pages added._
 
 _Note: `<title>` and `<meta>` elements need to be contained as **direct** children of the `<Head>` element, or wrapped into maximum one level of `<React.Fragment>`, otherwise the metatags won't be correctly picked up on clientside navigation._
 
@@ -1886,11 +1886,6 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 To enable AMP support for a page, first enable experimental AMP support in your `next.config.js` and then import `withAmp` from `next/amp` and wrap your page's component in it.
 
 ```js
-// next.config.js
-module.exports = {
-  experimental: { amp: true }
-}
-
 // pages/about.js
 import { withAmp } from 'next/amp'
 
