@@ -28,8 +28,6 @@ type ServerConstructor = {
   conf?: NextConfig,
 }
 
-const ENDING_IN_JSON_REGEX = /\.json$/
-
 export default class Server {
   dir: string
   quiet: boolean
@@ -37,8 +35,7 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
-    ampEnabled: boolean
-    noDirtyAmp: boolean
+    poweredByHeader: boolean
     ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
@@ -77,9 +74,8 @@ export default class Server {
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
-      ampEnabled: this.nextConfig.experimental.amp,
-      noDirtyAmp: this.nextConfig.experimental.noDirtyAmp,
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
+      poweredByHeader: this.nextConfig.poweredByHeader,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -250,8 +246,8 @@ export default class Server {
     res: ServerResponse,
     html: string,
   ) {
-    const { generateEtags } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags })
+    const { generateEtags, poweredByHeader } = this.renderOpts
+    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
 
   public async render(
@@ -271,7 +267,6 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
-      amphtml: query.amp && this.nextConfig.experimental.amp,
       dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
     })
     // Request was ended by the user
@@ -289,8 +284,8 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname, opts)
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts, hasAmp: result.hasAmp  })
+    const result = await loadComponents(this.distDir, this.buildId, pathname)
+    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
   public async renderToHTML(

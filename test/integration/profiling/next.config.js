@@ -1,4 +1,5 @@
 module.exports = {
+  target: 'serverless',
   experimental: {
     profiling: true
   },

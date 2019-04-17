@@ -2,12 +2,14 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
+import fs from 'fs'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
 import { stringify } from 'querystring'
 import { findPageFile } from './lib/find-page-file'
 import { isWriteable } from '../build/is-writeable'
+import * as Log from '../build/output/log'
 
 const ADDED = Symbol('added')
 const BUILDING = Symbol('building')
@@ -27,10 +29,13 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
+  distDir,
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength
+  pagesBufferLength,
+  publicRuntimeConfig,
+  serverRuntimeConfig
 }) {
   const pagesDir = join(dir, 'pages')
   const clients = new Map()
@@ -51,6 +56,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   let reloading = false
   let stopped = false
   let reloadCallbacks = new EventEmitter()
+  let lastEntry = null
 
   for (const compiler of compilers) {
     compiler.hooks.make.tapPromise('NextJsOnDemandEntries', (compilation) => {
@@ -60,7 +66,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         const { name, absolutePagePath } = entries[page]
         const pageExists = await isWriteable(absolutePagePath)
         if (!pageExists) {
-          console.warn('Page was removed', page)
+          Log.event('page was removed', page)
           delete entries[page]
           return
         }
@@ -164,11 +170,10 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
     const entryInfo = entries[page]
     let toSend
 
-    // If there's no entry.
-    // Then it seems like an weird issue.
+    // If there's no entry, it may have been invalidated and needs to be re-built.
     if (!entryInfo) {
-      const message = `Client pings, but there's no entry for page: ${page}`
-      console.error(message)
+      if (page !== lastEntry) Log.event(`client pings, but there's no entry for page: ${page}`)
+      lastEntry = page
       return { invalid: true }
     }
 
@@ -205,7 +210,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    async ensurePage (page, amp, ampEnabled) {
+    async ensurePage (page) {
       await this.waitUntilReloaded()
       let normalizedPagePath
       try {
@@ -215,8 +220,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions, amp, ampEnabled)
-      const isAmp = pagePath && pageExtensions.some(ext => pagePath.endsWith('amp.' + ext))
+      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions)
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -234,13 +238,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       page = posix.normalize(pageUrl)
-      const result = {
-        isAmp,
-        pathname: page,
-        hasAmp: !isAmp && await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled)
-      }
 
-      await new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
         const normalizedPage = normalizePage(page)
         const entryInfo = entries[normalizedPage]
@@ -257,7 +256,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           }
         }
 
-        console.log(`> Building page: ${normalizedPage}`)
+        Log.event(`build page: ${normalizedPage}`)
 
         entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
         doneCallbacks.once(normalizedPage, handleCallback)
@@ -266,11 +265,27 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
         function handleCallback (err) {
           if (err) return reject(err)
+          const { name } = entries[normalizedPage]
+          let serverPage = join(dir, distDir, 'server', name)
+          const clientPage = join(dir, distDir, name)
+          try {
+            require('next/config').setConfig({
+              serverRuntimeConfig,
+              publicRuntimeConfig
+            })
+            let mod = require(serverPage)
+            mod = mod.default || mod
+            if (mod && mod.__nextAmpOnly) {
+              fs.unlinkSync(clientPage)
+            }
+          } catch (err) {
+            if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
+              return reject(err)
+            }
+          }
           resolve()
         }
       })
-
-      return result
     },
 
     middleware () {
@@ -364,7 +379,7 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
     disposingPages.forEach((page) => {
       delete entries[page]
     })
-    console.log(`> Disposing inactive page(s): ${disposingPages.join(', ')}`)
+    Log.event(`disposing inactive page(s): ${disposingPages.join(', ')}`)
     devMiddleware.invalidate()
   }
 }

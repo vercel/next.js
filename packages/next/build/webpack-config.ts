@@ -8,7 +8,7 @@ import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CHUNK_GRAPH_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
-import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_NODE_MODULES, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
+import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
@@ -18,11 +18,11 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, __selectivePageBuilding = false}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, __selectivePageBuilding?: boolean}): webpack.Configuration {
+export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { isServer, cwd: dir }
+      options: { isServer, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -61,7 +61,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
-      [DOT_NEXT_ALIAS]: distDir
+      [DOT_NEXT_ALIAS]: distDir,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main']
   }
@@ -73,6 +73,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     sourceMap: false,
     cache: true,
     cpus: config.experimental.cpus,
+    distDir: distDir
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -80,7 +81,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     devtool: (dev || debug) ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
-    externals: isServer && target !== 'serverless' ? [
+    externals: !isServer ? undefined : target !== 'serverless' ? [
       (context, request, callback) => {
         const notExternalModules = [
           'next/app', 'next/document', 'next/link', 'next/error',
@@ -128,13 +129,14 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       // So that the serverless bundles have 0 runtime dependencies
       'amp-toolbox-optimizer' // except this one
     ],
-    optimization: isServer ? {
+    optimization: Object.assign({
+      checkWasmTypes: false,
       nodeEnv: false,
+    }, isServer ? {
       splitChunks: false,
       minimize: false
-    } : Object.assign({
-      nodeEnv: false,
-      runtimeChunk: __selectivePageBuilding ? false : {
+    } : {
+      runtimeChunk: selectivePageBuilding ? false : {
         name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
       },
       splitChunks: dev ? {
@@ -142,7 +144,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           default: false,
           vendors: false
         }
-      } : __selectivePageBuilding ? {
+      } : selectivePageBuilding ? {
         cacheGroups: {
           default: false,
           vendors: false,
@@ -173,16 +175,17 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       minimizer: !(dev || debug) ? [
         new TerserPlugin({...terserPluginConfig,
           terserOptions: {
-            safari10: true
+            safari10: true,
+            ...((selectivePageBuilding || config.experimental.terserLoader) ? { compress: false, mangle: true } : undefined)
           }
         })
       ] : undefined,
-    }, __selectivePageBuilding ? {
+    }, selectivePageBuilding ? {
       providedExports: false,
       usedExports: false,
       concatenateModules: false,
     } : undefined),
-    recordsPath: path.join(outputPath, 'records.json'),
+    recordsPath: selectivePageBuilding ? undefined : path.join(outputPath, 'records.json'),
     context: dir,
     // Kept as function to be backwards compatible
     entry: async () => {
@@ -210,7 +213,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
     },
-    performance: { hints: false },
+    performance: false,
     resolve: resolveConfig,
     resolveLoader: {
       modules: [
@@ -222,6 +225,14 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     // @ts-ignore this is filtered
     module: {
       rules: [
+        (selectivePageBuilding || config.experimental.terserLoader) && !isServer && {
+          test: /\.(js|mjs|jsx)$/,
+          exclude: /\.min\.(js|mjs|jsx)$/,
+          use: {
+            loader: 'next-minify-loader',
+            options: { terserOptions: { safari10: true, compress: true, mangle: false } }
+          }
+        },
         config.experimental.ampBindInitData && !isServer && {
           test: /\.(js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
@@ -268,7 +279,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      !isServer && __selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST }),
+      !isServer && selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST, selectivePageBuildingCacheIdentifier }),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations
         // This is because the client compilation generates the build manifest that's used on the server side
@@ -307,12 +318,12 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       !dev && new webpack.HashedModuleIdsPlugin(),
       // This must come after HashedModuleIdsPlugin (it sets any modules that
       // were missed by HashedModuleIdsPlugin)
-      !dev && __selectivePageBuilding && new AllModulesIdentifiedPlugin(dir),
+      !dev && selectivePageBuilding && new AllModulesIdentifiedPlugin(dir),
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
       !dev && new HashedChunkIdsPlugin(buildId),
       // On the client we want to share the same runtime cache
-      !isServer && __selectivePageBuilding && new SharedRuntimePlugin(),
+      !isServer && selectivePageBuilding && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
         checkResource: (resource: string) => {
           return /react-is/.test(resource)
@@ -321,7 +332,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           return /next-server[\\/]dist[\\/]/.test(context) || /next[\\/]dist[\\/]/.test(context)
         }
       }),
-      target === 'serverless' && (isServer || __selectivePageBuilding) && new ServerlessPlugin(buildId, { isServer }),
+      target === 'serverless' && (isServer || selectivePageBuilding) && new ServerlessPlugin(buildId, { isServer }),
       target !== 'serverless' && isServer && new PagesManifestPlugin(),
       target !== 'serverless' && isServer && new NextJsSSRModuleCachePlugin({ outputPath }),
       isServer && new NextJsSsrImportPlugin(),

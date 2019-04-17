@@ -1,0 +1,5 @@
+{
+  "name": "with-cookie-auth",
+  "version": "1.0.0",
+  "description": "Monorepo with a Next.js example of cookie based authorization"
+}

@@ -13,15 +13,15 @@ import { RequestContext } from '../lib/request-context'
 import {LoadableContext} from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
-
 import {
+  ManifestItem,
   getDynamicImportBundles,
   Manifest as ReactLoadableManifest,
-  ManifestItem,
 } from './get-dynamic-import-bundles'
 import { getPageFiles, BuildManifest } from './get-page-files'
-import { IsAmpContext } from '../lib/amphtml-context'
+import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
+import { isAmp } from '../lib/amp';
 
 type Enhancer = (Component: React.ComponentType) => React.ComponentType
 type ComponentsEnhancer =
@@ -113,13 +113,12 @@ function render(
 }
 
 type RenderOpts = {
-  ampEnabled: boolean
-  noDirtyAmp: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
   dynamicBuildId?: boolean
   runtimeConfig?: { [key: string]: any }
+  dangerousAsPath: string
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
@@ -127,6 +126,7 @@ type RenderOpts = {
   ampPath?: string
   amphtml?: boolean
   hasAmp?: boolean,
+  ampMode?: any,
   dataOnly?: boolean,
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
@@ -134,13 +134,13 @@ type RenderOpts = {
   Document: React.ComponentType
   App: React.ComponentType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
+  ampValidator?: (html: string, pathname: string) => Promise<void>,
 }
 
 function renderDocument(
   Document: React.ComponentType,
   {
     dataManagerData,
-    ampEnabled = false,
     props,
     docProps,
     pathname,
@@ -151,11 +151,13 @@ function renderDocument(
     runtimeConfig,
     nextExport,
     dynamicImportsIds,
+    dangerousAsPath,
     err,
     dev,
     ampPath,
     amphtml,
     hasAmp,
+    ampMode,
     staticMarkup,
     devFiles,
     files,
@@ -166,9 +168,11 @@ function renderDocument(
     docProps: any
     pathname: string
     query: ParsedUrlQuery
+    dangerousAsPath: string
     ampPath: string,
     amphtml: boolean
     hasAmp: boolean,
+    ampMode: any,
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
     files: string[]
@@ -178,7 +182,7 @@ function renderDocument(
   return (
     '<!DOCTYPE html>' +
     renderToStaticMarkup(
-      <IsAmpContext.Provider value={amphtml}>
+      <AmpModeContext.Provider value={ampMode}>
         <Document
           __NEXT_DATA__={{
             dataManager: dataManagerData,
@@ -194,7 +198,7 @@ function renderDocument(
             dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
-          ampEnabled={ampEnabled}
+          dangerousAsPath={dangerousAsPath}
           ampPath={ampPath}
           amphtml={amphtml}
           hasAmp={hasAmp}
@@ -205,7 +209,7 @@ function renderDocument(
           assetPrefix={assetPrefix}
           {...docProps}
         />
-      </IsAmpContext.Provider>,
+      </AmpModeContext.Provider>,
     )
   )
 }
@@ -223,9 +227,6 @@ export async function renderToHTML(
     dev = false,
     ampBindInitData = false,
     staticMarkup = false,
-    noDirtyAmp = false,
-    amphtml = false,
-    hasAmp = false,
     ampPath = '',
     App,
     Document,
@@ -306,6 +307,11 @@ export async function renderToHTML(
 
   let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
 
+  const ampMode = {
+    enabled: false,
+    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
+  }
+
   if (ampBindInitData) {
     renderPage = async (
       options: ComponentsEnhancer = {},
@@ -321,7 +327,7 @@ export async function renderToHTML(
       const Application = () => <RequestContext.Provider value={req}>
         <RouterContext.Provider value={router}>
           <DataManagerContext.Provider value={dataManager}>
-            <IsAmpContext.Provider value={amphtml}>
+            <AmpModeContext.Provider value={ampMode}>
               <LoadableContext.Provider
                 value={(moduleName) => reactLoadableModules.push(moduleName)}
               >
@@ -331,7 +337,7 @@ export async function renderToHTML(
                   {...props}
                 />
               </LoadableContext.Provider>
-            </IsAmpContext.Provider>
+            </AmpModeContext.Provider>
           </DataManagerContext.Provider>
         </RouterContext.Provider>
       </RequestContext.Provider>
@@ -378,7 +384,7 @@ export async function renderToHTML(
         renderElementToString,
         <RequestContext.Provider value={req}>
           <RouterContext.Provider value={router}>
-            <IsAmpContext.Provider value={amphtml}>
+            <AmpModeContext.Provider value={ampMode}>
               <LoadableContext.Provider
                 value={(moduleName) => reactLoadableModules.push(moduleName)}
               >
@@ -388,7 +394,7 @@ export async function renderToHTML(
                   {...props}
                 />
               </LoadableContext.Provider>
-            </IsAmpContext.Provider>
+            </AmpModeContext.Provider>
           </RouterContext.Provider>
         </RequestContext.Provider>,
       )
@@ -412,10 +418,17 @@ export async function renderToHTML(
     ...getDynamicImportBundles(reactLoadableManifest, reactLoadableModules),
   ]
   const dynamicImportsIds: any = dynamicImports.map((bundle) => bundle.id)
+  const amphtml = isAmp(ampMode)
+  const hasAmp = !amphtml && ampMode.enabled
+  // update renderOpts so export knows it's AMP
+  renderOpts.amphtml = amphtml
+  renderOpts.hasAmp = hasAmp
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    dangerousAsPath: router.asPath,
     dataManagerData,
+    ampMode,
     props,
     docProps,
     pathname,
@@ -429,8 +442,18 @@ export async function renderToHTML(
     devFiles,
   })
 
-  if (!dev && amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, noDirtyAmp, query })
+  if (amphtml && html) {
+    html = await optimizeAmp(html, { amphtml, query })
+
+    // don't validate dirty AMP
+    if (renderOpts.ampValidator && query.amp) {
+      await renderOpts.ampValidator(html, pathname)
+    }
+  }
+
+  if (amphtml || hasAmp) {
+    // fix &amp being escaped for amphtml rel link
+    html = html.replace(/&amp;amp=1/g, '&amp=1')
   }
   return html
 }

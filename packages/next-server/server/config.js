@@ -16,13 +16,12 @@ const defaultConfig = {
   generateEtags: true,
   pageExtensions: ['jsx', 'js'],
   target: 'server',
+  poweredByHeader: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2
   },
   experimental: {
-    amp: false,
-    noDirtyAmp: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
@@ -30,7 +29,10 @@ const defaultConfig = {
     ),
     ampBindInitData: false,
     exportTrailingSlash: true,
-    profiling: false
+    terserLoader: false,
+    profiling: false,
+    flyingShuttle: false,
+    asyncToPromises: false
   }
 }
 
