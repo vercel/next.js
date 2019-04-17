@@ -9,9 +9,9 @@ export default withAmp(
     return (
       <div>
         <Head>
-          <title>The Dog (Hybrid AMP Page)</title>
+          <title>The Dog</title>
         </Head>
-        <h1>The Dog</h1>
+        <h1>The Dog (Hybrid AMP Page)</h1>
         <Byline author='Meow Meow Fuzzyface' />
         <p>
           <a href={isAmp ? '/dog' : '/dog?amp=1'}>

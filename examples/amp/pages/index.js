@@ -9,9 +9,9 @@ export default withAmp(() => {
   return (
     <Layout>
       <Head>
-        <title>The Cat (AMP-only Page)</title>
+        <title>The Cat</title>
       </Head>
-      <h1>The Cat</h1>
+      <h1>The Cat (AMP-first Page)</h1>
       <Byline author='Dan Zajdband' />
       <p className='caption'>Meowwwwwwww</p>
       <p>
