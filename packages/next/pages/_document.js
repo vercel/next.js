@@ -193,7 +193,7 @@ export class Head extends Component {
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
       } else if (type === 'script') {
-        // only block if 
+        // only block if
         // 1. it has a src and isn't pointing to ampproject's CDN
         // 2. it is using dangerouslySetInnerHTML without a type or
         // a type of text/javascript
@@ -233,7 +233,7 @@ export class Head extends Component {
               href="https://cdn.ampproject.org/v0.js"
             />
             {/* Add custom styles before AMP styles to prevent accidental overrides */}
-            {styles && (
+            {Array.isArray(styles) ? (
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
@@ -244,7 +244,7 @@ export class Head extends Component {
                     .replace(/\/\*@ sourceURL=.*?\*\//g, '')
                 }}
               />
-            )}
+            ) : styles}
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
