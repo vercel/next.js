@@ -443,11 +443,16 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, query })
+    if (ampMode.hasQuery) {
+      html = await optimizeAmp(html, { amphtml, query })
+    }
 
-    // don't validate dirty AMP
-    if (renderOpts.ampValidator && query.amp) {
+    if (renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
+    }
+    // run optimize after validating in dirty mode
+    if (!ampMode.hasQuery) {
+      html = await optimizeAmp(html, { amphtml, query })
     }
   }
 
