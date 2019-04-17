@@ -13,7 +13,7 @@ export interface IErrorProps {
   statusCode: number
 }
 
-export default class Error extends React.Component<IErrorProps> {
+export default class Error<P = {}> extends React.Component<P & IErrorProps> {
   static displayName = 'ErrorPage'
 
   static getInitialProps({ res, err }: IContext) {

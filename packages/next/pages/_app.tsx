@@ -14,7 +14,7 @@ export interface IAppProps {
   pageProps: any
 }
 
-export default class App extends Component<IAppProps> {
+export default class App<P = {}> extends Component<P & IAppProps> {
   static childContextTypes = {
     router: PropTypes.object,
   }
