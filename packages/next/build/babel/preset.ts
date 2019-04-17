@@ -43,6 +43,7 @@ type NextBabelPresetOptions = {
 }
 
 type BabelPreset = {
+  compact?: boolean,
   presets?: PluginItem[] | null,
   plugins?: PluginItem[] | null
 }
@@ -62,6 +63,7 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
     ...options['preset-env']
   }
   return {
+    compact: true,
     presets: [
       [require('@babel/preset-env').default, presetEnvConfig],
       [require('@babel/preset-react'), {
