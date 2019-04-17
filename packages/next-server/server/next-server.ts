@@ -299,7 +299,6 @@ export default class Server {
       dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {
-    pathname = pathname.replace(/\/index$/, '') || '/'
     try {
       // To make sure the try/catch is executed
       const html = await this.renderToHTMLWithComponents(
