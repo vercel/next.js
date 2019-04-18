@@ -3,7 +3,6 @@ import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext } from 'next-server/dist/lib/utils'
 import { Router, makePublicRouterInstance } from 'next/router'
 
-// Export important types
 export { NextComponentType, IContext, IAppContext }
 
 export type AppClientContext = IAppContext<Router>

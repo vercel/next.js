@@ -3,14 +3,14 @@ import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import ssrPrepass from 'react-ssr-prepass'
-import {IRouterInterface} from '../lib/router/router'
-import mitt, {MittEmitter} from '../lib/mitt';
-import { loadGetInitialProps, isResSent, ComponentsEnhancer, RenderPage, IAppContext, IDocumentContext, IDocumentInitialProps, IDocumentProps, getDisplayName } from '../lib/utils'
+import { IRouterInterface } from '../lib/router/router'
+import mitt, { MittEmitter } from '../lib/mitt';
+import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, IDocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
 import { RequestContext } from '../lib/request-context'
-import {LoadableContext} from '../lib/loadable-context'
+import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
 import {
@@ -22,8 +22,6 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
 import { isAmp } from '../lib/amp';
-
-type AppServerContext = IAppContext<ServerRouter>
 
 function noRouter() {
   const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
@@ -71,11 +69,11 @@ class ServerRouter implements IRouterInterface {
 
 function enhanceComponents(
   options: ComponentsEnhancer,
-  App: React.ComponentType,
-  Component: React.ComponentType,
+  App: AppType,
+  Component: NextComponentType,
 ): {
-  App: React.ComponentType
-  Component: React.ComponentType,
+  App: AppType,
+  Component: NextComponentType,
 } {
   // For backwards compatibility
   if (typeof options === 'function') {
@@ -128,14 +126,14 @@ type RenderOpts = {
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
-  Document: React.ComponentType<IDocumentProps>
-  App: React.ComponentType
+  Document: DocumentType
+  App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
   ampValidator?: (html: string, pathname: string) => Promise<void>,
 }
 
 function renderDocument(
-  Document: React.ComponentType<IDocumentProps>,
+  Document: DocumentType,
   {
     dataManagerData,
     props,
@@ -262,7 +260,7 @@ export async function renderToHTML(
   let props: any
 
   try {
-    props = await loadGetInitialProps<AppServerContext>(App, { Component, router, ctx })
+    props = await loadGetInitialProps(App, { Component, router, ctx })
   } catch (err) {
     if (!dev || !err) throw err
     ctx.err = err
@@ -397,7 +395,7 @@ export async function renderToHTML(
     }
   }
 
-  const docProps = await loadGetInitialProps<IDocumentContext, IDocumentInitialProps>(Document, { ...ctx, renderPage })
+  const docProps = await loadGetInitialProps(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
@@ -410,6 +408,7 @@ export async function renderToHTML(
     const message = `"${getDisplayName(Document)}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
     throw new Error(message)
   }
+
   if (docProps.dataOnly) {
     return dataManagerData
   }

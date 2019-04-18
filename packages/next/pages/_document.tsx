@@ -10,6 +10,8 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
 
+export { IDocumentContext, IDocumentInitialProps, IDocumentProps }
+
 export interface IOriginProps {
   nonce?: string
   crossOrigin?: string

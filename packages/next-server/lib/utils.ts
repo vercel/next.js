@@ -3,24 +3,33 @@ import { ServerResponse, IncomingMessage } from 'http';
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
+import { IRouterInterface } from './router/router'
 
 /**
  * Types used by both next and next-server
  */
-
-export type NextComponentType<C = any, P = any, CP = any> = ComponentType<CP> & {
+export type NextComponentType<C extends IBaseContext = any, P = any, CP = {}> = ComponentType<CP> & {
   getInitialProps?(context: C): Promise<P>,
 }
 
-export type Enhancer = (Component: React.ComponentType) => React.ComponentType
+export type DocumentType = NextComponentType<IDocumentContext, IDocumentInitialProps, IDocumentProps>
+
+export type AppType = NextComponentType<IAppContext>
+
+export type Enhancer<C> = (Component: C) => C
 
 export type ComponentsEnhancer =
-  | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
-  | Enhancer
+  | { enhanceApp?: Enhancer<AppType>; enhanceComponent?: Enhancer<NextComponentType> }
+  | Enhancer<NextComponentType>
 
 export type RenderPageResult = { html: string, head?: Array<JSX.Element | null>, dataOnly?: true }
 
 export type RenderPage = (options?: ComponentsEnhancer) => RenderPageResult | Promise<RenderPageResult>
+
+export interface IBaseContext {
+  res?: ServerResponse
+  [k: string]: any
+}
 
 export interface INEXTDATA {
   dataManager: string
@@ -45,7 +54,7 @@ export interface IContext {
   asPath?: string
 }
 
-export interface IAppContext<R> {
+export interface IAppContext<R extends IRouterInterface = IRouterInterface> {
   Component: NextComponentType<IContext>
   router: R
   ctx: IContext
@@ -105,7 +114,7 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
-export async function loadGetInitialProps<C extends { res?: ServerResponse, [k: string]: any }, P = any, CP = any>(Component: NextComponentType<C, P, CP>, ctx: C): Promise<P | null> {
+export async function loadGetInitialProps<C extends IBaseContext, P = any, CP = {}>(Component: NextComponentType<C, P, CP>, ctx: C): Promise<P | null> {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
       const message = `"${getDisplayName(Component)}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
