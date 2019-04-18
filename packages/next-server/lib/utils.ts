@@ -18,15 +18,22 @@ export type ComponentsEnhancer =
   | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
   | Enhancer
 
-export type RenderPageResult = { html: string, head: any, dataOnly?: true }
+export type RenderPageResult = { html: string, head?: Array<JSX.Element | null>, dataOnly?: true }
 
 export type RenderPage = (options?: ComponentsEnhancer) => RenderPageResult | Promise<RenderPageResult>
 
 export interface INEXTDATA {
+  dataManager: string
+  props: any
   page: string
-  buildId: string
   query: ParsedUrlQuery
+  buildId: string
   dynamicBuildId: boolean
+  assetPrefix?: string
+  runtimeConfig?: { [key: string]: any }
+  nextExport?: boolean
+  dynamicIds?: string[]
+  err?: Error & { statusCode?: number }
 }
 
 export interface IContext {
@@ -49,7 +56,7 @@ export interface IDocumentContext extends IContext {
 }
 
 export interface IDocumentInitialProps extends RenderPageResult {
-  styles: React.ReactElement[]
+  styles?: React.ReactElement[]
 }
 
 export interface IDocumentProps extends IDocumentInitialProps {
@@ -90,7 +97,7 @@ export function getURL() {
   return href.substring(origin.length)
 }
 
-export function getDisplayName(Component: ComponentType) {
+export function getDisplayName(Component: ComponentType<any>) {
   return typeof Component === 'string' ? Component : (Component.displayName || Component.name || 'Unknown')
 }
 
@@ -98,7 +105,7 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
-export async function loadGetInitialProps<C extends { res?: ServerResponse, [k: string]: any }, P = any>(Component: NextComponentType<C, P>, ctx: C): Promise<P | null> {
+export async function loadGetInitialProps<C extends { res?: ServerResponse, [k: string]: any }, P = any, CP = any>(Component: NextComponentType<C, P, CP>, ctx: C): Promise<P | null> {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
       const message = `"${getDisplayName(Component)}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`

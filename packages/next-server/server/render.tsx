@@ -5,7 +5,7 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import ssrPrepass from 'react-ssr-prepass'
 import {IRouterInterface} from '../lib/router/router'
 import mitt, {MittEmitter} from '../lib/mitt';
-import { loadGetInitialProps, isResSent, ComponentsEnhancer, RenderPage, IAppContext, IDocumentContext } from '../lib/utils'
+import { loadGetInitialProps, isResSent, ComponentsEnhancer, RenderPage, IAppContext, IDocumentContext, IDocumentInitialProps, IDocumentProps, getDisplayName } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
@@ -96,7 +96,7 @@ function enhanceComponents(
 function render(
   renderElementToString: (element: React.ReactElement<any>) => string,
   element: React.ReactElement<any>,
-): { html: string; head: any } {
+): { html: string; head: React.ReactElement[] } {
   let html
   let head
 
@@ -128,14 +128,14 @@ type RenderOpts = {
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
-  Document: React.ComponentType
+  Document: React.ComponentType<IDocumentProps>
   App: React.ComponentType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
   ampValidator?: (html: string, pathname: string) => Promise<void>,
 }
 
 function renderDocument(
-  Document: React.ComponentType,
+  Document: React.ComponentType<IDocumentProps>,
   {
     dataManagerData,
     props,
@@ -160,9 +160,9 @@ function renderDocument(
     files,
     dynamicImports,
   }: RenderOpts & {
-    dataManagerData: any,
+    dataManagerData: string,
     props: any
-    docProps: any
+    docProps: IDocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
     dangerousAsPath: string
@@ -191,8 +191,7 @@ function renderDocument(
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
-            dynamicIds:
-            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           dangerousAsPath={dangerousAsPath}
@@ -398,7 +397,7 @@ export async function renderToHTML(
     }
   }
 
-  const docProps = await loadGetInitialProps<IDocumentContext>(Document, { ...ctx, renderPage })
+  const docProps = await loadGetInitialProps<IDocumentContext, IDocumentInitialProps>(Document, { ...ctx, renderPage })
   // the response might be finished on the getInitialProps call
   if (isResSent(res)) return null
 
@@ -407,7 +406,11 @@ export async function renderToHTML(
     dataManagerData = JSON.stringify([...dataManager.getData()])
   }
 
-  if (docProps && docProps.dataOnly) {
+  if (!docProps || !docProps.html) {
+    const message = `"${getDisplayName(Document)}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+    throw new Error(message)
+  }
+  if (docProps.dataOnly) {
     return dataManagerData
   }
 

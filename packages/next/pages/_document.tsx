@@ -195,7 +195,7 @@ export class Head<P = {}> extends Component<P & IOriginProps> {
         )
     }
     // show warning and remove conflicting amp head tags
-    head = !amphtml ? head : React.Children.map(head, (child) => {
+    head = !amphtml ? head : React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
       let badProp: string = ''
