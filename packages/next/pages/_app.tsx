@@ -8,10 +8,13 @@ export { NextComponentType, IContext, IAppContext }
 
 export type AppClientContext = IAppContext<Router>
 
-export interface IAppProps {
+export interface IAppInitialProps {
+  pageProps: any
+}
+
+export interface IAppProps extends IAppInitialProps {
   Component: React.ComponentType
   router: Router
-  pageProps: any
 }
 
 export default class App<P = {}> extends Component<P & IAppProps> {
@@ -19,7 +22,7 @@ export default class App<P = {}> extends Component<P & IAppProps> {
     router: PropTypes.object,
   }
 
-  static async getInitialProps({ Component, ctx }: AppClientContext) {
+  static async getInitialProps({ Component, ctx }: AppClientContext): Promise<IAppInitialProps> {
     const pageProps = await loadGetInitialProps(Component, ctx)
     return { pageProps }
   }

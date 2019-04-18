@@ -2,6 +2,11 @@ import { format, UrlObject,  URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http';
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
+import { ManifestItem } from '../server/get-dynamic-import-bundles'
+
+/**
+ * Types used by both next and next-server
+ */
 
 export type NextComponentType<C = any, P = any, CP = any> = ComponentType<CP> & {
   getInitialProps?(context: C): Promise<P>,
@@ -13,7 +18,16 @@ export type ComponentsEnhancer =
   | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
   | Enhancer
 
-export type RenderPage = (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string, head: any }>
+export type RenderPageResult = { html: string, head: any, dataOnly?: true }
+
+export type RenderPage = (options?: ComponentsEnhancer) => RenderPageResult | Promise<RenderPageResult>
+
+export interface INEXTDATA {
+  page: string
+  buildId: string
+  query: ParsedUrlQuery
+  dynamicBuildId: boolean
+}
 
 export interface IContext {
   err?: Error & { statusCode?: number } | null
@@ -33,6 +47,27 @@ export interface IAppContext<R> {
 export interface IDocumentContext extends IContext {
   renderPage: RenderPage
 }
+
+export interface IDocumentInitialProps extends RenderPageResult {
+  styles: React.ReactElement[]
+}
+
+export interface IDocumentProps extends IDocumentInitialProps {
+  __NEXT_DATA__: INEXTDATA
+  dangerousAsPath: string
+  ampPath: string
+  amphtml: boolean
+  hasAmp: boolean
+  staticMarkup: boolean
+  devFiles: string[]
+  files: string[]
+  dynamicImports: ManifestItem[]
+  assetPrefix?: string
+}
+
+/**
+ * Utils
+ */
 
 export function execOnce(this: any, fn: () => any) {
   let used = false

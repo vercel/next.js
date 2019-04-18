@@ -39,6 +39,11 @@ declare module 'next-server/dist/lib/utils' {
   export = all
 }
 
+declare module 'next-server/dist/server/utils' {
+  import * as all from 'next-server/server/utils'
+  export = all
+}
+
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string;
 
@@ -75,15 +80,6 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg;
 }
 
-// import { StyleHTMLAttributes, HTMLAttributes } from 'react'
-
-// declare module 'react' {
-//   interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
-//     jsx?: boolean
-//     global?: boolean
-//   }
-// }
-
 declare module 'autodll-webpack-plugin' {
   import webpack from 'webpack'
   class AutoDllPlugin implements webpack.Plugin {
@@ -103,4 +99,10 @@ declare module 'autodll-webpack-plugin' {
   }
 
   export = AutoDllPlugin
+}
+
+declare module NodeJS {
+  interface Process {
+    crossOrigin?: string;
+  }
 }
