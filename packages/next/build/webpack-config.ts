@@ -144,16 +144,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           default: false,
           vendors: false
         }
-      } : selectivePageBuilding ? {
-        cacheGroups: {
-          default: false,
-          vendors: false,
-          react: {
-            name: 'commons',
-            chunks: 'all',
-            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
-          }
-        }
       } : {
         chunks: 'all',
         cacheGroups: {
