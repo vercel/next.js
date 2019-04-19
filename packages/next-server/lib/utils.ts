@@ -14,7 +14,7 @@ export type NextComponentType<C extends IBaseContext = any, P = any, CP = {}> = 
 
 export type DocumentType = NextComponentType<IDocumentContext, IDocumentInitialProps, IDocumentProps>
 
-export type AppType = NextComponentType<IAppContext>
+export type AppType = NextComponentType<IAppContext, IAppInitialProps, IAppProps>
 
 export type Enhancer<C> = (Component: C) => C
 
