@@ -404,7 +404,7 @@ export async function renderToHTML(
     dataManagerData = JSON.stringify([...dataManager.getData()])
   }
 
-  if (!docProps || !docProps.html) {
+  if (!docProps || typeof docProps.html !== 'string') {
     const message = `"${getDisplayName(Document)}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
     throw new Error(message)
   }
