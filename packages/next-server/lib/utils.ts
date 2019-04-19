@@ -60,6 +60,15 @@ export interface IAppContext<R extends IRouterInterface = IRouterInterface> {
   ctx: IContext
 }
 
+export interface IAppInitialProps {
+  pageProps: any
+}
+
+export interface IAppProps<R extends IRouterInterface = IRouterInterface> extends IAppInitialProps {
+  Component: NextComponentType<IContext>
+  router: R
+}
+
 export interface IDocumentContext extends IContext {
   renderPage: RenderPage
 }

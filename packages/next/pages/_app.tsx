@@ -1,22 +1,15 @@
-import React, { Component } from 'react'
+import React from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext } from 'next-server/dist/lib/utils'
+import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps } from 'next-server/dist/lib/utils'
 import { Router, makePublicRouterInstance } from 'next/router'
 
-export { NextComponentType, IContext, IAppContext }
+export { NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps }
 
 export type AppClientContext = IAppContext<Router>
 
-export interface IAppInitialProps {
-  pageProps: any
-}
+export type AppProps = IAppProps<Router>
 
-export interface IAppProps extends IAppInitialProps {
-  Component: React.ComponentType
-  router: Router
-}
-
-export default class App<P = {}> extends Component<P & IAppProps> {
+export default class App extends React.Component<AppProps> {
   static childContextTypes = {
     router: PropTypes.object,
   }
@@ -49,7 +42,7 @@ export default class App<P = {}> extends Component<P & IAppProps> {
   }
 }
 
-export class Container extends Component {
+export class Container extends React.Component {
   componentDidMount() {
     this.scrollToHash()
   }

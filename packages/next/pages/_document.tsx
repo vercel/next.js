@@ -22,7 +22,7 @@ export interface IDocumentComponentContext {
   readonly _devOnlyInvalidateCacheQueryString: string
 }
 
-export default class Document<P = {}> extends Component<P & IDocumentProps> {
+export default class Document extends Component<IDocumentProps> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -60,7 +60,7 @@ export default class Document<P = {}> extends Component<P & IDocumentProps> {
   }
 }
 
-export class Html<P = {}> extends Component<P> {
+export class Html extends Component {
   static contextTypes = {
     _documentProps: PropTypes.any,
   }
@@ -73,16 +73,13 @@ export class Html<P = {}> extends Component<P> {
 
   render() {
     const { amphtml } = this.context._documentProps
-    const { children, ...props } = this.props
     return (
-      <html {...props} amp={amphtml ? '' : undefined}>
-        {children}
-      </html>
+      <html {...this.props} amp={amphtml ? '' : undefined}/>
     )
   }
 }
 
-export class Head<P = {}> extends Component<P & IOriginProps> {
+export class Head extends Component<IOriginProps> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -318,7 +315,7 @@ export class Head<P = {}> extends Component<P & IOriginProps> {
   }
 }
 
-export class Main<P = {}> extends Component<P> {
+export class Main extends Component {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -332,7 +329,7 @@ export class Main<P = {}> extends Component<P> {
   }
 }
 
-export class NextScript<P = {}> extends Component<P & IOriginProps> {
+export class NextScript extends Component<IOriginProps> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
