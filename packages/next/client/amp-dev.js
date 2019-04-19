@@ -40,7 +40,12 @@ async function tryApplyUpdates () {
     const data = await res.json()
     const curPage = page === '/' ? 'index' : page
     const pageUpdated = Object.keys(data.c)
-      .some(mod => mod.indexOf(`pages/${curPage}`) !== -1)
+      .some(mod => {
+        return (
+          mod.indexOf(`pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`) !== -1 ||
+          mod.indexOf(`pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`.replace(/\//g, '\\')) !== -1
+        )
+      })
 
     if (pageUpdated) {
       document.location.reload(true)
