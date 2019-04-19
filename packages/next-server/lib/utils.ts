@@ -1,4 +1,4 @@
-import { format, UrlObject,  URLFormatOptions } from 'url'
+import { URL, format, UrlObject, URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http';
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
