@@ -225,7 +225,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     // @ts-ignore this is filtered
     module: {
       rules: [
-        (selectivePageBuilding || config.experimental.terserLoader) && !isServer && {
+        (selectivePageBuilding || config.experimental.terserLoader) && !isServer && !debug && {
           test: /\.(js|mjs|jsx)$/,
           exclude: /\.min\.(js|mjs|jsx)$/,
           use: {
