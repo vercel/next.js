@@ -1,4 +1,4 @@
-import { URL, format, UrlObject, URLFormatOptions } from 'url'
+import { format, UrlObject, URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http';
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
@@ -149,7 +149,7 @@ export async function loadGetInitialProps<C extends IBaseContext, P = any, CP = 
 
 export const urlObjectKeys = ['auth', 'hash', 'host', 'hostname', 'href', 'path', 'pathname', 'port', 'protocol', 'query', 'search', 'slashes']
 
-export function formatWithValidation(url: URL | UrlObject, options?: URLFormatOptions) {
+export function formatWithValidation(url: UrlObject, options?: URLFormatOptions) {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
@@ -160,5 +160,5 @@ export function formatWithValidation(url: URL | UrlObject, options?: URLFormatOp
     }
   }
 
-  return url instanceof URL ? format(url, options) : format(url)
+  return format(url as any, options)
 }
