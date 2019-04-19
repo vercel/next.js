@@ -38,16 +38,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   serverRuntimeConfig
 }) {
   const pagesDir = join(dir, 'pages')
-  const clients = new Map()
-  const evtSourceHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'text/event-stream;charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
-    // While behind nginx, event stream should not be buffered:
-    // http://nginx.org/docs/http/ngx_http_proxy_module.html#proxy_buffering
-    'X-Accel-Buffering': 'no',
-    'Connection': 'keep-alive'
-  }
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
@@ -158,7 +148,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
-    clients.forEach((id, client) => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
@@ -307,34 +296,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
               res.end('302')
             })
         } else {
-          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
+          if (!/^\/_next\/webpack-hmr/.test(req.url)) return next()
 
           const { query } = parse(req.url, true)
           const page = query.page
           if (!page) return next()
-
-          // Upgrade request to EventSource
-          req.socket.setKeepAlive(true)
-          res.writeHead(200, evtSourceHeaders)
-          res.write('\n')
-
-          const startId = req.headers['user-agent'] + req.connection.remoteAddress
-          let clientId = startId
-          let numSameClient = 0
-
-          while (clients.has(clientId)) {
-            numSameClient++
-            clientId = startId + numSameClient
-          }
-
-          if (numSameClient > 1) {
-            // If the user has too many tabs with Next.js open in the same browser,
-            // they might be exceeding the max number of concurrent request.
-            // This varies per browser so we can only guess if this is the cause of
-            // a slow request and show a warning that this might be why
-            console.warn(`\nWarn: You are opening multiple tabs of the same site in the same browser, this could cause requests to stall. https://err.sh/zeit/next.js/multi-tabs`)
-          }
-          clients.set(clientId, res)
 
           const runPing = () => {
             const data = handlePing(query.page)
@@ -344,11 +310,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           const pingInterval = setInterval(() => runPing(), 5000)
 
           req.on('close', () => {
-            clients.delete(clientId)
             clearInterval(pingInterval)
           })
           // Do initial ping right after EventSource is finished being set up
-          runPing()
+          setImmediate(() => runPing())
+          next()
         }
       }
     }

@@ -1,14 +1,14 @@
 /* global window, location */
 
 import fetch from 'unfetch'
+import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
 
 let evtSource
 export let currentPage
-let retryTimeout
-const retryWait = 5000
 
 export function closePing () {
   if (evtSource) evtSource.close()
+  evtSource = null
 }
 
 export function setupPing (assetPrefix, pathnameFn, retry) {
@@ -20,21 +20,11 @@ export function setupPing (assetPrefix, pathnameFn, retry) {
   // close current EventSource connection
   closePing()
 
-  const url = `${assetPrefix}/_next/on-demand-entries-ping?page=${currentPage}`
-  evtSource = new window.EventSource(url)
+  const url = `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`
+  evtSource = getEventSourceWrapper({ path: url, timeout: 5000, ondemand: 1 })
 
-  evtSource.onerror = () => {
-    retryTimeout = setTimeout(
-      () => setupPing(assetPrefix, pathnameFn, true),
-      retryWait
-    )
-  }
-
-  evtSource.onopen = () => {
-    clearTimeout(retryTimeout)
-  }
-
-  evtSource.onmessage = event => {
+  evtSource.addMessageListener(event => {
+    if (event.data.indexOf('{') === -1) return
     try {
       const payload = JSON.parse(event.data)
       if (payload.invalid) {
@@ -51,5 +41,5 @@ export function setupPing (assetPrefix, pathnameFn, retry) {
     } catch (err) {
       console.error('on-demand-entries failed to parse response', err)
     }
-  }
+  })
 }
