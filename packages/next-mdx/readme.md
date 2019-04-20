@@ -2,6 +2,8 @@
 
 Use [MDX](https://github.com/mdx-js/mdx) with [Next.js](https://github.com/zeit/next.js)
 
+📢 **This repo is now deprecated and has been moved to [@next/mdx](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx)**
+
 ## Installation
 
 ```
