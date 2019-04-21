@@ -33,7 +33,7 @@ function EventSourceWrapper (options) {
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](event)
     }
-    if (event.data.indexOf('name') !== -1 && hotDevCallback) {
+    if (hotDevCallback && event.data.indexOf('action') !== -1) {
       hotDevCallback(event)
     }
   }
