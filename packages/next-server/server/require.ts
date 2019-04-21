@@ -22,9 +22,13 @@ export function getPagePath(page: string, distDir: string): string {
   }
 
   if (!pagesManifest[page]) {
-    throw pageNotFoundError(page)
+    const cleanedPage = page.replace(/\/index$/, '') || '/'
+    if (!pagesManifest[cleanedPage]) {
+      throw pageNotFoundError(page)
+    } else {
+      page = cleanedPage
+    }
   }
-
   return join(serverBuildPath, pagesManifest[page])
 }
 

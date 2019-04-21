@@ -58,12 +58,22 @@ error
 output](https://reasonml.github.io/blog/2017/08/25/way-nicer-error-messages.html)
 experience that ReasonML can offer, don't miss it!
 
+There are 2 convenience scripts to facilitate running these separate processes:
+
+1. `npm run dev:reason` - This script will start the ReasonML toolchain in
+   watch mode to re-compile whenever you make changes.
+2. `npm run dev:next` - This script will start the next.js development server
+   so that you will be able to access your site at the location output by the
+   script. This will also hot reload as you make changes.
+
+You should start the scripts in the presented order.
+
 ## The idea behind the example
 
 This example features:
 
-* An app that mixes together JavaScript and ReasonML components and functions
-* An app with two pages which has a common Counter component
-* That Counter component maintain the counter inside its module. This is used
+- An app that mixes together JavaScript and ReasonML components and functions
+- An app with two pages which has a common Counter component
+- That Counter component maintain the counter inside its module. This is used
   primarily to illustrate that modules get initialized once and their state
   variables persist in runtime

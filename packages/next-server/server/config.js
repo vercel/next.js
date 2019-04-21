@@ -22,7 +22,6 @@ const defaultConfig = {
     pagesBufferLength: 2
   },
   experimental: {
-    amp: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

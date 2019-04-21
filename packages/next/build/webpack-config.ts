@@ -59,9 +59,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
       'next/router': 'next/dist/client/router.js',
       'next/config': 'next-server/dist/lib/runtime-config.js',
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
-       ...(config.experimental.amp ? {} : {
-        'next/amp': 'you-must-enable-experimental-amp',
-      }),
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
       [DOT_NEXT_ALIAS]: distDir,
@@ -91,8 +88,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           'string-hash',
           'next/constants'
         ]
+        const nodeBuiltins = new Set([...require("repl")._builtinLibs, "constants", "module", "timers", "console", "_stream_writable", "_stream_readable", "_stream_duplex"])
 
-        if (notExternalModules.indexOf(request) !== -1) {
+        if (notExternalModules.indexOf(request) !== -1 || nodeBuiltins.has(request)) {
           return callback()
         }
 
@@ -228,7 +226,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     // @ts-ignore this is filtered
     module: {
       rules: [
-        (selectivePageBuilding || config.experimental.terserLoader) && !isServer && {
+        (selectivePageBuilding || config.experimental.terserLoader) && !isServer && !debug && {
           test: /\.(js|mjs|jsx)$/,
           exclude: /\.min\.(js|mjs|jsx)$/,
           use: {

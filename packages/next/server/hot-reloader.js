@@ -341,8 +341,11 @@ export default class HotReloader {
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
+      distDir: this.config.distDir,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
+      publicRuntimeConfig: this.config.publicRuntimeConfig,
+      serverRuntimeConfig: this.config.serverRuntimeConfig,
       ...this.config.onDemandEntries
     })
 
