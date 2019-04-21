@@ -39,7 +39,6 @@ const babelServerOpts = {
     }]
   ],
   plugins: [
-    'babel-plugin-dynamic-import-node',
     '@babel/plugin-proposal-class-properties'
   ]
 }
@@ -93,7 +92,11 @@ export async function compile (task) {
 }
 
 export async function bin (task, opts) {
-  await task.source(opts.src || 'bin/*').babel(babelServerOpts, { stripExtension: true }).target('dist/bin', { mode: '0755' })
+  const babelOpts = {
+    ...babelServerOpts,
+    plugins: [ ...babelServerOpts.plugins, 'babel-plugin-dynamic-import-node' ]
+  }
+  await task.source(opts.src || 'bin/*').babel(babelOpts, { stripExtension: true }).target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
 
@@ -110,7 +113,7 @@ export async function lib (task, opts) {
 export async function server (task, opts) {
   const babelOpts = {
     ...babelServerOpts,
-    // the /server files are using React
+    // the /server files may use React
     presets: [ ...babelServerOpts.presets, '@babel/preset-react' ]
   }
   await task.source(opts.src || 'server/**/*.+(js|ts|tsx)').babel(babelOpts).target('dist/server')
