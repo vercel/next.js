@@ -1,3 +1,4 @@
+// This file (and _any_ custom server) is unnecessary and wont work for serverless deployments (like Now v2)
 const { createServer } = require('http')
 const { parse } = require('url')
 const next = require('next')

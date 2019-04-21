@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "concurrently \"bsb -clean-world -make-world -w\" \"next dev\"",
+    "dev:reason": "bsb -clean-world -make-world -w",
+    "dev:next": "next dev",
     "build": "bsb -clean-world -make-world && next build",
     "start": "next start"
   },
@@ -10,13 +12,13 @@
   "dependencies": {
     "babel-plugin-bucklescript": "^0.5.3",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "reason-react": "^0.5.3"
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6",
+    "reason-react": "^0.7.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.2.2",
-    "bs-platform": "^4.0.14",
+    "@babel/core": "^7.4.3",
+    "bs-platform": "^5.0.3",
     "concurrently": "^4.1.0"
   }
 }

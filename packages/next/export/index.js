@@ -5,8 +5,6 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { tryAmp } from 'next-server/dist/server/require'
-import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
@@ -42,51 +40,14 @@ export default async function (dir, options, configuration) {
   const defaultPathMap = {}
 
   for (const page of pages) {
-    // _document and _app are not real pages.
-    if (page === '/_document' || page === '/_app') {
-      continue
-    }
-
-    if (page === '/_error') {
-      defaultPathMap['/404.html'] = { page }
+    // _document and _app are not real pages
+    // _error is exported as 404.html later on
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
     defaultPathMap[page] = { page }
   }
-
-  Object.keys(defaultPathMap).forEach(path => {
-    const isAmp = path.indexOf('.amp') > -1
-
-    if (isAmp) {
-      defaultPathMap[path].query = { amphtml: true }
-      const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
-      if (!defaultPathMap[nonAmp]) {
-        if (!nextConfig.experimental.noDirtyAmp) {
-          // dirty optimized
-          defaultPathMap[nonAmp] = {
-            ...defaultPathMap[path],
-            query: { ...defaultPathMap[path].query }
-          }
-          defaultPathMap[nonAmp].query.ampOnly = true
-          defaultPathMap[nonAmp].query.ampPath = path
-          // clean optimized
-          defaultPathMap[path].query.amp = 1
-        } else {
-          // dirty optimizing is disabled
-          defaultPathMap[path].query.amp = 1
-          defaultPathMap[path].query.ampOnly = true
-        }
-      } else {
-        defaultPathMap[path].query.amp = 1
-      }
-    } else {
-      const ampPath = tryAmp(defaultPathMap, path)
-      if (ampPath !== path) {
-        defaultPathMap[path].query = { hasAmp: true, ampPath: ampPath.replace(/(?<!^)\/index\.amp$/, '.amp') }
-      }
-    }
-  })
 
   // Initialize the output directory
   const outDir = options.outdir
@@ -129,8 +90,7 @@ export default async function (dir, options, configuration) {
     distDir,
     dev: false,
     staticMarkup: false,
-    hotReloader: null,
-    ampEnabled: nextConfig.experimental.amp
+    hotReloader: null
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -146,6 +106,7 @@ export default async function (dir, options, configuration) {
 
   log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, { dev: false, dir, outDir, distDir, buildId })
+  exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
 
   const progress = !options.silent && createProgress(exportPaths.length)

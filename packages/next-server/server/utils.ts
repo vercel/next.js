@@ -20,19 +20,12 @@ export function isBlockedPage(pathname: string): boolean {
 }
 
 export function cleanAmpPath(pathname: string): string {
-  return (pathname || '')
-    .replace(/\.amp$/, '')
-    .replace(/\index$/, '')
-}
-
-export function isAmpPath(pathname: string): boolean {
-  return (pathname || '').endsWith('.amp')
-}
-
-export function isAmpFile(pathname: string): boolean {
-  if (isAmpPath(pathname)) return true
-  pathname = pathname || ''
-  const parts = pathname.split('.')
-  parts.pop() // remove extension
-  return isAmpPath(parts.join('.'))
+  if (pathname.match(/\?amp=(y|yes|true|1)/)) {
+    pathname = pathname.replace(/\?amp=(y|yes|true|1)/, '?')
+  }
+  if (pathname.match(/&amp=(y|yes|true|1)/)) {
+    pathname = pathname.replace(/\?amp=(y|yes|true|1)/, '')
+  }
+  pathname = pathname.replace(/\?$/, '')
+  return pathname
 }

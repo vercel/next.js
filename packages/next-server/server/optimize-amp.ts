@@ -13,18 +13,17 @@ interface IOptimizer {
 
 interface IOptimizeOptions {
   amphtml?: boolean
-  noDirtyAmp?: boolean
   query?: ParsedUrlQuery
 }
 
-export default async function optimize(html: string, { amphtml, noDirtyAmp, query }: IOptimizeOptions): Promise<string> {
+export default async function optimize(html: string, { amphtml, query }: IOptimizeOptions): Promise<string> {
   let ampOptimizer: IOptimizer
   try {
     ampOptimizer = require('amp-toolbox-optimizer')
   } catch (_) {
     return html
   }
-  const validAmp = Boolean(noDirtyAmp || (amphtml && query && query.amp))
+  const validAmp = Boolean(amphtml && query && query.amp)
   //  Examples below
   //
   //  pages/foo.js

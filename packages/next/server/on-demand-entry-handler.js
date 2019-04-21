@@ -2,6 +2,7 @@ import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
+import fs from 'fs'
 import { pageNotFoundError } from 'next-server/dist/server/require'
 import { normalizePagePath } from 'next-server/dist/server/normalize-page-path'
 import { ROUTE_NAME_REGEX, IS_BUNDLED_PAGE_REGEX } from 'next-server/constants'
@@ -28,22 +29,15 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
+  distDir,
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength
+  pagesBufferLength,
+  publicRuntimeConfig,
+  serverRuntimeConfig
 }) {
   const pagesDir = join(dir, 'pages')
-  const clients = new Map()
-  const evtSourceHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Content-Type': 'text/event-stream;charset=utf-8',
-    'Cache-Control': 'no-cache, no-transform',
-    // While behind nginx, event stream should not be buffered:
-    // http://nginx.org/docs/http/ngx_http_proxy_module.html#proxy_buffering
-    'X-Accel-Buffering': 'no',
-    'Connection': 'keep-alive'
-  }
   const { compilers } = multiCompiler
   const invalidator = new Invalidator(devMiddleware, multiCompiler)
   let entries = {}
@@ -154,7 +148,6 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   disposeHandler.unref()
 
   function stop () {
-    clients.forEach((id, client) => client.end())
     clearInterval(disposeHandler)
     stopped = true
     doneCallbacks = null
@@ -206,7 +199,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
     },
 
-    async ensurePage (page, amp, ampEnabled) {
+    async ensurePage (page) {
       await this.waitUntilReloaded()
       let normalizedPagePath
       try {
@@ -216,8 +209,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         throw pageNotFoundError(normalizedPagePath)
       }
 
-      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions, amp, ampEnabled)
-      const isAmp = pagePath && pageExtensions.some(ext => pagePath.endsWith('amp.' + ext))
+      let pagePath = await findPageFile(pagesDir, normalizedPagePath, pageExtensions)
 
       // Default the /_error route to the Next.js provided default page
       if (page === '/_error' && pagePath === null) {
@@ -235,13 +227,8 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       const absolutePagePath = pagePath.startsWith('next/dist/pages') ? require.resolve(pagePath) : join(pagesDir, pagePath)
 
       page = posix.normalize(pageUrl)
-      const result = {
-        isAmp,
-        pathname: page,
-        hasAmp: !isAmp && await findPageFile(pagesDir, normalizedPagePath, pageExtensions, !isAmp, ampEnabled)
-      }
 
-      await new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
         const normalizedPage = normalizePage(page)
         const entryInfo = entries[normalizedPage]
@@ -267,11 +254,27 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
         function handleCallback (err) {
           if (err) return reject(err)
+          const { name } = entries[normalizedPage]
+          let serverPage = join(dir, distDir, 'server', name)
+          const clientPage = join(dir, distDir, name)
+          try {
+            require('next/config').setConfig({
+              serverRuntimeConfig,
+              publicRuntimeConfig
+            })
+            let mod = require(serverPage)
+            mod = mod.default || mod
+            if (mod && mod.__nextAmpOnly) {
+              fs.unlinkSync(clientPage)
+            }
+          } catch (err) {
+            if (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND') {
+              return reject(err)
+            }
+          }
           resolve()
         }
       })
-
-      return result
     },
 
     middleware () {
@@ -293,34 +296,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
               res.end('302')
             })
         } else {
-          if (!/^\/_next\/on-demand-entries-ping/.test(req.url)) return next()
+          if (!/^\/_next\/webpack-hmr/.test(req.url)) return next()
 
           const { query } = parse(req.url, true)
           const page = query.page
           if (!page) return next()
-
-          // Upgrade request to EventSource
-          req.socket.setKeepAlive(true)
-          res.writeHead(200, evtSourceHeaders)
-          res.write('\n')
-
-          const startId = req.headers['user-agent'] + req.connection.remoteAddress
-          let clientId = startId
-          let numSameClient = 0
-
-          while (clients.has(clientId)) {
-            numSameClient++
-            clientId = startId + numSameClient
-          }
-
-          if (numSameClient > 1) {
-            // If the user has too many tabs with Next.js open in the same browser,
-            // they might be exceeding the max number of concurrent request.
-            // This varies per browser so we can only guess if this is the cause of
-            // a slow request and show a warning that this might be why
-            console.warn(`\nWarn: You are opening multiple tabs of the same site in the same browser, this could cause requests to stall. https://err.sh/zeit/next.js/multi-tabs`)
-          }
-          clients.set(clientId, res)
 
           const runPing = () => {
             const data = handlePing(query.page)
@@ -330,11 +310,11 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
           const pingInterval = setInterval(() => runPing(), 5000)
 
           req.on('close', () => {
-            clients.delete(clientId)
             clearInterval(pingInterval)
           })
           // Do initial ping right after EventSource is finished being set up
-          runPing()
+          setImmediate(() => runPing())
+          next()
         }
       }
     }

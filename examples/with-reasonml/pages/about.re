@@ -1,13 +1,11 @@
-let component = ReasonReact.statelessComponent("About");
 
-let make = (_children) => {
-  ...component,
-  render: (_self) =>
-    <div>
-      <Header />
-      <p> (ReasonReact.string("This is the about page.")) </p>
-      <Counter />
-    </div>
+[@react.component]
+let make = () => {
+  <div>
+    <Header />
+    <p> (ReasonReact.string("This is the about page.")) </p>
+    <Counter />
+  </div>
 };
 
-let default = ReasonReact.wrapReasonForJs(~component, (_jsProps) => make([||]));
+let default = make;
