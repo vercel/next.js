@@ -15,6 +15,7 @@ import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identi
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
+import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -250,7 +251,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
             return /node_modules/.test(path)
           },
           use: defaultLoaders.babel
-        }
+        },
       ].filter(Boolean)
     },
     plugins: [
@@ -281,6 +282,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         filename: REACT_LOADABLE_MANIFEST
       }),
       !isServer && selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST, selectivePageBuildingCacheIdentifier }),
+      !isServer && new DropClientPage(),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations
         // This is because the client compilation generates the build manifest that's used on the server side
