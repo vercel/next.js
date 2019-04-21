@@ -2,7 +2,6 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import ssrPrepass from 'react-ssr-prepass'
 import {IRouterInterface} from '../lib/router/router'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
@@ -313,6 +312,8 @@ export async function renderToHTML(
   }
 
   if (ampBindInitData) {
+    const ssrPrepass = require('react-ssr-prepass')
+
     renderPage = async (
       options: ComponentsEnhancer = {},
     ): Promise<{ html: string; head: any, dataOnly?: true}> => {
