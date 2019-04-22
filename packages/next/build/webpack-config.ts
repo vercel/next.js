@@ -18,7 +18,7 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, __selectivePageBuilding = false}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, __selectivePageBuilding?: boolean}): webpack.Configuration {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, __selectivePageBuilding = false}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, __selectivePageBuilding?: boolean}): webpack.Configuration {
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
@@ -336,13 +336,10 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
   }
 
   // Backwards compat for `main.js` entry key
-  const originalEntry: webpack.Configuration['entry'] = webpackConfig.entry
+  const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
-    const mergeEntry = (entry: string | string[] | webpack.Entry) => {
-      if (typeof entry === 'string' || Array.isArray(entry)) {
-        console.warn('> The entry config for webpack must be an object. https://err.sh/zeit/next.js/invalid-entry.md')
-        return entry
-      }
+    webpackConfig.entry = async () => {
+      const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
       // Server compilation doesn't have main.js
       if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
@@ -355,14 +352,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
 
       return entry
     }
-    if (typeof originalEntry === 'function') {
-      webpackConfig.entry = async () => {
-        const entry = await originalEntry()
-        return mergeEntry(entry)
-      }
-    } else {
-      webpackConfig.entry = mergeEntry(originalEntry)
-    }
+    webpackConfig.entry = await webpackConfig.entry()
   }
 
   return webpackConfig
