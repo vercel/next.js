@@ -2,7 +2,8 @@ declare module '@babel/plugin-transform-modules-commonjs';
 declare module 'next-server/next-config';
 declare module 'next-server/constants';
 declare module 'webpack/lib/GraphHelpers';
-declare module 'unfetch'
+declare module 'unfetch';
+declare module 'styled-jsx/server';
 
 declare module 'next/router' {
   import * as all from 'next/client/router'
