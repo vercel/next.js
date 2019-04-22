@@ -214,6 +214,27 @@ export class Head extends Component {
       }
       return child
     })
+
+    // try to parse styles from fragment for backwards compat
+    let curStyles = styles
+    if (amphtml && styles && styles.props &&
+      Array.isArray(styles.props.children)
+    ) {
+      curStyles = []
+      const hasStyles = el => (
+        el && el.props &&
+        el.props.dangerouslySetInnerHTML &&
+        el.props.dangerouslySetInnerHTML.__html
+      )
+      styles.props.children.map(child => {
+        if (Array.isArray(child)) {
+          child.map(el => hasStyles(el) && curStyles.push(el))
+        } else if (hasStyles(child)) {
+          curStyles.push(child)
+        }
+      })
+    }
+
     return (
       <head {...this.props}>
         {children}
@@ -233,18 +254,18 @@ export class Head extends Component {
               href="https://cdn.ampproject.org/v0.js"
             />
             {/* Add custom styles before AMP styles to prevent accidental overrides */}
-            {Array.isArray(styles) ? (
+            {styles && (
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
-                  __html: styles
+                  __html: curStyles
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
                     .replace(/\/\*@ sourceURL=.*?\*\//g, '')
                 }}
               />
-            ) : styles}
+            )}
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
