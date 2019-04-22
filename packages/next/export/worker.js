@@ -57,7 +57,6 @@ process.on(
 
         let htmlFilename = `${path}${sep}index.html`
 
-        // Fix routing on services like Netlify or Caddy
         if (!subFolders) htmlFilename = `${path}.html`
 
         const pageExt = extname(page)
