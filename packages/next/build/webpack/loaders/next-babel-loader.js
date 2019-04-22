@@ -21,7 +21,7 @@ module.exports = babelLoader.custom(babel => {
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign({
         cacheCompression: false,
-        cacheDirectory: true,
+        cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
         cacheIdentifier: cacheKey + JSON.stringify(
           babel.loadPartialConfig({
             filename,
@@ -33,6 +33,7 @@ module.exports = babelLoader.custom(babel => {
 
       delete loader.isServer
       delete loader.asyncToPromises
+      delete loader.distDir
       return { loader, custom }
     },
     config (cfg, { source, customOptions: { isServer, asyncToPromises } }) {
