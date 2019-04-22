@@ -1966,50 +1966,6 @@ For an example, simply visit the `out` directory and run following command to de
 now
 ```
 
-### Subfolders and index.html auto-redirection
-
-By default, `next export` will create a directory for each route & serve an index.html file.
-
-The following routes:
-
-```
-pages/
-├── posts/
-│   ├── index.js
-│   └── single.js
-├── index.js
-└── about.js
-```
-
-will output:
-
-```
-out/
-├── about/
-│   └── index.html
-├── posts/
-│   ├── single/
-│   │      └── index.html
-│   └── index.html
-└── index.html
-```
-
-In this scenario, some web servers (Caddy...) or services (Netlify...) will automatically redirect `/about` to `/about/`. This is probably not the behavior expected and you may run into trouble for canonical links and SEO.
-
-In `next.config.js`, by setting `experimental.exportTrailingSlash` to `false`, the output files will look like the following:
-
-
-```
-out/
-├── posts/
-│   └── single.html
-├── about.html
-├── index.html
-└── posts.html
-```
-
-which solve the redirection/trailing slash problem.
-
 ### Copying custom files
 
 In case you have to copy custom files like a robots.txt or generate a sitemap.xml you can do this inside of `exportPathMap`.
