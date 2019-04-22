@@ -9,6 +9,7 @@ const babelClientOpts = {
       targets: {
         browsers: ['IE 11']
       },
+      loose: true,
       exclude: ['transform-typeof-symbol']
     }],
     '@babel/preset-react'
@@ -35,6 +36,7 @@ const babelServerOpts = {
       targets: {
         node: '8.3'
       },
+      loose: true,
       exclude: ['transform-typeof-symbol']
     }]
   ],

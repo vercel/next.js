@@ -9,6 +9,7 @@ module.exports = function (task) {
   task.plugin('babel', {}, function * (file, babelOpts, { stripExtension } = {}) {
     const options = {
       ...babelOpts,
+      compact: true,
       babelrc: false,
       configFile: false,
       filename: file.base
