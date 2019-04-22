@@ -1,91 +1,141 @@
-version: 2
-jobs:
-  build:
+version: 2.1
+
+#########################
+# Aliases
+#########################
+
+aliases:
+  - &store_test_results
+    store_test_results:
+      path: ~/repo/test_results.xml
+  - &persist_to_workspace
+    persist_to_workspace:
+      root: ~/repo
+      paths: ['.']
+  - &attach_workspace
+    attach_workspace:
+      at: .
+
+#########################
+# Executors
+#########################
+
+executors:
+  node:
     docker:
       - image: circleci/node:8-browsers
     working_directory: ~/repo
+
+#########################
+# Commands
+#########################
+
+commands:
+  yarn_install:
     steps:
-      - checkout
       - run:
-          name: Installing dependencies
+          name: Installing Dependencies
           command: yarn install --frozen-lockfile
+  yarn_lint:
+    steps:
       - run:
           name: Linting
           command: yarn lint
-      - persist_to_workspace:
-          root: ~/repo
-          paths: ['.']
-  test:
-    parallelism: 4
-    docker:
-      - image: circleci/node:8-browsers
-    working_directory: ~/repo
+  test_all:
     steps:
-      - attach_workspace:
-          at: .
       - run:
-          name: Tests
-          command: yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname)
+          name: Run All Tests
+          command: >
+            yarn testall $(circleci tests glob "test/**/*.test.*" | circleci tests split --split-by=timings --timings-type=classname)
           environment:
             JEST_JUNIT_OUTPUT: 'reports/junit/js-test-results.xml'
             JEST_JUNIT_CLASSNAME: '{filepath}'
-      - store_test_results:
-          path: ~/repo/reports
-  test-ie11:
-    docker:
-      - image: circleci/node:8-browsers
-    working_directory: ~/repo
+  test_ie11:
     steps:
-      - attach_workspace:
-          at: .
       - run:
           name: Test in ie11
           command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'ie'
-  test-safari:
-    docker:
-      - image: circleci/node:8-browsers
-    working_directory: ~/repo
+  test_safari:
     steps:
-      - attach_workspace:
-          at: .
       - run:
           name: Test in Safari
           command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'safari'
-  test-firefox:
-    docker:
-      - image: circleci/node:8-browsers
-    working_directory: ~/repo
+  test_firefox:
     steps:
-      - attach_workspace:
-          at: .
       - run:
           name: Test in Firefox
           command: 'if [[ ! -z $BROWSERSTACK_USERNAME ]]; then yarn testall test/integration/production/; else echo "Not running for PR"; fi'
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'firefox'
-  deploy:
-    docker:
-      - image: circleci/node:8-browsers
-    working_directory: ~/repo
+  save_npm_token:
     steps:
-      - attach_workspace:
-          at: .
       - run:
           name: Potentially save npm token
           command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
+  publish_canary:
+    steps:
       - run:
           name: Potentially publish canary release
           command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --npm-tag canary --yes; else  echo "Did not publish"; fi'
+  publish_stable:
+    steps:
       - run:
           name: Potentially publish stable release
           command: 'if ls ~/.npmrc >/dev/null 2>&1 && [[ ! $(git describe --exact-match 2> /dev/null || :) =~ -canary ]]; then yarn run lerna publish from-git --yes; else  echo "Did not publish"; fi'
+
+#########################
+# Jobs
+#########################
+
+jobs:
+  build:
+    executor: node
+    steps:
+      - checkout
+      - yarn_install
+      - yarn_lint
+      - *persist_to_workspace
+  test:
+    parallelism: 4
+    executor: node
+    steps:
+      - *attach_workspace
+      - test_all
+      - *store_test_results
+  test-ie11:
+    executor: node
+    steps:
+      - *attach_workspace
+      - test_ie11
+  test-safari:
+    executor: node
+    steps:
+      - *attach_workspace
+      - test_safari
+  test-firefox:
+    executor: node
+    steps:
+      - *attach_workspace
+      - test_firefox
+  deploy:
+    executor: node
+    steps:
+      - *attach_workspace
+      - save_npm_token
+      - publish_canary
+      - publish_stable
+
+#########################
+# Workflows
+#########################
+
 workflows:
   version: 2
   build-test-and-deploy:

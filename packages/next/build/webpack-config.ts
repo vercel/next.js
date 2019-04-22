@@ -20,7 +20,7 @@ import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): webpack.Configuration {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): Promise<webpack.Configuration> {
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -373,6 +373,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
 
       return entry
     }
+  }
+
+  if(!dev) {
+    // @ts-ignore entry is always a function
+    webpackConfig.entry = await webpackConfig.entry()
   }
 
   return webpackConfig
