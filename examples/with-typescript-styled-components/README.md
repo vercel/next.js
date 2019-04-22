@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-typescript-styled-components)
-
 # TypeScript & Styled Components Next.js example
 
 This is a really simple project that show the usage of Next.js with TypeScript and Styled Components.
@@ -39,5 +37,5 @@ yarn dev
 
 This is an amalgamation of the 2 existing examples:
 
-* [with-typescript](https://github.com/zeit/next.js/tree/canary/examples/with-typescript)
-* [with-styled-components](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)
+- [with-typescript](https://github.com/zeit/next.js/tree/canary/examples/with-typescript)
+- [with-styled-components](https://github.com/zeit/next.js/tree/canary/examples/with-styled-components)

@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-jest)
-
 # Example app with Jest tests
 
 ## How to use
@@ -45,4 +43,4 @@ yarn test
 
 This example features:
 
-* An app with jest tests
+- An app with jest tests

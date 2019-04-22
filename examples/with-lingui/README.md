@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-lingui)
-
 # With Lingui example
 
 ## How to use
@@ -45,7 +43,7 @@ This example shows a way to use [lingui.js](https://lingui.js.org) with next.js.
 
 It adds a webpack loader for the messages to avoid having to manually compile while developing as well as adds the compile step to the `next build` script for production builds.
 
-The example also uses a Higher order Component which can be added to all pages which will be translated and that checks for a `?lang` query string switch the language. Next.js  will dynamically load in the messages for the locale when navigating using a Next.js `<Link />` component.
+The example also uses a Higher order Component which can be added to all pages which will be translated and that checks for a `?lang` query string switch the language. Next.js will dynamically load in the messages for the locale when navigating using a Next.js `<Link />` component.
 
 ### How to add more translated strings
 

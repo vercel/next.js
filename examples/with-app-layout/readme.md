@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-app-layout)
-
 # With `App` layout example
 
 ## How to use
@@ -41,4 +39,4 @@ now
 
 ## The idea behind the example
 
-Shows how to use _app.js to implement a global layout for all pages.
+Shows how to use \_app.js to implement a global layout for all pages.

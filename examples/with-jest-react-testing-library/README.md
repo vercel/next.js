@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-jest-react-testing-library)
-
 # Example app with React Testing Library and Jest
 
 ## How to use
@@ -47,5 +45,4 @@ This library encourages your applications to be more accessible and allows you t
 
 This example features:
 
-* An app with [react testing library](https://github.com/kentcdodds/react-testing-library) by [Kent Dodds](https://github.com/kentcdodds/)
-
+- An app with [react testing library](https://github.com/kentcdodds/react-testing-library) by [Kent Dodds](https://github.com/kentcdodds/)

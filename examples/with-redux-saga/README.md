@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux-saga)
-
 # redux-saga example
 
 > This example and documentation is based on the [with-redux](https://github.com/zeit/next.js/tree/master/examples/with-redux) example.
@@ -70,12 +68,12 @@ The digital clock is updated every second using the `runClockSaga` found in `sag
 All pages are also being wrapped by `next-redux-saga` using a helper function from `store.js`:
 
 ```js
-import withRedux from 'next-redux-wrapper'
-import nextReduxSaga from 'next-redux-saga'
-import configureStore from './store'
+import withRedux from "next-redux-wrapper";
+import nextReduxSaga from "next-redux-saga";
+import configureStore from "./store";
 
 export function withReduxSaga(BaseComponent) {
-  return withRedux(configureStore)(nextReduxSaga(BaseComponent))
+  return withRedux(configureStore)(nextReduxSaga(BaseComponent));
 }
 
 /**
@@ -92,12 +90,13 @@ export function withReduxSaga(BaseComponent) {
 If you need to pass `react-redux` connect args to your page, you could use the following helper instead:
 
 ```js
-import withRedux from 'next-redux-wrapper'
-import nextReduxSaga from 'next-redux-saga'
-import configureStore from './store'
+import withRedux from "next-redux-wrapper";
+import nextReduxSaga from "next-redux-saga";
+import configureStore from "./store";
 
 export function withReduxSaga(...connectArgs) {
-  return BaseComponent => withRedux(configureStore, ...connectArgs)(nextReduxSaga(BaseComponent))
+  return BaseComponent =>
+    withRedux(configureStore, ...connectArgs)(nextReduxSaga(BaseComponent));
 }
 
 /**
@@ -111,6 +110,6 @@ export function withReduxSaga(...connectArgs) {
  */
 ```
 
-Since `redux-saga` is like a separate thread in your application, we need to tell the server to END the running saga when all asynchronous actions are complete. This is automatically handled for you by wrapping your components in `next-redux-saga`. To illustrate this, `pages/index.js` loads placeholder JSON data on the server from [https://jsonplaceholder.typicode.com/users](https://jsonplaceholder.typicode.com/users). If you refresh `pages/other.js`, the placeholder JSON data will **NOT** be loaded on the server, however, the saga is running on the client. When you click *Navigate*, you will be taken to `pages/index.js` and the placeholder JSON data will be fetched from the client. The placeholder JSON data will only be fetched **once** from the client or the server.
+Since `redux-saga` is like a separate thread in your application, we need to tell the server to END the running saga when all asynchronous actions are complete. This is automatically handled for you by wrapping your components in `next-redux-saga`. To illustrate this, `pages/index.js` loads placeholder JSON data on the server from [https://jsonplaceholder.typicode.com/users](https://jsonplaceholder.typicode.com/users). If you refresh `pages/other.js`, the placeholder JSON data will **NOT** be loaded on the server, however, the saga is running on the client. When you click _Navigate_, you will be taken to `pages/index.js` and the placeholder JSON data will be fetched from the client. The placeholder JSON data will only be fetched **once** from the client or the server.
 
 After introducing `redux-saga` there was too much code in `store.js`. For simplicity and readability, the actions, reducers, sagas, and store creators have been split into seperate files: `actions.js`, `reducer.js`, `saga.js`, `store.js`
