@@ -90,6 +90,7 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
+    "@types/styled-jsx": "2.2.8",
     "@babel/parser": "7.2.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
