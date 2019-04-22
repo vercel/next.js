@@ -229,9 +229,10 @@ export default class HotReloader {
     this.onDemandEntries = onDemandEntries
     this.middlewares = [
       webpackDevMiddleware,
+      // must come before hotMiddleware
+      onDemandEntries.middleware(),
       webpackHotMiddleware,
-      errorOverlayMiddleware({ dir: this.dir }),
-      onDemandEntries.middleware()
+      errorOverlayMiddleware({ dir: this.dir })
     ]
   }
 
