@@ -11,7 +11,6 @@ export type ServerlessLoaderQuery = {
   absoluteDocumentPath: string,
   absoluteErrorPath: string,
   assetPrefix: string,
-  ampEnabled: boolean | string,
   ampBindInitData: boolean | string,
   generateEtags: string
   dynamicBuildId?: string | boolean
@@ -23,7 +22,6 @@ const nextServerlessLoader: loader.Loader = function () {
     absolutePagePath,
     page,
     assetPrefix,
-    ampEnabled,
     ampBindInitData,
     absoluteAppPath,
     absoluteDocumentPath,
@@ -52,7 +50,6 @@ const nextServerlessLoader: loader.Loader = function () {
         buildId: "__NEXT_REPLACE__BUILD_ID__",
         dynamicBuildId: ${dynamicBuildId === true || dynamicBuildId === 'true'},
         assetPrefix: "${assetPrefix}",
-        ampEnabled: ${ampEnabled === true || ampEnabled === 'true'},
         ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
@@ -61,7 +58,6 @@ const nextServerlessLoader: loader.Loader = function () {
         const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
           {
             Component,
-            amphtml: options.ampEnabled && (parsedUrl.query.amp || ${page.endsWith('.amp')}),
             dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
           }, 
           options, 

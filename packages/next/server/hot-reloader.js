@@ -173,9 +173,7 @@ export default class HotReloader {
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, false, this.config)
 
     let additionalClientEntrypoints = {}
-    if (this.config.experimental.amp) {
-      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
-    }
+    additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
 
     return [
       await getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
@@ -231,9 +229,10 @@ export default class HotReloader {
     this.onDemandEntries = onDemandEntries
     this.middlewares = [
       webpackDevMiddleware,
+      // must come before hotMiddleware
+      onDemandEntries.middleware(),
       webpackHotMiddleware,
-      errorOverlayMiddleware({ dir: this.dir }),
-      onDemandEntries.middleware()
+      errorOverlayMiddleware({ dir: this.dir })
     ]
   }
 
@@ -343,8 +342,11 @@ export default class HotReloader {
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
+      distDir: this.config.distDir,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
+      publicRuntimeConfig: this.config.publicRuntimeConfig,
+      serverRuntimeConfig: this.config.serverRuntimeConfig,
       ...this.config.onDemandEntries
     })
 
@@ -391,12 +393,12 @@ export default class HotReloader {
     this.webpackHotMiddleware.publish({ action, data: args })
   }
 
-  async ensurePage (page, amp, ampEnabled) {
+  async ensurePage (page) {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
       return
     }
-    return this.onDemandEntries.ensurePage(page, amp, ampEnabled)
+    return this.onDemandEntries.ensurePage(page)
   }
 }
 

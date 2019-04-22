@@ -27,6 +27,7 @@ export default class MyDocument extends Document {
       ({ type, rehydration, support, media, css }) => (
         <style
           dangerouslySetInnerHTML={{ __html: css }}
+          data-fela-id=''
           data-fela-rehydration={rehydration}
           data-fela-support={support}
           data-fela-type={type}

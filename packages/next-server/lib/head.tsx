@@ -1,7 +1,8 @@
 import React from "react";
 import withSideEffect from "./side-effect";
-import {IsAmpContext} from './amphtml-context';
+import {AmpModeContext} from './amphtml-context';
 import { HeadManagerContext } from "./head-manager-context";
+import { isAmp } from './amp'
 
 type WithIsAmp = {
   isAmp?: boolean;
@@ -128,21 +129,21 @@ const Effect = withSideEffect<WithIsAmp>();
 
 function Head({ children }: { children: React.ReactNode }) {
   return (
-    <IsAmpContext.Consumer>
-      {(isAmp) => (
+    <AmpModeContext.Consumer>
+      {(ampMode) => (
         <HeadManagerContext.Consumer>
           {(updateHead) => (
             <Effect
               reduceComponentsToState={reduceComponents}
               handleStateChange={updateHead}
-              isAmp={isAmp}
+              isAmp={isAmp(ampMode)}
             >
               {children}
             </Effect>
           )}
         </HeadManagerContext.Consumer>
       )}
-    </IsAmpContext.Consumer>
+    </AmpModeContext.Consumer>
   );
 }
 

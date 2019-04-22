@@ -32,7 +32,7 @@ const startServer = async (optEnv = {}) => {
     optEnv
   )
 
-  server = await initNextServerScript(scriptPath, /Ready on/, env, /ReferenceError: options is not defined/)
+  server = await initNextServerScript(scriptPath, /ready on/i, env, /ReferenceError: options is not defined/)
 }
 
 describe('Custom Server', () => {
@@ -67,6 +67,11 @@ describe('Custom Server', () => {
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
         expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
       }
+    })
+
+    it('should render nested index', async () => {
+      const html = await renderViaHTTP(appPort, '/dashboard')
+      expect(html).toMatch(/made it to dashboard/)
     })
   })
 

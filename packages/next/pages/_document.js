@@ -1,6 +1,6 @@
 /* eslint-disable */
-import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import React, { Component } from 'react'
 import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
@@ -8,6 +8,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
+
+function getAmpPath(ampPath, asPath) {
+  return ampPath ? ampPath
+    : `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
+}
 
 export default class Document extends Component {
   static childContextTypes = {
@@ -148,13 +153,13 @@ export class Head extends Component {
 
   render() {
     const {
-      ampEnabled,
       styles,
       amphtml,
       hasAmp,
       ampPath,
       assetPrefix,
       __NEXT_DATA__,
+      dangerousAsPath,
     } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
     const { page, buildId, dynamicBuildId } = __NEXT_DATA__
@@ -187,12 +192,20 @@ export class Head extends Component {
         badProp = 'name="viewport"'
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
-      } else if (type === 'script' && !(props.src && props.src.indexOf('ampproject') > -1)) {
-        badProp = '<script'
-        Object.keys(props).forEach(prop => {
-          badProp += ` ${prop}="${props[prop]}"`
-        })
-        badProp += '/>'
+      } else if (type === 'script') {
+        // only block if
+        // 1. it has a src and isn't pointing to ampproject's CDN
+        // 2. it is using dangerouslySetInnerHTML without a type or
+        // a type of text/javascript
+        if ((props.src && props.src.indexOf('ampproject') < -1) ||
+          (props.dangerouslySetInnerHTML && (!props.type || props.type === 'text/javascript'))
+        ) {
+          badProp = '<script'
+          Object.keys(props).forEach(prop => {
+            badProp += ` ${prop}="${props[prop]}"`
+          })
+          badProp += '/>'
+        }
       }
 
       if (badProp) {
@@ -201,6 +214,27 @@ export class Head extends Component {
       }
       return child
     })
+
+    // try to parse styles from fragment for backwards compat
+    let curStyles = styles
+    if (amphtml && styles && styles.props &&
+      Array.isArray(styles.props.children)
+    ) {
+      curStyles = []
+      const hasStyles = el => (
+        el && el.props &&
+        el.props.dangerouslySetInnerHTML &&
+        el.props.dangerouslySetInnerHTML.__html
+      )
+      styles.props.children.map(child => {
+        if (Array.isArray(child)) {
+          child.map(el => hasStyles(el) && curStyles.push(el))
+        } else if (hasStyles(child)) {
+          curStyles.push(child)
+        }
+      })
+    }
+
     return (
       <head {...this.props}>
         {children}
@@ -211,8 +245,8 @@ export class Head extends Component {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={cleanAmpPath(page)} />
-            {isDirtyAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
+            <link rel="canonical" href={cleanAmpPath(dangerousAsPath)} />
+            {isDirtyAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -224,7 +258,7 @@ export class Head extends Component {
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
-                  __html: styles
+                  __html: curStyles
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
@@ -251,7 +285,7 @@ export class Head extends Component {
         )}
         {!amphtml && (
           <>
-            {ampEnabled && hasAmp && <link rel="amphtml" href={ampPath ? ampPath : `${page}?amp=1`} />}
+            {hasAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
             {page !== '/_error' && (
               <link
                 rel="preload"
