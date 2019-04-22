@@ -16,6 +16,7 @@ import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
+import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -295,33 +296,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
         ]
 
         if (!isServer) {
-          // BEGIN: Hijack autodll-webpack-plugin cache path
-          const autodllPaths = path.join(
-            path.dirname(require.resolve('autodll-webpack-plugin')),
-            'paths.js'
-          )
-          require(autodllPaths)
-
-          const autodllCachePath = path.resolve(
-            path.join(distDir, 'cache', 'autodll-webpack-plugin')
-          );
-          require.cache[autodllPaths] = Object.assign(
-            {},
-            require.cache[autodllPaths],
-            {
-              exports: Object.assign(
-                {},
-                require.cache[autodllPaths].exports,
-                {
-                  cacheDir: autodllCachePath,
-                  getManifestPath: (hash: string) => (bundleName: string) => path.resolve(autodllCachePath, hash, `${bundleName}.manifest.json`)
-                }
-              ),
-            }
-          )
-          // END: Hijack autodll-webpack-plugin cache path
-
-          const AutoDllPlugin = require('autodll-webpack-plugin')
+          const AutoDllPlugin = importAutoDllPlugin({ distDir })
           devPlugins.push(
             new AutoDllPlugin({
               filename: '[name]_[hash].js',
