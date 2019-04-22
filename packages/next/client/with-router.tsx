@@ -1,18 +1,28 @@
 import React from 'react'
 import PropTypes from 'prop-types'
+import { NextComponentType, IContext } from 'next-server/dist/lib/utils'
+import { IPublicRouterInstance } from './router';
 
-export default function withRouter(ComposedComponent: React.ComponentType<any> & {getInitialProps?: any}) {
-  class WithRouteWrapper extends React.Component {
+export type WithRouterProps = {
+  router: IPublicRouterInstance,
+}
+
+export type ExcludeRouterProps<P> = Pick<P, Exclude<keyof P, keyof WithRouterProps>>
+
+export default function withRouter<P extends WithRouterProps, C = IContext>(ComposedComponent: NextComponentType<C, any, P>): React.ComponentClass<ExcludeRouterProps<P>> {
+  class WithRouteWrapper extends React.Component<ExcludeRouterProps<P>> {
     static displayName?: string
     static getInitialProps?: any
     static contextTypes = {
       router: PropTypes.object,
     }
 
+    context!: WithRouterProps
+
     render() {
       return <ComposedComponent
         router={this.context.router}
-        {...this.props}
+        {...this.props as any}
       />
     }
   }
