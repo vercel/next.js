@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/using-nerv)
-
 # Hello World example
 
 ## How to use
@@ -45,4 +43,4 @@ This example uses [Nerv](https://nerv.aotu.io/) instead of React. It's a "blazin
 
 Here's how we did it:
 
-* Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)
+- Use `next.config.js` to customize our webpack config to support [Nerv](https://nerv.aotu.io/)

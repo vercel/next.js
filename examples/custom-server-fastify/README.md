@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/custom-server-fastify)
-
 # Custom Fastify Server example
 
 ## How to use
@@ -32,6 +30,7 @@ npm run dev
 yarn
 yarn dev
 ```
+
 Fastify
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 

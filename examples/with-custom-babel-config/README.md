@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-custom-babel-config)
-
 # Using a custom Babel config
 
 ## How to use
@@ -43,8 +41,8 @@ now
 
 This example features:
 
-* An app using proposed [do expressions](https://babeljs.io/docs/plugins/transform-do-expressions/).
-* It uses babel-preset-stage-0, which allows us to use above JavaScript feature.
-* It uses '.babelrc' file in the app directory to add above preset.
+- An app using proposed [do expressions](https://babeljs.io/docs/plugins/transform-do-expressions/).
+- It uses babel-preset-stage-0, which allows us to use above JavaScript feature.
+- It uses '.babelrc' file in the app directory to add above preset.
 
 > Most of the time, when writing a custom `.babelrc` file, you need to add `next/babel` as a preset.

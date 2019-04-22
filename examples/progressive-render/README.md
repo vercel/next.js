@@ -1,4 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/progressive-render)
 # Example app implementing progressive server-side render
 
 ## How to use
@@ -46,5 +45,5 @@ In that case you can wrap the component in `react-no-ssr` which will only render
 
 This example features:
 
-* An app with a component that must only be rendered in the client
-* A loading component that will be displayed before rendering the client-only component
+- An app with a component that must only be rendered in the client
+- A loading component that will be displayed before rendering the client-only component

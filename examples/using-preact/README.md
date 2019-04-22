@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/using-preact)
-
 # Hello World example
 
 ## How to use
@@ -45,4 +43,4 @@ This example uses [Preact](https://github.com/developit/preact) instead of React
 
 Here's how we did it:
 
-* Use `next.config.js` to customize our webpack config to support [preact-compat](https://github.com/developit/preact-compat)
+- Use `next.config.js` to customize our webpack config to support [preact-compat](https://github.com/developit/preact-compat)

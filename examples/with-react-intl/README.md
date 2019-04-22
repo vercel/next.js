@@ -1,4 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-intl)
 # Example app with [React Intl][]
 
 ## How to use
@@ -65,4 +64,4 @@ $ npm start
 
 You can then switch your browser's language preferences to French and refresh the page to see the UI update accordingly.
 
-[React Intl]: https://github.com/yahoo/react-intl
+[react intl]: https://github.com/yahoo/react-intl

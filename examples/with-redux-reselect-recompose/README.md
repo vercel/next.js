@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-redux-reselect-recompose)
-
 # Redux with reselect and recompose example
 
 ## How to use
@@ -40,7 +38,6 @@ yarn
 yarn dev
 ```
 
-
 Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.co/download))
 
 ```bash
@@ -48,4 +45,5 @@ now
 ```
 
 ## The idea behind the example
+
 This example is based on the great work of [with-redux](https://github.com/zeit/next.js/blob/master/examples/with-redux/) example with the addition of [reselect](https://github.com/reactjs/reselect) and [recompose](https://github.com/acdlite/recompose)

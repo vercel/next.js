@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-reasonml)
-
 # Example app using ReasonML & ReasonReact components
 
 ## How to use
@@ -62,8 +60,8 @@ experience that ReasonML can offer, don't miss it!
 
 This example features:
 
-* An app that mixes together JavaScript and ReasonML components and functions
-* An app with two pages which has a common Counter component
-* That Counter component maintain the counter inside its module. This is used
+- An app that mixes together JavaScript and ReasonML components and functions
+- An app with two pages which has a common Counter component
+- That Counter component maintain the counter inside its module. This is used
   primarily to illustrate that modules get initialized once and their state
   variables persist in runtime

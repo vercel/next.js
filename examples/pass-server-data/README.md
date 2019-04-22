@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/pass-server-data)
-
 # Pass Server Data Directly to a Next.js Page during SSR
 
 ## How to use
@@ -59,7 +57,7 @@ The server knows whether or not to use next.js to render the route based on the 
 
 Take a look at the following files:
 
-* server.js
-* routes/item.js
-* pages/item.js
-* operations/get-item.js
+- server.js
+- routes/item.js
+- pages/item.js
+- operations/get-item.js
