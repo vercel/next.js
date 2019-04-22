@@ -43,7 +43,7 @@ This example shows how to inline env vars.
 
 **Please note**:
 
-* It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
-* In this example, as soon as you reference an env var in your code it will be automatically be publicly available and exposed to the client.
-* If you want to have more centralized control of what is exposed to the client check out the example [with-universal-configuration-build-time](../with-universal-configuration-build-time).
-* Env vars are set (inlined) at build time. If you need to configure your app on rutime check out [examples/with-universal-configuration-runtime](../with-universal-configuration-runtime).
+- It is a bad practice to commit env vars to a repository. Thats why you should normally [gitignore](https://git-scm.com/docs/gitignore) your `.env` file.
+- In this example, as soon as you reference an env var in your code it will be automatically be publicly available and exposed to the client.
+- If you want to have more centralized control of what is exposed to the client check out the example [with-universal-configuration-build-time](../with-universal-configuration-build-time).
+- Env vars are set (inlined) at build time. If you need to configure your app on rutime check out [examples/with-universal-configuration-runtime](../with-universal-configuration-runtime).

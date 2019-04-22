@@ -64,4 +64,4 @@ $ npm start
 
 You can then switch your browser's language preferences to French and refresh the page to see the UI update accordingly.
 
-[React Intl]: https://github.com/yahoo/react-intl
+[react intl]: https://github.com/yahoo/react-intl

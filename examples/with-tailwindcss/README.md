@@ -43,6 +43,19 @@ Deploy it to the cloud with [now](https://zeit.co/now) ([download](https://zeit.
 now
 ```
 
+### Extras
+
+In the `package.json` you'll see some extra commands.
+
+- `yarn dev:css`
+  - used by `yarn dev` generate css bundle and watch css files for changes
+  - includes css imported into `index.css`
+  - will **not** autoreload browser when css changes
+- `yarn build:css`
+  - used by `yarn build` to generate css bundle
+
+These can be used manually but using the usual commands will run them anyways.
+
 ## The idea behind the example
 
 This setup is a basic starting point for using tailwind css and next. Along with tailwind, this example
@@ -55,7 +68,8 @@ some webpack loaders. If you are curious about using loaders with next look at t
 
 This project shows how you can set it up. Have a look at:
 
-* pages/\_document.js
-* styles/config/postcss.config.js
-* styles/index.css
-* styles/button.css
+- pages/\_document.js
+- styles/config/postcss.config.js
+- styles/config/tailwind.config.js
+- styles/index.css
+- styles/button.css
