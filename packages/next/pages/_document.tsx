@@ -225,6 +225,27 @@ export class Head extends Component<IOriginProps> {
       }
       return child
     })
+
+    // try to parse styles from fragment for backwards compat
+    let curStyles = styles
+    if (amphtml && styles && styles.props &&
+      Array.isArray(styles.props.children)
+    ) {
+      curStyles = []
+      const hasStyles = (el) => (
+        el && el.props &&
+        el.props.dangerouslySetInnerHTML &&
+        el.props.dangerouslySetInnerHTML.__html
+      )
+      styles.props.children.map((child) => {
+        if (Array.isArray(child)) {
+          child.map((el) => hasStyles(el) && curStyles.push(el))
+        } else if (hasStyles(child)) {
+          curStyles.push(child)
+        }
+      })
+    }
+
     return (
       <head {...this.props}>
         {children}
@@ -248,7 +269,7 @@ export class Head extends Component<IOriginProps> {
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
-                  __html: styles
+                  __html: curStyles
                     .map((style) => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
