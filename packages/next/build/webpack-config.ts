@@ -90,9 +90,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           'string-hash',
           'next/constants'
         ]
-        const nodeBuiltins = new Set([...require("repl")._builtinLibs, "constants", "module", "timers", "console", "_stream_writable", "_stream_readable", "_stream_duplex"])
 
-        if (notExternalModules.indexOf(request) !== -1 || nodeBuiltins.has(request)) {
+        if (notExternalModules.indexOf(request) !== -1) {
           return callback()
         }
 
