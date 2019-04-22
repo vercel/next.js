@@ -68,6 +68,11 @@ describe('Custom Server', () => {
         expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
       }
     })
+
+    it('should render nested index', async () => {
+      const html = await renderViaHTTP(appPort, '/dashboard')
+      expect(html).toMatch(/made it to dashboard/)
+    })
   })
 
   describe('with generateEtags enabled', () => {

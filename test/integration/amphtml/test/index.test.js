@@ -4,7 +4,7 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { validateAMP } from 'amp-test-utils'
-import { readFileSync, writeFileSync } from 'fs'
+import { accessSync, readFileSync, writeFileSync } from 'fs'
 import {
   waitFor,
   nextServer,
@@ -56,6 +56,19 @@ describe('AMP Usage', () => {
 
       const $ = cheerio.load(html)
       expect($('.abc').length === 1)
+    })
+
+    it('should not output client pages for AMP only', async () => {
+      const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
+      const ampOnly = ['only-amp', 'root-hmr']
+      for (const pg of ampOnly) {
+        expect(
+          () => accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
+        ).toThrow()
+        expect(
+          () => accessSync(join(appDir, '.next/server/static', buildId, 'pages', pg + '.js'))
+        ).not.toThrow()
+      }
     })
 
     it('should add link preload for amp script', async () => {
