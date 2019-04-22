@@ -193,7 +193,7 @@ export class Head extends Component {
       } else if (type === 'link' && props.rel === 'canonical') {
         badProp = 'rel="canonical"'
       } else if (type === 'script') {
-        // only block if 
+        // only block if
         // 1. it has a src and isn't pointing to ampproject's CDN
         // 2. it is using dangerouslySetInnerHTML without a type or
         // a type of text/javascript
@@ -214,6 +214,27 @@ export class Head extends Component {
       }
       return child
     })
+
+    // try to parse styles from fragment for backwards compat
+    let curStyles = styles
+    if (amphtml && styles && styles.props &&
+      Array.isArray(styles.props.children)
+    ) {
+      curStyles = []
+      const hasStyles = el => (
+        el && el.props &&
+        el.props.dangerouslySetInnerHTML &&
+        el.props.dangerouslySetInnerHTML.__html
+      )
+      styles.props.children.map(child => {
+        if (Array.isArray(child)) {
+          child.map(el => hasStyles(el) && curStyles.push(el))
+        } else if (hasStyles(child)) {
+          curStyles.push(child)
+        }
+      })
+    }
+
     return (
       <head {...this.props}>
         {children}
@@ -237,7 +258,7 @@ export class Head extends Component {
               <style
                 amp-custom=""
                 dangerouslySetInnerHTML={{
-                  __html: styles
+                  __html: curStyles
                     .map(style => style.props.dangerouslySetInnerHTML.__html)
                     .join('')
                     .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
