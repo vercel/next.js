@@ -22,7 +22,7 @@ export default function withRouter<P extends WithRouterProps, C = IContext>(Comp
     render() {
       return <ComposedComponent
         router={this.context.router}
-        {...this.props as P}
+        {...this.props as any}
       />
     }
   }
