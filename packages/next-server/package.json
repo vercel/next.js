@@ -3,6 +3,7 @@
   "version": "8.1.1-canary.1",
   "main": "./index.js",
   "license": "MIT",
+  "repository": "zeit/next.js",
   "files": [
     "dist",
     "index.js",
