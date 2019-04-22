@@ -355,23 +355,22 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
 
   // Backwards compat for `main.js` entry key
   const originalEntry: any = webpackConfig.entry
-  if (typeof originalEntry !== 'undefined') {
-    webpackConfig.entry = async () => {
-      const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
-      // Server compilation doesn't have main.js
-      if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
-        const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
-        entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
-          ...entry['main.js'],
-          originalFile
-        ]
-      }
-      delete entry['main.js']
 
-      return entry
+  webpackConfig.entry = async () => {
+    const entry: WebpackEntrypoints = typeof originalEntry === 'function' ? await originalEntry() : originalEntry
+    // Server compilation doesn't have main.js
+    if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
+      const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
+      entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
+        ...entry['main.js'],
+        originalFile
+      ]
     }
-    if (!dev) webpackConfig.entry = await webpackConfig.entry()
+    delete entry['main.js']
+
+    return entry
   }
+  if (!dev) webpackConfig.entry = await webpackConfig.entry()
 
   return webpackConfig
 }
