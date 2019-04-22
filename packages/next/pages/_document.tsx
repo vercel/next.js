@@ -227,17 +227,18 @@ export class Head extends Component<IOriginProps> {
     })
 
     // try to parse styles from fragment for backwards compat
-    let curStyles = styles
-    if (amphtml && styles && styles.props &&
-      Array.isArray(styles.props.children)
+    const curStyles: React.ReactElement[] = Array.isArray(styles) ? styles : []
+    if (amphtml && styles &&
+      // @ts-ignore Property 'props' does not exist on type ReactElement
+      styles.props && Array.isArray(styles.props.children)
     ) {
-      curStyles = []
-      const hasStyles = (el) => (
+      const hasStyles = (el: React.ReactElement) => (
         el && el.props &&
         el.props.dangerouslySetInnerHTML &&
         el.props.dangerouslySetInnerHTML.__html
       )
-      styles.props.children.map((child) => {
+      // @ts-ignore Property 'props' does not exist on type ReactElement
+      styles.props.children.map((child: React.ReactElement) => {
         if (Array.isArray(child)) {
           child.map((el) => hasStyles(el) && curStyles.push(el))
         } else if (hasStyles(child)) {
