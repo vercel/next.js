@@ -28,6 +28,10 @@ app.prepare().then(() => {
       return app.render(req, res, '/index')
     }
 
+    if (/dashboard/.test(req.url)) {
+      return app.render(req, res, '/dashboard/index')
+    }
+
     handleNextRequests(req, res)
   })
 

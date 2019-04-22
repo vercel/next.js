@@ -1,3 +1,5 @@
+let hotDevCallback
+
 function EventSourceWrapper (options) {
   var source
   var lastActivity = new Date()
@@ -31,6 +33,9 @@ function EventSourceWrapper (options) {
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](event)
     }
+    if (hotDevCallback && event.data.indexOf('action') !== -1) {
+      hotDevCallback(event)
+    }
   }
 
   function handleDisconnect () {
@@ -40,6 +45,10 @@ function EventSourceWrapper (options) {
   }
 
   return {
+    close: () => {
+      clearTimeout(timer)
+      source.close()
+    },
     addMessageListener: function (fn) {
       listeners.push(fn)
     }
@@ -47,13 +56,12 @@ function EventSourceWrapper (options) {
 }
 
 export function getEventSourceWrapper (options) {
-  if (!window.__whmEventSourceWrapper) {
-    window.__whmEventSourceWrapper = {}
+  if (!options.ondemand) {
+    return {
+      addMessageListener: cb => {
+        hotDevCallback = cb
+      }
+    }
   }
-  if (!window.__whmEventSourceWrapper[options.path]) {
-    // cache the wrapper for other entries loaded on
-    // the same page with the same options.path
-    window.__whmEventSourceWrapper[options.path] = EventSourceWrapper(options)
-  }
-  return window.__whmEventSourceWrapper[options.path]
+  return EventSourceWrapper(options)
 }

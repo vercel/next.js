@@ -2,7 +2,6 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import ssrPrepass from 'react-ssr-prepass'
 import {IRouterInterface} from '../lib/router/router'
 import mitt, {MittEmitter} from '../lib/mitt';
 import { loadGetInitialProps, isResSent } from '../lib/utils'
@@ -313,6 +312,8 @@ export async function renderToHTML(
   }
 
   if (ampBindInitData) {
+    const ssrPrepass = require('react-ssr-prepass')
+
     renderPage = async (
       options: ComponentsEnhancer = {},
     ): Promise<{ html: string; head: any, dataOnly?: true}> => {
@@ -443,11 +444,16 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, query })
+    if (ampMode.hasQuery) {
+      html = await optimizeAmp(html, { amphtml, query })
+    }
 
-    // don't validate dirty AMP
-    if (renderOpts.ampValidator && query.amp) {
+    if (renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
+    }
+    // run optimize after validating in dirty mode
+    if (!ampMode.hasQuery) {
+      html = await optimizeAmp(html, { amphtml, query })
     }
   }
 
