@@ -20,10 +20,11 @@ import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): webpack.Configuration {
+  const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { isServer, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
+      options: { isServer, distDir, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -36,7 +37,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const distDir = path.join(dir, config.distDir)
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
@@ -294,7 +294,33 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           new NextJsRequireCacheHotReloader(),
         ]
 
-        if(!isServer) {
+        if (!isServer) {
+          // BEGIN: Hijack autodll-webpack-plugin cache path
+          const autodllPaths = path.join(
+            path.dirname(require.resolve('autodll-webpack-plugin')),
+            'paths.js'
+          )
+          require(autodllPaths)
+
+          const autodllCachePath = path.resolve(
+            path.join(distDir, 'cache', 'autodll-webpack-plugin')
+          );
+          require.cache[autodllPaths] = Object.assign(
+            {},
+            require.cache[autodllPaths],
+            {
+              exports: Object.assign(
+                {},
+                require.cache[autodllPaths].exports,
+                {
+                  cacheDir: autodllCachePath,
+                  getManifestPath: (hash: string) => (bundleName: string) => path.resolve(autodllCachePath, hash, `${bundleName}.manifest.json`)
+                }
+              ),
+            }
+          )
+          // END: Hijack autodll-webpack-plugin cache path
+
           const AutoDllPlugin = require('autodll-webpack-plugin')
           devPlugins.push(
             new AutoDllPlugin({
