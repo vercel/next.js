@@ -370,7 +370,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
 
       return entry
     }
-    webpackConfig.entry = await webpackConfig.entry()
+    if (!dev) webpackConfig.entry = await webpackConfig.entry()
   }
 
   return webpackConfig

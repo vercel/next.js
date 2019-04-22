@@ -168,14 +168,6 @@ export default class HotReloader {
       findPageFile(pagesDir, '/_app', this.config.pageExtensions),
       findPageFile(pagesDir, '/_document', this.config.pageExtensions)
     ])
-    // Dev mode hangs if webpack.entry is not a function
-    const ensureEntryFn = config => {
-      const { entry } = config
-      if (typeof entry !== 'function') {
-        config.entry = () => entry
-      }
-      return config
-    }
 
     const pages = createPagesMapping(pagePaths.filter(i => i !== null), this.config.pageExtensions)
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, false, this.config)
@@ -186,7 +178,7 @@ export default class HotReloader {
     return [
       await getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
       await getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
-    ].map(ensureEntryFn)
+    ]
   }
 
   async start () {
