@@ -14,7 +14,7 @@ const babelClientOpts = {
     '@babel/preset-react'
   ],
   plugins: [
-    '@babel/plugin-proposal-class-properties',
+    ['@babel/plugin-proposal-class-properties', { loose: true }],
     ['@babel/plugin-transform-runtime', {
       corejs: 2,
       helpers: true,
@@ -39,7 +39,7 @@ const babelServerOpts = {
     }]
   ],
   plugins: [
-    '@babel/plugin-proposal-class-properties'
+    ['@babel/plugin-proposal-class-properties', { loose: true }]
   ]
 }
 
