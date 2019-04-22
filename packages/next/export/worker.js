@@ -26,7 +26,8 @@ process.on(
     outDir,
     renderOpts,
     serverRuntimeConfig,
-    concurrency
+    concurrency,
+    subFolders
   }) => {
     const sema = new Sema(concurrency, { capacity: exportPaths.length })
     try {
@@ -47,6 +48,9 @@ process.on(
         })
 
         let htmlFilename = `${path}${sep}index.html`
+
+        if (!subFolders) htmlFilename = `${path}.html`
+
         const pageExt = extname(page)
         const pathExt = extname(path)
         // Make sure page isn't a folder with a dot in the name e.g. `v1.2`

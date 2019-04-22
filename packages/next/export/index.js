@@ -24,6 +24,7 @@ export default async function (dir, options, configuration) {
   const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
+  const subFolders = nextConfig.experimental.exportTrailingSlash
 
   if (nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
 
@@ -139,7 +140,8 @@ export default async function (dir, options, configuration) {
             outDir,
             renderOpts,
             serverRuntimeConfig,
-            concurrency
+            concurrency,
+            subFolders
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {
