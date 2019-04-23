@@ -16,10 +16,12 @@ const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 // Do note that this module is only geared towards the `node` compilation target.
 // For the client side compilation we use `runtimeChunk: 'single'`
 export default class NextJsSsrImportPlugin {
-  constructor (options) {
+  private options: { outputPath: string }
+
+  constructor (options: { outputPath: string }) {
     this.options = options
   }
-  apply (compiler) {
+  apply (compiler: webpack.Compiler) {
     const { outputPath } = this.options
     compiler.hooks.emit.tapAsync('NextJsSSRModuleCache', (compilation, callback) => {
       compilation.assets[SSR_MODULE_CACHE_FILENAME] = new RawSource(`
@@ -28,12 +30,12 @@ export default class NextJsSsrImportPlugin {
       `)
       callback()
     })
-    compiler.hooks.compilation.tap('NextJsSSRModuleCache', (compilation) => {
+    compiler.hooks.compilation.tap('NextJsSSRModuleCache', (compilation: any) => {
       compilation.mainTemplate.hooks.localVars.intercept({
-        register (tapInfo) {
+        register (tapInfo: any) {
           if (tapInfo.name === 'MainTemplate') {
             const originalFn = tapInfo.fn
-            tapInfo.fn = (source, chunk) => {
+            tapInfo.fn = (source: any, chunk: any) => {
               // If the chunk is not part of the pages directory we have to keep the original behavior,
               // otherwise webpack will error out when the file is used before the compilation finishes
               // this is the case with mini-css-extract-plugin
@@ -46,7 +48,7 @@ export default class NextJsSsrImportPlugin {
               // Make sure even in windows, the path looks like in unix
               // Node.js require system will convert it accordingly
               const relativePathToBaseDirNormalized = relativePathToBaseDir.replace(/\\/g, '/')
-              return webpack.Template.asString([
+              return (webpack as any).Template.asString([
                 source,
                 '// The module cache',
                 `var installedModules = require('${relativePathToBaseDirNormalized}');`

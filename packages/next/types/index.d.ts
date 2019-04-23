@@ -57,6 +57,16 @@ declare module 'next/dist/compiled/resolve/index.js' {
   export = resolve;
 }
 
+declare module 'next/dist/compiled/text-table' {
+  function textTable(rows: Array<Array<{}>>, opts?: {
+    hsep?: string,
+    align?: Array<'l' | 'r' | 'c' | '.'>,
+    stringLength?(str: string): number
+  }): string;
+
+  export = textTable;
+}
+
 declare module 'next/dist/compiled/arg/index.js' {
   function arg<T extends arg.Spec>(spec: T, options?: {argv?: string[], permissive?: boolean}): arg.Result<T>;
 

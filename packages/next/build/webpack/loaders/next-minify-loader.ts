@@ -8,7 +8,7 @@ const nextMiniferLoader: loader.Loader = function(source) {
   const options = loaderUtils.getOptions(this) || {}
   const { error, code } = minify({
     file: 'noop',
-    input: source,
+    input: source as string,
     terserOptions: { ...options.terserOptions, sourceMap: false },
   })
 
