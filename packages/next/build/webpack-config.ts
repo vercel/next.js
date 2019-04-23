@@ -236,12 +236,12 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           }
         },
         config.experimental.ampBindInitData && !isServer && {
-          test: /\.(js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
           use: 'next-data-loader'
         },
         {
-          test: /\.(js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path: string) => {
             if (/next-server[\\/]dist[\\/]lib/.test(path)) {
