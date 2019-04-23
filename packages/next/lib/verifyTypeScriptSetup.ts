@@ -28,13 +28,15 @@ async function verifyNoTypeScript(dir: string) {
   for (const curPath of firstDepth) {
     const info = await stat(curPath)
 
-    if (info.isFile() && !curPath.match(/.*\.d\.ts/)) {
-      typescriptFiles.push(curPath)
+    if (info.isFile() && !curPath.match(/.*\.d\.(ts|tsx)/)) {
+      if (curPath.match(/.*\.(ts|tsx)/)) typescriptFiles.push(curPath)
     }
     if (info.isDirectory()) {
-      const curFiles = (await recursiveReadDir(curPath, /.*\.ts/)).map((file) => path.join(curPath, file))
+      const curFiles = (await recursiveReadDir(curPath, /.*\.(ts|tsx)/)).map((file) => path.join(curPath, file))
       typescriptFiles.push(
-        ...curFiles.filter((file) => !file.match(/.*\.d\.ts/)),
+        ...curFiles.filter((file) => {
+          return file.match(/.*\.(ts|tsx)/) && !file.match(/.*\.d\.(ts|tsx)/)
+        }),
       )
     }
   }
@@ -231,7 +233,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
 
   // tsconfig will have the merged "include" and "exclude" by this point
   if (parsedTsConfig.include == null) {
-    appTsConfig.include = ['**/*.ts', '**/*.tsx'];
+    appTsConfig.include = ['**/*'];
     messages.push(
       `${chalk.cyan('include')} should be ${chalk.cyan.bold('src')}`,
     );
