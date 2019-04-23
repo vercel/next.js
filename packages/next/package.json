@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "8.1.1-canary.1",
+  "version": "8.1.1-canary.2",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -63,7 +63,7 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
-    "next-server": "8.1.1-canary.1",
+    "next-server": "8.1.1-canary.2",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.4",
@@ -89,7 +89,6 @@
     "react-dom": "^16.6.0"
   },
   "devDependencies": {
-    "@types/styled-jsx": "2.2.8",
     "@babel/parser": "7.2.0",
     "@babel/preset-typescript": "7.3.3",
     "@taskr/clear": "1.1.0",
@@ -111,6 +110,7 @@
     "@types/node-fetch": "2.1.4",
     "@types/resolve": "0.0.8",
     "@types/strip-ansi": "3.0.0",
+    "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.0",
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.15.2",
