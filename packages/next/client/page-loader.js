@@ -118,7 +118,7 @@ export default class PageLoader {
     script.crossOrigin = process.crossOrigin
     script.src = url
     script.onerror = () => {
-      const error = new Error(`Error when loading route: ${route}`)
+      const error = new Error(`Error loading script ${url}`)
       error.code = 'PAGE_LOAD_ERROR'
       this.pageRegisterEvents.emit(route, { error })
     }
