@@ -34,7 +34,6 @@
   },
   "taskr": {
     "requires": [
-      "./taskfile-typescript.js",
       "./taskfile-ncc.js",
       "./taskfile-babel.js"
     ]
@@ -92,6 +91,7 @@
   "devDependencies": {
     "@types/styled-jsx": "2.2.8",
     "@babel/parser": "7.2.0",
+    "@babel/preset-typescript": "7.3.3",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -115,6 +115,7 @@
     "@types/webpack-sources": "0.1.5",
     "@zeit/ncc": "0.15.2",
     "arg": "4.1.0",
+    "babel-plugin-dynamic-import-node": "2.2.0",
     "nanoid": "2.0.1",
     "resolve": "1.5.0",
     "taskr": "1.1.0",
