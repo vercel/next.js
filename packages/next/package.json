@@ -30,8 +30,8 @@
     "build": "taskr",
     "release": "taskr release && npm run types",
     "prepublish": "npm run release",
-    "typescript": "tsc --noEmit --declaration --allowJs false",
-    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist --allowJs false"
+    "typescript": "tsc --noEmit --declaration",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
   },
   "taskr": {
     "requires": [
