@@ -24,6 +24,7 @@ export default async function (dir, options, configuration) {
   const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
+  const subFolders = nextConfig.experimental.exportTrailingSlash
 
   if (nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
 
@@ -40,13 +41,9 @@ export default async function (dir, options, configuration) {
   const defaultPathMap = {}
 
   for (const page of pages) {
-    // _document and _app are not real pages.
-    if (page === '/_document' || page === '/_app') {
-      continue
-    }
-
-    if (page === '/_error') {
-      defaultPathMap['/404.html'] = { page }
+    // _document and _app are not real pages
+    // _error is exported as 404.html later on
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
@@ -110,6 +107,7 @@ export default async function (dir, options, configuration) {
 
   log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, { dev: false, dir, outDir, distDir, buildId })
+  exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
 
   const progress = !options.silent && createProgress(exportPaths.length)
@@ -142,7 +140,8 @@ export default async function (dir, options, configuration) {
             outDir,
             renderOpts,
             serverRuntimeConfig,
-            concurrency
+            concurrency,
+            subFolders
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {

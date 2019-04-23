@@ -285,7 +285,7 @@ export class TerserPlugin {
         template.hooks.hashForChunk.tap(plugin, hash => {
           // Terser version
           // Has to be updated when options change too
-          hash.update('3.16.1')
+          hash.update('3.17.0');
           return hash
         })
       }

@@ -2,15 +2,14 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import ssrPrepass from 'react-ssr-prepass'
-import {IRouterInterface} from '../lib/router/router'
-import mitt, {MittEmitter} from '../lib/mitt';
-import { loadGetInitialProps, isResSent } from '../lib/utils'
+import { IRouterInterface } from '../lib/router/router'
+import mitt, { MittEmitter } from '../lib/mitt';
+import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, IDocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
 import { RequestContext } from '../lib/request-context'
-import {LoadableContext} from '../lib/loadable-context'
+import { LoadableContext } from '../lib/loadable-context'
 import { RouterContext } from '../lib/router-context'
 import { DataManager } from '../lib/data-manager'
 import {
@@ -22,11 +21,6 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
 import { isAmp } from '../lib/amp';
-
-type Enhancer = (Component: React.ComponentType) => React.ComponentType
-type ComponentsEnhancer =
-  | { enhanceApp?: Enhancer; enhanceComponent?: Enhancer }
-  | Enhancer
 
 function noRouter() {
   const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
@@ -74,11 +68,11 @@ class ServerRouter implements IRouterInterface {
 
 function enhanceComponents(
   options: ComponentsEnhancer,
-  App: React.ComponentType,
-  Component: React.ComponentType,
+  App: AppType,
+  Component: NextComponentType,
 ): {
-  App: React.ComponentType
-  Component: React.ComponentType,
+  App: AppType,
+  Component: NextComponentType,
 } {
   // For backwards compatibility
   if (typeof options === 'function') {
@@ -99,7 +93,7 @@ function enhanceComponents(
 function render(
   renderElementToString: (element: React.ReactElement<any>) => string,
   element: React.ReactElement<any>,
-): { html: string; head: any } {
+): { html: string; head: React.ReactElement[] } {
   let html
   let head
 
@@ -131,14 +125,14 @@ type RenderOpts = {
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
-  Document: React.ComponentType
-  App: React.ComponentType
+  Document: DocumentType
+  App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
   ampValidator?: (html: string, pathname: string) => Promise<void>,
 }
 
 function renderDocument(
-  Document: React.ComponentType,
+  Document: DocumentType,
   {
     dataManagerData,
     props,
@@ -163,9 +157,9 @@ function renderDocument(
     files,
     dynamicImports,
   }: RenderOpts & {
-    dataManagerData: any,
+    dataManagerData: string,
     props: any
-    docProps: any
+    docProps: IDocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
     dangerousAsPath: string
@@ -194,8 +188,7 @@ function renderDocument(
             assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
             runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
             nextExport, // If this is a page exported by `next export`
-            dynamicIds:
-            dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
+            dynamicIds: dynamicImportsIds.length === 0 ? undefined : dynamicImportsIds,
             err: err ? serializeError(dev, err) : undefined, // Error if one happened, otherwise don't sent in the resulting HTML
           }}
           dangerousAsPath={dangerousAsPath}
@@ -305,7 +298,7 @@ export async function renderToHTML(
     }
   }
 
-  let renderPage: (options: ComponentsEnhancer) => { html: string, head: any } | Promise<{ html: string; head: any }>
+  let renderPage: RenderPage
 
   const ampMode = {
     enabled: false,
@@ -313,6 +306,8 @@ export async function renderToHTML(
   }
 
   if (ampBindInitData) {
+    const ssrPrepass = require('react-ssr-prepass')
+
     renderPage = async (
       options: ComponentsEnhancer = {},
     ): Promise<{ html: string; head: any, dataOnly?: true}> => {
@@ -410,6 +405,11 @@ export async function renderToHTML(
     dataManagerData = JSON.stringify([...dataManager.getData()])
   }
 
+  if (!docProps || typeof docProps.html !== 'string') {
+    const message = `"${getDisplayName(Document)}.getInitialProps()" should resolve to an object with a "html" prop set with a valid html string`
+    throw new Error(message)
+  }
+
   if (docProps.dataOnly) {
     return dataManagerData
   }
@@ -443,11 +443,16 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
-    html = await optimizeAmp(html, { amphtml, query })
+    if (ampMode.hasQuery) {
+      html = await optimizeAmp(html, { amphtml, query })
+    }
 
-    // don't validate dirty AMP
-    if (renderOpts.ampValidator && query.amp) {
+    if (renderOpts.ampValidator) {
       await renderOpts.ampValidator(html, pathname)
+    }
+    // run optimize after validating in dirty mode
+    if (!ampMode.hasQuery) {
+      html = await optimizeAmp(html, { amphtml, query })
     }
   }
 

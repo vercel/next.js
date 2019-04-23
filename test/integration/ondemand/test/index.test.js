@@ -20,7 +20,7 @@ const context = {}
 const doPing = page => {
   const controller = new AbortController()
   const signal = controller.signal
-  return fetchViaHTTP(context.appPort, '/_next/on-demand-entries-ping', { page }, { signal })
+  return fetchViaHTTP(context.appPort, '/_next/webpack-hmr', { page }, { signal })
     .then(res => {
       res.body.on('data', chunk => {
         try {

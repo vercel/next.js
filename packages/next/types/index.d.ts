@@ -2,10 +2,16 @@ declare module '@babel/plugin-transform-modules-commonjs';
 declare module 'next-server/next-config';
 declare module 'next-server/constants';
 declare module 'webpack/lib/GraphHelpers';
-declare module 'unfetch'
+declare module 'unfetch';
+declare module 'styled-jsx/server';
 
 declare module 'next/router' {
   import * as all from 'next/client/router'
+  export = all
+}
+
+declare module 'next-server/head' {
+  import * as all from 'next-server/lib/head'
   export = all
 }
 
@@ -30,8 +36,13 @@ declare module 'next-server/dist/lib/request-context' {
 }
 
 declare module 'next-server/dist/lib/utils' {
-  export function loadGetInitialProps(Component: any, ctx: any): Promise<any>
-  export function execOnce(fn: any): (...args: any[]) => void
+  import * as all from 'next-server/lib/utils'
+  export = all
+}
+
+declare module 'next-server/dist/server/utils' {
+  import * as all from 'next-server/server/utils'
+  export = all
 }
 
 declare module 'next/dist/compiled/nanoid/index.js' {
@@ -44,6 +55,16 @@ declare module 'next/dist/compiled/resolve/index.js' {
   import resolve from 'resolve'
 
   export = resolve;
+}
+
+declare module 'next/dist/compiled/text-table' {
+  function textTable(rows: Array<Array<{}>>, opts?: {
+    hsep?: string,
+    align?: Array<'l' | 'r' | 'c' | '.'>,
+    stringLength?(str: string): number
+  }): string;
+
+  export = textTable;
 }
 
 declare module 'next/dist/compiled/arg/index.js' {
@@ -89,4 +110,10 @@ declare module 'autodll-webpack-plugin' {
   }
 
   export = AutoDllPlugin
+}
+
+declare module NodeJS {
+  interface Process {
+    crossOrigin?: string;
+  }
 }
