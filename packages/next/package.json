@@ -28,9 +28,10 @@
   },
   "scripts": {
     "build": "taskr",
-    "release": "taskr release",
+    "release": "taskr release && npm run types",
     "prepublish": "npm run release",
-    "typescript": "tsc --noEmit"
+    "typescript": "tsc --noEmit",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist --allowJs false"
   },
   "taskr": {
     "requires": [
