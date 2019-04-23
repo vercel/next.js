@@ -222,7 +222,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  printTreeView(Object.keys(mappedPages))
+  let ampPages = new Set()
+
+  if (Array.isArray(configs[0].plugins)) {
+    configs[0].plugins.some((plugin: any) => {
+      if (plugin.ampPages) ampPages = plugin.ampPages
+      return Boolean(plugin.ampPages)
+    })
+  }
+
+  printTreeView(Object.keys(mappedPages), ampPages)
 
   if (flyingShuttle) {
     await flyingShuttle.save()
