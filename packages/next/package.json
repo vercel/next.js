@@ -28,8 +28,8 @@
   },
   "scripts": {
     "build": "taskr",
-    "release": "taskr release && npm run types",
-    "prepublish": "npm run release",
+    "release": "taskr release",
+    "prepublish": "npm run release && npm run types",
     "typescript": "tsc --noEmit --declaration",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
   },
