@@ -90,9 +90,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           'string-hash',
           'next/constants'
         ]
-        const nodeBuiltins = new Set([...require("repl")._builtinLibs, "constants", "module", "timers", "console", "_stream_writable", "_stream_readable", "_stream_duplex"])
 
-        if (notExternalModules.indexOf(request) !== -1 || nodeBuiltins.has(request)) {
+        if (notExternalModules.indexOf(request) !== -1) {
           return callback()
         }
 
@@ -237,12 +236,12 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           }
         },
         config.experimental.ampBindInitData && !isServer && {
-          test: /\.(js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
           use: 'next-data-loader'
         },
         {
-          test: /\.(js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path: string) => {
             if (/next-server[\\/]dist[\\/]lib/.test(path)) {
