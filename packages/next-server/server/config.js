@@ -14,7 +14,7 @@ const defaultConfig = {
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
   generateEtags: true,
-  pageExtensions: ['jsx', 'js'],
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: 'server',
   poweredByHeader: true,
   onDemandEntries: {

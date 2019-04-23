@@ -39,6 +39,7 @@
     ]
   },
   "dependencies": {
+    "@babel/preset-typescript": "7.3.3",
     "@babel/core": "7.1.2",
     "@babel/plugin-proposal-class-properties": "7.1.0",
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
@@ -90,7 +91,6 @@
   },
   "devDependencies": {
     "@babel/parser": "7.2.0",
-    "@babel/preset-typescript": "7.3.3",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
