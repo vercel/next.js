@@ -1,5 +1,8 @@
+import fs from 'fs'
 import path from 'path'
+import findUp from 'find-up'
 import webpack from 'webpack'
+import { promisify } from 'util'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
@@ -18,7 +21,12 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import verifyTypeScriptSetup from '../lib/verifyTypeScriptSetup'
+
 type ExcludesFalse = <T>(x: T | false) => x is T
+
+const exists = promisify(fs.exists)
 
 export default async function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): Promise<webpack.Configuration> {
   const distDir = path.join(dir, config.distDir)
@@ -37,6 +45,20 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
+
+  let useTypeScript = false
+  let typeScriptPath = ''
+  let tsConfigPath = path.resolve(dir, 'tsconfig.json')
+
+  if (!isServer) {
+    await verifyTypeScriptSetup(dir)
+    useTypeScript = await exists(tsConfigPath)
+    if (useTypeScript) {
+      typeScriptPath = path.join(
+        (await findUp('node_modules', { cwd: dir }))!, 'typescript'
+      )
+    }
+  }
 
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
@@ -255,6 +277,24 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
       ].filter(Boolean)
     },
     plugins: [
+      useTypeScript && new ForkTsCheckerWebpackPlugin({
+        typescript: typeScriptPath,
+        async: dev,
+        useTypescriptIncrementalApi: true,
+        checkSyntacticErrors: true,
+        tsconfig: tsConfigPath,
+        reportFiles: [
+          '**',
+          '!**/__tests__/**',
+          '!**/?(*.)(spec|test).*',
+          '!**/src/setupProxy.*',
+          '!**/src/setupTests.*',
+        ],
+        watch: dir,
+        silent: false,
+        // The formatter is invoked directly in WebpackDevServerUtils during development
+        formatter: undefined,
+      }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
