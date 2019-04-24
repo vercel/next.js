@@ -42,8 +42,9 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release",
-    "typescript": "tsc --noEmit --declaration"
+    "prepublish": "npm run release && yarn types",
+    "typescript": "tsc --noEmit --declaration",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
   },
   "taskr": {
     "requires": [
