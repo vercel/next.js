@@ -323,10 +323,10 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
       !dev && new webpack.HashedModuleIdsPlugin(),
       // This must come after HashedModuleIdsPlugin (it sets any modules that
       // were missed by HashedModuleIdsPlugin)
-      !dev && new AllModulesIdentifiedPlugin(dir),
+      !dev && selectivePageBuilding && new AllModulesIdentifiedPlugin(dir),
       // This sets chunk ids to be hashed versions of their names to reduce
       // bundle churn
-      !dev && new HashedChunkIdsPlugin(buildId),
+      !dev && selectivePageBuilding && new HashedChunkIdsPlugin(buildId),
       // On the client we want to share the same runtime cache
       !isServer && selectivePageBuilding && new SharedRuntimePlugin(),
       !dev && new webpack.IgnorePlugin({
