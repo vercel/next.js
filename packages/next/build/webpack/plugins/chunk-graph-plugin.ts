@@ -6,6 +6,56 @@ import path from 'path'
 import { parse } from 'querystring'
 import { Compiler, Plugin } from 'webpack'
 
+type StringDictionary = { [pageName: string]: string[] }
+const manifest: {
+  pages: StringDictionary
+  pageChunks: StringDictionary
+  chunks: StringDictionary
+} = {
+  pages: {},
+  pageChunks: {},
+  chunks: {},
+}
+
+export function exportManifest({
+  dir,
+  fileName,
+  selectivePageBuildingCacheIdentifier,
+}: {
+  dir: string
+  fileName: string
+  selectivePageBuildingCacheIdentifier: string
+}) {
+  const finalManifest = {
+    ...manifest,
+    hashes: {} as { [pageName: string]: string },
+  }
+
+  const allFiles = new Set<string>()
+  for (const page of Object.keys(finalManifest.pages)) {
+    finalManifest.pages[page].forEach(f => allFiles.add(f))
+  }
+
+  finalManifest.hashes = [...allFiles].sort().reduce(
+    (acc, cur) =>
+      Object.assign(
+        acc,
+        fs.existsSync(path.join(dir, cur))
+          ? {
+              [cur]: createHash('sha1')
+                .update(selectivePageBuildingCacheIdentifier)
+                .update(fs.readFileSync(path.join(dir, cur)))
+                .digest('hex'),
+            }
+          : undefined
+      ),
+    {}
+  )
+
+  const json = JSON.stringify(finalManifest, null, 2) + EOL
+  fs.writeFileSync(fileName, json)
+}
+
 function getFiles(dir: string, modules: any[]): string[] {
   if (!(modules && modules.length)) {
     return []
@@ -49,45 +99,34 @@ function getFiles(dir: string, modules: any[]): string[] {
 export class ChunkGraphPlugin implements Plugin {
   private buildId: string
   private dir: string
-  private filename: string
-  private selectivePageBuildingCacheIdentifier: string
+  private distDir: string
+  private isServer: boolean
 
   constructor(
     buildId: string,
-    dir: string,
     {
-      filename,
-      selectivePageBuildingCacheIdentifier,
-    }: { filename?: string; selectivePageBuildingCacheIdentifier?: string } = {}
+      dir,
+      distDir,
+      isServer,
+    }: {
+      dir: string
+      distDir: string
+      isServer: boolean
+    }
   ) {
     this.buildId = buildId
     this.dir = dir
-    this.filename = filename || 'chunk-graph-manifest.json'
-    this.selectivePageBuildingCacheIdentifier =
-      selectivePageBuildingCacheIdentifier || ''
+    this.distDir = distDir
+    this.isServer = isServer
   }
 
   apply(compiler: Compiler) {
     const { dir } = this
     compiler.hooks.emit.tap('ChunkGraphPlugin', compilation => {
-      type StringDictionary = { [pageName: string]: string[] }
-      const manifest: {
-        pages: StringDictionary
-        pageChunks: StringDictionary
-        chunks: StringDictionary
-        hashes: { [pageName: string]: string }
-      } = {
-        pages: {},
-        pageChunks: {},
-        chunks: {},
-        hashes: {},
-      }
-
       const sharedFiles = [] as string[]
       const sharedChunks = [] as string[]
       const pages: StringDictionary = {}
       const pageChunks: StringDictionary = {}
-      const allFiles = new Set()
 
       compilation.chunks.forEach(chunk => {
         if (!chunk.hasEntryModule()) {
@@ -118,11 +157,15 @@ export class ChunkGraphPlugin implements Plugin {
 
         const modules = [...chunkModules.values()]
         const files = getFiles(dir, modules)
+          // we don't care about node_modules (yet) because we invalidate the
+          // entirety of flying shuttle on package changes
           .filter(val => !val.includes('node_modules'))
+          // build artifacts shouldn't be considered, so we ensure all paths
+          // are outside of this directory
+          .filter(val => path.relative(this.distDir, val).startsWith('..'))
+          // convert from absolute path to be portable across operating systems
+          // and directories
           .map(f => path.relative(dir, f))
-          .sort()
-
-        files.forEach(f => allFiles.add(f))
 
         let pageName: string | undefined
         if (chunk.entryModule && chunk.entryModule.loaders) {
@@ -133,8 +176,7 @@ export class ChunkGraphPlugin implements Plugin {
             }: {
               loader?: string | null
               options?: string | null
-            }) =>
-              loader && loader.includes('next-client-pages-loader') && options
+            }) => loader && loader.match(/next-(\w+-)+loader/) && options
           )
           if (entryLoader) {
             const { page } = parse(entryLoader.options)
@@ -161,7 +203,9 @@ export class ChunkGraphPlugin implements Plugin {
             sharedFiles.push(...files)
             sharedChunks.push(...involvedChunks)
           } else {
-            manifest.chunks[chunk.name] = files
+            manifest.chunks[chunk.name] = [
+              ...new Set([...(manifest.chunks[chunk.name] || []), ...files]),
+            ].sort()
           }
         }
       })
@@ -174,41 +218,26 @@ export class ChunkGraphPlugin implements Plugin {
           : name
 
       for (const page in pages) {
-        manifest.pages[page] = [...pages[page], ...sharedFiles]
-        manifest.pageChunks[page] = [
+        manifest.pages[page] = [
           ...new Set([
-            ...pageChunks[page],
-            ...pageChunks[page].map(getLambdaChunk),
-            ...sharedChunks,
-            ...sharedChunks.map(getLambdaChunk),
+            ...(manifest.pages[page] || []),
+            ...pages[page],
+            ...sharedFiles,
           ]),
         ].sort()
-      }
 
-      manifest.hashes = ([...allFiles] as string[]).sort().reduce(
-        (acc, cur) =>
-          Object.assign(
-            acc,
-            fs.existsSync(path.join(dir, cur))
-              ? {
-                  [cur]: createHash('sha1')
-                    .update(this.selectivePageBuildingCacheIdentifier)
-                    .update(fs.readFileSync(path.join(dir, cur)))
-                    .digest('hex'),
-                }
-              : undefined
-          ),
-        {}
-      )
-
-      const json = JSON.stringify(manifest, null, 2) + EOL
-      compilation.assets[this.filename] = {
-        source() {
-          return json
-        },
-        size() {
-          return json.length
-        },
+        // There's no chunks to save from serverless bundles
+        if (!this.isServer) {
+          manifest.pageChunks[page] = [
+            ...new Set([
+              ...(manifest.pageChunks[page] || []),
+              ...pageChunks[page],
+              ...pageChunks[page].map(getLambdaChunk),
+              ...sharedChunks,
+              ...sharedChunks.map(getLambdaChunk),
+            ]),
+          ].sort()
+        }
       }
     })
   }

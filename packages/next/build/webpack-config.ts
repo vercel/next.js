@@ -7,7 +7,7 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
-import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CHUNK_GRAPH_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
+import { SERVER_DIRECTORY, REACT_LOADABLE_MANIFEST, CLIENT_STATIC_FILES_RUNTIME_WEBPACK, CLIENT_STATIC_FILES_RUNTIME_MAIN } from 'next-server/constants'
 import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_DIST_CLIENT, PAGES_DIR_ALIAS, DOT_NEXT_ALIAS } from '../lib/constants'
 import {TerserPlugin} from './webpack/plugins/terser-webpack-plugin/src/index'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
@@ -20,7 +20,7 @@ import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default async function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): Promise<webpack.Configuration> {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean}): Promise<webpack.Configuration> {
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -281,7 +281,9 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      !isServer && selectivePageBuilding && new ChunkGraphPlugin(buildId, path.resolve(dir), { filename: CHUNK_GRAPH_MANIFEST, selectivePageBuildingCacheIdentifier }),
+      selectivePageBuilding && new ChunkGraphPlugin(buildId, {
+        dir, distDir, isServer
+      }),
       !isServer && new DropClientPage(),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations

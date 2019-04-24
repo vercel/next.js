@@ -19,7 +19,7 @@ export function collectPages(
   )
 }
 
-export function printTreeView(list: string[]) {
+export function printTreeView(list: string[], ampPages: Set<string>) {
   list
     .sort((a, b) => (a > b ? 1 : -1))
     .forEach((item, i) => {
@@ -31,7 +31,7 @@ export function printTreeView(list: string[]) {
           : i === list.length - 1
           ? '└'
           : '├'
-      console.log(` \x1b[90m${corner}\x1b[39m ${item}`)
+      console.log(` \x1b[90m${corner}\x1b[39m ${item}${ampPages.has(item) ? ' (AMP)' : ''}`)
     })
 
   console.log()
