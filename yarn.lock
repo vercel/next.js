@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@babel/code-frame@^7.0.0", "@babel/code-frame@^7.0.0-beta.35":
+"@babel/code-frame@7.0.0", "@babel/code-frame@^7.0.0", "@babel/code-frame@^7.0.0-beta.35":
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.0.0.tgz#06e2ab19bdb535385559aabb5ba59729482800f8"
   integrity sha512-OfC2uemaknXr87bdLUkWog7nYuliM9Ij5HUcajsVcMCpQrcLmtxRbVFTIqmcSkSeYRBFBRxs2FiUqFJDLdiebA==
@@ -1533,6 +1533,11 @@
   version "7.0.4"
   resolved "https://registry.yarnpkg.com/@types/babel-types/-/babel-types-7.0.4.tgz#bfd5b0d0d1ba13e351dff65b6e52783b816826c8"
   integrity sha512-WiZhq3SVJHFRgRYLXvpf65XnV6ipVHhnNaNvE8yCimejrGglkg38kEj0JcizqwSHxmPSjcTlig/6JouxLGEhGw==
+
+"@types/babel__code-frame@7.0.1":
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/@types/babel__code-frame/-/babel__code-frame-7.0.1.tgz#baf2529c4abbfb5e4008c845efcfe39a187e2f99"
+  integrity sha512-FFfbQozKxYmOnCKFYV+EQprjBI7u2yaNc2ly/K9AhzyC8MzXtCtSRqptpw+HUJxhwCOo5mLwf1ATmzyhOaVbDg==
 
 "@types/babel__core@7.0.4":
   version "7.0.4"

@@ -20,6 +20,7 @@ import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import verifyTypeScriptSetup from '../lib/verifyTypeScriptSetup'
+import typescriptFormatter from '../lib/typescriptFormatter'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -270,7 +271,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
     plugins: [
       useTypeScript && new ForkTsCheckerWebpackPlugin({
         typescript: typeScriptPath,
-        async: dev,
+        async: true,
         useTypescriptIncrementalApi: true,
         checkSyntacticErrors: false,
         tsconfig: tsConfigPath,
@@ -282,6 +283,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           '!**/src/setupTests.*',
         ],
         silent: false,
+        formatter: typescriptFormatter
       }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
