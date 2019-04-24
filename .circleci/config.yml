@@ -79,11 +79,6 @@ commands:
       - run:
           name: Potentially save npm token
           command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
-  list_dist:
-    steps:
-      - run:
-          name: List dist files
-          command: 'ls **/dist/*'
   publish_canary:
     steps:
       - run:
@@ -134,7 +129,6 @@ jobs:
     steps:
       - *attach_workspace
       - save_npm_token
-      - list_dist
       - publish_canary
       - publish_stable
 
