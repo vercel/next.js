@@ -5,50 +5,16 @@ declare module 'webpack/lib/GraphHelpers';
 declare module 'unfetch';
 declare module 'styled-jsx/server';
 
-declare module 'next/router' {
-  import * as all from 'next/client/router'
-  export = all
-}
-
-declare module 'next-server/head' {
-  import * as all from 'next-server/lib/head'
-  export = all
-}
-
-declare module 'next-server/dist/lib/data-manager-context' {
-  import * as all from 'next-server/lib/data-manager-context'
-  export = all
-}
-
-declare module 'next-server/dist/lib/router-context' {
-  import * as all from 'next-server/lib/router-context'
-  export = all
-}
-
-declare module 'next-server/dist/lib/router/router' {
-  import * as all from 'next-server/lib/router/router'
-  export = all
-}
-
-declare module 'next-server/dist/lib/request-context' {
-  import * as all from 'next-server/lib/request-context'
-  export = all
-}
-
-declare module 'next-server/dist/lib/utils' {
-  import * as all from 'next-server/lib/utils'
-  export = all
-}
-
-declare module 'next-server/dist/server/utils' {
-  import * as all from 'next-server/server/utils'
-  export = all
-}
 
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string;
 
   export = nanoid;
+}
+
+declare module 'next/dist/compiled/unistore' {
+  import unistore from 'unistore'
+  export = unistore
 }
 
 declare module 'next/dist/compiled/resolve/index.js' {
