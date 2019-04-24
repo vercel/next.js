@@ -2,8 +2,6 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import chalk from 'chalk'
-import findUp from 'find-up'
-import resolve from 'resolve'
 import { promisify } from 'util'
 import { recursiveReadDir } from './recursive-readdir'
 
@@ -18,8 +16,9 @@ function writeJson(fileName: string, object: object): Promise<void> {
 }
 
 async function verifyNoTypeScript(dir: string) {
-  let typescriptFiles = await recursiveReadDir(dir, /.*\.(ts|tsx)/, /node_modules/)
-  typescriptFiles = typescriptFiles.filter((p) => !p.match(/.*\.d\.ts/))
+  const typescriptFiles = await recursiveReadDir(
+    dir, /.*\.(ts|tsx)/, /(node_modules|.*\.d\.ts)/,
+  )
 
   if (typescriptFiles.length > 0) {
     console.warn(
@@ -35,17 +34,17 @@ async function verifyNoTypeScript(dir: string) {
   return true;
 }
 
-export default async function verifyTypeScriptSetup(dir: string) {
+export default async function verifyTypeScriptSetup(
+  dir: string, tsConfigPath: string, typescriptPath: string,
+): Promise<boolean> {
   let firstTimeSetup = false;
-  const tsConfig = path.resolve(dir, 'tsconfig.json')
-  const yarnLockFile = path.resolve(dir, 'yarn.lock')
-  const nodeModules = (await findUp('node_modules', { cwd: dir }))!
+  const yarnLockFile = path.join(dir, 'yarn.lock')
 
-  if (!(await exists(tsConfig))) {
+  if (!(await exists(tsConfigPath))) {
     if (await verifyNoTypeScript(dir)) {
-      return;
+      return false;
     }
-    await writeJson(tsConfig, {});
+    await writeJson(tsConfigPath, {});
     firstTimeSetup = true;
   }
   const isYarn = await exists(yarnLockFile);
@@ -53,9 +52,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
   // Ensure typescript is installed
   let ts: typeof import('typescript');
   try {
-    ts = require(resolve.sync('typescript', {
-      basedir: nodeModules,
-    }));
+    ts = require(typescriptPath);
   } catch (_) {
     console.error(
       chalk.bold.red(
@@ -83,7 +80,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
     );
     console.error();
     process.exit(1);
-    return
+    return false
   }
 
   const compilerOptions: any = {
@@ -140,7 +137,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
   let parsedCompilerOptions;
   try {
     const { config: readTsConfig, error } = ts.readConfigFile(
-      tsConfig,
+      tsConfigPath,
       ts.sys.readFile,
     );
 
@@ -157,7 +154,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
     const result = ts.parseJsonConfigFileContent(
       readTsConfig,
       ts.sys,
-      path.dirname(tsConfig),
+      path.dirname(tsConfigPath),
     );
 
     if (result.errors && result.errors.length) {
@@ -180,7 +177,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
 
     console.info(e && e.message ? `${e.message}` : '');
     process.exit(1);
-    return
+    return false
   }
 
   if (appTsConfig.compilerOptions == null) {
@@ -242,6 +239,7 @@ export default async function verifyTypeScriptSetup(dir: string) {
       });
       console.warn();
     }
-    await writeJson(tsConfig, appTsConfig);
+    await writeJson(tsConfigPath, appTsConfig);
   }
+  return true
 }

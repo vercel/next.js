@@ -48,16 +48,14 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
 
   let useTypeScript = false
   let typeScriptPath = ''
-  let tsConfigPath = path.resolve(dir, 'tsconfig.json')
+  let tsConfigPath = ''
 
   if (!isServer) {
-    await verifyTypeScriptSetup(dir)
-    useTypeScript = await exists(tsConfigPath)
-    if (useTypeScript) {
-      typeScriptPath = path.join(
-        (await findUp('node_modules', { cwd: dir }))!, 'typescript'
-      )
-    }
+    tsConfigPath = path.join(dir, 'tsconfig.json')
+    typeScriptPath = path.join(
+      (await findUp('node_modules', { cwd: dir }))!, 'typescript'
+    )
+    useTypeScript = await verifyTypeScriptSetup(dir, tsConfigPath, typeScriptPath)
   }
 
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
