@@ -127,8 +127,14 @@ export class ChunkGraphPlugin implements Plugin {
 
         const modules = [...chunkModules.values()]
         const files = getFiles(dir, modules)
+          // we don't care about node_modules (yet) because we invalidate the
+          // entirety of flying shuttle on package changes
           .filter(val => !val.includes('node_modules'))
+          // build artifacts shouldn't be considered, so we ensure all paths
+          // are outside of this directory
           .filter(val => path.relative(this.distDir, val).startsWith('..'))
+          // convert from absolute path to be portable across operating systems
+          // and directories
           .map(f => path.relative(dir, f))
 
         files.forEach(f => allFiles.add(f))
