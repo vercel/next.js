@@ -24,8 +24,8 @@
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
     "next": "./packages/next/dist/bin/next",
-    "types-next": "tsc --declaration --emitDeclarationOnly --declarationDir ./packages/next/dist --project packages/next",
-    "types-next-server": "tsc --declaration --emitDeclarationOnly --declarationDir ./packages/next-server/dist --project packages/next-server"
+    "types-next": "tsc --declaration --emitDeclarationOnly --declarationDir ./packages/next/dist --project ./packages/next",
+    "types-next-server": "tsc --declaration --emitDeclarationOnly --declarationDir ./packages/next-server/dist --project ./packages/next-server"
   },
   "pre-commit": "lint-staged",
   "lint-staged": {

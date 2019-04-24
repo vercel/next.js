@@ -1,7 +1,7 @@
 import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps } from 'next-server/dist/lib/utils'
-import { makePublicRouterInstance } from 'next/router'
+import { makePublicRouterInstance } from '../client/router'
 
 export { NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps }
 

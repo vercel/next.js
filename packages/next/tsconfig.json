@@ -9,6 +9,7 @@
   },
   "exclude": [
     "dist",
-    "./*.d.ts"
+    "./*.d.ts",
+    "./router.d.ts"
   ]
 }
