@@ -54,15 +54,19 @@ export class ChunkGraphPlugin implements Plugin {
 
   constructor(
     buildId: string,
-    dir: string,
     {
+      dir,
       filename,
       selectivePageBuildingCacheIdentifier,
-    }: { filename?: string; selectivePageBuildingCacheIdentifier?: string } = {}
+    }: {
+      filename: string
+      dir: string
+      selectivePageBuildingCacheIdentifier?: string
+    }
   ) {
     this.buildId = buildId
     this.dir = dir
-    this.filename = filename || 'chunk-graph-manifest.json'
+    this.filename = filename
     this.selectivePageBuildingCacheIdentifier =
       selectivePageBuildingCacheIdentifier || ''
   }
@@ -120,7 +124,6 @@ export class ChunkGraphPlugin implements Plugin {
         const files = getFiles(dir, modules)
           .filter(val => !val.includes('node_modules'))
           .map(f => path.relative(dir, f))
-          .sort()
 
         files.forEach(f => allFiles.add(f))
 
@@ -133,8 +136,7 @@ export class ChunkGraphPlugin implements Plugin {
             }: {
               loader?: string | null
               options?: string | null
-            }) =>
-              loader && loader.includes('next-client-pages-loader') && options
+            }) => loader && loader.match(/next-(\w+-)+loader/) && options
           )
           if (entryLoader) {
             const { page } = parse(entryLoader.options)
@@ -174,7 +176,9 @@ export class ChunkGraphPlugin implements Plugin {
           : name
 
       for (const page in pages) {
-        manifest.pages[page] = [...pages[page], ...sharedFiles]
+        manifest.pages[page] = [
+          ...new Set([...pages[page], ...sharedFiles]),
+        ].sort()
         manifest.pageChunks[page] = [
           ...new Set([
             ...pageChunks[page],
