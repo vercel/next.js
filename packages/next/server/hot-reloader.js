@@ -175,10 +175,10 @@ export default class HotReloader {
     let additionalClientEntrypoints = {}
     additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
 
-    return [
+    return Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
-    ]
+    ])
   }
 
   async start () {

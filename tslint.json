@@ -10,6 +10,7 @@
     "object-literal-sort-keys": false,
     "variable-name": false,
     "max-line-length": false,
+    "max-classes-per-file": false,
     "interface-over-type-literal": false,
     "no-shadowed-variable": false,
     "no-var-requires": false,
@@ -17,7 +18,8 @@
     "quotemark": false,
     "ordered-imports": false,
     "member-access": false,
-    "member-ordering": false
+    "member-ordering": false,
+    "no-console": [true, "log"]
   },
   "rulesDirectory": [],
   "linterOptions": {

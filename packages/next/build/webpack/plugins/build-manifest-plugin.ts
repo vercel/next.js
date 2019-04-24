@@ -1,3 +1,4 @@
+import { Compiler } from 'webpack'
 import { RawSource } from 'webpack-sources'
 import {
   BUILD_MANIFEST,
@@ -9,19 +10,19 @@ import {
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
-  apply (compiler) {
+  apply (compiler: Compiler) {
     compiler.hooks.emit.tapAsync(
       'NextJsBuildManifest',
       (compilation, callback) => {
         const { chunks } = compilation
-        const assetMap = { devFiles: [], pages: {} }
+        const assetMap: { devFiles: string[], pages: { [page: string]: string[] } } = { devFiles: [], pages: {} }
 
         const mainJsChunk = chunks.find(
           c => c.name === CLIENT_STATIC_FILES_RUNTIME_MAIN
         )
-        const mainJsFiles =
+        const mainJsFiles: string[] =
           mainJsChunk && mainJsChunk.files.length > 0
-            ? mainJsChunk.files.filter(file => /\.js$/.test(file))
+            ? mainJsChunk.files.filter((file: string) => /\.js$/.test(file))
             : []
 
         for (const filePath of Object.keys(compilation.assets)) {
@@ -44,7 +45,7 @@ export default class BuildManifestPlugin {
             continue
           }
 
-          const filesForEntry = []
+          const filesForEntry: string[] = []
           for (const chunk of entrypoint.chunks) {
             // If there's no name or no files
             if (!chunk.name || !chunk.files) {
@@ -83,7 +84,7 @@ export default class BuildManifestPlugin {
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
-          .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {})
+          .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
         compilation.assets[BUILD_MANIFEST] = new RawSource(
           JSON.stringify(assetMap, null, 2)

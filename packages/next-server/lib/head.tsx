@@ -127,7 +127,7 @@ function reduceComponents(headElements: Array<React.ReactElement<any>>, props: W
 
 const Effect = withSideEffect<WithIsAmp>();
 
-function Head({ children }: { children: React.ReactNode }) {
+export default function Head({ children }: { children: React.ReactNode }) {
   return (
     <AmpModeContext.Consumer>
       {(ampMode) => (
@@ -148,5 +148,3 @@ function Head({ children }: { children: React.ReactNode }) {
 }
 
 Head.rewind = Effect.rewind;
-
-export default Head;

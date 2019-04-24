@@ -16,14 +16,16 @@ import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
+import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-export default function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): webpack.Configuration {
+export default async function getBaseWebpackConfig (dir: string, {dev = false, debug = false, isServer = false, buildId, config, target = 'server', entrypoints, selectivePageBuilding = false, selectivePageBuildingCacheIdentifier = ''}: {dev?: boolean, debug?: boolean, isServer?: boolean, buildId: string, config: any, target?: string, entrypoints: WebpackEntrypoints, selectivePageBuilding?: boolean, selectivePageBuildingCacheIdentifier?: string}): Promise<webpack.Configuration> {
+  const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
       loader: 'next-babel-loader',
-      options: { isServer, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
+      options: { isServer, distDir, cwd: dir, asyncToPromises: config.experimental.asyncToPromises }
     },
     // Backwards compat
     hotSelfAccept: {
@@ -36,7 +38,6 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
     .split(process.platform === 'win32' ? ';' : ':')
     .filter((p) => !!p)
 
-  const distDir = path.join(dir, config.distDir)
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
@@ -89,9 +90,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           'string-hash',
           'next/constants'
         ]
-        const nodeBuiltins = new Set([...require("repl")._builtinLibs, "constants", "module", "timers", "console", "_stream_writable", "_stream_readable", "_stream_duplex"])
 
-        if (notExternalModules.indexOf(request) !== -1 || nodeBuiltins.has(request)) {
+        if (notExternalModules.indexOf(request) !== -1) {
           return callback()
         }
 
@@ -236,12 +236,12 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           }
         },
         config.experimental.ampBindInitData && !isServer && {
-          test: /\.(js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [path.join(dir, 'data')],
           use: 'next-data-loader'
         },
         {
-          test: /\.(js|mjs|jsx)$/,
+          test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, /next-server[\\/]dist[\\/]lib/],
           exclude: (path: string) => {
             if (/next-server[\\/]dist[\\/]lib/.test(path)) {
@@ -294,8 +294,8 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
           new NextJsRequireCacheHotReloader(),
         ]
 
-        if(!isServer) {
-          const AutoDllPlugin = require('autodll-webpack-plugin')
+        if (!isServer) {
+          const AutoDllPlugin = importAutoDllPlugin({ distDir })
           devPlugins.push(
             new AutoDllPlugin({
               filename: '[name]_[hash].js',
@@ -372,6 +372,11 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, debug =
 
       return entry
     }
+  }
+
+  if(!dev) {
+    // @ts-ignore entry is always a function
+    webpackConfig.entry = await webpackConfig.entry()
   }
 
   return webpackConfig

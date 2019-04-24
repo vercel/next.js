@@ -1,23 +1,28 @@
 import React from 'react'
 import Head from 'next-server/head'
+import { IContext } from 'next-server/dist/lib/utils'
 
-const statusCodes = {
+const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
   404: 'This page could not be found',
   500: 'Internal Server Error',
-  501: 'Not Implemented'
+  501: 'Not Implemented',
 }
 
-export default class Error extends React.Component {
+export interface IErrorProps {
+  statusCode: number
+}
+
+export default class Error<P = {}> extends React.Component<P & IErrorProps> {
   static displayName = 'ErrorPage'
 
-  static getInitialProps ({ res, err }) {
+  static getInitialProps({ res, err }: IContext) {
     const statusCode =
       res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
     return { statusCode }
   }
 
-  render () {
+  render() {
     const { statusCode } = this.props
     const title = statusCodes[statusCode] || 'An unexpected error has occurred'
 
@@ -40,7 +45,7 @@ export default class Error extends React.Component {
   }
 }
 
-const styles = {
+const styles: { [k: string]: React.CSSProperties } = {
   error: {
     color: '#000',
     background: '#fff',
@@ -51,7 +56,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
 
   desc: {
@@ -59,7 +64,7 @@ const styles = {
     textAlign: 'left',
     lineHeight: '49px',
     height: '49px',
-    verticalAlign: 'middle'
+    verticalAlign: 'middle',
   },
 
   h1: {
@@ -70,7 +75,7 @@ const styles = {
     padding: '10px 23px 10px 0',
     fontSize: '24px',
     fontWeight: 500,
-    verticalAlign: 'top'
+    verticalAlign: 'top',
   },
 
   h2: {
@@ -78,6 +83,6 @@ const styles = {
     fontWeight: 'normal',
     lineHeight: 'inherit',
     margin: 0,
-    padding: 0
-  }
+    padding: 0,
+  },
 }
