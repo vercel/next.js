@@ -77,8 +77,8 @@ commands:
   generate_types:
     steps:
       - run:
-        name: Generate types
-        command: yarn run types-next-server && yarn run types-next
+          name: Generate types
+          command: yarn run types-next-server && yarn run types-next
   save_npm_token:
     steps:
       - run:
