@@ -1,9 +1,37 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
+/* global jasmine */
 import { join } from 'path'
-import { check, File, waitFor, getReactErrorOverlayContent, getBrowserBodyText } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  check,
+  File,
+  waitFor,
+  getReactErrorOverlayContent,
+  getBrowserBodyText
+} from 'next-test-utils'
 
-export default (context, renderViaHTTP) => {
+const context = {}
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+
+describe('Basic Features', () => {
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+
+    // pre-build all pages at the start
+    await Promise.all([
+      renderViaHTTP(context.appPort, '/hmr/about'),
+      renderViaHTTP(context.appPort, '/hmr/style'),
+      renderViaHTTP(context.appPort, '/hmr/contact'),
+      renderViaHTTP(context.appPort, '/hmr/counter')
+    ])
+  })
+  afterAll(() => killApp(context.server))
+
   describe('Error Recovery', () => {
     it('should recover from 404 after a page has been added', async () => {
       let browser
@@ -111,7 +139,7 @@ export default (context, renderViaHTTP) => {
       const aboutPage = new File(join(__dirname, '../', 'pages', 'hmr', 'about.js'))
       let browser
       try {
-        await renderViaHTTP('/hmr/about')
+        await renderViaHTTP(context.appPort, '/hmr/about')
 
         aboutPage.replace('</div>', 'div')
 
@@ -417,4 +445,4 @@ export default (context, renderViaHTTP) => {
       }
     })
   })
-}
+})

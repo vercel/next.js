@@ -1,11 +1,39 @@
 /* eslint-env jest */
+/* global jasmine */
+import { join } from 'path'
+import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
-import { join } from 'path'
-import { waitFor, check, getBrowserBodyText } from 'next-test-utils'
-import cheerio from 'cheerio'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  waitFor,
+  check,
+  getBrowserBodyText
+} from 'next-test-utils'
 
-export default (context, renderViaHTTP) => {
+const context = {}
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+
+describe('Basic Features', () => {
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+
+    // pre-build all pages at the start
+    await Promise.all([
+      renderViaHTTP(context.appPort, '/process-env'),
+
+      renderViaHTTP(context.appPort, '/hmr/about'),
+      renderViaHTTP(context.appPort, '/hmr/style'),
+      renderViaHTTP(context.appPort, '/hmr/contact'),
+      renderViaHTTP(context.appPort, '/hmr/counter')
+    ])
+  })
+  afterAll(() => killApp(context.server))
+
   describe('Hot Module Reloading', () => {
     describe('delete a page and add it back', () => {
       it('should load the page properly', async () => {
@@ -240,7 +268,7 @@ export default (context, renderViaHTTP) => {
 
           expect(initialFontSize).toBe('100px')
 
-          const initialHtml = await renderViaHTTP('/hmr/style-dynamic-component')
+          const initialHtml = await renderViaHTTP(context.appPort, '/hmr/style-dynamic-component')
           expect(initialHtml.includes('100px')).toBeTruthy()
 
           const $initialHtml = cheerio.load(initialHtml)
@@ -267,7 +295,7 @@ export default (context, renderViaHTTP) => {
           expect(browserHtml.includes('font-size:200px;')).toBe(true)
           expect(browserHtml.includes('font-size:100px;')).toBe(false)
 
-          const editedHtml = await renderViaHTTP('/hmr/style-dynamic-component')
+          const editedHtml = await renderViaHTTP(context.appPort, '/hmr/style-dynamic-component')
           expect(editedHtml.includes('200px')).toBeTruthy()
           const $editedHtml = cheerio.load(editedHtml)
           const editedServerClassName = $editedHtml('#dynamic-component').attr('class')
@@ -289,4 +317,4 @@ export default (context, renderViaHTTP) => {
       })
     })
   })
-}
+})
