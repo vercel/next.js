@@ -1,9 +1,11 @@
 import chalk from 'chalk'
-import { PHASE_PRODUCTION_BUILD, BLOCKED_PAGES } from 'next-server/constants'
+import {
+  CHUNK_GRAPH_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
+} from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import fs from 'fs'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -20,6 +22,7 @@ import {
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
+import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -149,7 +152,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: false,
       config,
       target: config.target,
-      selectivePageBuildingCacheIdentifier,
       entrypoints: entrypoints.client,
       selectivePageBuilding,
     }),
@@ -159,7 +161,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       isServer: true,
       config,
       target: config.target,
-      selectivePageBuildingCacheIdentifier,
       entrypoints: entrypoints.server,
       selectivePageBuilding,
     }),
@@ -194,6 +195,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (isFlyingShuttle) {
     console.log()
+
+    exportManifest({
+      dir: dir,
+      fileName: path.join(distDir, CHUNK_GRAPH_MANIFEST),
+      selectivePageBuildingCacheIdentifier,
+    })
   }
 
   if (result.errors.length > 0) {
