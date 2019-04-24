@@ -70,7 +70,8 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
         // @babel/plugin-transform-react-jsx-self automatically in development
         development: isDevelopment || isTest,
         ...options['preset-react']
-      }]
+      }],
+      require('@babel/preset-typescript')
     ],
     plugins: [
       require('babel-plugin-react-require'),
@@ -92,14 +93,6 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
       isProduction && [require('babel-plugin-transform-react-remove-prop-types'), {
         removeImport: true
       }]
-    ].filter(Boolean),
-    overrides: [
-      {
-        test: /\.(tsx|ts)$/,
-        presets: [
-          require('@babel/preset-typescript')
-        ]
-      }
-    ]
+    ].filter(Boolean)
   }
 }
