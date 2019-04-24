@@ -74,16 +74,16 @@ commands:
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'firefox'
-  generate_types:
-    steps:
-      - run:
-          name: Generate types
-          command: yarn run types-next-server && yarn run types-next
   save_npm_token:
     steps:
       - run:
           name: Potentially save npm token
           command: '([[ ! -z $NPM_TOKEN ]] && echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc) || echo "Did not write npm token"'
+  list_dist:
+    steps:
+      - run:
+          name: List dist files
+          command: 'ls **/dist/*'
   publish_canary:
     steps:
       - run:
@@ -134,7 +134,7 @@ jobs:
     steps:
       - *attach_workspace
       - save_npm_token
-      - generate_types
+      - list_dist
       - publish_canary
       - publish_stable
 
