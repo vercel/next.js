@@ -6,6 +6,7 @@ import { IRouterInterface } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt';
 import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, IDocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
+// @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
 import { RequestContext } from '../lib/request-context'

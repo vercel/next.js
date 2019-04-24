@@ -3,7 +3,8 @@
 import { resolve, parse } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
-import Router, { Router as _Router } from 'next/router'
+import Router from 'next/router'
+import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url-for-export'
 import { execOnce, formatWithValidation, getLocationOrigin } from 'next-server/dist/lib/utils'
 
 function isLocal (href) {
@@ -144,7 +145,7 @@ class Link extends Component {
         typeof __NEXT_DATA__ !== 'undefined' &&
         __NEXT_DATA__.nextExport
       ) {
-        props.href = _Router._rewriteUrlForNextExport(props.href)
+        props.href = rewriteUrlForNextExport(props.href)
       }
     }
 

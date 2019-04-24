@@ -4,6 +4,7 @@ import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
 import { formatWithValidation, getURL, loadGetInitialProps, IContext, IAppContext } from '../utils';
+import {rewriteUrlForNextExport} from './rewrite-url-for-export'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -85,15 +86,7 @@ export default class Router implements IRouterInterface {
   }
 
   static _rewriteUrlForNextExport(url: string): string {
-    const [pathname, hash] = url.split('#')
-    // tslint:disable-next-line
-    let [path, qs] = pathname.split('?')
-    path = path.replace(/\/$/, '')
-    // Append a trailing slash if this path does not have an extension
-    if (!/\.[^/]+\/?$/.test(path)) path += `/`
-    if (qs) path += '?' + qs
-    if (hash) path += '#' + hash
-    return path
+    return rewriteUrlForNextExport(url)
   }
 
   onPopState = (e: PopStateEvent): void => {
@@ -213,7 +206,7 @@ export default class Router implements IRouterInterface {
       if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
         // @ts-ignore this is temporarily global (attached to window)
         if (__NEXT_DATA__.nextExport) {
-          as = Router._rewriteUrlForNextExport(as)
+          as = rewriteUrlForNextExport(as)
         }
       }
 
