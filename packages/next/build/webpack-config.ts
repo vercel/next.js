@@ -1,5 +1,4 @@
 import path from 'path'
-import findUp from 'find-up'
 import webpack from 'webpack'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -48,10 +47,8 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
 
   if (!isServer) {
     tsConfigPath = path.join(dir, 'tsconfig.json')
-    typeScriptPath = path.join(
-      (await findUp('node_modules', { cwd: dir }))!, 'typescript'
-    )
-    useTypeScript = await verifyTypeScriptSetup(dir, tsConfigPath, typeScriptPath)
+    typeScriptPath = (await verifyTypeScriptSetup(dir, tsConfigPath)) || ''
+    useTypeScript = Boolean(typeScriptPath)
   }
 
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY

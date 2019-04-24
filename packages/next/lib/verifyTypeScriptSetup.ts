@@ -4,15 +4,25 @@ import path from 'path'
 import chalk from 'chalk'
 import { promisify } from 'util'
 import { recursiveReadDir } from './recursive-readdir'
+import resolve from 'next/dist/compiled/resolve/index.js'
 
 const exists = promisify(fs.exists)
 const writeFile = promisify(fs.writeFile)
+
+const resolveP = (req: string, opts: any): Promise<string> => {
+  return new Promise((_resolve, reject) => {
+    resolve(req, opts, (err, res) => {
+      if (err) return reject(err)
+      _resolve(res)
+    })
+  })
+}
 
 function writeJson(fileName: string, object: object): Promise<void> {
   return writeFile(
     fileName,
     JSON.stringify(object, null, 2).replace(/\n/g, os.EOL) + os.EOL,
-  );
+  )
 }
 
 async function verifyNoTypeScript(dir: string) {
@@ -27,32 +37,32 @@ async function verifyNoTypeScript(dir: string) {
           `${typescriptFiles[0]}`,
         )}) and created a ${chalk.bold('tsconfig.json')} file for you.`,
       ),
-    );
-    console.warn();
-    return false;
+    )
+    console.warn()
+    return false
   }
-  return true;
+  return true
 }
 
-export default async function verifyTypeScriptSetup(
-  dir: string, tsConfigPath: string, typescriptPath: string,
-): Promise<boolean> {
-  let firstTimeSetup = false;
+export default async function verifyTypeScriptSetup(dir: string, tsConfigPath: string): Promise<string | void> {
+  let firstTimeSetup = false
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
   if (!(await exists(tsConfigPath))) {
     if (await verifyNoTypeScript(dir)) {
-      return false;
+      return
     }
-    await writeJson(tsConfigPath, {});
-    firstTimeSetup = true;
+    await writeJson(tsConfigPath, {})
+    firstTimeSetup = true
   }
-  const isYarn = await exists(yarnLockFile);
+  const isYarn = await exists(yarnLockFile)
 
   // Ensure typescript is installed
-  let ts: typeof import('typescript');
+  let typescriptPath = ''
+  let ts: typeof import('typescript')
   try {
-    ts = require(typescriptPath);
+    typescriptPath = await resolveP('typescript', { basedir: dir })
+    ts = require(typescriptPath)
   } catch (_) {
     console.error(
       chalk.bold.red(
@@ -60,7 +70,7 @@ export default async function verifyTypeScriptSetup(
           'typescript',
         )} installed.`,
       ),
-    );
+    )
     console.error(
       chalk.bold(
         'Please install',
@@ -70,17 +80,17 @@ export default async function verifyTypeScriptSetup(
           isYarn ? 'yarn add typescript' : 'npm install typescript',
         ) + '.',
       ),
-    );
+    )
     console.error(
       chalk.bold(
         'If you are not trying to use TypeScript, please remove the ' +
           chalk.cyan('tsconfig.json') +
           ' file from your package root (and any TypeScript files).',
       ),
-    );
-    console.error();
-    process.exit(1);
-    return false
+    )
+    console.error()
+    process.exit(1)
+    return
   }
 
   const compilerOptions: any = {
@@ -123,29 +133,29 @@ export default async function verifyTypeScriptSetup(
       reason: 'JSX is compiled by Babel',
     },
     paths: { value: undefined, reason: 'aliased imports are not supported' },
-  };
+  }
 
   const formatDiagnosticHost = {
     getCanonicalFileName: (fileName: string) => fileName,
     getCurrentDirectory: ts.sys.getCurrentDirectory,
     getNewLine: () => os.EOL,
-  };
+  }
 
-  const messages = [];
-  let appTsConfig;
-  let parsedTsConfig;
-  let parsedCompilerOptions;
+  const messages = []
+  let appTsConfig
+  let parsedTsConfig
+  let parsedCompilerOptions
   try {
     const { config: readTsConfig, error } = ts.readConfigFile(
       tsConfigPath,
       ts.sys.readFile,
-    );
+    )
 
     if (error) {
-      throw new Error(ts.formatDiagnostic(error, formatDiagnosticHost));
+      throw new Error(ts.formatDiagnostic(error, formatDiagnosticHost))
     }
 
-    appTsConfig = readTsConfig;
+    appTsConfig = readTsConfig
 
     // Get TS to parse and resolve any "extends"
     // Calling this function also mutates the tsconfig above,
@@ -155,15 +165,15 @@ export default async function verifyTypeScriptSetup(
       readTsConfig,
       ts.sys,
       path.dirname(tsConfigPath),
-    );
+    )
 
     if (result.errors && result.errors.length) {
       throw new Error(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticHost),
-      );
+      )
     }
 
-    parsedCompilerOptions = result.options;
+    parsedCompilerOptions = result.options
   } catch (e) {
     if (e && e.name === 'SyntaxError') {
       console.error(
@@ -172,42 +182,42 @@ export default async function verifyTypeScriptSetup(
           chalk.cyan('tsconfig.json') + '.',
           'Please make sure it contains syntactically correct JSON.',
         ),
-      );
+      )
     }
 
-    console.info(e && e.message ? `${e.message}` : '');
-    process.exit(1);
-    return false
+    console.info(e && e.message ? `${e.message}` : '')
+    process.exit(1)
+    return
   }
 
   if (appTsConfig.compilerOptions == null) {
-    appTsConfig.compilerOptions = {};
-    firstTimeSetup = true;
+    appTsConfig.compilerOptions = {}
+    firstTimeSetup = true
   }
 
   for (const option of Object.keys(compilerOptions)) {
-    const { parsedValue, value, suggested, reason } = compilerOptions[option];
+    const { parsedValue, value, suggested, reason } = compilerOptions[option]
 
-    const valueToCheck = parsedValue === undefined ? value : parsedValue;
-    const coloredOption = chalk.cyan('compilerOptions.' + option);
+    const valueToCheck = parsedValue === undefined ? value : parsedValue
+    const coloredOption = chalk.cyan('compilerOptions.' + option)
 
     if (suggested != null) {
       if (parsedCompilerOptions[option] === undefined) {
-        appTsConfig.compilerOptions[option] = suggested;
+        appTsConfig.compilerOptions[option] = suggested
         messages.push(
           `${coloredOption} to be ${chalk.bold(
             'suggested',
           )} value: ${chalk.cyan.bold(suggested)} (this can be changed)`,
-        );
+        )
       }
     } else if (parsedCompilerOptions[option] !== valueToCheck) {
-      appTsConfig.compilerOptions[option] = value;
+      appTsConfig.compilerOptions[option] = value
       messages.push(
         `${coloredOption} ${chalk.bold(
           valueToCheck == null ? 'must not' : 'must',
         )} be ${valueToCheck == null ? 'set' : chalk.cyan.bold(value)}` +
           (reason != null ? ` (${reason})` : ''),
-      );
+      )
     }
   }
 
@@ -224,8 +234,8 @@ export default async function verifyTypeScriptSetup(
           chalk.cyan('tsconfig.json'),
           'has been populated with default values.',
         ),
-      );
-      console.info();
+      )
+      console.info()
     } else {
       console.warn(
         chalk.bold(
@@ -233,13 +243,13 @@ export default async function verifyTypeScriptSetup(
           chalk.cyan('tsconfig.json'),
           'file:',
         ),
-      );
+      )
       messages.forEach((message) => {
-        console.warn('  - ' + message);
-      });
-      console.warn();
+        console.warn('  - ' + message)
+      })
+      console.warn()
     }
-    await writeJson(tsConfigPath, appTsConfig);
+    await writeJson(tsConfigPath, appTsConfig)
   }
-  return true
+  return typescriptPath
 }
