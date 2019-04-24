@@ -10,18 +10,31 @@
   "files": [
     "dist",
     "app.js",
+    "app.d.ts",
     "babel.js",
+    "babel.d.ts",
     "client.js",
+    "client.d.ts",
     "config.js",
+    "config.d.ts",
     "constants.js",
+    "constants.d.ts",
     "data.js",
+    "data.d.ts",
     "document.js",
+    "document.d.ts",
     "dynamic.js",
+    "dynamic.d.ts",
     "error.js",
+    "error.d.ts",
     "head.js",
+    "head.d.ts",
     "link.js",
+    "link.d.ts",
     "router.js",
-    "amp.js"
+    "router.d.ts",
+    "amp.js",
+    "amp.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -29,9 +42,8 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release && npm run types",
-    "typescript": "tsc --noEmit --declaration",
-    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
+    "prepublish": "npm run release",
+    "typescript": "tsc --noEmit --declaration"
   },
   "taskr": {
     "requires": [

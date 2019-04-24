@@ -1,9 +1,11 @@
-import React from 'react'
+import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps } from 'next-server/dist/lib/utils'
-import { Router, makePublicRouterInstance } from 'next/router'
+import { makePublicRouterInstance } from '../client/router'
 
 export { NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps }
+
+type Router = import('next-server/lib/router/router').default
 
 export type AppClientContext = IAppContext<Router>
 
@@ -26,9 +28,10 @@ export default class App extends React.Component<AppProps> {
   }
 
   // Kept here for backwards compatibility.
-  // When someone ended App they could call `super.componentDidCatch`. This is now deprecated.
-  componentDidCatch(err: Error) {
-    throw err
+  // When someone ended App they could call `super.componentDidCatch`.
+  // @deprecated This method is no longer needed. Errors are caught at the top level
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo): void {
+    throw error
   }
 
   render() {
@@ -51,7 +54,7 @@ export class Container extends React.Component {
     this.scrollToHash()
   }
 
-  scrollToHash() {
+  private scrollToHash() {
     let { hash } = window.location
     hash = hash && hash.substring(1)
     if (!hash) return

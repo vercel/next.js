@@ -9,19 +9,19 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import Router, { route, Route } from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
-import loadConfig from 'next-server/next-config'
+import loadConfig from './config'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-} from 'next-server/constants'
+} from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
 
 type NextConfig = any
 
-type ServerConstructor = {
+export type ServerConstructor = {
   dir?: string
   staticMarkup?: boolean
   quiet?: boolean

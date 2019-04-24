@@ -2,23 +2,22 @@
 // That's because, ^^^ package comes with very old version of path-to-regexp
 // So, it'll give us issues when the app has used a newer version of path-to-regexp
 // (When webpack resolving packages)
-var pathToRegexp = require('path-to-regexp')
+const pathToRegexp = require('path-to-regexp')
 
-module.exports = function (options) {
-  options = options || {}
+export default () => {
+  return (path: string) => {
+    const keys: any[] = []
+    const re = pathToRegexp(path, keys, {})
 
-  return function (path) {
-    var keys = []
-    var re = pathToRegexp(path, keys, options)
-
-    return function (pathname, params) {
-      var m = re.exec(pathname)
+    return (pathname: string|undefined, params?: any) => {
+      const m = re.exec(pathname)
       if (!m) return false
 
       params = params || {}
 
-      var key, param
-      for (var i = 0; i < keys.length; i++) {
+      let key
+      let param
+      for (let i = 0; i < keys.length; i++) {
         key = keys[i]
         param = m[i + 1]
         if (!param) continue
@@ -31,11 +30,12 @@ module.exports = function (options) {
   }
 }
 
-function decodeParam (param) {
+function decodeParam(param: string) {
   try {
     return decodeURIComponent(param)
   } catch (_) {
     const err = new Error('failed to decode param')
+    // @ts-ignore DECODE_FAILED is handled
     err.code = 'DECODE_FAILED'
     throw err
   }

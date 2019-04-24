@@ -7,20 +7,30 @@
   "files": [
     "dist",
     "index.js",
+    "index.d.ts",
     "config.js",
+    "config.d.ts",
     "constants.js",
+    "constants.d.ts",
     "dynamic.js",
+    "dynamic.d.ts",
     "head.js",
+    "head.d.ts",
     "link.js",
+    "link.d.ts",
     "router.js",
+    "router.d.ts",
     "next-config.js",
-    "amp.js"
+    "next-config.d.ts",
+    "amp.js",
+    "amp.d.ts"
   ],
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
     "prepublish": "npm run release",
-    "typescript": "tsc --noEmit"
+    "typescript": "tsc --noEmit --declaration",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
   },
   "taskr": {
     "requires": [

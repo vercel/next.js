@@ -101,9 +101,6 @@ export default SingletonRouter as ISingletonRouter
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
 
-// Export the actual Router class, which is usually used inside the server
-export { Router }
-
 export function useRouter() {
   return React.useContext(RouterContext)
 }
