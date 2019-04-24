@@ -11,7 +11,6 @@ const nextBuild: cliCommand = (argv) => {
     {
       // Types
       '--help': Boolean,
-      '--target': String,
       // Aliases
       '-h': '--help',
     },
@@ -56,7 +55,7 @@ const nextBuild: cliCommand = (argv) => {
     )
   }
 
-  build(dir, null, args['--target']).catch((err) => {
+  build(dir).catch((err) => {
     // tslint:disable-next-line
     console.error('> Build error occurred')
     printAndExit(err)
