@@ -27,7 +27,7 @@ export class HashedChunkIdsPlugin implements Plugin {
             .sort() as string[]
 
           const h = createHash('md4')
-          ids.forEach(id => h.update(id))
+          ids.forEach(id => h.update(id.toString()))
           chunk.id = h.digest('hex').substr(0, 4)
         }
       })
