@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-configured-preset-env)
-
 # Example preconfigured Babel [preset-env](https://github.com/babel/babel/tree/master/packages/babel-preset-env)
 
 ## How to use
