@@ -7,9 +7,7 @@ import resolve from 'resolve'
 import { promisify } from 'util'
 import { recursiveReadDir } from './recursive-readdir'
 
-const stat = promisify(fs.stat)
 const exists = promisify(fs.exists)
-const readdir = promisify(fs.readdir)
 const writeFile = promisify(fs.writeFile)
 
 function writeJson(fileName: string, object: object): Promise<void> {
@@ -20,32 +18,14 @@ function writeJson(fileName: string, object: object): Promise<void> {
 }
 
 async function verifyNoTypeScript(dir: string) {
-  const typescriptFiles = []
-  const firstDepth = (await readdir(dir)).filter(
-    (path) => path !== 'node_modules',
-  ).map((p) => path.join(dir, p))
-
-  for (const curPath of firstDepth) {
-    const info = await stat(curPath)
-
-    if (info.isFile() && !curPath.match(/.*\.d\.(ts|tsx)/)) {
-      if (curPath.match(/.*\.(ts|tsx)/)) typescriptFiles.push(curPath)
-    }
-    if (info.isDirectory()) {
-      const curFiles = (await recursiveReadDir(curPath, /.*\.(ts|tsx)/)).map((file) => path.join(curPath, file))
-      typescriptFiles.push(
-        ...curFiles.filter((file) => {
-          return file.match(/.*\.(ts|tsx)/) && !file.match(/.*\.d\.(ts|tsx)/)
-        }),
-      )
-    }
-  }
+  let typescriptFiles = await recursiveReadDir(dir, /.*\.(ts|tsx)/, /node_modules/)
+  typescriptFiles = typescriptFiles.filter((p) => !p.match(/.*\.d\.ts/))
 
   if (typescriptFiles.length > 0) {
     console.warn(
       chalk.yellow(
         `We detected TypeScript in your project (${chalk.bold(
-          `src${path.sep}${typescriptFiles[0]}`,
+          `${typescriptFiles[0]}`,
         )}) and created a ${chalk.bold('tsconfig.json')} file for you.`,
       ),
     );
@@ -117,13 +97,16 @@ export default async function verifyTypeScriptSetup(dir: string) {
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
-    esModuleInterop: { suggested: true },
     allowSyntheticDefaultImports: { suggested: true },
     strict: { suggested: true },
     forceConsistentCasingInFileNames: { suggested: true },
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
+    esModuleInterop: {
+      value: true,
+      reason: 'to match babel config',
+    },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
       value: 'esnext',
@@ -233,10 +216,10 @@ export default async function verifyTypeScriptSetup(dir: string) {
 
   // tsconfig will have the merged "include" and "exclude" by this point
   if (parsedTsConfig.include == null) {
-    appTsConfig.include = ['**/*'];
-    messages.push(
-      `${chalk.cyan('include')} should be ${chalk.cyan.bold('src')}`,
-    );
+    appTsConfig.include = ['pages'];
+  }
+  if (parsedTsConfig.exclude == null) {
+    appTsConfig.exclude = ['node_modules']
   }
 
   if (messages.length > 0) {

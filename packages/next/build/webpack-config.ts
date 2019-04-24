@@ -290,10 +290,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           '!**/src/setupProxy.*',
           '!**/src/setupTests.*',
         ],
-        watch: dir,
         silent: false,
-        // The formatter is invoked directly in WebpackDevServerUtils during development
-        formatter: undefined,
       }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
