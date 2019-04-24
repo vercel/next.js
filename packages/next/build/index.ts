@@ -25,7 +25,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
-export default async function build(dir: string, conf = null, targetFlag?: string): Promise<void> {
+export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
@@ -44,7 +44,7 @@ export default async function build(dir: string, conf = null, targetFlag?: strin
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const target = targetFlag ? targetFlag : config.target
+  const target = process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || config.target
   const buildId = debug
     ? 'unoptimized-build'
     : await generateBuildId(config.generateBuildId, nanoid)
