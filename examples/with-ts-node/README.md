@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-ts-node)
-
 # Custom server with fully TypeScript + ts-node example (without babel and tsc), require next js 7+
 
 ## How to use
