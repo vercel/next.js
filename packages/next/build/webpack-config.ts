@@ -281,7 +281,12 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
       }),
-      selectivePageBuilding && new ChunkGraphPlugin(buildId, { filename: CHUNK_GRAPH_MANIFEST, dir: path.resolve(dir), selectivePageBuildingCacheIdentifier }),
+      selectivePageBuilding && new ChunkGraphPlugin(buildId, {
+        dir: path.resolve(dir),
+        distDir: path.resolve(distDir),
+        filename: CHUNK_GRAPH_MANIFEST,
+        selectivePageBuildingCacheIdentifier
+      }),
       !isServer && new DropClientPage(),
       ...(dev ? (() => {
         // Even though require.cache is server only we have to clear assets from both compilations

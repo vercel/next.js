@@ -49,6 +49,7 @@ function getFiles(dir: string, modules: any[]): string[] {
 export class ChunkGraphPlugin implements Plugin {
   private buildId: string
   private dir: string
+  private distDir: string
   private filename: string
   private selectivePageBuildingCacheIdentifier: string
 
@@ -56,16 +57,20 @@ export class ChunkGraphPlugin implements Plugin {
     buildId: string,
     {
       dir,
+      distDir,
       filename,
       selectivePageBuildingCacheIdentifier,
     }: {
-      filename: string
       dir: string
+      distDir: string
+      filename: string
       selectivePageBuildingCacheIdentifier?: string
     }
   ) {
     this.buildId = buildId
+
     this.dir = dir
+    this.distDir = distDir
     this.filename = filename
     this.selectivePageBuildingCacheIdentifier =
       selectivePageBuildingCacheIdentifier || ''
@@ -123,6 +128,7 @@ export class ChunkGraphPlugin implements Plugin {
         const modules = [...chunkModules.values()]
         const files = getFiles(dir, modules)
           .filter(val => !val.includes('node_modules'))
+          .filter(val => path.relative(this.distDir, val).startsWith('..'))
           .map(f => path.relative(dir, f))
 
         files.forEach(f => allFiles.add(f))
