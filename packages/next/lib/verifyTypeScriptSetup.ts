@@ -215,9 +215,6 @@ export default async function verifyTypeScriptSetup(dir: string) {
   }
 
   // tsconfig will have the merged "include" and "exclude" by this point
-  if (parsedTsConfig.include == null) {
-    appTsConfig.include = ['pages'];
-  }
   if (parsedTsConfig.exclude == null) {
     appTsConfig.exclude = ['node_modules']
   }

@@ -281,7 +281,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
         typescript: typeScriptPath,
         async: dev,
         useTypescriptIncrementalApi: true,
-        checkSyntacticErrors: true,
+        checkSyntacticErrors: false,
         tsconfig: tsConfigPath,
         reportFiles: [
           '**',
