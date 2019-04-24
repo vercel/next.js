@@ -25,7 +25,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
-export default async function build(dir: string, conf = null): Promise<void> {
+export default async function build(dir: string, conf = null, targetFlag?: string): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
@@ -44,6 +44,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const target = targetFlag ? targetFlag : config.target
   const buildId = debug
     ? 'unoptimized-build'
     : await generateBuildId(config.generateBuildId, nanoid)
@@ -58,7 +59,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
-  if (selectivePageBuilding && config.target !== 'serverless') {
+  if (selectivePageBuilding && target !== 'serverless') {
     throw new Error(
       `Cannot use ${
         isFlyingShuttle ? 'flying shuttle' : '`now dev`'
@@ -140,7 +141,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
-    config.target,
+    target,
     buildId,
     /* dynamicBuildId */ selectivePageBuilding,
     config
@@ -151,7 +152,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       buildId,
       isServer: false,
       config,
-      target: config.target,
+      target,
       entrypoints: entrypoints.client,
       selectivePageBuilding,
     }),
@@ -160,14 +161,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       buildId,
       isServer: true,
       config,
-      target: config.target,
+      target,
       entrypoints: entrypoints.server,
       selectivePageBuilding,
     }),
   ])
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  if (config.target === 'serverless') {
+  if (target === 'serverless') {
     if (config.publicRuntimeConfig)
       throw new Error(
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
