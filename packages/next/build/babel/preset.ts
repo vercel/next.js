@@ -70,12 +70,16 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
         // @babel/plugin-transform-react-jsx-self automatically in development
         development: isDevelopment || isTest,
         ...options['preset-react']
-      }]
+      }],
+      require('@babel/preset-typescript')
     ],
     plugins: [
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
+      // This plugin needs to come before class-properties because of a bug in
+      // Babel plugin ordering
+      [require('@babel/plugin-proposal-decorators').default, false],
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       [require('@babel/plugin-proposal-object-rest-spread'), {
         useBuiltIns: true
@@ -95,10 +99,14 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
     ].filter(Boolean),
     overrides: [
       {
-        test: /\.(tsx|ts)$/,
-        presets: [
-          require('@babel/preset-typescript')
-        ]
+        test: /\.tsx?$/,
+        plugins: [
+          [
+            require('@babel/plugin-proposal-decorators').default,
+            // Legacy decorators match TypeScript behavior
+            { legacy: true },
+          ],
+        ],
       }
     ]
   }
