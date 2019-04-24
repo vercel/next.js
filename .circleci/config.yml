@@ -74,6 +74,11 @@ commands:
           environment:
             BROWSERSTACK: 'true'
             BROWSER_NAME: 'firefox'
+  generate_types:
+    steps:
+      - run:
+          name: Generate types
+          command: yarn run types-next-server && yarn run types-next
   save_npm_token:
     steps:
       - run:
@@ -129,6 +134,7 @@ jobs:
     steps:
       - *attach_workspace
       - save_npm_token
+      - generate_types
       - publish_canary
       - publish_stable
 
