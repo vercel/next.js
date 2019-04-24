@@ -1,4 +1,4 @@
-import {BUILD_MANIFEST, CLIENT_STATIC_FILES_PATH, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants';
+import {BUILD_MANIFEST, CLIENT_STATIC_FILES_PATH, REACT_LOADABLE_MANIFEST, SERVER_DIRECTORY} from '../lib/constants';
 import { join } from 'path';
 
 import { requirePage } from './require';
