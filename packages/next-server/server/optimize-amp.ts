@@ -1,9 +1,10 @@
 import { ParsedUrlQuery } from "querystring"
 
 interface IOptimizerConfig {
-  transforms?: string[],
+  transformers?: string[],
   validAmp?: boolean,
   verbose?: boolean,
+  runtimeVersion?: any,
 }
 
 interface IOptimizer {
@@ -18,12 +19,28 @@ interface IOptimizeOptions {
 
 export default async function optimize(html: string, { amphtml, query }: IOptimizeOptions): Promise<string> {
   let ampOptimizer: IOptimizer
+  let runtimeVersion: any
   try {
+    runtimeVersion = require('amp-toolbox-runtime-version')
     ampOptimizer = require('amp-toolbox-optimizer')
   } catch (_) {
     return html
   }
+  let transformers
   const validAmp = Boolean(amphtml && query && query.amp)
+
+  if (validAmp) {
+    transformers = [
+      // Optimizes script import order
+      // needs to run after ServerSideRendering
+      'ReorderHeadTransformer',
+      // needs to run after ReorderHeadTransformer
+      'RewriteAmpUrls',
+      'GoogleFontsPreconnect',
+      'PruneDuplicateResourceHints',
+      'SeparateKeyframes',
+    ]
+  }
   //  Examples below
   //
   //  pages/foo.js
@@ -35,7 +52,7 @@ export default async function optimize(html: string, { amphtml, query }: IOptimi
   //  /bar => dirty amp
   //  /bar?amp=1 => clean AMP
 
-  ampOptimizer.setConfig({ validAmp })
+  ampOptimizer.setConfig({ validAmp, runtimeVersion, transformers })
   html = await ampOptimizer.transformHtml(html)
   return html
 }
