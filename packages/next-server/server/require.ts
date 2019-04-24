@@ -1,5 +1,5 @@
 import {join} from 'path'
-import {PAGES_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
+import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 export function pageNotFoundError(page: string): Error {

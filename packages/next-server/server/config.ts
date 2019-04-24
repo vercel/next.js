@@ -1,10 +1,10 @@
 import os from 'os'
 import findUp from 'find-up'
-import { CONFIG_FILE } from 'next-server/constants'
+import { CONFIG_FILE } from '../lib/constants'
 
 const targets = ['server', 'serverless']
 
-const defaultConfig = {
+const defaultConfig: {[key: string]: any} = {
   env: [],
   webpack: null,
   webpackDevMiddleware: null,
@@ -19,30 +19,30 @@ const defaultConfig = {
   poweredByHeader: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
-    pagesBufferLength: 2
+    pagesBufferLength: 2,
   },
   experimental: {
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
+        (os.cpus() || { length: 1 }).length) - 1,
     ),
     ampBindInitData: false,
     exportTrailingSlash: true,
     terserLoader: false,
     profiling: false,
     flyingShuttle: false,
-    asyncToPromises: false
-  }
+    asyncToPromises: false,
+  },
 }
 
-function assignDefaults (userConfig) {
-  Object.keys(userConfig).forEach(key => {
+function assignDefaults(userConfig: {[key: string]: any}) {
+  Object.keys(userConfig).forEach((key: string) => {
     const maybeObject = userConfig[key]
     if ((!!maybeObject) && (maybeObject.constructor === Object)) {
       userConfig[key] = {
         ...(defaultConfig[key] || {}),
-        ...userConfig[key]
+        ...userConfig[key],
       }
     }
   })
@@ -50,25 +50,25 @@ function assignDefaults (userConfig) {
   return { ...defaultConfig, ...userConfig }
 }
 
-function normalizeConfig (phase, config) {
+function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
     config = config(phase, { defaultConfig })
 
     if (typeof config.then === 'function') {
       throw new Error(
-        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md'
+        '> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md',
       )
     }
   }
   return config
 }
 
-export default function loadConfig (phase, dir, customConfig) {
+export default function loadConfig(phase: string, dir: string, customConfig: any) {
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
   const path = findUp.sync(CONFIG_FILE, {
-    cwd: dir
+    cwd: dir,
   })
 
   // If config file was found

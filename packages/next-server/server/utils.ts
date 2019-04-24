@@ -1,4 +1,4 @@
-import { BLOCKED_PAGES } from 'next-server/constants'
+import { BLOCKED_PAGES } from '../lib/constants'
 
 const internalPrefixes = [
   /^\/_next\//,

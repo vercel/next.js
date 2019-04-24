@@ -11,7 +11,7 @@ export const CONFIG_FILE = 'next.config.js'
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = [
   '/_document',
-  '/_app'
+  '/_app',
 ]
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
