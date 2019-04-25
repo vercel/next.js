@@ -19,13 +19,11 @@
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
     "prettier": "prettier --single-quote --no-semi --write examples/**/*.js && yarn lint-fix",
     "typescript": "lerna run typescript",
-    "prepublish": "lerna run prepublish && yarn run types-next-server && yarn run types-next",
+    "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
-    "next": "./packages/next/dist/bin/next",
-    "types-next": "tsc --declaration --emitDeclarationOnly --declarationDir ./packages/next/dist --project ./packages/next",
-    "types-next-server": "tsc --declaration --emitDeclarationOnly --declarationDir ./packages/next-server/dist --project ./packages/next-server"
+    "next": "./packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
