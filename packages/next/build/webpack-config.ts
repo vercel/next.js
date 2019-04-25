@@ -357,6 +357,28 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
     }
   }
 
+  // check if using @zeit/next-typescript and show warning
+  if (isServer && webpackConfig.module &&
+    Array.isArray(webpackConfig.module.rules)
+  ) {
+    let foundTsRule = false
+
+    webpackConfig.module.rules = webpackConfig.module.rules
+      .filter((rule): boolean => {
+        if (!(rule.test instanceof RegExp)) return true
+        if ('noop.ts'.match(rule.test) && !('noop.js').match(rule.test)) {
+          // remove if it matches @zeit/next-typescript
+          foundTsRule = rule.use === defaultLoaders.babel
+          return !foundTsRule
+        }
+        return true
+      })
+
+    if (foundTsRule) {
+      console.warn('\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js\n')
+    }
+  }
+
   // Backwards compat for `main.js` entry key
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
