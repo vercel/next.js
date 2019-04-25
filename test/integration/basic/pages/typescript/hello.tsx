@@ -1,5 +1,7 @@
 import React from 'react'
+import {hello} from '../../components/typescript/hello'
+import {World} from '../../components/typescript/world'
 
-export default function Hello(): JSX.Element {
-  return <div>Hello World</div>
+export default function HelloPage(): JSX.Element {
+  return <div>{hello()} <World /></div>
 }
