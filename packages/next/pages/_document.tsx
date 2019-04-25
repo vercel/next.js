@@ -181,9 +181,10 @@ export class Head extends Component<IOriginProps> {
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        if (child && child.type === 'title') {
+        if (child && (child.type === 'title' || child.props.name === 'viewport' || child.charSet)) {
+          const type = child.type === 'title' ? 'title' : (child.props.name === 'viewport' ? 'viewport meta' : 'charSet meta')
           console.warn(
-            "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title",
+            `Warning: <${type}> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-${type.replace(' ', '-')}`,
           )
         }
         return child

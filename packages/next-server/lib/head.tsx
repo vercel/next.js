@@ -66,6 +66,11 @@ function unique() {
     if (h.key && typeof h.key !== 'number' && h.key.indexOf(".$") === 0) {
       if (keys.has(h.key)) return false;
       keys.add(h.key);
+      if (h.props.name && h.props.name === 'viewport') {
+        metaTypes.add("viewport");
+      } else if (h.props.charSet) {
+        metaTypes.add("charSet");
+      }
       return true;
     }
     switch (h.type) {
@@ -78,6 +83,11 @@ function unique() {
         for (let i = 0, len = METATYPES.length; i < len; i++) {
           const metatype = METATYPES[i];
           if (!h.props.hasOwnProperty(metatype)) continue;
+
+          if (h.props.name && h.props.name === "viewport") {
+            if (metaTypes.has("viewport")) return false;
+            metaTypes.add("viewport");
+          }
 
           if (metatype === "charSet" || metatype === "viewport") {
             if (metaTypes.has(metatype)) return false;
