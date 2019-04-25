@@ -90,10 +90,10 @@ export default (context, renderViaHTTP) => {
             /Hello World/
           )
 
-          const pagePath = join(__dirname, '../', 'pages', 'typescript', 'hello.tsx')
+          const pagePath = join(__dirname, '../', 'components', 'typescript', 'hello.ts')
 
           const originalContent = readFileSync(pagePath, 'utf8')
-          const editedContent = originalContent.replace('Hello World', 'COOL page')
+          const editedContent = originalContent.replace('Hello', 'COOL page')
 
           // change the content
           writeFileSync(pagePath, editedContent, 'utf8')
