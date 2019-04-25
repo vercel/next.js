@@ -369,8 +369,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
           '**',
           '!**/__tests__/**',
           '!**/?(*.)(spec|test).*',
-          '!**/src/setupProxy.*',
-          '!**/src/setupTests.*',
         ],
         silent: false,
         formatter: typescriptFormatter
