@@ -7,6 +7,7 @@
   "repository": "zeit/next.js",
   "bugs": "https://github.com/zeit/next.js/issues",
   "homepage": "https://nextjs.org",
+  "types": "types/index.d.ts",
   "files": [
     "dist",
     "app.js",
@@ -34,7 +35,8 @@
     "router.js",
     "router.d.ts",
     "amp.js",
-    "amp.d.ts"
+    "amp.d.ts",
+    "types/index.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
