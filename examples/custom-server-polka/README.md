@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/custom-server-polka)
-
 # Custom [Polka](https://github.com/lukeed/polka) Server example
 
 ## How to use

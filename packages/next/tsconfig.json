@@ -6,5 +6,10 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "jsx": "react"
-  }
+  },
+  "exclude": [
+    "dist",
+    "./*.d.ts",
+    "./router.d.ts"
+  ]
 }

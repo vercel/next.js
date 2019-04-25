@@ -1,9 +1,9 @@
-let runtimeConfig
+let runtimeConfig: any
 
 export default () => {
   return runtimeConfig
 }
 
-export function setConfig (configValue) {
+export function setConfig(configValue: any) {
   runtimeConfig = configValue
 }

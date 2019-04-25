@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "8.1.1-canary.3",
+  "version": "8.1.1-canary.10",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -10,18 +10,31 @@
   "files": [
     "dist",
     "app.js",
+    "app.d.ts",
     "babel.js",
+    "babel.d.ts",
     "client.js",
+    "client.d.ts",
     "config.js",
+    "config.d.ts",
     "constants.js",
+    "constants.d.ts",
     "data.js",
+    "data.d.ts",
     "document.js",
+    "document.d.ts",
     "dynamic.js",
+    "dynamic.d.ts",
     "error.js",
+    "error.d.ts",
     "head.js",
+    "head.d.ts",
     "link.js",
+    "link.d.ts",
     "router.js",
-    "amp.js"
+    "router.d.ts",
+    "amp.js",
+    "amp.d.ts"
   ],
   "bin": {
     "next": "./dist/bin/next"
@@ -29,7 +42,7 @@
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release && npm run types",
+    "prepublish": "npm run release && yarn types",
     "typescript": "tsc --noEmit --declaration",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
   },
@@ -65,7 +78,7 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
-    "next-server": "8.1.1-canary.3",
+    "next-server": "8.1.1-canary.10",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.4",

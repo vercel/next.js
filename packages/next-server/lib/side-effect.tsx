@@ -7,20 +7,21 @@ type State = Array<React.ReactElement<any>> | undefined
 type SideEffectProps = {
   reduceComponentsToState: <T>(components: Array<React.ReactElement<any>>, props: T) => State,
   handleStateChange?: (state: State) => void,
+  isAmp?: boolean,
 }
 
-export default function withSideEffect<MoreProps>() {
+export default () => {
   const mountedInstances: Set<any> = new Set()
   let state: State
 
-  function emitChange(component: React.Component<SideEffectProps & MoreProps>) {
+  function emitChange(component: React.Component<SideEffectProps>) {
     state = component.props.reduceComponentsToState([...mountedInstances], component.props)
     if (component.props.handleStateChange) {
       component.props.handleStateChange(state)
     }
   }
 
-  class SideEffect extends Component<SideEffectProps & MoreProps> {
+  return class extends Component<SideEffectProps> {
     // Used when server rendering
     static rewind() {
       const recordedState = state
@@ -52,6 +53,4 @@ export default function withSideEffect<MoreProps>() {
       return null
     }
   }
-
-  return SideEffect
 }
