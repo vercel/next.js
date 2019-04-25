@@ -444,6 +444,9 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
+    // use replace to allow rendering directly to body in AMP mode
+    html = html.replace('__NEXT_AMP_RENDER_TARGET__', docProps.html)
+
     if (ampMode.hasQuery) {
       html = await optimizeAmp(html, { amphtml, query })
     }

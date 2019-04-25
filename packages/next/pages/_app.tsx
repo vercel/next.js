@@ -5,7 +5,7 @@ import { makePublicRouterInstance } from '../client/router'
 
 export { NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps }
 
-type Router = import('next-server/lib/router/router').default
+type Router = import('next-server/dist/lib/router/router').default
 
 export type AppClientContext = IAppContext<Router>
 
