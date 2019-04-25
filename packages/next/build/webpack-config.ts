@@ -269,22 +269,6 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
       ].filter(Boolean)
     },
     plugins: [
-      useTypeScript && new ForkTsCheckerWebpackPlugin({
-        typescript: typeScriptPath,
-        async: true,
-        useTypescriptIncrementalApi: true,
-        checkSyntacticErrors: false,
-        tsconfig: tsConfigPath,
-        reportFiles: [
-          '**',
-          '!**/__tests__/**',
-          '!**/?(*.)(spec|test).*',
-          '!**/src/setupProxy.*',
-          '!**/src/setupTests.*',
-        ],
-        silent: false,
-        formatter: typescriptFormatter
-      }),
       // This plugin makes sure `output.filename` is used for entry chunks
       new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
@@ -374,7 +358,23 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
       !isServer && new BuildManifestPlugin(),
       config.experimental.profiling && new webpack.debug.ProfilingPlugin({
         outputPath: path.join(distDir, `profile-events-${isServer ? 'server' : 'client'}.json`)
-      })
+      }),
+      useTypeScript && new ForkTsCheckerWebpackPlugin({
+        typescript: typeScriptPath,
+        async: true,
+        useTypescriptIncrementalApi: true,
+        checkSyntacticErrors: false,
+        tsconfig: tsConfigPath,
+        reportFiles: [
+          '**',
+          '!**/__tests__/**',
+          '!**/?(*.)(spec|test).*',
+          '!**/src/setupProxy.*',
+          '!**/src/setupTests.*',
+        ],
+        silent: false,
+        formatter: typescriptFormatter
+      }),
     ].filter(Boolean as any as ExcludesFalse)
   }
 
