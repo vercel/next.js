@@ -1,4 +1,5 @@
 import React from 'react'
+import { IContext } from 'next-server/dist/lib/utils';
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -18,3 +19,12 @@ declare module 'react' {
     global?: boolean;
   }
 }
+
+export type GetInitialProps<P = {}, C = IContext> = (context: C) => Promise<P>
+
+export type NextPage<P = {}, IP = {}> = {
+  (props: P): JSX.Element;
+  getInitialProps?(ctx: IContext): Promise<IP>;
+}
+
+export { IContext }
