@@ -4,7 +4,7 @@ declare const __NEXT_DATA__: any
 import { resolve, parse, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
-import Router from 'next/router'
+import Router from './router'
 import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url-for-export'
 import { execOnce, formatWithValidation, getLocationOrigin } from 'next-server/dist/lib/utils'
 
