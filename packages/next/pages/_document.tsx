@@ -2,7 +2,7 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import { cleanAmpPath } from 'next-server/dist/server/utils'
-import { IDocumentContext, IDocumentInitialProps, IDocumentProps } from 'next-server/dist/lib/utils'
+import { DocumentContext, DocumentInitialProps, DocumentProps } from 'next-server/dist/lib/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 import {
@@ -10,33 +10,33 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
 
-export { IDocumentContext, IDocumentInitialProps, IDocumentProps }
+export { DocumentContext, DocumentInitialProps, DocumentProps }
 
-export interface IOriginProps {
+export type OriginProps = {
   nonce?: string
-  crossOrigin?: string
+  crossOrigin?: string,
 }
 
-export interface IDocumentComponentContext {
-  readonly _documentProps: IDocumentProps
-  readonly _devOnlyInvalidateCacheQueryString: string
+export type DocumentComponentContext = {
+  readonly _documentProps: DocumentProps
+  readonly _devOnlyInvalidateCacheQueryString: string,
 }
 
-export default class Document extends Component<IDocumentProps> {
+export default class Document extends Component<DocumentProps> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
-  static async getInitialProps({ renderPage }: IDocumentContext): Promise<IDocumentInitialProps> {
+  static async getInitialProps({ renderPage }: DocumentContext): Promise<DocumentInitialProps> {
     const { html, head, dataOnly } = await renderPage()
     const styles = flush()
     return { html, head, styles, dataOnly }
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
-  getChildContext(): IDocumentComponentContext {
+  getChildContext(): DocumentComponentContext {
     return {
       _documentProps: this.props,
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -69,7 +69,7 @@ export class Html extends Component {
     children: PropTypes.node.isRequired,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   render() {
     const { amphtml } = this.context._documentProps
@@ -79,7 +79,7 @@ export class Html extends Component {
   }
 }
 
-export class Head extends Component<IOriginProps> {
+export class Head extends Component<OriginProps> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -90,7 +90,7 @@ export class Head extends Component<IOriginProps> {
     crossOrigin: PropTypes.string,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   getCssLinks() {
     const { assetPrefix, files } = this.context._documentProps
@@ -343,7 +343,7 @@ export class Main extends Component {
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   render() {
     const { amphtml, html } = this.context._documentProps
@@ -352,7 +352,7 @@ export class Main extends Component {
   }
 }
 
-export class NextScript extends Component<IOriginProps> {
+export class NextScript extends Component<OriginProps> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -363,7 +363,7 @@ export class NextScript extends Component<IOriginProps> {
     crossOrigin: PropTypes.string,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   getDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
@@ -409,7 +409,7 @@ export class NextScript extends Component<IOriginProps> {
     })
   }
 
-  static getInlineScriptSource(documentProps: IDocumentProps) {
+  static getInlineScriptSource(documentProps: DocumentProps) {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
