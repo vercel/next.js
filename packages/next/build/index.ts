@@ -80,6 +80,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log()
 
     await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
+    await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
 
     flyingShuttle = new FlyingShuttle({
       buildId,
