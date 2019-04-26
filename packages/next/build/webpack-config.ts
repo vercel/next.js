@@ -73,7 +73,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true,
+    cache: !selectivePageBuilding,
     cpus: config.experimental.cpus,
     distDir: distDir
   }
