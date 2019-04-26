@@ -10,10 +10,11 @@ if (!process.browser) {
   global.fetch = fetch
 }
 
-function create (initialState, { getToken }) {
+function create (initialState, { getToken, fetchOptions }) {
   const httpLink = createHttpLink({
     uri: 'https://api.graph.cool/simple/v1/cj5geu3slxl7t0127y8sity9r',
-    credentials: 'same-origin'
+    credentials: 'same-origin',
+    fetchOptions
   })
 
   const authLink = setContext((_, { headers }) => {
