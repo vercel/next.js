@@ -3,7 +3,7 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
-  SERVER_DIRECTORY
+  SERVER_DIRECTORY,
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
@@ -13,7 +13,7 @@ import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
-  PAGES_DIR_ALIAS
+  PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import typescriptFormatter from '../lib/typescriptFormatter'
 import verifyTypeScriptSetup from '../lib/verifyTypeScriptSetup'
@@ -45,7 +45,7 @@ export default async function getBaseWebpackConfig(
     config,
     target = 'server',
     entrypoints,
-    selectivePageBuilding = false
+    selectivePageBuilding = false,
   }: {
     dev?: boolean
     debug?: boolean
@@ -65,13 +65,13 @@ export default async function getBaseWebpackConfig(
         isServer,
         distDir,
         cwd: dir,
-        asyncToPromises: config.experimental.asyncToPromises
-      }
+        asyncToPromises: config.experimental.asyncToPromises,
+      },
     },
     // Backwards compat
     hotSelfAccept: {
-      loader: 'noop-loader'
-    }
+      loader: 'noop-loader',
+    },
   }
 
   // Support for NODE_PATH
@@ -104,7 +104,7 @@ export default async function getBaseWebpackConfig(
               NEXT_PROJECT_ROOT_DIST_CLIENT,
               dev ? `next-dev.js` : 'next.js'
             )
-          )
+          ),
       }
     : undefined
 
@@ -117,7 +117,7 @@ export default async function getBaseWebpackConfig(
           '.mjs',
           '.jsx',
           '.json',
-          '.wasm'
+          '.wasm',
         ]
       : [
           ...(useTypeScript ? ['.tsx', '.ts'] : []),
@@ -125,11 +125,11 @@ export default async function getBaseWebpackConfig(
           '.js',
           '.jsx',
           '.json',
-          '.wasm'
+          '.wasm',
         ],
     modules: [
       'node_modules',
-      ...nodePathList // Support for NODE_PATH environment variable
+      ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
       // These aliases make sure the wrapper module is not included in the bundles
@@ -140,9 +140,9 @@ export default async function getBaseWebpackConfig(
       'next/dynamic': 'next-server/dist/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       [PAGES_DIR_ALIAS]: path.join(dir, 'pages'),
-      [DOT_NEXT_ALIAS]: distDir
+      [DOT_NEXT_ALIAS]: distDir,
     },
-    mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main']
+    mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
   }
 
   const webpackMode = dev ? 'development' : 'production'
@@ -152,7 +152,7 @@ export default async function getBaseWebpackConfig(
     sourceMap: false,
     cache: !selectivePageBuilding,
     cpus: config.experimental.cpus,
-    distDir: distDir
+    distDir: distDir,
   }
 
   let webpackConfig: webpack.Configuration = {
@@ -171,7 +171,7 @@ export default async function getBaseWebpackConfig(
               'next/link',
               'next/error',
               'string-hash',
-              'next/constants'
+              'next/constants',
             ]
 
             if (notExternalModules.indexOf(request) !== -1) {
@@ -219,35 +219,35 @@ export default async function getBaseWebpackConfig(
                 callback()
               }
             )
-          }
+          },
         ]
       : [
           // When the serverless target is used all node_modules will be compiled into the output bundles
           // So that the serverless bundles have 0 runtime dependencies
-          'amp-toolbox-optimizer' // except this one
+          'amp-toolbox-optimizer', // except this one
         ],
     optimization: Object.assign(
       {
         checkWasmTypes: false,
-        nodeEnv: false
+        nodeEnv: false,
       },
       isServer
         ? {
             splitChunks: false,
-            minimize: false
+            minimize: false,
           }
         : {
             runtimeChunk: selectivePageBuilding
               ? false
               : {
-                  name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK
+                  name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
                 },
             splitChunks: dev
               ? {
                   cacheGroups: {
                     default: false,
-                    vendors: false
-                  }
+                    vendors: false,
+                  },
                 }
               : selectivePageBuilding
               ? {
@@ -257,9 +257,9 @@ export default async function getBaseWebpackConfig(
                     react: {
                       name: 'commons',
                       chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
-                    }
-                  }
+                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+                    },
+                  },
                 }
               : {
                   chunks: 'all',
@@ -269,14 +269,14 @@ export default async function getBaseWebpackConfig(
                     commons: {
                       name: 'commons',
                       chunks: 'all',
-                      minChunks: totalPages > 2 ? totalPages * 0.5 : 2
+                      minChunks: totalPages > 2 ? totalPages * 0.5 : 2,
                     },
                     react: {
                       name: 'commons',
                       chunks: 'all',
-                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/
-                    }
-                  }
+                      test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+                    },
+                  },
                 },
             minimize: !(dev || debug),
             minimizer: !(dev || debug)
@@ -288,17 +288,17 @@ export default async function getBaseWebpackConfig(
                       ...(selectivePageBuilding ||
                       config.experimental.terserLoader
                         ? { compress: false, mangle: true }
-                        : undefined)
-                    }
-                  })
+                        : undefined),
+                    },
+                  }),
                 ]
-              : undefined
+              : undefined,
           },
       selectivePageBuilding
         ? {
             providedExports: false,
             usedExports: false,
-            concatenateModules: false
+            concatenateModules: false,
           }
         : undefined
     ),
@@ -310,7 +310,7 @@ export default async function getBaseWebpackConfig(
     entry: async () => {
       return {
         ...(clientEntries ? clientEntries : {}),
-        ...entrypoints
+        ...entrypoints,
       }
     },
     output: {
@@ -336,7 +336,7 @@ export default async function getBaseWebpackConfig(
       strictModuleExceptionHandling: true,
       crossOriginLoading: config.crossOrigin,
       futureEmitAssets: !dev,
-      webassemblyModuleFilename: 'static/wasm/[modulehash].wasm'
+      webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
     },
     performance: false,
     resolve: resolveConfig,
@@ -344,8 +344,8 @@ export default async function getBaseWebpackConfig(
       modules: [
         path.join(__dirname, 'webpack', 'loaders'), // The loaders Next.js provides
         'node_modules',
-        ...nodePathList // Support for NODE_PATH environment variable
-      ]
+        ...nodePathList, // Support for NODE_PATH environment variable
+      ],
     },
     // @ts-ignore this is filtered
     module: {
@@ -361,16 +361,16 @@ export default async function getBaseWebpackConfig(
                 terserOptions: {
                   safari10: true,
                   compress: true,
-                  mangle: false
-                }
-              }
-            }
+                  mangle: false,
+                },
+              },
+            },
           },
         config.experimental.ampBindInitData &&
           !isServer && {
             test: /\.(tsx|ts|js|mjs|jsx)$/,
             include: [path.join(dir, 'data')],
-            use: 'next-data-loader'
+            use: 'next-data-loader',
           },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
@@ -382,9 +382,9 @@ export default async function getBaseWebpackConfig(
 
             return /node_modules/.test(path)
           },
-          use: defaultLoaders.babel
-        }
-      ].filter(Boolean)
+          use: defaultLoaders.babel,
+        },
+      ].filter(Boolean),
     },
     plugins: [
       // This plugin makes sure `output.filename` is used for entry chunks
@@ -399,7 +399,7 @@ export default async function getBaseWebpackConfig(
 
           return {
             ...acc,
-            [`process.env.${key}`]: JSON.stringify(config.env[key])
+            [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
         'process.env.NODE_ENV': JSON.stringify(webpackMode),
@@ -408,23 +408,23 @@ export default async function getBaseWebpackConfig(
         // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
         ...(dev && !isServer
           ? {
-              'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
+              'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
         'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.experimental.exportTrailingSlash
-        )
+        ),
       }),
       !isServer &&
         new ReactLoadablePlugin({
-          filename: REACT_LOADABLE_MANIFEST
+          filename: REACT_LOADABLE_MANIFEST,
         }),
       selectivePageBuilding &&
         new ChunkGraphPlugin(buildId, {
           dir,
           distDir,
-          isServer
+          isServer,
         }),
       !isServer && new DropClientPage(),
       ...(dev
@@ -432,15 +432,15 @@ export default async function getBaseWebpackConfig(
             // Even though require.cache is server only we have to clear assets from both compilations
             // This is because the client compilation generates the build manifest that's used on the server side
             const {
-              NextJsRequireCacheHotReloader
+              NextJsRequireCacheHotReloader,
             } = require('./webpack/plugins/nextjs-require-cache-hot-reloader')
             const {
-              UnlinkRemovedPagesPlugin
+              UnlinkRemovedPagesPlugin,
             } = require('./webpack/plugins/unlink-removed-pages-plugin')
             const devPlugins = [
               new UnlinkRemovedPagesPlugin(),
               new webpack.NoEmitOnErrorsPlugin(),
-              new NextJsRequireCacheHotReloader()
+              new NextJsRequireCacheHotReloader(),
             ]
 
             if (!isServer) {
@@ -451,12 +451,12 @@ export default async function getBaseWebpackConfig(
                   path: './static/development/dll',
                   context: dir,
                   entry: {
-                    dll: ['react', 'react-dom']
+                    dll: ['react', 'react-dom'],
                   },
                   config: {
                     mode: webpackMode,
-                    resolve: resolveConfig
-                  }
+                    resolve: resolveConfig,
+                  },
                 })
               )
               devPlugins.push(new webpack.HotModuleReplacementPlugin())
@@ -484,7 +484,7 @@ export default async function getBaseWebpackConfig(
               /next-server[\\/]dist[\\/]/.test(context) ||
               /next[\\/]dist[\\/]/.test(context)
             )
-          }
+          },
         }),
       target === 'serverless' &&
         (isServer || selectivePageBuilding) &&
@@ -500,7 +500,7 @@ export default async function getBaseWebpackConfig(
           outputPath: path.join(
             distDir,
             `profile-events-${isServer ? 'server' : 'client'}.json`
-          )
+          ),
         }),
       useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
@@ -511,9 +511,9 @@ export default async function getBaseWebpackConfig(
           tsconfig: tsConfigPath,
           reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
           silent: false,
-          formatter: typescriptFormatter
-        })
-    ].filter((Boolean as any) as ExcludesFalse)
+          formatter: typescriptFormatter,
+        }),
+    ].filter((Boolean as any) as ExcludesFalse),
   }
 
   if (typeof config.webpack === 'function') {
@@ -525,7 +525,7 @@ export default async function getBaseWebpackConfig(
       config,
       defaultLoaders,
       totalPages,
-      webpack
+      webpack,
     })
 
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
@@ -576,7 +576,7 @@ export default async function getBaseWebpackConfig(
         const originalFile = clientEntries[CLIENT_STATIC_FILES_RUNTIME_MAIN]
         entry[CLIENT_STATIC_FILES_RUNTIME_MAIN] = [
           ...entry['main.js'],
-          originalFile
+          originalFile,
         ]
       }
       delete entry['main.js']
