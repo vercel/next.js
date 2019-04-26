@@ -5,8 +5,6 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { tryAmp } from 'next-server/dist/server/require'
-import { cleanAmpPath } from 'next-server/dist/server/utils'
 import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
@@ -26,6 +24,7 @@ export default async function (dir, options, configuration) {
   const concurrency = options.concurrency || 10
   const threads = options.threads || Math.max(cpus().length - 1, 1)
   const distDir = join(dir, nextConfig.distDir)
+  const subFolders = nextConfig.experimental.exportTrailingSlash
 
   if (nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
 
@@ -42,35 +41,14 @@ export default async function (dir, options, configuration) {
   const defaultPathMap = {}
 
   for (const page of pages) {
-    // _document and _app are not real pages.
-    if (page === '/_document' || page === '/_app') {
-      continue
-    }
-
-    if (page === '/_error') {
-      defaultPathMap['/404.html'] = { page }
+    // _document and _app are not real pages
+    // _error is exported as 404.html later on
+    if (page === '/_document' || page === '/_app' || page === '/_error') {
       continue
     }
 
     defaultPathMap[page] = { page }
   }
-
-  Object.keys(defaultPathMap).forEach(path => {
-    const isAmp = path.indexOf('.amp') > -1
-
-    if (isAmp) {
-      defaultPathMap[path].query = { amp: 1 }
-      const nonAmp = cleanAmpPath(path).replace(/\/$/, '') || '/'
-      if (!defaultPathMap[nonAmp]) {
-        defaultPathMap[path].query.ampOnly = true
-      }
-    } else {
-      const ampPath = tryAmp(defaultPathMap, path)
-      if (ampPath !== path) {
-        defaultPathMap[path].query = { hasAmp: true, ampPath: ampPath.replace(/(?<!^)\/index\.amp$/, '.amp') }
-      }
-    }
-  })
 
   // Initialize the output directory
   const outDir = options.outdir
@@ -113,8 +91,7 @@ export default async function (dir, options, configuration) {
     distDir,
     dev: false,
     staticMarkup: false,
-    hotReloader: null,
-    ampEnabled: nextConfig.experimental.amp
+    hotReloader: null
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -130,6 +107,7 @@ export default async function (dir, options, configuration) {
 
   log(`  launching ${threads} threads with concurrency of ${concurrency} per thread`)
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, { dev: false, dir, outDir, distDir, buildId })
+  exportPathMap['/404.html'] = exportPathMap['/404.html'] || { page: '/_error' }
   const exportPaths = Object.keys(exportPathMap)
 
   const progress = !options.silent && createProgress(exportPaths.length)
@@ -162,7 +140,8 @@ export default async function (dir, options, configuration) {
             outDir,
             renderOpts,
             serverRuntimeConfig,
-            concurrency
+            concurrency,
+            subFolders
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {

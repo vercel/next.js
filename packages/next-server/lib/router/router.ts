@@ -3,7 +3,8 @@
 import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps } from '../utils';
+import { formatWithValidation, getURL, loadGetInitialProps, IContext, IAppContext } from '../utils';
+import {rewriteUrlForNextExport} from './rewrite-url-for-export'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -26,8 +27,6 @@ type RouteInfo = {
 type Subscription = (data: {App?: ComponentType} & RouteInfo) => void
 
 type BeforePopStateCallback = (state: any) => boolean
-
-type Context = any
 
 export default class Router implements IRouterInterface {
   route: string
@@ -75,31 +74,19 @@ export default class Router implements IRouterInterface {
       this.changeState('replaceState', formatWithValidation({ pathname, query }), as)
 
       window.addEventListener('popstate', this.onPopState)
-
-      // Workaround for weird Firefox bug, see below links
-      // https://github.com/zeit/next.js/issues/3817
-      // https://bugzilla.mozilla.org/show_bug.cgi?id=1422334
-      // TODO: let's remove this once the Firefox bug is resolved
-      if (navigator.userAgent && navigator.userAgent.match(/firefox/i)) {
-        window.addEventListener('unload', () => {
-          try {
-            if (window.location.search) window.location.replace(window.location.toString())
-          } catch (_) {/* since it's a workaround, ignore */}
-        })
-      }
+      window.addEventListener('unload', () => {
+        // Workaround for popstate firing on initial page load when
+        // navigating back from an external site
+        if (history.state) {
+          const { url, as, options }: any = history.state
+          this.changeState('replaceState', url, as, { ...options, fromExternal: true })
+        }
+      })
     }
   }
 
   static _rewriteUrlForNextExport(url: string): string {
-    const [pathname, hash] = url.split('#')
-    // tslint:disable-next-line
-    let [path, qs] = pathname.split('?')
-    path = path.replace(/\/$/, '')
-    // Append a trailing slash if this path does not have an extension
-    if (!/\.[^/]+\/?$/.test(path)) path += `/`
-    if (qs) path += '?' + qs
-    if (hash) path += '#' + hash
-    return path
+    return rewriteUrlForNextExport(url)
   }
 
   onPopState = (e: PopStateEvent): void => {
@@ -115,6 +102,12 @@ export default class Router implements IRouterInterface {
       // So, doing the following for (1) does no harm.
       const { pathname, query } = this
       this.changeState('replaceState', formatWithValidation({ pathname, query }), getURL())
+      return
+    }
+
+    // Make sure we don't re-render on initial load,
+    // can be caused by navigating back from an external site
+    if (e.state.options && e.state.options.fromExternal) {
       return
     }
 
@@ -213,7 +206,7 @@ export default class Router implements IRouterInterface {
       if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
         // @ts-ignore this is temporarily global (attached to window)
         if (__NEXT_DATA__.nextExport) {
-          as = Router._rewriteUrlForNextExport(as)
+          as = rewriteUrlForNextExport(as)
         }
       }
 
@@ -431,7 +424,7 @@ export default class Router implements IRouterInterface {
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') return
+      if (process.env.NODE_ENV !== 'production' || process.env.__NEXT_EXPERIMENTAL_DEBUG) return
 
       const { pathname } = parse(url)
       // @ts-ignore pathname is always defined
@@ -461,13 +454,13 @@ export default class Router implements IRouterInterface {
     return Component
   }
 
-  async getInitialProps(Component: ComponentType, ctx: Context): Promise<any> {
+  async getInitialProps(Component: ComponentType, ctx: IContext): Promise<any> {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
     const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps(App, { Component, router: this, ctx })
+    const props = await loadGetInitialProps<IAppContext<Router>>(App, { Component, router: this, ctx })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null

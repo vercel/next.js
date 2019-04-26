@@ -6,6 +6,13 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
 import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
+import * as Log from '../build/output/log'
+
+const React = require('react')
+
+if (typeof React.Suspense === 'undefined') {
+  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
+}
 
 export default class DevServer extends Server {
   constructor (options) {
@@ -15,6 +22,18 @@ export default class DevServer extends Server {
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
     })
+    this.renderOpts.ampValidator = (html, pathname) => {
+      return AmpHtmlValidator.getInstance().then(validator => {
+        const result = validator.validateString(html)
+        ampValidation(
+          pathname,
+          result.errors
+            .filter(e => e.severity === 'ERROR')
+            .filter(e => this._filterAmpDevelopmentScript(html, e)),
+          result.errors.filter(e => e.severity !== 'ERROR')
+        )
+      })
+    }
   }
 
   currentPhase () {
@@ -123,10 +142,7 @@ export default class DevServer extends Server {
 
     // In dev mode we use on demand entries to compile the page before rendering
     try {
-      const result = await this.hotReloader.ensurePage(pathname, options.amphtml, this.nextConfig.experimental.amp)
-      pathname = result.pathname
-      options.amphtml = options.amphtml || result.isAmp
-      options.hasAmp = result.hasAmp
+      await this.hotReloader.ensurePage(pathname)
     } catch (err) {
       if (err.code === 'ENOENT') {
         res.statusCode = 404
@@ -135,18 +151,6 @@ export default class DevServer extends Server {
       if (!this.quiet) console.error(err)
     }
     const html = await super.renderToHTML(req, res, pathname, query, options)
-    if (options.amphtml && pathname !== '/_error') {
-      await AmpHtmlValidator.getInstance().then(validator => {
-        const result = validator.validateString(html)
-        ampValidation(
-          pathname,
-          result.errors
-            .filter(e => e.severity === 'ERROR')
-            .filter(e => this._filterAmpDevelopmentScript(html, e)),
-          result.errors.filter(e => e.severity !== 'ERROR')
-        )
-      })
-    }
     return html
   }
 
@@ -170,7 +174,7 @@ export default class DevServer extends Server {
       const out = await super.renderErrorToHTML(err, req, res, pathname, query)
       return out
     } catch (err2) {
-      if (!this.quiet) console.error(err2)
+      if (!this.quiet) Log.error(err2)
       res.statusCode = 500
       return super.renderErrorToHTML(err2, req, res, pathname, query)
     }

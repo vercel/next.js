@@ -34,6 +34,12 @@ app.prepare().then(async () => {
 
   server.route({
     method: 'GET',
+    path: '/static/{p*}' /* use next to handle static files */,
+    handler: nextHandlerWrapper(app)
+  })
+
+  server.route({
+    method: 'GET',
     path: '/{p*}' /* catch all route */,
     handler: defaultHandlerWrapper(app)
   })

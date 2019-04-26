@@ -9,19 +9,19 @@ import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import Router, { route, Route } from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
-import loadConfig from 'next-server/next-config'
+import loadConfig from './config'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
-} from 'next-server/constants'
+} from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
 
 type NextConfig = any
 
-type ServerConstructor = {
+export type ServerConstructor = {
   dir?: string
   staticMarkup?: boolean
   quiet?: boolean
@@ -35,7 +35,8 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
-    ampEnabled: boolean
+    poweredByHeader: boolean
+    ampBindInitData: boolean
     staticMarkup: boolean
     buildId: string
     generateEtags: boolean
@@ -73,7 +74,8 @@ export default class Server {
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
-      ampEnabled: this.nextConfig.experimental.amp,
+      ampBindInitData: this.nextConfig.experimental.ampBindInitData,
+      poweredByHeader: this.nextConfig.poweredByHeader,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -244,8 +246,8 @@ export default class Server {
     res: ServerResponse,
     html: string,
   ) {
-    const { generateEtags } = this.renderOpts
-    return sendHTML(req, res, html, { generateEtags })
+    const { generateEtags, poweredByHeader } = this.renderOpts
+    return sendHTML(req, res, html, { generateEtags, poweredByHeader })
   }
 
   public async render(
@@ -265,7 +267,7 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
-      amphtml: query.amp && this.nextConfig.experimental.amp,
+      dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
     })
     // Request was ended by the user
     if (html === null) {
@@ -282,8 +284,8 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname, opts)
-    return renderToHTML(req, res, pathname, query, { ...result, ...opts, hasAmp: result.hasAmp  })
+    const result = await loadComponents(this.distDir, this.buildId, pathname)
+    return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
   public async renderToHTML(
@@ -291,9 +293,10 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, hasAmp }: {
+    { amphtml, dataOnly, hasAmp }: {
       amphtml?: boolean,
       hasAmp?: boolean,
+      dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {
     try {
@@ -303,7 +306,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml, hasAmp },
+        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
       )
       return html
     } catch (err) {

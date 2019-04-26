@@ -55,6 +55,13 @@ describe('Production Usage', () => {
       expect(res2.status).toBe(304)
     })
 
+    it('should have X-Powered-By header support', async () => {
+      const url = `http://localhost:${appPort}/`
+      const header = (await fetch(url)).headers.get('X-Powered-By')
+
+      expect(header).toBe('Next.js')
+    })
+
     it('should render 404 for routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/abcdefghijklmno`
       const res = await fetch(url)
@@ -162,6 +169,45 @@ describe('Production Usage', () => {
       expect(text).toBe('Hello World')
       await browser.close()
     })
+  })
+
+  it('should navigate to external site and back', async () => {
+    const browser = await webdriver(appPort, '/external-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('server')
+  })
+
+  it('should change query correctly', async () => {
+    const browser = await webdriver(appPort, '/query?id=0')
+    let id = await browser.elementByCss('#q0').text()
+    expect(id).toBe('0')
+
+    await browser
+      .elementByCss('#first')
+      .click()
+      .waitForElementByCss('#q1')
+
+    id = await browser.elementByCss('#q1').text()
+    expect(id).toBe('1')
+
+    await browser
+      .elementByCss('#second')
+      .click()
+      .waitForElementByCss('#q2')
+
+    id = await browser.elementByCss('#q2').text()
+    expect(id).toBe('2')
   })
 
   describe('Runtime errors', () => {

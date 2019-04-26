@@ -1,103 +1,174 @@
-import {
-  join as pathJoin,
-  relative as pathRelative,
-  isAbsolute as pathIsAbsolute,
-} from 'path'
-import nanoid from 'next/dist/compiled/nanoid/index.js'
-import loadConfig from 'next-server/next-config'
-import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
-import getBaseWebpackConfig from './webpack-config'
-import { generateBuildId } from './generate-build-id'
-import { writeBuildId } from './write-build-id'
-import { isWriteable } from './is-writeable'
-import { runCompiler, CompilerResult } from './compiler'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-import { createPagesMapping, createEntrypoints } from './entries'
-import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import chalk from 'chalk'
+import {
+  CHUNK_GRAPH_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
+} from 'next-server/constants'
+import loadConfig from 'next-server/next-config'
+import nanoid from 'next/dist/compiled/nanoid/index.js'
+import path from 'path'
 
-function collectPages(
-  directory: string,
-  pageExtensions: string[]
-): Promise<string[]> {
-  return recursiveReadDir(
-    directory,
-    new RegExp(`\\.(?:${pageExtensions.join('|')})$`)
-  )
-}
+import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
+import { recursiveDelete } from '../lib/recursive-delete'
+import { CompilerResult, runCompiler } from './compiler'
+import { createEntrypoints, createPagesMapping } from './entries'
+import { FlyingShuttle } from './flying-shuttle'
+import { generateBuildId } from './generate-build-id'
+import { isWriteable } from './is-writeable'
+import {
+  collectPages,
+  getCacheIdentifier,
+  getFileForPage,
+  getSpecifiedPages,
+  printTreeView,
+} from './utils'
+import getBaseWebpackConfig from './webpack-config'
+import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
+import { writeBuildId } from './write-build-id'
 
-function printTreeView(list: string[]) {
-  list
-    .sort((a, b) => (a > b ? 1 : -1))
-    .forEach((item, i) => {
-      const corner =
-        i === 0
-          ? list.length === 1
-            ? '─'
-            : '┌'
-          : i === list.length - 1
-          ? '└'
-          : '├'
-      console.log(` \x1b[90m${corner}\x1b[39m ${item}`)
-    })
-
-  console.log()
-}
-
-export default async function build(
-  dir: string,
-  conf = null,
-  { pages = [] as string[] } = {}
-): Promise<void> {
+export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
 
-  console.log('Creating an optimized production build ...')
+  const debug =
+    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
+    process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === '1'
+
+  console.log(
+    debug
+      ? 'Creating a development build ...'
+      : 'Creating an optimized production build ...'
+  )
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
-  const buildId = await generateBuildId(config.generateBuildId, nanoid)
-  const distDir = pathJoin(dir, config.distDir)
-  const pagesDir = pathJoin(dir, 'pages')
+  const target = process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || config.target
+  const buildId = debug
+    ? 'unoptimized-build'
+    : await generateBuildId(config.generateBuildId, nanoid)
+  const distDir = path.join(dir, config.distDir)
+  const pagesDir = path.join(dir, 'pages')
 
-  let pagePaths
-  if (pages && pages.length) {
-    // TODO: smart resolve these pages and check for them
-    pagePaths = pages.map(page =>
-      '/'.concat(pathIsAbsolute(page) ? pathRelative(pagesDir, page) : page)
+  const isFlyingShuttle = Boolean(
+    config.experimental.flyingShuttle &&
+      !process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+  )
+  const selectivePageBuilding = Boolean(
+    isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
+  )
+
+  if (selectivePageBuilding && target !== 'serverless') {
+    throw new Error(
+      `Cannot use ${
+        isFlyingShuttle ? 'flying shuttle' : '`now dev`'
+      } without the serverless target.`
+    )
+  }
+
+  const selectivePageBuildingCacheIdentifier = selectivePageBuilding
+    ? await getCacheIdentifier({
+        pagesDirectory: pagesDir,
+        env: config.env || {},
+      })
+    : 'noop'
+
+  let flyingShuttle: FlyingShuttle | undefined
+  if (isFlyingShuttle) {
+    console.log(chalk.magenta('Building with Flying Shuttle enabled ...'))
+    console.log()
+
+    await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
+
+    flyingShuttle = new FlyingShuttle({
+      buildId,
+      pagesDirectory: pagesDir,
+      distDirectory: distDir,
+      cacheIdentifier: selectivePageBuildingCacheIdentifier,
+    })
+  }
+
+  let pagePaths: string[]
+  if (process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE) {
+    pagePaths = await getSpecifiedPages(
+      dir,
+      process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE!,
+      config.pageExtensions
     )
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
+
+  if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
+    const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
+    for (const unchangedPage of _unchangedPages) {
+      const recalled = await flyingShuttle.restorePage(unchangedPage)
+      if (recalled) {
+        continue
+      }
+
+      _unchangedPages.delete(unchangedPage)
+    }
+
+    const unchangedPages = await Promise.all(
+      [..._unchangedPages].map(async page => {
+        const file = await getFileForPage({
+          page,
+          pagesDirectory: pagesDir,
+          pageExtensions: config.pageExtensions,
+        })
+        if (file) {
+          return file
+        }
+
+        return Promise.reject(
+          new Error(
+            `Failed to locate page file: ${page}. ` +
+              `Did pageExtensions change? We can't recover from this yet.`
+          )
+        )
+      })
+    )
+
+    const pageSet = new Set(pagePaths)
+    for (const unchangedPage of unchangedPages) {
+      pageSet.delete(unchangedPage)
+    }
+    pagePaths = [...pageSet]
+  }
+
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
-    config.target,
+    target,
     buildId,
+    /* dynamicBuildId */ selectivePageBuilding,
     config
   )
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
+      debug,
       buildId,
       isServer: false,
       config,
-      target: config.target,
+      target,
       entrypoints: entrypoints.client,
+      selectivePageBuilding,
     }),
     getBaseWebpackConfig(dir, {
+      debug,
       buildId,
       isServer: true,
       config,
-      target: config.target,
+      target,
       entrypoints: entrypoints.server,
+      selectivePageBuilding,
     }),
   ])
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  if (config.target === 'serverless') {
+  if (target === 'serverless') {
     if (config.publicRuntimeConfig)
       throw new Error(
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
@@ -122,6 +193,16 @@ export default async function build(
   }
 
   result = formatWebpackMessages(result)
+
+  if (isFlyingShuttle) {
+    console.log()
+
+    exportManifest({
+      dir: dir,
+      fileName: path.join(distDir, CHUNK_GRAPH_MANIFEST),
+      selectivePageBuildingCacheIdentifier,
+    })
+  }
 
   if (result.errors.length > 0) {
     // Only keep the first error. Others are often indicative
@@ -149,7 +230,20 @@ export default async function build(
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  printTreeView(Object.keys(mappedPages))
+  let ampPages = new Set()
 
-  await writeBuildId(distDir, buildId)
+  if (Array.isArray(configs[0].plugins)) {
+    configs[0].plugins.some((plugin: any) => {
+      if (plugin.ampPages) ampPages = plugin.ampPages
+      return Boolean(plugin.ampPages)
+    })
+  }
+
+  printTreeView(Object.keys(mappedPages), ampPages)
+
+  if (flyingShuttle) {
+    await flyingShuttle.save()
+  }
+
+  await writeBuildId(distDir, buildId, selectivePageBuilding)
 }

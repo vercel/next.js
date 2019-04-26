@@ -1,73 +1,20 @@
-declare module '@babel/plugin-transform-modules-commonjs';
-declare module 'next-server/next-config';
-declare module 'next-server/constants';
-declare module 'next/dist/compiled/webpack/lib/GraphHelpers';
+import React from 'react'
 
-declare module 'node-libs-browser' {
-  const nodeLibsBrowser: any;
-
-  export = nodeLibsBrowser
-}
-
-declare module 'next/dist/compiled/nanoid/index.js' {
-  function nanoid(size?: number): string;
-
-  export = nanoid;
-}
-
-declare module 'next/dist/compiled/resolve/index.js' {
-  import resolve from 'resolve'
-
-  export = resolve;
-}
-
-declare module 'next/dist/compiled/webpack' {
-  import webpack from 'webpack'
-
-  export = webpack;
-}
-
-declare module 'next/dist/compiled/arg/index.js' {
-  function arg<T extends arg.Spec>(spec: T, options?: {argv?: string[], permissive?: boolean}): arg.Result<T>;
-
-  namespace arg {
-    export type Handler = (value: string) => any;
-
-    export interface Spec {
-      [key: string]: string | Handler | [Handler];
-    }
-
-    export type Result<T extends Spec> = { _: string[] } & {
-      [K in keyof T]: T[K] extends string
-        ? never
-        : T[K] extends Handler
-        ? ReturnType<T[K]>
-        : T[K] extends [Handler]
-        ? Array<ReturnType<T[K][0]>>
-        : never
-    };
+// Extend the React types with missing properties
+declare module 'react' {
+  // <html amp=""> support
+  interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
+    amp?: string;
   }
 
-  export = arg;
-}
-
-declare module 'next/dist/compiled/autodll-webpack-plugin' {
-  import webpack from 'next/dist/compiled/webpack'
-  class AutoDllPlugin implements webpack.Plugin {
-    constructor(settings?: {
-      inject?: boolean,
-      plugins?: webpack.Configuration["plugins"],
-      context?: string,
-      debug?: boolean,
-      filename?: string,
-      path?: string,
-      inherit?: boolean,
-      entry?: webpack.Entry,
-      config?: webpack.Configuration
-    })
-    apply: webpack.Plugin["apply"]
-    [k: string]: any
+  // <link nonce=""> support
+  interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
+    nonce?: string
   }
 
-  export = AutoDllPlugin
+  // <style jsx> and <style jsx global> support for styled-jsx
+  interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
+    jsx?: boolean;
+    global?: boolean;
+  }
 }

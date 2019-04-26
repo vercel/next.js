@@ -26,7 +26,7 @@ const startServer = async (optEnv = {}) => {
     optEnv
   )
 
-  server = await initNextServerScript(scriptPath, /Ready on/, env)
+  server = await initNextServerScript(scriptPath, /ready on/i, env)
 }
 
 describe('FileSystemPublicRoutes', () => {

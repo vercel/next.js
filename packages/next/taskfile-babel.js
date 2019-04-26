@@ -2,22 +2,35 @@
 // https://github.com/lukeed/taskr/pull/305
 'use strict'
 
+const extname = require('path').extname
 const transform = require('@babel/core').transform
 
 module.exports = function (task) {
-  task.plugin('babel', {}, function * (file, opts) {
+  task.plugin('babel', {}, function * (file, babelOpts, { stripExtension } = {}) {
     const options = {
-      ...opts
+      ...babelOpts,
+      compact: true,
+      babelrc: false,
+      configFile: false,
+      filename: file.base
     }
-    options.filename = file.base
-    options.plugins = [
-      require('@babel/plugin-syntax-dynamic-import'),
-      ...(options.plugins || [])
-    ]
-    options.babelrc = false
-    options.configFile = false
-    options.babelrcRoots = false
     const output = transform(file.data, options)
-    file.data = Buffer.from(output.code)
+    const ext = extname(file.base)
+
+    // Replace `.ts|.tsx` with `.js` in files with an extension
+    if (ext) {
+      const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
+      // Remove the extension if stripExtension is enabled or replace it with `.js`
+      file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
+    }
+
+    // Workaround for noop.js loading
+    if (file.base === 'next-dev.js') output.code = output.code.replace('// REPLACE_NOOP_IMPORT', `import('./noop');`)
+
+    file.data = Buffer.from(setNextVersion(output.code))
   })
+}
+
+function setNextVersion (code) {
+  return code.replace(/process\.env\.__NEXT_VERSION/, `"${require('./package.json').version}"`)
 }

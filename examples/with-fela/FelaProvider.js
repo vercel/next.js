@@ -2,7 +2,7 @@
 import { Component } from 'react'
 import PropTypes from 'prop-types'
 
-import { Provider } from 'react-fela'
+import { RendererProvider } from 'react-fela'
 import getFelaRenderer from './getFelaRenderer'
 
 const clientRenderer = getFelaRenderer()
@@ -18,6 +18,10 @@ export default class FelaProvider extends Component {
     }
 
     const renderer = this.props.renderer || clientRenderer
-    return <Provider renderer={renderer}>{this.props.children}</Provider>
+    return (
+      <RendererProvider renderer={renderer}>
+        {this.props.children}
+      </RendererProvider>
+    )
   }
 }

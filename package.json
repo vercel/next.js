@@ -22,7 +22,8 @@
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
     "publish-stable": "lerna version --force-publish",
-    "lint-staged": "lint-staged"
+    "lint-staged": "lint-staged",
+    "next": "./packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
   "lint-staged": {
@@ -62,6 +63,7 @@
     "@babel/preset-flow": "7.0.0",
     "@babel/preset-react": "7.0.0",
     "@mdx-js/loader": "0.18.0",
+    "@types/string-hash": "1.1.1",
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
     "@zeit/next-typescript": "1.1.2-canary.0",
@@ -80,6 +82,7 @@
     "eslint-plugin-typescript": "0.14.0",
     "express": "4.16.3",
     "fkill": "5.1.0",
+    "fs-extra": "7.0.1",
     "get-port": "3.2.0",
     "isomorphic-unfetch": "3.0.0",
     "jest-cli": "23.6.0",
@@ -92,8 +95,8 @@
     "node-sass": "4.9.2",
     "pre-commit": "1.2.2",
     "prettier": "1.15.3",
-    "react": "16.8.0",
-    "react-dom": "16.8.0",
+    "react": "16.8.6",
+    "react-dom": "16.8.6",
     "release": "5.0.3",
     "request-promise-core": "1.1.1",
     "rimraf": "2.6.2",

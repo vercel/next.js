@@ -75,7 +75,7 @@ describe('CLI Usage', () => {
     test('custom directory', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '--port', port], true)
-      expect(output).toMatch(/Ready on/)
+      expect(output).toMatch(/ready on/i)
     })
 
     test('--port', async () => {

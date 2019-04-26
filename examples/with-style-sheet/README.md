@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-style-sheet)
-
 # Using the style-sheet CSS in JS library and extract CSS to file.
 
 ## How to use

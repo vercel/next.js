@@ -53,15 +53,18 @@ function interceptFileWrites(
 
 export class ServerlessPlugin {
   private buildId: string
+  private isServer: boolean
 
-  constructor(buildId: string) {
+  constructor(buildId: string, { isServer = false } = {}) {
     this.buildId = buildId
+    this.isServer = isServer
   }
 
   apply(compiler: Compiler) {
-    interceptFileWrites(compiler, content =>
-      replaceInBuffer(content, NEXT_REPLACE_BUILD_ID, this.buildId)
-    )
+    if (this.isServer) {
+      interceptFileWrites(compiler, content =>
+        replaceInBuffer(content, NEXT_REPLACE_BUILD_ID, this.buildId)
+      )
 
     compiler.hooks.compilation.tap('ServerlessPlugin', compilation => {
       compilation.hooks.optimizeChunksBasic.tap('ServerlessPlugin', chunks => {
@@ -78,7 +81,21 @@ export class ServerlessPlugin {
             }
           }
         })
+        })
       })
-    })
+    } else {
+      compiler.hooks.emit.tap('ServerlessPlugin', compilation => {
+        const assetNames = Object.keys(compilation.assets).filter(f =>
+          f.includes(this.buildId)
+        )
+        for (const name of assetNames) {
+          compilation.assets[
+            name
+              .replace(new RegExp(`${this.buildId}[\\/\\\\]`), 'client/')
+              .replace(/[.]js$/, `.${this.buildId}.js`)
+          ] = compilation.assets[name]
+        }
+      })
+    }
   }
 }

@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-toolbox)
-
 # With react-toolbox example
 
 ## How to use
@@ -39,4 +37,4 @@ Notice that `yarn toolbox` (or `npm run toolbox`) should be rerun every time the
 
 This is a simple example of getting react-toolbox up and running, using [react-toolbox-themr](https://github.com/react-toolbox/react-toolbox-themr).
 
-For actual use, you probably also want to add Roboto Font, and Material Design Icons. See <http://react-toolbox.com/#/install>
+For actual use, you probably also want to add Roboto Font, and Material Design Icons. See <http://react-toolbox.io/#/install>

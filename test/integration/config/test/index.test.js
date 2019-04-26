@@ -8,6 +8,7 @@ import {
   launchApp,
   killApp
 } from 'next-test-utils'
+import fetch from 'node-fetch'
 
 // test suits
 import rendering from './rendering'
@@ -29,6 +30,13 @@ describe('Configuration', () => {
       renderViaHTTP(context.appPort, '/module-only-component')
     ])
   })
+
+  it('should disable X-Powered-By header support', async () => {
+    const url = `http://localhost:${context.appPort}/`
+    const header = (await fetch(url)).headers.get('X-Powered-By')
+    expect(header).not.toBe('Next.js')
+  })
+
   afterAll(() => {
     killApp(context.server)
   })
