@@ -41,7 +41,7 @@ export default function initApollo (initialState, options) {
   // isn't shared between connections (which would be bad)
   if (!process.browser) {
     let fetchOptions = {}
-    // If you are using a https_proxy, add fetchOptions with 'https-proxy-agent' agent instance 
+    // If you are using a https_proxy, add fetchOptions with 'https-proxy-agent' agent instance
     // 'https-proxy-agent' is required here because it's a sever-side only module
     if (process.env.https_proxy) {
       fetchOptions = {
