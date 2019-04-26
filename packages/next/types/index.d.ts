@@ -20,11 +20,14 @@ declare module 'react' {
   }
 }
 
-export type GetInitialProps<P = {}> = (context: IContext) => Promise<P>
+
+export type GetInitialProps<P = {}> = (context: NextPageContext) => Promise<P>
+
+export type NextPageContext = IContext
 
 export type NextPage<P = {}> = {
   (props: P): JSX.Element;
-  getInitialProps?(ctx: IContext): Promise<P>;
+  getInitialProps?(ctx: NextPageContext): Promise<P>;
 }
 
 export { IContext }
