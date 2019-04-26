@@ -1,4 +1,4 @@
-import {loader} from 'webpack'
+import {loader} from 'next/dist/compiled/webpack'
 import loaderUtils from 'loader-utils'
 
 export type ClientPagesLoaderOptions = {
