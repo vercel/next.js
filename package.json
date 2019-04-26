@@ -17,7 +17,7 @@
     "coveralls": "cat ./test/coverage/lcov.info | coveralls",
     "lint": "lerna run typescript && standard && standard --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
     "lint-fix": "standard --fix && standard --fix --parser typescript-eslint-parser --plugin typescript packages/**/*.ts",
-    "prettier": "prettier --single-quote --no-semi --write examples/**/*.js && yarn lint-fix",
+    "prettier": "prettier --write examples/**/*.js && yarn lint-fix",
     "typescript": "lerna run typescript",
     "prepublish": "lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre",
@@ -28,7 +28,7 @@
   "pre-commit": "lint-staged",
   "lint-staged": {
     "examples/**/*.js": [
-      "prettier --write --single-quote --no-semi",
+      "prettier --write",
       "standard --fix",
       "git add"
     ],
