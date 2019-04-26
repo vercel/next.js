@@ -34,6 +34,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
     }
   }
 
+  // manually map node-libs-browser to fix ncced webpack resolving
   const nodeLibs: any = {}
 
   if (!isServer) {
@@ -293,8 +294,16 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
         } : {}),
         'process.env.__NEXT_EXPERIMENTAL_DEBUG': JSON.stringify(debug),
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash),
-        'global': {},
-        'process': {},
+        ...(isServer ? {} : { 'global': 'window' }),
+        'process': {
+          env: {},
+          argv: [],
+          browser: !isServer,
+          pid: 1,
+          execPath: 'browser',
+          platform: 'browser',
+          features: {},
+        }
       }),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST
