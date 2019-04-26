@@ -60,11 +60,11 @@ export type AppContextType<R extends BaseRouter = BaseRouter> = {
   ctx: IContext,
 }
 
-export type AppInitialProps = {
+export type AppInitialProps<P = {}> = P & {
   pageProps: any,
 }
 
-export type AppPropsType<R extends BaseRouter = BaseRouter> = AppInitialProps & {
+export type AppPropsType<R extends BaseRouter = BaseRouter, P = {}> = P & AppInitialProps & {
   Component: NextComponentType<IContext>
   router: R,
 }
