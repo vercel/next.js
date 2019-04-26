@@ -1,33 +1,39 @@
-import path from 'path'
-import webpack from 'webpack'
-import resolve from 'next/dist/compiled/resolve/index.js'
-import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
-import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
-import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
-import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
-import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
-import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
+import fs from 'fs'
 import {
-  SERVER_DIRECTORY,
-  REACT_LOADABLE_MANIFEST,
-  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
+  REACT_LOADABLE_MANIFEST,
+  SERVER_DIRECTORY,
 } from 'next-server/constants'
+import resolve from 'next/dist/compiled/resolve/index.js'
+import path from 'path'
+import { promisify } from 'util'
+import webpack from 'webpack'
+
 import {
+  DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
-  DOT_NEXT_ALIAS,
 } from '../lib/constants'
-import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
-import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
-import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
-import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
-import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { WebpackEntrypoints } from './entries'
+import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
+import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
+import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
+import { importAutoDllPlugin } from './webpack/plugins/dll-import'
+import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
+import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
+import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
+import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
+import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
+import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
+import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
+import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
+import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
+
+const fileExists = promisify(fs.exists)
+
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 export default async function getBaseWebpackConfig(
@@ -93,11 +99,27 @@ export default async function getBaseWebpackConfig(
       }
     : undefined
 
+  const useTypeScript = await fileExists(path.join(dir, 'tsconfig.json'))
+
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
     extensions: isServer
-      ? ['.tsx', '.ts', '.js', '.mjs', '.jsx', '.json', '.wasm']
-      : ['.tsx', '.ts', '.mjs', '.js', '.jsx', '.json', '.wasm'],
+      ? [
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
+          '.js',
+          '.mjs',
+          '.jsx',
+          '.json',
+          '.wasm',
+        ]
+      : [
+          ...(useTypeScript ? ['.tsx', '.ts'] : []),
+          '.mjs',
+          '.js',
+          '.jsx',
+          '.json',
+          '.wasm',
+        ],
     modules: [
       'node_modules',
       ...nodePathList, // Support for NODE_PATH environment variable
