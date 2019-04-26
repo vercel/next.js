@@ -87,7 +87,7 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
   const terserPluginConfig = {
     parallel: true,
     sourceMap: false,
-    cache: true,
+    cache: !selectivePageBuilding,
     cpus: config.experimental.cpus,
     distDir: distDir
   }
@@ -382,6 +382,28 @@ export default async function getBaseWebpackConfig (dir: string, {dev = false, d
     // @ts-ignore: Property 'then' does not exist on type 'Configuration'
     if (typeof webpackConfig.then === 'function') {
       console.warn('> Promise returned in next config. https://err.sh/zeit/next.js/promise-in-next-config.md')
+    }
+  }
+
+  // check if using @zeit/next-typescript and show warning
+  if (isServer && webpackConfig.module &&
+    Array.isArray(webpackConfig.module.rules)
+  ) {
+    let foundTsRule = false
+
+    webpackConfig.module.rules = webpackConfig.module.rules
+      .filter((rule): boolean => {
+        if (!(rule.test instanceof RegExp)) return true
+        if ('noop.ts'.match(rule.test) && !('noop.js').match(rule.test)) {
+          // remove if it matches @zeit/next-typescript
+          foundTsRule = rule.use === defaultLoaders.babel
+          return !foundTsRule
+        }
+        return true
+      })
+
+    if (foundTsRule) {
+      console.warn('\n@zeit/next-typescript is no longer needed since Next.js has built-in support for TypeScript now. Please remove it from your next.config.js\n')
     }
   }
 

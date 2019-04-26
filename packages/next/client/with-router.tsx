@@ -1,10 +1,10 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 import { NextComponentType, IContext } from 'next-server/dist/lib/utils'
-import { IPublicRouterInstance } from './router';
+import { PublicRouterInstance } from './router';
 
 export type WithRouterProps = {
-  router: IPublicRouterInstance,
+  router: PublicRouterInstance,
 }
 
 export type ExcludeRouterProps<P> = Pick<P, Exclude<keyof P, keyof WithRouterProps>>
