@@ -22,7 +22,7 @@ export type DocumentComponentContext = {
   readonly _devOnlyInvalidateCacheQueryString: string,
 }
 
-export default class Document extends Component<DocumentProps> {
+export default class Document<P = {}> extends Component<DocumentProps & P> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,

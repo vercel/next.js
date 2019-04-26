@@ -7,9 +7,9 @@ export { NextComponentType, IContext, AppInitialProps }
 
 export type AppContext = AppContextType<Router>
 
-export type AppProps<P = {}> = AppPropsType<Router, P>
+export type AppProps = AppPropsType<Router>
 
-export default class App<P = {}> extends React.Component<AppProps<P>> {
+export default class App<P = {}> extends React.Component<P & AppProps> {
   static childContextTypes = {
     router: PropTypes.object,
   }
@@ -33,7 +33,7 @@ export default class App<P = {}> extends React.Component<AppProps<P>> {
   }
 
   render() {
-    const { router, Component, pageProps } = this.props
+    const { router, Component, pageProps } = this.props as AppProps
     const url = createUrl(router)
     return (
       <Container>
