@@ -58,16 +58,6 @@ export async function ncc_webpack (task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_webpack_DynamicEntryPlugin (task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('webpack/lib/DynamicEntryPlugin')))
-    .ncc()
-    .target('dist/compiled/webpack/lib')
-
-  notify('Compiled webpack/lib/DynamicEntryPlugin')
-}
-
-// eslint-disable-next-line camelcase
 export async function ncc_webpack_module (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('webpack/buildin/module')))
@@ -167,7 +157,7 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_webpack', 'ncc_webpack_module', 'ncc_webpack_DynamicEntryPlugin', 'ncc_webpack_graph_helpers', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
+  await task.parallel(['ncc_webpack', 'ncc_webpack_module', 'ncc_webpack_graph_helpers', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {
