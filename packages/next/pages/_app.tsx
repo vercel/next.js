@@ -1,22 +1,22 @@
 import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps } from 'next-server/dist/lib/utils'
+import { execOnce, loadGetInitialProps, NextComponentType, IContext, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
 import { makePublicRouterInstance } from '../client/router'
 
-export { NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps }
+export { NextComponentType, IContext, AppInitialProps }
 
 type Router = import('next-server/dist/lib/router/router').default
 
-export type AppClientContext = IAppContext<Router>
+export type AppContext = AppContextType<Router>
 
-export type AppProps = IAppProps<Router>
+export type AppProps = AppPropsType<Router>
 
 export default class App extends React.Component<AppProps> {
   static childContextTypes = {
     router: PropTypes.object,
   }
 
-  static async getInitialProps({ Component, ctx }: AppClientContext): Promise<IAppInitialProps> {
+  static async getInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
     const pageProps = await loadGetInitialProps(Component, ctx)
     return { pageProps }
   }

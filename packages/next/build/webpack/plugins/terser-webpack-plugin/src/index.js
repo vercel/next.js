@@ -129,7 +129,11 @@ export class TerserPlugin {
 
   apply(compiler) {
     const optimizeFn = (compilation, chunks, callback) => {
-      const taskRunner = new TaskRunner(this.distDir, this.cpus)
+      const taskRunner = new TaskRunner({
+        distDir: this.distDir,
+        cpus: this.cpus,
+        cache: this.options.cache,
+      })
 
       const processedAssets = new WeakSet()
       const tasks = []
@@ -285,7 +289,7 @@ export class TerserPlugin {
         template.hooks.hashForChunk.tap(plugin, hash => {
           // Terser version
           // Has to be updated when options change too
-          hash.update('3.17.0');
+          hash.update('3.17.0')
           return hash
         })
       }
