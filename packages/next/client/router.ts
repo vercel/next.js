@@ -1,6 +1,6 @@
 /* global window */
 import React from 'react'
-import Router, { IRouterInterface } from 'next-server/dist/lib/router/router'
+import Router, { BaseRouter } from 'next-server/dist/lib/router/router'
 import { RouterContext } from 'next-server/dist/lib/router-context'
 import { RequestContext } from 'next-server/dist/lib/request-context'
 
@@ -8,19 +8,19 @@ type ClassArguments<T> = T extends new(...args: infer U) => any ? U : any
 
 type RouterArgs = ClassArguments<typeof Router>
 
-interface ISingletonRouterBase {
+type SingletonRouterBase = {
   router: Router | null
   readyCallbacks: Array<() => any>
-  ready(cb: () => any): void
+  ready(cb: () => any): void,
 }
 
-export interface IPublicRouterInstance extends IRouterInterface, Pick<Router, | 'components' | 'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'> {
-  events: typeof Router['events']
+export type PublicRouterInstance = BaseRouter & Pick<Router, | 'components' | 'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'> & {
+  events: typeof Router['events'],
 }
 
-export interface ISingletonRouter extends ISingletonRouterBase, IPublicRouterInstance {}
+export type SingletonRouter = SingletonRouterBase & PublicRouterInstance
 
-const SingletonRouter: ISingletonRouterBase = {
+const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
   readyCallbacks: [],
   ready(cb: () => void) {
@@ -31,16 +31,14 @@ const SingletonRouter: ISingletonRouterBase = {
   },
 }
 
-// const x = SingletonRouter as IRealRouter
-
-// Create public properties and methods of the router in the SingletonRouter
+// Create public properties and methods of the router in the singletonRouter
 const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
 const propertyFields = ['components']
 const routerEvents = ['routeChangeStart', 'beforeHistoryChange', 'routeChangeComplete', 'routeChangeError', 'hashChangeStart', 'hashChangeComplete']
 const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
 
 // Events is a static property on the router, the router doesn't have to be initialized to use it
-Object.defineProperty(SingletonRouter, 'events', {
+Object.defineProperty(singletonRouter, 'events', {
   get() {
     return Router.events
   },
@@ -51,7 +49,7 @@ propertyFields.concat(urlPropertyFields).forEach((field) => {
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
   // proper way to access it
-  Object.defineProperty(SingletonRouter, field, {
+  Object.defineProperty(singletonRouter, field, {
     get() {
       const router = getRouter() as any
       return router[field] as string
@@ -61,20 +59,20 @@ propertyFields.concat(urlPropertyFields).forEach((field) => {
 
 coreMethodFields.forEach((field) => {
   // We don't really know the types here, so we add them later instead
-  (SingletonRouter as any)[field] = (...args: any[]) => {
+  (singletonRouter as any)[field] = (...args: any[]) => {
     const router = getRouter() as any
     return router[field](...args)
   }
 })
 
 routerEvents.forEach((event) => {
-  SingletonRouter.ready(() => {
+  singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(1)}`
-      const singletonRouter = SingletonRouter as any
-      if (singletonRouter[eventField]) {
+      const _singletonRouter = singletonRouter as any
+      if (_singletonRouter[eventField]) {
         try {
-          singletonRouter[eventField](...args)
+          _singletonRouter[eventField](...args)
         } catch (err) {
           // tslint:disable-next-line:no-console
           console.error(`Error when running the Router event: ${eventField}`)
@@ -87,16 +85,16 @@ routerEvents.forEach((event) => {
 })
 
 function getRouter() {
-  if (!SingletonRouter.router) {
+  if (!singletonRouter.router) {
     const message = 'No router instance found.\n' +
       'You should only use "next/router" inside the client side of your app.\n'
     throw new Error(message)
   }
-  return SingletonRouter.router
+  return singletonRouter.router
 }
 
-// Export the SingletonRouter and this is the public API.
-export default SingletonRouter as ISingletonRouter
+// Export the singletonRouter and this is the public API.
+export default singletonRouter as SingletonRouter
 
 // Reexport the withRoute HOC
 export { default as withRouter } from './with-router'
@@ -117,15 +115,15 @@ export function useRequest() {
 // This is used in client side when we are initilizing the app.
 // This should **not** use inside the server.
 export const createRouter = (...args: RouterArgs) => {
-  SingletonRouter.router = new Router(...args)
-  SingletonRouter.readyCallbacks.forEach((cb) => cb())
-  SingletonRouter.readyCallbacks = []
+  singletonRouter.router = new Router(...args)
+  singletonRouter.readyCallbacks.forEach((cb) => cb())
+  singletonRouter.readyCallbacks = []
 
-  return SingletonRouter.router
+  return singletonRouter.router
 }
 
 // This function is used to create the `withRouter` router instance
-export function makePublicRouterInstance(router: Router): IPublicRouterInstance {
+export function makePublicRouterInstance(router: Router): PublicRouterInstance {
   const _router = router as any
   const instance = {} as any
 

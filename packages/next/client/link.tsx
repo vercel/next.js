@@ -1,13 +1,14 @@
 /* global __NEXT_DATA__ */
+declare const __NEXT_DATA__: any
 
-import { resolve, parse } from 'url'
+import { resolve, parse, UrlObject } from 'url'
 import React, { Component, Children } from 'react'
 import PropTypes from 'prop-types'
-import Router from 'next/router'
+import Router from './router'
 import { rewriteUrlForNextExport } from 'next-server/dist/lib/router/rewrite-url-for-export'
 import { execOnce, formatWithValidation, getLocationOrigin } from 'next-server/dist/lib/utils'
 
-function isLocal (href) {
+function isLocal(href: string) {
   const url = parse(href, false, true)
   const origin = parse(getLocationOrigin(), false, true)
 
@@ -15,12 +16,15 @@ function isLocal (href) {
     (url.protocol === origin.protocol && url.host === origin.host)
 }
 
-function memoizedFormatUrl (formatFunc) {
-  let lastHref = null
-  let lastAs = null
-  let lastResult = null
-  return (href, as) => {
-    if (href === lastHref && as === lastAs) {
+type Url = string|UrlObject
+type FormatResult = {href: string, as?: string}
+
+function memoizedFormatUrl(formatFunc: (href: Url, as?: Url) => FormatResult) {
+  let lastHref: null|Url = null
+  let lastAs: undefined|null|Url = null
+  let lastResult: null|FormatResult = null
+  return (href: Url, as?: Url) => {
+    if (lastResult && href === lastHref && as === lastAs) {
       return lastResult
     }
 
@@ -32,18 +36,30 @@ function memoizedFormatUrl (formatFunc) {
   }
 }
 
-function formatUrl (url) {
+function formatUrl(url: Url) {
   return url && typeof url === 'object'
     ? formatWithValidation(url)
     : url
 }
 
-class Link extends Component {
-  componentDidMount () {
+type LinkProps = {
+  href: Url,
+  as?: Url|undefined,
+  replace?: boolean,
+  prefetch?: boolean,
+  scroll?: boolean,
+  shallow?: boolean,
+  passHref?: boolean
+  onError?: (error: Error) => void,
+}
+
+class Link extends Component<LinkProps> {
+  static propTypes?: any
+  componentDidMount() {
     this.prefetch()
   }
 
-  componentDidUpdate (prevProps) {
+  componentDidUpdate(prevProps: LinkProps) {
     if (JSON.stringify(this.props.href) !== JSON.stringify(prevProps.href)) {
       this.prefetch()
     }
@@ -54,11 +70,12 @@ class Link extends Component {
   formatUrls = memoizedFormatUrl((href, asHref) => {
     return {
       href: formatUrl(href),
-      as: formatUrl(asHref, true)
+      as: asHref ? formatUrl(asHref) : asHref,
     }
   })
 
-  linkClicked = e => {
+  linkClicked = (e: React.MouseEvent) => {
+    // @ts-ignore target exists on currentTarget
     const { nodeName, target } = e.currentTarget
     if (nodeName === 'A' &&
       ((target && target !== '_self') || e.metaKey || e.ctrlKey || e.shiftKey || (e.nativeEvent && e.nativeEvent.which === 2))) {
@@ -87,19 +104,19 @@ class Link extends Component {
 
     // replace state instead of push if prop is present
     Router[this.props.replace ? 'replace' : 'push'](href, as, { shallow: this.props.shallow })
-      .then((success) => {
+      .then((success: boolean) => {
         if (!success) return
         if (scroll) {
           window.scrollTo(0, 0)
           document.body.focus()
         }
       })
-      .catch((err) => {
+      .catch((err: any) => {
         if (this.props.onError) this.props.onError(err)
       })
   };
 
-  prefetch () {
+  prefetch() {
     if (!this.props.prefetch) return
     if (typeof window === 'undefined') return
 
@@ -110,25 +127,28 @@ class Link extends Component {
     Router.prefetch(href)
   }
 
-  render () {
+  render() {
     let { children } = this.props
-    let { href, as } = this.formatUrls(this.props.href, this.props.as)
+    const { href, as } = this.formatUrls(this.props.href, this.props.as)
     // Deprecated. Warning shown by propType check. If the childen provided is a string (<Link>example</Link>) we wrap it in an <a> tag
     if (typeof children === 'string') {
       children = <a>{children}</a>
     }
 
     // This will return the first child, if multiple are provided it will throw an error
-    const child = Children.only(children)
-    const props = {
-      onClick: (e) => {
+    const child: any = Children.only(children)
+    const props: {
+      onClick: React.MouseEventHandler,
+      href?: string,
+    } = {
+      onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
         }
         if (!e.defaultPrevented) {
           this.linkClicked(e)
         }
-      }
+      },
     }
 
     // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
@@ -168,7 +188,7 @@ if (process.env.NODE_ENV === 'development') {
     scroll: PropTypes.bool,
     children: PropTypes.oneOfType([
       PropTypes.element,
-      (props, propName) => {
+      (props: any, propName) => {
         const value = props[propName]
 
         if (typeof value === 'string') {
@@ -176,8 +196,8 @@ if (process.env.NODE_ENV === 'development') {
         }
 
         return null
-      }
-    ]).isRequired
+      },
+    ]).isRequired,
   })
 }
 
