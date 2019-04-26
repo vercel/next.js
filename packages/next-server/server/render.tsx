@@ -2,9 +2,9 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { IRouterInterface } from '../lib/router/router'
+import { BaseRouter } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt';
-import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, IDocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
+import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
@@ -28,7 +28,7 @@ function noRouter() {
   throw new Error(message)
 }
 
-class ServerRouter implements IRouterInterface {
+class ServerRouter implements BaseRouter {
   route: string
   pathname: string
   query: string
@@ -160,7 +160,7 @@ function renderDocument(
   }: RenderOpts & {
     dataManagerData: string,
     props: any
-    docProps: IDocumentInitialProps
+    docProps: DocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
     dangerousAsPath: string
