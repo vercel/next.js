@@ -1,4 +1,3 @@
-import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -7,7 +6,6 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
-import { promisify } from 'util'
 import webpack from 'webpack'
 
 import {
@@ -34,8 +32,6 @@ import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 import typescriptFormatter from '../lib/typescriptFormatter'
 import verifyTypeScriptSetup from '../lib/verifyTypeScriptSetup'
-
-const fileExists = promisify(fs.exists)
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -111,8 +107,6 @@ export default async function getBaseWebpackConfig(
           ),
       }
     : undefined
-
-  const useTypeScript = await fileExists(path.join(dir, 'tsconfig.json'))
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -508,22 +502,17 @@ export default async function getBaseWebpackConfig(
             `profile-events-${isServer ? 'server' : 'client'}.json`
           ),
         }),
-      useTypeScript && new ForkTsCheckerWebpackPlugin({
-        typescript: typeScriptPath,
-        async: true,
-        useTypescriptIncrementalApi: true,
-        checkSyntacticErrors: false,
-        tsconfig: tsConfigPath,
-        reportFiles: [
-          '**',
-          '!**/__tests__/**',
-          '!**/?(*.)(spec|test).*',
-          '!**/src/setupProxy.*',
-          '!**/src/setupTests.*',
-        ],
-        silent: false,
-        formatter: typescriptFormatter
-      }),
+      useTypeScript &&
+        new ForkTsCheckerWebpackPlugin({
+          typescript: typeScriptPath,
+          async: true,
+          useTypescriptIncrementalApi: true,
+          checkSyntacticErrors: false,
+          tsconfig: tsConfigPath,
+          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+          silent: false,
+          formatter: typescriptFormatter,
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
