@@ -1,4 +1,5 @@
 import path from 'path'
+import nodeLibsBrowser from 'node-libs-browser'
 import webpack from 'next/dist/compiled/webpack'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -29,6 +30,19 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
     }
   }
 
+  const nodeLibs: any = {}
+
+  if (!isServer) {
+    for (const key in nodeLibsBrowser) {
+      if (key === 'module') continue
+      const lib = nodeLibsBrowser[key]
+
+      if (typeof lib === 'string') {
+        nodeLibs[key] = lib
+      }
+    }
+  }
+
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
@@ -52,6 +66,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
       ...nodePathList // Support for NODE_PATH environment variable
     ],
     alias: {
+      ...nodeLibs,
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
       'next/head': 'next-server/dist/lib/head.js',
@@ -77,6 +92,7 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
   const sharedRuntime = config.experimental.sharedRuntime && target === 'serverless'
 
   let webpackConfig: webpack.Configuration = {
+    node: false, // handle node libs manually
     mode: webpackMode,
     devtool: dev ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
@@ -261,7 +277,9 @@ export default function getBaseWebpackConfig (dir: string, {dev = false, isServe
         ...(dev && !isServer ? {
           'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir)
         } : {}),
-        'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash)
+        'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(config.experimental.exportTrailingSlash),
+        'global': {},
+        'process': {},
       }),
       !isServer && new ReactLoadablePlugin({
         filename: REACT_LOADABLE_MANIFEST

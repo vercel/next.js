@@ -3,6 +3,11 @@ declare module 'next-server/next-config';
 declare module 'next-server/constants';
 declare module 'next/dist/compiled/webpack/lib/GraphHelpers';
 
+declare module 'node-libs-browser' {
+  const nodeLibsBrowser: any;
+
+  export = nodeLibsBrowser
+}
 
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string;
