@@ -1894,7 +1894,9 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
     "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
     "moduleResolution": "node", /* Determine how modules get resolved. */
     "allowSyntheticDefaultImports": true, /* Allow default imports from modules with no default export. */
-
+    "isolatedModules": true, /* to match webpack loader */
+    "esModuleInterop": true, /* matches compilation setting */
+    
     /* Strict Type-Checking Options, optional, but recommended. */
     "strict": true /* Enable all strict type-checking options. */,
     "noImplicitAny": true /* Raise error on expressions and declarations with an implied 'any' type. */,
