@@ -103,7 +103,7 @@ jobs:
       - yarn_lint
       - *persist_to_workspace
   test:
-    parallelism: 4
+    parallelism: 3
     executor: node
     steps:
       - *attach_workspace
