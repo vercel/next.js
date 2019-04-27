@@ -3,18 +3,18 @@
 import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps, IContext, IAppContext } from '../utils';
+import { formatWithValidation, getURL, loadGetInitialProps, IContext, AppContextType } from '../utils';
 import {rewriteUrlForNextExport} from './rewrite-url-for-export'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-export interface IRouterInterface {
+export type BaseRouter = {
   route: string
   pathname: string
   query: string
-  asPath: string
+  asPath: string,
 }
 
 type RouteInfo = {
@@ -28,7 +28,7 @@ type Subscription = (data: {App?: ComponentType} & RouteInfo) => void
 
 type BeforePopStateCallback = (state: any) => boolean
 
-export default class Router implements IRouterInterface {
+export default class Router implements BaseRouter {
   route: string
   pathname: string
   query: string
@@ -460,7 +460,7 @@ export default class Router implements IRouterInterface {
     this.componentLoadCancel = cancel
     const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps<IAppContext<Router>>(App, { Component, router: this, ctx })
+    const props = await loadGetInitialProps<AppContextType<Router>>(App, { Component, router: this, ctx })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null

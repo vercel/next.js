@@ -9,11 +9,11 @@ const statusCodes: { [code: number]: string } = {
   501: 'Not Implemented',
 }
 
-export interface IErrorProps {
-  statusCode: number
+export type ErrorProps = {
+  statusCode: number,
 }
 
-export default class Error<P = {}> extends React.Component<P & IErrorProps> {
+export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static displayName = 'ErrorPage'
 
   static getInitialProps({ res, err }: IContext) {
