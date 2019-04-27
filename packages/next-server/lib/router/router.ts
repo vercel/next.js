@@ -105,15 +105,15 @@ export default class Router implements BaseRouter {
       return
     }
 
-    // Make sure we don't re-render on initial load,
-    // can be caused by navigating back from an external site
-    if (e.state.options && e.state.options.fromExternal) {
-      return
-    }
-
     // If the downstream application returns falsy, return.
     // They will then be responsible for handling the event.
     if (this._bps && !this._bps(e.state)) {
+      return
+    }
+
+    // Make sure we don't re-render on initial load,
+    // can be caused by navigating back from an external site
+    if (e.state.options && e.state.options.fromExternal) {
       return
     }
 
