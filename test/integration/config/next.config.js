@@ -1,6 +1,6 @@
 const withCSS = require('@zeit/next-css')
 const withSass = require('@zeit/next-sass')
-const webpack = require('webpack')
+const webpack = require('next/dist/compiled/webpack')
 const path = require('path')
 module.exports = withCSS(withSass({
   onDemandEntries: {
