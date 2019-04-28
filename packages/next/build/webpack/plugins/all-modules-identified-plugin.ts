@@ -1,6 +1,6 @@
+import { Compiler, Plugin } from 'next/dist/compiled/webpack'
 import { createHash } from 'crypto'
 import path from 'path'
-import { Compiler, Plugin } from 'webpack'
 
 /**
  * From escape-string-regexp: https://github.com/sindresorhus/escape-string-regexp

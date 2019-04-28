@@ -56,9 +56,9 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
-    "@types/react": "16.8.4",
-    "@types/react-dom": "16.8.2",
-    "@types/react-is": "16.5.0",
+    "@types/react": "16.8.10",
+    "@types/react-dom": "16.8.3",
+    "@types/react-is": "16.7.1",
     "@types/send": "0.14.4",
     "taskr": "1.1.0",
     "typescript": "3.1.6"
