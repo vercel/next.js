@@ -1,9 +1,9 @@
 import { relative as relativePath, join, normalize, sep } from 'path'
-import WebpackDevMiddleware from 'next/dist/compiled/webpack-dev-middleware'
-import WebpackHotMiddleware from 'next/dist/compiled/webpack-hot-middleware'
+import WebpackDevMiddleware from 'webpack-dev-middleware'
+import WebpackHotMiddleware from 'webpack-hot-middleware'
 import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import onDemandEntryHandler, { normalizePage } from './on-demand-entry-handler'
-import webpack from 'next/dist/compiled/webpack'
+import webpack from 'webpack'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { IS_BUNDLED_PAGE_REGEX, ROUTE_NAME_REGEX, BLOCKED_PAGES, CLIENT_STATIC_FILES_RUNTIME_AMP } from 'next-server/constants'
 import { NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
@@ -12,6 +12,11 @@ import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { promisify } from 'util'
+import fs from 'fs'
+
+const access = promisify(fs.access)
+const readFile = promisify(fs.readFile)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -133,6 +138,23 @@ export default class HotReloader {
           await renderScriptError(res, error)
           return { finished: true }
         }
+
+        const bundlePath = join(
+          this.dir,
+          this.config.distDir,
+          'static/development/pages', page + '.js'
+        )
+
+        // make sure to 404 for AMP bundles in case they weren't removed
+        try {
+          await access(bundlePath)
+          const data = await readFile(bundlePath, 'utf8')
+          if (data.includes('__NEXT_DROP_CLIENT_FILE__')) {
+            res.statusCode = 404
+            res.end()
+            return { finished: true }
+          }
+        } catch (_) {}
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {

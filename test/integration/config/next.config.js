@@ -1,6 +1,5 @@
 const withCSS = require('@zeit/next-css')
 const withSass = require('@zeit/next-sass')
-const webpack = require('next/dist/compiled/webpack')
 const path = require('path')
 module.exports = withCSS(withSass({
   onDemandEntries: {
@@ -18,7 +17,7 @@ module.exports = withCSS(withSass({
   env: {
     customVar: 'hello'
   },
-  webpack (config, { buildId }) {
+  webpack (config, { buildId, webpack }) {
     // When next-css is `npm link`ed we have to solve loaders from the project root
     const nextLocation = path.join(require.resolve('next/package.json'), '../')
     const nextCssNodeModulesLocation = path.join(
