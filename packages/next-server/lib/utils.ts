@@ -8,8 +8,8 @@ import { BaseRouter } from './router/router'
 /**
  * Types used by both next and next-server
  */
-export type NextComponentType<C extends BaseContext = any, P = any, CP = {}> = ComponentType<CP> & {
-  getInitialProps?(context: C): Promise<P>,
+export type NextComponentType<C extends BaseContext = IContext, IP = {}, P = {}> = ComponentType<P> & {
+  getInitialProps?(context: C): Promise<IP>,
 }
 
 export type DocumentType = NextComponentType<DocumentContext, DocumentInitialProps, DocumentProps>
@@ -123,7 +123,7 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
-export async function loadGetInitialProps<C extends BaseContext, P = any, CP = {}>(Component: NextComponentType<C, P, CP>, ctx: C): Promise<P | null> {
+export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}>(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP | null> {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
       const message = `"${getDisplayName(Component)}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
