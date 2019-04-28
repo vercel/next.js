@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "8.1.1-canary.18",
+  "version": "8.1.1-canary.19",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -55,7 +55,6 @@
     ]
   },
   "dependencies": {
-    "autodll-webpack-plugin": "0.4.2",
     "@babel/core": "7.1.2",
     "@babel/plugin-proposal-class-properties": "7.1.0",
     "@babel/plugin-proposal-object-rest-spread": "7.0.0",
@@ -69,6 +68,7 @@
     "@babel/runtime-corejs2": "7.1.2",
     "amphtml-validator": "1.0.23",
     "async-sema": "2.2.0",
+    "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.2",
     "babel-plugin-react-require": "3.0.0",
@@ -80,7 +80,7 @@
     "launch-editor": "2.2.1",
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
-    "next-server": "8.1.1-canary.18",
+    "next-server": "8.1.1-canary.19",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.4",
