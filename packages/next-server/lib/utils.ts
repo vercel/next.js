@@ -64,8 +64,8 @@ export type AppInitialProps = {
   pageProps: any,
 }
 
-export type AppPropsType<R extends BaseRouter = BaseRouter> = AppInitialProps & {
-  Component: NextComponentType<IContext>
+export type AppPropsType<R extends BaseRouter = BaseRouter, P = {}> = AppInitialProps & {
+  Component: NextComponentType<IContext, any, P>
   router: R,
 }
 
