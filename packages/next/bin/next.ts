@@ -11,12 +11,6 @@ import arg from 'next/dist/compiled/arg/index.js'
   }
 })
 
-const React = require('react')
-
-if (typeof React.Suspense === 'undefined') {
-  throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
-}
-
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: {[command: string]: () => Promise<cliCommand>} = {
@@ -73,6 +67,13 @@ if (!foundCommand && args['--help']) {
 
 const command = foundCommand ? args._[0] : defaultCommand
 const forwardedArgs = foundCommand ? args._.slice(1) : args._
+
+if (command !== 'start') {
+  const React = require('react')
+  if (typeof React.Suspense === 'undefined') {
+    throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
+  }
+}
 
 if (args['--inspect']) throw new Error(`Use env variable NODE_OPTIONS instead: NODE_OPTIONS="--inspect" next ${command}`)
 
