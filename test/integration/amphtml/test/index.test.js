@@ -256,7 +256,7 @@ describe('AMP Usage', () => {
     })
   })
 
-  describe('editing a page', () => {
+  describe('AMP dev mode', () => {
     let dynamicAppPort
     let ampDynamic
 
@@ -266,6 +266,13 @@ describe('AMP Usage', () => {
     })
 
     afterAll(() => killApp(ampDynamic))
+
+    it('should navigate from non-AMP to AMP without error', async () => {
+      const browser = await webdriver(dynamicAppPort, '/normal')
+      await browser.elementByCss('#to-amp').click()
+      await browser.waitForElementByCss('#only-amp')
+      expect(await browser.elementByCss('#only-amp').text()).toMatch(/Only AMP/)
+    })
 
     it('should detect the changes and display it', async () => {
       let browser

@@ -132,6 +132,13 @@ export default class HotReloader {
 
       const page = `/${params.path.join('/')}`
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
+        try {
+          await this.ensurePage(page)
+        } catch (error) {
+          await renderScriptError(res, error)
+          return { finished: true }
+        }
+
         const bundlePath = join(
           this.dir,
           this.config.distDir,
@@ -148,13 +155,6 @@ export default class HotReloader {
             return { finished: true }
           }
         } catch (_) {}
-
-        try {
-          await this.ensurePage(page)
-        } catch (error) {
-          await renderScriptError(res, error)
-          return { finished: true }
-        }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {

@@ -1,3 +1,7 @@
 import { withAmp } from 'next/amp'
 
-export default withAmp(() => <div>Only AMP for me...</div>)
+export default withAmp(() => (
+  <div>
+    <p id='only-amp'>Only AMP for me...</p>
+  </div>
+))
