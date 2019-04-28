@@ -62,6 +62,13 @@ describe('Production Usage', () => {
       expect(header).toBe('Next.js')
     })
 
+    it('should set correct cache-control header when no GIP', async () => {
+      const url = `http://localhost:${appPort}/`
+      const header = (await fetch(url)).headers.get('Cache-Control')
+
+      expect(header).toBe('s-maxage=86400, stale-while-revalidate')
+    })
+
     it('should render 404 for routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/abcdefghijklmno`
       const res = await fetch(url)
