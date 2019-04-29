@@ -141,7 +141,16 @@ export default class HotReloader {
         )
 
         // make sure to 404 for AMP bundles in case they weren't removed
-        const info = await getPageInfo(page, distPath, '', true)
+        const info = await getPageInfo(
+          page,
+          distPath,
+          '',
+          true,
+          {
+            serverRuntimeConfig: this.config.serverRuntimeConfig,
+            publicRuntimeConfig: this.config.publicRuntimeConfig
+          }
+        )
         if (info.ampOnly) {
           res.statusCode = 404
           res.end()

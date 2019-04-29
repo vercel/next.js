@@ -243,7 +243,17 @@ export default async function build(dir: string, conf = null): Promise<void> {
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
     const actualPage = page === '/' ? 'index' : page
-    const info = await getPageInfo(actualPage, distPath, buildId, false, config.target === 'serverless')
+    const info = await getPageInfo(
+      actualPage,
+      distPath,
+      buildId,
+      false,
+      {
+        serverRuntimeConfig: config.serverRuntimeConfig,
+        publicRuntimeConfig: config.publicRuntimeConfig
+      },
+      config.target === 'serverless'
+    )
 
     if (info.ampOnly) {
       try {

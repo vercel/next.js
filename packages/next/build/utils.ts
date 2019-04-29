@@ -216,6 +216,7 @@ export async function getPageInfo(
   distPath: string,
   buildId: string,
   dev: boolean,
+  runtimeConfig: {} = {},
   serverless?: boolean,
 ) {
   const info: any = {}
@@ -240,6 +241,9 @@ export async function getPageInfo(
   }
 
   if (page.match(/(_app|_error|_document)/)) return info
+
+  const {setConfig} = require('next/config')
+  setConfig(runtimeConfig)
 
   const mod = interopDefault(require(serverBundle))
   info.ampOnly = mod.__nextAmpOnly === true
