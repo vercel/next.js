@@ -502,7 +502,8 @@ export default async function getBaseWebpackConfig(
             `profile-events-${isServer ? 'server' : 'client'}.json`
           ),
         }),
-      useTypeScript &&
+      !isServer &&
+        useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
           typescript: pathTypeScript,
           async: false,
