@@ -12,11 +12,7 @@ import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
-import { promisify } from 'util'
-import fs from 'fs'
-
-const access = promisify(fs.access)
-const readFile = promisify(fs.readFile)
+import { getPageInfo } from '../build/utils'
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -139,22 +135,18 @@ export default class HotReloader {
           return { finished: true }
         }
 
-        const bundlePath = join(
+        const distPath = join(
           this.dir,
-          this.config.distDir,
-          'static/development/pages', page + '.js'
+          this.config.distDir
         )
 
         // make sure to 404 for AMP bundles in case they weren't removed
-        try {
-          await access(bundlePath)
-          const data = await readFile(bundlePath, 'utf8')
-          if (data.includes('__NEXT_DROP_CLIENT_FILE__')) {
-            res.statusCode = 404
-            res.end()
-            return { finished: true }
-          }
-        } catch (_) {}
+        const info = await getPageInfo(page, distPath, '', true)
+        if (info.ampOnly) {
+          res.statusCode = 404
+          res.end()
+          return { finished: true }
+        }
 
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {

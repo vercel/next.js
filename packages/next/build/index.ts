@@ -5,7 +5,9 @@ import {
 } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
+import { promisify } from 'util'
 import path from 'path'
+import fs from 'fs'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -20,10 +22,13 @@ import {
   getFileForPage,
   getSpecifiedPages,
   printTreeView,
+  getPageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
+import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
+
+const fsUnlink = promisify(fs.unlink)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -231,16 +236,36 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  let ampPages = new Set()
+  const pageInfos = new Map()
+  const distPath = path.join(dir, config.distDir)
+  let pageKeys = Object.keys(mappedPages)
 
-  if (Array.isArray(configs[0].plugins)) {
-    configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) ampPages = plugin.ampPages
-      return Boolean(plugin.ampPages)
+  for (const page of pageKeys) {
+    const chunks = getPageChunks(page)
+    const actualPage = page === '/' ? 'index' : page
+    const info = await getPageInfo(actualPage, distPath, buildId, false, config.target === 'serverless')
+
+    if (info.ampOnly) {
+      try {
+        await fsUnlink(info.clientBundle)
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error
+        }
+      }
+    }
+
+    pageInfos.set(page, {
+      ...(info || {}),
+      chunks
     })
+
+    if (!(typeof info.serverSize === 'number')) {
+      pageKeys = pageKeys.filter(pg => pg !== page)
+    }
   }
 
-  printTreeView(Object.keys(mappedPages), ampPages)
+  printTreeView(pageKeys, pageInfos)
 
   if (flyingShuttle) {
     await flyingShuttle.save()

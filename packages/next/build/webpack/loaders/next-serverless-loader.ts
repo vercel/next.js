@@ -41,6 +41,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
+    export default Component
     async function renderReqToHTML(req, res) {
       const options = {
         App,
