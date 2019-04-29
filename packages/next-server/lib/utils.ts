@@ -133,7 +133,9 @@ export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}
 
   if (!Component.getInitialProps) {
     if (ctx.res && ctx.res.setHeader) {
-      ctx.res.setHeader('Cache-Control', 'stale-while-revalidate=30')
+      ctx.res.setHeader(
+        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
+      )
     }
     return null
   }
