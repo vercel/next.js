@@ -68,6 +68,10 @@ function findEntryModule (issuer) {
 function erroredPages (compilation, options = { enhanceName: (name) => name }) {
   const failedPages = {}
   for (const error of compilation.errors) {
+    if (!error.origin) {
+      continue
+    }
+
     const entryModule = findEntryModule(error.origin)
     const { name } = entryModule
     if (!name) {
