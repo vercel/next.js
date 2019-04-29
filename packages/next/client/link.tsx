@@ -55,6 +55,8 @@ type LinkProps = {
 
 let observer: IntersectionObserver
 const listeners = new Map()
+const IntersectionObserver = typeof window !== 'undefined'
+  ? (window as any).IntersectionObserver : null
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -63,14 +65,13 @@ function getObserver() {
   }
 
   // Only create shared IntersectionObserver if supported in browser
-  if (typeof window === 'undefined' || !(window as any).IntersectionObserver) {
+  if (!IntersectionObserver) {
     return undefined
   }
 
-  return (observer = new ((window as any)
-    .IntersectionObserver as typeof IntersectionObserver)(
-      (entries) => {
-        entries.forEach((entry) => {
+  return (observer = new IntersectionObserver(
+      (entries: any) => {
+        entries.forEach((entry: any) => {
         if (!listeners.has(entry.target)) {
           return
         }
@@ -114,7 +115,7 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: any) {
-    if (typeof (window as any).IntersectionObserver !== 'undefined' && ref) {
+    if (IntersectionObserver && ref) {
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })
