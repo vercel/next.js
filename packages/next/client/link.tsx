@@ -53,37 +53,37 @@ type LinkProps = {
   onError?: (error: Error) => void,
 }
 
-let io: IntersectionObserver
+let observer: IntersectionObserver
 const listeners = new WeakMap()
 
-function getIO() {
+function getObserver() {
   if (
-    typeof io === `undefined` &&
+    typeof observer === 'undefined' &&
     IntersectionObserver
   ) {
-    io = new IntersectionObserver(
+    observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (listeners.has(entry.target)) {
             const cb = listeners.get(entry.target)
-            // Edge doesn't currently support isIntersecting, so also test for an intersectionRatio > 0
+
             if (entry.isIntersecting || entry.intersectionRatio > 0) {
-              io.unobserve(entry.target)
+              observer.unobserve(entry.target)
               listeners.delete(entry.target)
               cb()
             }
           }
         })
       },
-      { rootMargin: `200px` },
+      { rootMargin: '200px' },
     )
   }
 
-  return io
+  return observer
 }
 
 const listenToIntersections = (el: any, cb: any) => {
-  const observer = getIO()
+  const observer = getObserver()
 
   if (observer) {
     observer.observe(el)
