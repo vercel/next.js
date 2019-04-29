@@ -43,25 +43,76 @@ function formatUrl(url: Url) {
 }
 
 type LinkProps = {
+  elRef: any,
   href: Url,
   as?: Url|undefined,
   replace?: boolean,
-  prefetch?: boolean,
   scroll?: boolean,
   shallow?: boolean,
   passHref?: boolean
   onError?: (error: Error) => void,
 }
 
-class Link extends Component<LinkProps> {
-  static propTypes?: any
-  componentDidMount() {
-    this.prefetch()
+let io: IntersectionObserver
+const listeners = new WeakMap()
+
+function getIO() {
+  if (
+    typeof io === `undefined` &&
+    IntersectionObserver
+  ) {
+    io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (listeners.has(entry.target)) {
+            const cb = listeners.get(entry.target)
+            // Edge doesn't currently support isIntersecting, so also test for an intersectionRatio > 0
+            if (entry.isIntersecting || entry.intersectionRatio > 0) {
+              io.unobserve(entry.target)
+              listeners.delete(entry.target)
+              cb()
+            }
+          }
+        })
+      },
+      { rootMargin: `200px` },
+    )
   }
 
-  componentDidUpdate(prevProps: LinkProps) {
-    if (JSON.stringify(this.props.href) !== JSON.stringify(prevProps.href)) {
-      this.prefetch()
+  return io
+}
+
+const listenToIntersections = (el: any, cb: any) => {
+  const observer = getIO()
+
+  if (observer) {
+    observer.observe(el)
+    listeners.set(el, cb)
+  }
+
+  return () => {
+    observer.unobserve(el)
+    listeners.delete(el)
+  }
+}
+
+class Link extends Component<LinkProps> {
+  static propTypes?: any
+  cleanUpListeners = () => {}
+
+  componentDidMount() {
+    this.cleanUpListeners = () => {}
+  }
+
+  componentWillUnmount() {
+    this.cleanUpListeners()
+  }
+
+  handleRef(ref: any) {
+    if (IntersectionObserver && ref) {
+      this.cleanUpListeners = listenToIntersections(ref, () => {
+        this.prefetch()
+      })
     }
   }
 
@@ -117,7 +168,6 @@ class Link extends Component<LinkProps> {
   };
 
   prefetch() {
-    if (!this.props.prefetch) return
     if (typeof window === 'undefined') return
 
     // Prefetch the JSON page if asked (only in the client)
@@ -140,7 +190,9 @@ class Link extends Component<LinkProps> {
     const props: {
       onClick: React.MouseEventHandler,
       href?: string,
+      ref?: any,
     } = {
+      ref: (el: any) => this.handleRef(el),
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
