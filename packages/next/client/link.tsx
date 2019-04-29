@@ -57,39 +57,44 @@ let observer: IntersectionObserver
 const listeners = new WeakMap()
 
 function getObserver() {
-  if (
-    typeof observer === 'undefined' &&
-    IntersectionObserver
-  ) {
-    observer = new IntersectionObserver(
+  // Return shared instance of IntersectionObserver if already created
+  if (observer) {
+    return observer
+  }
+
+  // Only create shared IntersectionObserver if supported in browser
+  if (typeof window === 'undefined' || !(window as any).IntersectionObserver) {
+    return undefined
+  }
+
+  return (observer = new ((window as any)
+    .IntersectionObserver as typeof IntersectionObserver)(
       (entries) => {
         entries.forEach((entry) => {
-          if (listeners.has(entry.target)) {
-            const cb = listeners.get(entry.target)
+        if (!listeners.has(entry.target)) {
+          return
+        }
 
-            if (entry.isIntersecting || entry.intersectionRatio > 0) {
+        const cb = listeners.get(entry.target)
+        if (entry.isIntersecting || entry.intersectionRatio > 0) {
               observer.unobserve(entry.target)
               listeners.delete(entry.target)
               cb()
             }
-          }
         })
       },
       { rootMargin: '200px' },
-    )
-  }
-
-  return observer
+  ))
 }
 
 const listenToIntersections = (el: any, cb: any) => {
   const observer = getObserver()
-
-  if (observer) {
-    observer.observe(el)
-    listeners.set(el, cb)
+  if (!observer) {
+    return () => {}
   }
 
+  observer.observe(el)
+  listeners.set(el, cb)
   return () => {
     observer.unobserve(el)
     listeners.delete(el)
