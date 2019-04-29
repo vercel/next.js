@@ -3,7 +3,7 @@ import os from 'os'
 import chalk from 'chalk'
 import { codeFrameColumns as codeFrame } from '@babel/code-frame'
 
-const types: any = { diagnostic: 'TypeScript', lint: 'TSLint' };
+const types: any = { diagnostic: 'TypeScript', lint: 'TSLint' }
 
 export default function formatter(message: any, useColors: boolean) {
   const { type, severity, file, line, content, code, character } =
@@ -17,13 +17,13 @@ export default function formatter(message: any, useColors: boolean) {
           code: message.getCode(),
           character: message.getCharacter(),
         }
-      : message;
+      : message
 
-  const colors = new chalk.constructor({ enabled: useColors });
-  const messageColor = message.isWarningSeverity() ? colors.yellow : colors.red;
-  const fileAndNumberColor = colors.bold.cyan;
+  const colors = new chalk.constructor({ enabled: useColors })
+  const messageColor = message.isWarningSeverity() ? colors.yellow : colors.red
+  const fileAndNumberColor = colors.bold.cyan
 
-  const source = file && fs.existsSync(file) && fs.readFileSync(file, 'utf-8');
+  const source = file && fs.existsSync(file) && fs.readFileSync(file, 'utf-8')
   const frame = source
     ? codeFrame(
         source,
@@ -33,7 +33,7 @@ export default function formatter(message: any, useColors: boolean) {
         .split('\n')
         .map((str: string) => '  ' + str)
         .join(os.EOL)
-    : '';
+    : ''
 
   return [
     messageColor.bold(`${types[type]} ${severity.toLowerCase()} in `) +
@@ -44,5 +44,5 @@ export default function formatter(message: any, useColors: boolean) {
       messageColor.underline((type === 'lint' ? 'Rule: ' : 'TS') + code),
     '',
     frame,
-  ].join(os.EOL);
+  ].join(os.EOL)
 }

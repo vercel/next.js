@@ -1,3 +1,5 @@
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -6,6 +8,7 @@ import {
 } from 'next-server/constants'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
+import { promisify } from 'util'
 import webpack from 'webpack'
 
 import {
@@ -14,6 +17,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
+import typescriptFormatter from '../lib/typescriptFormatter'
 import { WebpackEntrypoints } from './entries'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
@@ -22,7 +26,6 @@ import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
@@ -30,8 +33,8 @@ import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
-import typescriptFormatter from '../lib/typescriptFormatter'
-import verifyTypeScriptSetup from '../lib/verifyTypeScriptSetup'
+
+const fileExists = promisify(fs.exists)
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -79,16 +82,6 @@ export default async function getBaseWebpackConfig(
     .split(process.platform === 'win32' ? ';' : ':')
     .filter(p => !!p)
 
-  let useTypeScript = false
-  let typeScriptPath = ''
-  let tsConfigPath = ''
-
-  if (!isServer) {
-    tsConfigPath = path.join(dir, 'tsconfig.json')
-    typeScriptPath = (await verifyTypeScriptSetup(dir, tsConfigPath)) || ''
-    useTypeScript = Boolean(typeScriptPath)
-  }
-
   const outputDir = target === 'serverless' ? 'serverless' : SERVER_DIRECTORY
   const outputPath = path.join(distDir, isServer ? outputDir : '')
   const totalPages = Object.keys(entrypoints).length
@@ -107,6 +100,13 @@ export default async function getBaseWebpackConfig(
           ),
       }
     : undefined
+
+  let pathTypeScript
+  try {
+    pathTypeScript = resolve.sync('typescript', { basedir: dir })
+  } catch (_) {}
+  const pathTsConfig = path.join(dir, 'tsconfig.json')
+  const useTypeScript = pathTypeScript && (await fileExists(pathTsConfig))
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -504,13 +504,13 @@ export default async function getBaseWebpackConfig(
         }),
       useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
-          typescript: typeScriptPath,
-          async: true,
+          typescript: pathTypeScript,
+          async: false,
           useTypescriptIncrementalApi: true,
-          checkSyntacticErrors: false,
-          tsconfig: tsConfigPath,
+          checkSyntacticErrors: true,
+          tsconfig: pathTsConfig,
           reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-          silent: false,
+          silent: true,
           formatter: typescriptFormatter,
         }),
     ].filter((Boolean as any) as ExcludesFalse),
