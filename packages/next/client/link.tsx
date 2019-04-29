@@ -54,7 +54,7 @@ type LinkProps = {
 }
 
 let observer: IntersectionObserver
-const listeners = new WeakMap()
+const listeners = new Map()
 
 function getObserver() {
   // Return shared instance of IntersectionObserver if already created
@@ -114,7 +114,7 @@ class Link extends Component<LinkProps> {
   }
 
   handleRef(ref: any) {
-    if (IntersectionObserver && ref) {
+    if (typeof (window as any).IntersectionObserver !== 'undefined' && ref) {
       this.cleanUpListeners = listenToIntersections(ref, () => {
         this.prefetch()
       })
