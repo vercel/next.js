@@ -65,6 +65,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
       })
 
       return Promise.all(allEntries)
+        .catch(err => console.error(err))
     })
   }
 

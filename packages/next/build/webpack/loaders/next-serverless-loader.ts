@@ -59,8 +59,8 @@ const nextServerlessLoader: loader.Loader = function () {
           {
             Component,
             dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
-          }, 
-          options, 
+          },
+          options,
         ))
         return result
       } catch (err) {

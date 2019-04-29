@@ -5,7 +5,7 @@ const nextDataLoader: loader.Loader = function (source) {
   const filename = this.resourcePath
   return `
   import {createHook} from 'next/data'
-  
+
   export default createHook(undefined, {key: ${JSON.stringify(basename(filename) + '-' + hash(filename))}})
   `
 }
