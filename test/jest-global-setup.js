@@ -6,7 +6,7 @@ if (process.env.BROWSERSTACK) {
   const browserStackLocal = new Local()
   const localBrowserStackOpts = {
     key: process.env.BROWSERSTACK_ACCESS_KEY,
-    localIdentifier: new Date().getTime() //Adding a unique local identifier to run parallel tests on BrowserStack
+    localIdentifier: new Date().getTime() // Adding a unique local identifier to run parallel tests on BrowserStack
   }
   global.browserStackLocal = browserStackLocal
 

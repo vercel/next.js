@@ -11,7 +11,6 @@ if (process.env.BROWSERSTACK) {
 }
 
 module.exports = async () => {
-  
   if (browser) {
     // Close all remaining browser windows
     try {
