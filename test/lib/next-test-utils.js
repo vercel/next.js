@@ -162,7 +162,7 @@ export function nextExport (dir, { outdir }) {
 
 // Kill a launched app
 export async function killApp (instance) {
-  await fkill(instance.pid)
+  await fkill(instance.pid, { force: true })
 }
 
 export async function startApp (app) {
