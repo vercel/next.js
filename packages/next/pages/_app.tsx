@@ -1,6 +1,6 @@
 import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, NextComponentType, IContext, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
+import { execOnce, loadGetInitialProps, NextComponentType, IContext, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
 import { Router, makePublicRouterInstance } from '../client/router'
 
 export { NextComponentType, IContext, AppInitialProps }
@@ -15,12 +15,7 @@ export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP
   }
 
   static async getInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
-    let pageProps = {}
-
-    if (Component.getInitialProps) {
-      pageProps = await Component.getInitialProps(ctx)
-    }
-
+    const pageProps = await loadGetInitialProps(Component, ctx)
     return { pageProps }
   }
 
