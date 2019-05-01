@@ -13,6 +13,7 @@ import loadConfig from './config'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
+  CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
 } from '../lib/constants'
@@ -266,15 +267,27 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    const html = await this.renderToHTML(req, res, pathname, query, {
-      dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
-    })
-    // Request was ended by the user
-    if (html === null) {
-      return
-    }
+    try {
+      const html = await this.renderToHTML(req, res, pathname, query, {
+        handleError: false,
+        dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
+      })
+      // Request was ended by the user
+      if (html === null) {
+        return
+      }
 
-    return this.sendHTML(req, res, html)
+      return this.sendHTML(req, res, html)
+    } catch (err) {
+      if (err && err.code === 'ENOENT') {
+        // Serve public file
+        const p = join(this.dir, CLIENT_PUBLIC_FILES_PATH, pathname)
+        return this.serveStatic(req, res, p) as any
+      } else {
+        res.statusCode = 500
+        this.renderError(err, req, res, pathname, query)
+      }
+    }
   }
 
   private async renderToHTMLWithComponents(
@@ -293,10 +306,11 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, dataOnly, hasAmp }: {
+    { amphtml, dataOnly, hasAmp, handleError = true }: {
       amphtml?: boolean,
       hasAmp?: boolean,
       dataOnly?: boolean,
+      handleError?: boolean,
     } = {},
   ): Promise<string | null> {
     try {
@@ -310,6 +324,7 @@ export default class Server {
       )
       return html
     } catch (err) {
+      if (!handleError) throw err
       if (err && err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
@@ -391,7 +406,8 @@ export default class Server {
     const resolved = resolve(path)
     if (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0
+      resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
+      resolved.indexOf(join(this.dir, 'public') + sep) !== 0
     ) {
       // Seems like the user is trying to traverse the filesystem.
       return false

@@ -125,6 +125,22 @@ export default async function (dir, options, configuration) {
   const ampValidations = {}
   let hadValidationError = false
 
+  // Copy public directory
+  if (existsSync(join(dir, 'public'))) {
+    log('  copying "public" directory')
+    await cp(
+      join(dir, 'public'),
+      outDir,
+      {
+        expand: true,
+        filter (path) {
+          // Exclude paths used by pages
+          return !exportPathMap['/' + path]
+        }
+      }
+    )
+  }
+
   await Promise.all(
     chunks.map(
       chunk =>
