@@ -23,13 +23,13 @@ import { ChunkGraphPlugin } from './webpack/plugins/chunk-graph-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { importAutoDllPlugin } from './webpack/plugins/dll-import'
 import { HashedChunkIdsPlugin } from './webpack/plugins/hashed-chunk-ids-plugin'
-import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
 import NextJsSSRModuleCachePlugin from './webpack/plugins/nextjs-ssr-module-cache'
 import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
 import { SharedRuntimePlugin } from './webpack/plugins/shared-runtime-plugin'
+import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import { TerserPlugin } from './webpack/plugins/terser-webpack-plugin/src/index'
 
 const fileExists = promisify(fs.exists)
@@ -418,13 +418,12 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
         }),
-      selectivePageBuilding &&
-        new ChunkGraphPlugin(buildId, {
-          dir,
-          distDir,
-          isServer,
-        }),
       !isServer && new DropClientPage(),
+      new ChunkGraphPlugin(buildId, {
+        dir,
+        distDir,
+        isServer,
+      }),
       ...(dev
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations

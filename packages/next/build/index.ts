@@ -20,9 +20,10 @@ import {
   getFileForPage,
   getSpecifiedPages,
   printTreeView,
+  getPageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
+import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -231,16 +232,47 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  let ampPages = new Set()
+  const pageInfos = new Map()
+  const distPath = path.join(dir, config.distDir)
+  let pageKeys = Object.keys(mappedPages)
+
+  for (const page of pageKeys) {
+    const chunks = getPageChunks(page)
+    const actualPage = page === '/' ? 'index' : page
+    const info = await getPageInfo(
+      actualPage,
+      distPath,
+      buildId,
+      false,
+      config.target === 'serverless'
+    )
+
+    pageInfos.set(page, {
+      ...(info || {}),
+      chunks
+    })
+
+    if (!(typeof info.serverSize === 'number')) {
+      pageKeys = pageKeys.filter(pg => pg !== page)
+    }
+  }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) ampPages = plugin.ampPages
+      if (plugin.ampPages) {
+        plugin.ampPages.forEach((pg: any) => {
+          const info = pageInfos.get(pg)
+          if (info) {
+            info.ampOnly = true
+            pageInfos.set(pg, info)
+          }
+        })
+      }
       return Boolean(plugin.ampPages)
     })
   }
 
-  printTreeView(Object.keys(mappedPages), ampPages)
+  printTreeView(pageKeys, pageInfos)
 
   if (flyingShuttle) {
     await flyingShuttle.save()
