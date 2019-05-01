@@ -103,19 +103,11 @@ module.exports = babelLoader.custom(babel => {
       options.overrides = [
         ...(options.overrides || []),
         {
-          test: /next-server[\\/]dist[\\/]lib/,
-          plugins: [
-            commonJsItem
-          ]
-        },
-        {
-          test: /next[\\/]dist[\\/]client/,
-          plugins: [
-            commonJsItem
-          ]
-        },
-        {
-          test: /next[\\/]dist[\\/]pages/,
+          test: [
+            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]client/,
+            /next[\\/]dist[\\/]pages/
+          ],
           plugins: [
             commonJsItem
           ]
