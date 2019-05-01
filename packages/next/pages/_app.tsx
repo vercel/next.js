@@ -1,17 +1,15 @@
 import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
 import { execOnce, loadGetInitialProps, NextComponentType, IContext, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
-import { makePublicRouterInstance } from '../client/router'
+import { Router, makePublicRouterInstance } from '../client/router'
 
 export { NextComponentType, IContext, AppInitialProps }
 
-type Router = import('next-server/dist/lib/router/router').default
-
 export type AppContext = AppContextType<Router>
 
-export type AppProps = AppPropsType<Router>
+export type AppProps<P = {}> = AppPropsType<Router, P>
 
-export default class App extends React.Component<AppProps> {
+export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP>> {
   static childContextTypes = {
     router: PropTypes.object,
   }
@@ -35,7 +33,7 @@ export default class App extends React.Component<AppProps> {
   }
 
   render() {
-    const { router, Component, pageProps } = this.props
+    const { router, Component, pageProps } = this.props as AppProps<CP>
     const url = createUrl(router)
     return (
       <Container>

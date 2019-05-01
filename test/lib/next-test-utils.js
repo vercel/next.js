@@ -75,7 +75,7 @@ export function runNextCommand (argv, options = {}) {
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = { ...process.env, ...options.env, NODE_ENV: undefined }
+  const env = { ...process.env, ...options.env, NODE_ENV: '' }
 
   return new Promise((resolve, reject) => {
     console.log(`Running command "next ${argv.join(' ')}"`)
@@ -162,7 +162,7 @@ export function nextExport (dir, { outdir }) {
 
 // Kill a launched app
 export async function killApp (instance) {
-  await fkill(instance.pid)
+  await fkill(instance.pid, { force: true })
 }
 
 export async function startApp (app) {
