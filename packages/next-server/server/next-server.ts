@@ -3,6 +3,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
+import { promisify } from 'util'
 import fs from 'fs'
 import { renderToHTML } from './render'
 import { sendHTML } from './send-html'
@@ -10,17 +11,22 @@ import { serveStatic } from './serve-static'
 import Router, { route, Route } from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from './config'
+import { recursiveReadDir } from './lib/recursive-readdir'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  SERVER_DIRECTORY,
+  PAGES_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
 
 type NextConfig = any
+
+const access = promisify(fs.access)
 
 export type ServerConstructor = {
   dir?: string
@@ -34,6 +40,7 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
+  publicDir: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -45,6 +52,7 @@ export default class Server {
     assetPrefix?: string,
   }
   router: Router
+  routesPromise?: Promise<void>
 
   public constructor({
     dir = '.',
@@ -57,6 +65,8 @@ export default class Server {
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    // this.pagesDir = join(this.dir, 'pages')
+    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -94,8 +104,11 @@ export default class Server {
       publicRuntimeConfig,
     })
 
-    const routes = this.generateRoutes()
-    this.router = new Router(routes)
+    this.router = new Router()
+    this.routesPromise = this.generateRoutes().then((routes) => {
+      this.router.routes = routes
+      delete this.routesPromise
+    })
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -151,7 +164,7 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private generateRoutes(): Route[] {
+  private async generateRoutes(): Promise<Route[]> {
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -194,6 +207,13 @@ export default class Server {
       },
     ]
 
+    try {
+      await access(this.publicDir)
+      routes.push(...await this.generatePublicRoutes())
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+    }
+
     if (this.nextConfig.useFileSystemPublicRoutes) {
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -215,11 +235,36 @@ export default class Server {
     return routes
   }
 
+  private async generatePublicRoutes(): Promise<Route[]> {
+    const routes: Route[] = []
+    const publicFiles = await recursiveReadDir(this.publicDir)
+    const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
+    const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
+
+    publicFiles.forEach((path) => {
+      const unixPath = path.replace(/\\/g, '/')
+      // Only include public files that will not replace a page path
+      if (!pagesManifest[unixPath]) {
+        routes.push({
+          match: route(unixPath),
+          fn: async (req, res, _params, parsedUrl) => {
+            const p = join(this.publicDir, unixPath)
+            await this.serveStatic(req, res, p, parsedUrl)
+          },
+        })
+      }
+    })
+
+    return routes
+  }
+
   private async run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery,
   ) {
+    if (this.routesPromise) await this.routesPromise
+
     try {
       const fn = this.router.match(req, res, parsedUrl)
       if (fn) {
@@ -267,27 +312,15 @@ export default class Server {
       return this.render404(req, res, parsedUrl)
     }
 
-    try {
-      const html = await this.renderToHTML(req, res, pathname, query, {
-        handleError: false,
-        dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
-      })
-      // Request was ended by the user
-      if (html === null) {
-        return
-      }
-
-      return this.sendHTML(req, res, html)
-    } catch (err) {
-      if (err && err.code === 'ENOENT') {
-        // Serve public file
-        const p = join(this.dir, CLIENT_PUBLIC_FILES_PATH, pathname)
-        return this.serveStatic(req, res, p) as any
-      } else {
-        res.statusCode = 500
-        this.renderError(err, req, res, pathname, query)
-      }
+    const html = await this.renderToHTML(req, res, pathname, query, {
+      dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
+    })
+    // Request was ended by the user
+    if (html === null) {
+      return
     }
+
+    return this.sendHTML(req, res, html)
   }
 
   private async renderToHTMLWithComponents(
@@ -306,11 +339,10 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, dataOnly, hasAmp, handleError = true }: {
+    { amphtml, dataOnly, hasAmp }: {
       amphtml?: boolean,
       hasAmp?: boolean,
       dataOnly?: boolean,
-      handleError?: boolean,
     } = {},
   ): Promise<string | null> {
     try {
@@ -324,7 +356,6 @@ export default class Server {
       )
       return html
     } catch (err) {
-      if (!handleError) throw err
       if (err && err.code === 'ENOENT') {
         res.statusCode = 404
         return this.renderErrorToHTML(null, req, res, pathname, query)
@@ -408,6 +439,7 @@ export default class Server {
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
       resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
       resolved.indexOf(join(this.dir, 'public') + sep) !== 0
+
     ) {
       // Seems like the user is trying to traverse the filesystem.
       return false

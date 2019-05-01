@@ -269,11 +269,11 @@ describe('Production Usage', () => {
     })
 
     it('Should allow access to public files', async () => {
-      const data = await renderViaHTTP(appPort, '/data/data.json')
-      expect(JSON.parse(data)).toEqual({ data: 'data' })
+      const data = await renderViaHTTP(appPort, '/data/data.txt')
+      expect(data).toEqual('data')
     })
 
-    it('Should prioritize pages over public files', async () => {
+    it.only('Should prioritize pages over public files', async () => {
       const html = await renderViaHTTP(appPort, '/about')
       const data = await renderViaHTTP(appPort, '/file')
 
