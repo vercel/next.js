@@ -22,6 +22,8 @@ export type DocumentComponentContext = {
   readonly _devOnlyInvalidateCacheQueryString: string,
 }
 
+export async function middleware({req, res}: DocumentContext) {}
+
 export default class Document<P = {}> extends Component<DocumentProps & P> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
