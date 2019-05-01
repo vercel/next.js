@@ -248,22 +248,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       distPath,
       buildId,
       false,
-      {
-        serverRuntimeConfig: config.serverRuntimeConfig,
-        publicRuntimeConfig: config.publicRuntimeConfig
-      },
       config.target === 'serverless'
     )
-
-    if (info.ampOnly) {
-      try {
-        await fsUnlink(info.clientBundle)
-      } catch (error) {
-        if (error.code !== 'ENOENT') {
-          throw error
-        }
-      }
-    }
 
     pageInfos.set(page, {
       ...(info || {}),
@@ -273,6 +259,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
     if (!(typeof info.serverSize === 'number')) {
       pageKeys = pageKeys.filter(pg => pg !== page)
     }
+  }
+
+  if (Array.isArray(configs[0].plugins)) {
+    configs[0].plugins.some((plugin: any) => {
+      if (plugin.ampPages) {
+        plugin.ampPages.forEach(pg => {
+          const info = pageInfos.get(pg)
+          info.ampOnly = true
+          pageInfos.set(pg, info)
+        })
+      }
+      return Boolean(plugin.ampPages)
+    })
   }
 
   printTreeView(pageKeys, pageInfos)

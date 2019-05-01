@@ -209,14 +209,11 @@ export async function getCacheIdentifier({
     .digest('hex')
 }
 
-const interopDefault = (mod: any) => mod.default || mod
-
 export async function getPageInfo(
   page: string,
   distPath: string,
   buildId: string,
   dev: boolean,
-  runtimeConfig: {} = {},
   serverless?: boolean,
 ) {
   const info: any = {}
@@ -241,14 +238,6 @@ export async function getPageInfo(
   }
 
   if (page.match(/(_app|_error|_document)/)) return info
-
-  const {setConfig} = require('next/config')
-  setConfig(runtimeConfig)
-
-  const mod = interopDefault(require(serverBundle))
-  info.ampOnly = mod.__nextAmpOnly === true
-  // AMP client bundle will be deleted
-  if (info.ampOnly) delete info.clientSize
 
   return info
 }
