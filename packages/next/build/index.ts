@@ -264,7 +264,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
       if (plugin.ampPages) {
-        plugin.ampPages.forEach(pg => {
+        plugin.ampPages.forEach((pg: any) => {
           const info = pageInfos.get(pg)
           info.ampOnly = true
           pageInfos.set(pg, info)
