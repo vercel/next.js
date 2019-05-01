@@ -117,9 +117,13 @@ function reduceComponents(headElements: Array<React.ReactElement<any>>, props: W
     .filter(unique())
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
-      const className =
+      let className: string | undefined =
         (c.props && c.props.className ? c.props.className + " " : "") +
-        "next-head";
+        'next-head';
+
+      if (c.type === 'title' && !c.props.className) {
+        className = undefined
+      }
       const key = c.key || i;
       return React.cloneElement(c, { key, className });
     });

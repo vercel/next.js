@@ -796,10 +796,30 @@ describe('Client Navigation', () => {
       try {
         browser = await webdriver(context.appPort, '/nav/head-1')
         expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+
         await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2', 3000)
         expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head Two')
+
         await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1', 3000)
         expect(await browser.elementByCss('meta[name="description"]').getAttribute('content')).toBe('Head One')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should update title during client routing', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav/head-1')
+        expect(await browser.eval('document.title')).toBe('this is head-1')
+
+        await browser.elementByCss('#to-head-2').click().waitForElementByCss('#head-2', 3000)
+        expect(await browser.eval('document.title')).toBe('this is head-2')
+
+        await browser.elementByCss('#to-head-1').click().waitForElementByCss('#head-1', 3000)
+        expect(await browser.eval('document.title')).toBe('this is head-1')
       } finally {
         if (browser) {
           await browser.close()
