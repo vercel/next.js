@@ -1,7 +1,7 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
 export async function middleware ({ req, res }) {
-  if (req.url !== '/another') {
+  if (req.url === '/another') {
     res.setHeader('next-middleware', 'hit another!')
     return res.end()
   }
