@@ -5,9 +5,7 @@ import {
 } from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
-import { promisify } from 'util'
 import path from 'path'
-import fs from 'fs'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -27,8 +25,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-
-const fsUnlink = promisify(fs.unlink)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {

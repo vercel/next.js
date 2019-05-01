@@ -3,7 +3,7 @@ import findUp from 'find-up'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
-import prettyBytes from 'pretty-bytes'
+import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 
 const fsStat = promisify(fs.stat)
