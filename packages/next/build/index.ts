@@ -1,5 +1,8 @@
 import chalk from 'chalk'
-import { PHASE_PRODUCTION_BUILD } from 'next-server/constants'
+import {
+  CHUNK_GRAPH_MANIFEST,
+  PHASE_PRODUCTION_BUILD,
+} from 'next-server/constants'
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
@@ -19,6 +22,7 @@ import {
   printTreeView,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
+import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -40,6 +44,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   console.log()
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+  const target = process.env.__NEXT_BUILDER_EXPERIMENTAL_TARGET || config.target
   const buildId = debug
     ? 'unoptimized-build'
     : await generateBuildId(config.generateBuildId, nanoid)
@@ -54,7 +59,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     isFlyingShuttle || process.env.__NEXT_BUILDER_EXPERIMENTAL_PAGE
   )
 
-  if (selectivePageBuilding && config.target !== 'serverless') {
+  if (selectivePageBuilding && target !== 'serverless') {
     throw new Error(
       `Cannot use ${
         isFlyingShuttle ? 'flying shuttle' : '`now dev`'
@@ -75,6 +80,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log()
 
     await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
+    await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
 
     flyingShuttle = new FlyingShuttle({
       buildId,
@@ -136,7 +142,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
-    config.target,
+    target,
     buildId,
     /* dynamicBuildId */ selectivePageBuilding,
     config
@@ -147,8 +153,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       buildId,
       isServer: false,
       config,
-      target: config.target,
-      selectivePageBuildingCacheIdentifier,
+      target,
       entrypoints: entrypoints.client,
       selectivePageBuilding,
     }),
@@ -157,15 +162,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
       buildId,
       isServer: true,
       config,
-      target: config.target,
-      selectivePageBuildingCacheIdentifier,
+      target,
       entrypoints: entrypoints.server,
       selectivePageBuilding,
     }),
   ])
 
   let result: CompilerResult = { warnings: [], errors: [] }
-  if (config.target === 'serverless') {
+  if (target === 'serverless') {
     if (config.publicRuntimeConfig)
       throw new Error(
         'Cannot use publicRuntimeConfig with target=serverless https://err.sh/zeit/next.js/serverless-publicRuntimeConfig'
@@ -193,6 +197,12 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (isFlyingShuttle) {
     console.log()
+
+    exportManifest({
+      dir: dir,
+      fileName: path.join(distDir, CHUNK_GRAPH_MANIFEST),
+      selectivePageBuildingCacheIdentifier,
+    })
   }
 
   if (result.errors.length > 0) {
@@ -221,7 +231,16 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  printTreeView(Object.keys(mappedPages))
+  let ampPages = new Set()
+
+  if (Array.isArray(configs[0].plugins)) {
+    configs[0].plugins.some((plugin: any) => {
+      if (plugin.ampPages) ampPages = plugin.ampPages
+      return Boolean(plugin.ampPages)
+    })
+  }
+
+  printTreeView(Object.keys(mappedPages), ampPages)
 
   if (flyingShuttle) {
     await flyingShuttle.save()

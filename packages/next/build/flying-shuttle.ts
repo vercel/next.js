@@ -252,10 +252,6 @@ export class FlyingShuttle {
     const nextManifest = JSON.parse(
       await fsReadFile(nextManifestPath, 'utf8')
     ) as ChunkGraphManifest
-    if (nextManifest.chunks && Object.keys(nextManifest.chunks).length) {
-      Log.warn('build emitted assets that cannot fit in flying shuttle')
-      return
-    }
 
     const storeManifest: ChunkGraphManifest = {
       pages: Object.assign(

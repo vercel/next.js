@@ -1,5 +1,5 @@
 import {join} from 'path'
-import {PAGES_MANIFEST, SERVER_DIRECTORY} from 'next-server/constants'
+import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 export function pageNotFoundError(page: string): Error {
@@ -22,9 +22,13 @@ export function getPagePath(page: string, distDir: string): string {
   }
 
   if (!pagesManifest[page]) {
-    throw pageNotFoundError(page)
+    const cleanedPage = page.replace(/\/index$/, '') || '/'
+    if (!pagesManifest[cleanedPage]) {
+      throw pageNotFoundError(page)
+    } else {
+      page = cleanedPage
+    }
   }
-
   return join(serverBuildPath, pagesManifest[page])
 }
 

@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-strict-csp-hash)
-
 # Example app with strict CSP generating script hash
 
 ## How to use

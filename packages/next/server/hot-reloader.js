@@ -12,6 +12,11 @@ import { createPagesMapping, createEntrypoints } from '../build/entries'
 import { watchCompiler } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { promisify } from 'util'
+import fs from 'fs'
+
+const access = promisify(fs.access)
+const readFile = promisify(fs.readFile)
 
 export async function renderScriptError (res, error) {
   // Asks CDNs and others to not to cache the errored page
@@ -134,6 +139,23 @@ export default class HotReloader {
           return { finished: true }
         }
 
+        const bundlePath = join(
+          this.dir,
+          this.config.distDir,
+          'static/development/pages', page + '.js'
+        )
+
+        // make sure to 404 for AMP bundles in case they weren't removed
+        try {
+          await access(bundlePath)
+          const data = await readFile(bundlePath, 'utf8')
+          if (data.includes('__NEXT_DROP_CLIENT_FILE__')) {
+            res.statusCode = 404
+            res.end()
+            return { finished: true }
+          }
+        } catch (_) {}
+
         const errors = await this.getCompilationErrors(page)
         if (errors.length > 0) {
           await renderScriptError(res, errors[0])
@@ -173,14 +195,12 @@ export default class HotReloader {
     const entrypoints = createEntrypoints(pages, 'server', this.buildId, false, this.config)
 
     let additionalClientEntrypoints = {}
-    if (this.config.experimental.amp) {
-      additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
-    }
+    additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] = `.${sep}` + relativePath(this.dir, join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'amp-dev'))
 
-    return [
+    return Promise.all([
       getBaseWebpackConfig(this.dir, { dev: true, isServer: false, config: this.config, buildId: this.buildId, entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints } }),
       getBaseWebpackConfig(this.dir, { dev: true, isServer: true, config: this.config, buildId: this.buildId, entrypoints: entrypoints.server })
-    ]
+    ])
   }
 
   async start () {
@@ -231,9 +251,10 @@ export default class HotReloader {
     this.onDemandEntries = onDemandEntries
     this.middlewares = [
       webpackDevMiddleware,
+      // must come before hotMiddleware
+      onDemandEntries.middleware(),
       webpackHotMiddleware,
-      errorOverlayMiddleware({ dir: this.dir }),
-      onDemandEntries.middleware()
+      errorOverlayMiddleware({ dir: this.dir })
     ]
   }
 
@@ -343,8 +364,11 @@ export default class HotReloader {
     const onDemandEntries = onDemandEntryHandler(webpackDevMiddleware, multiCompiler, {
       dir: this.dir,
       buildId: this.buildId,
+      distDir: this.config.distDir,
       reload: this.reload.bind(this),
       pageExtensions: this.config.pageExtensions,
+      publicRuntimeConfig: this.config.publicRuntimeConfig,
+      serverRuntimeConfig: this.config.serverRuntimeConfig,
       ...this.config.onDemandEntries
     })
 

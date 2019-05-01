@@ -44,7 +44,8 @@ type NextBabelPresetOptions = {
 
 type BabelPreset = {
   presets?: PluginItem[] | null,
-  plugins?: PluginItem[] | null
+  plugins?: PluginItem[] | null,
+  overrides?: any[]
 }
 
 // Taken from https://github.com/babel/babel/commit/d60c5e1736543a6eac4b549553e107a9ba967051#diff-b4beead8ad9195361b4537601cc22532R158
@@ -69,13 +70,12 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
         // @babel/plugin-transform-react-jsx-self automatically in development
         development: isDevelopment || isTest,
         ...options['preset-react']
-      }]
+      }],
+      require('@babel/preset-typescript')
     ],
     plugins: [
       require('babel-plugin-react-require'),
       require('@babel/plugin-syntax-dynamic-import'),
-      // Transform dynamic import to require
-      isTest && require('babel-plugin-dynamic-import-node'),
       require('./plugins/react-loadable-plugin'),
       [require('@babel/plugin-proposal-class-properties'), options['class-properties'] || {}],
       [require('@babel/plugin-proposal-object-rest-spread'), {

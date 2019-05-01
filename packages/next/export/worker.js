@@ -25,9 +25,9 @@ process.on(
     exportPathMap,
     outDir,
     renderOpts,
-    noDirtyAmp,
     serverRuntimeConfig,
-    concurrency
+    concurrency,
+    subFolders
   }) => {
     const sema = new Sema(concurrency, { capacity: exportPaths.length })
     try {
@@ -48,6 +48,9 @@ process.on(
         })
 
         let htmlFilename = `${path}${sep}index.html`
+
+        if (!subFolders) htmlFilename = `${path}.html`
+
         const pageExt = extname(page)
         const pathExt = extname(path)
         // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
@@ -90,8 +93,7 @@ process.on(
           await validateAmp(html, path)
         }
         if (
-          (curRenderOpts.amphtml && !query.amp && !noDirtyAmp) ||
-          curRenderOpts.hasAmp
+          (curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp
         ) {
           // we need to render a clean AMP version
           const ampHtmlFilename = `${ampPath}${sep}index.html`

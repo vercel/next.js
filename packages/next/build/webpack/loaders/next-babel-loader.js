@@ -21,7 +21,7 @@ module.exports = babelLoader.custom(babel => {
       const filename = join(opts.cwd, 'noop.js')
       const loader = Object.assign({
         cacheCompression: false,
-        cacheDirectory: true,
+        cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
         cacheIdentifier: cacheKey + JSON.stringify(
           babel.loadPartialConfig({
             filename,
@@ -33,6 +33,7 @@ module.exports = babelLoader.custom(babel => {
 
       delete loader.isServer
       delete loader.asyncToPromises
+      delete loader.distDir
       return { loader, custom }
     },
     config (cfg, { source, customOptions: { isServer, asyncToPromises } }) {
@@ -50,6 +51,12 @@ module.exports = babelLoader.custom(babel => {
       } else {
         // Add our default preset if the no "babelrc" found.
         options.presets = [...options.presets, presetItem]
+      }
+
+      if (!isServer && source.indexOf('next/amp')) {
+        const dropClientPlugin = babel.createConfigItem([require('../../babel/plugins/next-drop-client-page'), {}], { type: 'plugin' })
+        options.plugins = options.plugins || []
+        options.plugins.push(dropClientPlugin)
       }
 
       if (isServer && source.indexOf('next/data') !== -1) {

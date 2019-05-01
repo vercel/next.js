@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-react-useragent)
-
 # react-useragent example
 
 Show how to setup [@quentin-sommer/react-useragent](https://github.com/quentin-sommer/react-useragent) using next.js client side and server side rendering.
