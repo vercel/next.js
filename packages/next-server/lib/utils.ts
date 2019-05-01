@@ -130,20 +130,27 @@ export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}
       throw new Error(message)
     }
   }
+  // when called from _app `ctx` is nested in `ctx`
+  const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
   if (!Component.getInitialProps) {
-    if (ctx.res && ctx.res.setHeader) {
-      ctx.res.setHeader(
-        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
-      )
-    }
     return null
   }
 
   const props = await Component.getInitialProps(ctx)
 
-  if (ctx.res && isResSent(ctx.res)) {
+  if (res && isResSent(res)) {
     return props
+  }
+
+  // if page component doesn't have getInitialProps
+  // set cache-control header to stale-while-revalidate
+  if (ctx.Component && !ctx.Component.getInitialProps) {
+    if (res && res.setHeader) {
+      res.setHeader(
+        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
+      )
+    }
   }
 
   if (!props) {

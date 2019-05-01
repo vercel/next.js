@@ -109,8 +109,8 @@ export default function dynamic<P = {}>(
       const loadModules: LoaderMap = {}
       const modules = dynamicOptions.modules()
       Object.keys(modules).forEach((key) => {
-        const value = modules[key]
-        if (value instanceof Promise) {
+        const value: any = modules[key]
+        if (typeof value.then === 'function') {
           loadModules[key] = () => value.then((mod: any) => mod.default || mod)
           return
         }
