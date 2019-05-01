@@ -107,6 +107,18 @@ module.exports = babelLoader.custom(babel => {
           plugins: [
             commonJsItem
           ]
+        },
+        {
+          test: /next[\\/]dist[\\/]client/,
+          plugins: [
+            commonJsItem
+          ]
+        },
+        {
+          test: /next[\\/]dist[\\/]pages/,
+          plugins: [
+            commonJsItem
+          ]
         }
       ]
 

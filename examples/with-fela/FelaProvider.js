@@ -9,7 +9,7 @@ const clientRenderer = getFelaRenderer()
 
 export default class FelaProvider extends Component {
   static contextTypes = {
-    renderer: PropTypes.object
+    renderer: PropTypes.object,
   }
 
   render() {
