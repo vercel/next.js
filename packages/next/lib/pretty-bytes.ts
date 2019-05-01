@@ -39,7 +39,7 @@ const toLocaleString = (number: number, locale: any) => {
   return result;
 };
 
-export default function prettyBytes(number: number, options: any): string {
+export default function prettyBytes(number: number, options?: any): string {
   if (!Number.isFinite(number)) {
     throw new TypeError(`Expected a finite number, got ${typeof number}: ${number}`);
   }
