@@ -1879,6 +1879,42 @@ Next.js supports IE11 and all modern browsers out of the box using [`@babel/pres
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
 
+## TypeScript
+
+TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
+
+```json
+{
+  "compilerOptions": {
+    "allowJs": true, /* Allow JavaScript files to be type checked. */
+    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
+    "target": "esnext", /* The type checking input. */
+    "module": "esnext", /* Specifies the type of module to type check. */
+    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
+    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
+    "moduleResolution": "node", /* Determine how modules get resolved. */
+    "allowSyntheticDefaultImports": true, /* Allow default imports from modules with no default export. */
+    "isolatedModules": true, /* to match webpack loader */
+    "esModuleInterop": true, /* matches compilation setting */
+    
+    /* Strict Type-Checking Options, optional, but recommended. */
+    "strict": true /* Enable all strict type-checking options. */,
+    "noImplicitAny": true /* Raise error on expressions and declarations with an implied 'any' type. */,
+    "strictNullChecks": true /* Enable strict null checks. */,
+    "strictFunctionTypes": true /* Enable strict checking of function types. */,
+    "strictBindCallApply": true /* Enable strict 'bind', 'call', and 'apply' methods on functions. */,
+    "strictPropertyInitialization": true /* Enable strict checking of property initialization in classes. */,
+    "noImplicitThis": true /* Raise error on 'this' expressions with an implied 'any' type. */,
+    "alwaysStrict": true, /* Parse in strict mode. */
+    "noUnusedLocals": true, /* Report errors on unused locals. */
+    "noUnusedParameters": true, /* Report errors on unused parameters. */
+    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+  }
+}
+```
+
+After adding the `tsconfig.json` you can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX).
+
 ## AMP Support
 
 ### Enabling AMP Support
