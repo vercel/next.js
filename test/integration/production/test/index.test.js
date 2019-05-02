@@ -273,7 +273,7 @@ describe('Production Usage', () => {
       expect(data).toEqual('data')
     })
 
-    it.only('Should prioritize pages over public files', async () => {
+    it('Should prioritize pages over public files', async () => {
       const html = await renderViaHTTP(appPort, '/about')
       const data = await renderViaHTTP(appPort, '/file')
 
