@@ -85,7 +85,11 @@ export default class DevServer extends Server {
       (await recursiveReadDir(
         join(this.dir, 'pages'), /.*/, true
       ))
-        .map(pg => getRouteNoExt(pg).replace(/\/index$/, ''))
+        .map(pg =>
+          getRouteNoExt(pg)
+            .replace(/\\/g, '/')
+            .replace(/\/index$/, '')
+        )
     )
 
     pages.delete('') // remove '/index' -> ''
