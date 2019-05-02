@@ -25,6 +25,7 @@ const getRouteNoExt = (curRoute) => {
 export default class DevServer extends Server {
   constructor (options) {
     super(options, true)
+    this.initialRoutes = [...this.router.routes]
     this.renderOpts.ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
@@ -59,7 +60,6 @@ export default class DevServer extends Server {
       const exportPathMap = await this.nextConfig.exportPathMap({}, { dev: true, dir: this.dir, outDir: null, distDir: this.distDir, buildId: this.buildId }) // In development we can't give a default path mapping
       for (const path in exportPathMap) {
         const { page, query = {} } = exportPathMap[path]
-
         // We use unshift so that we're sure the routes is defined before Next's default routes
         this.router.add({
           match: route(path),
@@ -92,6 +92,7 @@ export default class DevServer extends Server {
     this.router.routes = this.generateDynamicRoutes(
       Array.from(pages), this.initialRoutes
     )
+    await this.addExportPathMapRoutes()
   }
 
   async prepare () {
@@ -99,7 +100,6 @@ export default class DevServer extends Server {
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
-    this.initialRoutes = [...this.router.routes]
 
     // watch for dynamic routes changing
     fs.watch(join(this.dir, 'pages'), { recursive: true },
