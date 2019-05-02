@@ -118,13 +118,13 @@ function runTests (dev = false) {
       const newContent = origContent.replace(/params\.comment/g, 'params.reply')
 
       await fs.outputFile(newFile, newContent)
-      await waitFor(2 * 1000)
+      await waitFor(4 * 1000)
 
       const html = await renderViaHTTP(appPort, '/post-1/replies/reply-1')
       expect(html).toMatch(/i am.*reply-1.*on.*post-1/i)
 
       await fs.remove(join(appDir, 'pages/$post/replies'))
-      await waitFor(2 * 1000)
+      await waitFor(4 * 1000)
 
       const res = await fetchViaHTTP(appPort, '/post-1/replies/reply-1')
       expect(res.status).toBe(404)
