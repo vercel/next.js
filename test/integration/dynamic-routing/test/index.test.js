@@ -86,6 +86,25 @@ function runTests (dev = false) {
     }
   })
 
+  it('should pass params in getInitialProps during SSR', async () => {
+    const html = await renderViaHTTP(appPort, '/post-1/cmnt-1')
+    expect(html).toMatch(/gip.*post-1/i)
+  })
+
+  it('should pass params in getInitialProps during client navigation', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#view-post-1-comment-1').click()
+      await browser.waitForElementByCss('span')
+
+      const text = await browser.elementByCss('span').text()
+      expect(text).toMatch(/gip.*post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   if (dev) {
     it('should update routes in dev mode when dynamic page is added/removed', async () => {
       const origFile = join(appDir, 'pages/$post/$comment.js')

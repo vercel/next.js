@@ -128,11 +128,14 @@ export default class Router implements BaseRouter {
     this.replace(url, as, options)
   };
 
-  updateParams() {
+  updateParams(route?: string, asPath?: string) {
+    const dontSet = Boolean(route)
+    route = route || this.route
+    asPath = asPath || this.asPath
     // load params if dynamic route
-    if (this.route.indexOf('$') !== -1) {
-      const paramParts = this.route.split('/')
-      const asPathParts = this.asPath.split('/')
+    if (route.indexOf('$') !== -1) {
+      const paramParts = route.split('/')
+      const asPathParts = asPath.split('/')
       const params: any = {}
 
       for (let i = 0; i < paramParts.length; i++) {
@@ -141,8 +144,9 @@ export default class Router implements BaseRouter {
         paramName = paramName.replace('$', '')
         params[paramName] = asPathParts[i]
       }
+      if (dontSet) return params
       this.params = params
-    } else {
+    } else if (!dontSet) {
       this.params = {}
     }
   }
@@ -308,6 +312,7 @@ export default class Router implements BaseRouter {
 
   getRouteInfo(route: string, pathname: string, query: any, as: string, shallow: boolean = false): Promise<RouteInfo> {
     const cachedRouteInfo = this.components[route]
+    const params = this.updateParams(route, as)
 
     // If there is a shallow route transition possible
     // If the route is already rendered on the screen.
@@ -332,7 +337,7 @@ export default class Router implements BaseRouter {
       }
 
       return (new Promise((resolve, reject) => {
-        const ctx = { pathname, query, asPath: as }
+        const ctx = { pathname, query, asPath: as, params }
         this.getInitialProps(Component, ctx).then((props) => {
           routeInfo.props = props
           this.components[route] = routeInfo
