@@ -2,18 +2,15 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
-import fs from 'fs-extra'
 import {
   renderViaHTTP,
-  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
   runNextCommand,
   nextServer,
   startApp,
-  stopApp,
-  waitFor
+  stopApp
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -109,27 +106,6 @@ function runTests (dev = false) {
       if (browser) await browser.close()
     }
   })
-
-  if (dev) {
-    it('should update routes in dev mode when dynamic page is added/removed', async () => {
-      const origFile = join(appDir, 'pages/$post/$comment.js')
-      const newFile = join(appDir, 'pages/$post/replies/$reply.js')
-      const origContent = await fs.readFile(origFile, 'utf8')
-      const newContent = origContent.replace(/params\.comment/g, 'params.reply')
-
-      await fs.outputFile(newFile, newContent)
-      await waitFor(4 * 1000)
-
-      const html = await renderViaHTTP(appPort, '/post-1/replies/reply-1')
-      expect(html).toMatch(/i am.*reply-1.*on.*post-1/i)
-
-      await fs.remove(join(appDir, 'pages/$post/replies'))
-      await waitFor(4 * 1000)
-
-      const res = await fetchViaHTTP(appPort, '/post-1/replies/reply-1')
-      expect(res.status).toBe(404)
-    })
-  }
 }
 
 describe('Dynamic Routing', () => {
