@@ -167,6 +167,8 @@ export default class Server {
       if (a.length === b.length) return 0
       return a.length < b.length ? 1 : -1
     })
+    // nothing to generate if no dynamic routes
+    if (!pages.some((pg) => pg.includes('$'))) return origRoutes
 
     const newRoutes: Route[] = []
     const dynamicRoutes = pages
