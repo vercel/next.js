@@ -4,6 +4,7 @@ import { loader } from 'webpack'
 import { join, basename } from 'path'
 import loaderUtils from 'loader-utils'
 import cache from './next-babel-loader/cache'
+import injectCaller from './next-babel-loader/injectCaller'
 import transform, { version as transformVersion } from './next-babel-loader/transform'
 
 // increment 'a' to invalidate cache
@@ -57,7 +58,7 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
   delete programmaticOptions.asyncToPromises
   delete programmaticOptions.distDir
 
-  const config: any = babel.loadPartialConfig(programmaticOptions);
+  const config: any = babel.loadPartialConfig(injectCaller(programmaticOptions));
   if (config) {
     let options = config.options;
 
