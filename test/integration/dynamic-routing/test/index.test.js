@@ -29,6 +29,11 @@ function runTests (dev = false) {
     expect(html).toMatch(/my blog/i)
   })
 
+  it('should render another normal route', async () => {
+    const html = await renderViaHTTP(appPort, '/another')
+    expect(html).toMatch(/hello from another/)
+  })
+
   it('should render dynamic page', async () => {
     const html = await renderViaHTTP(appPort, '/post-1')
     expect(html).toMatch(/this is.*?post-1/i)

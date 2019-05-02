@@ -48,13 +48,14 @@ export default class Server {
   buildManifest: string
   router: Router
 
-  public constructor({
-    dir = '.',
-    staticMarkup = false,
-    quiet = false,
-    conf = null,
-  }: ServerConstructor = {},
-                     dev?: boolean,
+  public constructor(
+    {
+      dir = '.',
+      staticMarkup = false,
+      quiet = false,
+      conf = null,
+    }: ServerConstructor = {},
+    dev?: boolean,
   ) {
     this.dir = resolve(dir)
     this.quiet = quiet
@@ -181,7 +182,9 @@ export default class Server {
       })
     })
 
-    for (const dynamicDir of dynamicDirs) {
+    const normalPages = pages.filter((pg) => !pg.includes('$'))
+
+    for (const dynamicDir of [...dynamicDirs, ...normalPages]) {
       const nonDynamics = pages
         .filter((r: string) =>
           r.includes(dynamicDir) &&
