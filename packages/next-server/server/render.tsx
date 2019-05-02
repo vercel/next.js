@@ -120,6 +120,7 @@ type RenderOpts = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
+  params: any
   ampPath?: string
   amphtml?: boolean
   hasAmp?: boolean,
@@ -224,6 +225,7 @@ export async function renderToHTML(
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
+    params,
     App,
     Document,
     Component,
@@ -257,9 +259,9 @@ export async function renderToHTML(
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
-  const ctx = { err, req, res, pathname, query, asPath }
+  const ctx = { err, req, res, pathname, query, asPath, params }
   // @ts-ignore params doesn't exist on req
-  const router = new ServerRouter(pathname, query, asPath, req.params || {})
+  const router = new ServerRouter(pathname, query, asPath, params)
   let props: any
 
   try {

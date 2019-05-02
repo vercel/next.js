@@ -218,12 +218,9 @@ export default class Server {
         if (!pathname) {
           throw new Error('pathname is undefined')
         }
-        // @ts-ignore params doesn't exist on req
-        req.params = params
-        // @ts-ignore query doesn't exist on req
-        req.query = query
+        pathToRender = pathToRender || pathname
 
-        return this.render(req, res, (pathToRender || pathname), query, parsedUrl)
+        return this.render(req, res, pathToRender, query, parsedUrl, params)
       }
       // only do one read of the pages directory
       const allRoutes = await recursiveReadDir(
@@ -338,6 +335,7 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {},
     parsedUrl?: UrlWithParsedQuery,
+    params?: any,
   ): Promise<void> {
     const url: any = req.url
     if (isInternalUrl(url)) {
@@ -350,6 +348,7 @@ export default class Server {
 
     const html = await this.renderToHTML(req, res, pathname, query, {
       dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
+      params,
     })
     // Request was ended by the user
     if (html === null) {
@@ -375,10 +374,9 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, dataOnly, hasAmp }: {
-      amphtml?: boolean,
-      hasAmp?: boolean,
+    { dataOnly, params= {} }: {
       dataOnly?: boolean,
+      params?: any,
     } = {},
   ): Promise<string | null> {
     try {
@@ -388,7 +386,7 @@ export default class Server {
         res,
         pathname,
         query,
-        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+        { ...this.renderOpts, dataOnly, params },
       )
       return html
     } catch (err) {

@@ -38,7 +38,6 @@ export default class DevServer extends Server {
 
     fs.watch(join(this.dir, 'pages'), { recursive: true }, (evt, filename) => {
       if (filename.includes('$')) {
-        console.log('got dynamic page change updating routes')
         this.generateRoutes().then(routes => {
           this.router.routes = routes
         })
