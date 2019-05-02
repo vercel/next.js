@@ -1,6 +1,6 @@
 /* eslint-disable import/first */
 import { IncomingMessage, ServerResponse } from 'http'
-import { resolve, join, sep } from 'path'
+import { resolve, join, sep, extname } from 'path'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import fs from 'fs'
@@ -18,6 +18,13 @@ import {
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+
+const getRouteNoExt = (curRoute: string): string => {
+  const ext = extname(curRoute)
+  if (ext) curRoute = curRoute.replace(ext, '')
+  return curRoute
+}
 
 type NextConfig = any
 
@@ -43,6 +50,7 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
   }
+  routesPromise?: Promise<void>
   router: Router
 
   public constructor({
@@ -93,8 +101,12 @@ export default class Server {
       publicRuntimeConfig,
     })
 
-    const routes = this.generateRoutes()
-    this.router = new Router(routes)
+    this.routesPromise = this.generateRoutes()
+      .then((routes) => {
+        this.router.routes = routes
+        this.routesPromise = undefined
+      })
+    this.router = new Router()
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -150,7 +162,7 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private generateRoutes(): Route[] {
+  private async generateRoutes(): Promise<Route[]> {
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -194,20 +206,88 @@ export default class Server {
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
+      const renderFn = async (
+        req: IncomingMessage,
+        res: ServerResponse,
+        params: any,
+        parsedUrl: UrlWithParsedQuery,
+        pathToRender?: string,
+      ) => {
+        const { pathname, query } = parsedUrl
+        if (!pathname) {
+          throw new Error('pathname is undefined')
+        }
+        // @ts-ignore params doesn't exist on req
+        req.params = params
+        // @ts-ignore query doesn't exist on req
+        req.query = query
+
+        // console.log('got params', params);
+        return this.render(req, res, (pathToRender || pathname), query, parsedUrl)
+      }
+      // only do one read of the pages directory
+      const allRoutes = await recursiveReadDir(
+        join(this.dir, 'pages'), /.*/, true,
+      )
+      const dynamicRoutes = allRoutes
+        .filter((r: string) => (r.split('/').pop() || '').includes('$'))
+
+      // to make sure to prioritize non-dynamic pages inside of
+      // dynamic paths we need to load them first
+      const dynamicDirs = dynamicRoutes
+        .filter((r: string) => !r.includes('.'))
+
+      for (const dynamicDir of dynamicDirs) {
+        const nonDynamics = allRoutes
+          .filter((r: string) =>
+            r.includes(dynamicDir) &&
+            !(r.split('/').pop() || '').includes('$'),
+          )
+
+        for (const nonDynamic of nonDynamics) {
+          const routeNoExt = getRouteNoExt(nonDynamic)
+          // console.log('prioritizing', routeNoExt);
+
+          routes.push({
+            match: route(routeNoExt.replace(/\$/g, ':')),
+            fn: (
+              req: IncomingMessage,
+              res: ServerResponse,
+              params: any,
+              parsedUrl: UrlWithParsedQuery,
+            ) => renderFn(req, res, params, parsedUrl, routeNoExt),
+          })
+        }
+      }
+
+      // add dynamic routes before the default catch-all
+      for (const dynamicRoute of dynamicRoutes) {
+        const routeNoExt = getRouteNoExt(dynamicRoute)
+        // console.log('adding route', routeNoExt, 'for', routeNoExt);
+
+        routes.push({
+          match: route(routeNoExt.replace(/\$/g, ':')),
+          fn: (
+            req: IncomingMessage,
+            res: ServerResponse,
+            params: any,
+            parsedUrl: UrlWithParsedQuery,
+          ) => renderFn(req, res, params, parsedUrl, routeNoExt),
+        })
+      }
+
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
       routes.push({
         match: route('/:path*'),
-        fn: async (req, res, _params, parsedUrl) => {
-          const { pathname, query } = parsedUrl
-          if (!pathname) {
-            throw new Error('pathname is undefined')
-          }
-
-          await this.render(req, res, pathname, query, parsedUrl)
-        },
+        fn: (
+          req: IncomingMessage,
+          res: ServerResponse,
+          params: any,
+          parsedUrl: UrlWithParsedQuery,
+        ) => renderFn(req, res, params, parsedUrl),
       })
     }
 
@@ -219,6 +299,10 @@ export default class Server {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery,
   ) {
+    if (this.routesPromise) {
+      await this.routesPromise
+    }
+
     try {
       const fn = this.router.match(req, res, parsedUrl)
       if (fn) {
