@@ -70,11 +70,11 @@ export default function (context) {
     it('Should serve public files and prioritize pages', async () => {
       const html = await renderViaHTTP(context.port, '/about')
       const html2 = await renderViaHTTP(context.port, '/query')
-      const data = await renderViaHTTP(context.port, '/about/data.json')
+      const data = await renderViaHTTP(context.port, '/about/data.txt')
 
       expect(html).toMatch(/This is the About page foobar/)
       expect(html2).toMatch(/{"a":"blue"}/)
-      expect(JSON.parse(data)).toEqual({ data: 'data' })
+      expect(data).toBe('data')
     })
   })
 }

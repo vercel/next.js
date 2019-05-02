@@ -270,7 +270,7 @@ describe('Production Usage', () => {
 
     it('Should allow access to public files', async () => {
       const data = await renderViaHTTP(appPort, '/data/data.txt')
-      expect(data).toEqual('data')
+      expect(data).toBe('data')
     })
 
     it('Should prioritize pages over public files', async () => {
