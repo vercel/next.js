@@ -18,7 +18,8 @@ import {
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+
+const { recursiveReadDir }: any = require('next/dist/lib/recursive-readdir')
 
 const getRouteNoExt = (curRoute: string): string => {
   const ext = extname(curRoute)
