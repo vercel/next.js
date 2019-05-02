@@ -22,12 +22,20 @@ export type DocumentComponentContext = {
   readonly _devOnlyInvalidateCacheQueryString: string,
 }
 
+/**
+ * `Document` component is used to change initial `document` markup and renders only on the server side.
+ * Commonly used for implementing server side rendering for `css-in-js` libraries.
+ */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
+  /**
+   * `getInitialProps` hook returns context object with addition of `renderPage`. `
+   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrapers
+   */
   static async getInitialProps({ renderPage }: DocumentContext): Promise<DocumentInitialProps> {
     const { html, head, dataOnly } = await renderPage()
     const styles = flush()
