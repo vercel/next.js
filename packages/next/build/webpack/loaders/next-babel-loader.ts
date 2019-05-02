@@ -183,7 +183,7 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
         return
       }
     }
-    getResult.bind(this)()
+    getResult.bind(this)().catch((err: any) => callback(err))
     return
   }
 
