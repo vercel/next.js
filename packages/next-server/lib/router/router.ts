@@ -33,6 +33,7 @@ export default class Router implements BaseRouter {
   pathname: string
   query: string
   asPath: string
+  params: any
   components: {[pathname: string]: RouteInfo}
   subscriptions: Set<Subscription>
   componentLoadCancel: (() => void) | null
@@ -67,6 +68,7 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.subscriptions = new Set()
     this.componentLoadCancel = null
+    this.updateParams()
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -125,6 +127,25 @@ export default class Router implements BaseRouter {
     }
     this.replace(url, as, options)
   };
+
+  updateParams() {
+    // load params if dynamic route
+    if (this.route.indexOf('$') !== -1) {
+      const paramParts = this.route.split('/')
+      const asPathParts = this.asPath.split('/')
+      const params: any = {}
+
+      for (let i = 0; i < paramParts.length; i++) {
+        let paramName = paramParts[i]
+        if (paramName.indexOf('$') === -1) continue
+        paramName = paramName.replace('$', '')
+        params[paramName] = asPathParts[i]
+      }
+      this.params = params
+    } else {
+      this.params = {}
+    }
+  }
 
   update(route: string, Component: ComponentType) {
     const data = this.components[route]
@@ -366,6 +387,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
+    this.updateParams()
     this.notify(data)
   }
 

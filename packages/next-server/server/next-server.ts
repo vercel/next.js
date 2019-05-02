@@ -222,7 +222,6 @@ export default class Server {
         // @ts-ignore query doesn't exist on req
         req.query = query
 
-        // console.log('got params', params);
         return this.render(req, res, (pathToRender || pathname), query, parsedUrl)
       }
       // only do one read of the pages directory
@@ -246,7 +245,6 @@ export default class Server {
 
         for (const nonDynamic of nonDynamics) {
           const routeNoExt = getRouteNoExt(nonDynamic)
-          // console.log('prioritizing', routeNoExt);
 
           routes.push({
             match: route(routeNoExt.replace(/\$/g, ':')),
@@ -263,7 +261,6 @@ export default class Server {
       // add dynamic routes before the default catch-all
       for (const dynamicRoute of dynamicRoutes) {
         const routeNoExt = getRouteNoExt(dynamicRoute)
-        // console.log('adding route', routeNoExt, 'for', routeNoExt);
 
         routes.push({
           match: route(routeNoExt.replace(/\$/g, ':')),

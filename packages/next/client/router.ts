@@ -34,7 +34,7 @@ const singletonRouter: SingletonRouterBase = {
 }
 
 // Create public properties and methods of the router in the singletonRouter
-const urlPropertyFields = ['pathname', 'route', 'query', 'asPath']
+const urlPropertyFields = ['pathname', 'route', 'query', 'params', 'asPath']
 const propertyFields = ['components']
 const routerEvents = ['routeChangeStart', 'beforeHistoryChange', 'routeChangeComplete', 'routeChangeError', 'hashChangeStart', 'hashChangeComplete']
 const coreMethodFields = ['push', 'replace', 'reload', 'back', 'prefetch', 'beforePopState']
