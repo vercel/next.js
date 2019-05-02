@@ -13,7 +13,7 @@ const stat = promisify(fs.stat)
  * @param  {string=dir`} rootDir Used to replace the initial path, only the relative path is left, it's faster than path.relative.
  * @returns Promise array holding all relative paths
  */
-export async function recursiveReadDir(dir: string, filter: RegExp, includeDirs = false, arr: string[] = [], rootDir: string = dir): Promise<string[]> {
+export async function recursiveReadDir(dir: string, filter: RegExp, includeDirs?: boolean, arr: string[] = [], rootDir: string = dir): Promise<string[]> {
   const result = await readdir(dir)
 
   await Promise.all(result.map(async (part: string) => {

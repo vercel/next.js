@@ -1,5 +1,5 @@
 import Server from 'next-server/dist/server/next-server'
-import { join } from 'path'
+import { join, extname } from 'path'
 import HotReloader from './hot-reloader'
 import { route } from 'next-server/dist/server/router'
 import { PHASE_DEVELOPMENT_SERVER } from 'next-server/constants'
@@ -7,6 +7,7 @@ import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import { recursiveReadDir } from '../lib/recursive-readdir'
 import fs from 'fs'
 
 const React = require('react')
@@ -15,10 +16,15 @@ if (typeof React.Suspense === 'undefined') {
   throw new Error(`The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install --save react react-dom" https://err.sh/zeit/next.js/invalid-react-version`)
 }
 
+const getRouteNoExt = (curRoute) => {
+  const ext = extname(curRoute)
+  if (ext) curRoute = curRoute.replace(ext, '')
+  return curRoute
+}
+
 export default class DevServer extends Server {
   constructor (options) {
-    super(options)
-    this.renderOpts.dev = true
+    super(options, true)
     this.renderOpts.ErrorDebug = ErrorDebug
     this.devReady = new Promise(resolve => {
       this.setDevReady = resolve
@@ -35,14 +41,6 @@ export default class DevServer extends Server {
         )
       })
     }
-
-    fs.watch(join(this.dir, 'pages'), { recursive: true }, (evt, filename) => {
-      if (filename.includes('$')) {
-        this.generateRoutes().then(routes => {
-          this.router.routes = routes
-        })
-      }
-    })
   }
 
   currentPhase () {
@@ -81,11 +79,35 @@ export default class DevServer extends Server {
     }
   }
 
+  async updateRoutes () {
+    // use Set to filter duplicates from '{page}/index' and {page}
+    const pages = new Set(
+      (await recursiveReadDir(
+        join(this.dir, 'pages'), /.*/, true
+      ))
+        .map(pg => getRouteNoExt(pg).replace(/\/index$/, ''))
+    )
+
+    pages.delete('') // remove '/index' -> ''
+    this.router.routes = this.generateDynamicRoutes(
+      Array.from(pages), this.initialRoutes
+    )
+  }
+
   async prepare () {
     this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     await super.prepare()
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
+    this.initialRoutes = [...this.router.routes]
+
+    // watch for dynamic routes changing
+    fs.watch(join(this.dir, 'pages'), { recursive: true },
+      (evt, filename) => {
+        if (filename.includes('$')) this.updateRoutes()
+      }
+    )
+    await this.updateRoutes()
     this.setDevReady()
   }
 
@@ -105,8 +127,8 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
-  async generateRoutes () {
-    const routes = await super.generateRoutes()
+  generateRoutes (initial) {
+    const routes = super.generateRoutes(initial)
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes

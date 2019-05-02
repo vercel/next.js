@@ -1,6 +1,6 @@
 /* eslint-disable import/first */
 import { IncomingMessage, ServerResponse } from 'http'
-import { resolve, join, sep, extname } from 'path'
+import { resolve, join, sep } from 'path'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import fs from 'fs'
@@ -15,17 +15,10 @@ import {
   BUILD_ID_FILE,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  BUILD_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
-
-const { recursiveReadDir }: any = require('next/dist/lib/recursive-readdir')
-
-const getRouteNoExt = (curRoute: string): string => {
-  const ext = extname(curRoute)
-  if (ext) curRoute = curRoute.replace(ext, '')
-  return curRoute
-}
 
 type NextConfig = any
 
@@ -43,6 +36,7 @@ export default class Server {
   distDir: string
   buildId: string
   renderOpts: {
+    dev?: boolean
     poweredByHeader: boolean
     ampBindInitData: boolean
     staticMarkup: boolean
@@ -51,7 +45,7 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
   }
-  routesPromise?: Promise<void>
+  buildManifest: string
   router: Router
 
   public constructor({
@@ -59,12 +53,15 @@ export default class Server {
     staticMarkup = false,
     quiet = false,
     conf = null,
-  }: ServerConstructor = {}) {
+  }: ServerConstructor = {},
+                     dev?: boolean,
+  ) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    this.buildManifest = join(this.distDir, BUILD_MANIFEST)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -88,6 +85,7 @@ export default class Server {
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      dev,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -102,12 +100,8 @@ export default class Server {
       publicRuntimeConfig,
     })
 
-    this.routesPromise = this.generateRoutes()
-      .then((routes) => {
-        this.router.routes = routes
-        this.routesPromise = undefined
-      })
-    this.router = new Router()
+    const routes = this.generateRoutes()
+    this.router = new Router(routes)
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -163,8 +157,84 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private async generateRoutes(): Promise<Route[]> {
-    const routes: Route[] = [
+  private generateDynamicRoutes(
+    pages: string[],
+    origRoutes: Route[],
+  ): Route[] {
+    pages = pages.sort((a, b) => {
+      // sort by longest path to give it priority
+      if (a.length === b.length) return 0
+      return a.length < b.length ? 1 : -1
+    })
+
+    const newRoutes: Route[] = []
+    const dynamicRoutes = pages
+      .filter((r: string) => (r.split('/').pop() || '').includes('$'))
+
+    // to make sure to prioritize non-dynamic pages inside of
+    // dynamic paths we need to load them first
+
+    const dynamicDirs = pages.filter((pg: string, idx: number) => {
+      return pages.some((subPg: string, subIdx: number) => {
+        if (idx === subIdx) return false
+        return subPg.includes(pg)
+      })
+    })
+
+    for (const dynamicDir of dynamicDirs) {
+      const nonDynamics = pages
+        .filter((r: string) =>
+          r.includes(dynamicDir) &&
+          !(r.split('/').pop() || '').includes('$'),
+        )
+
+      for (const nonDynamic of nonDynamics) {
+        newRoutes.push({
+          match: route(nonDynamic.replace(/\$/g, ':')),
+          fn: (
+            req: IncomingMessage,
+            res: ServerResponse,
+            params: any,
+            parsedUrl: UrlWithParsedQuery,
+          ) => this.routeRender(req, res, params, parsedUrl, nonDynamic),
+        })
+      }
+    }
+
+    // add dynamic routes before the default catch-all
+    for (const dynamicRoute of dynamicRoutes) {
+      newRoutes.push({
+        match: route(dynamicRoute.replace(/\$/g, ':')),
+        fn: (
+          req: IncomingMessage,
+          res: ServerResponse,
+          params: any,
+          parsedUrl: UrlWithParsedQuery,
+        ) => this.routeRender(req, res, params, parsedUrl, dynamicRoute),
+      })
+    }
+
+    return [...newRoutes, ...origRoutes]
+  }
+
+  private async routeRender(
+    req: IncomingMessage,
+    res: ServerResponse,
+    params: any,
+    parsedUrl: UrlWithParsedQuery,
+    pathToRender?: string,
+  ) {
+    const { pathname, query } = parsedUrl
+    if (!pathname) {
+      throw new Error('pathname is undefined')
+    }
+    pathToRender = pathToRender || pathname
+
+    return this.render(req, res, pathToRender, query, parsedUrl, params)
+  }
+
+  private generateRoutes(): Route[] {
+    let routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
         fn: async (req, res, params, parsedUrl) => {
@@ -207,70 +277,6 @@ export default class Server {
     ]
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      const renderFn = async (
-        req: IncomingMessage,
-        res: ServerResponse,
-        params: any,
-        parsedUrl: UrlWithParsedQuery,
-        pathToRender?: string,
-      ) => {
-        const { pathname, query } = parsedUrl
-        if (!pathname) {
-          throw new Error('pathname is undefined')
-        }
-        pathToRender = pathToRender || pathname
-
-        return this.render(req, res, pathToRender, query, parsedUrl, params)
-      }
-      // only do one read of the pages directory
-      const allRoutes = await recursiveReadDir(
-        join(this.dir, 'pages'), /.*/, true,
-      )
-      const dynamicRoutes = allRoutes
-        .filter((r: string) => (r.split('/').pop() || '').includes('$'))
-
-      // to make sure to prioritize non-dynamic pages inside of
-      // dynamic paths we need to load them first
-      const dynamicDirs = dynamicRoutes
-        .filter((r: string) => !r.includes('.'))
-
-      for (const dynamicDir of dynamicDirs) {
-        const nonDynamics = allRoutes
-          .filter((r: string) =>
-            r.includes(dynamicDir) &&
-            !(r.split('/').pop() || '').includes('$'),
-          )
-
-        for (const nonDynamic of nonDynamics) {
-          const routeNoExt = getRouteNoExt(nonDynamic)
-
-          routes.push({
-            match: route(routeNoExt.replace(/\$/g, ':')),
-            fn: (
-              req: IncomingMessage,
-              res: ServerResponse,
-              params: any,
-              parsedUrl: UrlWithParsedQuery,
-            ) => renderFn(req, res, params, parsedUrl, routeNoExt),
-          })
-        }
-      }
-
-      // add dynamic routes before the default catch-all
-      for (const dynamicRoute of dynamicRoutes) {
-        const routeNoExt = getRouteNoExt(dynamicRoute)
-
-        routes.push({
-          match: route(routeNoExt.replace(/\$/g, ':')),
-          fn: (
-            req: IncomingMessage,
-            res: ServerResponse,
-            params: any,
-            parsedUrl: UrlWithParsedQuery,
-          ) => renderFn(req, res, params, parsedUrl, routeNoExt),
-        })
-      }
-
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
       // Otherwise this will lead to a pretty simple DOS attack.
@@ -282,8 +288,16 @@ export default class Server {
           res: ServerResponse,
           params: any,
           parsedUrl: UrlWithParsedQuery,
-        ) => renderFn(req, res, params, parsedUrl),
+        ) => this.routeRender(req, res, params, parsedUrl),
       })
+
+      if (!this.renderOpts.dev) {
+        // load pages from build-manifest
+        const buildManifestContent = fs.readFileSync(this.buildManifest, 'utf8')
+        const buildManifest = JSON.parse(buildManifestContent)
+        const pages = Object.keys(buildManifest.pages)
+        routes = this.generateDynamicRoutes(pages, routes)
+      }
     }
 
     return routes
@@ -294,9 +308,6 @@ export default class Server {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery,
   ) {
-    if (this.routesPromise) {
-      await this.routesPromise
-    }
 
     try {
       const fn = this.router.match(req, res, parsedUrl)
