@@ -3,7 +3,6 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { resolve, join, sep } from 'path'
 import { parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { promisify } from 'util'
 import fs from 'fs'
 import { renderToHTML } from './render'
 import { sendHTML } from './send-html'
@@ -25,8 +24,6 @@ import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
 
 type NextConfig = any
-
-const access = promisify(fs.access)
 
 export type ServerConstructor = {
   dir?: string
@@ -207,11 +204,8 @@ export default class Server {
       },
     ]
 
-    try {
-      await access(this.publicDir)
+    if (fs.existsSync(this.publicDir)) {
       routes.push(...await this.generatePublicRoutes())
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
@@ -439,7 +433,6 @@ export default class Server {
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
       resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
       resolved.indexOf(join(this.dir, 'public') + sep) !== 0
-
     ) {
       // Seems like the user is trying to traverse the filesystem.
       return false
