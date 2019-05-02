@@ -2,15 +2,18 @@
 /* global jasmine */
 import webdriver from 'next-webdriver'
 import { join } from 'path'
+import fs from 'fs-extra'
 import {
   renderViaHTTP,
+  fetchViaHTTP,
   findPort,
   launchApp,
   killApp,
   runNextCommand,
   nextServer,
   startApp,
-  stopApp
+  stopApp,
+  waitFor
 } from 'next-test-utils'
 
 jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
@@ -20,7 +23,7 @@ let appPort
 let server
 const appDir = join(__dirname, '../')
 
-function runTests () {
+function runTests (dev = false) {
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -82,9 +85,40 @@ function runTests () {
       if (browser) await browser.close()
     }
   })
+
+  if (dev) {
+    it('should update routes in dev mode when dynamic page is added/removed', async () => {
+      const origFile = join(appDir, 'pages/$post/$comment.js')
+      const newFile = join(appDir, 'pages/$post/replies/$reply.js')
+      const origContent = await fs.readFile(origFile, 'utf8')
+      const newContent = origContent.replace(/params\.comment/g, 'params.reply')
+
+      await fs.outputFile(newFile, newContent)
+      await waitFor(2 * 1000)
+
+      const html = await renderViaHTTP(appPort, '/post-1/replies/reply-1')
+      expect(html).toMatch(/i am.*reply-1.*on.*post-1/i)
+
+      await fs.remove(join(appDir, 'pages/$post/replies'))
+      await waitFor(2 * 1000)
+
+      const res = await fetchViaHTTP(appPort, '/post-1/replies/reply-1')
+      expect(res.status).toBe(404)
+    })
+  }
 }
 
 describe('Dynamic Routing', () => {
+  describe('dev mode', async () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests(true)
+  })
+
   describe('production mode', async () => {
     beforeAll(async () => {
       await runNextCommand(['build', appDir])
@@ -99,16 +133,6 @@ describe('Dynamic Routing', () => {
       appPort = server.address().port
     })
     afterAll(() => stopApp(server))
-
-    runTests()
-  })
-
-  describe('dev mode', async () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
 
     runTests()
   })
