@@ -22,6 +22,9 @@ import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
 import { isAmp } from '../lib/amp';
+import pathMatch from './lib/path-match'
+
+const route = pathMatch()
 
 function noRouter() {
   const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
@@ -120,7 +123,7 @@ type RenderOpts = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
-  params: any
+  params?: any
   ampPath?: string
   amphtml?: boolean
   hasAmp?: boolean,
@@ -225,7 +228,7 @@ export async function renderToHTML(
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
-    params,
+    params: origParams,
     App,
     Document,
     Component,
@@ -233,6 +236,13 @@ export async function renderToHTML(
     reactLoadableManifest,
     ErrorDebug,
   } = renderOpts
+
+  let params = origParams || {}
+
+  // in serverless we need to parse the params
+  if (pathname.includes('$') && !origParams) {
+    params = route(pathname.replace(/\$/g, ':'))(req.url)
+  }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 

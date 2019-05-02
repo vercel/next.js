@@ -97,6 +97,14 @@ describe('Serverless', () => {
     expect(existsSync(join(serverlessDir, '_document.js'))).toBeFalsy()
   })
 
+  it('should SSR dynamic page with params correctly', async () => {
+    const html = await renderViaHTTP(appPort, '/posts/post-1')
+    expect(html).toMatch(/post:.*post-1/i)
+
+    const html2 = await renderViaHTTP(appPort, '/posts/post-2')
+    expect(html2).toMatch(/post:.*post-2/i)
+  })
+
   describe('With basic usage', () => {
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`

@@ -28,6 +28,9 @@ module.exports = function start (port = 0) {
     app.get('/404', (req, res) => {
       require('./.next/serverless/pages/_error.js').render(req, res)
     })
+    app.get('/posts/:post', (req, res) => {
+      require('./.next/serverless/pages/posts/$post.js').render(req, res)
+    })
     const server = new http.Server(app)
 
     server.listen(port, (err) => {
