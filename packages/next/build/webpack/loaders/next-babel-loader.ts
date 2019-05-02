@@ -7,7 +7,7 @@ import cache from './next-babel-loader/cache'
 import transform, { version as transformVersion } from './next-babel-loader/transform'
 
 // increment 'a' to invalidate cache
-const cacheKey = 'babel-cache-' + 'a' + '-'
+const cacheKey = 'babel-cache-' + 'b' + '-'
 const configs = new Set()
 
 const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
