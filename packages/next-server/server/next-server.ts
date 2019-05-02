@@ -10,7 +10,7 @@ import { serveStatic } from './serve-static'
 import Router, { route, Route } from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from './config'
-import { recursiveReadDir } from './lib/recursive-readdir'
+import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
@@ -101,11 +101,9 @@ export default class Server {
       publicRuntimeConfig,
     })
 
-    this.router = new Router()
-    this.routesPromise = this.generateRoutes().then((routes) => {
-      this.router.routes = routes
-      delete this.routesPromise
-    })
+    const routes = this.generateRoutes()
+    this.router = new Router(routes)
+
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -161,7 +159,7 @@ export default class Server {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
 
-  private async generateRoutes(): Promise<Route[]> {
+  private generateRoutes(): Route[] {
     const routes: Route[] = [
       {
         match: route('/_next/static/:path*'),
@@ -205,7 +203,7 @@ export default class Server {
     ]
 
     if (fs.existsSync(this.publicDir)) {
-      routes.push(...await this.generatePublicRoutes())
+      routes.push(...this.generatePublicRoutes())
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
@@ -229,9 +227,9 @@ export default class Server {
     return routes
   }
 
-  private async generatePublicRoutes(): Promise<Route[]> {
+  private generatePublicRoutes(): Route[] {
     const routes: Route[] = []
-    const publicFiles = await recursiveReadDir(this.publicDir)
+    const publicFiles = recursiveReadDirSync(this.publicDir)
     const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
     const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
 

@@ -96,8 +96,8 @@ export default class DevServer extends Server {
     return super.run(req, res, parsedUrl)
   }
 
-  async generateRoutes () {
-    const routes = await super.generateRoutes()
+  generateRoutes () {
+    const routes = super.generateRoutes()
 
     // In development we expose all compiled files for react-error-overlay's line show feature
     // We use unshift so that we're sure the routes is defined before Next's default routes
@@ -113,7 +113,7 @@ export default class DevServer extends Server {
   }
 
   // In development public files are not added to the router but handled as a fallback instead
-  async generatePublicRoutes () {
+  generatePublicRoutes () {
     return []
   }
 
