@@ -105,13 +105,15 @@ export default class DevServer extends Server {
     await this.addExportPathMapRoutes()
     await this.hotReloader.start()
 
-    // watch for dynamic routes changing
-    fs.watch(join(this.dir, 'pages'), { recursive: true },
-      (evt, filename) => {
-        if (filename.includes('$')) this.updateRoutes()
-      }
-    )
-    await this.updateRoutes()
+    if (this.nextConfig.experimental.dynamicRouting) {
+      // watch for dynamic routes changing
+      fs.watch(join(this.dir, 'pages'), { recursive: true },
+        (evt, filename) => {
+          if (filename.includes('$')) this.updateRoutes()
+        }
+      )
+      await this.updateRoutes()
+    }
     this.setDevReady()
   }
 

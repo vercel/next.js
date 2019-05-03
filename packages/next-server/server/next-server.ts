@@ -307,7 +307,10 @@ export default class Server {
         ) => this.routeRender(req, res, params, parsedUrl),
       })
 
-      if (!this.renderOpts.dev) {
+      if (
+        !this.renderOpts.dev &&
+        this.nextConfig.experimental.dynamicRouting
+      ) {
         // load pages from build-manifest
         const buildManifestContent = fs.readFileSync(this.buildManifest, 'utf8')
         const buildManifest = JSON.parse(buildManifestContent)
