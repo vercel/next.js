@@ -41,8 +41,8 @@ async function read(filename: string) {
 /**
  * Write contents into a compressed file.
  */
-async function write(filename: string, result: any) {
-  const content = JSON.stringify({ ...result, filename });
+async function write(filename: string, sourceFilename: string, result: any) {
+  const content = JSON.stringify({ ...result, filename: sourceFilename });
   usedBabelCacheFiles.add(filename)
   return await writeFile(filename, content);
 };
@@ -52,9 +52,6 @@ async function write(filename: string, result: any) {
  */
 export function filename(source: string, identifier: any): string {
   const hash = crypto.createHash("md4");
-
-  console.log('using identifier', identifier);
-
   const contents = JSON.stringify({ source, identifier });
 
   hash.update(contents);
@@ -100,7 +97,7 @@ async function handleCache(directory: string, params: any): Promise<any> {
   const result = await transform(source, options);
 
   try {
-    await write(file, result);
+    await write(file, params.sourceFilename, result);
   } catch (err) {
     if (fallback) {
       // Fallback to tmpdir if node_modules folder not writable

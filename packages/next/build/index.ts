@@ -298,40 +298,32 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const newCacheToClear: string[] = []
 
     for (const cacheFile of babelCacheToClear) {
-      const { filename } = JSON.parse(
-        await readFile(cacheFile, 'utf8') || '{}'
-      )
+      let filename
+      try {
+        filename = JSON.parse(
+          await readFile(cacheFile, 'utf8') || '{}'
+        ).filename
+      } catch (_) {}
+
       if (!filename) {
-        babelCacheToClear.push(cacheFile)
+        // if it doesn't have the filename it's stale or corrupt
+        newCacheToClear.push(cacheFile)
         continue
       }
       try {
         const source = await readFile(filename, 'utf8')
         const cacheBasename = path.basename(cacheFile)
         const { asyncToPromises } = config.experimental
-        const serverCacheIdentifier = getPossibleCacheIdentifier(filename, source, distDir, {isServer: true, asyncToPromises})
-        const clientCacheIdenitifier = getPossibleCacheIdentifier(filename, source, distDir, {isServer: false, asyncToPromises})
+        const serverCacheIdentifier = getPossibleCacheIdentifier(filename, source, dir, {isServer: true, asyncToPromises})
+        const clientCacheIdenitifier = getPossibleCacheIdentifier(filename, source, dir, {isServer: false, asyncToPromises})
 
         const serverCacheName = cacheFilename(source, serverCacheIdentifier)
-        if (serverCacheName === cacheBasename) {
-          console.log('found match, not clearing');
-          continue
-        }
+        if (serverCacheName === cacheBasename) continue
         const clientCacheName = cacheFilename(source, clientCacheIdenitifier)
-        if (clientCacheName === cacheBasename) {
-          console.log('found match, not clearing');
-          continue
-        }
+        if (clientCacheName === cacheBasename) continue
 
-        console.log(`
-          removing: didn't find match for ${cacheBasename}
-          server: ${serverCacheName}
-          client: ${clientCacheName}
-        `);
         newCacheToClear.push(cacheFile)
-      } catch (_) {
-        console.log('got error', _);
-      }
+      } catch (_) {}
     }
     babelCacheToClear = newCacheToClear
   } else {

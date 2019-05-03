@@ -7,8 +7,8 @@ import cache from './next-babel-loader/cache'
 import injectCaller from './next-babel-loader/injectCaller'
 import transform, { version as transformVersion } from './next-babel-loader/transform'
 
-// increment 'a' to invalidate cache
-const cacheKey = 'babel-cache-' + 'b' + '-'
+// increment 'c' to invalidate cache
+const cacheKey = 'babel-cache-' + 'c' + '-'
 const configs = new Set()
 
 const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
@@ -24,6 +24,9 @@ export function getPossibleCacheIdentifier(filename: string, source: string, cwd
   const programmaticOptions = {
     cwd,
     filename,
+    // won't work if sourceMaps are enabled
+    sourceMaps: false,
+
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
     // modules.
@@ -200,6 +203,7 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
           transform,
           cacheDirectory,
           cacheIdentifier,
+          sourceFilename: filename,
         });
       } else {
         result = await transform(source.toString(), options);
