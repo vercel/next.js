@@ -33,6 +33,9 @@ export default class Router implements BaseRouter {
   pathname: string
   query: string
   asPath: string
+  /**
+   * Map of all components loaded in `Router`
+   */
   components: {[pathname: string]: RouteInfo}
   subscriptions: Set<Subscription>
   componentLoadCancel: (() => void) | null
@@ -146,6 +149,9 @@ export default class Router implements BaseRouter {
     }
   }
 
+  /**
+   * Reload location
+   */
   reload(route: string): Promise<void> {
     return new Promise((resolve, reject) => {
       delete this.components[route]
@@ -179,17 +185,31 @@ export default class Router implements BaseRouter {
       })
 
     })
-
   }
 
+  /**
+   * Go back in history
+   */
   back() {
     window.history.back()
   }
 
+  /**
+   * Performs a `pushState` with arguments
+   * @param url
+   * @param as
+   * @param options
+   */
   push(url: string, as: string = url, options = {}) {
     return this.change('pushState', url, as, options)
   }
 
+  /**
+   * Performs a `replaceState` with arguments
+   * @param url
+   * @param as
+   * @param options
+   */
   replace(url: string, as: string = url, options = {}) {
     return this.change('replaceState', url, as, options)
   }
@@ -369,6 +389,10 @@ export default class Router implements BaseRouter {
     this.notify(data)
   }
 
+  /**
+   * Callback to execute before replacing router state
+   * @param cb callback to be executed
+   */
   beforePopState(cb: BeforePopStateCallback) {
     this._bps = cb
   }
@@ -421,6 +445,11 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
+  /**
+   * Prefetch `page` code, you may wait for the data during `page` rendering.
+   * This feature only works in production!
+   * @param url of prefetched `page`
+   */
   prefetch(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
       // Prefetch is not supported in development mode because it would trigger on-demand-entries
