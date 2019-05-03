@@ -27,10 +27,12 @@ import getBaseWebpackConfig from './webpack-config'
 import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { usedBabelCacheFiles } from './webpack/loaders/next-babel-loader/cache'
+import { getPossibleCacheIdentifier } from './webpack/loaders/next-babel-loader'
+import { usedBabelCacheFiles, filename as cacheFilename } from './webpack/loaders/next-babel-loader/cache'
 import { promisify } from  'util'
 
 const unlink = promisify(fs.unlink)
+const readFile = promisify(fs.readFile)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -290,11 +292,56 @@ export default async function build(dir: string, conf = null): Promise<void> {
   let babelCacheToClear = (await recursiveReadDir(babelCacheDir, /.*\.js/))
     .map(file => path.join(babelCacheDir, file))
 
-  babelCacheToClear = babelCacheToClear.filter((file: string) => {
-    return !usedBabelCacheFiles.has(file)
-  })
+  // since not all files are used every build in selectivePageBuilding
+  // we have to check them manually
+  if (selectivePageBuilding) {
+    const newCacheToClear: string[] = []
+
+    for (const cacheFile of babelCacheToClear) {
+      const { filename } = JSON.parse(
+        await readFile(cacheFile, 'utf8') || '{}'
+      )
+      if (!filename) {
+        babelCacheToClear.push(cacheFile)
+        continue
+      }
+      try {
+        const source = await readFile(filename, 'utf8')
+        const cacheBasename = path.basename(cacheFile)
+        const { asyncToPromises } = config.experimental
+        const serverCacheIdentifier = getPossibleCacheIdentifier(filename, source, distDir, {isServer: true, asyncToPromises})
+        const clientCacheIdenitifier = getPossibleCacheIdentifier(filename, source, distDir, {isServer: false, asyncToPromises})
+
+        const serverCacheName = cacheFilename(source, serverCacheIdentifier)
+        if (serverCacheName === cacheBasename) {
+          console.log('found match, not clearing');
+          continue
+        }
+        const clientCacheName = cacheFilename(source, clientCacheIdenitifier)
+        if (clientCacheName === cacheBasename) {
+          console.log('found match, not clearing');
+          continue
+        }
+
+        console.log(`
+          removing: didn't find match for ${cacheBasename}
+          server: ${serverCacheName}
+          client: ${clientCacheName}
+        `);
+        newCacheToClear.push(cacheFile)
+      } catch (_) {
+        console.log('got error', _);
+      }
+    }
+    babelCacheToClear = newCacheToClear
+  } else {
+    babelCacheToClear = babelCacheToClear.filter((file: string) => {
+      return !usedBabelCacheFiles.has(file)
+    })
+  }
 
   for (const file of babelCacheToClear) {
+    console.log('removing', file);
     await unlink(file)
   }
 

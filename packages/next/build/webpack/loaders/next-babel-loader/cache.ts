@@ -42,7 +42,7 @@ async function read(filename: string) {
  * Write contents into a compressed file.
  */
 async function write(filename: string, result: any) {
-  const content = JSON.stringify(result);
+  const content = JSON.stringify({ ...result, filename });
   usedBabelCacheFiles.add(filename)
   return await writeFile(filename, content);
 };
@@ -50,10 +50,12 @@ async function write(filename: string, result: any) {
 /**
  * Build the filename for the cached file
  */
-function filename(source: string, identifier: any, options: any): string {
+export function filename(source: string, identifier: any): string {
   const hash = crypto.createHash("md4");
 
-  const contents = JSON.stringify({ source, options, identifier });
+  console.log('using identifier', identifier);
+
+  const contents = JSON.stringify({ source, identifier });
 
   hash.update(contents);
 
@@ -71,7 +73,7 @@ async function handleCache(directory: string, params: any): Promise<any> {
     cacheDirectory,
   } = params;
 
-  const file = path.join(directory, filename(source, cacheIdentifier, options));
+  const file = path.join(directory, filename(source, cacheIdentifier));
 
   try {
     // No errors mean that the file was previously cached

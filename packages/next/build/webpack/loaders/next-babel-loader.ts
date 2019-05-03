@@ -15,6 +15,123 @@ const presetItem = babel.createConfigItem(require('../../babel/preset'), { type:
 const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), { type: 'plugin' })
 const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), { type: 'plugin' })
 
+interface loaderExtraOpts {
+  isServer: boolean
+  asyncToPromises: boolean
+}
+
+export function getPossibleCacheIdentifier(filename: string, source: string, cwd: string, extraOpts: loaderExtraOpts) {
+  const programmaticOptions = {
+    cwd,
+    filename,
+    // Ensure that Webpack will get a full absolute path in the sourcemap
+    // so that it can properly map the module back to its internal cached
+    // modules.
+    sourceFileName: filename,
+  };
+  let config: any = babel.loadPartialConfig(injectCaller(programmaticOptions))
+  if (config) {
+    config = augmentConfig(config, filename, source, extraOpts) || {}
+    let options = config.options
+    return JSON.stringify({
+      options,
+      cacheKey,
+      "@babel/core": transformVersion,
+    })
+  }
+}
+
+function augmentConfig(config: any, filename: string, source: string, {isServer=false, asyncToPromises=false}: loaderExtraOpts) {
+  let options = config.options
+
+  if (config.hasFilesystemConfig()) {
+    for (const file of [config.babelrc, config.config]) {
+      // We only log for client compilation otherwise there will be double output
+      if (file && !isServer && !configs.has(file)) {
+        configs.add(file)
+        console.log(`> Using external babel configuration`)
+        console.log(`> Location: "${file}"`)
+      }
+    }
+  } else {
+    // Add our default preset if the no "babelrc" found.
+    options.presets = [...options.presets, presetItem]
+  }
+
+  if (!isServer && source.indexOf('next/amp')) {
+    const dropClientPlugin = babel.createConfigItem([require('../../babel/plugins/next-drop-client-page'), {}], { type: 'plugin' })
+    options.plugins = options.plugins || []
+    options.plugins.push(dropClientPlugin)
+  }
+
+  if (isServer && source.indexOf('next/data') !== -1) {
+    const nextDataPlugin = babel.createConfigItem([require('../../babel/plugins/next-data'), { key: basename(filename) + '-' + hash(filename) }], { type: 'plugin' })
+    options.plugins = options.plugins || []
+    options.plugins.push(nextDataPlugin)
+  }
+
+  if (asyncToPromises) {
+    const asyncToPromisesPlugin = babel.createConfigItem(['babel-plugin-transform-async-to-promises', {
+      inlineHelpers: true
+    }], { type: 'plugin' })
+    options.plugins = options.plugins || []
+    options.plugins.push(asyncToPromisesPlugin)
+
+    const regeneratorPlugin = options.plugins.find((plugin: any) => {
+      return plugin[0] === require('@babel/plugin-transform-runtime')
+    })
+    if (regeneratorPlugin) {
+      regeneratorPlugin[1].regenerator = false
+    }
+
+    const babelPresetEnv = (options.presets || []).find((preset: any = []) => {
+      return preset[0] === require('@babel/preset-env').default
+    })
+    if (babelPresetEnv) {
+      babelPresetEnv[1].exclude = (options.presets[0][1].exclude || []).concat([
+        'transform-typeof-symbol',
+        'transform-regenerator',
+        'transform-async-to-generator'
+      ])
+        .filter('transform-typeof-symbol')
+    }
+  }
+
+  // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
+  // That break webpack, since webpack doesn't support combining commonjs and esmodules
+  if (source.indexOf('module.exports') !== -1) {
+    options.plugins = options.plugins || []
+    options.plugins.push(applyCommonJs)
+  }
+
+  // As next-server/lib has stateful modules we have to transpile commonjs
+  options.overrides = [
+    ...(options.overrides || []),
+    {
+      test: [
+        /next-server[\\/]dist[\\/]lib/,
+        /next[\\/]dist[\\/]client/,
+        /next[\\/]dist[\\/]pages/
+      ],
+      plugins: [
+        commonJsItem
+      ]
+    }
+  ]
+
+  if (options.sourceMaps === "inline") {
+    // Babel has this weird behavior where if you set "inline", we
+    // inline the sourcemap, and set 'result.map = null'. This results
+    // in bad behavior from Babel since the maps get put into the code,
+    // which Webpack does not expect, and because the map we return to
+    // Webpack is null, which is also bad. To avoid that, we override the
+    // behavior here so "inline" just behaves like 'true'.
+    options.sourceMaps = true;
+  }
+
+  return config
+}
+
 const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
   const callback = this.async()!
   const filename = this.resourcePath;
@@ -58,94 +175,10 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
   delete programmaticOptions.asyncToPromises
   delete programmaticOptions.distDir
 
-  const config: any = babel.loadPartialConfig(injectCaller(programmaticOptions));
+  let config: any = babel.loadPartialConfig(injectCaller(programmaticOptions));
   if (config) {
+    config = augmentConfig(config, filename, source.toString(), { isServer, asyncToPromises })
     let options = config.options;
-
-    if (config.hasFilesystemConfig()) {
-      for (const file of [config.babelrc, config.config]) {
-        // We only log for client compilation otherwise there will be double output
-        if (file && !isServer && !configs.has(file)) {
-          configs.add(file)
-          console.log(`> Using external babel configuration`)
-          console.log(`> Location: "${file}"`)
-        }
-      }
-    } else {
-      // Add our default preset if the no "babelrc" found.
-      options.presets = [...options.presets, presetItem]
-    }
-
-    if (!isServer && source.toString().indexOf('next/amp')) {
-      const dropClientPlugin = babel.createConfigItem([require('../../babel/plugins/next-drop-client-page'), {}], { type: 'plugin' })
-      options.plugins = options.plugins || []
-      options.plugins.push(dropClientPlugin)
-    }
-
-    if (isServer && source.toString().indexOf('next/data') !== -1) {
-      const nextDataPlugin = babel.createConfigItem([require('../../babel/plugins/next-data'), { key: basename(filename) + '-' + hash(filename) }], { type: 'plugin' })
-      options.plugins = options.plugins || []
-      options.plugins.push(nextDataPlugin)
-    }
-
-    if (asyncToPromises) {
-      const asyncToPromisesPlugin = babel.createConfigItem(['babel-plugin-transform-async-to-promises', {
-        inlineHelpers: true
-      }], { type: 'plugin' })
-      options.plugins = options.plugins || []
-      options.plugins.push(asyncToPromisesPlugin)
-
-      const regeneratorPlugin = options.plugins.find((plugin: any) => {
-        return plugin[0] === require('@babel/plugin-transform-runtime')
-      })
-      if (regeneratorPlugin) {
-        regeneratorPlugin[1].regenerator = false
-      }
-
-      const babelPresetEnv = (options.presets || []).find((preset: any = []) => {
-        return preset[0] === require('@babel/preset-env').default
-      })
-      if (babelPresetEnv) {
-        babelPresetEnv[1].exclude = (options.presets[0][1].exclude || []).concat([
-          'transform-typeof-symbol',
-          'transform-regenerator',
-          'transform-async-to-generator'
-        ])
-          .filter('transform-typeof-symbol')
-      }
-    }
-
-    // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
-    // That break webpack, since webpack doesn't support combining commonjs and esmodules
-    if (source.toString().indexOf('module.exports') !== -1) {
-      options.plugins = options.plugins || []
-      options.plugins.push(applyCommonJs)
-    }
-
-    // As next-server/lib has stateful modules we have to transpile commonjs
-    options.overrides = [
-      ...(options.overrides || []),
-      {
-        test: [
-          /next-server[\\/]dist[\\/]lib/,
-          /next[\\/]dist[\\/]client/,
-          /next[\\/]dist[\\/]pages/
-        ],
-        plugins: [
-          commonJsItem
-        ]
-      }
-    ]
-
-    if (options.sourceMaps === "inline") {
-      // Babel has this weird behavior where if you set "inline", we
-      // inline the sourcemap, and set 'result.map = null'. This results
-      // in bad behavior from Babel since the maps get put into the code,
-      // which Webpack does not expect, and because the map we return to
-      // Webpack is null, which is also bad. To avoid that, we override the
-      // behavior here so "inline" just behaves like 'true'.
-      options.sourceMaps = true;
-    }
 
     const {
       cacheDirectory = join(distDir, 'cache', 'next-babel-loader'),
