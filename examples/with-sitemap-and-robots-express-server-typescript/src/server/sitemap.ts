@@ -7,7 +7,7 @@ const sitemap = sm.createSitemap({
   hostname: "https://sitemap-robots-typescript.now.sh",
 });
 
-const sitemapAndRobots = ({ server }) => {
+const addSitemap = ({ server }) => {
   const Posts = posts();
   for (const post of Posts) {
     sitemap.add({
@@ -40,11 +40,6 @@ const sitemapAndRobots = ({ server }) => {
       res.send(xml);
     });
   });
-  // Note {} in next line is a placeholder filling the spot where the req parameter
-  // would normally be listed (but isn't listed here since we aren't using it)
-  server.get("/robots.txt", ({}, res) => {
-    res.sendFile(path.join(__dirname, "../static", "robots.txt"));
-  });
 };
 
-export { sitemapAndRobots };
+export { addSitemap };
