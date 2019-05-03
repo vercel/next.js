@@ -2,6 +2,6 @@ import { useRouter } from 'next/router'
 
 export default () => {
   const router = useRouter()
-  const { params } = router
-  return <p>This is {params.post}</p>
+  const { query } = router
+  return <p>This is {query.post}</p>
 }

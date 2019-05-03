@@ -31,9 +31,8 @@ type BeforePopStateCallback = (state: any) => boolean
 export default class Router implements BaseRouter {
   route: string
   pathname: string
-  query: string
+  query: any
   asPath: string
-  params: any
   components: {[pathname: string]: RouteInfo}
   subscriptions: Set<Subscription>
   componentLoadCancel: (() => void) | null
@@ -68,7 +67,7 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.subscriptions = new Set()
     this.componentLoadCancel = null
-    this.updateParams()
+    this.parseParams()
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -128,10 +127,11 @@ export default class Router implements BaseRouter {
     this.replace(url, as, options)
   };
 
-  updateParams(route?: string, asPath?: string) {
+  parseParams(route?: string, asPath?: string, query?: any) {
     const dontSet = Boolean(route)
     route = route || this.route
     asPath = asPath || this.asPath
+    query = query || this.query
     // load params if dynamic route
     if (route.indexOf('$') !== -1) {
       const paramParts = route.split('/')
@@ -144,11 +144,10 @@ export default class Router implements BaseRouter {
         paramName = paramName.replace('$', '')
         params[paramName] = asPathParts[i]
       }
-      if (dontSet) return params
-      this.params = params
-    } else if (!dontSet) {
-      this.params = {}
+      if (dontSet) return { ...query, ...params }
+      this.query = { ...query, ...params }
     }
+    console.log('updated query', this.query);
   }
 
   update(route: string, Component: ComponentType) {
@@ -312,7 +311,7 @@ export default class Router implements BaseRouter {
 
   getRouteInfo(route: string, pathname: string, query: any, as: string, shallow: boolean = false): Promise<RouteInfo> {
     const cachedRouteInfo = this.components[route]
-    const params = this.updateParams(route, as)
+    query = this.parseParams(route, as, query)
 
     // If there is a shallow route transition possible
     // If the route is already rendered on the screen.
@@ -337,7 +336,7 @@ export default class Router implements BaseRouter {
       }
 
       return (new Promise((resolve, reject) => {
-        const ctx = { pathname, query, asPath: as, params }
+        const ctx = { pathname, query, asPath: as }
         this.getInitialProps(Component, ctx).then((props) => {
           routeInfo.props = props
           this.components[route] = routeInfo
@@ -392,7 +391,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.updateParams()
+    this.parseParams()
     this.notify(data)
   }
 

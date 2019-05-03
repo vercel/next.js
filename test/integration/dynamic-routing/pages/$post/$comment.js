@@ -1,20 +1,20 @@
 import { useRouter } from 'next/router'
 
-const $comment = ({ gipParams }) => {
+const $comment = ({ gipQuery }) => {
   const router = useRouter()
-  const { params } = router
+  const { query } = router
 
   return (
     <>
-      <p>I am {params.comment} on {params.post}</p>
-      <span>gip {gipParams && gipParams.post}</span>
+      <p>I am {query.comment} on {query.post}</p>
+      <span>gip {gipQuery && gipQuery.post}</span>
     </>
   )
 }
 
-$comment.getInitialProps = async ({ params }) => {
+$comment.getInitialProps = async ({ query }) => {
   return {
-    gipParams: params
+    gipQuery: query
   }
 }
 

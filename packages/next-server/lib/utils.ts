@@ -52,7 +52,6 @@ export interface IContext {
   pathname: string
   query: ParsedUrlQuery
   asPath?: string
-  params?: any
 }
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {

@@ -36,17 +36,15 @@ class ServerRouter implements BaseRouter {
   pathname: string
   query: string
   asPath: string
-  params: any
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: any, as: string, params: any) {
+  constructor(pathname: string, query: any, as: string) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
     this.asPath = as
     this.pathname = pathname
-    this.params = params
   }
   // @ts-ignore
   push() {
@@ -243,6 +241,7 @@ export async function renderToHTML(
   if (pathname.includes('$') && !origParams) {
     params = route(pathname.replace(/\$/g, ':'))(req.url)
   }
+  query = { ...query, ...params }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -269,9 +268,9 @@ export async function renderToHTML(
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
-  const ctx = { err, req, res, pathname, query, asPath, params }
+  const ctx = { err, req, res, pathname, query, asPath }
   // @ts-ignore params doesn't exist on req
-  const router = new ServerRouter(pathname, query, asPath, params)
+  const router = new ServerRouter(pathname, query, asPath)
   let props: any
 
   try {
