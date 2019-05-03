@@ -49,7 +49,6 @@ export default class Server {
     assetPrefix?: string,
   }
   router: Router
-  routesPromise?: Promise<void>
 
   public constructor({
     dir = '.',
@@ -255,8 +254,6 @@ export default class Server {
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery,
   ) {
-    if (this.routesPromise) await this.routesPromise
-
     try {
       const fn = this.router.match(req, res, parsedUrl)
       if (fn) {
