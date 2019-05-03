@@ -75,6 +75,8 @@
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
+- [Typescript](#typescript)
+  - [Exported types](#exported-types)
 - [AMP Support](#amp-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
@@ -1471,12 +1473,12 @@ This is development-only feature. If you want to cache SSR pages in production, 
 
 #### Configuring extensions looked for when resolving pages in `pages`
 
-Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+Aimed at modules like [`@zeit/next-mdx`](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx), that add support for pages ending with `.mdx`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
 
 ```js
 // next.config.js
 module.exports = {
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['mdx', 'jsx', 'js']
 }
 ```
 
@@ -1535,17 +1537,17 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+- [@zeit/next-mdx](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx)
 
 > **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
 
 Multiple configurations can be combined together with function composition. For example:
 
 ```js
-const withTypescript = require('@zeit/next-typescript')
+const withMDX = require('@zeit/next-mdx')
 const withSass = require('@zeit/next-sass')
 
-module.exports = withTypescript(
+module.exports = withMDX(
   withSass({
     webpack(config, options) {
       // Further custom configuration here
@@ -1913,7 +1915,33 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
 }
 ```
 
-After adding the `tsconfig.json` you can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX).
+After adding the `tsconfig.json` you need to install `@types` to get proper TypeScript typing.
+
+```bash
+npm install --save-dev @types/react @types/react-dom @types/node
+```
+
+Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout out its [documentation](https://www.typescriptlang.org/).
+
+### Exported types
+Next provides `NextPage` type what is used for functional `page` component. `NextPage` adds types to [`getInitialProps`](#fetching-data-and-component-lifecycle) what provides types for context.
+```tsx
+import { NextPage } from 'next'
+
+interface Props {
+  pathname: string
+}
+
+const Page: NextPage<Props> = ({ pathname }) => (
+  <main>Your request pathname: {pathname}</main>
+)
+
+Page.getInitialProps = async ({ pathname }) => {
+  return { pathname }
+}
+
+export default Page
+```
 
 ## AMP Support
 
