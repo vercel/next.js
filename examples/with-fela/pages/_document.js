@@ -1,23 +1,23 @@
-import Document, { Head, Main, NextScript } from "next/document";
-import { renderToSheetList } from "fela-dom";
-import getFelaRenderer from "../getFelaRenderer";
+import Document, { Head, Main, NextScript } from 'next/document'
+import { renderToSheetList } from 'fela-dom'
+import getFelaRenderer from '../getFelaRenderer'
 
 export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
-    const renderer = getFelaRenderer();
-    const originalRenderPage = ctx.renderPage;
+    const renderer = getFelaRenderer()
+    const originalRenderPage = ctx.renderPage
 
     ctx.renderPage = () =>
       originalRenderPage({
         enhanceApp: App => props => <App {...props} renderer={renderer} />
-      });
+      })
 
-    const initialProps = await Document.getInitialProps(ctx);
-    const sheetList = renderToSheetList(renderer);
+    const initialProps = await Document.getInitialProps(ctx)
+    const sheetList = renderToSheetList(renderer)
     return {
       ...initialProps,
       sheetList
-    };
+    }
   }
 
   render() {
@@ -25,7 +25,7 @@ export default class MyDocument extends Document {
       ({ type, rehydration, support, media, css }) => (
         <style
           dangerouslySetInnerHTML={{ __html: css }}
-          data-fela-id=""
+          data-fela-id=''
           data-fela-rehydration={rehydration}
           data-fela-support={support}
           data-fela-type={type}
@@ -33,7 +33,7 @@ export default class MyDocument extends Document {
           media={media}
         />
       )
-    );
+    )
 
     return (
       <html>
@@ -43,6 +43,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </html>
-    );
+    )
   }
 }
