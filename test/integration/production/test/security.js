@@ -30,7 +30,12 @@ module.exports = (context) => {
         `/_next/:buildId/webpack/chunks/../../../info.json`,
         `/_next/:buildId/webpack/../../../info.json`,
         `/_next/../../../info.json`,
-        `/static/../../../info.json`
+        `/static/../../../info.json`,
+        `/static/../info.json`,
+        `/../../../info.json`,
+        `/../../info.json`,
+        `/../info.json`,
+        `/info.json`
       ]
 
       for (const path of pathsToCheck) {
