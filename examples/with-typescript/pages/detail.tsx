@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { NextContext } from 'next'
+import { IContext } from 'next'
 import Layout from '../components/Layout'
 import IDataObject from '../interfaces'
 import { findData } from '../utils/sample-api'
@@ -15,7 +15,7 @@ type Props = {
 }
 
 class ListDetailPage extends React.Component<Props> {
-  static getInitialProps = async ({ query }: NextContext<RequestQuery>) => {
+  static getInitialProps = async ({ query }: IContext) => {
     try {
       const item = await findData(query.id);
       return { item }
