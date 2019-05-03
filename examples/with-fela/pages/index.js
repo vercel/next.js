@@ -34,8 +34,8 @@ function Title ({ children, size = 24 }) {
 }
 
 export default () => (
-    <Container>
-      <Title size={50}>My Title</Title>
-      <Text>Hi, I am Fela.</Text>
-    </Container>
+  <Container>
+    <Title size={50}>My Title</Title>
+    <Text>Hi, I am Fela.</Text>
+  </Container>
 )

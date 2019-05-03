@@ -3,7 +3,7 @@ import { renderToSheetList } from 'fela-dom'
 import getFelaRenderer from '../getFelaRenderer'
 
 export default class MyDocument extends Document {
-  static async getInitialProps(ctx) {
+  static async getInitialProps (ctx) {
     const renderer = getFelaRenderer()
     const originalRenderPage = ctx.renderPage
 
@@ -20,7 +20,7 @@ export default class MyDocument extends Document {
     }
   }
 
-  render() {
+  render () {
     const styleNodes = this.props.sheetList.map(
       ({ type, rehydration, support, media, css }) => (
         <style
