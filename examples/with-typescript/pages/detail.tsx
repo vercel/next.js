@@ -5,10 +5,6 @@ import IDataObject from '../interfaces'
 import { findData } from '../utils/sample-api'
 import ListDetail from '../components/ListDetail';
 
-type RequestQuery = {
-  id: string,
-}
-
 type Props = {
   item?: IDataObject,
   errors?: string,
@@ -17,7 +13,8 @@ type Props = {
 class ListDetailPage extends React.Component<Props> {
   static getInitialProps = async ({ query }: IContext) => {
     try {
-      const item = await findData(query.id);
+      const { id } = query
+      const item = await findData(Array.isArray(id) ? id[0]: id);
       return { item }
     } catch (err) {
       return { errors: err.message }
