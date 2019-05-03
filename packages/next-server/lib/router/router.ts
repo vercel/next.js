@@ -132,6 +132,7 @@ export default class Router implements BaseRouter {
     route = route || this.route
     asPath = asPath || this.asPath
     query = query || this.query
+
     // load params if dynamic route
     if (route.indexOf('$') !== -1) {
       const paramParts = route.split('/')
@@ -147,7 +148,7 @@ export default class Router implements BaseRouter {
       if (dontSet) return { ...query, ...params }
       this.query = { ...query, ...params }
     }
-    console.log('updated query', this.query);
+    return query
   }
 
   update(route: string, Component: ComponentType) {

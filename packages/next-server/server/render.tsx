@@ -240,8 +240,8 @@ export async function renderToHTML(
   // in serverless we need to parse the params
   if (pathname.includes('$') && !origParams) {
     params = route(pathname.replace(/\$/g, ':'))(req.url)
+    query = { ...query, ...params }
   }
-  query = { ...query, ...params }
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -269,7 +269,6 @@ export async function renderToHTML(
   // @ts-ignore url will always be set
   const asPath: string = req.url
   const ctx = { err, req, res, pathname, query, asPath }
-  // @ts-ignore params doesn't exist on req
   const router = new ServerRouter(pathname, query, asPath)
   let props: any
 
