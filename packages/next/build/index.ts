@@ -6,6 +6,7 @@ import {
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
+import fs from 'fs'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -20,10 +21,16 @@ import {
   getFileForPage,
   getSpecifiedPages,
   printTreeView,
+  getPageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
+import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
+import { recursiveReadDir } from '../lib/recursive-readdir'
+import { usedBabelCacheFiles } from './webpack/loaders/next-babel-loader/cache'
+import { promisify } from  'util'
+
+const unlink = promisify(fs.unlink)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -231,19 +238,64 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  let ampPages = new Set()
+  const pageInfos = new Map()
+  const distPath = path.join(dir, config.distDir)
+  let pageKeys = Object.keys(mappedPages)
+
+  for (const page of pageKeys) {
+    const chunks = getPageChunks(page)
+    const actualPage = page === '/' ? 'index' : page
+    const info = await getPageInfo(
+      actualPage,
+      distPath,
+      buildId,
+      false,
+      config.target === 'serverless'
+    )
+
+    pageInfos.set(page, {
+      ...(info || {}),
+      chunks
+    })
+
+    if (!(typeof info.serverSize === 'number')) {
+      pageKeys = pageKeys.filter(pg => pg !== page)
+    }
+  }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) ampPages = plugin.ampPages
+      if (plugin.ampPages) {
+        plugin.ampPages.forEach((pg: any) => {
+          const info = pageInfos.get(pg)
+          if (info) {
+            info.ampOnly = true
+            pageInfos.set(pg, info)
+          }
+        })
+      }
       return Boolean(plugin.ampPages)
     })
   }
 
-  printTreeView(Object.keys(mappedPages), ampPages)
+  printTreeView(pageKeys, pageInfos)
 
   if (flyingShuttle) {
     await flyingShuttle.save()
+  }
+
+  // to prevent persisted caches from growing massively
+  // we clear un-used files
+  const babelCacheDir = path.join(distDir, 'cache/next-babel-loader')
+  let babelCacheToClear = (await recursiveReadDir(babelCacheDir, /.*\.js/))
+    .map(file => path.join(babelCacheDir, file))
+
+  babelCacheToClear = babelCacheToClear.filter((file: string) => {
+    return !usedBabelCacheFiles.has(file)
+  })
+
+  for (const file of babelCacheToClear) {
+    await unlink(file)
   }
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)

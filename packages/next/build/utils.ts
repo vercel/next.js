@@ -3,9 +3,10 @@ import findUp from 'find-up'
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
-
+import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 
+const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 
@@ -19,19 +20,77 @@ export function collectPages(
   )
 }
 
-export function printTreeView(list: string[], ampPages: Set<string>) {
+interface ChunksItem {
+  external: Set<string>,
+  internal: Set<string>
+}
+
+interface PageInfo {
+  ampOnly: boolean,
+  serverSize: number,
+  clientSize: number,
+  chunks: ChunksItem
+}
+
+export function printTreeView(list: string[], pageInfos: Map<string, PageInfo>) {
+  /*
+    red for >250kb
+    yellow for >100kb
+    green for <100kb
+  */
+  const getSizeColor = (size: number): string => {
+    if (size < 100 * 1000) return '\x1b[32m'
+    if (size < 250 * 1000) return '\x1b[33m'
+    return '\x1b[31m'
+  }
+
   list
     .sort((a, b) => (a > b ? 1 : -1))
     .forEach((item, i) => {
+      const info = pageInfos.get(item)
+      let numExternal
+      let numInternal
+      let serverSize
+      let clientSize
+      let isAmp
+
+      if (info) {
+        isAmp = info.ampOnly
+        serverSize = info.serverSize
+        clientSize = info.clientSize
+
+        if (info.chunks) {
+          const { chunks } = info
+          numExternal = chunks.external.size
+          numInternal = chunks.internal.size
+        }
+      }
+
       const corner =
         i === 0
           ? list.length === 1
             ? '─'
             : '┌'
-          : i === list.length - 1
-          ? '└'
           : '├'
-      console.log(` \x1b[90m${corner}\x1b[39m ${item}${ampPages.has(item) ? ' (AMP)' : ''}`)
+
+      console.log(` \x1b[90m${corner}\x1b[39m ${item}${isAmp ? ' (AMP)' : ''}`)
+
+      if (typeof numExternal === 'number') {
+        console.log(` \x1b[90m| \x1b[39mPackages: ${numExternal} Local modules: ${numInternal}`);
+      }
+      let sizes = ' \x1b[90m|'
+
+      if (typeof serverSize === 'number') {
+        sizes += getSizeColor(serverSize) +
+          ` Server size: ${prettyBytes(serverSize)}`
+      }
+      if (typeof clientSize === 'number') {
+        sizes += getSizeColor(clientSize) +
+          ` Client size: ${prettyBytes(clientSize)}`
+      }
+
+      if (sizes) console.log(sizes)
+      console.log(` \x1b[90m${i === list.length - 1 ? '└' : '|'}`);
     })
 
   console.log()
@@ -148,4 +207,37 @@ export async function getCacheIdentifier({
     .createHash('sha1')
     .update(selectivePageBuildingCacheIdentifier)
     .digest('hex')
+}
+
+export async function getPageInfo(
+  page: string,
+  distPath: string,
+  buildId: string,
+  dev: boolean,
+  serverless?: boolean,
+) {
+  const info: any = {}
+  const staticPath = dev ? 'development' : buildId
+  const clientBundle = path.join(
+    distPath, `static/${staticPath}/pages/`, `${page}.js`
+  )
+  const serverPath = serverless
+    ? path.join(distPath, 'serverless/pages')
+    : path.join(distPath, 'server/static', staticPath, 'pages')
+
+  const serverBundle = path.join(serverPath, `${page}.js`)
+  info.clientBundle = clientBundle
+
+  if (!dev) {
+    try {
+      info.serverSize = (await fsStat(serverBundle)).size
+    } catch (_) {}
+    try {
+      info.clientSize = (await fsStat(clientBundle)).size
+    } catch (_) {}
+  }
+
+  if (page.match(/(_app|_error|_document)/)) return info
+
+  return info
 }

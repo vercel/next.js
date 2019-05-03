@@ -7,7 +7,7 @@ const babelClientOpts = {
     ['@babel/preset-env', {
       modules: 'commonjs',
       targets: {
-        browsers: ['IE 11']
+        'esmodules': true
       },
       loose: true,
       exclude: ['transform-typeof-symbol']
@@ -21,9 +21,6 @@ const babelClientOpts = {
       helpers: true,
       regenerator: false,
       useESModules: false
-    }],
-    ['babel-plugin-transform-async-to-promises', {
-      inlineHelpers: true
     }]
   ]
 }
@@ -153,7 +150,7 @@ export default async function (task) {
   await task.watch('pages/**/*.+(js|ts|tsx)', 'pages')
   await task.watch('server/**/*.+(js|ts|tsx)', 'server')
   await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild')
-  await task.watch('export/**/*.+(js|ts|tsx)', 'nextexport')
+  await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic')
   await task.watch('client/**/*.+(js|ts|tsx)', 'client')
   await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
