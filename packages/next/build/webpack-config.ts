@@ -361,12 +361,12 @@ export default async function getBaseWebpackConfig(
           },
         config.experimental.ampBindInitData &&
           !isServer && {
-            test: /\.(tsx|ts|js|mjs|jsx)$/,
+            test: useTypeScript ? /\.(tsx|ts|js|mjs|jsx)$/ : /\.(js|mjs|jsx)$/,
             include: [path.join(dir, 'data')],
             use: 'next-data-loader',
           },
         {
-          test: /\.(tsx|ts|js|mjs|jsx)$/,
+          test: useTypeScript ? /\.(tsx|ts|js|mjs|jsx)$/ : /\.(js|mjs|jsx)$/,
           include: [
             dir,
             /next-server[\\/]dist[\\/]lib/,
@@ -524,6 +524,7 @@ export default async function getBaseWebpackConfig(
 
   // check if using @zeit/next-typescript and show warning
   if (
+    useTypeScript &&
     isServer &&
     webpackConfig.module &&
     Array.isArray(webpackConfig.module.rules)
