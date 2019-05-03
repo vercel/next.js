@@ -238,8 +238,10 @@ export async function renderToHTML(
   let params = origParams || {}
 
   // in serverless we need to parse the params
-  if (pathname.includes('$') && !origParams) {
-    params = route(pathname.replace(/\$/g, ':'))(req.url)
+  if (pathname.includes('$')) {
+    if (!origParams) {
+      params = route(pathname.replace(/\$/g, ':'))(req.url)
+    }
     query = { ...query, ...params }
   }
 
