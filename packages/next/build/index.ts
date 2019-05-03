@@ -291,6 +291,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const babelCacheDir = path.join(distDir, 'cache/next-babel-loader')
   let babelCacheToClear = (await recursiveReadDir(babelCacheDir, /.*\.js/))
     .map(file => path.join(babelCacheDir, file))
+    .filter(file => !usedBabelCacheFiles.has(file))
 
   // since not all files are used every build in selectivePageBuilding
   // we have to check them manually
@@ -326,14 +327,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
       } catch (_) {}
     }
     babelCacheToClear = newCacheToClear
-  } else {
-    babelCacheToClear = babelCacheToClear.filter((file: string) => {
-      return !usedBabelCacheFiles.has(file)
-    })
   }
 
   for (const file of babelCacheToClear) {
-    console.log('removing', file);
     await unlink(file)
   }
 
