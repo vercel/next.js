@@ -10,11 +10,15 @@ import { serveStatic } from './serve-static'
 import Router, { route, Route } from './router'
 import { isInternalUrl, isBlockedPage } from './utils'
 import loadConfig from './config'
+import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import {
   PHASE_PRODUCTION_SERVER,
   BUILD_ID_FILE,
+  CLIENT_PUBLIC_FILES_PATH,
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
+  SERVER_DIRECTORY,
+  PAGES_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents } from './load-components'
@@ -33,6 +37,7 @@ export default class Server {
   quiet: boolean
   nextConfig: NextConfig
   distDir: string
+  publicDir: string
   buildId: string
   renderOpts: {
     poweredByHeader: boolean
@@ -56,6 +61,8 @@ export default class Server {
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    // this.pagesDir = join(this.dir, 'pages')
+    this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -95,6 +102,7 @@ export default class Server {
 
     const routes = this.generateRoutes()
     this.router = new Router(routes)
+
     this.setAssetPrefix(assetPrefix)
   }
 
@@ -193,6 +201,10 @@ export default class Server {
       },
     ]
 
+    if (fs.existsSync(this.publicDir)) {
+      routes.push(...this.generatePublicRoutes())
+    }
+
     if (this.nextConfig.useFileSystemPublicRoutes) {
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -210,6 +222,29 @@ export default class Server {
         },
       })
     }
+
+    return routes
+  }
+
+  private generatePublicRoutes(): Route[] {
+    const routes: Route[] = []
+    const publicFiles = recursiveReadDirSync(this.publicDir)
+    const serverBuildPath = join(this.distDir, SERVER_DIRECTORY)
+    const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
+
+    publicFiles.forEach((path) => {
+      const unixPath = path.replace(/\\/g, '/')
+      // Only include public files that will not replace a page path
+      if (!pagesManifest[unixPath]) {
+        routes.push({
+          match: route(unixPath),
+          fn: async (req, res, _params, parsedUrl) => {
+            const p = join(this.publicDir, unixPath)
+            await this.serveStatic(req, res, p, parsedUrl)
+          },
+        })
+      }
+    })
 
     return routes
   }
@@ -391,7 +426,8 @@ export default class Server {
     const resolved = resolve(path)
     if (
       resolved.indexOf(join(this.distDir) + sep) !== 0 &&
-      resolved.indexOf(join(this.dir, 'static') + sep) !== 0
+      resolved.indexOf(join(this.dir, 'static') + sep) !== 0 &&
+      resolved.indexOf(join(this.dir, 'public') + sep) !== 0
     ) {
       // Seems like the user is trying to traverse the filesystem.
       return false

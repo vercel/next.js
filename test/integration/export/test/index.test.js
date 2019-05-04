@@ -58,7 +58,7 @@ describe('Static Export', () => {
     await nextExport(appDir, { outdir: outNoTrailSlash })
     nextConfig.restore()
 
-    context.server = await startStaticServer(join(appDir, 'out'))
+    context.server = await startStaticServer(outdir)
     context.port = context.server.address().port
 
     context.serverNoTrailSlash = await startStaticServer(outNoTrailSlash)

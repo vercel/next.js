@@ -43,7 +43,6 @@ function formatUrl(url: Url) {
 }
 
 type LinkProps = {
-  elRef: any,
   href: Url,
   as?: Url|undefined,
   replace?: boolean,
