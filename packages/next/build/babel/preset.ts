@@ -71,6 +71,7 @@ module.exports = (api: any, options: NextBabelPresetOptions = {}): BabelPreset =
         development: isDevelopment || isTest,
         ...options['preset-react']
       }],
+      require('@babel/preset-typescript')
     ],
     plugins: [
       require('babel-plugin-react-require'),

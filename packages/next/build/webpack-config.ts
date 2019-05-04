@@ -58,7 +58,6 @@ export default async function getBaseWebpackConfig(
     selectivePageBuilding?: boolean
   }
 ): Promise<webpack.Configuration> {
-  const useTypeScript = await fileExists(path.join(dir, 'tsconfig.json'))
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
     babel: {
@@ -68,7 +67,6 @@ export default async function getBaseWebpackConfig(
         distDir,
         cwd: dir,
         asyncToPromises: config.experimental.asyncToPromises,
-        useTypeScript,
       },
     },
     // Backwards compat
@@ -100,6 +98,8 @@ export default async function getBaseWebpackConfig(
           ),
       }
     : undefined
+
+  const useTypeScript = await fileExists(path.join(dir, 'tsconfig.json'))
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
