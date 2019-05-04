@@ -21,7 +21,7 @@ import {
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
-import { isAmp } from '../lib/amp';
+import { isAmp } from '../lib/amp'
 
 function noRouter() {
   const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
@@ -94,6 +94,7 @@ function enhanceComponents(
 function render(
   renderElementToString: (element: React.ReactElement<any>) => string,
   element: React.ReactElement<any>,
+  ampMode: any,
 ): { html: string; head: React.ReactElement[] } {
   let html
   let head
@@ -101,7 +102,7 @@ function render(
   try {
     html = renderElementToString(element)
   } finally {
-    head = Head.rewind() || defaultHead()
+    head = Head.rewind() || defaultHead(undefined, isAmp(ampMode))
   }
 
   return { html, head }
@@ -344,6 +345,7 @@ export async function renderToHTML(
         return render(
           renderElementToString,
           element,
+          ampMode,
         )
       } catch (err) {
         if (err && typeof err === 'object' && typeof err.then === 'function') {
@@ -358,6 +360,7 @@ export async function renderToHTML(
             return render(
               renderElementToString,
               element,
+              ampMode,
             )
           }
         }
@@ -393,6 +396,7 @@ export async function renderToHTML(
             </AmpModeContext.Provider>
           </RouterContext.Provider>
         </RequestContext.Provider>,
+        ampMode,
       )
     }
   }
