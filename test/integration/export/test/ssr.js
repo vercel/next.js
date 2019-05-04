@@ -61,5 +61,20 @@ export default function (context) {
       // contains "404", so need to be specific here
       expect(html).not.toMatch(/404.*page.*not.*found/i)
     })
+
+    it('Should serve static files', async () => {
+      const data = await renderViaHTTP(context.port, '/static/data/item.txt')
+      expect(data).toBe('item')
+    })
+
+    it('Should serve public files and prioritize pages', async () => {
+      const html = await renderViaHTTP(context.port, '/about')
+      const html2 = await renderViaHTTP(context.port, '/query')
+      const data = await renderViaHTTP(context.port, '/about/data.txt')
+
+      expect(html).toMatch(/This is the About page foobar/)
+      expect(html2).toMatch(/{"a":"blue"}/)
+      expect(data).toBe('data')
+    })
   })
 }
