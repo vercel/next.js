@@ -12,6 +12,7 @@ const cacheKey = 'babel-cache-' + 'b' + '-'
 const configs = new Set()
 
 const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
+const presetTypescript = babel.createConfigItem(require('@babel/preset-typescript'), { type: 'preset' })
 const applyCommonJs = babel.createConfigItem(require('../../babel/plugins/commonjs'), { type: 'plugin' })
 const commonJsItem = babel.createConfigItem(require('@babel/plugin-transform-modules-commonjs'), { type: 'plugin' })
 
@@ -19,7 +20,7 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
   const callback = this.async()!
   const filename = this.resourcePath;
   let loaderOptions = loaderUtils.getOptions(this) || {};
-  const { isServer, asyncToPromises, distDir } = loaderOptions
+  const { isServer, asyncToPromises, distDir, useTypeScript } = loaderOptions
 
   // Standardize on 'sourceMaps' as the key passed through to Webpack, so that
   // users may safely use either one alongside our default use of
@@ -57,6 +58,7 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
   delete programmaticOptions.isServer
   delete programmaticOptions.asyncToPromises
   delete programmaticOptions.distDir
+  delete programmaticOptions.useTypeScript
 
   const config: any = babel.loadPartialConfig(injectCaller(programmaticOptions));
   if (config) {
@@ -74,6 +76,10 @@ const nextBabelLoader: loader.Loader = function (source, inputSourceMap)  {
     } else {
       // Add our default preset if the no "babelrc" found.
       options.presets = [...options.presets, presetItem]
+    }
+
+    if (useTypeScript) {
+      config.options.presets = [...options.presets, presetTypescript]
     }
 
     if (!isServer && source.toString().indexOf('next/amp')) {
