@@ -290,7 +290,7 @@ export async function renderToHTML(
 
   const renderPageError = (): {html: string, head: any} | void => {
     if (ctx.err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
+      return render(renderElementToString, <ErrorDebug error={ctx.err} />, ampMode)
     }
 
     if (dev && (props.router || props.Component)) {

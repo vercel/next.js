@@ -168,7 +168,6 @@ export class Head extends Component<OriginProps> {
       amphtml,
       hasAmp,
       ampPath,
-      pathname,
       assetPrefix,
       __NEXT_DATA__,
       dangerousAsPath,
