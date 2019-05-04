@@ -105,7 +105,10 @@ export function renderError (error) {
   return ErrorComponent.getInitialProps({ err: error, pathname, query, asPath })
     .then((props) => {
       const appProps = { Component: ErrorComponent, props, err: error, router }
+
+      emitter.emit('before-reactdom-render', { ErrorComponent, appProps })
       renderReactElement(createElement(App, appProps), errorContainer)
+      emitter.emit('after-reactdom-render', { ErrorComponent, appProps })
 
       appContainer.innerHTML = ''
     })
