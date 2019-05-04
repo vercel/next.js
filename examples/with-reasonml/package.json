@@ -18,7 +18,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.4.3",
-    "bs-platform": "^5.0.3",
+    "bs-platform": "5.0.3",
     "concurrently": "^4.1.0"
   }
 }
