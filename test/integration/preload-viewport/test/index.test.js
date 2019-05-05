@@ -36,6 +36,7 @@ describe('Prefetching Links in viewport', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await waitFor(2 * 1000)
       const links = await browser.elementsByCss('link[rel=preload]')
       let found = false
 
@@ -57,7 +58,7 @@ describe('Prefetching Links in viewport', () => {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('button').click()
-      await waitFor(1000)
+      await waitFor(2 * 1000)
 
       const links = await browser.elementsByCss('link[rel=preload]')
       let foundFirst = false
@@ -80,7 +81,7 @@ describe('Prefetching Links in viewport', () => {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#scroll-to-another').click()
-      await waitFor(1000)
+      await waitFor(2 * 1000)
 
       const links = await browser.elementsByCss('link[rel=preload]')
       let found = false
