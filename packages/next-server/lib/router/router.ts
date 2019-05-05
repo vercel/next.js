@@ -215,6 +215,7 @@ export default class Router implements BaseRouter {
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
       if (this.onlyAHashChange(as)) {
+        this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
         this.scrollToHash(as)
