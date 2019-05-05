@@ -490,7 +490,7 @@ export class NextScript extends Component<OriginProps> {
     return (
       <>
         {devFiles
-          ? devFiles.map((file: string) => (
+          ? devFiles.map((file: string) => !file.match(/\.js\.map/) && (
               <script
                 key={file}
                 src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}
