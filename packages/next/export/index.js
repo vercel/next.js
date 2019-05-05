@@ -5,7 +5,7 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_PUBLIC_FILES_PATH, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -124,6 +124,23 @@ export default async function (dir, options, configuration) {
 
   const ampValidations = {}
   let hadValidationError = false
+
+  const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
+  // Copy public directory
+  if (existsSync(publicDir)) {
+    log('  copying "public" directory')
+    await cp(
+      publicDir,
+      outDir,
+      {
+        expand: true,
+        filter (path) {
+          // Exclude paths used by pages
+          return !exportPathMap['/' + path]
+        }
+      }
+    )
+  }
 
   await Promise.all(
     chunks.map(
