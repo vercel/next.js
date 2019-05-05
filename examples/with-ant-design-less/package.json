@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "deploy": "next build && next export -o dist"
   },
   "dependencies": {
     "@zeit/next-less": "^1.0.1",
