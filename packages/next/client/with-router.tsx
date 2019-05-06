@@ -1,6 +1,6 @@
 import React from 'react'
 import PropTypes from 'prop-types'
-import { NextComponentType, IContext } from 'next-server/dist/lib/utils'
+import { NextComponentType, NextPageContext } from 'next-server/dist/lib/utils'
 import { PublicRouterInstance } from './router';
 
 export type WithRouterProps = {
@@ -9,7 +9,9 @@ export type WithRouterProps = {
 
 export type ExcludeRouterProps<P> = Pick<P, Exclude<keyof P, keyof WithRouterProps>>
 
-export default function withRouter<P extends WithRouterProps, C = IContext>(ComposedComponent: NextComponentType<C, any, P>): React.ComponentClass<ExcludeRouterProps<P>> {
+export default function withRouter<P extends WithRouterProps, C = NextPageContext>(
+  ComposedComponent: NextComponentType<C, any, P>,
+): React.ComponentClass<ExcludeRouterProps<P>> {
   class WithRouteWrapper extends React.Component<ExcludeRouterProps<P>> {
     static displayName?: string
     static getInitialProps?: any

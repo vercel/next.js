@@ -235,6 +235,13 @@ To support importing `.css`, `.scss`, `.less` or `.styl` files you can use these
 
 ### Static file serving (e.g.: images)
 
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="/examples/public-file-serving">Public file serving</a></li>
+  </ul>
+</details>
+
 Create a folder called `static` in your project root directory. From your code you can then reference those files with `/static/` URLs:
 
 ```jsx
@@ -245,7 +252,9 @@ function MyImage() {
 export default MyImage
 ```
 
-_Note: Don't name the `static` directory anything else. The name is required and is the only directory that Next.js uses for serving static assets._
+To serve static files from the root directory you can add a folder called `public` and reference those files from the root, e.g: `/robots.txt`
+
+_Note: Don't name the `static` or `public` directory anything else. The names can't be changed and are the only directories that Next.js uses for serving static assets_
 
 ### Populating `<head>`
 
@@ -1778,7 +1787,7 @@ module.exports = {
 }
 ```
 
-Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
+Note: Next.js will automatically use that prefix in the scripts it loads, but this has no effect whatsoever on `/static` or `/public`. If you want to serve those assets over the CDN, you'll have to introduce the prefix yourself. One way of introducing a prefix that works inside your components and varies by environment is documented [in this example](https://github.com/zeit/next.js/tree/master/examples/with-universal-configuration-build-time).
 
 If your CDN is on a separate domain and you would like assets to be requested using a [CORS aware request](https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_settings_attributes) you can set a config option for that.
 
@@ -1926,7 +1935,7 @@ AMP-only (`pages/about.js`) would output:
 - `out/about/index.html` - Optimized AMP page
 - `out/about.amp/index.html` - AMP page
 
-During export Next.js automatically detects if a page is AMP-only and apply dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you. 
+During export Next.js automatically detects if a page is AMP-only and apply dirty/clean optimizations. The dirty version will be output to `page/index.html` and the clean version will be output to `page.amp/index.html`. We also automatically insert the `<link rel="amphtml" href="/page.amp" />` and `<link rel="canonical" href="/" />` tags for you.
 
 ### Adding AMP Components
 
