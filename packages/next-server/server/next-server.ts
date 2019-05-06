@@ -82,18 +82,13 @@ export default class Server {
 
     this.buildId = this.readBuildId()
 
-    let { canonicalBase }: { canonicalBase: string } = this.nextConfig
-    if (canonicalBase.endsWith('/')) {
-      canonicalBase = canonicalBase.slice(0, -1)
-    }
-
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
+      canonicalBase: this.nextConfig.canonicalBase,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
-      canonicalBase,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

@@ -79,6 +79,13 @@ export default function loadConfig(phase: string, dir: string, customConfig: any
     if (userConfig.target && !targets.includes(userConfig.target)) {
       throw new Error(`Specified target is invalid. Provided: "${userConfig.target}" should be one of ${targets.join(', ')}`)
     }
+
+    if (userConfig.canonicalBase) {
+      const { canonicalBase } = userConfig
+      userConfig.canonicalBase = canonicalBase.endsWith('/')
+        ? canonicalBase.slice(0, -1) : canonicalBase
+    }
+
     return assignDefaults({ configOrigin: CONFIG_FILE, ...userConfig })
   }
 
