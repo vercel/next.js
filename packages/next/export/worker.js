@@ -1,4 +1,4 @@
-import mkdirpModule from 'mkdirp'
+import mkdirp from '../lib/mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
@@ -8,7 +8,6 @@ import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
 
 const envConfig = require('next-server/config')
-const mkdirp = promisify(mkdirpModule)
 const writeFileP = promisify(writeFile)
 const accessP = promisify(access)
 
@@ -92,9 +91,7 @@ process.on(
         if (curRenderOpts.amphtml && query.amp) {
           await validateAmp(html, path)
         }
-        if (
-          (curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp
-        ) {
+        if ((curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp) {
           // we need to render a clean AMP version
           const ampHtmlFilename = `${ampPath}${sep}index.html`
           const ampBaseDir = join(outDir, dirname(ampHtmlFilename))
@@ -104,23 +101,21 @@ process.on(
             await accessP(ampHtmlFilepath)
           } catch (_) {
             // make sure it doesn't exist from manual mapping
-            const ampHtml = await renderToHTML(req, res, page, { ...query, amp: 1 }, curRenderOpts)
+            const ampHtml = await renderToHTML(
+              req,
+              res,
+              page,
+              { ...query, amp: 1 },
+              curRenderOpts
+            )
 
             await validateAmp(ampHtml, page + '?amp=1')
             await mkdirp(ampBaseDir)
-            await writeFileP(
-              ampHtmlFilepath,
-              ampHtml,
-              'utf8'
-            )
+            await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
           }
         }
 
-        await writeFileP(
-          htmlFilepath,
-          html,
-          'utf8'
-        )
+        await writeFileP(htmlFilepath, html, 'utf8')
         process.send({ type: 'progress' })
         sema.release()
       }

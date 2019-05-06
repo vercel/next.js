@@ -7,20 +7,19 @@
  * @see https://github.com/babel/babel-loader/issues/34
  * @see https://github.com/babel/babel-loader/pull/41
  */
-import fs from "fs"
-import os from "os"
-import path from "path"
-import crypto from "crypto"
-import mkdirpOrig from "mkdirp"
-import { promisify } from "util"
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
+import crypto from 'crypto'
+import mkdirp from '../../../../lib/mkdirp'
+import { promisify } from 'util'
 import transform from './transform'
 
 // Lazily instantiated when needed
-let defaultCacheDirectory: any = null;
+let defaultCacheDirectory: any = null
 
-const readFile = promisify(fs.readFile);
-const writeFile = promisify(fs.writeFile);
-const mkdirp = promisify(mkdirpOrig);
+const readFile = promisify(fs.readFile)
+const writeFile = promisify(fs.writeFile)
 
 export const usedBabelCacheFiles: Set<String> = new Set()
 
@@ -31,85 +30,80 @@ export const usedBabelCacheFiles: Set<String> = new Set()
  * @params {String} filename
  */
 async function read(filename: string) {
-  const data = await readFile(filename);
-  const content = data;
+  const data = await readFile(filename)
+  const content = data
 
   usedBabelCacheFiles.add(filename)
-  return JSON.parse(content.toString());
-};
+  return JSON.parse(content.toString())
+}
 
 /**
  * Write contents into a compressed file.
  */
 async function write(filename: string, result: any) {
-  const content = JSON.stringify(result);
+  const content = JSON.stringify(result)
   usedBabelCacheFiles.add(filename)
-  return await writeFile(filename, content);
-};
+  return await writeFile(filename, content)
+}
 
 /**
  * Build the filename for the cached file
  */
 function filename(source: string, identifier: any, options: any): string {
-  const hash = crypto.createHash("md4");
+  const hash = crypto.createHash('md4')
 
-  const contents = JSON.stringify({ source, options, identifier });
+  const contents = JSON.stringify({ source, options, identifier })
 
-  hash.update(contents);
+  hash.update(contents)
 
-  return hash.digest("hex") + ".json";
-};
+  return hash.digest('hex') + '.json'
+}
 
 /**
  * Handle the cache
  */
 async function handleCache(directory: string, params: any): Promise<any> {
-  const {
-    source,
-    options = {},
-    cacheIdentifier,
-    cacheDirectory,
-  } = params;
+  const { source, options = {}, cacheIdentifier, cacheDirectory } = params
 
-  const file = path.join(directory, filename(source, cacheIdentifier, options));
+  const file = path.join(directory, filename(source, cacheIdentifier, options))
 
   try {
     // No errors mean that the file was previously cached
     // we just need to return it
-    return await read(file);
+    return await read(file)
   } catch (err) {}
 
   const fallback =
-    typeof cacheDirectory !== "string" && directory !== os.tmpdir();
+    typeof cacheDirectory !== 'string' && directory !== os.tmpdir()
 
   // Make sure the directory exists.
   try {
-    await mkdirp(directory);
+    await mkdirp(directory)
   } catch (err) {
     if (fallback) {
-      return handleCache(os.tmpdir(), params);
+      return handleCache(os.tmpdir(), params)
     }
 
-    throw err;
+    throw err
   }
 
   // Otherwise just transform the file
   // return it to the user asap and write it in cache
-  const result = await transform(source, options);
+  const result = await transform(source, options)
 
   try {
-    await write(file, result);
+    await write(file, result)
   } catch (err) {
     if (fallback) {
       // Fallback to tmpdir if node_modules folder not writable
-      return handleCache(os.tmpdir(), params);
+      return handleCache(os.tmpdir(), params)
     }
 
-    throw err;
+    throw err
   }
 
-  return result;
-};
+  return result
+}
 
 /**
  * Retrieve file from cache, or create a new one for future reads
@@ -144,13 +138,13 @@ async function handleCache(directory: string, params: any): Promise<any> {
  */
 
 export default async function cache(params: any) {
-  let directory;
+  let directory
 
-  if (typeof params.cacheDirectory === "string") {
-    directory = params.cacheDirectory;
+  if (typeof params.cacheDirectory === 'string') {
+    directory = params.cacheDirectory
   } else {
-    directory = defaultCacheDirectory;
+    directory = defaultCacheDirectory
   }
 
-  return await handleCache(directory, params);
-};
+  return await handleCache(directory, params)
+}

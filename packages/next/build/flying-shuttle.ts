@@ -7,13 +7,13 @@ import { EOL } from 'os'
 import path from 'path'
 import { promisify } from 'util'
 
+import mkdirp from '../lib/mkdirp'
 import { recursiveDelete } from '../lib/recursive-delete'
 import * as Log from './output/log'
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
 const DIR_FILES_NAME = 'files'
 
-const mkdirp = promisify(mkdirpModule)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
