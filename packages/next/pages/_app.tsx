@@ -1,9 +1,9 @@
 import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps, NextComponentType, IContext, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
+import { execOnce, loadGetInitialProps, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
 import { Router, makePublicRouterInstance } from '../client/router'
 
-export { NextComponentType, IContext, AppInitialProps }
+export { AppInitialProps }
 
 export type AppContext = AppContextType<Router>
 
