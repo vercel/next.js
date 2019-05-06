@@ -31,7 +31,14 @@ export async function recursiveCopy(
     await sema.acquire()
 
     if (stats.isDirectory()) {
-      await mkdir(target, { recursive: true })
+      try {
+        await mkdir(target)
+      } catch (err) {
+        // do not throw `folder already exists` errors
+        if (err.code !== 'EEXIST') {
+          throw err
+        }
+      }
       const files = await readdir(item)
       await Promise.all(files.map((file) => _copy(path.join(item, file))))
     } else if (stats.isFile() && filter(item.replace(from, ''))) {
