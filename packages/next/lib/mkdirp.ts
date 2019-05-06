@@ -1,16 +1,15 @@
-import path from 'path'
 import fs from 'fs'
+import path from 'path'
 import { promisify } from 'util'
 
 const mkdir = promisify(fs.mkdir)
 const stat = promisify(fs.stat)
 
-export default async function mkdirp(dir: string) {
+export async function mkdirp(dir: string) {
   dir = path.resolve(dir)
 
   try {
     await mkdir(dir)
-    return
   } catch (error) {
     // ENOENT means the parent directory does not exists
     if (error.code === 'ENOENT') {
@@ -28,7 +27,30 @@ export default async function mkdirp(dir: string) {
     if (!stats || !stats.isDirectory()) {
       throw error
     }
+  }
+}
 
-    return
+export function mkdirpSync(dir: string) {
+  dir = path.resolve(dir)
+
+  try {
+    fs.mkdirSync(dir)
+  } catch (error) {
+    // ENOENT means the parent directory does not exists
+    if (error.code === 'ENOENT') {
+      mkdirpSync(path.dirname(dir))
+      mkdirpSync(dir)
+      return
+    }
+
+    // if the error is something else, check if the dir already exists
+    let stats
+    try {
+      stats = fs.statSync(dir)
+    } catch (_) {}
+
+    if (!stats || !stats.isDirectory()) {
+      throw error
+    }
   }
 }
