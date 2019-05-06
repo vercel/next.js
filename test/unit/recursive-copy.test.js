@@ -18,17 +18,20 @@ afterEach(async () => {
 
 describe('recursiveCopy', () => {
   it('should work', async () => {
-    await recursiveCopy(resolveDataDir, testResolveDataDir)
+    await recursiveCopy(resolveDataDir, testResolveDataDir, {
+      filter (path) {
+        return path !== '/folder1/file1'
+      }
+    })
 
     const result = await recursiveReadDir(testResolveDataDir, /.*/)
 
     expect(result).toContain('/.hidden')
     expect(result).toContain('/file')
     expect(result).toContain('/link')
-    expect(result).toContain('/folder1/file1')
     expect(result).toContain('/folder1/file2')
     expect(result).toContain('/linkfolder/file1')
     expect(result).toContain('/linkfolder/file2')
-    expect(result.length).toBe(7)
+    expect(result.length).toBe(6)
   })
 })

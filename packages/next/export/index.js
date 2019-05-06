@@ -152,7 +152,7 @@ export default async function (dir, options, configuration) {
     await recursiveCopy(publicDir, outDir, {
       filter (path) {
         // Exclude paths used by pages
-        return !exportPathMap['/' + path]
+        return !exportPathMap[path]
       }
     })
   }

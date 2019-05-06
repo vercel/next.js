@@ -28,17 +28,13 @@ export async function recursiveCopy(
     const target = item.replace(from, to)
     const stats = await stat(item)
 
-    if (!filter(item.replace(from, ''))) {
-      return
-    }
-
     await sema.acquire()
 
     if (stats.isDirectory()) {
       await mkdir(target, { recursive: true })
       const files = await readdir(item)
       await Promise.all(files.map((file) => _copy(path.join(item, file))))
-    } else if (stats.isFile()) {
+    } else if (stats.isFile() && filter(item.replace(from, ''))) {
       await copyFile(item, target, COPYFILE_EXCL)
     }
 
