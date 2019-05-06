@@ -1,7 +1,7 @@
 import { cpus } from 'os'
 import { fork } from 'child_process'
 import cp from 'recursive-copy'
-import mkdirp from '../lib/mkdirp'
+import { mkdirp } from '../lib/mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'

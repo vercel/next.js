@@ -5,7 +5,7 @@ import workerFarm from 'worker-farm'
 import { writeFile, readFile } from 'fs'
 import serialize from 'serialize-javascript'
 import Sema from 'async-sema'
-import mkdirp from 'mkdirp'
+import { mkdirpSync } from '../../../../../lib/mkdirp'
 
 const worker = require.resolve('./worker')
 const writeFileP = promisify(writeFile)
@@ -14,7 +14,7 @@ const readFileP = promisify(readFile)
 export default class TaskRunner {
   constructor({ distDir, cpus, cache }) {
     if (cache) {
-      mkdirp.sync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
+      mkdirpSync((this.cacheDir = join(distDir, 'cache', 'next-minifier')))
     }
 
     // In some cases cpus() returns undefined

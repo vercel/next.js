@@ -1,13 +1,12 @@
 import Sema from 'async-sema'
 import crypto from 'crypto'
 import fs from 'fs'
-import mkdirpModule from 'mkdirp'
 import { CHUNK_GRAPH_MANIFEST } from 'next-server/constants'
 import { EOL } from 'os'
 import path from 'path'
 import { promisify } from 'util'
 
-import mkdirp from '../lib/mkdirp'
+import { mkdirp, mkdirpSync } from '../lib/mkdirp'
 import { recursiveDelete } from '../lib/recursive-delete'
 import * as Log from './output/log'
 
@@ -54,7 +53,7 @@ export class FlyingShuttle {
     distDirectory: string
     cacheIdentifier: string
   }) {
-    mkdirpModule.sync(
+    mkdirpSync(
       (this.shuttleDirectory = path.join(
         distDirectory,
         'cache',

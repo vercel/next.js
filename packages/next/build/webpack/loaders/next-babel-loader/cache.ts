@@ -11,7 +11,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
-import mkdirp from '../../../../lib/mkdirp'
+import { mkdirp } from '../../../../lib/mkdirp'
 import { promisify } from 'util'
 import transform from './transform'
 
