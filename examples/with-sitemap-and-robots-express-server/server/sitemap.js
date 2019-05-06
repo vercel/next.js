@@ -1,5 +1,4 @@
 const sm = require('sitemap')
-const path = require('path')
 const posts = require('./posts')
 
 const sitemap = sm.createSitemap({
@@ -40,10 +39,6 @@ const setup = ({ server }) => {
       res.header('Content-Type', 'application/xml')
       res.send(xml)
     })
-  })
-
-  server.get('/robots.txt', (req, res) => {
-    res.sendFile(path.join(__dirname, '../static', 'robots.txt'))
   })
 }
 
