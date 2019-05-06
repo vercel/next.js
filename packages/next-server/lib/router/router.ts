@@ -171,40 +171,8 @@ export default class Router implements BaseRouter {
     }
   }
 
-  reload(route: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      delete this.components[route]
-      this.pageLoader.clearCache(route)
-
-      if (route !== this.route) {
-        return resolve()
-      }
-
-      const { pathname, query } = this
-      const url = window.location.href
-      // This makes sure we only use pathname + query + hash, to mirror `asPath` coming from the server.
-      const as = window.location.pathname + window.location.search + window.location.hash
-
-      Router.events.emit('routeChangeStart', url)
-      this.getRouteInfo(route, pathname, query, as).then((routeInfo) => {
-        const { error } = routeInfo
-
-        if (error && error.cancelled) {
-          return resolve()
-        }
-
-        this.notify(routeInfo)
-
-        if (error) {
-          Router.events.emit('routeChangeError', error, url)
-          return reject(error)
-        }
-
-        Router.events.emit('routeChangeComplete', url)
-      })
-
-    })
-
+  reload(): void {
+    window.location.reload()
   }
 
   back() {
@@ -240,6 +208,7 @@ export default class Router implements BaseRouter {
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
       if (this.onlyAHashChange(as)) {
+        this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
         this.scrollToHash(as)
