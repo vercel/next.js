@@ -72,7 +72,7 @@
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "9.0.0",
     "babel-jest": "23.6.0",
-    "browserstack-local": "1.3.7",
+    "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
     "chromedriver": "2.46.0",
     "clone": "2.1.1",
