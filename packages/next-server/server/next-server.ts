@@ -47,6 +47,7 @@ export default class Server {
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
+    canonicalBase: string,
   }
   router: Router
 
@@ -80,12 +81,19 @@ export default class Server {
       )
 
     this.buildId = this.readBuildId()
+
+    let { canonicalBase }: { canonicalBase: string } = this.nextConfig
+    if (canonicalBase.endsWith('/')) {
+      canonicalBase = canonicalBase.slice(0, -1)
+    }
+
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
+      canonicalBase,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

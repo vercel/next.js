@@ -17,6 +17,7 @@ const defaultConfig: {[key: string]: any} = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   target: 'server',
   poweredByHeader: true,
+  canonicalBase: '',
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
