@@ -1,4 +1,4 @@
-import mkdirp from '../lib/mkdirp'
+import { mkdirp } from '../lib/mkdirp'
 import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
