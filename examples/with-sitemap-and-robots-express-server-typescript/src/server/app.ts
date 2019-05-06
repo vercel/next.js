@@ -1,6 +1,6 @@
 import * as express from "express";
 import * as next from "next";
-import { sitemapAndRobots } from "./sitemapAndRobots";
+import { addSitemap } from "./sitemap";
 
 const dev = process.env.NODE_ENV !== "production";
 const port = process.env.PORT || 8000;
@@ -15,7 +15,7 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const server = express();
 
-  sitemapAndRobots({ server });
+  addSitemap({ server });
 
   server.get("*", (req, res) => { handle(req, res); });
 
