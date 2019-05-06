@@ -3,7 +3,7 @@
 import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps, IContext, AppContextType } from '../utils';
+import { formatWithValidation, getURL, loadGetInitialProps, NextPageContext, AppContextType } from '../utils';
 import {rewriteUrlForNextExport} from './rewrite-url-for-export'
 
 function toRoute(path: string): string {
@@ -423,7 +423,7 @@ export default class Router implements BaseRouter {
     return Component
   }
 
-  async getInitialProps(Component: ComponentType, ctx: IContext): Promise<any> {
+  async getInitialProps(Component: ComponentType, ctx: NextPageContext): Promise<any> {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
