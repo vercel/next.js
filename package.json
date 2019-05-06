@@ -89,7 +89,6 @@
     "jest-junit": "6.3.0",
     "lerna": "^3.4.0",
     "lint-staged": "4.2.3",
-    "mkdirp": "0.5.1",
     "node-fetch": "2.3.0",
     "node-notifier": "5.1.2",
     "node-sass": "4.9.2",
