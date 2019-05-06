@@ -420,6 +420,18 @@ describe('Client Navigation', () => {
 
         await browser.close()
       })
+
+      it('should not run getInitialProps when removing via back', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+        const counter = await browser
+          .elementByCss('#scroll-to-item-400').click()
+          .back()
+          .elementByCss('p').text()
+
+        expect(counter).toBe('COUNT: 0')
+        await browser.close()
+      })
     })
 
     describe('when hash set to empty', () => {

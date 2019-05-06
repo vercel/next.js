@@ -1,11 +1,10 @@
-
 [@react.component]
 let make = () => {
   <div>
     <Header />
-    <p> (ReasonReact.string("This is the about page.")) </p>
+    <p> {ReasonReact.string("This is the about page.")} </p>
     <Counter />
-  </div>
+  </div>;
 };
 
 let default = make;
