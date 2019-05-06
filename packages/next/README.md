@@ -960,24 +960,22 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
-app.prepare().then(() => {
-  createServer((req, res) => {
-    // Be sure to pass `true` as the second argument to `url.parse`.
-    // This tells it to parse the query portion of the URL.
-    const parsedUrl = parse(req.url, true)
-    const { pathname, query } = parsedUrl
+createServer((req, res) => {
+  // Be sure to pass `true` as the second argument to `url.parse`.
+  // This tells it to parse the query portion of the URL.
+  const parsedUrl = parse(req.url, true)
+  const { pathname, query } = parsedUrl
 
-    if (pathname === '/a') {
-      app.render(req, res, '/b', query)
-    } else if (pathname === '/b') {
-      app.render(req, res, '/a', query)
-    } else {
-      handle(req, res, parsedUrl)
-    }
-  }).listen(3000, err => {
-    if (err) throw err
-    console.log('> Ready on http://localhost:3000')
-  })
+  if (pathname === '/a') {
+    app.render(req, res, '/b', query)
+  } else if (pathname === '/b') {
+    app.render(req, res, '/a', query)
+  } else {
+    handle(req, res, parsedUrl)
+  }
+}).listen(3000, err => {
+  if (err) throw err
+  console.log('> Ready on http://localhost:3000')
 })
 ```
 
@@ -1031,25 +1029,23 @@ const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handleNextRequests = app.getRequestHandler()
 
-app.prepare().then(() => {
-  const server = new http.Server((req, res) => {
-    // Add assetPrefix support based on the hostname
-    if (req.headers.host === 'my-app.com') {
-      app.setAssetPrefix('http://cdn.com/myapp')
-    } else {
-      app.setAssetPrefix('')
-    }
+const server = new http.Server((req, res) => {
+  // Add assetPrefix support based on the hostname
+  if (req.headers.host === 'my-app.com') {
+    app.setAssetPrefix('http://cdn.com/myapp')
+  } else {
+    app.setAssetPrefix('')
+  }
 
-    handleNextRequests(req, res)
-  })
+  handleNextRequests(req, res)
+})
 
-  server.listen(port, err => {
-    if (err) {
-      throw err
-    }
+server.listen(port, err => {
+  if (err) {
+    throw err
+  }
 
-    console.log(`> Ready on http://localhost:${port}`)
-  })
+  console.log(`> Ready on http://localhost:${port}`)
 })
 ```
 

@@ -63,9 +63,6 @@ const nextDev: cliCommand = (argv) => {
   startedDevelopmentServer(appUrl)
 
   startServer({dir, dev: true}, port, args['--hostname'])
-    .then(async (app) => {
-      await app.prepare()
-    })
     .catch((err) => {
       if (err.code === 'EADDRINUSE') {
         let errorMessage = `Port ${port} is already in use.`

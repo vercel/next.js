@@ -49,6 +49,7 @@ export default class Server {
     assetPrefix?: string,
   }
   router: Router
+  ready: Promise<void> | boolean
 
   public constructor({
     dir = '.',
@@ -61,6 +62,7 @@ export default class Server {
     const phase = this.currentPhase()
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
+    this.ready = false
     // this.pagesDir = join(this.dir, 'pages')
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
 
@@ -116,11 +118,18 @@ export default class Server {
     console.error(...args)
   }
 
-  private handleRequest(
+  private async handleRequest(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl?: UrlWithParsedQuery,
   ): Promise<void> {
+    if (this.ready !== true) {
+      if (this.ready === false) {
+        this.ready = this.prepare()
+      }
+      await this.ready
+    }
+
     // Parse url if parsedUrl not provided
     if (!parsedUrl || typeof parsedUrl !== 'object') {
       const url: any = req.url
