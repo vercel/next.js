@@ -1,4 +1,4 @@
-// import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
