@@ -41,7 +41,12 @@ export async function recursiveCopy(
       }
       const files = await readdir(item)
       await Promise.all(files.map((file) => _copy(path.join(item, file))))
-    } else if (stats.isFile() && filter(item.replace(from, ''))) {
+    } else if (
+      stats.isFile() &&
+      // before we send the path to filter
+      // we remove the base path (from) and replace \ by / (windows)
+      filter(item.replace(from, '').replace(/\\/g, '/'))
+    ) {
       await copyFile(item, target, COPYFILE_EXCL)
     }
 
