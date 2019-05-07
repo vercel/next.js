@@ -67,7 +67,6 @@ export default class Router implements BaseRouter {
     this.asPath = as
     this.subscriptions = new Set()
     this.componentLoadCancel = null
-    this.parseParams()
 
     if (typeof window !== 'undefined') {
       // in order for `e.state` to work on the `onpopstate` event
@@ -126,30 +125,6 @@ export default class Router implements BaseRouter {
     }
     this.replace(url, as, options)
   };
-
-  parseParams(route?: string, asPath?: string, query?: any) {
-    const dontSet = Boolean(route)
-    route = route || this.route
-    asPath = asPath || this.asPath
-    query = query || this.query
-
-    // load params if dynamic route
-    if (route.indexOf('$') !== -1) {
-      const paramParts = route.split('/')
-      const asPathParts = asPath.split('/')
-      const params: any = {}
-
-      for (let i = 0; i < paramParts.length; i++) {
-        let paramName = paramParts[i]
-        if (paramName.indexOf('$') === -1) continue
-        paramName = paramName.replace('$', '')
-        params[paramName] = asPathParts[i]
-      }
-      if (dontSet) return { ...query, ...params }
-      this.query = { ...query, ...params }
-    }
-    return query
-  }
 
   update(route: string, Component: ComponentType) {
     const data = this.components[route]
@@ -218,6 +193,20 @@ export default class Router implements BaseRouter {
 
       const { pathname, query } = parse(url, true)
 
+      // parse route params and add them to the query
+      // e.g. /post-1 for /$post adds { post: 'post-1' } to query
+      if (pathname && pathname.indexOf('$') !== -1) {
+        const paramParts = pathname.split('/')
+        const asPathParts = as.split('/')
+
+        for (let i = 0; i < paramParts.length; i++) {
+          let paramName = paramParts[i]
+          if (paramName.indexOf('$') === -1) continue
+          paramName = paramName.replace('$', '')
+          query[paramName] = asPathParts[i]
+        }
+      }
+
       // If asked to change the current URL we should reload the current page
       // (not location.reload() but reload getInitialProps and other Next.js stuffs)
       // We also need to set the method = replaceState always
@@ -281,7 +270,6 @@ export default class Router implements BaseRouter {
 
   getRouteInfo(route: string, pathname: string, query: any, as: string, shallow: boolean = false): Promise<RouteInfo> {
     const cachedRouteInfo = this.components[route]
-    query = this.parseParams(route, as, query)
 
     // If there is a shallow route transition possible
     // If the route is already rendered on the screen.
@@ -361,7 +349,6 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    this.parseParams()
     this.notify(data)
   }
 
