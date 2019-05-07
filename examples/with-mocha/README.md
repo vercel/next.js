@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-mocha)
-
 # Example app with Mocha tests
 
 ## How to use
@@ -45,6 +43,6 @@ yarn test
 
 This example features:
 
-* An app with Mocha tests
+- An app with Mocha tests
 
 > A very important part of this example is the `.babelrc` file which configures the `test` environment to use `babel-preset-env` and configures it to transpile modules to `commonjs`). [Learn more](https://github.com/zeit/next.js/issues/2895).

@@ -1,4 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-prefetching)
 # Example app with prefetching pages
 
 ## How to use
@@ -42,6 +41,6 @@ now
 
 This example features:
 
-* An app with four simple pages
-* The "about" page uses the imperative (i.e.: "manual") prefetching API to prefetch on hover
-* It will prefetch all the pages in the background except the "contact" page
+- An app with four simple pages
+- The "about" page uses the imperative (i.e.: "manual") prefetching API to prefetch on hover
+- It will prefetch all the pages in the background except the "contact" page

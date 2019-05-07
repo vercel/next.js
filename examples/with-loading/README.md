@@ -1,4 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-loading)
 # Example app with page loading indicator
 
 ## How to use
@@ -46,6 +45,6 @@ We can simply fix this issue by showing a loading indicator. That's what this ex
 
 It features:
 
-* An app with two pages which uses a common [Header](./components/Header.js) component for navigation links.
-* Using `next/router` to identify different router events
-* Uses [nprogress](https://github.com/rstacruz/nprogress) as the loading indicator.
+- An app with two pages which uses a common [Header](./components/Header.js) component for navigation links.
+- Using `next/router` to identify different router events
+- Uses [nprogress](https://github.com/rstacruz/nprogress) as the loading indicator.

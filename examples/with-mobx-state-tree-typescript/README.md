@@ -1,6 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-mobx-state-tree)
-
-# MobX State Tree example
+# MobX State Tree TypeScript example
 
 ## How to use
 

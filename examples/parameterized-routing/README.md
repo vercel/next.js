@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/parameterized-routing)
-
 # Parametrized routes example (dynamic routing)
 
 ## How to use
@@ -34,7 +32,6 @@ yarn dev
 ```
 
 See now documentation [here](https://zeit.co/docs/v2/deployments/routes/) and Next.js example [here](https://zeit.co/examples/nextjs/) for info on deploying with [now](https://zeit.co/now) ([download](https://zeit.co/download))
-
 
 ## The idea behind the example
 

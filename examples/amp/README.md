@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/amp)
-
 # Google AMP
 
 ## How to use
@@ -41,4 +39,4 @@ now
 
 ## The idea behind the example
 
-This example shows how to create AMP pages using Next.js and the experimental AMP feature. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page. 
+This example shows how to create AMP pages using Next.js and the experimental AMP feature. It shows a normal page (non-AMP), an AMP only page, and a hybrid AMP page.

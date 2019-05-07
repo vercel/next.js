@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-noscript)
-
 # Noscript example
 
 ## How to use
@@ -19,9 +17,11 @@ yarn create next-app --example with-noscript with-noscript-app
 Download the example:
 
 ## Development
+
 Install it and run:
 
 **npm**
+
 ```bash
 npm install
 npm run dev
@@ -31,13 +31,16 @@ yarn dev
 ```
 
 **yarn**
+
 ```bash
 yarn install
 yarn run dev
 ```
 
 ## Production
+
 **npm**
+
 ```bash
 npm install
 npm run build
@@ -45,6 +48,7 @@ npm start
 ```
 
 **yarn**
+
 ```bash
 yarn install
 yarn run build

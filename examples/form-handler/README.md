@@ -1,6 +1,4 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/form-handler)
-
-# Form Handler
+# Form Handler example
 
 ## How to use
 

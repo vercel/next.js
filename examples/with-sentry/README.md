@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-sentry)
-
 # Sentry example
 
 ## How to use
@@ -21,12 +19,14 @@ Download the example:
 Install it and run:
 
 **npm**
+
 ```bash
 npm install
 npm run dev
 ```
 
 **yarn**
+
 ```bash
 yarn
 yarn dev

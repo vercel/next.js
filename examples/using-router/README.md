@@ -1,4 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/using-router)
 # Example app utilizing next/router for routing
 
 ## How to use
@@ -42,5 +41,5 @@ now
 
 This example features:
 
-* An app linking pages using `next/router` instead of `<Link>` component.
-* Access the pathname using `next/router` and render it in a component
+- An app linking pages using `next/router` instead of `<Link>` component.
+- Access the pathname using `next/router` and render it in a component

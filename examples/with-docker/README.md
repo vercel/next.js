@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-docker&env=API_URL&docker=true)
-
 # With Docker
 
 ## How to use
@@ -49,7 +47,7 @@ now --docker -e API_URL="https://example.com"
 
 ## The idea behind the example
 
-This example show how to set custom environment variables for your __docker application__ at runtime.
+This example show how to set custom environment variables for your **docker application** at runtime.
 
 The `dockerfile` is the simplest way to run Next.js app in docker, and the size of output image is `173MB`. However, for an even smaller build, you can do multi-stage builds with `dockerfile.multistage`. The size of output image is `85MB`.
 

@@ -1,5 +1,3 @@
-[![Deploy to now](https://deploy.now.sh/static/button.svg)](https://deploy.now.sh/?repo=https://github.com/zeit/next.js/tree/master/examples/with-dynamic-app-layout)
-
 # With dynamic `App` layout example
 
 ## How to use
@@ -41,5 +39,5 @@ now
 
 ## The idea behind the example
 
-Shows how to use _app.js to implement _dynamic_ layouts for pages.
+Shows how to use _app.js to implement \_dynamic_ layouts for pages.
 This is achieved by attaching a static `Layout` property to each page that needs a different layout. In that way, once we use `_app.js` to wrap our pages, we can get it from `Component.Layout` and render it accordingly.
