@@ -8,7 +8,8 @@ class Index extends React.Component {
   }
 
   state = {
-    raiseError: false
+        raiseErrorInRender: false,
+        raiseErrorInUpdate: false
   };
 
   componentDidUpdate () {
