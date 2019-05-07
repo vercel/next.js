@@ -1,1 +1,4 @@
-{ "compilerOptions": { "esModuleInterop": true, "module": "esnext" } }
+{
+  "compilerOptions": { "esModuleInterop": true, "module": "esnext" },
+  "include": ["components", "pages"]
+}
