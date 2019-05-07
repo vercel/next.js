@@ -8,7 +8,7 @@ import { BaseRouter } from './router/router'
 /**
  * Types used by both next and next-server
  */
-export type NextComponentType<C extends BaseContext = IContext, IP = {}, P = {}> = ComponentType<P> & {
+export type NextComponentType<C extends BaseContext = NextPageContext, IP = {}, P = {}> = ComponentType<P> & {
   getInitialProps?(context: C): Promise<IP>,
 }
 
@@ -31,7 +31,7 @@ export type BaseContext = {
   [k: string]: any,
 }
 
-export type INEXTDATA = {
+export type NEXT_DATA = {
   dataManager: string
   props: any
   page: string
@@ -45,7 +45,8 @@ export type INEXTDATA = {
   err?: Error & { statusCode?: number },
 }
 
-export interface IContext {
+// tslint:disable-next-line interface-name
+export interface NextPageContext {
   err?: Error & { statusCode?: number } | null
   req?: IncomingMessage
   res?: ServerResponse
@@ -55,9 +56,9 @@ export interface IContext {
 }
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {
-  Component: NextComponentType<IContext>
+  Component: NextComponentType<NextPageContext>
   router: R
-  ctx: IContext,
+  ctx: NextPageContext,
 }
 
 export type AppInitialProps = {
@@ -65,11 +66,11 @@ export type AppInitialProps = {
 }
 
 export type AppPropsType<R extends BaseRouter = BaseRouter, P = {}> = AppInitialProps & {
-  Component: NextComponentType<IContext, any, P>
+  Component: NextComponentType<NextPageContext, any, P>
   router: R,
 }
 
-export type DocumentContext = IContext & {
+export type DocumentContext = NextPageContext & {
   renderPage: RenderPage,
 }
 
@@ -78,7 +79,7 @@ export type DocumentInitialProps = RenderPageResult & {
 }
 
 export type DocumentProps = DocumentInitialProps & {
-  __NEXT_DATA__: INEXTDATA
+  __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   ampPath: string
   amphtml: boolean

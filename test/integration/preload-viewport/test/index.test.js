@@ -36,6 +36,7 @@ describe('Prefetching Links in viewport', () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await waitFor(2 * 1000)
       const links = await browser.elementsByCss('link[rel=preload]')
       let found = false
 
@@ -57,7 +58,7 @@ describe('Prefetching Links in viewport', () => {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('button').click()
-      await waitFor(1000)
+      await waitFor(2 * 1000)
 
       const links = await browser.elementsByCss('link[rel=preload]')
       let foundFirst = false
@@ -75,19 +76,42 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
-  it('should prefetch with link in viewport onload', async () => {
+  it('should prefetch with link in viewport on scroll', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#scroll-to-another').click()
-      await waitFor(1000)
+      await waitFor(2 * 1000)
 
       const links = await browser.elementsByCss('link[rel=preload]')
       let found = false
 
       for (const link of links) {
         const href = await link.getAttribute('href')
-        if (href.includes('first')) {
+        if (href.includes('another')) {
+          found = true
+          break
+        }
+      }
+      expect(found).toBe(true)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should fallback to prefetching onMouseEnter with invalid ref', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/invalid-ref')
+      await browser.elementByCss('#btn-link').moveTo()
+      await waitFor(2 * 1000)
+
+      const links = await browser.elementsByCss('link[rel=preload]')
+      let found = false
+
+      for (const link of links) {
+        const href = await link.getAttribute('href')
+        if (href.includes('another')) {
           found = true
           break
         }

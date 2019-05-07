@@ -147,10 +147,11 @@ export default async function getBaseWebpackConfig(
     cpus: config.experimental.cpus,
     distDir: distDir,
   }
+  const devtool = dev || debug ? 'cheap-module-source-map' : false
 
   let webpackConfig: webpack.Configuration = {
+    devtool,
     mode: webpackMode,
-    devtool: dev || debug ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
     externals: !isServer
@@ -451,6 +452,7 @@ export default async function getBaseWebpackConfig(
                     dll: ['react', 'react-dom'],
                   },
                   config: {
+                    devtool,
                     mode: webpackMode,
                     resolve: resolveConfig,
                   },

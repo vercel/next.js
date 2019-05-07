@@ -1,23 +1,21 @@
 import Document, { Head, Main, NextScript } from 'next/document'
 import { renderToSheetList } from 'fela-dom'
-
-import FelaProvider from '../FelaProvider'
 import getFelaRenderer from '../getFelaRenderer'
 
 export default class MyDocument extends Document {
-  static getInitialProps ({ renderPage }) {
-    const serverRenderer = getFelaRenderer()
+  static async getInitialProps (ctx) {
+    const renderer = getFelaRenderer()
+    const originalRenderPage = ctx.renderPage
 
-    const page = renderPage(App => props => (
-      <FelaProvider renderer={serverRenderer}>
-        <App {...props} />
-      </FelaProvider>
-    ))
+    ctx.renderPage = () =>
+      originalRenderPage({
+        enhanceApp: App => props => <App {...props} renderer={renderer} />
+      })
 
-    const sheetList = renderToSheetList(serverRenderer)
-
+    const initialProps = await Document.getInitialProps(ctx)
+    const sheetList = renderToSheetList(renderer)
     return {
-      ...page,
+      ...initialProps,
       sheetList
     }
   }
