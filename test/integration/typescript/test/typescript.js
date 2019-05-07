@@ -9,7 +9,7 @@ export default (context, render) => {
   describe('TypeScript', () => {
     describe('default behavior', () => {
       it('should render the page', async () => {
-        const $ = await get$('/typescript/hello')
+        const $ = await get$('/hello')
         expect($('body').text()).toMatch(/Hello World/)
       })
     })
