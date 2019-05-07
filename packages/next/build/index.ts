@@ -6,7 +6,6 @@ import {
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-import fs from 'fs'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -27,10 +26,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { usedBabelCacheFiles } from './webpack/loaders/next-babel-loader/cache'
-import { promisify } from  'util'
 
-const unlink = promisify(fs.unlink)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -282,20 +278,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (flyingShuttle) {
     await flyingShuttle.save()
-  }
-
-  // to prevent persisted caches from growing massively
-  // we clear un-used files
-  const babelCacheDir = path.join(distDir, 'cache/next-babel-loader')
-  let babelCacheToClear = (await recursiveReadDir(babelCacheDir, /.*\.js/))
-    .map(file => path.join(babelCacheDir, file))
-
-  babelCacheToClear = babelCacheToClear.filter((file: string) => {
-    return !usedBabelCacheFiles.has(file)
-  })
-
-  for (const file of babelCacheToClear) {
-    await unlink(file)
   }
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)
