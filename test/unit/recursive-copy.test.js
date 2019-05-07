@@ -1,37 +1,27 @@
 /* eslint-env jest */
 import { recursiveCopy } from 'next/dist/lib/recursive-copy'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
-import { recursiveDelete } from 'next/dist/lib/recursive-delete'
 import { join } from 'path'
-import fs from 'fs'
-import { promisify } from 'util'
+import fs from 'fs-extra'
 
-const rmdir = promisify(fs.rmdir)
-
-const resolveDataDir = join(__dirname, 'recursive-folder-test')
-const testResolveDataDir = join(__dirname, 'recursive-folder-test-copy')
-
-afterEach(async () => {
-  await recursiveDelete(testResolveDataDir)
-  await rmdir(testResolveDataDir)
-})
+const sourceDir = join(__dirname, 'recursive-folder-test')
+const destDir = join(__dirname, 'recursive-folder-test-copy')
 
 describe('recursiveCopy', () => {
   it('should work', async () => {
-    await recursiveCopy(resolveDataDir, testResolveDataDir, {
+    await recursiveCopy(sourceDir, destDir, {
       filter (path) {
         return path !== '/folder1/file1'
       }
     })
 
-    const result = await recursiveReadDir(testResolveDataDir, /.*/)
+    expect(await fs.pathExists(join(destDir, '.hidden'))).toBe(true)
+    expect(await fs.pathExists(join(destDir, 'file'))).toBe(true)
+    expect(await fs.pathExists(join(destDir, 'link'))).toBe(true)
+    expect(await fs.pathExists(join(destDir, 'folder1', 'file1'))).toBe(false)
+    expect(await fs.pathExists(join(destDir, 'folder1', 'file2'))).toBe(true)
+    expect(await fs.pathExists(join(destDir, 'linkfolder', 'file1'))).toBe(true)
+    expect(await fs.pathExists(join(destDir, 'linkfolder', 'file2'))).toBe(true)
 
-    expect(result).toContain('/.hidden')
-    expect(result).toContain('/file')
-    expect(result).toContain('/link')
-    expect(result).toContain('/folder1/file2')
-    expect(result).toContain('/linkfolder/file1')
-    expect(result).toContain('/linkfolder/file2')
-    expect(result.length).toBe(6)
+    await fs.remove(destDir)
   })
 })
