@@ -1,4 +1,4 @@
-# Form Handler example
+# Form Handler
 
 ## How to use
 

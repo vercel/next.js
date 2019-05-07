@@ -3,18 +3,18 @@ import { ServerResponse, IncomingMessage } from 'http';
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
-import { IRouterInterface } from './router/router'
+import { BaseRouter } from './router/router'
 
 /**
  * Types used by both next and next-server
  */
-export type NextComponentType<C extends IBaseContext = any, P = any, CP = {}> = ComponentType<CP> & {
-  getInitialProps?(context: C): Promise<P>,
+export type NextComponentType<C extends BaseContext = NextPageContext, IP = {}, P = {}> = ComponentType<P> & {
+  getInitialProps?(context: C): Promise<IP>,
 }
 
-export type DocumentType = NextComponentType<IDocumentContext, IDocumentInitialProps, IDocumentProps>
+export type DocumentType = NextComponentType<DocumentContext, DocumentInitialProps, DocumentProps>
 
-export type AppType = NextComponentType<IAppContext, IAppInitialProps, IAppProps>
+export type AppType = NextComponentType<AppContextType, AppInitialProps, AppPropsType>
 
 export type Enhancer<C> = (Component: C) => C
 
@@ -26,12 +26,12 @@ export type RenderPageResult = { html: string, head?: Array<JSX.Element | null>,
 
 export type RenderPage = (options?: ComponentsEnhancer) => RenderPageResult | Promise<RenderPageResult>
 
-export interface IBaseContext {
+export type BaseContext = {
   res?: ServerResponse
-  [k: string]: any
+  [k: string]: any,
 }
 
-export interface INEXTDATA {
+export type NEXT_DATA = {
   dataManager: string
   props: any
   page: string
@@ -42,10 +42,11 @@ export interface INEXTDATA {
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
   dynamicIds?: string[]
-  err?: Error & { statusCode?: number }
+  err?: Error & { statusCode?: number },
 }
 
-export interface IContext {
+// tslint:disable-next-line interface-name
+export interface NextPageContext {
   err?: Error & { statusCode?: number } | null
   req?: IncomingMessage
   res?: ServerResponse
@@ -54,31 +55,31 @@ export interface IContext {
   asPath?: string
 }
 
-export interface IAppContext<R extends IRouterInterface = IRouterInterface> {
-  Component: NextComponentType<IContext>
+export type AppContextType<R extends BaseRouter = BaseRouter> = {
+  Component: NextComponentType<NextPageContext>
   router: R
-  ctx: IContext
+  ctx: NextPageContext,
 }
 
-export interface IAppInitialProps {
-  pageProps: any
+export type AppInitialProps = {
+  pageProps: any,
 }
 
-export interface IAppProps<R extends IRouterInterface = IRouterInterface> extends IAppInitialProps {
-  Component: NextComponentType<IContext>
-  router: R
+export type AppPropsType<R extends BaseRouter = BaseRouter, P = {}> = AppInitialProps & {
+  Component: NextComponentType<NextPageContext, any, P>
+  router: R,
 }
 
-export interface IDocumentContext extends IContext {
-  renderPage: RenderPage
+export type DocumentContext = NextPageContext & {
+  renderPage: RenderPage,
 }
 
-export interface IDocumentInitialProps extends RenderPageResult {
-  styles?: React.ReactElement[]
+export type DocumentInitialProps = RenderPageResult & {
+  styles?: React.ReactElement[],
 }
 
-export interface IDocumentProps extends IDocumentInitialProps {
-  __NEXT_DATA__: INEXTDATA
+export type DocumentProps = DocumentInitialProps & {
+  __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   ampPath: string
   amphtml: boolean
@@ -87,7 +88,7 @@ export interface IDocumentProps extends IDocumentInitialProps {
   devFiles: string[]
   files: string[]
   dynamicImports: ManifestItem[]
-  assetPrefix?: string
+  assetPrefix?: string,
 }
 
 /**
@@ -123,20 +124,34 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
-export async function loadGetInitialProps<C extends IBaseContext, P = any, CP = {}>(Component: NextComponentType<C, P, CP>, ctx: C): Promise<P | null> {
+export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}>(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP | null> {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
       const message = `"${getDisplayName(Component)}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
   }
+  // when called from _app `ctx` is nested in `ctx`
+  const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
-  if (!Component.getInitialProps) return null
+  if (!Component.getInitialProps) {
+    return null
+  }
 
   const props = await Component.getInitialProps(ctx)
 
-  if (ctx.res && isResSent(ctx.res)) {
+  if (res && isResSent(res)) {
     return props
+  }
+
+  // if page component doesn't have getInitialProps
+  // set cache-control header to stale-while-revalidate
+  if (ctx.Component && !ctx.Component.getInitialProps) {
+    if (res && res.setHeader) {
+      res.setHeader(
+        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
+      )
+    }
   }
 
   if (!props) {

@@ -3,17 +3,18 @@
 import { ComponentType } from 'react';
 import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
-import { formatWithValidation, getURL, loadGetInitialProps, IContext, IAppContext } from '../utils';
+import { formatWithValidation, getURL, loadGetInitialProps, NextPageContext, AppContextType } from '../utils';
+import {rewriteUrlForNextExport} from './rewrite-url-for-export'
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
 }
 
-export interface IRouterInterface {
+export type BaseRouter = {
   route: string
   pathname: string
   query: string
-  asPath: string
+  asPath: string,
 }
 
 type RouteInfo = {
@@ -27,7 +28,7 @@ type Subscription = (data: {App?: ComponentType} & RouteInfo) => void
 
 type BeforePopStateCallback = (state: any) => boolean
 
-export default class Router implements IRouterInterface {
+export default class Router implements BaseRouter {
   route: string
   pathname: string
   query: string
@@ -85,15 +86,7 @@ export default class Router implements IRouterInterface {
   }
 
   static _rewriteUrlForNextExport(url: string): string {
-    const [pathname, hash] = url.split('#')
-    // tslint:disable-next-line
-    let [path, qs] = pathname.split('?')
-    path = path.replace(/\/$/, '')
-    // Append a trailing slash if this path does not have an extension
-    if (!/\.[^/]+\/?$/.test(path)) path += `/`
-    if (qs) path += '?' + qs
-    if (hash) path += '#' + hash
-    return path
+    return rewriteUrlForNextExport(url)
   }
 
   onPopState = (e: PopStateEvent): void => {
@@ -153,40 +146,8 @@ export default class Router implements IRouterInterface {
     }
   }
 
-  reload(route: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      delete this.components[route]
-      this.pageLoader.clearCache(route)
-
-      if (route !== this.route) {
-        return resolve()
-      }
-
-      const { pathname, query } = this
-      const url = window.location.href
-      // This makes sure we only use pathname + query + hash, to mirror `asPath` coming from the server.
-      const as = window.location.pathname + window.location.search + window.location.hash
-
-      Router.events.emit('routeChangeStart', url)
-      this.getRouteInfo(route, pathname, query, as).then((routeInfo) => {
-        const { error } = routeInfo
-
-        if (error && error.cancelled) {
-          return resolve()
-        }
-
-        this.notify(routeInfo)
-
-        if (error) {
-          Router.events.emit('routeChangeError', error, url)
-          return reject(error)
-        }
-
-        Router.events.emit('routeChangeComplete', url)
-      })
-
-    })
-
+  reload(): void {
+    window.location.reload()
   }
 
   back() {
@@ -213,7 +174,7 @@ export default class Router implements IRouterInterface {
       if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
         // @ts-ignore this is temporarily global (attached to window)
         if (__NEXT_DATA__.nextExport) {
-          as = Router._rewriteUrlForNextExport(as)
+          as = rewriteUrlForNextExport(as)
         }
       }
 
@@ -222,6 +183,7 @@ export default class Router implements IRouterInterface {
       // If the url change is only related to a hash change
       // We should not proceed. We should only change the state.
       if (this.onlyAHashChange(as)) {
+        this.asPath = as
         Router.events.emit('hashChangeStart', as)
         this.changeState(method, url, as)
         this.scrollToHash(as)
@@ -461,13 +423,13 @@ export default class Router implements IRouterInterface {
     return Component
   }
 
-  async getInitialProps(Component: ComponentType, ctx: IContext): Promise<any> {
+  async getInitialProps(Component: ComponentType, ctx: NextPageContext): Promise<any> {
     let cancelled = false
     const cancel = () => { cancelled = true }
     this.componentLoadCancel = cancel
     const { Component: App } = this.components['/_app']
 
-    const props = await loadGetInitialProps<IAppContext<Router>>(App, { Component, router: this, ctx })
+    const props = await loadGetInitialProps<AppContextType<Router>>(App, { Component, router: this, ctx })
 
     if (cancel === this.componentLoadCancel) {
       this.componentLoadCancel = null

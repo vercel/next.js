@@ -1,5 +1,3 @@
-# React Native Web example
-
 ## How to use
 
 ### Using `create-next-app`

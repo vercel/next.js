@@ -57,7 +57,7 @@ When you start this example locally:
 
 In case you want to deploy this example, replace the URL in the following locations with your own domain:
 
-- `hostname` in `src/server/sitemapAndRobots.ts`
+- `hostname` in `src/server/sitemap.ts`
 - `ROOT_URL` in `src/server/app.ts`
 - `Sitemap` at the bottom of `src/server/robots.txt`
 - `alias` in `now.json`

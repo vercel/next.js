@@ -62,6 +62,13 @@ describe('Production Usage', () => {
       expect(header).toBe('Next.js')
     })
 
+    it('should set correct cache-control header when no GIP', async () => {
+      const url = `http://localhost:${appPort}/`
+      const header = (await fetch(url)).headers.get('Cache-Control')
+
+      expect(header).toBe('s-maxage=86400, stale-while-revalidate')
+    })
+
     it('should render 404 for routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/abcdefghijklmno`
       const res = await fetch(url)
@@ -259,6 +266,19 @@ describe('Production Usage', () => {
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
       expect(data).toBe('item')
+    })
+
+    it('Should allow access to public files', async () => {
+      const data = await renderViaHTTP(appPort, '/data/data.txt')
+      expect(data).toBe('data')
+    })
+
+    it('Should prioritize pages over public files', async () => {
+      const html = await renderViaHTTP(appPort, '/about')
+      const data = await renderViaHTTP(appPort, '/file')
+
+      expect(html).toMatch(/About Page/)
+      expect(data).toBe('test')
     })
 
     it('should reload the page on page script error', async () => {

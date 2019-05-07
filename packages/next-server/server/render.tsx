@@ -2,10 +2,11 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
-import { IRouterInterface } from '../lib/router/router'
+import { BaseRouter } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt';
-import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, IDocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
+import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
+// @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
 import { DataManagerContext } from '../lib/data-manager-context'
 import { RequestContext } from '../lib/request-context'
@@ -20,14 +21,14 @@ import {
 import { getPageFiles, BuildManifest } from './get-page-files'
 import { AmpModeContext } from '../lib/amphtml-context'
 import optimizeAmp from './optimize-amp'
-import { isAmp } from '../lib/amp';
+import { isAmp } from '../lib/amp'
 
 function noRouter() {
   const message = 'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/zeit/next.js/no-router-instance'
   throw new Error(message)
 }
 
-class ServerRouter implements IRouterInterface {
+class ServerRouter implements BaseRouter {
   route: string
   pathname: string
   query: string
@@ -93,6 +94,7 @@ function enhanceComponents(
 function render(
   renderElementToString: (element: React.ReactElement<any>) => string,
   element: React.ReactElement<any>,
+  ampMode: any,
 ): { html: string; head: React.ReactElement[] } {
   let html
   let head
@@ -100,7 +102,7 @@ function render(
   try {
     html = renderElementToString(element)
   } finally {
-    head = Head.rewind() || defaultHead()
+    head = Head.rewind() || defaultHead(undefined, isAmp(ampMode))
   }
 
   return { html, head }
@@ -159,7 +161,7 @@ function renderDocument(
   }: RenderOpts & {
     dataManagerData: string,
     props: any
-    docProps: IDocumentInitialProps
+    docProps: DocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
     dangerousAsPath: string
@@ -288,7 +290,7 @@ export async function renderToHTML(
 
   const renderPageError = (): {html: string, head: any} | void => {
     if (ctx.err && ErrorDebug) {
-      return render(renderElementToString, <ErrorDebug error={ctx.err} />)
+      return render(renderElementToString, <ErrorDebug error={ctx.err} />, ampMode)
     }
 
     if (dev && (props.router || props.Component)) {
@@ -343,6 +345,7 @@ export async function renderToHTML(
         return render(
           renderElementToString,
           element,
+          ampMode,
         )
       } catch (err) {
         if (err && typeof err === 'object' && typeof err.then === 'function') {
@@ -357,6 +360,7 @@ export async function renderToHTML(
             return render(
               renderElementToString,
               element,
+              ampMode,
             )
           }
         }
@@ -392,6 +396,7 @@ export async function renderToHTML(
             </AmpModeContext.Provider>
           </RouterContext.Provider>
         </RequestContext.Provider>,
+        ampMode,
       )
     }
   }
@@ -443,6 +448,9 @@ export async function renderToHTML(
   })
 
   if (amphtml && html) {
+    // use replace to allow rendering directly to body in AMP mode
+    html = html.replace('__NEXT_AMP_RENDER_TARGET__', docProps.html)
+
     if (ampMode.hasQuery) {
       html = await optimizeAmp(html, { amphtml, query })
     }

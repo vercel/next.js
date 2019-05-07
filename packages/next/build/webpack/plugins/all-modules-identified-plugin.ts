@@ -1,6 +1,6 @@
+import { Compiler, Plugin } from 'webpack'
 import { createHash } from 'crypto'
 import path from 'path'
-import { Compiler, Plugin } from 'webpack'
 
 /**
  * From escape-string-regexp: https://github.com/sindresorhus/escape-string-regexp
@@ -36,11 +36,7 @@ function getRawModuleIdentifier(m: any, dir: string) {
     context = path.relative(dir, context)
   }
 
-  const identifier = `${context}::${request}`
-  console.warn(
-    `> module identifier: RawModule ${m.identifier()} => ${identifier}`
-  )
-  return identifier
+  return `${context}::${request}`
 }
 
 function getMultiModuleIdentifier(m: any) {
@@ -56,11 +52,7 @@ function getMultiModuleIdentifier(m: any) {
     )
   }
 
-  const identifier = ids.sort().join('::')
-  console.warn(
-    `> module identifier: MultiModule ${m.identifier()} => ${identifier}`
-  )
-  return identifier
+  return ids.sort().join('::')
 }
 
 export class AllModulesIdentifiedPlugin implements Plugin {

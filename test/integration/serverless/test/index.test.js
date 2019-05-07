@@ -29,6 +29,14 @@ describe('Serverless', () => {
     expect(html).toMatch(/Hello World/)
   })
 
+  it('should set cache-control header', async () => {
+    const header = (
+      await fetch(`http://localhost:${appPort}/`)
+    ).headers.get('Cache-Control')
+
+    expect(header).toBe('s-maxage=86400, stale-while-revalidate')
+  })
+
   it('should render the page with dynamic import', async () => {
     const html = await renderViaHTTP(appPort, '/dynamic')
     expect(html).toMatch(/Hello!/)

@@ -1,26 +1,36 @@
 {
   "name": "next-server",
-  "version": "8.1.1-canary.3",
+  "version": "8.1.1-canary.24",
   "main": "./index.js",
   "license": "MIT",
   "repository": "zeit/next.js",
   "files": [
     "dist",
     "index.js",
+    "index.d.ts",
     "config.js",
+    "config.d.ts",
     "constants.js",
+    "constants.d.ts",
     "dynamic.js",
+    "dynamic.d.ts",
     "head.js",
+    "head.d.ts",
     "link.js",
+    "link.d.ts",
     "router.js",
+    "router.d.ts",
     "next-config.js",
-    "amp.js"
+    "next-config.d.ts",
+    "amp.js",
+    "amp.d.ts"
   ],
   "scripts": {
     "build": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release",
-    "typescript": "tsc --noEmit"
+    "prepublish": "npm run release && yarn types",
+    "typescript": "tsc --noEmit --declaration",
+    "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist"
   },
   "taskr": {
     "requires": [
@@ -28,7 +38,7 @@
     ]
   },
   "dependencies": {
-    "amp-toolbox-optimizer": "0.5.2-beta.6",
+    "amp-toolbox-optimizer": "0.5.3",
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
@@ -46,9 +56,9 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
-    "@types/react": "16.8.4",
-    "@types/react-dom": "16.8.2",
-    "@types/react-is": "16.5.0",
+    "@types/react": "16.8.10",
+    "@types/react-dom": "16.8.3",
+    "@types/react-is": "16.7.1",
     "@types/send": "0.14.4",
     "taskr": "1.1.0",
     "typescript": "3.1.6"

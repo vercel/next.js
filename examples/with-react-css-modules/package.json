@@ -1,0 +1,20 @@
+{
+  "name": "with-react-css-modules",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "author": "Samciu",
+  "license": "ISC",
+  "dependencies": {
+    "@zeit/next-css": "^1.0.1",
+    "babel-plugin-react-css-modules": "^5.2.4",
+    "next": "^8.1.0",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  }
+}

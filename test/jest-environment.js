@@ -44,7 +44,8 @@ if (isBrowserStack) {
   }
   const sharedOpts = {
     'browserstack.local': true,
-    'browserstack.video': false
+    'browserstack.video': false,
+    'browserstack.localIdentifier': global.browserStackLocal.localIdentifierFlag
   }
 
   browserOptions = {

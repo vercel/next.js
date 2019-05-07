@@ -2,7 +2,7 @@
 import PropTypes from 'prop-types'
 import React, { Component } from 'react'
 import { cleanAmpPath } from 'next-server/dist/server/utils'
-import { IDocumentContext, IDocumentInitialProps, IDocumentProps } from 'next-server/dist/lib/utils'
+import { DocumentContext, DocumentInitialProps, DocumentProps } from 'next-server/dist/lib/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
 import flush from 'styled-jsx/server'
 import {
@@ -10,33 +10,33 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
 } from 'next-server/constants'
 
-export { IDocumentContext, IDocumentInitialProps, IDocumentProps }
+export { DocumentContext, DocumentInitialProps, DocumentProps }
 
-export interface IOriginProps {
+export type OriginProps = {
   nonce?: string
-  crossOrigin?: string
+  crossOrigin?: string,
 }
 
-export interface IDocumentComponentContext {
-  readonly _documentProps: IDocumentProps
-  readonly _devOnlyInvalidateCacheQueryString: string
+export type DocumentComponentContext = {
+  readonly _documentProps: DocumentProps
+  readonly _devOnlyInvalidateCacheQueryString: string,
 }
 
-export default class Document extends Component<IDocumentProps> {
+export default class Document<P = {}> extends Component<DocumentProps & P> {
   static childContextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
-  static async getInitialProps({ renderPage }: IDocumentContext): Promise<IDocumentInitialProps> {
+  static async getInitialProps({ renderPage }: DocumentContext): Promise<DocumentInitialProps> {
     const { html, head, dataOnly } = await renderPage()
     const styles = flush()
     return { html, head, styles, dataOnly }
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
-  getChildContext(): IDocumentComponentContext {
+  getChildContext(): DocumentComponentContext {
     return {
       _documentProps: this.props,
       // In dev we invalidate the cache by appending a timestamp to the resource URL.
@@ -69,7 +69,7 @@ export class Html extends Component {
     children: PropTypes.node.isRequired,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   render() {
     const { amphtml } = this.context._documentProps
@@ -79,7 +79,7 @@ export class Html extends Component {
   }
 }
 
-export class Head extends Component<IOriginProps> {
+export class Head extends Component<OriginProps> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -90,7 +90,7 @@ export class Head extends Component<IOriginProps> {
     crossOrigin: PropTypes.string,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   getCssLinks() {
     const { assetPrefix, files } = this.context._documentProps
@@ -98,7 +98,7 @@ export class Head extends Component<IOriginProps> {
       return null
     }
 
-    return files.map((file) => {
+    return files.map((file: string) => {
       // Only render .css files here
       if (!/\.css$/.exec(file)) {
         return null
@@ -120,7 +120,7 @@ export class Head extends Component<IOriginProps> {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dynamicImports.map((bundle) => {
+    return dynamicImports.map((bundle: any) => {
       return (
         <link
           rel="preload"
@@ -143,7 +143,7 @@ export class Head extends Component<IOriginProps> {
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file) => {
+    return files.map((file: string) => {
       // Only render .js files here
       if (!/\.js$/.exec(file)) {
         return null
@@ -193,6 +193,7 @@ export class Head extends Component<IOriginProps> {
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated',
         )
     }
+
     // show warning and remove conflicting amp head tags
     head = !amphtml ? head : React.Children.map(head || [], (child) => {
       if (!child) return child
@@ -220,7 +221,7 @@ export class Head extends Component<IOriginProps> {
       }
 
       if (badProp) {
-        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
+        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`)
         return null
       }
       return child
@@ -343,15 +344,16 @@ export class Main extends Component {
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   render() {
-    const { html } = this.context._documentProps
+    const { amphtml, html } = this.context._documentProps
+    if (amphtml) return '__NEXT_AMP_RENDER_TARGET__'
     return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
   }
 }
 
-export class NextScript extends Component<IOriginProps> {
+export class NextScript extends Component<OriginProps> {
   static contextTypes = {
     _documentProps: PropTypes.any,
     _devOnlyInvalidateCacheQueryString: PropTypes.string,
@@ -362,13 +364,13 @@ export class NextScript extends Component<IOriginProps> {
     crossOrigin: PropTypes.string,
   }
 
-  context!: IDocumentComponentContext
+  context!: DocumentComponentContext
 
   getDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dynamicImports.map((bundle) => {
+    return dynamicImports.map((bundle: any) => {
       return (
         <script
           async
@@ -390,7 +392,7 @@ export class NextScript extends Component<IOriginProps> {
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file) => {
+    return files.map((file: string) => {
       // Only render .js files here
       if (!/\.js$/.exec(file)) {
         return null
@@ -408,7 +410,7 @@ export class NextScript extends Component<IOriginProps> {
     })
   }
 
-  static getInlineScriptSource(documentProps: IDocumentProps) {
+  static getInlineScriptSource(documentProps: DocumentProps) {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
@@ -488,7 +490,7 @@ export class NextScript extends Component<IOriginProps> {
     return (
       <>
         {devFiles
-          ? devFiles.map((file) => (
+          ? devFiles.map((file: string) => !file.match(/\.js\.map/) && (
               <script
                 key={file}
                 src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}

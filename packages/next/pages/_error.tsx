@@ -1,6 +1,6 @@
 import React from 'react'
 import Head from 'next-server/head'
-import { IContext } from 'next-server/dist/lib/utils'
+import { NextPageContext } from 'next-server/dist/lib/utils'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -9,14 +9,14 @@ const statusCodes: { [code: number]: string } = {
   501: 'Not Implemented',
 }
 
-export interface IErrorProps {
-  statusCode: number
+export type ErrorProps = {
+  statusCode: number,
 }
 
-export default class Error<P = {}> extends React.Component<P & IErrorProps> {
+export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static displayName = 'ErrorPage'
 
-  static getInitialProps({ res, err }: IContext) {
+  static getInitialProps({ res, err }: NextPageContext) {
     const statusCode =
       res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
     return { statusCode }

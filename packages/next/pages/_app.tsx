@@ -1,20 +1,20 @@
-import React from 'react'
+import React, {ErrorInfo} from 'react'
 import PropTypes from 'prop-types'
-import { execOnce, loadGetInitialProps, NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps } from 'next-server/dist/lib/utils'
-import { Router, makePublicRouterInstance } from 'next/router'
+import { execOnce, loadGetInitialProps, AppContextType, AppInitialProps, AppPropsType } from 'next-server/dist/lib/utils'
+import { Router, makePublicRouterInstance } from '../client/router'
 
-export { NextComponentType, IContext, IAppContext, IAppInitialProps, IAppProps }
+export { AppInitialProps }
 
-export type AppClientContext = IAppContext<Router>
+export type AppContext = AppContextType<Router>
 
-export type AppProps = IAppProps<Router>
+export type AppProps<P = {}> = AppPropsType<Router, P>
 
-export default class App extends React.Component<AppProps> {
+export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP>> {
   static childContextTypes = {
     router: PropTypes.object,
   }
 
-  static async getInitialProps({ Component, ctx }: AppClientContext): Promise<IAppInitialProps> {
+  static async getInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
     const pageProps = await loadGetInitialProps(Component, ctx)
     return { pageProps }
   }
@@ -26,13 +26,14 @@ export default class App extends React.Component<AppProps> {
   }
 
   // Kept here for backwards compatibility.
-  // When someone ended App they could call `super.componentDidCatch`. This is now deprecated.
-  componentDidCatch(err: Error) {
-    throw err
+  // When someone ended App they could call `super.componentDidCatch`.
+  // @deprecated This method is no longer needed. Errors are caught at the top level
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo): void {
+    throw error
   }
 
   render() {
-    const { router, Component, pageProps } = this.props
+    const { router, Component, pageProps } = this.props as AppProps<CP>
     const url = createUrl(router)
     return (
       <Container>
@@ -51,7 +52,7 @@ export class Container extends React.Component {
     this.scrollToHash()
   }
 
-  scrollToHash() {
+  private scrollToHash() {
     let { hash } = window.location
     hash = hash && hash.substring(1)
     if (!hash) return
