@@ -1,4 +1,4 @@
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
+// import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -507,20 +507,20 @@ export default async function getBaseWebpackConfig(
             `profile-events-${isServer ? 'server' : 'client'}.json`
           ),
         }),
-      useTypeScript &&
-        new ForkTsCheckerWebpackPlugin({
-          typescript: resolve.sync('typescript', {
-            basedir: dir,
-          }),
-          async: false,
-          useTypescriptIncrementalApi: true,
-          checkSyntacticErrors: true,
-          tsconfig: tsConfigPath,
-          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
-          compilerOptions: { isolatedModules: true, noEmit: true },
-          silent: true,
-          formatter: 'codeframe',
-        }),
+      // useTypeScript &&
+      //   new ForkTsCheckerWebpackPlugin({
+      //     typescript: resolve.sync('typescript', {
+      //       basedir: dir,
+      //     }),
+      //     async: false,
+      //     useTypescriptIncrementalApi: true,
+      //     checkSyntacticErrors: true,
+      //     tsconfig: tsConfigPath,
+      //     reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+      //     compilerOptions: { isolatedModules: true, noEmit: true },
+      //     silent: true,
+      //     formatter: 'codeframe',
+      //   }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
