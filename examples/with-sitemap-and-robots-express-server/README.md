@@ -47,7 +47,7 @@ The app is deployed at: https://sitemap-robots.now.sh. Open the page and click t
 Notes:
 - routes `/a` and `/b` are added to sitemap manually
 - routes that start with `/posts` are added automatically to sitemap; the current example creates an array of posts (see `server/posts.js`), but in a production-level web app, you would want to update `sitemap.xml` dynamically by getting posts from a database:
-  - see [this app](https://github.com/builderbook/builderbook/blob/5f33772b8896d646cff89493853f34e61de6179a/server/sitemapAndRobots.js#L11) in which posts are fetched from a database
+  - see [this app](https://github.com/builderbook/builderbook/blob/5f33772b8896d646cff89493853f34e61de6179a/server/sitemap.js#L11) in which posts are fetched from a database
 
 When you start this example locally:
 - your app with run at https://localhost:8000
@@ -55,7 +55,7 @@ When you start this example locally:
 - robots.txt will be located at http://localhost:8000/robots.txt
 
 In case you want to deploy this example, replace the URL in the following locations with your own domain:
-- `hostname` in `server/sitemapAndRobots.js`
+- `hostname` in `server/sitemap.js`
 - `ROOT_URL` in `server/app.js`
 - `Sitemap` at the bottom of `robots.txt`
 - `alias` in `now.json`

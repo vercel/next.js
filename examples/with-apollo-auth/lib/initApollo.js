@@ -10,10 +10,11 @@ if (!process.browser) {
   global.fetch = fetch
 }
 
-function create (initialState, { getToken }) {
+function create (initialState, { getToken, fetchOptions }) {
   const httpLink = createHttpLink({
     uri: 'https://api.graph.cool/simple/v1/cj5geu3slxl7t0127y8sity9r',
-    credentials: 'same-origin'
+    credentials: 'same-origin',
+    fetchOptions
   })
 
   const authLink = setContext((_, { headers }) => {
@@ -39,7 +40,19 @@ export default function initApollo (initialState, options) {
   // Make sure to create a new client for every server-side request so that data
   // isn't shared between connections (which would be bad)
   if (!process.browser) {
-    return create(initialState, options)
+    let fetchOptions = {}
+    // If you are using a https_proxy, add fetchOptions with 'https-proxy-agent' agent instance
+    // 'https-proxy-agent' is required here because it's a sever-side only module
+    if (process.env.https_proxy) {
+      fetchOptions = {
+        agent: new (require('https-proxy-agent'))(process.env.https_proxy)
+      }
+    }
+    return create(initialState,
+      {
+        ...options,
+        fetchOptions
+      })
   }
 
   // Reuse client on the client-side

@@ -36,7 +36,9 @@ store.subscribe(state => {
 
   if (state.bootstrap) {
     Log.wait('starting the development server ...')
-    Log.info(`waiting on ${state.appUrl!} ...`)
+    if (state.appUrl) {
+      Log.info(`waiting on ${state.appUrl} ...`)
+    }
     return
   }
 
@@ -67,14 +69,14 @@ store.subscribe(state => {
 
   if (state.warnings) {
     Log.warn(state.warnings.join('\n\n'))
-    Log.info(`ready on ${state.appUrl!}`)
+    if (state.appUrl) {
+      Log.info(`ready on ${state.appUrl}`)
+    }
     return
   }
 
+  Log.ready('compiled successfully')
   if (state.appUrl) {
-    Log.ready('compiled successfully')
-    if (state.appUrl) {
-      Log.info(`ready on ${state.appUrl!}`)
-    }
+    Log.info(`ready on ${state.appUrl}`)
   }
 })
