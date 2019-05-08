@@ -1,6 +1,6 @@
 const { join } = require('path')
 const mkdirpNpm = require('mkdirp')
-const { mkdirp: mkdirpCustom } = require('mkdirp')
+const { mkdirp: mkdirpCustom } = require('next/dist/lib/mkdirp')
 const fs = require('fs-extra')
 
 const fixturesDir = join(__dirname, 'fixtures')
