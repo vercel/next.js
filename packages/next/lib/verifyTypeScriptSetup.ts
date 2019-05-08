@@ -27,7 +27,9 @@ function writeJson(fileName: string, object: object): Promise<void> {
 
 async function verifyNoTypeScript(dir: string) {
   const typescriptFiles = await recursiveReadDir(
-    dir, /.*\.(ts|tsx)/, /(node_modules|.*\.d\.ts)/,
+    dir,
+    /.*\.(ts|tsx)/,
+    /(node_modules|.*\.d\.ts)/,
   )
 
   if (typescriptFiles.length > 0) {
@@ -44,7 +46,10 @@ async function verifyNoTypeScript(dir: string) {
   return true
 }
 
-export default async function verifyTypeScriptSetup(dir: string, tsConfigPath: string): Promise<string | void> {
+export default async function verifyTypeScriptSetup(
+  dir: string,
+  tsConfigPath: string,
+): Promise<string | void> {
   let firstTimeSetup = false
   const yarnLockFile = path.join(dir, 'yarn.lock')
 
