@@ -1924,7 +1924,8 @@ npm install --save-dev @types/react @types/react-dom @types/node
 Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout out its [documentation](https://www.typescriptlang.org/).
 
 ### Exported types
-Next provides `NextPage` type what is used for functional `page` component. `NextPage` adds types to [`getInitialProps`](#fetching-data-and-component-lifecycle) what provides types for context.
+
+Next.js provides `NextPage` type that can be used for pages in the `pages` directory. `NextPage` adds definitions for [`getInitialProps`](#fetching-data-and-component-lifecycle) so that it can be used without any extra typing needed.
 ```tsx
 import { NextPage } from 'next'
 
