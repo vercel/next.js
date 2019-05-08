@@ -159,12 +159,11 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     appTsConfig = readTsConfig
 
     // Get TS to parse and resolve any "extends"
-    // Calling this function also mutates the tsconfig above,
-    // adding in "include" and "exclude", but the compilerOptions remain untouched
-    parsedTsConfig = readTsConfig
-
+    // Calling this function also mutates the tsconfig, adding in "include" and
+    // "exclude", but the compilerOptions remain untouched
+    parsedTsConfig = JSON.parse(JSON.stringify(readTsConfig))
     const result = ts.parseJsonConfigFileContent(
-      JSON.parse(JSON.stringify(readTsConfig)),
+      parsedTsConfig,
       ts.sys,
       path.dirname(tsConfigPath),
     )
