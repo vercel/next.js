@@ -228,6 +228,10 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     appTsConfig.exclude = ['node_modules']
   }
 
+  if (parsedTsConfig.include == null) {
+    parsedTsConfig.include = ['**/*.ts', '**/*.tsx']
+  }
+
   if (messages.length > 0) {
     if (firstTimeSetup) {
       console.info(
