@@ -62,7 +62,7 @@ export default async function verifyTypeScriptSetup(
   }
   const isYarn = await exists(yarnLockFile)
 
-  // Ensure typescript is installed
+  // Ensure TypeScript is installed
   let typescriptPath = ''
   let ts: typeof import('typescript')
   try {
