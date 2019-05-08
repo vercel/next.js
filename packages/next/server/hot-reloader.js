@@ -13,7 +13,7 @@ import { watchCompiler } from '../build/output'
 import { findPageFile } from './lib/find-page-file'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { promisify } from 'util'
-// import * as ForkTsCheckerWatcherHook from '../build/webpack/plugins/fork-ts-checker-watcher-hook'
+import * as ForkTsCheckerWatcherHook from '../build/webpack/plugins/fork-ts-checker-watcher-hook'
 import fs from 'fs'
 
 const access = promisify(fs.access)
@@ -271,12 +271,11 @@ export default class HotReloader {
       multiCompiler.compilers[1]
     )
 
-    // const tsConfigPath = join(this.dir, 'tsconfig.json')
-    // const useTypeScript = await fileExists(tsConfigPath)
-    // if (useTypeScript) {
-    //   ForkTsCheckerWatcherHook.Apply(multiCompiler.compilers[0])
-    //   ForkTsCheckerWatcherHook.Apply(multiCompiler.compilers[1])
-    // }
+    const tsConfigPath = join(this.dir, 'tsconfig.json')
+    const useTypeScript = await fileExists(tsConfigPath)
+    if (useTypeScript) {
+      ForkTsCheckerWatcherHook.Apply(multiCompiler.compilers[0])
+    }
 
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
