@@ -162,8 +162,9 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     // Calling this function also mutates the tsconfig above,
     // adding in "include" and "exclude", but the compilerOptions remain untouched
     parsedTsConfig = readTsConfig
+
     const result = ts.parseJsonConfigFileContent(
-      readTsConfig,
+      JSON.parse(JSON.stringify(readTsConfig)),
       ts.sys,
       path.dirname(tsConfigPath),
     )

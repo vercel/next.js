@@ -64,9 +64,4 @@ describe('Fork ts checker plugin', () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/Hello TypeScript/)
   })
-
-  it('Renders a TypeScript page with invalid type error correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/about')
-    expect(html).toMatch(/Hello TypeScript/)
-  })
 })
