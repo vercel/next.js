@@ -1,7 +1,14 @@
 const { join } = require('path')
-const mkdirpNpm = require('mkdirp')
-const { mkdirp: mkdirpCustom } = require('next/dist/lib/mkdirp')
+const { promisify } = require('util')
 const fs = require('fs-extra')
+
+const mkdirpNpm = promisify(require('mkdirp'))
+const mkdirpSyncNpm = require('mkdirp').sync
+
+const {
+  mkdirp: mkdirpCustom,
+  mkdirpSync: mkdirpSyncCustom
+} = require('next/dist/lib/mkdirp')
 
 const fixturesDir = join(__dirname, 'fixtures')
 
@@ -41,6 +48,12 @@ async function main () {
 
   console.log('test mkdirp custom implementation')
   await run(mkdirpCustom)
+
+  console.log('test mkdirp sync npm module')
+  await run(mkdirpSyncNpm)
+
+  console.log('test mkdirp sync custom implementation')
+  await run(mkdirpSyncCustom)
 
   await fs.remove(fixturesDir)
 }
