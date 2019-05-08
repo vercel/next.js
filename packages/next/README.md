@@ -1889,28 +1889,22 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
 {
   "compilerOptions": {
     "allowJs": true, /* Allow JavaScript files to be type checked. */
-    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
-    "target": "esnext", /* The type checking input. */
-    "module": "esnext", /* Specifies the type of module to type check. */
-    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
-    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
-    "moduleResolution": "node", /* Determine how modules get resolved. */
-    "allowSyntheticDefaultImports": true, /* Allow default imports from modules with no default export. */
-    "isolatedModules": true, /* to match webpack loader */
-    "esModuleInterop": true, /* matches compilation setting */
-    
-    /* Strict Type-Checking Options, optional, but recommended. */
-    "strict": true /* Enable all strict type-checking options. */,
-    "noImplicitAny": true /* Raise error on expressions and declarations with an implied 'any' type. */,
-    "strictNullChecks": true /* Enable strict null checks. */,
-    "strictFunctionTypes": true /* Enable strict checking of function types. */,
-    "strictBindCallApply": true /* Enable strict 'bind', 'call', and 'apply' methods on functions. */,
-    "strictPropertyInitialization": true /* Enable strict checking of property initialization in classes. */,
-    "noImplicitThis": true /* Raise error on 'this' expressions with an implied 'any' type. */,
     "alwaysStrict": true, /* Parse in strict mode. */
+    "esModuleInterop": true, /* matches compilation setting */
+    "isolatedModules": true, /* to match webpack loader */
+    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
+    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
+    "module": "esnext", /* Specifies the type of module to type check. */
+    "moduleResolution": "node", /* Determine how modules get resolved. */
+    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
+
+    /* Strict Type-Checking Options, optional, but recommended. */
+    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
     "noUnusedLocals": true, /* Report errors on unused locals. */
     "noUnusedParameters": true, /* Report errors on unused parameters. */
-    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+    "strict": true /* Enable all strict type-checking options. */,
+   
+    "target": "esnext" /* The type checking input. */
   }
 }
 ```
