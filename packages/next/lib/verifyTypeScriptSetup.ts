@@ -117,20 +117,23 @@ export default async function verifyTypeScriptSetup(
     // Keep this in sync with the webpack config
     esModuleInterop: {
       value: true,
-      reason: 'to match babel config',
+      reason: 'requirement for babel',
     },
     module: {
       parsedValue: ts.ModuleKind.ESNext,
       value: 'esnext',
-      reason: 'for import() and import/export',
+      reason: 'for dynamic import() support',
     },
     moduleResolution: {
       parsedValue: ts.ModuleResolutionKind.NodeJs,
       value: 'node',
       reason: 'to match webpack resolution',
     },
-    resolveJsonModule: { value: true, reason: 'to match webpack loader' },
-    isolatedModules: { value: true, reason: 'implementation limitation' },
+    resolveJsonModule: { value: true },
+    isolatedModules: {
+      value: true,
+      reason: 'requirement for babel',
+    },
     noEmit: { value: true },
     jsx: { parsedValue: ts.JsxEmit.Preserve, value: 'preserve' },
   }
