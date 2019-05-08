@@ -1,0 +1,14 @@
+{
+    "presets": [
+        "next/babel"
+    ],
+    "plugins": [
+        [
+            "react-css-modules",
+            {
+                "exclude": "node_modules",
+                "generateScopedName": "[local]_[hash:base64:5]"
+            }
+        ]
+    ]
+}

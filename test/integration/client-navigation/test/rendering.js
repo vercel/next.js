@@ -90,7 +90,7 @@ export default function (render, fetch) {
 
     test('header helper renders Fragment children', async () => {
       const html = await (render('/head'))
-      expect(html).toContain('<title class="next-head">Fragment title</title>')
+      expect(html).toContain('<title>Fragment title</title>')
       expect(html).toContain('<meta content="meta fragment" class="next-head"/>')
     })
 

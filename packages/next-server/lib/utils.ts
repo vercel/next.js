@@ -8,7 +8,7 @@ import { BaseRouter } from './router/router'
 /**
  * Types used by both next and next-server
  */
-export type NextComponentType<C extends BaseContext = IContext, IP = {}, P = {}> = ComponentType<P> & {
+export type NextComponentType<C extends BaseContext = NextPageContext, IP = {}, P = {}> = ComponentType<P> & {
   getInitialProps?(context: C): Promise<IP>,
 }
 
@@ -31,7 +31,7 @@ export type BaseContext = {
   [k: string]: any,
 }
 
-export type INEXTDATA = {
+export type NEXT_DATA = {
   dataManager: string
   props: any
   page: string
@@ -45,7 +45,8 @@ export type INEXTDATA = {
   err?: Error & { statusCode?: number },
 }
 
-export interface IContext {
+// tslint:disable-next-line interface-name
+export interface NextPageContext {
   err?: Error & { statusCode?: number } | null
   req?: IncomingMessage
   res?: ServerResponse
@@ -55,21 +56,21 @@ export interface IContext {
 }
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {
-  Component: NextComponentType<IContext>
+  Component: NextComponentType<NextPageContext>
   router: R
-  ctx: IContext,
+  ctx: NextPageContext,
 }
 
 export type AppInitialProps = {
   pageProps: any,
 }
 
-export type AppPropsType<R extends BaseRouter = BaseRouter> = AppInitialProps & {
-  Component: NextComponentType<IContext>
+export type AppPropsType<R extends BaseRouter = BaseRouter, P = {}> = AppInitialProps & {
+  Component: NextComponentType<NextPageContext, any, P>
   router: R,
 }
 
-export type DocumentContext = IContext & {
+export type DocumentContext = NextPageContext & {
   renderPage: RenderPage,
 }
 
@@ -78,7 +79,7 @@ export type DocumentInitialProps = RenderPageResult & {
 }
 
 export type DocumentProps = DocumentInitialProps & {
-  __NEXT_DATA__: INEXTDATA
+  __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   ampPath: string
   amphtml: boolean
@@ -130,20 +131,27 @@ export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}
       throw new Error(message)
     }
   }
+  // when called from _app `ctx` is nested in `ctx`
+  const res = ctx.res || (ctx.ctx && ctx.ctx.res)
 
   if (!Component.getInitialProps) {
-    if (ctx.res && ctx.res.setHeader) {
-      ctx.res.setHeader(
-        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
-      )
-    }
     return null
   }
 
   const props = await Component.getInitialProps(ctx)
 
-  if (ctx.res && isResSent(ctx.res)) {
+  if (res && isResSent(res)) {
     return props
+  }
+
+  // if page component doesn't have getInitialProps
+  // set cache-control header to stale-while-revalidate
+  if (ctx.Component && !ctx.Component.getInitialProps) {
+    if (res && res.setHeader) {
+      res.setHeader(
+        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
+      )
+    }
   }
 
   if (!props) {

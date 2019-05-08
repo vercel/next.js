@@ -46,22 +46,78 @@ type LinkProps = {
   href: Url,
   as?: Url|undefined,
   replace?: boolean,
-  prefetch?: boolean,
   scroll?: boolean,
   shallow?: boolean,
   passHref?: boolean
   onError?: (error: Error) => void,
 }
 
-class Link extends Component<LinkProps> {
-  static propTypes?: any
-  componentDidMount() {
-    this.prefetch()
+let observer: IntersectionObserver
+const listeners = new Map()
+const IntersectionObserver = typeof window !== 'undefined'
+  ? (window as any).IntersectionObserver : null
+
+function getObserver() {
+  // Return shared instance of IntersectionObserver if already created
+  if (observer) {
+    return observer
   }
 
-  componentDidUpdate(prevProps: LinkProps) {
-    if (JSON.stringify(this.props.href) !== JSON.stringify(prevProps.href)) {
-      this.prefetch()
+  // Only create shared IntersectionObserver if supported in browser
+  if (!IntersectionObserver) {
+    return undefined
+  }
+
+  return (observer = new IntersectionObserver(
+      (entries: any) => {
+        entries.forEach((entry: any) => {
+        if (!listeners.has(entry.target)) {
+          return
+        }
+
+        const cb = listeners.get(entry.target)
+        if (entry.isIntersecting || entry.intersectionRatio > 0) {
+              observer.unobserve(entry.target)
+              listeners.delete(entry.target)
+              cb()
+            }
+        })
+      },
+      { rootMargin: '200px' },
+  ))
+}
+
+const listenToIntersections = (el: any, cb: any) => {
+  const observer = getObserver()
+  if (!observer) {
+    return () => {}
+  }
+
+  observer.observe(el)
+  listeners.set(el, cb)
+  return () => {
+    observer.unobserve(el)
+    listeners.delete(el)
+  }
+}
+
+class Link extends Component<LinkProps> {
+  static propTypes?: any
+  cleanUpListeners = () => {}
+
+  componentDidMount() {
+    this.cleanUpListeners = () => {}
+  }
+
+  componentWillUnmount() {
+    this.cleanUpListeners()
+  }
+
+  handleRef(ref: Element) {
+    if (IntersectionObserver && ref && ref.tagName) {
+      this.cleanUpListeners = listenToIntersections(ref, () => {
+        this.prefetch()
+      })
     }
   }
 
@@ -117,7 +173,6 @@ class Link extends Component<LinkProps> {
   };
 
   prefetch() {
-    if (!this.props.prefetch) return
     if (typeof window === 'undefined') return
 
     // Prefetch the JSON page if asked (only in the client)
@@ -138,9 +193,15 @@ class Link extends Component<LinkProps> {
     // This will return the first child, if multiple are provided it will throw an error
     const child: any = Children.only(children)
     const props: {
+      onMouseEnter: React.MouseEventHandler,
       onClick: React.MouseEventHandler,
       href?: string,
+      ref?: any,
     } = {
+      ref: (el: any) => this.handleRef(el),
+      onMouseEnter: () => {
+        this.prefetch()
+      },
       onClick: (e: React.MouseEvent) => {
         if (child.props && typeof child.props.onClick === 'function') {
           child.props.onClick(e)
