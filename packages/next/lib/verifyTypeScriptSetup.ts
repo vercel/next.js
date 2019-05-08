@@ -132,12 +132,7 @@ export default async function verifyTypeScriptSetup(
     resolveJsonModule: { value: true, reason: 'to match webpack loader' },
     isolatedModules: { value: true, reason: 'implementation limitation' },
     noEmit: { value: true },
-    jsx: {
-      parsedValue: ts.JsxEmit.Preserve,
-      value: 'preserve',
-      reason: 'JSX is compiled by Babel',
-    },
-    paths: { value: undefined, reason: 'aliased imports are not supported' },
+    jsx: { parsedValue: ts.JsxEmit.Preserve, value: 'preserve' },
   }
 
   const formatDiagnosticHost = {
