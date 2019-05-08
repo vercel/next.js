@@ -33,6 +33,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   pageExtensions,
   maxInactiveAge,
   pagesBufferLength,
+  pagesBufferLimit,
   publicRuntimeConfig,
   serverRuntimeConfig
 }) {
@@ -249,6 +250,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
 
         entries[normalizedPage] = { name, absolutePagePath, status: ADDED }
         doneCallbacks.once(normalizedPage, handleCallback)
+        disposeLimitedEntries(entries, lastAccessPages, pagesBufferLimit)
 
         invalidator.invalidate()
 
@@ -329,6 +331,33 @@ function disposeInactiveEntries (devMiddleware, entries, lastAccessPages, maxIna
     })
     Log.event(`disposing inactive page(s): ${disposingPages.join(', ')}`)
     devMiddleware.invalidate()
+  }
+}
+
+function disposeLimitedEntries (entries, lastAccessPages, pagesBufferLimit) {
+  const keys = Object.keys(entries)
+
+  if (keys.length <= pagesBufferLimit) return
+
+  const disposedPages = []
+  const lastActiveTime = page => entries[page].lastActiveTime || Number.MAX_SAFE_INTEGER
+  const sortedPages = keys.sort((a, b) => lastActiveTime(a) - lastActiveTime(b))
+  const removeNextEntry = () => {
+    const page = sortedPages.shift()
+
+    if (entries[page].status === BUILT) {
+      delete entries[page]
+      disposedPages.push(page)
+    }
+    if (sortedPages.length > pagesBufferLimit) {
+      removeNextEntry()
+    }
+  }
+
+  removeNextEntry()
+
+  if (disposedPages.length) {
+    Log.event(`disposing inactive page(s): ${disposedPages.join(', ')}`)
   }
 }
 

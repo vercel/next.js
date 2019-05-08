@@ -86,6 +86,34 @@ describe('On Demand Entries', () => {
     }
   })
 
+  it('should be able to load many pages and dispose old ones', async () => {
+    const pagesPath = '../.next/static/development/pages'
+    const times = async (n, fn) => {
+      let i = 0
+      while (i < n) await fn(++i)
+    }
+
+    expect.assertions(15)
+
+    // Load many pages, this should be able to scale indefinitely to any number of pages
+    await times(10, async i => {
+      const page = `/multiple/about${i}`
+      await renderViaHTTP(context.appPort, page)
+      await doPing(page)
+      const aboutPagePath = resolve(__dirname, join(pagesPath, `${page}.js`))
+
+      expect(existsSync(aboutPagePath)).toBeTruthy()
+    })
+
+    // Old Pages should have been disposed
+    await times(5, async i => {
+      const page = `/multiple/about${i}`
+      const aboutPagePath = resolve(__dirname, join(pagesPath, `${page}.js`))
+
+      expect(existsSync(aboutPagePath)).toBeFalsy()
+    })
+  })
+
   it('should navigate to pages with dynamic imports', async () => {
     let browser
     try {

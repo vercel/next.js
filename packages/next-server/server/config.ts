@@ -20,6 +20,7 @@ const defaultConfig: {[key: string]: any} = {
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 2,
+    pagesBufferLimit: 8,
   },
   experimental: {
     cpus: Math.max(
