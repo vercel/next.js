@@ -17,7 +17,6 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
-import typescriptFormatter from '../lib/typescriptFormatter'
 import { WebpackEntrypoints } from './entries'
 import { AllModulesIdentifiedPlugin } from './webpack/plugins/all-modules-identified-plugin'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
