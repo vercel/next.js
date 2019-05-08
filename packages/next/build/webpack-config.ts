@@ -1,5 +1,4 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -101,16 +100,14 @@ export default async function getBaseWebpackConfig(
       }
     : undefined
 
-  if (!isServer) {
-    await verifyTypeScriptSetup(dir)
-  }
-
   let typeScriptPath
   try {
     typeScriptPath = resolve.sync('typescript', { basedir: dir })
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
-  const useTypeScript = Boolean(typeScriptPath && (await fileExists(tsConfigPath)))
+  const useTypeScript = Boolean(
+    typeScriptPath && (await fileExists(tsConfigPath))
+  )
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
