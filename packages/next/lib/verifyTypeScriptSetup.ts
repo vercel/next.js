@@ -228,7 +228,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   }
 
   if (parsedTsConfig.include == null) {
-    parsedTsConfig.include = ['**/*.ts', '**/*.tsx']
+    appTsConfig.include = ['**/*.ts', '**/*.tsx']
   }
 
   if (messages.length > 0) {
