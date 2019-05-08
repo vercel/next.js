@@ -46,12 +46,10 @@ async function verifyNoTypeScript(dir: string) {
   return true
 }
 
-export default async function verifyTypeScriptSetup(
-  dir: string,
-  tsConfigPath: string,
-): Promise<string | void> {
+export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   let firstTimeSetup = false
   const yarnLockFile = path.join(dir, 'yarn.lock')
+  const tsConfigPath = path.join(dir, 'tsconfig.json')
 
   if (!(await exists(tsConfigPath))) {
     if (await verifyNoTypeScript(dir)) {
@@ -254,5 +252,5 @@ export default async function verifyTypeScriptSetup(
     }
     await writeJson(tsConfigPath, appTsConfig)
   }
-  return typescriptPath
+  return
 }
