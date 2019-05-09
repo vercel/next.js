@@ -19,36 +19,56 @@ const manifest: {
 
 const pageModules: StringDictionary = {}
 
-export function getPageChunks (page: string): {
-  external: Set<String>,
-  internal: Set<String>,
-} | undefined {
-  if (!manifest.pages[page] && !pageModules[page]) return
+export function getPageChunks(
+  page: string
+):
+  | {
+      external: Set<String>
+      internal: Set<String>
+    }
+  | undefined {
+  if (!manifest.pages[page] && !pageModules[page]) {
+    return
+  }
 
   const external = new Set() // from node_modules
   const internal = new Set() // from project
-  const chunks = [
-    ...(manifest.pages[page] || []),
-    ...(pageModules[page] || [])
-  ]
-    .map(mod => {
-      if (mod.match(/(next-server|next)\//)) return null
-      if (mod.includes('node_modules/')) {
-        if (mod.match(
+  ;[...(manifest.pages[page] || []), ...(pageModules[page] || [])].map(mod => {
+    if (mod.match(/(next-server|next)\//)) {
+      return null
+    }
+
+    if (mod.includes('node_modules/')) {
+      if (
+        mod.match(
           /(@babel|core-js|styled-jsx|string-hash|object-assign|process|react|react-dom|regenerator-runtime|webpack|node-libs-browser)/
-        )) return null
-        mod = mod.split('node_modules/')[1].split('/')[0]
-        if (external.has(mod)) return null
-        external.add(mod)
-        return mod
+        )
+      ) {
+        return null
       }
-      // don't include the page itself
-      if (mod.includes(`pages${page === '/' ? '/index' : page}`)) return null
-      // is local e.g. ../components/Layout
-      if (internal.has(mod)) return null
-      internal.add(mod)
+
+      mod = mod.split('node_modules/')[1].split('/')[0]
+      if (external.has(mod)) {
+        return null
+      }
+
+      external.add(mod)
       return mod
-    })
+    }
+
+    // don't include the page itself
+    if (mod.includes(`pages${page === '/' ? '/index' : page}`)) {
+      return null
+    }
+
+    // is local e.g. ../components/Layout
+    if (internal.has(mod)) {
+      return null
+    }
+
+    internal.add(mod)
+    return mod
+  })
 
   return {
     external,
