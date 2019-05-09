@@ -18,6 +18,8 @@ const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const fsCopyFile = promisify(fs.copyFile)
+const fsReadDir = promisify(fs.readdir)
+const fsLstat = promisify(fs.lstat)
 
 type ChunkGraphManifest = {
   sharedFiles: string[] | undefined
@@ -27,8 +29,42 @@ type ChunkGraphManifest = {
   hashes: { [page: string]: string }
 }
 
+function isShuttleValid({
+  manifestPath,
+  pagesDirectory,
+  parentCacheIdentifier,
+}: {
+  manifestPath: string
+  pagesDirectory: string
+  parentCacheIdentifier: string
+}) {
+  const manifest = require(manifestPath) as ChunkGraphManifest
+  const { sharedFiles, hashes } = manifest
+  if (!sharedFiles) {
+    return false
+  }
+
+  return !sharedFiles
+    .map(file => {
+      const filePath = path.join(path.dirname(pagesDirectory), file)
+      const exists = fs.existsSync(filePath)
+      if (!exists) {
+        return true
+      }
+
+      const hash = crypto
+        .createHash('sha1')
+        .update(parentCacheIdentifier)
+        .update(fs.readFileSync(filePath))
+        .digest('hex')
+      return hash !== hashes[file]
+    })
+    .some(Boolean)
+}
+
 export class FlyingShuttle {
-  private shuttleDirectory: string
+  private apexShuttleDirectory: string
+  private flyingShuttleId: string
 
   private buildId: string
   private pagesDirectory: string
@@ -57,12 +93,13 @@ export class FlyingShuttle {
     cacheIdentifier: string
   }) {
     mkdirpModule.sync(
-      (this.shuttleDirectory = path.join(
+      (this.apexShuttleDirectory = path.join(
         distDirectory,
         'cache',
         'next-flying-shuttle'
       ))
     )
+    this.flyingShuttleId = crypto.randomBytes(16).toString('hex')
 
     this.buildId = buildId
     this.pagesDirectory = pagesDirectory
@@ -70,7 +107,45 @@ export class FlyingShuttle {
     this.parentCacheIdentifier = cacheIdentifier
   }
 
+  get shuttleDirectory() {
+    return path.join(this.apexShuttleDirectory, this.flyingShuttleId)
+  }
+
+  private getShuttleIds = async () =>
+    (await Promise.all(
+      await fsReadDir(this.apexShuttleDirectory).then(shuttleFiles =>
+        shuttleFiles.map(async f => ({
+          file: f,
+          stats: await fsLstat(path.join(this.apexShuttleDirectory, f)),
+        }))
+      )
+    ))
+      .filter(({ stats }) => stats.isDirectory())
+      .map(({ file }) => file)
+
+  private findShuttleId = async () => {
+    const shuttles = await this.getShuttleIds()
+    return shuttles.find(shuttleId => {
+      try {
+        const manifestPath = path.join(
+          this.apexShuttleDirectory,
+          shuttleId,
+          CHUNK_GRAPH_MANIFEST
+        )
+        return isShuttleValid({
+          manifestPath,
+          pagesDirectory: this.pagesDirectory,
+          parentCacheIdentifier: this.parentCacheIdentifier,
+        })
+      } catch (_) {}
+      return false
+    })
+  }
+
   hasShuttle = async () => {
+    const existingFlyingShuttleId = await this.findShuttleId()
+    this.flyingShuttleId = existingFlyingShuttleId || this.flyingShuttleId
+
     const found =
       this.shuttleBuildId &&
       (await fsExists(path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)))
