@@ -100,8 +100,14 @@ export default async function getBaseWebpackConfig(
       }
     : undefined
 
+  let typeScriptPath
+  try {
+    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+  } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
-  const useTypeScript = await fileExists(tsConfigPath)
+  const useTypeScript = Boolean(
+    typeScriptPath && (await fileExists(tsConfigPath))
+  )
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -507,11 +513,10 @@ export default async function getBaseWebpackConfig(
             `profile-events-${isServer ? 'server' : 'client'}.json`
           ),
         }),
-      !isServer && useTypeScript &&
+      !isServer &&
+        useTypeScript &&
         new ForkTsCheckerWebpackPlugin({
-          typescript: resolve.sync('typescript', {
-            basedir: dir,
-          }),
+          typescript: typeScriptPath,
           async: false,
           useTypescriptIncrementalApi: true,
           checkSyntacticErrors: true,

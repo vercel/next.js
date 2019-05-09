@@ -1894,7 +1894,7 @@ The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfi
 
 TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
 
-```json
+```js
 {
   "compilerOptions": {
     "allowJs": true, /* Allow JavaScript files to be type checked. */
