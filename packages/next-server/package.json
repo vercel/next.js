@@ -4,6 +4,7 @@
   "main": "./index.js",
   "license": "MIT",
   "repository": "zeit/next.js",
+  "types": "types/index.d.ts",
   "files": [
     "dist",
     "index.js",
@@ -38,10 +39,13 @@
     ]
   },
   "dependencies": {
+    "@zeit/fetch-retry": "4.0.0",
+    "agentkeepalive": "4.0.2",
     "amp-toolbox-optimizer": "0.5.3",
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
+    "node-fetch": "2.5.0",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
     "react-is": "16.8.6",
@@ -56,9 +60,11 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
+    "@types/node-fetch": "2.3.3",
     "@types/react": "16.8.10",
     "@types/react-dom": "16.8.3",
     "@types/react-is": "16.7.1",
+    "@types/retry": "0.12.0",
     "@types/send": "0.14.4",
     "taskr": "1.1.0",
     "typescript": "3.1.6"

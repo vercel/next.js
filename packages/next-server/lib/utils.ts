@@ -4,6 +4,12 @@ import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
 import { BaseRouter } from './router/router'
+import fetch from './fetch'
+
+// Polyfill fetch
+global.fetch = fetch
+
+export { fetch }
 
 /**
  * Types used by both next and next-server
