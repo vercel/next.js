@@ -1912,7 +1912,6 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
     "noUnusedLocals": true, /* Report errors on unused locals. */
     "noUnusedParameters": true, /* Report errors on unused parameters. */
     "strict": true /* Enable all strict type-checking options. */,
-
     "target": "esnext" /* The type checking input. */
   }
 }
