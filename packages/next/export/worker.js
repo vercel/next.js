@@ -77,8 +77,13 @@ process.on(
           html = result.html
         } else {
           const components = await loadComponents(distDir, buildId, page, serverless)
-          curRenderOpts = { ...components, ...renderOpts, ampPath }
-          html = await renderMethod(req, res, page, query, curRenderOpts)
+
+          if (typeof components.Component === 'string') {
+            html = components.Component
+          } else {
+            curRenderOpts = { ...components, ...renderOpts, ampPath }
+            html = await renderMethod(req, res, page, query, curRenderOpts)
+          }
         }
 
         const validateAmp = async (html, page) => {

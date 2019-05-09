@@ -281,9 +281,10 @@ export default async function build(dir: string, conf = null): Promise<void> {
   if (staticPages.size > 0) {
     const exportApp = require('../export').default
     const exportOptions = {
-      outdir: path.join(distDir, 'export'),
       silent: true,
-      pages: Array.from(staticPages)
+      buildExport: true,
+      pages: Array.from(staticPages),
+      outdir: path.join(distDir, 'export'),
     }
     const exportConfig = {
       ...config,

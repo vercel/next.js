@@ -322,7 +322,7 @@ export default class Server {
     // try serving a static AMP version first
     if (query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())) {
       try {
-        const result = await loadComponents(this.distDir, this.buildId, pathname + '.amp')
+        const result = await loadComponents(this.distDir, this.buildId, (pathname === '/' ? '/index' : pathname) + '.amp')
         if (typeof result.Component === 'string') return result.Component
       } catch (_) {}
     }

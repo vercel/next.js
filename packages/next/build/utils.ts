@@ -9,6 +9,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
+const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -232,6 +233,10 @@ export async function getPageInfo(
 
   if (!dev) {
     if (!page.match(/(_app|_error|_document)/)) {
+      nextEnvConfig.setConfig({
+        publicRuntimeConfig: nextConfig.publicRuntimeConfig,
+        serverRuntimeConfig: nextConfig.serverRuntimeConfig,
+      })
       // require server bundle to check if it has `getInitialProps`
       const mod = require(serverBundle)
       const Component = mod.default || mod
