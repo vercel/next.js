@@ -1,19 +1,13 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp
-} from 'next-test-utils'
+import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
 
 // test suits
 import hmr from './hmr'
 import errorRecovery from './error-recovery'
 import dynamic from './dynamic'
 import processEnv from './process-env'
-import typescript from './typescript'
 import publicFolder from './public-folder'
 
 const context = {}
@@ -39,7 +33,6 @@ describe('Basic Features', () => {
   dynamic(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   hmr(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   errorRecovery(context, (p, q) => renderViaHTTP(context.appPort, p, q))
-  typescript(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   processEnv(context)
   publicFolder(context)
 })

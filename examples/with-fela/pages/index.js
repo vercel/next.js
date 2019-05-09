@@ -1,7 +1,5 @@
 import { useFela, FelaComponent } from 'react-fela'
 
-import FelaProvider from '../FelaProvider'
-
 const Container = ({ children }) => (
   <FelaComponent
     style={{
@@ -36,10 +34,8 @@ function Title ({ children, size = 24 }) {
 }
 
 export default () => (
-  <FelaProvider>
-    <Container>
-      <Title size={50}>My Title</Title>
-      <Text>Hi, I am Fela.</Text>
-    </Container>
-  </FelaProvider>
+  <Container>
+    <Title size={50}>My Title</Title>
+    <Text>Hi, I am Fela.</Text>
+  </Container>
 )
