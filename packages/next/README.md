@@ -75,6 +75,8 @@
     - [One Level Lower](#one-level-lower)
     - [Summary](#summary)
 - [Browser support](#browser-support)
+- [Typescript](#typescript)
+  - [Exported types](#exported-types)
 - [AMP Support](#amp-support)
 - [Static HTML export](#static-html-export)
   - [Usage](#usage)
@@ -1480,12 +1482,12 @@ This is development-only feature. If you want to cache SSR pages in production, 
 
 #### Configuring extensions looked for when resolving pages in `pages`
 
-Aimed at modules like [`@zeit/next-typescript`](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript), that add support for pages ending in `.ts`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+Aimed at modules like [`@zeit/next-mdx`](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx), that add support for pages ending with `.mdx`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
 
 ```js
 // next.config.js
 module.exports = {
-  pageExtensions: ['jsx', 'js']
+  pageExtensions: ['mdx', 'jsx', 'js']
 }
 ```
 
@@ -1544,17 +1546,17 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- [@zeit/next-typescript](https://github.com/zeit/next-plugins/tree/master/packages/next-typescript)
+- [@zeit/next-mdx](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx)
 
 > **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
 
 Multiple configurations can be combined together with function composition. For example:
 
 ```js
-const withTypescript = require('@zeit/next-typescript')
+const withMDX = require('@zeit/next-mdx')
 const withSass = require('@zeit/next-sass')
 
-module.exports = withTypescript(
+module.exports = withMDX(
   withSass({
     webpack(config, options) {
       // Further custom configuration here
@@ -1887,6 +1889,64 @@ For specific platform examples see [the examples section above](#serverless-depl
 Next.js supports IE11 and all modern browsers out of the box using [`@babel/preset-env`](https://new.babeljs.io/docs/en/next/babel-preset-env.html). In order to support IE11 Next.js adds a global `Promise` polyfill. In cases where your own code or any external NPM dependencies you are using requires features not supported by your target browsers you will need to implement polyfills.
 
 The [polyfills](https://github.com/zeit/next.js/tree/canary/examples/with-polyfills) example demonstrates the recommended approach to implement polyfills.
+
+## TypeScript
+
+TypeScript is supported out of the box in Next.js. To get started using it create a `tsconfig.json` in your project:
+
+```json
+{
+  "compilerOptions": {
+    "allowJs": true, /* Allow JavaScript files to be type checked. */
+    "alwaysStrict": true, /* Parse in strict mode. */
+    "esModuleInterop": true, /* matches compilation setting */
+    "isolatedModules": true, /* to match webpack loader */
+    "jsx": "preserve", /* Preserves jsx outside of Next.js. */
+    "lib": ["dom", "es2017"], /* List of library files to be included in the type checking. */
+    "module": "esnext", /* Specifies the type of module to type check. */
+    "moduleResolution": "node", /* Determine how modules get resolved. */
+    "noEmit": true, /* Do not emit outputs. Makes sure tsc only does type checking. */
+
+    /* Strict Type-Checking Options, optional, but recommended. */
+    "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+    "noUnusedLocals": true, /* Report errors on unused locals. */
+    "noUnusedParameters": true, /* Report errors on unused parameters. */
+    "strict": true /* Enable all strict type-checking options. */,
+   
+    "target": "esnext" /* The type checking input. */
+  }
+}
+```
+
+After adding the `tsconfig.json` you need to install `@types` to get proper TypeScript typing.
+
+```bash
+npm install --save-dev @types/react @types/react-dom @types/node
+```
+
+Now can change any file from `.js` to `.ts` / `.tsx` (tsx is for files using JSX). To learn more about TypeScript checkout out its [documentation](https://www.typescriptlang.org/).
+
+### Exported types
+
+Next.js provides `NextPage` type that can be used for pages in the `pages` directory. `NextPage` adds definitions for [`getInitialProps`](#fetching-data-and-component-lifecycle) so that it can be used without any extra typing needed.
+
+```tsx
+import { NextPage } from 'next'
+
+interface Props {
+  pathname: string
+}
+
+const Page: NextPage<Props> = ({ pathname }) => (
+  <main>Your request pathname: {pathname}</main>
+)
+
+Page.getInitialProps = async ({ pathname }) => {
+  return { pathname }
+}
+
+export default Page
+```
 
 ## AMP Support
 

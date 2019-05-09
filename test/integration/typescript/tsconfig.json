@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "esnext",
+    "jsx": "preserve"
+  },
+  "include": ["components", "pages"]
+}
