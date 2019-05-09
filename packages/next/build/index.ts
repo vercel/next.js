@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import {
+  PAGES_MANIFEST,
   CHUNK_GRAPH_MANIFEST,
   PHASE_PRODUCTION_BUILD,
 } from 'next-server/constants'
@@ -36,6 +37,8 @@ import mkdirpOrig from 'mkdirp'
 const fsUnlink = promisify(fs.unlink)
 const fsRmdir = promisify(fs.rmdir)
 const fsMove = promisify(fs.rename)
+const fsReadFile = promisify(fs.readFile)
+const fsWriteFile = promisify(fs.writeFile)
 const mkdirp = promisify(mkdirpOrig)
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -280,24 +283,42 @@ export default async function build(dir: string, conf = null): Promise<void> {
     const exportOptions = {
       outdir: path.join(distDir, 'export'),
       silent: true,
+      pages: Array.from(staticPages)
     }
     const exportConfig = {
       ...config,
-      target: 'server',
-      exportPathMap: async (defaultMap: any) => {
-        Object.keys(defaultMap).forEach(route => {
-          if (!staticPages.has(route)) delete defaultMap[route]
-        })
-        return defaultMap
+      exportPathMap: (defaultMap: any) => defaultMap,
+      experimental: {
+        ...config.experimental,
+        exportTrailingSlash: false,
       }
     }
     await writeBuildId(distDir, buildId, selectivePageBuilding)
     await exportApp(dir, exportOptions, exportConfig)
     const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
 
+    let serverDir: string = ''
+    // remove server bundles that were exported
+    for (const page of staticPages) {
+      const { serverBundle } = pageInfos.get(page)
+      if (!serverDir) serverDir = path.dirname(serverBundle)
+      await fsUnlink(serverBundle)
+    }
+    let pagesManifest: any = {}
+    const manifestPath = path.join(distDir, 'server/', PAGES_MANIFEST)
+
+    if (target !== 'serverless') {
+      pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+    }
+
     for (const file of toMove) {
       const orig = path.join(exportOptions.outdir, file)
-      const dest = path.join(distDir, config.target || 'server', file)
+      const dest = path.join(serverDir, file)
+      const relativeDest = path.join('static', buildId, 'pages', file)
+      let page = file.split('.html')[0]
+      pagesManifest[page] = relativeDest
+      page = page === '/index' ? '/' : page
+      pagesManifest[page] = relativeDest
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
     }
@@ -305,10 +326,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
 
-    // remove server bundles that were exported
-    for (const page of staticPages) {
-      const { serverBundle } = pageInfos.get(page)
-      await fsUnlink(serverBundle)
+    if (target !== 'serverless') {
+      await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
     }
   }
 
@@ -320,6 +339,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
           if (info) {
             info.ampOnly = true
             pageInfos.set(pg, info)
+            if (pageKeys.indexOf(pg) < 0) pageKeys.push(pg)
           }
         })
       }

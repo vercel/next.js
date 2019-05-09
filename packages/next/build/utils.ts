@@ -5,13 +5,10 @@ import path from 'path'
 import { promisify } from 'util'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { renderToHTML } from 'next-server/dist/server/render'
-import { loadComponents } from 'next-server/dist/server/load-components'
 
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
-const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -92,7 +89,7 @@ export function printTreeView(list: string[], pageInfos: Map<string, PageInfo>) 
           ` Client size: ${prettyBytes(clientSize)}`
       }
 
-      if (sizes) console.log(sizes)
+      if (sizes !== ' \x1b[90m|') console.log(sizes)
       console.log(` \x1b[90m${i === list.length - 1 ? '└' : '|'}`);
     })
 
@@ -234,10 +231,12 @@ export async function getPageInfo(
   info.clientBundle = clientBundle
 
   if (!dev) {
-    // require server bundle to check if it has `getInitialProps`
-    const mod = require(serverBundle)
-    const Component = mod.default || mod
-    info.static = typeof Component.getInitialProps !== 'function'
+    if (!page.match(/(_app|_error|_document)/)) {
+      // require server bundle to check if it has `getInitialProps`
+      const mod = require(serverBundle)
+      const Component = mod.default || mod
+      info.static = typeof Component.getInitialProps !== 'function'
+    }
 
     if (!info.static) {
       try {
@@ -248,8 +247,6 @@ export async function getPageInfo(
       info.clientSize = (await fsStat(clientBundle)).size
     } catch (_) {}
   }
-
-  if (page.match(/(_app|_error|_document)/)) return info
 
   return info
 }

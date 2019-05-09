@@ -319,7 +319,15 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
+    // try serving a static AMP version first
+    if (query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())) {
+      try {
+        const result = await loadComponents(this.distDir, this.buildId, pathname + '.amp')
+        if (typeof result.Component === 'string') return result.Component
+      } catch (_) {}
+    }
     const result = await loadComponents(this.distDir, this.buildId, pathname)
+    if (typeof result.Component === 'string') return result.Component
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 

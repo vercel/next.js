@@ -5,7 +5,7 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_PUBLIC_FILES_PATH, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
+import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_PUBLIC_FILES_PATH, CLIENT_STATIC_FILES_PATH, SERVERLESS_DIRECTORY } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -26,8 +26,6 @@ export default async function (dir, options, configuration) {
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.experimental.exportTrailingSlash
 
-  if (nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
-
   log(`> using build directory: ${distDir}`)
 
   if (!existsSync(distDir)) {
@@ -35,9 +33,9 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest = require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+  const pagesManifest = !options.pages && require(join(distDir, nextConfig.target === 'server' ? SERVER_DIRECTORY : SERVERLESS_DIRECTORY, PAGES_MANIFEST))
 
-  const pages = Object.keys(pagesManifest)
+  const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap = {}
 
   for (const page of pages) {
@@ -160,7 +158,8 @@ export default async function (dir, options, configuration) {
             renderOpts,
             serverRuntimeConfig,
             concurrency,
-            subFolders
+            subFolders,
+            serverless: nextConfig.target === 'serverless'
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {
