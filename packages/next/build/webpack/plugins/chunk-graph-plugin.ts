@@ -8,10 +8,12 @@ import { Compiler, Plugin } from 'webpack'
 
 type StringDictionary = { [pageName: string]: string[] }
 const manifest: {
+  sharedFiles: string[]
   pages: StringDictionary
   pageChunks: StringDictionary
   chunks: StringDictionary
 } = {
+  sharedFiles: [],
   pages: {},
   pageChunks: {},
   chunks: {},
@@ -90,7 +92,7 @@ export function exportManifest({
     hashes: {} as { [pageName: string]: string },
   }
 
-  const allFiles = new Set<string>()
+  const allFiles = new Set<string>(manifest.sharedFiles)
   for (const page of Object.keys(finalManifest.pages)) {
     finalManifest.pages[page].forEach(f => allFiles.add(f))
   }
@@ -283,13 +285,13 @@ export class ChunkGraphPlugin implements Plugin {
               .replace(/[.]js$/, `.${this.buildId}.js`)
           : name
 
+      manifest.sharedFiles = [
+        ...new Set([...(manifest.sharedFiles || []), ...sharedFiles]),
+      ].sort()
+
       for (const page in pages) {
         manifest.pages[page] = [
-          ...new Set([
-            ...(manifest.pages[page] || []),
-            ...pages[page],
-            ...sharedFiles,
-          ]),
+          ...new Set([...(manifest.pages[page] || []), ...pages[page]]),
         ].sort()
 
         // There's no chunks to save from serverless bundles
