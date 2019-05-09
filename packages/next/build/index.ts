@@ -278,6 +278,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
     }
   }
 
+  if (flyingShuttle) {
+    await flyingShuttle.save()
+  }
+  await writeBuildId(distDir, buildId, selectivePageBuilding)
+
   if (staticPages.size > 0) {
     const exportApp = require('../export').default
     const exportOptions = {
@@ -294,7 +299,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
         exportTrailingSlash: false,
       }
     }
-    await writeBuildId(distDir, buildId, selectivePageBuilding)
     await exportApp(dir, exportOptions, exportConfig)
     const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
 
@@ -349,10 +353,4 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   printTreeView(pageKeys, pageInfos)
-
-  if (flyingShuttle) {
-    await flyingShuttle.save()
-  }
-
-  await writeBuildId(distDir, buildId, selectivePageBuilding)
 }
