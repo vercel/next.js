@@ -6,7 +6,6 @@ import path from 'path'
 import getPort from 'get-port'
 import spawn from 'cross-spawn'
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs'
-// import fkill from 'fkill'
 import treeKill from 'tree-kill'
 
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -163,7 +162,6 @@ export function nextExport (dir, { outdir }) {
 
 // Kill a launched app
 export async function killApp (instance) {
-  // await fkill(instance.pid, { force: true })
   await new Promise((resolve, reject) => {
     treeKill(instance.pid, (err) => {
       if (err) return reject(err)
