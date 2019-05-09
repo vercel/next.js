@@ -97,6 +97,7 @@
     "prettier": "1.15.3",
     "react": "16.8.6",
     "react-dom": "16.8.6",
+    "recursive-copy": "2.0.10",
     "release": "5.0.3",
     "request-promise-core": "1.1.1",
     "rimraf": "2.6.2",
