@@ -36,7 +36,7 @@ async function run (fn) {
 
   const ts = []
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const t = await test()
     await fs.remove(destDir)
     ts.push(t)
