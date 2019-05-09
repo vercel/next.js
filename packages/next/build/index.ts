@@ -9,6 +9,7 @@ import path from 'path'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { FlyingShuttle } from './flying-shuttle'
@@ -18,15 +19,16 @@ import {
   collectPages,
   getCacheIdentifier,
   getFileForPage,
+  getPageInfo,
   getSpecifiedPages,
   printTreeView,
-  getPageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
+import {
+  exportManifest,
+  getPageChunks,
+} from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -34,6 +36,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
+
+  await verifyTypeScriptSetup(dir)
 
   const debug =
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
@@ -251,7 +255,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     pageInfos.set(page, {
       ...(info || {}),
-      chunks
+      chunks,
     })
 
     if (!(typeof info.serverSize === 'number')) {
