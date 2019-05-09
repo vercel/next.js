@@ -20,6 +20,7 @@ const fsWriteFile = promisify(fs.writeFile)
 const fsCopyFile = promisify(fs.copyFile)
 
 type ChunkGraphManifest = {
+  sharedFiles: string[] | undefined
   pages: { [page: string]: string[] }
   pageChunks: { [page: string]: string[] }
   chunks: { [page: string]: string[] }
@@ -32,11 +33,12 @@ export class FlyingShuttle {
   private buildId: string
   private pagesDirectory: string
   private distDirectory: string
-  private cacheIdentifier: string
+  private parentCacheIdentifier: string
 
   private _shuttleBuildId: string | undefined
   private _restoreSema = new Sema(1)
   private _recalledManifest: ChunkGraphManifest = {
+    sharedFiles: [],
     pages: {},
     pageChunks: {},
     chunks: {},
@@ -65,7 +67,7 @@ export class FlyingShuttle {
     this.buildId = buildId
     this.pagesDirectory = pagesDirectory
     this.distDirectory = distDirectory
-    this.cacheIdentifier = cacheIdentifier
+    this.parentCacheIdentifier = cacheIdentifier
   }
 
   hasShuttle = async () => {
@@ -100,9 +102,9 @@ export class FlyingShuttle {
     const manifestPath = path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)
     const manifest = require(manifestPath) as ChunkGraphManifest
 
-    const { pages: pageFileDictionary, hashes } = manifest
+    const { sharedFiles, pages: pageFileDictionary, hashes } = manifest
     const pageNames = Object.keys(pageFileDictionary)
-    const allFiles = new Set()
+    const allFiles = new Set(sharedFiles)
     pageNames.forEach(pageName =>
       pageFileDictionary[pageName].forEach(file => allFiles.add(file))
     )
@@ -118,23 +120,28 @@ export class FlyingShuttle {
 
         const hash = crypto
           .createHash('sha1')
-          .update(this.cacheIdentifier)
+          .update(this.parentCacheIdentifier)
           .update(await fsReadFile(filePath))
           .digest('hex')
         fileChanged.set(file, hash !== hashes[file])
       })
     )
 
-    const unchangedPages = pageNames
-      .filter(
-        p => !pageFileDictionary[p].map(f => fileChanged.get(f)).some(Boolean)
-      )
-      .filter(
-        pageName =>
-          pageName !== '/_app' &&
-          pageName !== '/_error' &&
-          pageName !== '/_document'
-      )
+    const unchangedPages = (sharedFiles || [])
+      .map(f => fileChanged.get(f))
+      .some(Boolean)
+      ? []
+      : pageNames
+          .filter(
+            p =>
+              !pageFileDictionary[p].map(f => fileChanged.get(f)).some(Boolean)
+          )
+          .filter(
+            pageName =>
+              pageName !== '/_app' &&
+              pageName !== '/_error' &&
+              pageName !== '/_document'
+          )
 
     if (unchangedPages.length) {
       const u = unchangedPages.length
@@ -254,6 +261,8 @@ export class FlyingShuttle {
     ) as ChunkGraphManifest
 
     const storeManifest: ChunkGraphManifest = {
+      // Intentionally does not merge with the recalled manifest
+      sharedFiles: nextManifest.sharedFiles,
       pages: Object.assign(
         {},
         this._recalledManifest.pages,
