@@ -6,7 +6,8 @@ import {
 import loadConfig from 'next-server/next-config'
 import nanoid from 'next/dist/compiled/nanoid/index.js'
 import path from 'path'
-
+import fs from 'fs'
+import { promisify } from 'util'
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
@@ -29,6 +30,13 @@ import {
   getPageChunks,
 } from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
+import { recursiveReadDir } from '../lib/recursive-readdir';
+import mkdirpOrig from 'mkdirp'
+
+const fsUnlink = promisify(fs.unlink)
+const fsRmdir = promisify(fs.rmdir)
+const fsMove = promisify(fs.rename)
+const mkdirp = promisify(mkdirpOrig)
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -238,7 +246,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const pageInfos = new Map()
+  const pageInfos: Map<string, any> = new Map()
+  const staticPages: Set<string> = new Set()
   const distPath = path.join(dir, config.distDir)
   let pageKeys = Object.keys(mappedPages)
 
@@ -250,7 +259,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       distPath,
       buildId,
       false,
-      config.target === 'serverless'
+      config.target === 'serverless',
+      config
     )
 
     pageInfos.set(page, {
@@ -258,8 +268,47 @@ export default async function build(dir: string, conf = null): Promise<void> {
       chunks,
     })
 
-    if (!(typeof info.serverSize === 'number')) {
+    if (info.static) staticPages.add(page)
+
+    if (!(typeof info.clientSize === 'number')) {
       pageKeys = pageKeys.filter(pg => pg !== page)
+    }
+  }
+
+  if (staticPages.size > 0) {
+    const exportApp = require('../export').default
+    const exportOptions = {
+      outdir: path.join(distDir, 'export'),
+      silent: true,
+    }
+    const exportConfig = {
+      ...config,
+      target: 'server',
+      exportPathMap: async (defaultMap: any) => {
+        Object.keys(defaultMap).forEach(route => {
+          if (!staticPages.has(route)) delete defaultMap[route]
+        })
+        return defaultMap
+      }
+    }
+    await writeBuildId(distDir, buildId, selectivePageBuilding)
+    await exportApp(dir, exportOptions, exportConfig)
+    const toMove = await recursiveReadDir(exportOptions.outdir, /.*\.html$/)
+
+    for (const file of toMove) {
+      const orig = path.join(exportOptions.outdir, file)
+      const dest = path.join(distDir, config.target || 'server', file)
+      await mkdirp(path.dirname(dest))
+      await fsMove(orig, dest)
+    }
+    // remove temporary export folder
+    await recursiveDelete(exportOptions.outdir)
+    await fsRmdir(exportOptions.outdir)
+
+    // remove server bundles that were exported
+    for (const page of staticPages) {
+      const { serverBundle } = pageInfos.get(page)
+      await fsUnlink(serverBundle)
     }
   }
 

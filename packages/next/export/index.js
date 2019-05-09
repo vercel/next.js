@@ -141,6 +141,7 @@ export default async function (dir, options, configuration) {
       }
     )
   }
+  const workers = new Set()
 
   await Promise.all(
     chunks.map(
@@ -149,6 +150,7 @@ export default async function (dir, options, configuration) {
           const worker = fork(require.resolve('./worker'), [], {
             env: process.env
           })
+          workers.add(worker)
           worker.send({
             distDir,
             buildId,
@@ -175,6 +177,8 @@ export default async function (dir, options, configuration) {
         })
     )
   )
+
+  workers.forEach(worker => worker.kill())
 
   if (Object.keys(ampValidations).length) {
     console.log(formatAmpMessages(ampValidations))

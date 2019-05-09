@@ -1,5 +1,5 @@
 import {join} from 'path'
-import {PAGES_MANIFEST, SERVER_DIRECTORY} from '../lib/constants'
+import {PAGES_MANIFEST, SERVER_DIRECTORY, SERVERLESS_DIRECTORY} from '../lib/constants'
 import { normalizePagePath } from './normalize-page-path'
 
 export function pageNotFoundError(page: string): Error {
@@ -9,8 +9,12 @@ export function pageNotFoundError(page: string): Error {
 }
 
 export function getPagePath(page: string, distDir: string): string {
-  const serverBuildPath = join(distDir, SERVER_DIRECTORY)
-  const pagesManifest = require(join(serverBuildPath, PAGES_MANIFEST))
+  let pagesManifest: any
+  try {
+    pagesManifest = require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+  } catch (_) {
+    pagesManifest = require(join(distDir, SERVERLESS_DIRECTORY, PAGES_MANIFEST))
+  }
 
   try {
     page = normalizePagePath(page)
@@ -29,10 +33,15 @@ export function getPagePath(page: string, distDir: string): string {
       page = cleanedPage
     }
   }
-  return join(serverBuildPath, pagesManifest[page])
+  return pagesManifest[page]
 }
 
 export function requirePage(page: string, distDir: string): any {
   const pagePath = getPagePath(page, distDir)
-  return require(pagePath)
+
+  try {
+    return require(join(distDir, SERVER_DIRECTORY, pagePath))
+  } catch (_) {
+    return require(join(distDir, SERVERLESS_DIRECTORY, pagePath))
+  }
 }

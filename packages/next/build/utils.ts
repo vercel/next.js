@@ -5,10 +5,13 @@ import path from 'path'
 import { promisify } from 'util'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { renderToHTML } from 'next-server/dist/server/render'
+import { loadComponents } from 'next-server/dist/server/load-components'
 
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
+const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -215,6 +218,7 @@ export async function getPageInfo(
   buildId: string,
   dev: boolean,
   serverless?: boolean,
+  nextConfig?: any
 ) {
   const info: any = {}
   const staticPath = dev ? 'development' : buildId
@@ -226,12 +230,20 @@ export async function getPageInfo(
     : path.join(distPath, 'server/static', staticPath, 'pages')
 
   const serverBundle = path.join(serverPath, `${page}.js`)
+  info.serverBundle = serverBundle
   info.clientBundle = clientBundle
 
   if (!dev) {
-    try {
-      info.serverSize = (await fsStat(serverBundle)).size
-    } catch (_) {}
+    // require server bundle to check if it has `getInitialProps`
+    const mod = require(serverBundle)
+    const Component = mod.default || mod
+    info.static = typeof Component.getInitialProps !== 'function'
+
+    if (!info.static) {
+      try {
+        info.serverSize = (await fsStat(serverBundle)).size
+      } catch (_) {}
+    }
     try {
       info.clientSize = (await fsStat(clientBundle)).size
     } catch (_) {}

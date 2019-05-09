@@ -7,6 +7,7 @@ export const BUILD_MANIFEST = 'build-manifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const CHUNK_GRAPH_MANIFEST = 'compilation-modules.json'
 export const SERVER_DIRECTORY = 'server'
+export const SERVERLESS_DIRECTORY = 'serverless'
 export const CONFIG_FILE = 'next.config.js'
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = [
