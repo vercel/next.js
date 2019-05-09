@@ -20,7 +20,7 @@ const fsWriteFile = promisify(fs.writeFile)
 const fsCopyFile = promisify(fs.copyFile)
 
 type ChunkGraphManifest = {
-  sharedFiles: string[]
+  sharedFiles: string[] | undefined
   pages: { [page: string]: string[] }
   pageChunks: { [page: string]: string[] }
   chunks: { [page: string]: string[] }
@@ -127,7 +127,7 @@ export class FlyingShuttle {
       })
     )
 
-    const unchangedPages = sharedFiles
+    const unchangedPages = (sharedFiles || [])
       .map(f => fileChanged.get(f))
       .some(Boolean)
       ? []
