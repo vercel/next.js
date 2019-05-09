@@ -102,6 +102,7 @@
     "rimraf": "2.6.2",
     "standard": "12.0.1",
     "taskr": "1.1.0",
+    "tree-kill": "1.2.1",
     "tslint": "5.12.0",
     "typescript": "3.1.1",
     "typescript-eslint-parser": "21.0.1",
