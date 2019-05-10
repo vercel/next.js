@@ -1,6 +1,5 @@
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import fs from 'fs'
-import nodeLibsBrowser from 'node-libs-browser'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
@@ -77,20 +76,6 @@ export default async function getBaseWebpackConfig(
     },
   }
 
-  // manually map node-libs-browser to fix ncced webpack resolving
-  const nodeLibs: any = {}
-
-  if (!isServer) {
-    for (const key in nodeLibsBrowser) {
-      if (key === 'module') continue
-      const lib = nodeLibsBrowser[key]
-
-      if (typeof lib === 'string') {
-        nodeLibs[key] = lib
-      }
-    }
-  }
-
   // Support for NODE_PATH
   const nodePathList = (process.env.NODE_PATH || '')
     .split(process.platform === 'win32' ? ';' : ':')
@@ -148,7 +133,6 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
-      ...nodeLibs,
       // These aliases make sure the wrapper module is not included in the bundles
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
       'next/head': 'next-server/dist/lib/head.js',
@@ -175,7 +159,6 @@ export default async function getBaseWebpackConfig(
 
   let webpackConfig: webpack.Configuration = {
     devtool,
-    node: false, // handle node libs manually
     mode: webpackMode,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
@@ -443,16 +426,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_EXPORT_TRAILING_SLASH': JSON.stringify(
           config.experimental.exportTrailingSlash
         ),
-        ...(isServer ? {} : { 'global': 'window' }),
-        'process': {
-          env: {},
-          argv: [],
-          browser: !isServer,
-          pid: 1,
-          execPath: 'browser',
-          platform: 'browser',
-          features: {},
-        }
       }),
       !isServer &&
         new ReactLoadablePlugin({

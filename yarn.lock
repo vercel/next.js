@@ -1926,10 +1926,10 @@
   resolved "https://registry.yarnpkg.com/@xtuc/long/-/long-4.2.1.tgz#5c85d662f76fa1d34575766c5dcd6615abcd30d8"
   integrity sha512-FZdkNBDqBRHKQ2MEbSC17xnPFOhZxeJ2YGSfr2BKf3sujG49Qe3bB+rGCwQfIaA7WHnGeGkSijX4FuBCdrzW/g==
 
-"@zeit/ncc@0.15.2":
-  version "0.15.2"
-  resolved "https://registry.yarnpkg.com/@zeit/ncc/-/ncc-0.15.2.tgz#14b232c2ecdb3a9c5923c34e83ef16e71c96387f"
-  integrity sha512-O5olWTrJ/b/gI1pxHgolV8Gwx0aA5BUCYIaAGcIHzIe55CMU+J1CgpRCRGzOLyqal7bV/l0quFgl8vcT8G3DTg==
+"@zeit/ncc@0.19.0-beta.1":
+  version "0.19.0-beta.1"
+  resolved "https://registry.yarnpkg.com/@zeit/ncc/-/ncc-0.19.0-beta.1.tgz#1c6276ac706c4df60d72b2f5e370f4aed41df38d"
+  integrity sha512-TyzK/ZYeOvArfqotrk3dg03zA4HDSTpKEnlSQ+flp7VP0DI1SGw/5wROOJWbj6J0mE7zD2tkhChxTumnHcYlAg==
 
 "@zeit/next-css@1.0.2-canary.2":
   version "1.0.2-canary.2"
