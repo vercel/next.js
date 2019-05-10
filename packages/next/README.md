@@ -1482,7 +1482,7 @@ This is development-only feature. If you want to cache SSR pages in production, 
 
 #### Configuring extensions looked for when resolving pages in `pages`
 
-Aimed at modules like [`@zeit/next-mdx`](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx), that add support for pages ending with `.mdx`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
+Aimed at modules like [`@next/mdx`](https://github.com/zeit/next.js/tree/canary/packages/next-mdx), that add support for pages ending with `.mdx`. `pageExtensions` allows you to configure the extensions looked for in the `pages` directory when resolving pages.
 
 ```js
 // next.config.js
@@ -1546,14 +1546,14 @@ Some commonly asked for features are available as modules:
 - [@zeit/next-sass](https://github.com/zeit/next-plugins/tree/master/packages/next-sass)
 - [@zeit/next-less](https://github.com/zeit/next-plugins/tree/master/packages/next-less)
 - [@zeit/next-preact](https://github.com/zeit/next-plugins/tree/master/packages/next-preact)
-- [@zeit/next-mdx](https://github.com/zeit/next-plugins/tree/master/packages/next-mdx)
+- [@next/mdx](https://github.com/zeit/next.js/tree/canary/packages/next-mdx)
 
 > **Warning:** The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property
 
 Multiple configurations can be combined together with function composition. For example:
 
 ```js
-const withMDX = require('@zeit/next-mdx')
+const withMDX = require('@next/mdx')
 const withSass = require('@zeit/next-sass')
 
 module.exports = withMDX(
@@ -1604,8 +1604,8 @@ Example usage of `defaultLoaders.babel`:
 
 ```js
 // Example next.config.js for adding a loader that depends on babel-loader
-// This source was taken from the @zeit/next-mdx plugin source:
-// https://github.com/zeit/next-plugins/blob/master/packages/next-mdx
+// This source was taken from the @next/mdx plugin source:
+// https://github.com/zeit/next.js/tree/canary/packages/next-mdx
 module.exports = {
   webpack: (config, options) => {
     config.module.rules.push({
@@ -1912,7 +1912,6 @@ TypeScript is supported out of the box in Next.js. To get started using it creat
     "noUnusedLocals": true, /* Report errors on unused locals. */
     "noUnusedParameters": true, /* Report errors on unused parameters. */
     "strict": true /* Enable all strict type-checking options. */,
-   
     "target": "esnext" /* The type checking input. */
   }
 }
