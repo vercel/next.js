@@ -36,7 +36,6 @@ describe('fetch', () => {
     const fetchFn = createFetchFn('test', timeouts, { status: 500, statusText: 'error' })
     const fetch = fetchRetry(fetchFn)
 
-    // await expect(fetch('test')).rejects.toEqual(new Error('error'))
     expect(await fetch('test')).toEqual({ status: 500, statusText: 'error' })
     expect(fetchFn).toHaveBeenCalledTimes(4)
   })
