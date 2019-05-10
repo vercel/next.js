@@ -1,18 +1,8 @@
-import nodeFetch, { Response, Request, RequestInit } from 'node-fetch'
-import setupFetch from './fetch-node'
+import nodeFetch, { RequestInit } from 'node-fetch'
+import setupFetch, { NodeFetch } from './fetch-node'
 import setupRetry, { RetryOptions } from './retry'
 
-export type RequestRetryOptions = {
-  retry?: RetryOptions & {
-    onRetry(error: Error): void,
-  }
-  onRetry?(error: Error, opts: RequestRetryOptions): void,
-}
-
-export type Fetch = (
-  url: string | Request,
-  init?: RequestInit & RequestRetryOptions,
-) => Promise<Response>
+export type Fetch = NodeFetch<RequestInit & { retry?: RetryOptions }>
 
 // node-fetch types are not compatible with dom types
 const fetchRetry = setupRetry(nodeFetch as any) as any

@@ -1,18 +1,33 @@
 export type RetryOptions = {
   retries?: number
   factor?: number
-  minTimeout?: number,
+  minTimeout?: number
+  onRetry?(err: Error, attempt: number): void,
+}
+
+export class FetchError extends Error {
+  readonly statusCode: number
+  readonly status: number
+  readonly code: number
+  readonly url: string
+
+  constructor(message: string, { status, url }: { status: number, url: string }) {
+    super(message)
+
+    this.code = this.status = this.statusCode = status
+    this.url = url
+  }
 }
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function retry(
-  cb: (bail: () => {}, attempt: number) => Promise<Response>,
+async function retry<R = void>(
+  cb: (bail: (err?: Error) => never, attempt: number) => Promise<R>,
   opts: RetryOptions,
   attempt: number = 0,
-): Promise<Response> {
+): Promise<R> {
   const retries = opts.retries || 5
   const factor = opts.factor || 2
   const minTimeout = opts.minTimeout || 1000
@@ -26,8 +41,9 @@ async function retry(
 
   try {
     return await cb(bail, attempt)
-  } catch (e) {
-    if (aborted || attempt >= retries) throw e
+  } catch (err) {
+    if (opts.onRetry) opts.onRetry(err, attempt)
+    if (aborted || attempt >= retries) throw err
 
     await sleep(minTimeout * Math.pow(factor, attempt))
 
@@ -54,9 +70,7 @@ export default function fetchRetry(fetch: GlobalFetch['fetch']) {
       }
 
       if (res.status >= 500 && res.status < 600 && isRetry) {
-        const err = new Error(res.statusText)
-        throw err
-        // err.code = err.status = err.statusCode = res.status
+        throw new FetchError(res.statusText, res)
       }
 
       return res

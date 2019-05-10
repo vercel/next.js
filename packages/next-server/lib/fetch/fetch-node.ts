@@ -9,9 +9,9 @@ const AGENT_OPTS: HttpOptions = {
   freeSocketKeepAliveTimeout: 30000, // free socket keepalive for 30 seconds
 }
 
-export type NodeFetch = (
+export type NodeFetch<O = RequestInit> = (
   url: string | Request,
-  init?: RequestInit,
+  opts?: O,
 ) => Promise<Response>
 
 let defaultHttpGlobalAgent: HttpAgent
