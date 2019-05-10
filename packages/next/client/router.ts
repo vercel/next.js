@@ -16,7 +16,7 @@ type SingletonRouterBase = {
 
 export { Router }
 
-export type PublicRouterInstance = BaseRouter & Pick<Router, | 'components' | 'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'> & {
+export type PublicRouterInstance = BaseRouter & Pick<Router, | 'push' | 'replace' | 'reload' | 'back' | 'prefetch' | 'beforePopState'> & {
   events: typeof Router['events'],
 }
 

@@ -48,8 +48,12 @@ type LinkProps = {
   replace?: boolean,
   scroll?: boolean,
   shallow?: boolean,
-  passHref?: boolean
+  passHref?: boolean,
   onError?: (error: Error) => void,
+  /**
+   * @deprecated since version 8.1.1-canary.20
+   */
+  prefetch?: boolean,
 }
 
 let observer: IntersectionObserver

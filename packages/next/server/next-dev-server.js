@@ -7,6 +7,7 @@ import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 
 const React = require('react')
 
@@ -73,6 +74,8 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
+    await verifyTypeScriptSetup(this.dir)
+
     this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     await super.prepare()
     await this.addExportPathMapRoutes()

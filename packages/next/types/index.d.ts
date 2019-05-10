@@ -1,6 +1,10 @@
 import React from 'react'
 import { NextPageContext, NextComponentType } from 'next-server/dist/lib/utils';
 
+/// <reference types="node" />
+/// <reference types="react" />
+/// <reference types="react-dom" />
+
 // Extend the React types with missing properties
 declare module 'react' {
   // <html amp=""> support

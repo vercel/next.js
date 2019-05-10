@@ -2,7 +2,7 @@ import { keaReducer } from 'kea'
 import { createStore, compose, combineReducers } from 'redux'
 
 const reducers = combineReducers({
-  kea: keaReducer('kea')
+  kea: keaReducer('kea'),
 })
 
 const reduxDevTools =
