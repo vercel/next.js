@@ -319,8 +319,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
     for (const file of toMove) {
       const orig = path.join(exportOptions.outdir, file)
       const dest = path.join(serverDir, file)
-      const relativeDest = path.join('static', buildId, 'pages', file)
-      let page = file.split('.html')[0]
+      const relativeDest = path.join('static', buildId, 'pages', file).replace(/\\/g, '/')
+      let page = file.split('.html')[0].replace(/\\/g, '/')
       pagesManifest[page] = relativeDest
       page = page === '/index' ? '/' : page
       pagesManifest[page] = relativeDest
