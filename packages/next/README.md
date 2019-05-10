@@ -776,6 +776,7 @@ componentDidUpdate(prevProps) {
 > ```
 >
 > Since that's a new page, it'll unload the current page, load the new one and call `getInitialProps` even though we asked to do shallow routing.
+> If you call `Router.replace` with `shallow: true` from `getInitialProps` function then it will compare with the previous route. This is because the route has not yet changed till `getInitialProps` call is finished.
 
 #### Using a Higher Order Component
 
