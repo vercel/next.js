@@ -11,7 +11,9 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import * as Log from './output/log'
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
+const FILE_UPDATED_AT = 'UPDATED_AT'
 const DIR_FILES_NAME = 'files'
+const MAX_SHUTTLES = 4
 
 const mkdirp = promisify(mkdirpModule)
 const fsExists = promisify(fs.exists)
@@ -27,6 +29,63 @@ type ChunkGraphManifest = {
   pageChunks: { [page: string]: string[] }
   chunks: { [page: string]: string[] }
   hashes: { [page: string]: string }
+}
+
+async function findCachedShuttles(apexShuttleDirectory: string) {
+  return (await Promise.all(
+    await fsReadDir(apexShuttleDirectory).then(shuttleFiles =>
+      shuttleFiles.map(async f => ({
+        file: f,
+        stats: await fsLstat(path.join(apexShuttleDirectory, f)),
+      }))
+    )
+  ))
+    .filter(({ stats }) => stats.isDirectory())
+    .map(({ file }) => file)
+}
+
+async function pruneShuttles(apexShuttleDirectory: string) {
+  const allShuttles = await findCachedShuttles(apexShuttleDirectory)
+  if (allShuttles.length <= MAX_SHUTTLES) {
+    return
+  }
+
+  const datedShuttles: { updatedAt: Date; shuttleDirectory: string }[] = []
+  for (const shuttleId of allShuttles) {
+    const shuttleDirectory = path.join(apexShuttleDirectory, shuttleId)
+    const updatedAtPath = path.join(shuttleDirectory, FILE_UPDATED_AT)
+
+    let updatedAt: Date
+    try {
+      updatedAt = new Date((await fsReadFile(updatedAtPath, 'utf8')).trim())
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        await recursiveDelete(shuttleDirectory)
+        continue
+      }
+      throw err
+    }
+
+    datedShuttles.push({ updatedAt, shuttleDirectory })
+  }
+
+  const sortedShuttles = datedShuttles.sort((a, b) =>
+    Math.sign(b.updatedAt.valueOf() - a.updatedAt.valueOf())
+  )
+  let prunedShuttles = 0
+  while (sortedShuttles.length > MAX_SHUTTLES) {
+    const shuttleDirectory = sortedShuttles.pop()
+    await recursiveDelete(shuttleDirectory!.shuttleDirectory)
+    ++prunedShuttles
+  }
+
+  if (prunedShuttles) {
+    Log.info(
+      `decommissioned ${prunedShuttles} old shuttle${
+        prunedShuttles > 1 ? 's' : ''
+      }`
+    )
+  }
 }
 
 function isShuttleValid({
@@ -111,20 +170,8 @@ export class FlyingShuttle {
     return path.join(this.apexShuttleDirectory, this.flyingShuttleId)
   }
 
-  private getShuttleIds = async () =>
-    (await Promise.all(
-      await fsReadDir(this.apexShuttleDirectory).then(shuttleFiles =>
-        shuttleFiles.map(async f => ({
-          file: f,
-          stats: await fsLstat(path.join(this.apexShuttleDirectory, f)),
-        }))
-      )
-    ))
-      .filter(({ stats }) => stats.isDirectory())
-      .map(({ file }) => file)
-
   private findShuttleId = async () => {
-    const shuttles = await this.getShuttleIds()
+    const shuttles = await findCachedShuttles(this.apexShuttleDirectory)
     return shuttles.find(shuttleId => {
       try {
         const manifestPath = path.join(
@@ -364,6 +411,10 @@ export class FlyingShuttle {
       path.join(this.shuttleDirectory, FILE_BUILD_ID),
       this.buildId
     )
+    await fsWriteFile(
+      path.join(this.shuttleDirectory, FILE_UPDATED_AT),
+      new Date().toISOString()
+    )
 
     const usedChunks = new Set()
     const pages = Object.keys(storeManifest.pageChunks)
@@ -393,5 +444,11 @@ export class FlyingShuttle {
 
     Log.info(`flying shuttle payload: ${usedChunks.size + 2} files`)
     Log.ready('flying shuttle docked')
+
+    try {
+      await pruneShuttles(this.apexShuttleDirectory)
+    } catch (e) {
+      Log.error('failed to prune old shuttles: ' + e)
+    }
   }
 }
