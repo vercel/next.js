@@ -2,9 +2,19 @@ import { format, UrlObject, URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http';
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
+import { Fetch } from '@zeit/fetch-retry'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
 import { BaseRouter } from './router/router'
 import fetch from './fetch'
+
+declare global {
+  namespace NodeJS {
+    // tslint:disable-next-line
+    interface Global {
+      fetch: Fetch
+    }
+  }
+}
 
 // Polyfill fetch
 global.fetch = fetch

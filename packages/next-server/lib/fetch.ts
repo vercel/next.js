@@ -3,15 +3,6 @@ import nodeFetch, { Headers, Request } from 'node-fetch'
 import HttpAgent, { HttpsAgent, HttpOptions } from 'agentkeepalive'
 import fetchRetry, { Fetch } from '@zeit/fetch-retry'
 
-declare global {
-  namespace NodeJS {
-    // tslint:disable-next-line
-    interface Global {
-      fetch: Fetch
-    }
-  }
-}
-
 const AGENT_OPTS: HttpOptions = {
   maxSockets: 200,
   maxFreeSockets: 20,

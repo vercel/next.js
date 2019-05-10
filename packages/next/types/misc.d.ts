@@ -2,8 +2,12 @@ declare module '@babel/plugin-transform-modules-commonjs';
 declare module 'next-server/next-config';
 declare module 'next-server/constants';
 declare module 'webpack/lib/GraphHelpers';
-declare module 'unfetch';
 declare module 'styled-jsx/server';
+
+declare module 'unfetch' {
+  const fetch: GlobalFetch['fetch'];
+  export default fetch;
+}
 
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string;

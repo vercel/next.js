@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom'
 import HeadManager from './head-manager'
+import fetch from '../dist/lib/fetch'
 import { createRouter, makePublicRouterInstance } from 'next/router'
 import mitt from 'next-server/dist/lib/mitt'
 import { loadGetInitialProps, getURL } from 'next-server/dist/lib/utils'
@@ -20,6 +21,9 @@ import { DataManager } from 'next-server/dist/lib/data-manager'
 // See: https://webpack.js.org/guides/code-splitting/#dynamic-imports
 if (!window.Promise) {
   window.Promise = Promise
+}
+if (!window.fetch) {
+  window.fetch = fetch
 }
 
 const data = JSON.parse(document.getElementById('__NEXT_DATA__').textContent)
