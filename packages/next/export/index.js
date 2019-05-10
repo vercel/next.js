@@ -5,7 +5,7 @@ import mkdirpModule from 'mkdirp'
 import { resolve, join } from 'path'
 import { existsSync, readFileSync } from 'fs'
 import loadConfig from 'next-server/next-config'
-import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_PUBLIC_FILES_PATH, CLIENT_STATIC_FILES_PATH, SERVERLESS_DIRECTORY } from 'next-server/constants'
+import { PHASE_EXPORT, SERVER_DIRECTORY, PAGES_MANIFEST, CONFIG_FILE, BUILD_ID_FILE, CLIENT_PUBLIC_FILES_PATH, CLIENT_STATIC_FILES_PATH } from 'next-server/constants'
 import createProgress from 'tty-aware-progress'
 import { promisify } from 'util'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -35,7 +35,7 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest = !options.pages && require(join(distDir, nextConfig.target === 'server' ? SERVER_DIRECTORY : SERVERLESS_DIRECTORY, PAGES_MANIFEST))
+  const pagesManifest = !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
 
   const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap = {}
