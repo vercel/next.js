@@ -243,7 +243,7 @@ export default class Server {
   private async handleApiRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
     const resolverFunction = await this.resolveApiRequest(pathname)
     if (resolverFunction === null) {
-      res.statusCode = 501
+      res.statusCode = 404
       res.end('Not Implemented')
       return
     }

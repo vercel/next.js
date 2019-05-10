@@ -146,7 +146,7 @@ export default class DevServer extends Server {
     try {
       await this.hotReloader.ensurePage(pathname)
     } catch (err) {
-      // API route dosn't exist => return 503
+      // API route dosn't exist => return 404
       if (err.code === 'ENOENT') {
         return null
       }
