@@ -4,7 +4,7 @@ import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import { BaseRouter } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt';
-import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType, IContext } from '../lib/utils'
+import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType, NextPageContext } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
@@ -128,7 +128,7 @@ type RenderOpts = {
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
   Document: DocumentType
-  DocumentMiddleware: (ctx: IContext) => void
+  DocumentMiddleware: (ctx: NextPageContext) => void
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
   ampValidator?: (html: string, pathname: string) => Promise<void>,
