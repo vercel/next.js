@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import fetchRetry, { retry } from 'next-server/dist/lib/fetch/retry'
+import nodeFetch from 'next-server/dist/lib/fetch'
 
 const createFetchFn = (url, timeouts, resultFn) => {
   let attempts = 0
@@ -133,6 +134,18 @@ describe('fetch', () => {
       await expect(retry(retryFn, opts)).rejects.toEqual(new Error('custom error'))
       expect(retryFn).toHaveBeenCalledTimes(2)
       expect(Date.now() - time).toBeGreaterThanOrEqual(10)
+    })
+  })
+
+  describe('node fetch', () => {
+    it('Works with https', async () => {
+      const res = await nodeFetch('https://zeit.co')
+      expect(res.headers.get('Server')).toBe('now')
+    })
+
+    it('Follows redirects and switches agents', async () => {
+      const res = await nodeFetch('http://zeit.co')
+      expect(res.url).toBe('https://zeit.co/')
     })
   })
 })

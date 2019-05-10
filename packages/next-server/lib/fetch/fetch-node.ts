@@ -1,42 +1,9 @@
 import { parse } from 'url'
-import { Headers, Response, Request, RequestInit } from 'node-fetch'
-import HttpAgent, { HttpsAgent, HttpOptions } from 'agentkeepalive'
-
-const AGENT_OPTS: HttpOptions = {
-  maxSockets: 200,
-  maxFreeSockets: 20,
-  timeout: 60000, // active socket keepalive for 60 seconds
-  freeSocketKeepAliveTimeout: 30000, // free socket keepalive for 30 seconds
-}
-
-export type NodeFetch<O = RequestInit> = (
-  url: string | Request,
-  opts?: O,
-) => Promise<Response>
-
-let defaultHttpGlobalAgent: HttpAgent
-let defaultHttpsGlobalAgent: HttpAgent
-
-function getDefaultHttpsGlobalAgent() {
-  return (defaultHttpsGlobalAgent = defaultHttpsGlobalAgent || new HttpsAgent(AGENT_OPTS))
-}
-
-function getDefaultHttpGlobalAgent() {
-  return (defaultHttpGlobalAgent = defaultHttpGlobalAgent || new HttpAgent(AGENT_OPTS))
-}
-
-function getAgent(url: string | Request) {
-  return /^https/.test(getUrl(url))
-    ? getDefaultHttpsGlobalAgent()
-    : getDefaultHttpGlobalAgent()
-}
-
-function getUrl(url: string | Request) {
-  return url instanceof Request ? url.url : url
-}
+import { Headers } from 'node-fetch'
+import { getUrl, getAgent, NodeFetch } from './utils'
 
 export default function setupFetch(fetch: NodeFetch) {
-  const fn: NodeFetch = async (url, opts = {}) => {
+  const fn: NodeFetch = (url, opts = {}) => {
     if (!opts.agent) {
       // Add default `agent` if none was provided
       opts.agent = getAgent(url)
