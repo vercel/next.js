@@ -24,13 +24,17 @@ async function sleep(ms: number) {
 }
 
 export async function retry<R = void>(
-  cb: (bail: (err?: Error) => never, attempt: number) => Promise<R>,
-  opts: RetryOptions,
+  cb: (bail: (err?: Error) => never, attempt: number, options: RetryOptions) => Promise<R>,
+  options: RetryOptions,
   attempt: number = 0,
 ): Promise<R> {
-  const retries = opts.retries || 5
-  const factor = opts.factor || 2
-  const minTimeout = opts.minTimeout || 100
+  const opts = {
+    // timeouts will be [ 10, 50, 250 ]
+    minTimeout: options.minTimeout || 10,
+    retries: options.retries || 3,
+    factor: options.factor || 5,
+    onRetry: options.onRetry,
+  }
 
   let aborted = false
 
@@ -40,12 +44,12 @@ export async function retry<R = void>(
   }
 
   try {
-    return await cb(bail, attempt)
+    return await cb(bail, attempt, opts)
   } catch (err) {
     if (opts.onRetry) opts.onRetry(err, attempt)
-    if (aborted || attempt >= retries) throw err
+    if (aborted || attempt >= opts.retries) throw err
 
-    await sleep(minTimeout * Math.pow(factor, attempt))
+    await sleep(opts.minTimeout * Math.pow(opts.factor, attempt))
 
     return retry(cb, opts, attempt + 1)
   }
@@ -53,14 +57,7 @@ export async function retry<R = void>(
 
 export default function fetchRetry(fetch: GlobalFetch['fetch']) {
   const fn = (url: RequestInfo, opts: RequestInit & { retry?: RetryOptions } = {}) => {
-    const retryOpts: RetryOptions = Object.assign({
-      // timeouts will be [ 10, 50, 250 ]
-      minTimeout: 10,
-      retries: 3,
-      factor: 5,
-    }, opts.retry)
-
-    return retry(async (_bail, attempt) => {
+    return retry(async (_bail, attempt, retryOpts) => {
       const res = await fetch(url, opts);
       const isRetry = attempt < (retryOpts.retries || 0)
 
@@ -74,7 +71,7 @@ export default function fetchRetry(fetch: GlobalFetch['fetch']) {
       }
 
       return res
-    }, retryOpts)
+    }, opts.retry || {})
   }
   return fn
 }

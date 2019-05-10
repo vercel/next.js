@@ -60,7 +60,7 @@ describe('fetch', () => {
   it('Should stop retrying after a successful response', async () => {
     const timeouts = [0, 10, 50]
     const resultFn = (attempts) => (
-      // Make if work in the second attempt
+      // Make it work in the second attempt
       attempts < 2 ? { status: 500, statusText: 'error' } : { status: 200 }
     )
     const fetchFn = createFetchFn('test', timeouts, resultFn)
