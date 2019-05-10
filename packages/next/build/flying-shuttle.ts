@@ -81,7 +81,9 @@ async function pruneShuttles(apexShuttleDirectory: string) {
 
   if (prunedShuttles) {
     Log.info(
-      `retired ${prunedShuttles} old shuttle${prunedShuttles > 1 ? 's' : ''}`
+      `decommissioned ${prunedShuttles} old shuttle${
+        prunedShuttles > 1 ? 's' : ''
+      }`
     )
   }
 }
