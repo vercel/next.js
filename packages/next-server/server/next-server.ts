@@ -244,7 +244,7 @@ export default class Server {
     const resolverFunction = await this.resolveApiRequest(pathname)
     if (resolverFunction === null) {
       res.statusCode = 404
-      res.end('Not Implemented')
+      res.end('Not Found')
       return
     }
 
