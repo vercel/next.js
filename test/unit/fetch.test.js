@@ -90,7 +90,7 @@ describe('fetch', () => {
     expect(fetchFn).toHaveBeenCalledTimes(5)
   })
 
-  it('Should not retry the request it is not GET or HEAD', async () => {
+  it('Should not retry the request if the method is not GET or HEAD', async () => {
     const fetchFn = jest.fn((url, opts) => {
       return { status: 500 }
     })
