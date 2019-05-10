@@ -1,7 +1,6 @@
 import { parse } from 'url'
-import nodeFetch, { Headers, Request } from 'node-fetch'
+import { Headers, Response, Request, RequestInit } from 'node-fetch'
 import HttpAgent, { HttpsAgent, HttpOptions } from 'agentkeepalive'
-import fetchRetry, { Fetch } from '@zeit/fetch-retry'
 
 const AGENT_OPTS: HttpOptions = {
   maxSockets: 200,
@@ -10,7 +9,10 @@ const AGENT_OPTS: HttpOptions = {
   freeSocketKeepAliveTimeout: 30000, // free socket keepalive for 30 seconds
 }
 
-// export type Fetch = GlobalFetch['fetch']
+export type NodeFetch = (
+  url: string | Request,
+  init?: RequestInit,
+) => Promise<Response>
 
 let defaultHttpGlobalAgent: HttpAgent
 let defaultHttpsGlobalAgent: HttpAgent
@@ -33,8 +35,8 @@ function getUrl(url: string | Request) {
   return url instanceof Request ? url.url : url
 }
 
-function setupFetch(fetch: Fetch) {
-  const fn: Fetch = async (url, opts = {}) => {
+export default function setupFetch(fetch: NodeFetch) {
+  const fn: NodeFetch = async (url, opts = {}) => {
     if (!opts.agent) {
       // Add default `agent` if none was provided
       opts.agent = getAgent(url)
@@ -48,5 +50,3 @@ function setupFetch(fetch: Fetch) {
   }
   return fn
 }
-
-export default setupFetch(fetchRetry(nodeFetch))

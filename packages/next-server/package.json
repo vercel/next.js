@@ -39,7 +39,6 @@
     ]
   },
   "dependencies": {
-    "@zeit/fetch-retry": "4.0.0",
     "agentkeepalive": "4.0.2",
     "amp-toolbox-optimizer": "0.5.3",
     "etag": "1.8.1",

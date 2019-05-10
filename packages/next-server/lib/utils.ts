@@ -1,11 +1,11 @@
 import { format, UrlObject, URLFormatOptions } from 'url'
 import { ServerResponse, IncomingMessage } from 'http';
+import nodeFetch from 'node-fetch'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
-import { Fetch } from '@zeit/fetch-retry'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
 import { BaseRouter } from './router/router'
-import fetch from './fetch'
+import fetch, { Fetch } from './fetch'
 
 declare global {
   namespace NodeJS {

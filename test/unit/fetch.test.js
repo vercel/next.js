@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { fetchRetry } from 'next/dist/lib/fetch'
+import fetchRetry from 'next-server/dist/lib/fetch/retry'
 
 const createFetchFn = (url, timeouts, resultFn) => {
   let attemps = 0
