@@ -21,8 +21,8 @@ import {
   PAGES_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
-import { loadComponents } from './load-components'
-import { getPagePath, requireResolver } from './require';
+import { loadComponents, interopDefault } from './load-components'
+import { getPagePath } from './require';
 
 type NextConfig = any
 
@@ -248,7 +248,7 @@ export default class Server {
       return
     }
 
-    const resolver = requireResolver(resolverFunction)
+    const resolver = interopDefault(require(resolverFunction))
     resolver(req, res)
   }
 
