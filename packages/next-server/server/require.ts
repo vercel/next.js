@@ -36,3 +36,9 @@ export function requirePage(page: string, distDir: string): any {
   const pagePath = getPagePath(page, distDir)
   return require(pagePath)
 }
+
+export function requireResolver(path: string): any {
+  const resolver = require(path)
+
+  return resolver.default
+}

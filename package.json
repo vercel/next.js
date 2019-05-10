@@ -63,6 +63,7 @@
     "@babel/preset-flow": "7.0.0",
     "@babel/preset-react": "7.0.0",
     "@mdx-js/loader": "0.18.0",
+    "@types/jest": "24.0.12",
     "@types/string-hash": "1.1.1",
     "@zeit/next-css": "1.0.2-canary.2",
     "@zeit/next-sass": "1.0.2-canary.2",
