@@ -25,7 +25,7 @@ describe('API support', () => {
     const { status } = await fetchViaHTTP(appPort, '/api/unexisting', null, {
       Accept: 'application/json'
     })
-    expect(status).toEqual(501)
+    expect(status).toEqual(404)
   })
 
   it('API request to list of users', async () => {
