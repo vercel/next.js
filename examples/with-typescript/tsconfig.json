@@ -1,21 +1,18 @@
 {
   "compilerOptions": {
     "allowJs": true, 
-    "jsx": "preserve", 
-    "target": "esnext", 
-    "module": "esnext", 
-    "lib": ["dom", "es2017"], 
-    "noEmit": true, 
-    "moduleResolution": "node", 
-    "allowSyntheticDefaultImports": true, 
-    "isolatedModules": true, 
-    "esModuleInterop": true, 
-    "strict": true ,
-    "noImplicitAny": true ,
-    "noImplicitThis": true ,
     "alwaysStrict": true, 
+    "esModuleInterop": true, 
+    "isolatedModules": true, 
+    "jsx": "preserve", 
+    "lib": ["dom", "es2017"], 
+    "module": "esnext", 
+    "moduleResolution": "node", 
+    "noEmit": true, 
+    "noFallthroughCasesInSwitch": true, 
     "noUnusedLocals": true, 
     "noUnusedParameters": true, 
-    "noFallthroughCasesInSwitch": true, 
+    "strict": true, 
+    "target": "esnext" 
   }
 }
