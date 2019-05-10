@@ -7,6 +7,7 @@ import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 
 const React = require('react')
 
@@ -73,6 +74,8 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
+    await verifyTypeScriptSetup(this.dir)
+
     this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -112,6 +115,11 @@ export default class DevServer extends Server {
     return routes
   }
 
+  // In development public files are not added to the router but handled as a fallback instead
+  generatePublicRoutes () {
+    return []
+  }
+
   _filterAmpDevelopmentScript (html, event) {
     if (event.code !== 'DISALLOWED_SCRIPT_TAG') {
       return true
@@ -145,8 +153,9 @@ export default class DevServer extends Server {
       await this.hotReloader.ensurePage(pathname)
     } catch (err) {
       if (err.code === 'ENOENT') {
-        res.statusCode = 404
-        return this.renderErrorToHTML(null, req, res, pathname, query)
+        // Try to send a public file and let servePublic handle the request from here
+        await this.servePublic(req, res, pathname)
+        return null
       }
       if (!this.quiet) console.error(err)
     }
@@ -188,6 +197,11 @@ export default class DevServer extends Server {
 
   setImmutableAssetCacheControl (res) {
     res.setHeader('Cache-Control', 'no-store, must-revalidate')
+  }
+
+  servePublic (req, res, path) {
+    const p = join(this.publicDir, path)
+    return this.serveStatic(req, res, p)
   }
 
   async getCompilationError (page) {

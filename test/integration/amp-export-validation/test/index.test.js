@@ -43,9 +43,10 @@ describe('AMP Validation on Export', () => {
     },`)
 
     try {
-      const { stdout } = await runNextCommand(['export', appDir], { stdout: true })
+      const { stdout, stderr } = await runNextCommand(['export', appDir], { stdout: true, stderr: true })
       expect(stdout).toMatch(/warn.*The tag 'amp-video extension \.js script' is missing/)
       await expect(access(join(outDir, 'cat/index.html'))).resolves.toBe(undefined)
+      await expect(stderr).not.toMatch(/Found conflicting amp tag "meta" with conflicting prop name="viewport"/)
     } finally {
       nextConfig.restore()
     }
@@ -60,9 +61,10 @@ describe('AMP Validation on Export', () => {
     },`)
 
     try {
-      const { stdout } = await runNextCommand(['export', appDir], { stdout: true })
+      const { stdout, stderr } = await runNextCommand(['export', appDir], { stdout: true, stderr: true })
       expect(stdout).toMatch(/error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/)
       await expect(access(join(outDir, 'dog/index.html'))).resolves.toBe(undefined)
+      await expect(stderr).not.toMatch(/Found conflicting amp tag "meta" with conflicting prop name="viewport"/)
     } finally {
       nextConfig.restore()
     }
@@ -77,10 +79,11 @@ describe('AMP Validation on Export', () => {
     },`)
 
     try {
-      const { stdout } = await runNextCommand(['export', appDir], { stdout: true })
+      const { stdout, stderr } = await runNextCommand(['export', appDir], { stdout: true, stderr: true })
       expect(stdout).toMatch(/warn.*The tag 'amp-video extension \.js script' is missing/)
       expect(stdout).toMatch(/error.*The tag 'img' may only appear as a descendant of tag 'noscript'. Did you mean 'amp-img'\?/)
       await expect(access(join(outDir, 'dog-cat/index.html'))).resolves.toBe(undefined)
+      await expect(stderr).not.toMatch(/Found conflicting amp tag "meta" with conflicting prop name="viewport"/)
     } finally {
       nextConfig.restore()
     }
