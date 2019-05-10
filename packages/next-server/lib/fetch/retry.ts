@@ -23,14 +23,14 @@ async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function retry<R = void>(
+export async function retry<R = void>(
   cb: (bail: (err?: Error) => never, attempt: number) => Promise<R>,
   opts: RetryOptions,
   attempt: number = 0,
 ): Promise<R> {
   const retries = opts.retries || 5
   const factor = opts.factor || 2
-  const minTimeout = opts.minTimeout || 1000
+  const minTimeout = opts.minTimeout || 100
 
   let aborted = false
 

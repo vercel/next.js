@@ -1,17 +1,17 @@
 /* eslint-env jest */
-import fetchRetry from 'next-server/dist/lib/fetch/retry'
+import fetchRetry, { retry } from 'next-server/dist/lib/fetch/retry'
 
 const createFetchFn = (url, timeouts, resultFn) => {
-  let attemps = 0
+  let attempts = 0
 
   const startTime = Date.now()
   const fetchFn = jest.fn((_url, opts) => {
     const time = Date.now() - startTime
 
-    expect(time >= timeouts[attemps++]).toBeTruthy()
+    expect(time).toBeGreaterThanOrEqual(timeouts[attempts++])
     expect(url).toBe(_url)
 
-    return typeof resultFn === 'function' ? resultFn(attemps - 1) : resultFn
+    return typeof resultFn === 'function' ? resultFn(attempts - 1) : resultFn
   })
 
   return fetchFn
@@ -59,9 +59,9 @@ describe('fetch', () => {
 
   it('Should stop retrying after a successful response', async () => {
     const timeouts = [0, 10, 50]
-    const resultFn = (attemps) => (
+    const resultFn = (attempts) => (
       // Make if work in the second attempt
-      attemps < 2 ? { status: 500, statusText: 'error' } : { status: 200 }
+      attempts < 2 ? { status: 500, statusText: 'error' } : { status: 200 }
     )
     const fetchFn = createFetchFn('test', timeouts, resultFn)
     const fetch = fetchRetry(fetchFn)
@@ -79,14 +79,61 @@ describe('fetch', () => {
       }
     }
     const timeouts = [0, 20, 40, 80, 160]
-    const resultFn = (attemps) => (
+    const resultFn = (attempts) => (
       // Make if work in the four attempt
-      attemps < 4 ? { status: 500, statusText: 'error' } : { status: 200 }
+      attempts < 4 ? { status: 500, statusText: 'error' } : { status: 200 }
     )
     const fetchFn = createFetchFn('test', timeouts, resultFn)
     const fetch = fetchRetry(fetchFn)
 
     expect((await fetch('test', opts)).status).toBe(200)
     expect(fetchFn).toHaveBeenCalledTimes(5)
+  })
+
+  describe('retry', () => {
+    const opts = {
+      minTimeout: 10,
+      retries: 3,
+      factor: 5
+    }
+
+    it('Should throw an error if all attempts fail', async () => {
+      const retryFn = jest.fn(() => {
+        throw new Error('error')
+      })
+      const time = Date.now()
+
+      await expect(retry(retryFn, opts)).rejects.toEqual(new Error('error'))
+      expect(retryFn).toHaveBeenCalledTimes(4)
+      expect(Date.now() - time).toBeGreaterThanOrEqual(310) // 10 + 50 + 250
+    })
+
+    it('Should abort and throw an error if bail is called', async () => {
+      const retryFn = jest.fn((bail, attempts) => {
+        if (attempts > 1) {
+          bail()
+        }
+        throw new Error('error')
+      })
+      const time = Date.now()
+
+      await expect(retry(retryFn, opts)).rejects.toEqual(new Error('Aborted'))
+      expect(retryFn).toHaveBeenCalledTimes(3)
+      expect(Date.now() - time).toBeGreaterThanOrEqual(60) // 10 + 50
+    })
+
+    it('Should abort and throw a custom error if bail is called', async () => {
+      const retryFn = jest.fn((bail, attempts) => {
+        if (attempts > 0) {
+          bail(new Error('custom error'))
+        }
+        throw new Error('error')
+      })
+      const time = Date.now()
+
+      await expect(retry(retryFn, opts)).rejects.toEqual(new Error('custom error'))
+      expect(retryFn).toHaveBeenCalledTimes(2)
+      expect(Date.now() - time).toBeGreaterThanOrEqual(10)
+    })
   })
 })
