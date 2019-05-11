@@ -1,18 +1,22 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
-import { store } from '../shared/store'
-import withRematch from '../shared/utils/withRematch'
-import Header from '../shared/components/header'
+
+import { checkServer } from '../shared/utils'
 import CounterDisplay from '../shared/components/counter-display'
+import Header from '../shared/components/header'
+import { store } from '../shared/store'
+import withRematch from '../shared/withRematch'
 
 class Github extends Component {
-  static async getInitialProps ({ isServer, initialState }) {
-    if (isServer) {
+  static async getInitialProps () {
+    if (checkServer()) {
       await store.dispatch.github.fetchUsers()
     }
-    return {}
   }
+
   render () {
+    const { isLoading, fetchUsers, userList } = this.props
+
     return (
       <div>
         <Header />
@@ -21,11 +25,11 @@ class Github extends Component {
           Server rendered github user list. You can also reload the users from
           the api by clicking the <b>Get users</b> button below.
         </p>
-        {this.props.isLoading ? <p>Loading ...</p> : null}
+        {isLoading ? <p>Loading ...</p> : null}
         <p>
-          <button onClick={this.props.fetchUsers}>Get users</button>
+          <button onClick={fetchUsers}>Get users</button>
         </p>
-        {this.props.userList.map(user => (
+        {userList.map(user => (
           <div key={user.login}>
             <Link href={user.html_url} passHref>
               <a>
