@@ -98,6 +98,9 @@ export class Head extends Component<OriginProps> {
       return null
     }
 
+    // move _app files to the beginning
+    files.sort((x, y) => x.includes('_app') ? -1 : y.includes('_app') ? 1 : 0);
+
     return files.map((file: string) => {
       // Only render .css files here
       if (!/\.css$/.exec(file)) {
