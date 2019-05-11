@@ -176,8 +176,36 @@ export class Head extends Component<OriginProps> {
     const { page, buildId, dynamicBuildId } = __NEXT_DATA__
     const isDirtyAmp = amphtml && !__NEXT_DATA__.query.amp
 
-    let { head } = this.context._documentProps
+    let head: any = []
+    if (this.context._documentProps.head) {
+      head  = this.context._documentProps.head
+    }
     let children = this.props.children
+
+    children = React.Children.toArray(children).filter((child: any) => {
+      let add = true
+      React.Children.toArray(head).forEach((_child: any) => {
+          if (_child.name === child.name) {
+            if (child.key === null && _child.key === null) {
+              add = false
+            } else if ((child.key !== null && _child.key === null) || (child.key === null && _child.key !== null)) {
+              return
+            } else if (child.key === _child.key.replace(/\.\$/, '') || (!isNaN(child.key) && !isNaN(_child.key.replace(/\.\$/, '')))) {
+              add = false
+            }
+          } else if (child.type === 'meta' && _child.type === 'meta' && child.charSet && _child.charSet) {
+            if (child.key === null && _child.key === null) {
+              add = false
+            } else if ((child.key !== null && _child.key === null) || (child.key === null && _child.key !== null)) {
+              return
+            } else if (child.key === _child.key.replace(/\.\$/, '') || (!isNaN(child.key) && !isNaN(_child.key.replace(/\.\$/, '')))) {
+              add = false
+            }
+          }
+        })
+      return add
+    })
+
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
