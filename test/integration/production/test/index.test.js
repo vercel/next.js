@@ -154,6 +154,22 @@ describe('Production Usage', () => {
     })
   })
 
+  describe('API routes', () => {
+    it('should work with pages/api/index.js', async () => {
+      const url = `http://localhost:${appPort}/api`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API index works')
+    })
+
+    it('should work with pages/api/hello.js', async () => {
+      const url = `http://localhost:${appPort}/api/hello`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API hello works')
+    })
+  })
+
   describe('With navigation', () => {
     it('should navigate via client side', async () => {
       const browser = await webdriver(appPort, '/')
