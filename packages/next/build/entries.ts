@@ -63,7 +63,10 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
     if (page === '/_document') {
       return
     }
-    client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+
+    if(!isApiRoute) {
+      client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+    }
   })
 
   return {
