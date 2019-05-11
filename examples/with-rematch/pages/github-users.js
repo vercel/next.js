@@ -1,17 +1,20 @@
 import React, { Component } from 'react'
 import Link from 'next/link'
+import { connect } from 'react-redux'
 
 import { checkServer } from '../shared/utils'
 import CounterDisplay from '../shared/components/counter-display'
 import Header from '../shared/components/header'
-import { store } from '../shared/store'
-import withRematch from '../shared/withRematch'
 
 class Github extends Component {
-  static async getInitialProps () {
+  static async getInitialProps (ctx) {
+    const store = ctx.reduxStore
+
+    // Pre-populate users only on the server-side
     if (checkServer()) {
       await store.dispatch.github.fetchUsers()
     }
+    return {}
   }
 
   render () {
@@ -57,4 +60,7 @@ const mapDispatch = ({ github: { fetchUsers } }) => ({
   fetchUsers: () => fetchUsers()
 })
 
-export default withRematch(store, mapState, mapDispatch)(Github)
+export default connect(
+  mapState,
+  mapDispatch
+)(Github)

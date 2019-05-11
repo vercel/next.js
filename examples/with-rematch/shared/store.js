@@ -1,14 +1,16 @@
 import { init } from '@rematch/core'
 import { counter, github } from './models'
 
-export const store = init({
+const exampleInitialState = {
+  counter: 5
+}
+
+export const initializeStore = (initialState = exampleInitialState) => init({
   models: {
     counter,
     github
   },
   redux: {
-    initialState: {
-      counter: 5
-    }
+    initialState
   }
 })

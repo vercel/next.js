@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
-import { store } from '../shared/store'
-import withRematch from '../shared/withRematch'
+import { connect } from 'react-redux'
+
 import Header from '../shared/components/header'
 
 class Home extends Component {
@@ -36,4 +36,7 @@ const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
   incrementAsync: () => incrementAsync(1)
 })
 
-export default withRematch(store, mapState, mapDispatch)(Home)
+export default connect(
+  mapState,
+  mapDispatch
+)(Home)
