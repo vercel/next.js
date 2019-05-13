@@ -104,6 +104,10 @@ export default async ({
     pageLoader.onDynamicBuildId()
   }
 
+  for (const [key, value] of new URLSearchParams(window.location.search)) {
+    query[key] = value
+  }
+
   router = createRouter(page, query, asPath, {
     initialProps: props,
     pageLoader,
