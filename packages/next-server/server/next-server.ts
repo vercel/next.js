@@ -21,7 +21,8 @@ import {
   PAGES_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
-import { loadComponents } from './load-components'
+import { loadComponents, interopDefault } from './load-components'
+import { getPagePath } from './require';
 
 type NextConfig = any
 
@@ -199,6 +200,13 @@ export default class Server {
           await this.serveStatic(req, res, p, parsedUrl)
         },
       },
+      {
+        match: route('/api/:path*'),
+        fn: async (req, res, params, parsedUrl) => {
+          const { pathname } = parsedUrl
+          await this.handleApiRequest(req, res, pathname!)
+        },
+      },
     ]
 
     if (fs.existsSync(this.publicDir)) {
@@ -224,6 +232,32 @@ export default class Server {
     }
 
     return routes
+  }
+
+  /**
+   * Resolves `API` request, in development builds on demand
+   * @param req http request
+   * @param res http response
+   * @param pathname path of request
+   */
+  private async handleApiRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const resolverFunction = await this.resolveApiRequest(pathname)
+    if (resolverFunction === null) {
+      res.statusCode = 404
+      res.end('Not Found')
+      return
+    }
+
+    const resolver = interopDefault(require(resolverFunction))
+    resolver(req, res)
+  }
+
+  /**
+   * Resolves path to resolver function
+   * @param pathname path of request
+   */
+  private resolveApiRequest(pathname: string) {
+    return getPagePath(pathname, this.distDir)
   }
 
   private generatePublicRoutes(): Route[] {
