@@ -2,7 +2,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { kea } from 'kea'
 
-@kea({
+const logic = kea({
   path: () => ['kea'],
   actions: () => ({
     increment: amount => ({ amount }),
@@ -26,7 +26,14 @@ import { kea } from 'kea'
     ]
   })
 })
+
+@logic
 export default class App extends React.Component {
+  static getInitialProps({ store }) {
+    // Start with counter === 10
+    store.dispatch(logic.actions.increment(10))
+  }
+
   render() {
     return (
       <div>

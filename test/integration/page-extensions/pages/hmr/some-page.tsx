@@ -1,18 +1,18 @@
 import React from 'react'
 
-if(typeof window !== 'undefined' && !window['HMR_RANDOM_NUMBER']) {
-  window['HMR_RANDOM_NUMBER'] = Math.random()
+if (typeof window !== 'undefined' && !(window as any).HMR_RANDOM_NUMBER) {
+  (window as any).HMR_RANDOM_NUMBER = Math.random()
 }
 
 export default class Counter extends React.Component {
   state = { count: 0 }
 
-  incr () {
+  incr() {
     const { count } = this.state
     this.setState({ count: count + 1 })
   }
 
-  render () {
+  render() {
     return (
       <div>
         <p>COUNT: {this.state.count}</p>
