@@ -50,17 +50,23 @@ export function createEntrypoints(pages: PagesMapping, target: 'server'|'serverl
   Object.keys(pages).forEach((page) => {
     const absolutePagePath = pages[page]
     const bundleFile = page === '/' ? '/index.js' : `${page}.js`
+    const isApiRoute = bundleFile.startsWith('/api')
+
     const bundlePath = join('static', buildId, 'pages', bundleFile)
-    if(target === 'serverless' && page !== '/_app' && page !== '/_document') {
+    if(isApiRoute || target === 'server') {
+      server[bundlePath] = [absolutePagePath]
+    } else if(target === 'serverless' && page !== '/_app' && page !== '/_document') {
       const serverlessLoaderOptions: ServerlessLoaderQuery = {page, absolutePagePath, ...defaultServerlessOptions}
       server[join('pages', bundleFile)] = `next-serverless-loader?${stringify(serverlessLoaderOptions)}!`
-    } else if(target === 'server') {
-      server[bundlePath] = [absolutePagePath]
     }
+
     if (page === '/_document') {
       return
     }
-    client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+
+    if(!isApiRoute) {
+      client[bundlePath] = `next-client-pages-loader?${stringify({page, absolutePagePath})}!`
+    }
   })
 
   return {
