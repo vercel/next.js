@@ -1,5 +1,7 @@
 import chalk from 'chalk'
 import {
+  SERVER_DIRECTORY,
+  SERVERLESS_DIRECTORY,
   PAGES_MANIFEST,
   CHUNK_GRAPH_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -310,16 +312,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
       await fsUnlink(serverBundle)
     }
     let pagesManifest: any = {}
-    const manifestPath = path.join(distDir, 'server/', PAGES_MANIFEST)
+    const manifestPath = path.join(distDir, target === 'serverless'
+      ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
 
-    if (target !== 'serverless') {
-      pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
-    }
+    pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
 
     for (const file of toMove) {
       const orig = path.join(exportOptions.outdir, file)
       const dest = path.join(serverDir, file)
-      const relativeDest = path.join('static', buildId, 'pages', file).replace(/\\/g, '/')
+      const relativeDest = (target === 'serverless'
+        ? path.join('pages', file)
+        : path.join('static', buildId, 'pages', file)
+      ).replace(/\\/g, '/')
+
       let page = file.split('.html')[0].replace(/\\/g, '/')
       pagesManifest[page] = relativeDest
       page = page === '/index' ? '/' : page
@@ -331,9 +336,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     await recursiveDelete(exportOptions.outdir)
     await fsRmdir(exportOptions.outdir)
 
-    if (target !== 'serverless') {
-      await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
-    }
+    await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
 
   if (Array.isArray(configs[0].plugins)) {
