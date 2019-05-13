@@ -1,5 +1,5 @@
 {
-  "name": "react-express-stitch-nextjs",
+  "name": "with-mongodb-stitch-webhooks",
   "version": "0.0.1",
   "main": "server",
   "scripts": {
@@ -9,8 +9,8 @@
     "now-build": "next build"
   },
   "now": {
-    "name": "react-express-stitch-nextjs",
-    "alias": "react-express-stitch-nextjs"
+    "name": "with-mongodb-stitch-webhooks",
+    "alias": "with-mongodb-stitch-webhooks"
   },
   "engines": {
     "node": "^10.13.0",

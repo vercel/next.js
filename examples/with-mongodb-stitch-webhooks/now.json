@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "react-express-stitch-nextjs",
+  "name": "with-mongodb-stitch-webhooks",
   "builds": [
     { "src": "next.config.js", "use": "@now/next" },
     { "src": "api/check/index.js", "use": "@now/node" },
