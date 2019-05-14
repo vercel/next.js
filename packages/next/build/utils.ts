@@ -235,7 +235,7 @@ export function isPageStatic(
     mod = mod.default || mod
     return mod && typeof mod.getInitialProps === 'function'
   } catch (err) {
-    if (err.code === 'ENOENT') return false
+    if (err.code === 'MODULE_NOT_FOUND') return false
     throw err
   }
 }
