@@ -19,9 +19,10 @@ import {
   collectPages,
   getCacheIdentifier,
   getFileForPage,
-  getPageInfo,
+  getPageSizeInKb,
   getSpecifiedPages,
   printTreeView,
+  PageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import {
@@ -238,43 +239,28 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const pageInfos = new Map()
+  const pageInfos = new Map<string, PageInfo>()
   const distPath = path.join(dir, config.distDir)
-  let pageKeys = Object.keys(mappedPages)
+  const pageKeys = Object.keys(mappedPages)
 
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
-    const actualPage = page === '/' ? 'index' : page
-    const info = await getPageInfo(
-      actualPage,
-      distPath,
-      buildId,
-      false,
-      config.target === 'serverless'
-    )
 
-    pageInfos.set(page, {
-      ...(info || {}),
-      chunks,
-    })
-
-    if (!(typeof info.serverSize === 'number')) {
-      pageKeys = pageKeys.filter(pg => pg !== page)
-    }
+    const actualPage = page === '/' ? '/index' : page
+    const size = await getPageSizeInKb(actualPage, distPath, buildId)
+    pageInfos.set(page, { size, chunks })
   }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) {
-        plugin.ampPages.forEach((pg: any) => {
-          const info = pageInfos.get(pg)
-          if (info) {
-            info.ampOnly = true
-            pageInfos.set(pg, info)
-          }
-        })
+      if (!plugin.ampPages) {
+        return false
       }
-      return Boolean(plugin.ampPages)
+
+      plugin.ampPages.forEach((pg: any) => {
+        pageInfos.get(pg)!.isAmp = true
+      })
+      return true
     })
   }
 

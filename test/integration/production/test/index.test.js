@@ -91,15 +91,6 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
-      const url = `http://localhost:${appPort}/_next/abcdef`
-      const methods = ['POST', 'PUT', 'DELETE']
-      for (const method of methods) {
-        const res = await fetch(url, { method })
-        expect(res.status).toBe(501)
-      }
-    })
-
     it('should set Content-Length header', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetch(url)
@@ -151,6 +142,22 @@ describe('Production Usage', () => {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
       }
+    })
+  })
+
+  describe('API routes', () => {
+    it('should work with pages/api/index.js', async () => {
+      const url = `http://localhost:${appPort}/api`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API index works')
+    })
+
+    it('should work with pages/api/hello.js', async () => {
+      const url = `http://localhost:${appPort}/api/hello`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API hello works')
     })
   })
 
