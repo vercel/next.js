@@ -22,7 +22,7 @@ const github = {
   effects: {
     // handle state changes with impure functions.
     // use async/await for async actions
-    async fetchUsers (payload, rootState) {
+    async fetchUsers () {
       try {
         this.requestUsers()
         const response = await fetch('https://api.github.com/users')

@@ -1,0 +1,29 @@
+{
+  "name": "with-jest-flow",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "jest",
+    "dev": "next",
+    "build": "next build",
+    "flow": "flow",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@babel/core": "latest",
+    "babel-eslint": "latest",
+    "babel-jest": "latest",
+    "babel-plugin-transform-flow-strip-types": "latest",
+    "enzyme": "latest",
+    "enzyme-adapter-react-16": "latest",
+    "eslint": "latest",
+    "flow-bin": "latest",
+    "jest": "latest",
+    "react-addons-test-utils": "latest",
+    "react-test-renderer": "latest"
+  }
+}

@@ -7,6 +7,7 @@ import ErrorDebug from './error-debug'
 import AmpHtmlValidator from 'amphtml-validator'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 
 const React = require('react')
 
@@ -73,6 +74,8 @@ export default class DevServer extends Server {
   }
 
   async prepare () {
+    await verifyTypeScriptSetup(this.dir)
+
     this.hotReloader = new HotReloader(this.dir, { config: this.nextConfig, buildId: this.buildId })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -136,6 +139,23 @@ export default class DevServer extends Server {
     snippet = snippet.substring(0, snippet.indexOf('</script>'))
 
     return !snippet.includes('data-amp-development-mode-only')
+  }
+
+  /**
+   * Check if resolver function is build or request new build for this function
+   * @param {string} pathname
+   */
+  async resolveApiRequest (pathname) {
+    try {
+      await this.hotReloader.ensurePage(pathname)
+    } catch (err) {
+      // API route dosn't exist => return 404
+      if (err.code === 'ENOENT') {
+        return null
+      }
+    }
+    const resolvedPath = await super.resolveApiRequest(pathname)
+    return resolvedPath
   }
 
   async renderToHTML (req, res, pathname, query, options = {}) {

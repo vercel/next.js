@@ -3,6 +3,8 @@ import { connect } from 'react-redux'
 
 class CounterDisplay extends Component {
   render () {
+    const { counter, incrementBy3 } = this.props
+
     return (
       <div>
         <h3> Counter </h3>
@@ -11,9 +13,9 @@ class CounterDisplay extends Component {
           which are not pages can be connected using the connect function just
           like redux components.
         </p>
-        <p>Current value {this.props.counter} </p>
+        <p>Current value {counter} </p>
         <p>
-          <button onClick={this.props.incrementBy3}>Increment</button>
+          <button onClick={incrementBy3}>Increment by 3</button>
         </p>
       </div>
     )
