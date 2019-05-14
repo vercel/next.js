@@ -47,13 +47,10 @@ export default (context, renderViaHTTP) => {
         await check(() => getReactErrorOverlayContent(browser), /Type 'Element' is not assignable to type 'boolean'/)
 
         writeFileSync(pagePath, origContent)
-        await check(() => browser.elementByCss('p').text(), /Hello world/)
-
-        writeFileSync(pagePath, errContent)
-        await check(() => getReactErrorOverlayContent(browser), /Type 'Element' is not assignable to type 'boolean'/)
-
-        writeFileSync(pagePath, origContent)
-        await check(() => browser.elementByCss('p').text(), /Hello world/)
+        await check(async () => {
+          const html = await browser.eval('document.documentElement.innerHTML')
+          return html.match(/iframe/) ? 'fail' : 'success'
+        }, /success/)
       } finally {
         if (browser) browser.close()
         writeFileSync(pagePath, origContent)
