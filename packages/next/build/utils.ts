@@ -90,45 +90,6 @@ export function printTreeView(
     })
   )
 
-  // list
-  //   .sort((a, b) => (a > b ? 1 : -1))
-  //   .forEach((item, i) => {
-  //     const info = pageInfos.get(item)
-  //     let numExternal: number | undefined
-  //     let numInternal: number | undefined
-  //     let size = -1
-  //     let isAmp: boolean | undefined
-
-  //     if (info) {
-  //       isAmp = info.isAmp
-  //       size = info.size
-
-  //       if (info.chunks) {
-  //         const { chunks } = info
-  //         numExternal = chunks.external.size
-  //         numInternal = chunks.internal.size
-  //       }
-  //     }
-
-  //     const corner = i === 0 ? (list.length === 1 ? '─' : '┌') : '├'
-
-  //     console.log(` \x1b[90m${corner}\x1b[39m ${item}${isAmp ? ' (AMP)' : ''}`)
-
-  //     if (typeof numExternal === 'number') {
-  //       console.log(
-  //         ` \x1b[90m| \x1b[39mPackages: ${numExternal} Local modules: ${numInternal}`
-  //       )
-  //     }
-  //     let sizes = ' \x1b[90m|'
-
-  //     if (typeof size === 'number' && size >= 0) {
-  //       sizes += getSizeColor(size) + ` Client size: ${prettyBytes(size)}`
-  //     }
-
-  //     if (sizes) console.log(sizes)
-  //     console.log(` \x1b[90m${i === list.length - 1 ? '└' : '|'}`)
-  //   })
-
   console.log()
 }
 
