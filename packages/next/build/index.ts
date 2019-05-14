@@ -263,7 +263,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     const actualPage = page === '/' ? '/index' : page
     const size = await getPageSizeInKb(actualPage, distPath, buildId)
-
     const serverBundle = path.join(
       distPath,
       target === 'serverless'
@@ -271,11 +270,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
         : SERVER_DIRECTORY + `/static/${buildId}/pages`,
       actualPage + '.js'
     )
-    const isStatic = isPageStatic(serverBundle, {
-      publicRuntimeConfig: config.publicRuntimeConfig,
-      serverRuntimeConfig: config.serverRuntimeConfig
-    })
-    if (isStatic) staticPages.add(page)
+
+    if (!page.match(/(_app|_error|_document)/)) {
+      const isStatic = isPageStatic(serverBundle, {
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig
+      })
+      if (isStatic) staticPages.add(page)
+    }
 
     pageInfos.set(page, { size, chunks, serverBundle })
   }
