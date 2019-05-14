@@ -46,6 +46,16 @@ function runTests (dev = false) {
     expect(html).toMatch(/show comments for.*post-1.*here/i)
   })
 
+  it('should render part dynamic page', async () => {
+    const html = await renderViaHTTP(appPort, '/cmnt-123')
+    expect(html).toMatch(/Comment.*123/)
+  })
+
+  it('should render nested part dynamic page', async () => {
+    const html = await renderViaHTTP(appPort, '/blog/321/cmnt-cmnt-123')
+    expect(html).toMatch(/Blog post.*321.*comment.*cmnt-123/)
+  })
+
   it('should navigate to a dynamic page successfully', async () => {
     let browser
     try {
@@ -83,6 +93,34 @@ function runTests (dev = false) {
 
       const text = await browser.elementByCss('p').text()
       expect(text).toMatch(/show comments for.*post-1.*here/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a part dynamic page', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#view-cmnt-part').click()
+      await browser.waitForElementByCss('p')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toMatch(/Comment.*123/)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a nested part dynamic page', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.elementByCss('#view-nested-cmnt-part').click()
+      await browser.waitForElementByCss('p')
+
+      const text = await browser.elementByCss('p').text()
+      expect(text).toMatch(/Blog post.*321.*comment.*cmnt-123/)
     } finally {
       if (browser) await browser.close()
     }

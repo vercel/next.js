@@ -202,8 +202,13 @@ export default class Router implements BaseRouter {
         for (let i = 0; i < paramParts.length; i++) {
           let paramName = paramParts[i]
           if (paramName.indexOf('$') === -1) continue
-          paramName = paramName.replace('$', '')
-          query[paramName] = asPathParts[i]
+          const curAsPart = asPathParts[i]
+          const curParamParts = paramName.split('$')
+          paramName = curParamParts.pop()!
+
+          query[paramName] = curParamParts[0]
+            ? curAsPart.substr(curParamParts[0].length)
+            : curAsPart
         }
       }
 

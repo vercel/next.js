@@ -14,5 +14,13 @@ export default () => (
     <Link href='/$post/$comment' as='/post-1/comment-1'>
       <a id='view-post-1-comment-1'>View comment 1 on post 1</a>
     </Link>
+    <br />
+    <Link href='/cmnt-$id' as='/cmnt-123'>
+      <a id='view-cmnt-part'>View comment 123</a>
+    </Link>
+    <br />
+    <Link href='/blog/$post/cmnt-$id' as='/blog/321/cmnt-cmnt-123'>
+      <a id='view-nested-cmnt-part'>View comment cmnt-123 on blog post 321</a>
+    </Link>
   </div>
 )
