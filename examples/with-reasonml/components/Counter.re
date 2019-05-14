@@ -1,24 +1,22 @@
-type action =
-  | Add;
-
-type state = {count: int};
+let count = ref(0);
 
 [@react.component]
 let make = () => {
-  let (state, dispatch) =
-    React.useReducer(
-      (state, action) =>
-        switch (action) {
-        | Add => {count: state.count + 1}
-        },
-      {count: 0},
-    );
+  let (_state, dispatch) = React.useReducer(
+    (_, _) => Js.Obj.empty(),
+    Js.Obj.empty()
+  );
 
-  let countMsg = "Count: " ++ string_of_int(state.count);
+  let countMsg = "Count: " ++ string_of_int(count^);
+
+  let add = () => {
+    count := count^ + 1;
+    dispatch();
+  };
 
   <div>
     <p> {ReasonReact.string(countMsg)} </p>
-    <button onClick={_ => dispatch(Add)}> {React.string("Add")} </button>
+    <button onClick={_ => add()}> {React.string("Add")} </button>
   </div>;
 };
 
