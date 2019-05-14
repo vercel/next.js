@@ -233,7 +233,7 @@ export function isPageStatic(
     nextEnvConfig.setConfig(runtimeEnvConfig)
     let mod = require(serverBundle)
     mod = mod.default || mod
-    return mod && typeof mod.getInitialProps === 'undefined'
+    return mod && typeof mod.getInitialProps === 'function'
   } catch (err) {
     if (err.code === 'ENOENT') return false
     throw err
