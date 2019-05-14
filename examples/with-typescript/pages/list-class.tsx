@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { NextContext } from 'next'
+import { NextPageContext } from 'next'
 import Link from 'next/link';
 
 import Layout from '../components/Layout'
@@ -13,7 +13,7 @@ type Props = {
 }
 
 class ListClass extends React.Component<Props> {
-  static async getInitialProps({ pathname }: NextContext) {
+  static async getInitialProps({ pathname }: NextPageContext) {
     // Example for including initial props in a Next.js page.
     // Don't forget to include the respective types for any
     // props passed into the component

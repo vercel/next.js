@@ -23,9 +23,11 @@ import {
   collectPages,
   getCacheIdentifier,
   getFileForPage,
-  getPageInfo,
+  getPageSizeInKb,
   getSpecifiedPages,
   printTreeView,
+  PageInfo,
+  isPageStatic,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import {
@@ -251,33 +253,31 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const pageInfos: Map<string, any> = new Map()
-  const staticPages: Set<string> = new Set()
+  const pageInfos = new Map<string, PageInfo>()
   const distPath = path.join(dir, config.distDir)
-  let pageKeys = Object.keys(mappedPages)
+  const pageKeys = Object.keys(mappedPages)
+  const staticPages: Set<string> = new Set()
 
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
-    const actualPage = page === '/' ? 'index' : page
-    const info = await getPageInfo(
-      actualPage,
+
+    const actualPage = page === '/' ? '/index' : page
+    const size = await getPageSizeInKb(actualPage, distPath, buildId)
+
+    const serverBundle = path.join(
       distPath,
-      buildId,
-      false,
-      config.target === 'serverless',
-      config
+      target === 'serverless'
+        ? SERVERLESS_DIRECTORY + '/pages'
+        : SERVER_DIRECTORY + `/static/${buildId}/pages`,
+      actualPage + '.js'
     )
-
-    pageInfos.set(page, {
-      ...(info || {}),
-      chunks,
+    const isStatic = isPageStatic(serverBundle, {
+      publicRuntimeConfig: config.publicRuntimeConfig,
+      serverRuntimeConfig: config.serverRuntimeConfig
     })
+    if (isStatic) staticPages.add(page)
 
-    if (info.static) staticPages.add(page)
-
-    if (!(typeof info.clientSize === 'number')) {
-      pageKeys = pageKeys.filter(pg => pg !== page)
-    }
+    pageInfos.set(page, { size, chunks, serverBundle })
   }
 
   if (flyingShuttle) {
@@ -307,7 +307,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     let serverDir: string = ''
     // remove server bundles that were exported
     for (const page of staticPages) {
-      const { serverBundle } = pageInfos.get(page)
+      const { serverBundle } = pageInfos.get(page)!
       if (!serverDir) serverDir = path.dirname(serverBundle)
       await fsUnlink(serverBundle)
     }
@@ -341,17 +341,14 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) {
-        plugin.ampPages.forEach((pg: any) => {
-          const info = pageInfos.get(pg)
-          if (info) {
-            info.ampOnly = true
-            pageInfos.set(pg, info)
-            if (pageKeys.indexOf(pg) < 0) pageKeys.push(pg)
-          }
-        })
+      if (!plugin.ampPages) {
+        return false
       }
-      return Boolean(plugin.ampPages)
+
+      plugin.ampPages.forEach((pg: any) => {
+        pageInfos.get(pg)!.isAmp = true
+      })
+      return true
     })
   }
 
