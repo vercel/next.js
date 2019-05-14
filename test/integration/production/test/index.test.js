@@ -91,15 +91,6 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
-      const url = `http://localhost:${appPort}/_next/abcdef`
-      const methods = ['POST', 'PUT', 'DELETE']
-      for (const method of methods) {
-        const res = await fetch(url, { method })
-        expect(res.status).toBe(501)
-      }
-    })
-
     it('should set Content-Length header', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetch(url)
