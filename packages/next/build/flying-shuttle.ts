@@ -11,31 +11,128 @@ import { recursiveDelete } from '../lib/recursive-delete'
 import * as Log from './output/log'
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
+const FILE_UPDATED_AT = 'UPDATED_AT'
 const DIR_FILES_NAME = 'files'
+const MAX_SHUTTLES = 4
 
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 const fsWriteFile = promisify(fs.writeFile)
 const fsCopyFile = promisify(fs.copyFile)
+const fsReadDir = promisify(fs.readdir)
+const fsLstat = promisify(fs.lstat)
 
 type ChunkGraphManifest = {
+  sharedFiles: string[] | undefined
   pages: { [page: string]: string[] }
   pageChunks: { [page: string]: string[] }
   chunks: { [page: string]: string[] }
   hashes: { [page: string]: string }
 }
 
+async function findCachedShuttles(apexShuttleDirectory: string) {
+  return (await Promise.all(
+    await fsReadDir(apexShuttleDirectory).then(shuttleFiles =>
+      shuttleFiles.map(async f => ({
+        file: f,
+        stats: await fsLstat(path.join(apexShuttleDirectory, f)),
+      }))
+    )
+  ))
+    .filter(({ stats }) => stats.isDirectory())
+    .map(({ file }) => file)
+}
+
+async function pruneShuttles(apexShuttleDirectory: string) {
+  const allShuttles = await findCachedShuttles(apexShuttleDirectory)
+  if (allShuttles.length <= MAX_SHUTTLES) {
+    return
+  }
+
+  const datedShuttles: { updatedAt: Date; shuttleDirectory: string }[] = []
+  for (const shuttleId of allShuttles) {
+    const shuttleDirectory = path.join(apexShuttleDirectory, shuttleId)
+    const updatedAtPath = path.join(shuttleDirectory, FILE_UPDATED_AT)
+
+    let updatedAt: Date
+    try {
+      updatedAt = new Date((await fsReadFile(updatedAtPath, 'utf8')).trim())
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        await recursiveDelete(shuttleDirectory)
+        continue
+      }
+      throw err
+    }
+
+    datedShuttles.push({ updatedAt, shuttleDirectory })
+  }
+
+  const sortedShuttles = datedShuttles.sort((a, b) =>
+    Math.sign(b.updatedAt.valueOf() - a.updatedAt.valueOf())
+  )
+  let prunedShuttles = 0
+  while (sortedShuttles.length > MAX_SHUTTLES) {
+    const shuttleDirectory = sortedShuttles.pop()
+    await recursiveDelete(shuttleDirectory!.shuttleDirectory)
+    ++prunedShuttles
+  }
+
+  if (prunedShuttles) {
+    Log.info(
+      `decommissioned ${prunedShuttles} old shuttle${
+        prunedShuttles > 1 ? 's' : ''
+      }`
+    )
+  }
+}
+
+function isShuttleValid({
+  manifestPath,
+  pagesDirectory,
+  parentCacheIdentifier,
+}: {
+  manifestPath: string
+  pagesDirectory: string
+  parentCacheIdentifier: string
+}) {
+  const manifest = require(manifestPath) as ChunkGraphManifest
+  const { sharedFiles, hashes } = manifest
+  if (!sharedFiles) {
+    return false
+  }
+
+  return !sharedFiles
+    .map(file => {
+      const filePath = path.join(path.dirname(pagesDirectory), file)
+      const exists = fs.existsSync(filePath)
+      if (!exists) {
+        return true
+      }
+
+      const hash = crypto
+        .createHash('sha1')
+        .update(parentCacheIdentifier)
+        .update(fs.readFileSync(filePath))
+        .digest('hex')
+      return hash !== hashes[file]
+    })
+    .some(Boolean)
+}
+
 export class FlyingShuttle {
-  private shuttleDirectory: string
+  private apexShuttleDirectory: string
+  private flyingShuttleId: string
 
   private buildId: string
   private pagesDirectory: string
   private distDirectory: string
-  private cacheIdentifier: string
+  private parentCacheIdentifier: string
 
   private _shuttleBuildId: string | undefined
   private _restoreSema = new Sema(1)
   private _recalledManifest: ChunkGraphManifest = {
+    sharedFiles: [],
     pages: {},
     pageChunks: {},
     chunks: {},
@@ -54,20 +151,47 @@ export class FlyingShuttle {
     cacheIdentifier: string
   }) {
     mkdirpSync(
-      (this.shuttleDirectory = path.join(
+      (this.apexShuttleDirectory = path.join(
         distDirectory,
         'cache',
         'next-flying-shuttle'
       ))
     )
+    this.flyingShuttleId = crypto.randomBytes(16).toString('hex')
 
     this.buildId = buildId
     this.pagesDirectory = pagesDirectory
     this.distDirectory = distDirectory
-    this.cacheIdentifier = cacheIdentifier
+    this.parentCacheIdentifier = cacheIdentifier
+  }
+
+  get shuttleDirectory() {
+    return path.join(this.apexShuttleDirectory, this.flyingShuttleId)
+  }
+
+  private findShuttleId = async () => {
+    const shuttles = await findCachedShuttles(this.apexShuttleDirectory)
+    return shuttles.find(shuttleId => {
+      try {
+        const manifestPath = path.join(
+          this.apexShuttleDirectory,
+          shuttleId,
+          CHUNK_GRAPH_MANIFEST
+        )
+        return isShuttleValid({
+          manifestPath,
+          pagesDirectory: this.pagesDirectory,
+          parentCacheIdentifier: this.parentCacheIdentifier,
+        })
+      } catch (_) {}
+      return false
+    })
   }
 
   hasShuttle = async () => {
+    const existingFlyingShuttleId = await this.findShuttleId()
+    this.flyingShuttleId = existingFlyingShuttleId || this.flyingShuttleId
+
     const found =
       this.shuttleBuildId &&
       (await fsExists(path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)))
@@ -99,9 +223,9 @@ export class FlyingShuttle {
     const manifestPath = path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)
     const manifest = require(manifestPath) as ChunkGraphManifest
 
-    const { pages: pageFileDictionary, hashes } = manifest
+    const { sharedFiles, pages: pageFileDictionary, hashes } = manifest
     const pageNames = Object.keys(pageFileDictionary)
-    const allFiles = new Set()
+    const allFiles = new Set(sharedFiles)
     pageNames.forEach(pageName =>
       pageFileDictionary[pageName].forEach(file => allFiles.add(file))
     )
@@ -117,23 +241,28 @@ export class FlyingShuttle {
 
         const hash = crypto
           .createHash('sha1')
-          .update(this.cacheIdentifier)
+          .update(this.parentCacheIdentifier)
           .update(await fsReadFile(filePath))
           .digest('hex')
         fileChanged.set(file, hash !== hashes[file])
       })
     )
 
-    const unchangedPages = pageNames
-      .filter(
-        p => !pageFileDictionary[p].map(f => fileChanged.get(f)).some(Boolean)
-      )
-      .filter(
-        pageName =>
-          pageName !== '/_app' &&
-          pageName !== '/_error' &&
-          pageName !== '/_document'
-      )
+    const unchangedPages = (sharedFiles || [])
+      .map(f => fileChanged.get(f))
+      .some(Boolean)
+      ? []
+      : pageNames
+          .filter(
+            p =>
+              !pageFileDictionary[p].map(f => fileChanged.get(f)).some(Boolean)
+          )
+          .filter(
+            pageName =>
+              pageName !== '/_app' &&
+              pageName !== '/_error' &&
+              pageName !== '/_document'
+          )
 
     if (unchangedPages.length) {
       const u = unchangedPages.length
@@ -253,6 +382,8 @@ export class FlyingShuttle {
     ) as ChunkGraphManifest
 
     const storeManifest: ChunkGraphManifest = {
+      // Intentionally does not merge with the recalled manifest
+      sharedFiles: nextManifest.sharedFiles,
       pages: Object.assign(
         {},
         this._recalledManifest.pages,
@@ -278,6 +409,10 @@ export class FlyingShuttle {
     await fsWriteFile(
       path.join(this.shuttleDirectory, FILE_BUILD_ID),
       this.buildId
+    )
+    await fsWriteFile(
+      path.join(this.shuttleDirectory, FILE_UPDATED_AT),
+      new Date().toISOString()
     )
 
     const usedChunks = new Set()
@@ -308,5 +443,11 @@ export class FlyingShuttle {
 
     Log.info(`flying shuttle payload: ${usedChunks.size + 2} files`)
     Log.ready('flying shuttle docked')
+
+    try {
+      await pruneShuttles(this.apexShuttleDirectory)
+    } catch (e) {
+      Log.error('failed to prune old shuttles: ' + e)
+    }
   }
 }
