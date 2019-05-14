@@ -85,7 +85,7 @@ export function printTreeView(
 
   console.log(
     textTable(messages, {
-      align: ['l', 'l', 'l', 'r'],
+      align: ['l', 'l', 'r', 'r'],
       stringLength: str => stripAnsi(str).length,
     })
   )
