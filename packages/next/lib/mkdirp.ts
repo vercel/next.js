@@ -5,7 +5,16 @@ import { promisify } from 'util'
 const mkdir = promisify(fs.mkdir)
 const stat = promisify(fs.stat)
 
+// mkdir(dir, { resurive: true }) exists in node >= v12.0
+// and is equivalent to mkdirp
+const isRecursiveSupported =
+  Number((process.version.match(/^v(\d+\.\d+)/) || [])[1]) >= 10.12
+
 export async function mkdirp(dir: string) {
+  if (isRecursiveSupported) {
+    return mkdir(dir, { recursive: true })
+  }
+
   dir = path.resolve(dir)
 
   try {
@@ -31,6 +40,10 @@ export async function mkdirp(dir: string) {
 }
 
 export function mkdirpSync(dir: string) {
+  if (isRecursiveSupported) {
+    return fs.mkdirSync(dir, { recursive: true })
+  }
+
   dir = path.resolve(dir)
 
   try {
