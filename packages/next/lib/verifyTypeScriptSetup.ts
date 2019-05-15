@@ -28,7 +28,7 @@ function writeJson(fileName: string, object: object): Promise<void> {
 async function verifyNoTypeScript(dir: string) {
   const typescriptFiles = await recursiveReadDir(
     dir,
-    /.*\.(ts|tsx)/,
+    /.*\.(ts|tsx)$/,
     /(node_modules|.*\.d\.ts)/,
   )
 
