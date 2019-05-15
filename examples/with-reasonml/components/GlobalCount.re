@@ -16,16 +16,12 @@ let increment = () => {
   current;
 };
 
-let getString = () => string_of_int(current^);
-
 let reducer = (_state, action) => {
   switch(action) {
   | Increment =>
     let updated = increment();
     updated^
   }
-}
-
-let useGlobalCount = () => {
-  React.useReducer(reducer, current^);
 };
+
+let useGlobalCount = () => React.useReducer(reducer, current^);
