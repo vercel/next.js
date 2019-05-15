@@ -12,7 +12,8 @@ jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
 describe('TypeScript Features', () => {
   beforeAll(async () => {
     context.appPort = await findPort()
-    context.server = await launchApp(join(__dirname, '../'), context.appPort)
+    context.appDir = join(__dirname, '../')
+    context.server = await launchApp(context.appDir, context.appPort)
 
     // pre-build all pages at the start
     await Promise.all([renderViaHTTP(context.appPort, '/hello')])
