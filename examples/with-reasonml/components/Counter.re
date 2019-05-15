@@ -1,8 +1,6 @@
 /*
     This is the set of action messages which are produced by this component.
     * Add updates the components internal state.
-    * IncrementGlobal increments a global counter which is persisted across
-       usages of this component.
  */
 type action =
   | Add
@@ -10,9 +8,6 @@ type action =
 /*
    This is the components internal state representation. This state object
    is unique to each instance of the component.
-
-   The global counter must be part of the state because the component will
-   only re-render if the state has been changed.
  */
 type state = {
   count: int,
