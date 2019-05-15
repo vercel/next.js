@@ -2,7 +2,7 @@
 import webdriver from 'next-webdriver'
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { check, getBrowserBodyText } from 'next-test-utils'
+import { check, getBrowserBodyText, getReactErrorOverlayContent } from 'next-test-utils'
 
 export default (context, renderViaHTTP) => {
   describe('Hot Module Reloading', () => {
@@ -13,7 +13,7 @@ export default (context, renderViaHTTP) => {
           browser = await webdriver(context.appPort, '/hello')
           await check(() => getBrowserBodyText(browser), /Hello World/)
 
-          const pagePath = join(__dirname, '../', 'components', 'hello.ts')
+          const pagePath = join(context.appDir, 'components', 'hello.ts')
 
           const originalContent = readFileSync(pagePath, 'utf8')
           const editedContent = originalContent.replace('Hello', 'COOL page')
@@ -33,6 +33,28 @@ export default (context, renderViaHTTP) => {
           }
         }
       })
+    })
+
+    it('should recover from a type error', async () => {
+      let browser
+      const pagePath = join(context.appDir, 'pages/type-error-recover.tsx')
+      const origContent = readFileSync(pagePath, 'utf8')
+      try {
+        browser = await webdriver(context.appPort, '/type-error-recover')
+        const errContent = origContent.replace('() =>', '(): boolean =>')
+
+        writeFileSync(pagePath, errContent)
+        await check(() => getReactErrorOverlayContent(browser), /Type 'Element' is not assignable to type 'boolean'/)
+
+        writeFileSync(pagePath, origContent)
+        await check(async () => {
+          const html = await browser.eval('document.documentElement.innerHTML')
+          return html.match(/iframe/) ? 'fail' : 'success'
+        }, /success/)
+      } finally {
+        if (browser) browser.close()
+        writeFileSync(pagePath, origContent)
+      }
     })
   })
 }

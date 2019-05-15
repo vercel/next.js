@@ -266,6 +266,7 @@ async function tryApplyUpdates (onHotUpdateSuccess) {
   }
 
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    ErrorOverlay.dismissBuildError()
     return
   }
 
