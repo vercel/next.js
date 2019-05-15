@@ -80,7 +80,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
         chalk.cyan.bold('typescript'),
         'by running',
         chalk.cyan.bold(
-          isYarn ? 'yarn add typescript' : 'npm install typescript',
+          isYarn ? 'yarn add typescript' : 'npm install --save-dev typescript',
         ) + '.',
       ),
     )
@@ -255,5 +255,11 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     }
     await writeJson(tsConfigPath, appTsConfig)
   }
-  return
+
+  try {
+    // Make sure @types/react is installed since default error is bad
+    await resolveP('@types/react/index.d.ts', { basedir: dir })
+  } catch (err) {
+    console.warn(chalk.red(`\n@types/react is needed when using TypeScript with Next.js. Please install it with npm install --save-dev @types/react\n`))
+  }
 }
