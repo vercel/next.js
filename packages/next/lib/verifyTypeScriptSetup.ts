@@ -107,7 +107,6 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     lib: { suggested: ['dom', 'dom.iterable', 'esnext'] },
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
-    allowSyntheticDefaultImports: { suggested: true },
     strict: { suggested: true },
     forceConsistentCasingInFileNames: { suggested: true },
 
