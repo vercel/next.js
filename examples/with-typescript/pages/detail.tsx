@@ -1,13 +1,9 @@
 import * as React from 'react'
-import { NextContext } from 'next'
+import { NextPageContext } from 'next'
 import Layout from '../components/Layout'
 import IDataObject from '../interfaces'
 import { findData } from '../utils/sample-api'
 import ListDetail from '../components/ListDetail';
-
-type RequestQuery = {
-  id: string,
-}
 
 type Props = {
   item?: IDataObject,
@@ -15,9 +11,10 @@ type Props = {
 }
 
 class ListDetailPage extends React.Component<Props> {
-  static getInitialProps = async ({ query }: NextContext<RequestQuery>) => {
+  static getInitialProps = async ({ query }: NextPageContext) => {
     try {
-      const item = await findData(query.id);
+      const { id } = query
+      const item = await findData(Array.isArray(id) ? id[0]: id);
       return { item }
     } catch (err) {
       return { errors: err.message }
