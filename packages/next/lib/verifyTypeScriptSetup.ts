@@ -80,7 +80,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
         chalk.cyan.bold('typescript'),
         'by running',
         chalk.cyan.bold(
-          isYarn ? 'yarn add typescript' : 'npm install --save-dev typescript',
+          isYarn ? 'yarn add --dev typescript' : 'npm install --save-dev typescript',
         ) + '.',
       ),
     )
