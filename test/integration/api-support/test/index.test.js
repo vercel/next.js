@@ -1,13 +1,7 @@
 /* eslint-env jest */
 /* global jasmine */
 import { join } from 'path'
-import {
-  killApp,
-  findPort,
-  launchApp,
-  fetchViaHTTP
-  // renderViaHTTP,
-} from 'next-test-utils'
+import { killApp, findPort, launchApp, fetchViaHTTP } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -67,5 +61,21 @@ describe('API support', () => {
     }).then(res => res.ok && res.json())
 
     expect(data).toEqual([{ title: 'Nextjs' }])
+  })
+
+  it('API should return empty cookies', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/cookies', null, {}).then(
+      res => res.ok && res.json()
+    )
+    expect(data).toEqual({})
+  })
+
+  it('API should return cookies', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/cookies', null, {
+      headers: {
+        Cookie: 'nextjs=cool;'
+      }
+    }).then(res => res.ok && res.json())
+    expect(data).toEqual({ nextjs: 'cool' })
   })
 })

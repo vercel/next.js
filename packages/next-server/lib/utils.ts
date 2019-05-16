@@ -91,6 +91,20 @@ export type DocumentProps = DocumentInitialProps & {
   assetPrefix?: string,
 }
 
+export type NextApiRequest = IncomingMessage & {
+  // body: any
+  query: {
+    [key: string]: string | string[],
+  }
+  cookies: {
+    [key: string]: string,
+  },
+}
+
+export type NextApiResponse = ServerResponse & {
+  send: any,
+}
+
 /**
  * Utils
  */

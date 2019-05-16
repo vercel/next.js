@@ -22,7 +22,9 @@ import {
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
 import { loadComponents, interopDefault } from './load-components'
-import { getPagePath } from './require';
+import { getPagePath } from './require'
+import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { parseCookies, parseQuery } from './api-utils'
 
 type NextConfig = any
 
@@ -204,7 +206,11 @@ export default class Server {
         match: route('/api/:path*'),
         fn: async (req, res, params, parsedUrl) => {
           const { pathname } = parsedUrl
-          await this.handleApiRequest(req, res, pathname!)
+          await this.handleApiRequest(
+            req as NextApiRequest,
+            res as NextApiResponse,
+            pathname!,
+          )
         },
       },
     ]
@@ -240,13 +246,22 @@ export default class Server {
    * @param res http response
    * @param pathname path of request
    */
-  private async handleApiRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+  private async handleApiRequest(
+    req: NextApiRequest,
+    res: NextApiResponse,
+    pathname: string,
+  ) {
     const resolverFunction = await this.resolveApiRequest(pathname)
     if (resolverFunction === null) {
       res.statusCode = 404
       res.end('Not Found')
       return
     }
+
+    // Parsing of cookies
+    req.cookies = parseCookies(req.headers)
+    // Parsing query string
+    req.query = parseQuery(req)
 
     const resolver = interopDefault(require(resolverFunction))
     resolver(req, res)
@@ -336,7 +351,11 @@ export default class Server {
     }
 
     const html = await this.renderToHTML(req, res, pathname, query, {
-      dataOnly: this.renderOpts.ampBindInitData && Boolean(query.dataOnly) || (req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1),
+      dataOnly:
+        (this.renderOpts.ampBindInitData && Boolean(query.dataOnly)) ||
+        (req.headers &&
+          (req.headers.accept || '').indexOf('application/amp.bind+json') !==
+            -1),
     })
     // Request was ended by the user
     if (html === null) {
@@ -362,9 +381,13 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
-    { amphtml, dataOnly, hasAmp }: {
-      amphtml?: boolean,
-      hasAmp?: boolean,
+    {
+      amphtml,
+      dataOnly,
+      hasAmp,
+    }: {
+      amphtml?: boolean
+      hasAmp?: boolean
       dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {

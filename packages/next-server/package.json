@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "amp-toolbox-optimizer": "0.5.3",
+    "cookie": "0.4.0",
     "etag": "1.8.1",
     "find-up": "3.0.0",
     "fresh": "0.5.2",
@@ -56,6 +57,7 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
+    "@types/cookie": "0.3.2",
     "@types/react": "16.8.10",
     "@types/react-dom": "16.8.3",
     "@types/react-is": "16.7.1",
