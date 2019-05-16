@@ -1,4 +1,4 @@
-import webpack, {Stats} from 'webpack'
+import webpack, {Stats} from 'next/dist/compiled/webpack'
 
 export type CompilerResult = {
   errors: Error[]

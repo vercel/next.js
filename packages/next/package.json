@@ -82,6 +82,7 @@
     "loader-utils": "1.1.0",
     "mkdirp": "0.5.1",
     "next-server": "8.1.1-canary.29",
+    "node-libs-browser": "2.2.0",
     "prop-types": "15.6.2",
     "prop-types-exact": "1.2.0",
     "react-error-overlay": "5.1.4",
@@ -96,9 +97,6 @@
     "tty-aware-progress": "1.0.3",
     "unfetch": "4.1.0",
     "url": "0.11.0",
-    "webpack": "4.30.0",
-    "webpack-dev-middleware": "3.6.0",
-    "webpack-hot-middleware": "2.24.3",
     "webpack-sources": "1.3.0",
     "worker-farm": "1.5.2"
   },
@@ -130,15 +128,19 @@
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.0",
     "@types/webpack-sources": "0.1.5",
-    "@zeit/ncc": "0.15.2",
+    "@zeit/ncc": "0.19.0-beta.1",
     "arg": "4.1.0",
+    "autodll-webpack-plugin": "0.4.2",
     "babel-plugin-dynamic-import-node": "2.2.0",
     "nanoid": "2.0.1",
     "resolve": "1.5.0",
     "taskr": "1.1.0",
     "text-table": "0.2.0",
     "typescript": "3.1.6",
-    "unistore": "3.2.1"
+    "unistore": "3.2.1",
+    "webpack": "4.29.0",
+    "webpack-dev-middleware": "3.6.0",
+    "webpack-hot-middleware": "2.24.3"
   },
   "engines": {
     "node": ">= 8.0.0"
