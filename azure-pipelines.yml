@@ -16,6 +16,9 @@ steps:
   displayName: 'Install Node.js'
 
 - script: |
+    yarn install --ignore-scripts && cd packages/next && yarn prepublish && cd ../..
+
+- script: |
     yarn install
   displayName: 'Install dependencies'
 
