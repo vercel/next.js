@@ -9,6 +9,7 @@ import path from 'path'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { FlyingShuttle } from './flying-shuttle'
@@ -18,15 +19,17 @@ import {
   collectPages,
   getCacheIdentifier,
   getFileForPage,
+  getPageSizeInKb,
   getSpecifiedPages,
   printTreeView,
-  getPageInfo,
+  PageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest, getPageChunks } from './webpack/plugins/chunk-graph-plugin'
+import {
+  exportManifest,
+  getPageChunks,
+} from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
-import { recursiveReadDir } from '../lib/recursive-readdir'
-
 
 export default async function build(dir: string, conf = null): Promise<void> {
   if (!(await isWriteable(dir))) {
@@ -34,6 +37,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
+
+  await verifyTypeScriptSetup(dir)
 
   const debug =
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
@@ -234,43 +239,28 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const pageInfos = new Map()
+  const pageInfos = new Map<string, PageInfo>()
   const distPath = path.join(dir, config.distDir)
-  let pageKeys = Object.keys(mappedPages)
+  const pageKeys = Object.keys(mappedPages)
 
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
-    const actualPage = page === '/' ? 'index' : page
-    const info = await getPageInfo(
-      actualPage,
-      distPath,
-      buildId,
-      false,
-      config.target === 'serverless'
-    )
 
-    pageInfos.set(page, {
-      ...(info || {}),
-      chunks
-    })
-
-    if (!(typeof info.serverSize === 'number')) {
-      pageKeys = pageKeys.filter(pg => pg !== page)
-    }
+    const actualPage = page === '/' ? '/index' : page
+    const size = await getPageSizeInKb(actualPage, distPath, buildId)
+    pageInfos.set(page, { size, chunks })
   }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) {
-        plugin.ampPages.forEach((pg: any) => {
-          const info = pageInfos.get(pg)
-          if (info) {
-            info.ampOnly = true
-            pageInfos.set(pg, info)
-          }
-        })
+      if (!plugin.ampPages) {
+        return false
       }
-      return Boolean(plugin.ampPages)
+
+      plugin.ampPages.forEach((pg: any) => {
+        pageInfos.get(pg)!.isAmp = true
+      })
+      return true
     })
   }
 

@@ -8,10 +8,12 @@ import { Compiler, Plugin } from 'webpack'
 
 type StringDictionary = { [pageName: string]: string[] }
 const manifest: {
+  sharedFiles: string[]
   pages: StringDictionary
   pageChunks: StringDictionary
   chunks: StringDictionary
 } = {
+  sharedFiles: [],
   pages: {},
   pageChunks: {},
   chunks: {},
@@ -19,36 +21,56 @@ const manifest: {
 
 const pageModules: StringDictionary = {}
 
-export function getPageChunks (page: string): {
-  external: Set<String>,
-  internal: Set<String>,
-} | undefined {
-  if (!manifest.pages[page] && !pageModules[page]) return
+export function getPageChunks(
+  page: string
+):
+  | {
+      external: Set<String>
+      internal: Set<String>
+    }
+  | undefined {
+  if (!manifest.pages[page] && !pageModules[page]) {
+    return
+  }
 
   const external = new Set() // from node_modules
   const internal = new Set() // from project
-  const chunks = [
-    ...(manifest.pages[page] || []),
-    ...(pageModules[page] || [])
-  ]
-    .map(mod => {
-      if (mod.match(/(next-server|next)\//)) return null
-      if (mod.includes('node_modules/')) {
-        if (mod.match(
+  ;[...(manifest.pages[page] || []), ...(pageModules[page] || [])].map(mod => {
+    if (mod.match(/(next-server|next)\//)) {
+      return null
+    }
+
+    if (mod.includes('node_modules/')) {
+      if (
+        mod.match(
           /(@babel|core-js|styled-jsx|string-hash|object-assign|process|react|react-dom|regenerator-runtime|webpack|node-libs-browser)/
-        )) return null
-        mod = mod.split('node_modules/')[1].split('/')[0]
-        if (external.has(mod)) return null
-        external.add(mod)
-        return mod
+        )
+      ) {
+        return null
       }
-      // don't include the page itself
-      if (mod.includes(`pages${page === '/' ? '/index' : page}`)) return null
-      // is local e.g. ../components/Layout
-      if (internal.has(mod)) return null
-      internal.add(mod)
+
+      mod = mod.split('node_modules/')[1].split('/')[0]
+      if (external.has(mod)) {
+        return null
+      }
+
+      external.add(mod)
       return mod
-    })
+    }
+
+    // don't include the page itself
+    if (mod.includes(`pages${page === '/' ? '/index' : page}`)) {
+      return null
+    }
+
+    // is local e.g. ../components/Layout
+    if (internal.has(mod)) {
+      return null
+    }
+
+    internal.add(mod)
+    return mod
+  })
 
   return {
     external,
@@ -70,7 +92,7 @@ export function exportManifest({
     hashes: {} as { [pageName: string]: string },
   }
 
-  const allFiles = new Set<string>()
+  const allFiles = new Set<string>(manifest.sharedFiles)
   for (const page of Object.keys(finalManifest.pages)) {
     finalManifest.pages[page].forEach(f => allFiles.add(f))
   }
@@ -263,13 +285,13 @@ export class ChunkGraphPlugin implements Plugin {
               .replace(/[.]js$/, `.${this.buildId}.js`)
           : name
 
+      manifest.sharedFiles = [
+        ...new Set([...(manifest.sharedFiles || []), ...sharedFiles]),
+      ].sort()
+
       for (const page in pages) {
         manifest.pages[page] = [
-          ...new Set([
-            ...(manifest.pages[page] || []),
-            ...pages[page],
-            ...sharedFiles,
-          ]),
+          ...new Set([...(manifest.pages[page] || []), ...pages[page]]),
         ].sort()
 
         // There's no chunks to save from serverless bundles
