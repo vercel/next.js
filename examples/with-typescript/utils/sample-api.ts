@@ -1,7 +1,7 @@
-import IDataObject from "../interfaces";
+import { User } from "../interfaces";
 
 /** Dummy user data. */
-export const dataArray: IDataObject[] = [
+export const dataArray: User[] = [
   { id: 101, name: 'Alice' },
   { id: 102, name: 'Bob' },
   { id: 103, name: 'Caroline' },
