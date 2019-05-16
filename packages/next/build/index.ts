@@ -271,7 +271,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       actualPage + '.js'
     )
 
-    if (!page.match(/(_app|_error|_document|^\/api)/)) {
+    if (!page.match(/^\/(_app|_error|_document|api)/)) {
       const isStatic = isPageStatic(serverBundle, {
         publicRuntimeConfig: config.publicRuntimeConfig,
         serverRuntimeConfig: config.serverRuntimeConfig
