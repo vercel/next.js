@@ -19,7 +19,9 @@ module.exports = babelLoader.custom(babel => {
         asyncToPromises: opts.asyncToPromises
       }
       const filename = join(opts.cwd, 'noop.js')
-      const loader = Object.assign({
+      const loader = Object.assign(opts.selectivePageBuilding ? {
+        cacheDirectory: false
+      } : {
         cacheCompression: false,
         cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
         cacheIdentifier: cacheKey + JSON.stringify(
@@ -33,6 +35,7 @@ module.exports = babelLoader.custom(babel => {
 
       delete loader.isServer
       delete loader.asyncToPromises
+      delete loader.selectivePageBuilding
       delete loader.distDir
       return { loader, custom }
     },
