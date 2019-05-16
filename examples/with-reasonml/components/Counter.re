@@ -3,22 +3,24 @@
     * Add updates the components internal state.
  */
 type action =
-  | Add;
+  | Add
 
 /*
    This is the components internal state representation. This state object
    is unique to each instance of the component.
  */
-type state = {count: int};
+type state = {
+  count: int,
+};
 
 let counterReducer = (state, action) =>
-  switch (action) {
-  | Add => {count: state.count + 1}
+  switch(action) {
+  | Add => { count: state.count + 1 }
   };
 
 [@react.component]
 let make = () => {
-  let (state, dispatch) = React.useReducer(counterReducer, {count: 0});
+  let (state, dispatch) = React.useReducer(counterReducer, { count: 0 });
   let (globalState, globalDispatch) = GlobalCount.useGlobalCount();
 
   let countMsg = "Count: " ++ string_of_int(state.count);
@@ -31,8 +33,6 @@ let make = () => {
     <button onClick={_ => globalDispatch(GlobalCount.Increment)}>
       {React.string("Add")}
     </button>
-    <CountConsumer />
-    <CountConsumer />
   </div>;
 };
 
