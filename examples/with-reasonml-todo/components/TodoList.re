@@ -17,11 +17,15 @@ let make = (~day) => {
   let (appState, appDispatch) = TodoApp.useTodoReducer();
   let todos = appState->TodoApp.getDay(day);
 
+  let addItem = () => {
+    appDispatch(TodoApp.Add(day, TodoApp.Todo.make(state.newTodo)));
+    dispatch(Change(""));
+  };
+
   <div>
     <ul>
       (
         todos->Belt.Array.map(todo => {
-          Js.Console.log2("TODO ::", todo);
          <li key=TodoApp.Todo.idGet(todo)>
            <p> {ReasonReact.string(todo->TodoApp.Todo.textGet)}</p>
          </li>
@@ -35,9 +39,7 @@ let make = (~day) => {
         value=state.newTodo
         onChange={ev => dispatch(Change(ReactEvent.Form.target(ev)##value))}
       />
-      <button onClick={
-        _ => appDispatch(TodoApp.Add(day, TodoApp.Todo.make(state.newTodo)))
-      }>
+      <button onClick={ _ => addItem() }>
         {React.string("Add")}
       </button>
     </p>

@@ -40,7 +40,7 @@ module TodoList = {
 
   let add = (list, todo) => {
     if (!list->contains(todo)) {
-      [|todo|]->Belt.Array.concat(list)
+      list->Belt.Array.concat([|todo|])
     } else {
       // panic - should be unreachable
       let id = todo->Todo.idGet;
@@ -52,10 +52,9 @@ module TodoList = {
     list->Belt.Array.keep(current => !todo->Todo.isSame(current));
 }
 
-[@bs.deriving abstract]
 type t = {
-  mutable today: TodoList.t,
-  mutable tomorrow: TodoList.t,
+  today: TodoList.t,
+  tomorrow: TodoList.t,
 }
 
 type day =
@@ -67,49 +66,46 @@ type action =
   | Complete(day, Todo.t)
   | Remove(day, Todo.t)
 
-let appState = ref(t(
-  ~today=[||],
-  ~tomorrow=[||],
-));
+let appState = ref({ today: [||], tomorrow: [||] });
 
 let add = (state, day, todo) => {
   switch(day) {
-  | Today => state->todaySet(state->todayGet->TodoList.add(todo))
-  | Tomorrow => state->tomorrowSet(state->tomorrowGet->TodoList.add(todo))
+  | Today => { ...state, today: state.today->TodoList.add(todo) }
+  | Tomorrow => { ...state, tomorrow: state.tomorrow->TodoList.add(todo) }
   }
 }
 
 let complete = (state, day, todo) => {
   switch(day) {
-  | Today => state->todaySet(state->todayGet->TodoList.complete(todo))
-  | Tomorrow => state->tomorrowSet(state->tomorrowGet->TodoList.complete(todo))
+  | Today => { ...state, today: state.today->TodoList.complete(todo) }
+  | Tomorrow => { ...state, tomorrow: state.tomorrow->TodoList.complete(todo) }
   }
 }
 
 let remove = (state, day, todo) => {
   switch(day) {
-  | Today => state->todaySet(state->todayGet->TodoList.remove(todo))
-  | Tomorrow => state->tomorrowSet(state->tomorrowGet->TodoList.remove(todo))
+  | Today => { ...state, today: state.today->TodoList.remove(todo) }
+  | Tomorrow => { ...state, tomorrow: state.tomorrow->TodoList.remove(todo) }
   }
 }
 
 let getDay = (state, day) => {
   switch(day) {
-  | Today => state->todayGet
-  | Tomorrow => state->tomorrowGet
+  | Today => state.today
+  | Tomorrow => state.tomorrow
   }
 }
 
 let reducer = (state, action) => {
-  switch(action) {
+  let newState = switch(action) {
   | Add(day, todo) => add(state, day, todo)
   | Complete(day, todo) => complete(state, day, todo)
   | Remove(day, todo) => remove(state, day, todo)
-  }
+  };
 
-  appState := state;
+  appState := newState;
 
-  appState^
-};
+  newState;
+}
 
 let useTodoReducer = () => React.useReducer(reducer, appState^);
