@@ -19,7 +19,7 @@ export type AppProps<P = {}> = AppPropsType<Router, P>
 
 /**
  * `App` component is used for initialize of pages. It allows for overriding and full control of the `page` initialization.
- * This allows for keeping state between navigation, custom error handling, injecting additional data
+ * This allows for keeping state between navigation, custom error handling, injecting additional data.
  */
 export default class App<P = {}, CP = P> extends React.Component<
   P & AppProps<CP>
