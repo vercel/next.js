@@ -5,16 +5,6 @@ declare module 'webpack/lib/GraphHelpers';
 declare module 'unfetch';
 declare module 'styled-jsx/server';
 
-declare module 'node-libs-browser' {
-  const nodeLibs: any
-
-  export = nodeLibs;
-}
-
-declare module 'next/dist/compiled/webpack/lib/GraphHelpers' {
-  export const connectChunkAndModule: any
-}
-
 declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string;
 
@@ -67,7 +57,7 @@ declare module 'next/dist/compiled/arg/index.js' {
 }
 
 declare module 'autodll-webpack-plugin' {
-  import webpack from 'next/dist/compiled/webpack'
+  import webpack from 'webpack'
   class AutoDllPlugin implements webpack.Plugin {
     constructor(settings?: {
       inject?: boolean,

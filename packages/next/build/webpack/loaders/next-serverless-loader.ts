@@ -1,4 +1,4 @@
-import {loader} from 'next/dist/compiled/webpack'
+import {loader} from 'webpack'
 import {join} from 'path'
 import {parse} from 'querystring'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next-server/constants'
@@ -59,8 +59,8 @@ const nextServerlessLoader: loader.Loader = function () {
           {
             Component,
             dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
-          }, 
-          options, 
+          },
+          options,
         ))
         return result
       } catch (err) {
