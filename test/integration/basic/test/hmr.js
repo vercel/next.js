@@ -81,42 +81,6 @@ export default (context, renderViaHTTP) => {
         }
       })
 
-      it('should detect the changes to typescript pages and display it', async () => {
-        let browser
-        try {
-          browser = await webdriver(context.appPort, '/typescript/hello')
-          await check(
-            () => getBrowserBodyText(browser),
-            /Hello World/
-          )
-
-          const pagePath = join(__dirname, '../', 'components', 'typescript', 'hello.ts')
-
-          const originalContent = readFileSync(pagePath, 'utf8')
-          const editedContent = originalContent.replace('Hello', 'COOL page')
-
-          // change the content
-          writeFileSync(pagePath, editedContent, 'utf8')
-
-          await check(
-            () => getBrowserBodyText(browser),
-            /COOL page/
-          )
-
-          // add the original content
-          writeFileSync(pagePath, originalContent, 'utf8')
-
-          await check(
-            () => getBrowserBodyText(browser),
-            /Hello World/
-          )
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
-        }
-      })
-
       it('should not reload unrelated pages', async () => {
         let browser
         try {

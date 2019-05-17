@@ -106,7 +106,7 @@ export class Head extends Component<OriginProps> {
       return null
     }
 
-    return files.map((file) => {
+    return files.map((file: string) => {
       // Only render .css files here
       if (!/\.css$/.exec(file)) {
         return null
@@ -128,7 +128,7 @@ export class Head extends Component<OriginProps> {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dynamicImports.map((bundle) => {
+    return dynamicImports.map((bundle: any) => {
       return (
         <link
           rel="preload"
@@ -151,7 +151,7 @@ export class Head extends Component<OriginProps> {
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file) => {
+    return files.map((file: string) => {
       // Only render .js files here
       if (!/\.js$/.exec(file)) {
         return null
@@ -201,6 +201,7 @@ export class Head extends Component<OriginProps> {
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated',
         )
     }
+
     // show warning and remove conflicting amp head tags
     head = !amphtml ? head : React.Children.map(head || [], (child) => {
       if (!child) return child
@@ -228,7 +229,7 @@ export class Head extends Component<OriginProps> {
       }
 
       if (badProp) {
-        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp}. https://err.sh/next.js/conflicting-amp-tag`)
+        console.warn(`Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`)
         return null
       }
       return child
@@ -377,7 +378,7 @@ export class NextScript extends Component<OriginProps> {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return dynamicImports.map((bundle) => {
+    return dynamicImports.map((bundle: any) => {
       return (
         <script
           async
@@ -399,7 +400,7 @@ export class NextScript extends Component<OriginProps> {
     }
     const { _devOnlyInvalidateCacheQueryString } = this.context
 
-    return files.map((file) => {
+    return files.map((file: string) => {
       // Only render .js files here
       if (!/\.js$/.exec(file)) {
         return null
@@ -497,7 +498,7 @@ export class NextScript extends Component<OriginProps> {
     return (
       <>
         {devFiles
-          ? devFiles.map((file) => (
+          ? devFiles.map((file: string) => !file.match(/\.js\.map/) && (
               <script
                 key={file}
                 src={`${assetPrefix}/_next/${file}${_devOnlyInvalidateCacheQueryString}`}

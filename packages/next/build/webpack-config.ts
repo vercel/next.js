@@ -1,3 +1,4 @@
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin'
 import fs from 'fs'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -99,7 +100,14 @@ export default async function getBaseWebpackConfig(
       }
     : undefined
 
-  const useTypeScript = await fileExists(path.join(dir, 'tsconfig.json'))
+  let typeScriptPath
+  try {
+    typeScriptPath = resolve.sync('typescript', { basedir: dir })
+  } catch (_) {}
+  const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const useTypeScript = Boolean(
+    typeScriptPath && (await fileExists(tsConfigPath))
+  )
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -147,10 +155,11 @@ export default async function getBaseWebpackConfig(
     cpus: config.experimental.cpus,
     distDir: distDir,
   }
+  const devtool = dev || debug ? 'cheap-module-source-map' : false
 
   let webpackConfig: webpack.Configuration = {
+    devtool,
     mode: webpackMode,
-    devtool: dev || debug ? 'cheap-module-source-map' : false,
     name: isServer ? 'server' : 'client',
     target: isServer ? 'node' : 'web',
     externals: !isServer
@@ -367,9 +376,18 @@ export default async function getBaseWebpackConfig(
           },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [dir, /next-server[\\/]dist[\\/]lib/],
+          include: [
+            dir,
+            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]client/,
+            /next[\\/]dist[\\/]pages/,
+          ],
           exclude: (path: string) => {
-            if (/next-server[\\/]dist[\\/]lib/.test(path)) {
+            if (
+              /next-server[\\/]dist[\\/]lib/.test(path) ||
+              /next[\\/]dist[\\/]client/.test(path) ||
+              /next[\\/]dist[\\/]pages/.test(path)
+            ) {
               return false
             }
 
@@ -413,13 +431,12 @@ export default async function getBaseWebpackConfig(
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
         }),
-      selectivePageBuilding &&
-        new ChunkGraphPlugin(buildId, {
-          dir,
-          distDir,
-          isServer,
-        }),
       !isServer && new DropClientPage(),
+      new ChunkGraphPlugin(buildId, {
+        dir,
+        distDir,
+        isServer,
+      }),
       ...(dev
         ? (() => {
             // Even though require.cache is server only we have to clear assets from both compilations
@@ -447,6 +464,7 @@ export default async function getBaseWebpackConfig(
                     dll: ['react', 'react-dom'],
                   },
                   config: {
+                    devtool,
                     mode: webpackMode,
                     resolve: resolveConfig,
                   },
@@ -494,6 +512,19 @@ export default async function getBaseWebpackConfig(
             distDir,
             `profile-events-${isServer ? 'server' : 'client'}.json`
           ),
+        }),
+      !isServer &&
+        useTypeScript &&
+        new ForkTsCheckerWebpackPlugin({
+          typescript: typeScriptPath,
+          async: false,
+          useTypescriptIncrementalApi: true,
+          checkSyntacticErrors: true,
+          tsconfig: tsConfigPath,
+          reportFiles: ['**', '!**/__tests__/**', '!**/?(*.)(spec|test).*'],
+          compilerOptions: { isolatedModules: true, noEmit: true },
+          silent: true,
+          formatter: 'codeframe',
         }),
     ].filter((Boolean as any) as ExcludesFalse),
   }

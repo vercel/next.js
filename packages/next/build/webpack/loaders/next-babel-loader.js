@@ -2,8 +2,8 @@ import hash from 'string-hash'
 import { join, basename } from 'path'
 import babelLoader from 'babel-loader'
 
-// increment 'a' to invalidate cache
-const cacheKey = 'babel-cache-' + 'a' + '-'
+// increment 'c' to invalidate cache
+const cacheKey = 'babel-cache-' + 'c' + '-'
 
 module.exports = babelLoader.custom(babel => {
   const presetItem = babel.createConfigItem(require('../../babel/preset'), { type: 'preset' })
@@ -103,7 +103,11 @@ module.exports = babelLoader.custom(babel => {
       options.overrides = [
         ...(options.overrides || []),
         {
-          test: /next-server[\\/]dist[\\/]lib/,
+          test: [
+            /next-server[\\/]dist[\\/]lib/,
+            /next[\\/]dist[\\/]client/,
+            /next[\\/]dist[\\/]pages/
+          ],
           plugins: [
             commonJsItem
           ]

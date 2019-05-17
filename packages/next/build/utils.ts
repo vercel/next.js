@@ -1,11 +1,17 @@
+import chalk from 'chalk'
 import crypto from 'crypto'
 import findUp from 'find-up'
 import fs from 'fs'
+import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
+import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
 
+import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 
+const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
 
@@ -19,11 +25,34 @@ export function collectPages(
   )
 }
 
-export function printTreeView(list: string[], ampPages: Set<string>) {
+export interface PageInfo {
+  isAmp?: boolean
+  size: number
+  chunks?: ReturnType<typeof getPageChunks>
+}
+
+export function printTreeView(
+  list: string[],
+  pageInfos: Map<string, PageInfo>
+) {
+  const getPrettySize = (_size: number): string => {
+    const size = prettyBytes(_size)
+    // green for 0-100kb
+    if (_size < 100 * 1000) return chalk.green(size)
+    // yellow for 100-250kb
+    if (_size < 250 * 1000) return chalk.yellow(size)
+    // red for >= 250kb
+    return chalk.red.bold(size)
+  }
+
+  const messages: string[][] = [
+    ['Page', 'Size', 'Files', 'Packages'].map(entry => chalk.underline(entry)),
+  ]
+
   list
-    .sort((a, b) => (a > b ? 1 : -1))
+    .sort((a, b) => a.localeCompare(b))
     .forEach((item, i) => {
-      const corner =
+      const symbol =
         i === 0
           ? list.length === 1
             ? '─'
@@ -31,8 +60,35 @@ export function printTreeView(list: string[], ampPages: Set<string>) {
           : i === list.length - 1
           ? '└'
           : '├'
-      console.log(` \x1b[90m${corner}\x1b[39m ${item}${ampPages.has(item) ? ' (AMP)' : ''}`)
+
+      const pageInfo = pageInfos.get(item)
+
+      messages.push([
+        `${symbol} ${item}`,
+        ...(pageInfo
+          ? [
+              pageInfo.isAmp
+                ? chalk.cyan('AMP')
+                : pageInfo.size >= 0
+                ? getPrettySize(pageInfo.size)
+                : 'N/A',
+              pageInfo.chunks
+                ? pageInfo.chunks.internal.size.toString()
+                : 'N/A',
+              pageInfo.chunks
+                ? pageInfo.chunks.external.size.toString()
+                : 'N/A',
+            ]
+          : ['', '', '']),
+      ])
     })
+
+  console.log(
+    textTable(messages, {
+      align: ['l', 'l', 'r', 'r'],
+      stringLength: str => stripAnsi(str).length,
+    })
+  )
 
   console.log()
 }
@@ -148,4 +204,20 @@ export async function getCacheIdentifier({
     .createHash('sha1')
     .update(selectivePageBuildingCacheIdentifier)
     .digest('hex')
+}
+
+export async function getPageSizeInKb(
+  page: string,
+  distPath: string,
+  buildId: string
+): Promise<number> {
+  const clientBundle = path.join(
+    distPath,
+    `static/${buildId}/pages/`,
+    `${page}.js`
+  )
+  try {
+    return (await fsStat(clientBundle)).size
+  } catch (_) {}
+  return -1
 }

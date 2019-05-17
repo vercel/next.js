@@ -9,11 +9,11 @@ import { BaseRouter } from './router/router'
  * Types used by both next and next-server
  */
 export type NextComponentType<
-  C extends BaseContext = IContext,
+  C extends BaseContext = NextPageContext,
   IP = {},
   P = {}
 > = ComponentType<P> & {
-  getInitialProps?(context: C): Promise<IP>,
+  getInitialProps?(context: C): Promise<IP>
 }
 
 export type DocumentType = NextComponentType<
@@ -33,26 +33,26 @@ export type Enhancer<C> = (Component: C) => C
 export type ComponentsEnhancer =
   | {
       enhanceApp?: Enhancer<AppType>
-      enhanceComponent?: Enhancer<NextComponentType>,
+      enhanceComponent?: Enhancer<NextComponentType>
     }
   | Enhancer<NextComponentType>
 
 export type RenderPageResult = {
   html: string
   head?: Array<JSX.Element | null>
-  dataOnly?: true,
+  dataOnly?: true
 }
 
 export type RenderPage = (
-  options?: ComponentsEnhancer,
+  options?: ComponentsEnhancer
 ) => RenderPageResult | Promise<RenderPageResult>
 
 export type BaseContext = {
   res?: ServerResponse
-  [k: string]: any,
+  [k: string]: any
 }
 
-export type INEXTDATA = {
+export type NEXT_DATA = {
   dataManager: string
   props: any
   page: string
@@ -63,13 +63,13 @@ export type INEXTDATA = {
   runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
   dynamicIds?: string[]
-  err?: Error & { statusCode?: number },
+  err?: Error & { statusCode?: number }
 }
 
 /**
  * `Next` context
  */
-export interface IContext {
+export interface NextPageContext {
   /**
    * Error object if encountred during rendering
    */
@@ -97,33 +97,33 @@ export interface IContext {
 }
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {
-  Component: NextComponentType<IContext>
+  Component: NextComponentType<NextPageContext>
   router: R
-  ctx: IContext,
+  ctx: NextPageContext
 }
 
 export type AppInitialProps = {
-  pageProps: any,
+  pageProps: any
 }
 
 export type AppPropsType<
   R extends BaseRouter = BaseRouter,
   P = {}
 > = AppInitialProps & {
-  Component: NextComponentType<IContext, any, P>
-  router: R,
+  Component: NextComponentType<NextPageContext, any, P>
+  router: R
 }
 
-export type DocumentContext = IContext & {
-  renderPage: RenderPage,
+export type DocumentContext = NextPageContext & {
+  renderPage: RenderPage
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[],
+  styles?: React.ReactElement[]
 }
 
 export type DocumentProps = DocumentInitialProps & {
-  __NEXT_DATA__: INEXTDATA
+  __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
   ampPath: string
   amphtml: boolean
@@ -132,7 +132,7 @@ export type DocumentProps = DocumentInitialProps & {
   devFiles: string[]
   files: string[]
   dynamicImports: ManifestItem[]
-  assetPrefix?: string,
+  assetPrefix?: string
 }
 
 /**
@@ -178,7 +178,7 @@ export async function loadGetInitialProps<
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
       const message = `"${getDisplayName(
-        Component,
+        Component
       )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
@@ -206,7 +206,7 @@ export async function loadGetInitialProps<
 
   if (!props) {
     const message = `"${getDisplayName(
-      Component,
+      Component
     )}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
     throw new Error(message)
   }
@@ -231,14 +231,14 @@ export const urlObjectKeys = [
 
 export function formatWithValidation(
   url: UrlObject,
-  options?: URLFormatOptions,
+  options?: URLFormatOptions
 ) {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
-      Object.keys(url).forEach((key) => {
+      Object.keys(url).forEach(key => {
         if (urlObjectKeys.indexOf(key) === -1) {
           console.warn(
-            `Unknown key passed via urlObject into url.format: ${key}`,
+            `Unknown key passed via urlObject into url.format: ${key}`
           )
         }
       })

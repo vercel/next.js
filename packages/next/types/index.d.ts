@@ -1,5 +1,9 @@
 import React from 'react'
-import { IContext } from 'next-server/dist/lib/utils'
+import { NextPageContext, NextComponentType } from 'next-server/dist/lib/utils';
+
+/// <reference types="node" />
+/// <reference types="react" />
+/// <reference types="react-dom" />
 
 // Extend the React types with missing properties
 declare module 'react' {
@@ -20,10 +24,6 @@ declare module 'react' {
   }
 }
 
-/**
- * Context of `page` component
- */
-export type NextPageContext = IContext
 
 /**
  * `Page` component, used for rendering `pages`.
@@ -38,4 +38,4 @@ export type NextPage<P = {}> = {
   getInitialProps?(ctx: NextPageContext): Promise<P>
 }
 
-export { IContext }
+export { NextPageContext, NextComponentType }

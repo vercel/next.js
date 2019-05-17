@@ -6,7 +6,7 @@ export default () => {
       options.url = 'https://graphql-pokemon.now.sh'
     },
     operation: {
-      query: `
+      query: /* GraphQL */ `
         {
           pokemon(name: "Pikachu") {
             name

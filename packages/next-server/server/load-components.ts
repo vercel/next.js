@@ -3,7 +3,7 @@ import { join } from 'path';
 
 import { requirePage } from './require';
 
-function interopDefault(mod: any) {
+export function interopDefault(mod: any) {
   return mod.default || mod
 }
 

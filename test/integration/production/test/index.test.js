@@ -91,15 +91,6 @@ describe('Production Usage', () => {
       expect(res.status).toBe(404)
     })
 
-    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
-      const url = `http://localhost:${appPort}/_next/abcdef`
-      const methods = ['POST', 'PUT', 'DELETE']
-      for (const method of methods) {
-        const res = await fetch(url, { method })
-        expect(res.status).toBe(501)
-      }
-    })
-
     it('should set Content-Length header', async () => {
       const url = `http://localhost:${appPort}`
       const res = await fetch(url)
@@ -151,6 +142,22 @@ describe('Production Usage', () => {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
       }
+    })
+  })
+
+  describe('API routes', () => {
+    it('should work with pages/api/index.js', async () => {
+      const url = `http://localhost:${appPort}/api`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API index works')
+    })
+
+    it('should work with pages/api/hello.js', async () => {
+      const url = `http://localhost:${appPort}/api/hello`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API hello works')
     })
   })
 
@@ -266,6 +273,19 @@ describe('Production Usage', () => {
       await renderViaHTTP(appPort, '/static/')
       const data = await renderViaHTTP(appPort, '/static/data/item.txt')
       expect(data).toBe('item')
+    })
+
+    it('Should allow access to public files', async () => {
+      const data = await renderViaHTTP(appPort, '/data/data.txt')
+      expect(data).toBe('data')
+    })
+
+    it('Should prioritize pages over public files', async () => {
+      const html = await renderViaHTTP(appPort, '/about')
+      const data = await renderViaHTTP(appPort, '/file')
+
+      expect(html).toMatch(/About Page/)
+      expect(data).toBe('test')
     })
 
     it('should reload the page on page script error', async () => {

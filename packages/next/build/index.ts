@@ -9,6 +9,7 @@ import path from 'path'
 
 import formatWebpackMessages from '../client/dev-error-overlay/format-webpack-messages'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { FlyingShuttle } from './flying-shuttle'
@@ -18,11 +19,16 @@ import {
   collectPages,
   getCacheIdentifier,
   getFileForPage,
+  getPageSizeInKb,
   getSpecifiedPages,
   printTreeView,
+  PageInfo,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
-import { exportManifest } from './webpack/plugins/chunk-graph-plugin'
+import {
+  exportManifest,
+  getPageChunks,
+} from './webpack/plugins/chunk-graph-plugin'
 import { writeBuildId } from './write-build-id'
 
 export default async function build(dir: string, conf = null): Promise<void> {
@@ -31,6 +37,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       '> Build directory is not writeable. https://err.sh/zeit/next.js/build-dir-not-writeable'
     )
   }
+
+  await verifyTypeScriptSetup(dir)
 
   const debug =
     process.env.__NEXT_BUILDER_EXPERIMENTAL_DEBUG === 'true' ||
@@ -231,16 +239,32 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  let ampPages = new Set()
+  const pageInfos = new Map<string, PageInfo>()
+  const distPath = path.join(dir, config.distDir)
+  const pageKeys = Object.keys(mappedPages)
+
+  for (const page of pageKeys) {
+    const chunks = getPageChunks(page)
+
+    const actualPage = page === '/' ? '/index' : page
+    const size = await getPageSizeInKb(actualPage, distPath, buildId)
+    pageInfos.set(page, { size, chunks })
+  }
 
   if (Array.isArray(configs[0].plugins)) {
     configs[0].plugins.some((plugin: any) => {
-      if (plugin.ampPages) ampPages = plugin.ampPages
-      return Boolean(plugin.ampPages)
+      if (!plugin.ampPages) {
+        return false
+      }
+
+      plugin.ampPages.forEach((pg: any) => {
+        pageInfos.get(pg)!.isAmp = true
+      })
+      return true
     })
   }
 
-  printTreeView(Object.keys(mappedPages), ampPages)
+  printTreeView(pageKeys, pageInfos)
 
   if (flyingShuttle) {
     await flyingShuttle.save()

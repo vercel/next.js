@@ -17,6 +17,6 @@ if (typeof require !== 'undefined') {
 module.exports = withLess({
   lessLoaderOptions: {
     javascriptEnabled: true,
-    modifyVars: themeVariables // make your antd custom effective
-  }
+    modifyVars: themeVariables, // make your antd custom effective
+  },
 })
