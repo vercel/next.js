@@ -68,7 +68,6 @@
     "@babel/runtime-corejs2": "7.1.2",
     "amphtml-validator": "1.0.23",
     "async-sema": "2.2.0",
-    "autodll-webpack-plugin": "0.4.2",
     "babel-core": "7.0.0-bridge.0",
     "babel-loader": "8.0.5",
     "babel-plugin-react-require": "3.0.0",

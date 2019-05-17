@@ -1,4 +1,7 @@
 'use strict'
+// this fixes Azure on node 10 with ncc
+// without exits with: error Command failed with exit code 3221225477.
+process.pkg = true
 
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
@@ -22,6 +25,13 @@ module.exports = function (task) {
       if (options && options.packageName) {
         writePackageManifest.call(this, options.packageName)
       }
+      // make sure to use our compiled version of webpack
+      code = code
+        .replace(/require\(('|")webpack('|")\)/g, 'require("next/dist/compiled/webpack")')
+        .replace(
+          /webpack\/lib\/node\/NodeOutputFileSystem/g,
+          'next/dist/compiled/webpack/lib/node/NodeOutputFileSystem'
+        )
 
       file.data = Buffer.from(code, 'utf8')
     })
