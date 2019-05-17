@@ -67,7 +67,7 @@ export default async function getBaseWebpackConfig(
         isServer,
         distDir,
         cwd: dir,
-        selectivePageBuilding,
+        cache: !selectivePageBuilding,
         asyncToPromises: config.experimental.asyncToPromises,
       },
     },
