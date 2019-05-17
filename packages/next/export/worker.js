@@ -41,8 +41,23 @@ process.on(
         delete query.ampPath
         delete query.amphtml
 
-        const req = { url: path }
-        const res = {}
+        const headerMocks = {
+          headers: {},
+          getHeader: () => ({}),
+          setHeader: () => {},
+          hasHeader: () => false,
+          removeHeader: () => {},
+          getHeaderNames: () => ([])
+        }
+
+        const req = {
+          url: path,
+          ...headerMocks
+        }
+        const res = {
+          ...headerMocks
+        }
+
         envConfig.setConfig({
           serverRuntimeConfig,
           publicRuntimeConfig: renderOpts.runtimeConfig

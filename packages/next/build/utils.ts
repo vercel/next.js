@@ -231,9 +231,9 @@ export function isPageStatic(
 ): boolean {
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
-    let mod = require(serverBundle)
-    mod = mod.default || mod
-    return !(mod && typeof mod.getInitialProps === 'function')
+    const Comp = require(serverBundle).default
+    if (!Comp) return false
+    return typeof Comp.getInitialProps !== 'function'
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return false
     throw err
@@ -248,7 +248,7 @@ export function hasCustomAppGetInitialProps(
   let mod = require(_appBundle)
 
   if (_appBundle.endsWith('_app.js')) {
-    mod = mod.default || mod
+    mod = mod.default
   } else {
     // since we don't output _app in serverless mode get it from a page
     mod = mod._app
