@@ -239,3 +239,19 @@ export function isPageStatic(
     throw err
   }
 }
+
+export function hasCustomAppGetInitialProps(
+  _appBundle: string,
+  runtimeEnvConfig: any,
+): boolean {
+  nextEnvConfig.setConfig(runtimeEnvConfig)
+  let mod = require(_appBundle)
+
+  if (_appBundle.endsWith('_app.js')) {
+    mod = mod.default || mod
+  } else {
+    // since we don't output _app in serverless mode get it from a page
+    mod = mod._app
+  }
+  return mod.getInitialProps !== mod.origGetInitialProps
+}

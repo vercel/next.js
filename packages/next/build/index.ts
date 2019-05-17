@@ -28,6 +28,7 @@ import {
   printTreeView,
   PageInfo,
   isPageStatic,
+  hasCustomAppGetInitialProps,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import {
@@ -257,6 +258,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const distPath = path.join(dir, config.distDir)
   const pageKeys = Object.keys(mappedPages)
   const staticPages: Set<string> = new Set()
+  let customAppGetInitialProps: boolean | undefined
 
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
@@ -270,12 +272,27 @@ export default async function build(dir: string, conf = null): Promise<void> {
         : SERVER_DIRECTORY + `/static/${buildId}/pages`,
       actualPage + '.js'
     )
+    const runtimeEnvConfig = {
+      publicRuntimeConfig: config.publicRuntimeConfig,
+      serverRuntimeConfig: config.serverRuntimeConfig
+    }
+    const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-    if (!page.match(/^\/(_app|_error|_document|api)/)) {
-      const isStatic = isPageStatic(serverBundle, {
-        publicRuntimeConfig: config.publicRuntimeConfig,
-        serverRuntimeConfig: config.serverRuntimeConfig
-      })
+    if (nonReservedPage && customAppGetInitialProps === undefined) {
+      customAppGetInitialProps = hasCustomAppGetInitialProps(
+        target === 'serverless'
+          ? serverBundle
+          : path.join(distPath, SERVER_DIRECTORY, `/static/${buildId}/pages/_app.js`),
+        runtimeEnvConfig
+      )
+
+      if (customAppGetInitialProps) {
+        console.warn('Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n')
+      }
+    }
+
+    if (customAppGetInitialProps === false && nonReservedPage) {
+      const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
       if (isStatic) staticPages.add(page)
     }
 
