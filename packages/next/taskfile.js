@@ -1,5 +1,5 @@
 const notifier = require('node-notifier')
-const relative = require('path').relative
+const { relative } = require('path')
 
 const babelClientOpts = {
   presets: [
@@ -56,6 +56,18 @@ export async function ncc_webpack (task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_webpack_NodeOutputFileSystem (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('webpack/lib/node/NodeOutputFileSystem')))
+    .ncc({
+      externals: ['webpack']
+    })
+    .target('dist/compiled/webpack/lib/node/NodeOutputFileSystem')
+
+  notify('Compiled webpack NodeOutputFileSystem')
+}
+
+// eslint-disable-next-line camelcase
 export async function ncc_webpack_graph_helpers (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('webpack/lib/GraphHelpers')))
@@ -83,10 +95,22 @@ export async function ncc_autodll_webpack_plugin (task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('autodll-webpack-plugin')))
     .ncc({
-      externals: ['chokidar', 'webpack'],
+      externals: ['chokidar', 'webpack', './paths'],
       packageName: 'autodll-webpack-plugin'
     })
     .target('dist/compiled/autodll-webpack-plugin')
+
+  notify('Compiled autodll-webpack-plugin')
+}
+
+// eslint-disable-next-line camelcase
+export async function ncc_autodll_webpack_plugin_paths (task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('autodll-webpack-plugin')))
+    .ncc({
+      externals: ['chokidar', 'webpack']
+    })
+    .target('dist/compiled/autodll-webpack-plugin/paths')
 
   notify('Compiled autodll-webpack-plugin')
 }
@@ -145,7 +169,7 @@ export async function ncc_text_table (task, opts) {
 }
 
 export async function precompile (task) {
-  await task.parallel(['ncc_webpack', 'ncc_webpack_graph_helpers', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
+  await task.parallel(['ncc_webpack', 'ncc_webpack_NodeOutputFileSystem', 'ncc_webpack_graph_helpers', 'ncc_webpack_hot_middleware', 'ncc_autodll_webpack_plugin', 'ncc_autodll_webpack_plugin_paths', 'ncc_webpack_dev_middleware', 'ncc_unistore', 'ncc_resolve', 'ncc_arg', 'ncc_nanoid', 'ncc_text_table'])
 }
 
 export async function compile (task) {

@@ -1,9 +1,8 @@
 import path from 'path'
 
 export function importAutoDllPlugin({ distDir }: { distDir: string }) {
-  const autodllPaths = path.join(
-    path.dirname(require.resolve('autodll-webpack-plugin')),
-    'paths.js'
+  const autodllPaths = require.resolve(
+    'next/dist/compiled/autodll-webpack-plugin/paths'
   )
   require(autodllPaths)
 
@@ -18,6 +17,6 @@ export function importAutoDllPlugin({ distDir }: { distDir: string }) {
     }),
   })
 
-  const AutoDllPlugin = require('autodll-webpack-plugin')
+  const AutoDllPlugin = require('next/dist/compiled/autodll-webpack-plugin')
   return AutoDllPlugin
 }
