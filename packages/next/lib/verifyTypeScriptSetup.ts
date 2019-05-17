@@ -36,7 +36,7 @@ async function verifyNoTypeScript(dir: string) {
     console.warn(
       chalk.yellow(
         `We detected TypeScript in your project (${chalk.bold(
-          `${typescriptFiles[0]}`,
+          `.${typescriptFiles[0]}`,
         )}) and created a ${chalk.bold('tsconfig.json')} file for you.`,
       ),
     )
@@ -50,6 +50,7 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   let firstTimeSetup = false
   const yarnLockFile = path.join(dir, 'yarn.lock')
   const tsConfigPath = path.join(dir, 'tsconfig.json')
+  const toInstall: string[] = []
 
   if (!(await exists(tsConfigPath))) {
     if (await verifyNoTypeScript(dir)) {
@@ -63,24 +64,33 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
   // Ensure TypeScript is installed
   let typescriptPath = ''
   let ts: typeof import('typescript')
+
+  try {
+    await resolveP('@types/react/index.d.ts', { basedir: dir })
+  } catch (_) {
+    toInstall.push('@types/react')
+  }
+
   try {
     typescriptPath = await resolveP('typescript', { basedir: dir })
     ts = require(typescriptPath)
   } catch (_) {
+    toInstall.push('typescript')
+    const toInstallStr = toInstall.join(' ')
     console.error(
       chalk.bold.red(
         `It looks like you're trying to use TypeScript but do not have ${chalk.bold(
-          'typescript',
+          toInstallStr,
         )} installed.`,
       ),
     )
     console.error(
       chalk.bold(
         'Please install',
-        chalk.cyan.bold('typescript'),
+        chalk.cyan.bold(toInstallStr),
         'by running',
         chalk.cyan.bold(
-          isYarn ? 'yarn add typescript' : 'npm install typescript',
+          (isYarn ? 'yarn add --dev' : 'npm install --save-dev') + ' ' + toInstallStr,
         ) + '.',
       ),
     )
@@ -255,5 +265,8 @@ export async function verifyTypeScriptSetup(dir: string): Promise<void> {
     }
     await writeJson(tsConfigPath, appTsConfig)
   }
-  return
+
+  if (toInstall.length > 0) {
+    console.warn(chalk.red(`\n${toInstall.join(' ')} ${toInstall.length === 1 ? 'is' : 'are'} needed when using TypeScript with Next.js. Please install ${toInstall.length === 1 ? 'it' : 'them'} with ${isYarn ? 'yarn add --dev' : 'npm install --save-dev'} ${toInstall.join(' ')}\n`))
+  }
 }

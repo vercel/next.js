@@ -1,0 +1,19 @@
+{
+  "name": "with-sentry-simple",
+  "version": "1.0.0",
+  "license": "ISC",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@sentry/browser": "^5.1.0",
+    "next": "latest",
+    "react": "^16.8.6",
+    "react-dom": "^16.8.6"
+  },
+  "devDependencies": {
+    "@zeit/next-source-maps": "0.0.4-canary.1"
+  }
+}
