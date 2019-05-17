@@ -1,4 +1,4 @@
-import DynamicEntryPlugin from 'webpack/lib/DynamicEntryPlugin'
+import webpack from 'next/dist/compiled/webpack'
 import { EventEmitter } from 'events'
 import { join, posix } from 'path'
 import { parse } from 'url'
@@ -17,7 +17,8 @@ const BUILT = Symbol('built')
 // Based on https://github.com/webpack/webpack/blob/master/lib/DynamicEntryPlugin.js#L29-L37
 function addEntry (compilation, context, name, entry) {
   return new Promise((resolve, reject) => {
-    const dep = DynamicEntryPlugin.createDependency(entry, name)
+    const dep = webpack.SingleEntryPlugin.createDependency(entry, name)
+
     compilation.addEntry(context, dep, name, (err) => {
       if (err) return reject(err)
       resolve()
@@ -28,13 +29,10 @@ function addEntry (compilation, context, name, entry) {
 export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
   buildId,
   dir,
-  distDir,
   reload,
   pageExtensions,
   maxInactiveAge,
-  pagesBufferLength,
-  publicRuntimeConfig,
-  serverRuntimeConfig
+  pagesBufferLength
 }) {
   const pagesDir = join(dir, 'pages')
   const { compilers } = multiCompiler
@@ -61,7 +59,7 @@ export default function onDemandEntryHandler (devMiddleware, multiCompiler, {
         }
 
         entries[page].status = BUILDING
-        return addEntry(compilation, compiler.context, name, [compiler.name === 'client' ? `next-client-pages-loader?${stringify({ page, absolutePagePath })}!` : absolutePagePath])
+        return addEntry(compilation, compiler.context, name, compiler.name === 'client' ? `next-client-pages-loader?${stringify({ page, absolutePagePath })}!` : absolutePagePath)
       })
 
       return Promise.all(allEntries)

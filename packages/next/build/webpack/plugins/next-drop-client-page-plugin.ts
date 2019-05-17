@@ -1,4 +1,4 @@
-import { Compiler, Plugin } from 'webpack'
+import { Compiler, Plugin } from 'next/dist/compiled/webpack'
 import { extname } from 'path'
 
 // Prevents outputting client pages when they are not needed
