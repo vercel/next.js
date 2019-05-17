@@ -1,4 +1,7 @@
 'use strict'
+// this fixes Azure on node 10 with ncc
+// without exits with: error Command failed with exit code 3221225477.
+process.pkg = true
 
 const ncc = require('@zeit/ncc')
 const { existsSync, readFileSync } = require('fs')
