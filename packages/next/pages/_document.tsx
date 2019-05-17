@@ -193,18 +193,22 @@ export class Head extends Component<OriginProps> {
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated',
         )
     }
+    let hasCanonicalLink = false
+    let hasAmphtmlLink = false
 
     // show warning and remove conflicting amp head tags
-    head = !amphtml ? head : React.Children.map(head || [], (child) => {
+    head = React.Children.map(head || [], (child) => {
       if (!child) return child
       const { type, props } = child
       let badProp: string = ''
 
-      if (type === 'meta' && props.name === 'viewport') {
+      if (amphtml && type === 'meta' && props.name === 'viewport') {
         badProp = 'name="viewport"'
+      } else if (type === 'link' && props.rel === 'amphtml') {
+        hasAmphtmlLink = true
       } else if (type === 'link' && props.rel === 'canonical') {
-        badProp = 'rel="canonical"'
-      } else if (type === 'script') {
+        hasCanonicalLink = true
+      } else if (amphtml && type === 'script') {
         // only block if
         // 1. it has a src and isn't pointing to ampproject's CDN
         // 2. it is using dangerouslySetInnerHTML without a type or
@@ -258,8 +262,8 @@ export class Head extends Component<OriginProps> {
               name="viewport"
               content="width=device-width,minimum-scale=1,initial-scale=1"
             />
-            <link rel="canonical" href={cleanAmpPath(dangerousAsPath)} />
-            {isDirtyAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
+            {!hasCanonicalLink && <link rel="canonical" href={cleanAmpPath(dangerousAsPath)} />}
+            {!hasAmphtmlLink && isDirtyAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
             {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
             <link
               rel="preload"
@@ -298,7 +302,7 @@ export class Head extends Component<OriginProps> {
         )}
         {!amphtml && (
           <>
-            {hasAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
+            {!hasAmphtmlLink && hasAmp && <link rel="amphtml" href={getAmpPath(ampPath, dangerousAsPath)} />}
             {page !== '/_error' && (
               <link
                 rel="preload"
