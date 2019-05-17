@@ -89,6 +89,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     await recursiveDelete(distDir, /^(?!cache(?:[\/\\]|$)).*$/)
     await recursiveDelete(path.join(distDir, 'cache', 'next-minifier'))
+    await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
 
     flyingShuttle = new FlyingShuttle({
       buildId,
@@ -271,12 +272,4 @@ export default async function build(dir: string, conf = null): Promise<void> {
   }
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)
-
-  // babel-loader cache is disabled in selectivePageBuilding
-  // to prevent overflowing cache, old ones are removed also
-  if (selectivePageBuilding) {
-    try {
-      await recursiveDelete(path.join(distDir, 'cache', 'next-babel-loader'))
-    } catch (_) {}
-  }
 }
