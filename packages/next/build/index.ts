@@ -124,6 +124,9 @@ export default async function build(dir: string, conf = null): Promise<void> {
   } else {
     pagePaths = await collectPages(pagesDir, config.pageExtensions)
   }
+  // needed for static exporting since we want to replace with HTML
+  // files even when flying shuttle doesn't rebuild the files
+  const allPagePaths = [...pagePaths]
 
   if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
     const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
@@ -163,6 +166,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
     pagePaths = [...pageSet]
   }
 
+  const allMappedPages = createPagesMapping(allPagePaths, config.pageExtensions)
   const mappedPages = createPagesMapping(pagePaths, config.pageExtensions)
   const entrypoints = createEntrypoints(
     mappedPages,
@@ -257,22 +261,33 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   const pageInfos = new Map<string, PageInfo>()
   const distPath = path.join(dir, config.distDir)
-  const pageKeys = Object.keys(mappedPages)
+  const pageKeys = Object.keys(allMappedPages)
   const staticPages: Set<string> = new Set()
+  const manifestPath = path.join(distDir, target === 'serverless'
+    ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
+
+  const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   let customAppGetInitialProps: boolean | undefined
+
+  process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
   for (const page of pageKeys) {
     const chunks = getPageChunks(page)
 
     const actualPage = page === '/' ? '/index' : page
     const size = await getPageSizeInKb(actualPage, distPath, buildId)
-    const serverBundle = path.join(
-      distPath,
+    const bundleRelative = path.join(
       target === 'serverless'
-        ? SERVERLESS_DIRECTORY + '/pages'
-        : SERVER_DIRECTORY + `/static/${buildId}/pages`,
+      ? 'pages'
+      : `static/${buildId}/pages`,
       actualPage + '.js'
     )
+    const serverBundle = path.join(
+      distPath,
+      target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+      bundleRelative
+    )
+    pagesManifest[page] = bundleRelative
     const runtimeEnvConfig = {
       publicRuntimeConfig: config.publicRuntimeConfig,
       serverRuntimeConfig: config.serverRuntimeConfig
@@ -331,11 +346,6 @@ export default async function build(dir: string, conf = null): Promise<void> {
       if (!serverDir) serverDir = path.dirname(serverBundle)
       await fsUnlink(serverBundle)
     }
-    let pagesManifest: any = {}
-    const manifestPath = path.join(distDir, target === 'serverless'
-      ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
-
-    pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
 
     for (const file of toMove) {
       const orig = path.join(exportOptions.outdir, file)

@@ -232,7 +232,15 @@ export function isPageStatic(
   try {
     nextEnvConfig.setConfig(runtimeEnvConfig)
     const Comp = require(serverBundle).default
-    if (!Comp) return false
+    if (!Comp) {
+      const pageStartIdx = serverBundle.indexOf('pages/') + 5
+      console.log(
+        'not exporting invalid page',
+        serverBundle.substr(pageStartIdx),
+        '(no default export)'
+      )
+      return false
+    }
     return typeof Comp.getInitialProps !== 'function'
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return false
