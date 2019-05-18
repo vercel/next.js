@@ -1,4 +1,4 @@
-import {Compiler, Plugin} from 'next/dist/compiled/webpack'
+import {Compiler, Plugin} from 'webpack'
 import { RawSource } from 'webpack-sources'
 import { PAGES_MANIFEST, ROUTE_NAME_REGEX } from 'next-server/constants'
 

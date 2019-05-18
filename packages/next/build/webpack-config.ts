@@ -9,7 +9,7 @@ import {
 import resolve from 'next/dist/compiled/resolve/index.js'
 import path from 'path'
 import { promisify } from 'util'
-import webpack from 'next/dist/compiled/webpack'
+import webpack from 'webpack'
 
 import {
   DOT_NEXT_ALIAS,
@@ -67,6 +67,7 @@ export default async function getBaseWebpackConfig(
         isServer,
         distDir,
         cwd: dir,
+        cache: !selectivePageBuilding,
         asyncToPromises: config.experimental.asyncToPromises,
       },
     },
