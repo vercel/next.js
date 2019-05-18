@@ -287,7 +287,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
       target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
       bundleRelative
     )
-    pagesManifest[page] = bundleRelative
+    pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
+
     const runtimeEnvConfig = {
       publicRuntimeConfig: config.publicRuntimeConfig,
       serverRuntimeConfig: config.serverRuntimeConfig
