@@ -1,15 +1,23 @@
 # Example app using ReasonML & ReasonReact components
 
+This example builds upon the original `with-reasonml` example to sho how a 
+global state object can be used to track state across page within the application.
+
+It is intended to show how to build a simple, stateful application using hooks
+without the added complexity of a redux type library.
+
 ## How to use
 
 ### Using `create-next-app`
 
-Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or [npx](https://github.com/zkat/npx#readme) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/segmentio/create-next-app) with
+[Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) or
+[npx](https://github.com/zkat/npx#readme) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-reasonml with-reasonml-app
+npx create-next-app --example with-reasonml-todo with-reasonml-app
 # or
-yarn create next-app --example with-reasonml with-reasonml-app
+yarn create next-app --example with-reasonml-todo with-reasonml-app
 ```
 
 ### Download manually
@@ -17,8 +25,8 @@ yarn create next-app --example with-reasonml with-reasonml-app
 Download the example:
 
 ```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-reasonml
-cd with-reasonml
+curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-reasonml-todo
+cd with-reasonml-todo
 ```
 
 Install it and run:
