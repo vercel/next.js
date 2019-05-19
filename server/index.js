@@ -34,7 +34,7 @@ export default class Server {
 
   async prepare () {
     if (this.hotReloader) {
-      await this.hotReloader.start(['_error', '_document'])
+      await this.hotReloader.start(['_error', '_document', '_amp'])
     }
   }
 

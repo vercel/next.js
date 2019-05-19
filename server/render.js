@@ -72,10 +72,10 @@ export async function doPageRender (req, res, pathname, query, initialProps, {
   }
 }
 
-export async function doDocRender (page, initialProps, { dev, dir, publicPath, entrypoints, hotReloader, buildId }) {
+export async function doDocRender (page, initialProps, { amp, dev, dir, publicPath, entrypoints, hotReloader, buildId }) {
   const pageDir = join(dir, '.next', 'server', 'pages')
 
-  let Document = require(join(pageDir, '_document'))
+  let Document = require(join(pageDir, amp ? '_amp' : '_document'))
   Document = Document.default || Document
 
   const docProps = await Document.getInitialProps({ initialProps, renderPage: () => page })
@@ -140,7 +140,7 @@ export function serializeError (dev, err) {
 
 async function ensurePage (page, { dir, hotReloader }) {
   if (!hotReloader) return
-  if (page === '_error' || page === '_document') return
+  if (page === '_error' || page === '_document' || page === '_amp') return
 
   await hotReloader.ensurePage(page)
 }
