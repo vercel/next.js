@@ -14,12 +14,13 @@ export default class Error extends React.Component {
   static getInitialProps ({ res, err }) {
     const statusCode =
       res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
-    return { statusCode }
+    
+    const title = statusCodes[statusCode] || 'An unexpected error has occurred'
+    return { statusCode, title }
   }
 
   render () {
-    const { statusCode } = this.props
-    const title = statusCodes[statusCode] || 'An unexpected error has occurred'
+    const { statusCode, title } = this.props
 
     return (
       <div style={styles.error}>
