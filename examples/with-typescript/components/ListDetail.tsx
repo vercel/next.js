@@ -1,12 +1,12 @@
 import * as React from 'react'
 
-import IDataObject from '../interfaces';
+import { User } from '../interfaces';
 
 type ListDetailProps = {
-  item: IDataObject;
+  item: User;
 }
 
-const ListDetail: React.FC<ListDetailProps> = ({ item: user }) => (
+const ListDetail: React.FunctionComponent<ListDetailProps> = ({ item: user }) => (
   <div>
     <h1>Detail for {user.name}</h1>
     <p>ID: {user.id}</p>
