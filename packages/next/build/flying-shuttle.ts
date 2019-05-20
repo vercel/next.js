@@ -13,7 +13,7 @@ import * as Log from './output/log'
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
 const FILE_UPDATED_AT = 'UPDATED_AT'
 const DIR_FILES_NAME = 'files'
-const MAX_SHUTTLES = 4
+const MAX_SHUTTLES = 3
 
 const mkdirp = promisify(mkdirpModule)
 const fsExists = promisify(fs.exists)
