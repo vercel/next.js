@@ -19,7 +19,6 @@ __webpack_public_path__ = __NEXT_DATA__.publicPath    // eslint-disable-line
 const asPath = getURL()
 
 const appContainer = document.getElementById('__next')
-const errorContainer = document.getElementById('__next-error')
 
 let lastAppProps
 let ErrorComponent
@@ -76,13 +75,7 @@ export function render ({ Component, props, hash, err }) {
       lastAppProps = appProps
 
       emitter.emit('before-reactdom-render', { Component, ErrorComponent, appProps })
-
-      // We need to clear any existing runtime error messages
-      ReactDOM.unmountComponentAtNode(errorContainer)
-      errorContainer.innerHTML = ''
-
       renderReactElement(createElement(App, appProps), appContainer)
-
       emitter.emit('after-reactdom-render', { Component, ErrorComponent, appProps })
     }).catch((err) => {
       if (err.abort) return
@@ -107,10 +100,8 @@ export function renderError (error) {
       const appProps = { Component: ErrorComponent, props, err: error, router }
 
       emitter.emit('before-reactdom-render', { ErrorComponent, appProps })
-      renderReactElement(createElement(App, appProps), errorContainer)
+      renderReactElement(createElement(App, appProps), appContainer)
       emitter.emit('after-reactdom-render', { ErrorComponent, appProps })
-
-      appContainer.innerHTML = ''
     })
 }
 

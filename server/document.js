@@ -103,10 +103,7 @@ export class Main extends Component {
     const { html, errorHtml } = this.context._documentProps
     const { className } = this.props
     return (
-      <div className={className}>
-        <div id='__next' dangerouslySetInnerHTML={{ __html: html }} />
-        <div id='__next-error' dangerouslySetInnerHTML={{ __html: errorHtml }} />
-      </div>
+      <div id='__next' className={className} dangerouslySetInnerHTML={{ __html: errorHtml || html }} />
     )
   }
 }
