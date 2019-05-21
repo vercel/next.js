@@ -21,7 +21,7 @@
 
 /// <reference types="node" />
 
-declare module 'next/dist/compiled/webpack' {
+declare module 'webpack' {
     import { Tapable, HookMap,
             SyncBailHook, SyncHook, SyncLoopHook, SyncWaterfallHook,
             AsyncParallelBailHook, AsyncParallelHook, AsyncSeriesBailHook, AsyncSeriesHook, AsyncSeriesWaterfallHook } from 'tapable';

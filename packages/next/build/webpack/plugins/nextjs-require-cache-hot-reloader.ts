@@ -1,4 +1,4 @@
-import { Compiler, Plugin } from 'next/dist/compiled/webpack'
+import { Compiler, Plugin } from 'webpack'
 import { realpathSync } from 'fs'
 
 function deleteCache (path: string) {

@@ -5,6 +5,7 @@ import { parse } from 'url';
 import mitt, {MittEmitter} from '../mitt';
 import { formatWithValidation, getURL, loadGetInitialProps, NextPageContext, AppContextType } from '../utils';
 import {rewriteUrlForNextExport} from './rewrite-url-for-export'
+import { ParsedUrlQuery } from 'querystring';
 
 function toRoute(path: string): string {
   return path.replace(/\/$/, '') || '/'
@@ -13,7 +14,7 @@ function toRoute(path: string): string {
 export type BaseRouter = {
   route: string
   pathname: string
-  query: string
+  query: ParsedUrlQuery
   asPath: string,
 }
 
@@ -31,7 +32,7 @@ type BeforePopStateCallback = (state: any) => boolean
 export default class Router implements BaseRouter {
   route: string
   pathname: string
-  query: string
+  query: ParsedUrlQuery
   asPath: string
   components: {[pathname: string]: RouteInfo}
   subscriptions: Set<Subscription>
@@ -41,7 +42,7 @@ export default class Router implements BaseRouter {
 
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: any, as: string, { initialProps, pageLoader, App, Component, err }: {initialProps: any, pageLoader: any, Component: ComponentType, App: ComponentType, err?: Error}) {
+  constructor(pathname: string, query: ParsedUrlQuery, as: string, { initialProps, pageLoader, App, Component, err }: {initialProps: any, pageLoader: any, Component: ComponentType, App: ComponentType, err?: Error}) {
     // represents the current component key
     this.route = toRoute(pathname)
 
