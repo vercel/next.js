@@ -108,7 +108,7 @@
     "typescript-eslint-parser": "21.0.1",
     "wait-port": "0.2.2",
     "wd": "1.10.3",
-    "webpack-bundle-analyzer": "3.0.3"
+    "webpack-bundle-analyzer": "3.3.2"
   },
   "engines": {
     "node": ">= 8.0.0"
