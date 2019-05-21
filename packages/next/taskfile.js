@@ -8,7 +8,15 @@ const babelClientOpts = {
       modules: 'commonjs',
       targets: 'edge 16, firefox 60, chrome 61, safari 11, opera 48, ios_saf 11, and_ff 64',
       loose: true,
-      exclude: ['transform-typeof-symbol']
+      debug: true,
+      exclude: [
+        '@babel/plugin-transform-typeof-symbol',
+        // Exclude a number of Edge<16 transforms that babel 7.4.4 incorrectly
+        // enables.
+        '@babel/plugin-transform-parameters',
+        '@babel/plugin-transform-destructuring',
+        '@babel/plugin-transform-function-name'
+      ]
     }],
     '@babel/preset-react'
   ],
@@ -32,7 +40,7 @@ const babelServerOpts = {
         node: '8.3'
       },
       loose: true,
-      exclude: ['transform-typeof-symbol']
+      exclude: ['@babel/plugin-transform-typeof-symbol']
     }]
   ],
   plugins: [
