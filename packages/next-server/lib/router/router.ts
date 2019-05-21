@@ -162,9 +162,9 @@ export default class Router implements BaseRouter {
 
   /**
    * Performs a `pushState` with arguments
-   * @param url
-   * @param as
-   * @param options
+   * @param url of the route
+   * @param as masks `url` for the browser
+   * @param options object you can define `shallow` and other options
    */
   push(url: string, as: string = url, options = {}) {
     return this.change('pushState', url, as, options)
@@ -172,9 +172,9 @@ export default class Router implements BaseRouter {
 
   /**
    * Performs a `replaceState` with arguments
-   * @param url
-   * @param as
-   * @param options
+   * @param url of the route
+   * @param as masks `url` for the browser
+   * @param options object you can define `shallow` and other options
    */
   replace(url: string, as: string = url, options = {}) {
     return this.change('replaceState', url, as, options)
