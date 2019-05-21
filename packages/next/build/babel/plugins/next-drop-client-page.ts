@@ -4,7 +4,12 @@ import * as BabelTypes from '@babel/types'
 
 let idx = 0
 
-export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
+interface State {
+  insertedDrop?: boolean;
+  hasAmp?: boolean;
+}
+
+export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj<State> {
   return {
     visitor: {
       Program: {
