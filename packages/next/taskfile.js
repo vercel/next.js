@@ -6,9 +6,7 @@ const babelClientOpts = {
     '@babel/preset-typescript',
     ['@babel/preset-env', {
       modules: 'commonjs',
-      targets: {
-        'esmodules': true
-      },
+      targets: 'edge 16, firefox 60, chrome 61, safari 11, opera 48, ios_saf 11, and_ff 64',
       loose: true,
       exclude: ['transform-typeof-symbol']
     }],
