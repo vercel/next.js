@@ -2,12 +2,14 @@ declare module '@babel/plugin-transform-modules-commonjs'
 declare module 'next-server/next-config'
 declare module 'next-server/constants'
 declare module 'webpack/lib/GraphHelpers'
+declare module 'unfetch'
 declare module 'styled-jsx/server'
 
 declare module 'unfetch' {
   const fetch: GlobalFetch['fetch']
   export default fetch
 }
+
 declare module 'node-libs-browser' {
   const nodeLibs: any
 
@@ -76,7 +78,7 @@ declare module 'next/dist/compiled/arg/index.js' {
 }
 
 declare module 'autodll-webpack-plugin' {
-  import webpack from 'next/dist/compiled/webpack'
+  import webpack from 'webpack'
   class AutoDllPlugin implements webpack.Plugin {
     constructor(settings?: {
       inject?: boolean
