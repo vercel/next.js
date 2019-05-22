@@ -9,6 +9,7 @@ import { promisify } from 'util'
 
 import { recursiveDelete } from '../lib/recursive-delete'
 import * as Log from './output/log'
+import { PageInfo } from './utils';
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
 const FILE_UPDATED_AT = 'UPDATED_AT'
@@ -220,6 +221,29 @@ export class FlyingShuttle {
     return (this._shuttleBuildId = contents)
   }
 
+  getPageInfos = async (): Promise<Map<string, PageInfo>> => {
+    const pageInfos: Map<string, PageInfo> = new Map()
+    const pagesManifest = JSON.parse(await fsReadFile(
+      path.join(
+        this.shuttleDirectory, DIR_FILES_NAME, 'serverless/pages-manifest.json'
+      ),
+      'utf8'
+    ))
+    Object.keys(pagesManifest).forEach(pg => {
+      const path = pagesManifest[pg]
+      const isStatic: boolean = path.endsWith('html')
+      let isAmp = Boolean(pagesManifest[pg + '.amp'])
+      if (pg === '/') isAmp = Boolean(pagesManifest['/index.amp'])
+      pageInfos.set(pg, {
+        isAmp,
+        size: 0,
+        static: isStatic,
+        serverBundle: path
+      })
+    })
+    return pageInfos
+  }
+
   getUnchangedPages = async () => {
     const manifestPath = path.join(this.shuttleDirectory, CHUNK_GRAPH_MANIFEST)
     const manifest = require(manifestPath) as ChunkGraphManifest
@@ -276,8 +300,36 @@ export class FlyingShuttle {
     return unchangedPages
   }
 
-  restorePage = async (page: string): Promise<boolean> => {
+  mergePagesManifest = async (): Promise<void> => {
+    const savedPagesManifest = path.join(
+      this.shuttleDirectory, DIR_FILES_NAME, 'serverless/pages-manifest.json'
+    )
+    if (!(await fsExists(savedPagesManifest))) return
+
+    const saved = JSON.parse(await fsReadFile(
+      savedPagesManifest,
+      'utf8'
+    ))
+    const currentPagesManifest = path.join(
+      this.distDirectory, 'serverless/pages-manifest.json'
+    )
+    const current = JSON.parse(await fsReadFile(
+      currentPagesManifest,
+      'utf8'
+    ))
+
+    await fsWriteFile(currentPagesManifest, JSON.stringify({
+      ...saved,
+      ...current,
+    }))
+  }
+
+  restorePage = async (
+    page: string,
+    pageInfo: PageInfo = {} as PageInfo
+  ): Promise<boolean> => {
     await this._restoreSema.acquire()
+
     try {
       const manifestPath = path.join(
         this.shuttleDirectory,
@@ -293,10 +345,9 @@ export class FlyingShuttle {
 
       const serverless = path.join(
         'serverless/pages',
-        `${page === '/' ? 'index' : page}.js`
+        `${page === '/' ? 'index' : page}.${pageInfo.static ? 'html' : 'js'}`
       )
       const files = [serverless, ...pageChunks[page]]
-
       const filesExists = await Promise.all(
         files
           .map(f => path.join(this.shuttleDirectory, DIR_FILES_NAME, f))
@@ -366,7 +417,7 @@ export class FlyingShuttle {
     }
   }
 
-  save = async () => {
+  save = async (staticPages: Set<string>, pageInfos: Map<string, PageInfo>) => {
     Log.wait('docking flying shuttle')
 
     await recursiveDelete(this.shuttleDirectory)
@@ -419,10 +470,30 @@ export class FlyingShuttle {
     const usedChunks = new Set()
     const pages = Object.keys(storeManifest.pageChunks)
     pages.forEach(page => {
-      storeManifest.pageChunks[page].forEach(file => usedChunks.add(file))
+      const info = pageInfos.get(page) || {} as PageInfo
+
+      storeManifest.pageChunks[page].forEach((file, idx) => {
+        if (info.isAmp) {
+          // AMP pages don't have client bundles
+          storeManifest.pageChunks[page] = []
+          return
+        }
+        usedChunks.add(file)
+      })
       usedChunks.add(
-        path.join('serverless/pages', `${page === '/' ? 'index' : page}.js`)
+        path.join('serverless/pages', `${
+          page === '/' ? 'index' : page
+        }.${staticPages.has(page) ? 'html' : 'js'}`)
       )
+      const ampPage = (page === '/' ? '/index' : page) + '.amp'
+
+      if (staticPages.has(ampPage)) {
+        storeManifest.pages[ampPage] = []
+        storeManifest.pageChunks[ampPage] = []
+        usedChunks.add(
+          path.join('serverless/pages', `${ampPage}.html`)
+        )
+      }
     })
 
     await fsWriteFile(
@@ -440,6 +511,11 @@ export class FlyingShuttle {
         await mkdirp(path.dirname(target))
         return fsCopyFile(path.join(this.distDirectory, usedChunk), target)
       })
+    )
+
+    await fsCopyFile(
+      path.join(this.distDirectory, 'serverless/pages-manifest.json'),
+      path.join(this.shuttleDirectory, DIR_FILES_NAME, 'serverless/pages-manifest.json')
     )
 
     Log.info(`flying shuttle payload: ${usedChunks.size + 2} files`)

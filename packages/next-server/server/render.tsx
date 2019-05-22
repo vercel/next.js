@@ -252,6 +252,16 @@ export async function renderToHTML(
         `The default export is not a React Component in page: "/_document"`,
       )
     }
+
+    const isStaticPage = typeof (Component as any).getInitialProps !== 'function'
+    const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
+
+    if (isStaticPage && defaultAppGetInitialProps) {
+      // remove query values except ones that will be set during export
+      query = {
+        amp: query.amp,
+      }
+    }
   }
 
   // @ts-ignore url will always be set
@@ -304,7 +314,7 @@ export async function renderToHTML(
 
   const ampMode = {
     enabled: false,
-    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
+    hasQuery: Boolean(query.amp),
   }
 
   if (ampBindInitData) {

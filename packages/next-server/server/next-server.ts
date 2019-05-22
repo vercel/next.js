@@ -72,13 +72,7 @@ export default class Server {
       publicRuntimeConfig,
       assetPrefix,
       generateEtags,
-      target,
     } = this.nextConfig
-
-    if (process.env.NODE_ENV === 'production' && target !== 'server')
-      throw new Error(
-        'Cannot start server when target is not server. https://err.sh/zeit/next.js/next-start-serverless',
-      )
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
@@ -257,7 +251,7 @@ export default class Server {
    * @param pathname path of request
    */
   private resolveApiRequest(pathname: string) {
-    return getPagePath(pathname, this.distDir)
+    return getPagePath(pathname, this.distDir, this.nextConfig.target === 'serverless')
   }
 
   private generatePublicRoutes(): Route[] {
@@ -353,7 +347,25 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname)
+    const serverless = this.nextConfig.target === 'serverless'
+    // try serving a static AMP version first
+    if (query.amp) {
+      try {
+        const result = await loadComponents(this.distDir, this.buildId, (pathname === '/' ? '/index' : pathname) + '.amp', serverless)
+        if (typeof result.Component === 'string') return result.Component
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err
+      }
+    }
+    const result = await loadComponents(this.distDir, this.buildId, pathname, serverless)
+    // handle static page
+    if (typeof result.Component === 'string') return result.Component
+    // handle serverless
+    if (typeof result.Component === 'object' &&
+      typeof result.Component.renderReqToHTML === 'function'
+    ) {
+      return result.Component.renderReqToHTML(req, res)
+    }
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
