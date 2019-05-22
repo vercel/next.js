@@ -133,7 +133,7 @@ const Effect = withSideEffect();
 
 /**
  * This component injects elements to `<head>` of your page.
- * To avoid duplicate `tags` in `<head>` you can use `key` property, which will make sure tag is only rendered once.
+ * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
   return (
