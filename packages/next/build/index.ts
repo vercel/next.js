@@ -277,10 +277,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const manifestPath = path.join(distDir, target === 'serverless'
     ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
 
+  const { autoExport } = config.experimental
   const staticPages = new Set<string>()
   const pageInfos = new Map<string, PageInfo>()
-  const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+  let pagesManifest: any = {}
   let customAppGetInitialProps: boolean | undefined
+
+  if (autoExport) {
+    pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
+  }
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -300,30 +305,33 @@ export default async function build(dir: string, conf = null): Promise<void> {
       target === 'serverless' ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
       bundleRelative
     )
-    pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-    const runtimeEnvConfig = {
-      publicRuntimeConfig: config.publicRuntimeConfig,
-      serverRuntimeConfig: config.serverRuntimeConfig
-    }
-    const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+    if (autoExport) {
+      pagesManifest[page] = bundleRelative.replace(/\\/g, '/')
 
-    if (nonReservedPage && customAppGetInitialProps === undefined) {
-      customAppGetInitialProps = hasCustomAppGetInitialProps(
-        target === 'serverless'
-          ? serverBundle
-          : path.join(distPath, SERVER_DIRECTORY, `/static/${buildId}/pages/_app.js`),
-        runtimeEnvConfig
-      )
-
-      if (customAppGetInitialProps) {
-        console.warn('Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n')
+      const runtimeEnvConfig = {
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig
       }
-    }
+      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
 
-    if (customAppGetInitialProps === false && nonReservedPage) {
-      const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
-      if (isStatic) staticPages.add(page)
+      if (nonReservedPage && customAppGetInitialProps === undefined) {
+        customAppGetInitialProps = hasCustomAppGetInitialProps(
+          target === 'serverless'
+            ? serverBundle
+            : path.join(distPath, SERVER_DIRECTORY, `/static/${buildId}/pages/_app.js`),
+          runtimeEnvConfig
+        )
+
+        if (customAppGetInitialProps) {
+          console.warn('Opting out of automatic exporting due to custom `getInitialProps` in `pages/_app`\n')
+        }
+      }
+
+      if (customAppGetInitialProps === false && nonReservedPage) {
+        const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
+        if (isStatic) staticPages.add(page)
+      }
     }
 
     pageInfos.set(page, { size, chunks, serverBundle })
@@ -344,7 +352,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 
-  if (staticPages.size > 0) {
+  if (autoExport && staticPages.size > 0) {
     const exportApp = require('../export').default
     const exportOptions = {
       silent: true,
@@ -399,7 +407,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   })
 
   if (flyingShuttle) {
-    await flyingShuttle.mergePagesManifest()
+    if (autoExport) await flyingShuttle.mergePagesManifest()
     await flyingShuttle.save(allStaticPages, pageInfos)
   }
 

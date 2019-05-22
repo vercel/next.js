@@ -16,6 +16,4 @@ const Page = () => {
   )
 }
 
-Page.getInitialProps = () => ({})
-
 export default Page

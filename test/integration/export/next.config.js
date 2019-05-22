@@ -10,7 +10,8 @@ module.exports = (phase) => {
       bar: 'bar'
     },
     experimental: {
-      // exportTrailingSlash: false
+      // exportTrailingSlash: false,
+      autoExport: true
     },
     exportPathMap: function () {
       return {
