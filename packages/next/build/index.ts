@@ -277,7 +277,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
   const manifestPath = path.join(distDir, target === 'serverless'
     ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
 
-  const { autoExport } = config.experimental
+  const { autoExport, dynamicRouting } = config.experimental
   const staticPages = new Set<string>()
   const pageInfos = new Map<string, PageInfo>()
   let pagesManifest: any = {}
@@ -329,7 +329,11 @@ export default async function build(dir: string, conf = null): Promise<void> {
       }
 
       if (customAppGetInitialProps === false && nonReservedPage) {
-        const isStatic = isPageStatic(serverBundle, runtimeEnvConfig)
+        const isStatic =
+          // Check if page is using dynamic routing
+          !(dynamicRouting && path.relative(distPath, serverBundle).includes('$')) &&
+          // Check if page contains
+          isPageStatic(serverBundle, runtimeEnvConfig)
         if (isStatic) staticPages.add(page)
       }
     }
