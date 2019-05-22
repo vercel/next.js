@@ -50,6 +50,7 @@ export default class Server {
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
+    autoExport: boolean,
   }
   buildManifest: string
   router: Router
@@ -84,6 +85,7 @@ export default class Server {
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
+      autoExport: this.nextConfig.experimental.autoExport,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,

@@ -112,6 +112,7 @@ function render(
 }
 
 type RenderOpts = {
+  autoExport: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
@@ -224,6 +225,7 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
+    autoExport = false,
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
@@ -268,13 +270,15 @@ export async function renderToHTML(
       )
     }
 
-    const isStaticPage = typeof (Component as any).getInitialProps !== 'function'
-    const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
+    if (autoExport) {
+      const isStaticPage = typeof (Component as any).getInitialProps !== 'function'
+      const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
 
-    if (isStaticPage && defaultAppGetInitialProps) {
-      // remove query values except ones that will be set during export
-      query = {
-        amp: query.amp,
+      if (isStaticPage && defaultAppGetInitialProps) {
+        // remove query values except ones that will be set during export
+        query = {
+          amp: query.amp,
+        }
       }
     }
   }
