@@ -8,6 +8,6 @@
     "directory": "packages/next-bundle-analyzer"
   },
   "dependencies": {
-    "webpack-bundle-analyzer": "3.0.3"
+    "webpack-bundle-analyzer": "3.3.2"
   }
 }
