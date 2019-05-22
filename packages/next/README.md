@@ -394,6 +394,7 @@ export default Page
 - `req` - HTTP request object (server only)
 - `res` - HTTP response object (server only)
 - `err` - Error object if any error is encountered during the rendering
+- `router` - The router instance (router methods are not available on server)
 
 ### Routing
 
