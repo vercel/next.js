@@ -63,6 +63,14 @@ describe('API support', () => {
     expect(data).toEqual([{ title: 'Nextjs' }])
   })
 
+  it('API return error', async () => {
+    const data = await fetchViaHTTP(appPort, '/api/error', null, {})
+    const json = await data.json()
+
+    expect(data.status).toEqual(500)
+    expect(json).toEqual({ error: 'Server error!' })
+  })
+
   it('API should return empty cookies', async () => {
     const data = await fetchViaHTTP(appPort, '/api/cookies', null, {}).then(
       res => res.ok && res.json()

@@ -24,7 +24,7 @@ import * as envConfig from '../lib/runtime-config'
 import { loadComponents, interopDefault } from './load-components'
 import { getPagePath } from './require'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import { parseCookies, parseQuery } from './api-utils'
+import { parseCookies, parseQuery, sendJson, sendData } from './api-utils'
 
 type NextConfig = any
 
@@ -262,6 +262,9 @@ export default class Server {
     req.cookies = parseCookies(req.headers)
     // Parsing query string
     req.query = parseQuery(req)
+
+    res.send = (statusCode, data) => sendData(res, statusCode, data)
+    res.json = (statusCode, data) => sendJson(res, statusCode, data)
 
     const resolver = interopDefault(require(resolverFunction))
     resolver(req, res)

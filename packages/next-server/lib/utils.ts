@@ -1,5 +1,5 @@
 import { format, UrlObject, URLFormatOptions } from 'url'
-import { ServerResponse, IncomingMessage } from 'http';
+import { ServerResponse, IncomingMessage } from 'http'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
@@ -91,24 +91,46 @@ export type DocumentProps = DocumentInitialProps & {
   assetPrefix?: string,
 }
 
+/**
+ * Next `API` route request
+ */
 export type NextApiRequest = IncomingMessage & {
-  // body: any
+  /**
+   * Object of `query` values from url
+   */
   query: {
     [key: string]: string | string[],
   }
+  /**
+   * Object of `cookies` from header
+   */
   cookies: {
     [key: string]: string,
   },
 }
 
+/**
+ * Send body of response
+ */
+type Send = (statusCode: number, body: any) => void
+
+/**
+ * Next `API` route response
+ */
 export type NextApiResponse = ServerResponse & {
-  send: any,
+  /**
+   * Send data `any` data in reponse
+   */
+  send: Send,
+  /**
+   * Send data `json` data in reponse
+   */
+  json: Send,
 }
 
 /**
  * Utils
  */
-
 export function execOnce(this: any, fn: () => any) {
   let used = false
   return (...args: any) => {

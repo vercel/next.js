@@ -1,6 +1,3 @@
 export default (req, res) => {
-  res.writeHead(200, { 'Content-Type': 'application/json' })
-
-  const json = JSON.stringify(req.cookies)
-  res.end(json)
+  res.send(200, req.cookies)
 }
