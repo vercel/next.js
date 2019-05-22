@@ -34,7 +34,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
 
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`. `
-   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrapers
+   * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
    */
   static async getInitialProps({ renderPage }: DocumentContext): Promise<DocumentInitialProps> {
     const { html, head, dataOnly } = await renderPage()
