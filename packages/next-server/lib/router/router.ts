@@ -281,7 +281,7 @@ export default class Router implements BaseRouter {
       }
 
       return (new Promise((resolve, reject) => {
-        const ctx = { pathname, query, asPath: as }
+        const ctx = { pathname, query, asPath: as, router: this }
         this.getInitialProps(Component, ctx).then((props) => {
           routeInfo.props = props
           this.components[route] = routeInfo

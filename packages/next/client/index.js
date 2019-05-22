@@ -156,7 +156,7 @@ export async function renderError (props) {
   // Otherwise, we need to call `getInitialProps` on `App` before mounting.
   const initProps = props.props
     ? props.props
-    : await loadGetInitialProps(App, { Component: ErrorComponent, router, ctx: { err, pathname: page, query, asPath } })
+    : await loadGetInitialProps(App, { Component: ErrorComponent, router, ctx: { err, pathname: page, query, asPath, router } })
 
   await doRender({ ...props, err, Component: ErrorComponent, props: initProps })
 }
@@ -179,7 +179,7 @@ async function doRender ({ App, Component, props, err }) {
     Component !== ErrorComponent &&
     lastAppProps.Component === ErrorComponent) {
     const { pathname, query, asPath } = router
-    props = await loadGetInitialProps(App, { Component, router, ctx: { err, pathname, query, asPath } })
+    props = await loadGetInitialProps(App, { Component, router, ctx: { err, pathname, query, asPath, router } })
   }
 
   Component = Component || lastAppProps.Component

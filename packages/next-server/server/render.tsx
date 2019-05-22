@@ -256,8 +256,8 @@ export async function renderToHTML(
 
   // @ts-ignore url will always be set
   const asPath: string = req.url
-  const ctx = { err, req, res, pathname, query, asPath }
   const router = new ServerRouter(pathname, query, asPath)
+  const ctx = { err, req, res, pathname, query, asPath, router }
   let props: any
 
   try {
