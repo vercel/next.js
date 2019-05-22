@@ -26,7 +26,7 @@ declare module 'react' {
 
 
 /**
- * `Page` component, used for rendering `pages`.
+ * `Page` type, use it as a guide to create `pages`.
  */
 export type NextPage<P = {}> = {
   (props: P): JSX.Element
