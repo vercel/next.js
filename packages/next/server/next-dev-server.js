@@ -111,8 +111,9 @@ export default class DevServer extends Server {
     if (this.nextConfig.experimental.dynamicRouting) {
       // watch for dynamic routes changing
       fs.watch(join(this.dir, 'pages'), { recursive: true },
-        (evt, filename) => {
-          if (filename.includes('$')) this.updateRoutes()
+        (evtType) => {
+          // rename is emitted for delete/move also
+          if (evtType === 'rename') this.updateRoutes()
         }
       )
       await this.updateRoutes()
