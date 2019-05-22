@@ -313,7 +313,7 @@ export default class Router implements BaseRouter {
 
         resolve(this.fetchComponent('/_error').then((Component) => {
           const routeInfo: RouteInfo = { Component, err }
-          const ctx = { err, pathname, query }
+          const ctx = { err, pathname, query, router: this }
           return (new Promise((resolve) => {
             this.getInitialProps(Component, ctx).then((props) => {
               routeInfo.props = props
