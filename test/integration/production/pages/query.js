@@ -8,4 +8,6 @@ const Page = ({ router: { query } }) => (
   </>
 )
 
+Page.getInitialProps = () => ({})
+
 export default withRouter(Page)

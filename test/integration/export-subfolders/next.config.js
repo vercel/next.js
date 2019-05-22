@@ -1,5 +1,6 @@
 module.exports = {
   experimental: {
-    exportTrailingSlash: false
+    exportTrailingSlash: false,
+    autoExport: true
   }
 }

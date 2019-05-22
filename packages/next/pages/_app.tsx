@@ -13,20 +13,17 @@ export type AppProps<P = {}> = AppPropsType<Router, P>
  * `App` component is used for initialize of pages. It allows for overriding and full control of the `page` initialization.
  * This allows for keeping state between navigation, custom error handling, injecting additional data.
  */
-export default class App<P = {}, CP = P> extends React.Component<
-  P & AppProps<CP>
-> {
+async function appGetInitialProps({ Component, ctx }: AppContext): Promise<AppInitialProps> {
+  const pageProps = await loadGetInitialProps(Component, ctx)
+  return { pageProps }
+}
+
+export default class App<P = {}, CP = P> extends React.Component<P & AppProps<CP>> {
   static childContextTypes = {
     router: PropTypes.object,
   }
-
-  static async getInitialProps({
-    Component,
-    ctx,
-  }: AppContext): Promise<AppInitialProps> {
-    const pageProps = await loadGetInitialProps(Component, ctx)
-    return { pageProps }
-  }
+  static origGetInitialProps = appGetInitialProps
+  static getInitialProps = appGetInitialProps
 
   getChildContext() {
     return {

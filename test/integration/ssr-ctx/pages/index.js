@@ -2,7 +2,7 @@ import React from 'react'
 
 const Idk = React.createContext(null)
 
-export default () => {
+const Page = () => {
   return (
     <div>
       <Idk.Provider value='hello world'>
@@ -15,3 +15,5 @@ export default () => {
     </div>
   )
 }
+
+export default Page
