@@ -72,7 +72,7 @@ export type NEXT_DATA = {
 // tslint:disable-next-line interface-name
 export interface NextPageContext {
   /**
-   * Error object if encountred during rendering
+   * Error object if encountered during rendering
    */
   err?: Error & { statusCode?: number } | null
   /**
