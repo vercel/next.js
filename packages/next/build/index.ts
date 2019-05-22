@@ -127,20 +127,33 @@ export default async function build(dir: string, conf = null): Promise<void> {
   // needed for static exporting since we want to replace with HTML
   // files even when flying shuttle doesn't rebuild the files
   const allPagePaths = [...pagePaths]
+  const allStaticPages = new Set<string>()
+  let allPageInfos = new Map<string, PageInfo>()
 
   if (flyingShuttle && (await flyingShuttle.hasShuttle())) {
+    allPageInfos = await flyingShuttle.getPageInfos()
     const _unchangedPages = new Set(await flyingShuttle.getUnchangedPages())
     for (const unchangedPage of _unchangedPages) {
-      const recalled = await flyingShuttle.restorePage(unchangedPage)
+      const info = allPageInfos.get(unchangedPage) || {} as PageInfo
+      if (info.static) allStaticPages.add(unchangedPage)
+
+      const recalled = await flyingShuttle.restorePage(
+        unchangedPage, info
+      )
       if (recalled) {
         continue
       }
-
       _unchangedPages.delete(unchangedPage)
     }
 
-    const unchangedPages = await Promise.all(
+    const unchangedPages = (await Promise.all(
       [..._unchangedPages].map(async page => {
+        if (
+          page.endsWith('.amp') &&
+          (allPageInfos.get(page.split('.amp')[0]) || {} as PageInfo).isAmp
+        ) {
+          return ''
+        }
         const file = await getFileForPage({
           page,
           pagesDirectory: pagesDir,
@@ -156,8 +169,8 @@ export default async function build(dir: string, conf = null): Promise<void> {
               `Did pageExtensions change? We can't recover from this yet.`
           )
         )
-      })
-    )
+      }))
+    ).filter(Boolean)
 
     const pageSet = new Set(pagePaths)
     for (const unchangedPage of unchangedPages) {
@@ -259,13 +272,13 @@ export default async function build(dir: string, conf = null): Promise<void> {
     console.log(chalk.green('Compiled successfully.\n'))
   }
 
-  const pageInfos = new Map<string, PageInfo>()
   const distPath = path.join(dir, config.distDir)
-  const pageKeys = Object.keys(allMappedPages)
-  const staticPages: Set<string> = new Set()
+  const pageKeys = Object.keys(mappedPages)
   const manifestPath = path.join(distDir, target === 'serverless'
     ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY, PAGES_MANIFEST)
 
+  const staticPages = new Set<string>()
+  const pageInfos = new Map<string, PageInfo>()
   const pagesManifest = JSON.parse(await fsReadFile(manifestPath, 'utf8'))
   let customAppGetInitialProps: boolean | undefined
 
@@ -316,9 +329,19 @@ export default async function build(dir: string, conf = null): Promise<void> {
     pageInfos.set(page, { size, chunks, serverBundle })
   }
 
-  if (flyingShuttle) {
-    await flyingShuttle.save()
+  if (Array.isArray(configs[0].plugins)) {
+    configs[0].plugins.some((plugin: any) => {
+      if (!plugin.ampPages) {
+        return false
+      }
+
+      plugin.ampPages.forEach((pg: any) => {
+        pageInfos.get(pg)!.isAmp = true
+      })
+      return true
+    })
   }
+
   await writeBuildId(distDir, buildId, selectivePageBuilding)
 
   if (staticPages.size > 0) {
@@ -360,6 +383,7 @@ export default async function build(dir: string, conf = null): Promise<void> {
       pagesManifest[page] = relativeDest
       page = page === '/index' ? '/' : page
       pagesManifest[page] = relativeDest
+      staticPages.add(page)
       await mkdirp(path.dirname(dest))
       await fsMove(orig, dest)
     }
@@ -369,19 +393,15 @@ export default async function build(dir: string, conf = null): Promise<void> {
 
     await fsWriteFile(manifestPath, JSON.stringify(pagesManifest), 'utf8')
   }
+  staticPages.forEach(pg => allStaticPages.add(pg))
+  pageInfos.forEach((info: PageInfo, key: string) => {
+    allPageInfos.set(key, info)
+  })
 
-  if (Array.isArray(configs[0].plugins)) {
-    configs[0].plugins.some((plugin: any) => {
-      if (!plugin.ampPages) {
-        return false
-      }
-
-      plugin.ampPages.forEach((pg: any) => {
-        pageInfos.get(pg)!.isAmp = true
-      })
-      return true
-    })
+  if (flyingShuttle) {
+    await flyingShuttle.mergePagesManifest()
+    await flyingShuttle.save(allStaticPages, pageInfos)
   }
 
-  printTreeView(pageKeys, pageInfos)
+  printTreeView(Object.keys(allMappedPages), allPageInfos)
 }

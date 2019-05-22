@@ -65,6 +65,9 @@ describe('AMP Usage', () => {
         expect(
           () => accessSync(join(appDir, '.next/static', buildId, 'pages', pg + '.js'))
         ).toThrow()
+        expect(
+          () => accessSync(join(appDir, '.next/server/static', buildId, 'pages', pg + '.html'))
+        ).not.toThrow()
       }
     })
 
