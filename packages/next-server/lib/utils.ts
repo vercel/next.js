@@ -52,7 +52,8 @@ export interface NextPageContext {
   res?: ServerResponse
   pathname: string
   query: ParsedUrlQuery
-  asPath?: string
+  asPath?: string,
+  router: BaseRouter
 }
 
 export type AppContextType<R extends BaseRouter = BaseRouter> = {
