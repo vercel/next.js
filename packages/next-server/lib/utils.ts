@@ -107,6 +107,8 @@ export type NextApiRequest = IncomingMessage & {
   cookies: {
     [key: string]: string,
   },
+
+  body: any,
 }
 
 /**

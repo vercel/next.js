@@ -45,6 +45,7 @@
     "fresh": "0.5.2",
     "path-to-regexp": "2.1.0",
     "prop-types": "15.6.2",
+    "raw-body": "2.4.0",
     "react-is": "16.8.6",
     "react-ssr-prepass": "1.0.2",
     "send": "0.16.1",

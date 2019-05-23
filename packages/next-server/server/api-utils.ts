@@ -1,7 +1,35 @@
-import { IncomingMessage, IncomingHttpHeaders, OutgoingMessage } from 'http'
+import { IncomingMessage, IncomingHttpHeaders } from 'http'
 import { parse as parseCookie } from 'cookie'
-import { NextApiResponse } from '../lib/utils'
+import { NextApiResponse, NextApiRequest } from '../lib/utils'
 import { Stream } from 'stream'
+import getRawBody from 'raw-body'
+
+export async function parseBody(req: NextApiRequest) {
+  const type = req.headers['content-type'] || 'text/plain'
+
+  try {
+    const buffer = await getRawBody(req)
+
+    const body = buffer.toString()
+
+    if (type === 'application/json') {
+      req.body = parseJson(body)
+    } else {
+      req.body = body
+    }
+
+  } catch (e) {
+    throw e
+  }
+}
+
+function parseJson(str: string) {
+  try {
+    return JSON.parse(str)
+  } catch (e) {
+    throw e
+  }
+}
 
 /**
  * Parse cookies from request header
