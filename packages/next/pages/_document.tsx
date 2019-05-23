@@ -119,21 +119,27 @@ export class Head extends Component<OriginProps> {
   getPreloadDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
+    const tags: any[] = [];
+    const map: {[key: string]: boolean} = {};
 
-    return dynamicImports.map((bundle: any) => {
-      return (
-        <link
-          rel="preload"
-          key={bundle.file}
-          href={`${assetPrefix}/_next/${
-            bundle.file
-          }${_devOnlyInvalidateCacheQueryString}`}
-          as="script"
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
+    dynamicImports.forEach((bundle) => {
+      const key = bundle.file
+      if (map[key]) {
+        return
+      }
+      map[key] = true
+      tags.push(<link
+        rel="preload"
+        key={bundle.file}
+        href={`${assetPrefix}/_next/${
+          bundle.file
+        }${_devOnlyInvalidateCacheQueryString}`}
+        as="script"
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+      />)
     })
+    return tags
   }
 
   getPreloadMainLinks() {
@@ -369,20 +375,26 @@ export class NextScript extends Component<OriginProps> {
   getDynamicChunks() {
     const { dynamicImports, assetPrefix } = this.context._documentProps
     const { _devOnlyInvalidateCacheQueryString } = this.context
+    const tags: any[] = [];
+    const map: {[key: string]: boolean} = {};
 
-    return dynamicImports.map((bundle: any) => {
-      return (
-        <script
-          async
-          key={bundle.file}
-          src={`${assetPrefix}/_next/${
-            bundle.file
-          }${_devOnlyInvalidateCacheQueryString}`}
-          nonce={this.props.nonce}
-          crossOrigin={this.props.crossOrigin || process.crossOrigin}
-        />
-      )
+    dynamicImports.forEach((bundle) => {
+      const key = bundle.file
+      if (map[key]) {
+        return
+      }
+      map[key] = true
+      tags.push(<script
+        async
+        key={bundle.file}
+        src={`${assetPrefix}/_next/${
+          bundle.file
+        }${_devOnlyInvalidateCacheQueryString}`}
+        nonce={this.props.nonce}
+        crossOrigin={this.props.crossOrigin || process.crossOrigin}
+      />)
     })
+    return tags
   }
 
   getScripts() {
