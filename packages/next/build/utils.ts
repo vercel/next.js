@@ -14,6 +14,7 @@ import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
+const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -29,6 +30,8 @@ export interface PageInfo {
   isAmp?: boolean
   size: number
   chunks?: ReturnType<typeof getPageChunks>
+  static?: boolean
+  serverBundle: string
 }
 
 export function printTreeView(
@@ -220,4 +223,43 @@ export async function getPageSizeInKb(
     return (await fsStat(clientBundle)).size
   } catch (_) {}
   return -1
+}
+
+export function isPageStatic(
+  serverBundle: string,
+  runtimeEnvConfig: any,
+): boolean {
+  try {
+    nextEnvConfig.setConfig(runtimeEnvConfig)
+    const Comp = require(serverBundle).default
+    if (!Comp) {
+      const pageStartIdx = serverBundle.indexOf('pages/') + 5
+      console.log(
+        'not exporting invalid page',
+        serverBundle.substr(pageStartIdx),
+        '(no default export)'
+      )
+      return false
+    }
+    return typeof Comp.getInitialProps !== 'function'
+  } catch (err) {
+    if (err.code === 'MODULE_NOT_FOUND') return false
+    throw err
+  }
+}
+
+export function hasCustomAppGetInitialProps(
+  _appBundle: string,
+  runtimeEnvConfig: any,
+): boolean {
+  nextEnvConfig.setConfig(runtimeEnvConfig)
+  let mod = require(_appBundle)
+
+  if (_appBundle.endsWith('_app.js')) {
+    mod = mod.default
+  } else {
+    // since we don't output _app in serverless mode get it from a page
+    mod = mod._app
+  }
+  return mod.getInitialProps !== mod.origGetInitialProps
 }

@@ -1,21 +1,24 @@
 {
+  "name": "custom-server-typescript",
+  "version": "1.0.0",
   "scripts": {
     "dev": "nodemon",
-    "build": "next build && tsc && tsc --project tsconfig.server.json",
-    "start": "cross-env NODE_ENV=production node .next/server"
+    "build": "next build && tsc --project tsconfig.server.json",
+    "start": "cross-env NODE_ENV=production node dist/index.js"
   },
   "dependencies": {
-    "next": "latest",
+    "next": "^8.1.0",
     "react": "^16.8.4",
     "react-dom": "^16.8.4"
   },
   "devDependencies": {
-    "@types/next": "^8.0.1",
-    "@types/react": "^16.8.8",
+    "@types/next": "^8.0.5",
+    "@types/react": "^16.8.17",
+    "@types/react-dom": "16.8.4",
     "@zeit/next-typescript": "^1.1.1",
     "cross-env": "^5.2.0",
-    "nodemon": "^1.18.10",
-    "ts-node": "^8.0.3",
-    "typescript": "^3.3.3333"
+    "nodemon": "^1.19.0",
+    "ts-node": "^8.1.0",
+    "typescript": "^3.4.5"
   }
 }
