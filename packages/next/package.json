@@ -96,9 +96,9 @@
     "tty-aware-progress": "1.0.4",
     "unfetch": "4.1.0",
     "url": "0.11.0",
-    "webpack": "4.30.0",
-    "webpack-dev-middleware": "3.6.0",
-    "webpack-hot-middleware": "2.24.3",
+    "webpack": "4.32.2",
+    "webpack-dev-middleware": "3.7.0",
+    "webpack-hot-middleware": "2.25.0",
     "webpack-sources": "1.3.0",
     "worker-farm": "1.7.0"
   },
