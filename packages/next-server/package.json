@@ -43,7 +43,7 @@
     "find-up": "4.0.0",
     "fresh": "0.5.2",
     "path-to-regexp": "2.1.0",
-    "prop-types": "15.6.2",
+    "prop-types": "15.7.2",
     "react-is": "16.8.6",
     "react-ssr-prepass": "1.0.5",
     "send": "0.16.1",
