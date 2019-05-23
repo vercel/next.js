@@ -24,7 +24,15 @@ import * as envConfig from '../lib/runtime-config'
 import { loadComponents, interopDefault } from './load-components'
 import { getPagePath } from './require'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
-import { parseCookies, parseQuery, sendJson, sendData } from './api-utils'
+import {
+  parseCookies,
+  parseQuery,
+  sendJson,
+  sendData,
+  parseBody,
+  sendError,
+  ApiError,
+} from './api-utils'
 
 type NextConfig = any
 
@@ -258,16 +266,25 @@ export default class Server {
       return
     }
 
-    // Parsing of cookies
-    req.cookies = parseCookies(req.headers)
-    // Parsing query string
-    req.query = parseQuery(req)
+    try {
+      // Parsing of cookies
+      req.cookies = parseCookies(req.headers)
+      // Parsing query string
+      req.query = parseQuery(req)
+      // Parsing of body
+      req.body = await parseBody(req)
+      res.send = (statusCode, data) => sendData(res, statusCode, data)
+      res.json = (statusCode, data) => sendJson(res, statusCode, data)
 
-    res.send = (statusCode, data) => sendData(res, statusCode, data)
-    res.json = (statusCode, data) => sendJson(res, statusCode, data)
-
-    const resolver = interopDefault(require(resolverFunction))
-    resolver(req, res)
+      const resolver = interopDefault(require(resolverFunction))
+      resolver(req, res)
+    } catch (e) {
+      if (e instanceof ApiError) {
+        sendError(res, e.statusCode, e.message)
+      } else {
+        sendError(res, 500, e.message)
+      }
+    }
   }
 
   /**
