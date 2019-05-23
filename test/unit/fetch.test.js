@@ -2,14 +2,18 @@
 import fetchRetry, { retry } from 'next-server/dist/lib/fetch/retry'
 import nodeFetch from 'next-server/dist/lib/fetch'
 
+const start = () => {
+  const time = process.hrtime()
+  return {
+    diff: () => Math.ceil(process.hrtime(time)[1] / 1000000)
+  }
+}
 const createFetchFn = (url, timeouts, resultFn) => {
   let attempts = 0
 
-  const startTime = Date.now()
+  const time = start()
   const fetchFn = jest.fn((_url, opts) => {
-    const time = Date.now() - startTime
-
-    expect(time).toBeGreaterThanOrEqual(timeouts[attempts++])
+    expect(time.diff()).toBeGreaterThanOrEqual(timeouts[attempts++])
     expect(url).toBe(_url)
 
     return typeof resultFn === 'function' ? resultFn(attempts - 1) : resultFn
@@ -34,7 +38,10 @@ describe('fetch', () => {
 
   it('Should retry the fetch with the default options', async () => {
     const timeouts = [0, 10, 50, 250]
-    const fetchFn = createFetchFn('test', timeouts, { status: 500, statusText: 'error' })
+    const fetchFn = createFetchFn('test', timeouts, {
+      status: 500,
+      statusText: 'error'
+    })
     const fetch = fetchRetry(fetchFn)
 
     expect(await fetch('test')).toEqual({ status: 500, statusText: 'error' })
@@ -50,19 +57,24 @@ describe('fetch', () => {
       }
     }
     const timeouts = [0, 20, 40, 80, 160, 320]
-    const fetchFn = createFetchFn('test', timeouts, { status: 500, statusText: 'error' })
+    const fetchFn = createFetchFn('test', timeouts, {
+      status: 500,
+      statusText: 'error'
+    })
     const fetch = fetchRetry(fetchFn)
 
-    expect(await fetch('test', opts)).toEqual({ status: 500, statusText: 'error' })
+    expect(await fetch('test', opts)).toEqual({
+      status: 500,
+      statusText: 'error'
+    })
     expect(fetchFn).toHaveBeenCalledTimes(6)
   })
 
   it('Should stop retrying after a successful response', async () => {
     const timeouts = [0, 10, 50]
-    const resultFn = (attempts) => (
+    const resultFn = attempts =>
       // Make it work in the second attempt
       attempts < 2 ? { status: 500, statusText: 'error' } : { status: 200 }
-    )
     const fetchFn = createFetchFn('test', timeouts, resultFn)
     const fetch = fetchRetry(fetchFn)
 
@@ -79,10 +91,9 @@ describe('fetch', () => {
       }
     }
     const timeouts = [0, 20, 40, 80, 160]
-    const resultFn = (attempts) => (
+    const resultFn = attempts =>
       // Make if work in the four attempt
       attempts < 4 ? { status: 500, statusText: 'error' } : { status: 200 }
-    )
     const fetchFn = createFetchFn('test', timeouts, resultFn)
     const fetch = fetchRetry(fetchFn)
 
@@ -101,7 +112,7 @@ describe('fetch', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2)
   })
 
-  describe('retry', () => {
+  describe.only('retry', () => {
     const opts = {
       minTimeout: 10,
       retries: 3,
@@ -112,11 +123,11 @@ describe('fetch', () => {
       const retryFn = jest.fn(() => {
         throw new Error('error')
       })
-      const time = Date.now()
+      const time = start()
 
       await expect(retry(retryFn, opts)).rejects.toEqual(new Error('error'))
       expect(retryFn).toHaveBeenCalledTimes(4)
-      expect(Date.now() - time).toBeGreaterThanOrEqual(310) // 10 + 50 + 250
+      expect(time.diff()).toBeGreaterThanOrEqual(310) // 10 + 50 + 250
     })
 
     it('Should abort and throw an error if bail is called', async () => {
@@ -126,11 +137,11 @@ describe('fetch', () => {
         }
         throw new Error('error')
       })
-      const time = Date.now()
+      const time = start()
 
       await expect(retry(retryFn, opts)).rejects.toEqual(new Error('Aborted'))
       expect(retryFn).toHaveBeenCalledTimes(3)
-      expect(Date.now() - time).toBeGreaterThanOrEqual(60) // 10 + 50
+      expect(time.diff()).toBeGreaterThanOrEqual(60) // 10 + 50
     })
 
     it('Should abort and throw a custom error if bail is called', async () => {
@@ -140,11 +151,13 @@ describe('fetch', () => {
         }
         throw new Error('error')
       })
-      const time = Date.now()
+      const time = start()
 
-      await expect(retry(retryFn, opts)).rejects.toEqual(new Error('custom error'))
+      await expect(retry(retryFn, opts)).rejects.toEqual(
+        new Error('custom error')
+      )
       expect(retryFn).toHaveBeenCalledTimes(2)
-      expect(Date.now() - time).toBeGreaterThanOrEqual(10)
+      expect(time.diff()).toBeGreaterThanOrEqual(10)
     })
   })
 
