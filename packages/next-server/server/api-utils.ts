@@ -12,21 +12,17 @@ export async function parseBody(req: NextApiRequest) {
   const type = req.headers['content-type'] || 'text/plain'
   const encoding = getCharset(type)
 
-  try {
-    const buffer = await getRawBody(req, { encoding })
+  const buffer = await getRawBody(req, { encoding })
 
-    const body = buffer.toString()
+  const body = buffer.toString()
 
-    if (type.startsWith('application/json')) {
-      return parseJson(body)
-    } else if (type.startsWith('application/x-www-form-urlencoded')) {
-      const qs = require('querystring')
-      return qs.decode(body)
-    } else {
-      return body
-    }
-  } catch (e) {
-    throw e
+  if (type.startsWith('application/json')) {
+    return parseJson(body)
+  } else if (type.startsWith('application/x-www-form-urlencoded')) {
+    const qs = require('querystring')
+    return qs.decode(body)
+  } else {
+    return body
   }
 }
 
@@ -175,7 +171,11 @@ export class ApiError extends Error {
  * @param statusCode of response
  * @param message of response
  */
-export function sendError(res: NextApiResponse, statusCode: number, message: string) {
+export function sendError(
+  res: NextApiResponse,
+  statusCode: number,
+  message: string,
+) {
   res.statusCode = statusCode
   res.statusMessage = message
   res.end()
