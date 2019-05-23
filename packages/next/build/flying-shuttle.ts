@@ -1,4 +1,4 @@
-import Sema from 'async-sema'
+import { Sema } from 'async-sema'
 import crypto from 'crypto'
 import fs from 'fs'
 import mkdirpModule from 'mkdirp'
@@ -9,7 +9,7 @@ import { promisify } from 'util'
 
 import { recursiveDelete } from '../lib/recursive-delete'
 import * as Log from './output/log'
-import { PageInfo } from './utils';
+import { PageInfo } from './utils'
 
 const FILE_BUILD_ID = 'HEAD_BUILD_ID'
 const FILE_UPDATED_AT = 'UPDATED_AT'
@@ -223,12 +223,16 @@ export class FlyingShuttle {
 
   getPageInfos = async (): Promise<Map<string, PageInfo>> => {
     const pageInfos: Map<string, PageInfo> = new Map()
-    const pagesManifest = JSON.parse(await fsReadFile(
-      path.join(
-        this.shuttleDirectory, DIR_FILES_NAME, 'serverless/pages-manifest.json'
-      ),
-      'utf8'
-    ))
+    const pagesManifest = JSON.parse(
+      await fsReadFile(
+        path.join(
+          this.shuttleDirectory,
+          DIR_FILES_NAME,
+          'serverless/pages-manifest.json'
+        ),
+        'utf8'
+      )
+    )
     Object.keys(pagesManifest).forEach(pg => {
       const path = pagesManifest[pg]
       const isStatic: boolean = path.endsWith('html')
@@ -238,7 +242,7 @@ export class FlyingShuttle {
         isAmp,
         size: 0,
         static: isStatic,
-        serverBundle: path
+        serverBundle: path,
       })
     })
     return pageInfos
@@ -302,26 +306,26 @@ export class FlyingShuttle {
 
   mergePagesManifest = async (): Promise<void> => {
     const savedPagesManifest = path.join(
-      this.shuttleDirectory, DIR_FILES_NAME, 'serverless/pages-manifest.json'
+      this.shuttleDirectory,
+      DIR_FILES_NAME,
+      'serverless/pages-manifest.json'
     )
     if (!(await fsExists(savedPagesManifest))) return
 
-    const saved = JSON.parse(await fsReadFile(
-      savedPagesManifest,
-      'utf8'
-    ))
+    const saved = JSON.parse(await fsReadFile(savedPagesManifest, 'utf8'))
     const currentPagesManifest = path.join(
-      this.distDirectory, 'serverless/pages-manifest.json'
+      this.distDirectory,
+      'serverless/pages-manifest.json'
     )
-    const current = JSON.parse(await fsReadFile(
-      currentPagesManifest,
-      'utf8'
-    ))
+    const current = JSON.parse(await fsReadFile(currentPagesManifest, 'utf8'))
 
-    await fsWriteFile(currentPagesManifest, JSON.stringify({
-      ...saved,
-      ...current,
-    }))
+    await fsWriteFile(
+      currentPagesManifest,
+      JSON.stringify({
+        ...saved,
+        ...current,
+      })
+    )
   }
 
   restorePage = async (
@@ -470,7 +474,7 @@ export class FlyingShuttle {
     const usedChunks = new Set()
     const pages = Object.keys(storeManifest.pageChunks)
     pages.forEach(page => {
-      const info = pageInfos.get(page) || {} as PageInfo
+      const info = pageInfos.get(page) || ({} as PageInfo)
 
       storeManifest.pageChunks[page].forEach((file, idx) => {
         if (info.isAmp) {
@@ -481,18 +485,19 @@ export class FlyingShuttle {
         usedChunks.add(file)
       })
       usedChunks.add(
-        path.join('serverless/pages', `${
-          page === '/' ? 'index' : page
-        }.${staticPages.has(page) ? 'html' : 'js'}`)
+        path.join(
+          'serverless/pages',
+          `${page === '/' ? 'index' : page}.${
+            staticPages.has(page) ? 'html' : 'js'
+          }`
+        )
       )
       const ampPage = (page === '/' ? '/index' : page) + '.amp'
 
       if (staticPages.has(ampPage)) {
         storeManifest.pages[ampPage] = []
         storeManifest.pageChunks[ampPage] = []
-        usedChunks.add(
-          path.join('serverless/pages', `${ampPage}.html`)
-        )
+        usedChunks.add(path.join('serverless/pages', `${ampPage}.html`))
       }
     })
 
@@ -515,7 +520,11 @@ export class FlyingShuttle {
 
     await fsCopyFile(
       path.join(this.distDirectory, 'serverless/pages-manifest.json'),
-      path.join(this.shuttleDirectory, DIR_FILES_NAME, 'serverless/pages-manifest.json')
+      path.join(
+        this.shuttleDirectory,
+        DIR_FILES_NAME,
+        'serverless/pages-manifest.json'
+      )
     )
 
     Log.info(`flying shuttle payload: ${usedChunks.size + 2} files`)

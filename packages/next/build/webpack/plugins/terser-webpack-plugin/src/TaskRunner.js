@@ -4,7 +4,7 @@ import { promisify } from 'util'
 import workerFarm from 'worker-farm'
 import { writeFile, readFile } from 'fs'
 import serialize from 'serialize-javascript'
-import Sema from 'async-sema'
+import { Sema } from 'async-sema'
 import mkdirp from 'mkdirp'
 
 const worker = require.resolve('./worker')
