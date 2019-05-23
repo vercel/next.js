@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    amp: true
+    autoExport: true
   }
 }

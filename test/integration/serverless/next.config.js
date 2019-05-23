@@ -5,7 +5,6 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60
   },
   experimental: {
-    amp: true
-  },
-  lambdas: true
+    autoExport: true
+  }
 }
