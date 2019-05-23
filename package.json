@@ -82,7 +82,7 @@
     "eslint": "5.16.0",
     "eslint-plugin-typescript": "0.14.0",
     "express": "4.17.0",
-    "fs-extra": "8.0.1",
+    "fs-extra": "7.0.1",
     "get-port": "5.0.0",
     "isomorphic-unfetch": "3.0.0",
     "jest-cli": "24.8.0",
