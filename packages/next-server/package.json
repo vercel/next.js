@@ -40,12 +40,12 @@
   "dependencies": {
     "amp-toolbox-optimizer": "0.5.3",
     "etag": "1.8.1",
-    "find-up": "3.0.0",
+    "find-up": "4.0.0",
     "fresh": "0.5.2",
     "path-to-regexp": "2.1.0",
-    "prop-types": "15.6.2",
+    "prop-types": "15.7.2",
     "react-is": "16.8.6",
-    "react-ssr-prepass": "1.0.2",
+    "react-ssr-prepass": "1.0.5",
     "send": "0.16.1",
     "url": "0.11.0"
   },
@@ -56,12 +56,12 @@
   "devDependencies": {
     "@taskr/clear": "1.1.0",
     "@taskr/watch": "1.1.0",
-    "@types/react": "16.8.10",
-    "@types/react-dom": "16.8.3",
+    "@types/react": "16.8.18",
+    "@types/react-dom": "16.8.4",
     "@types/react-is": "16.7.1",
     "@types/send": "0.14.4",
     "taskr": "1.1.0",
-    "typescript": "3.1.6"
+    "typescript": "3.4.5"
   },
   "engines": {
     "node": ">= 8.0.0"

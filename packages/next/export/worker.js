@@ -3,7 +3,7 @@ import { promisify } from 'util'
 import { extname, join, dirname, sep } from 'path'
 import { renderToHTML } from 'next-server/dist/server/render'
 import { writeFile, access } from 'fs'
-import Sema from 'async-sema'
+import { Sema } from 'async-sema'
 import AmpHtmlValidator from 'amphtml-validator'
 import { loadComponents } from 'next-server/dist/server/load-components'
 
@@ -47,7 +47,7 @@ process.on(
           setHeader: () => {},
           hasHeader: () => false,
           removeHeader: () => {},
-          getHeaderNames: () => ([])
+          getHeaderNames: () => []
         }
 
         const req = {
@@ -86,12 +86,21 @@ process.on(
         let renderMethod = renderToHTML
 
         if (serverless) {
-          renderMethod = require(join(distDir, 'serverless/pages', (page === '/' ? 'index' : page) + '.js')).renderReqToHTML
+          renderMethod = require(join(
+            distDir,
+            'serverless/pages',
+            (page === '/' ? 'index' : page) + '.js'
+          )).renderReqToHTML
           const result = await renderMethod(req, res, true)
           curRenderOpts = result.renderOpts
           html = result.html
         } else {
-          const components = await loadComponents(distDir, buildId, page, serverless)
+          const components = await loadComponents(
+            distDir,
+            buildId,
+            page,
+            serverless
+          )
 
           if (typeof components.Component === 'string') {
             html = components.Component
@@ -124,9 +133,7 @@ process.on(
         if (curRenderOpts.amphtml && query.amp) {
           await validateAmp(html, path)
         }
-        if (
-          (curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp
-        ) {
+        if ((curRenderOpts.amphtml && !query.amp) || curRenderOpts.hasAmp) {
           // we need to render a clean AMP version
           let ampHtmlFilename = `${ampPath}${sep}index.html`
           if (!subFolders) {
@@ -144,24 +151,22 @@ process.on(
               req.url += (req.url.includes('?') ? '&' : '?') + 'amp=1'
               ampHtml = (await renderMethod(req, res, true)).html
             } else {
-              ampHtml = await renderMethod(req, res, page, { ...query, amp: 1 }, curRenderOpts)
+              ampHtml = await renderMethod(
+                req,
+                res,
+                page,
+                { ...query, amp: 1 },
+                curRenderOpts
+              )
             }
 
             await validateAmp(ampHtml, page + '?amp=1')
             await mkdirp(ampBaseDir)
-            await writeFileP(
-              ampHtmlFilepath,
-              ampHtml,
-              'utf8'
-            )
+            await writeFileP(ampHtmlFilepath, ampHtml, 'utf8')
           }
         }
 
-        await writeFileP(
-          htmlFilepath,
-          html,
-          'utf8'
-        )
+        await writeFileP(htmlFilepath, html, 'utf8')
         process.send({ type: 'progress' })
         sema.release()
       }
