@@ -41,7 +41,9 @@ const nextServerlessLoader: loader.Loader = function () {
     import Error from '${absoluteErrorPath}';
     import App from '${absoluteAppPath}';
     import Component from '${absolutePagePath}';
-    async function renderReqToHTML(req, res) {
+    export default Component
+    export const _app = App
+    export async function renderReqToHTML(req, res, fromExport) {
       const options = {
         App,
         Document,
@@ -53,15 +55,18 @@ const nextServerlessLoader: loader.Loader = function () {
         ampBindInitData: ${ampBindInitData === true || ampBindInitData === 'true'}
       }
       const parsedUrl = parse(req.url, true)
+      const renderOpts = Object.assign(
+        {
+          Component,
+          dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
+        },
+        options,
+      )
       try {
         ${page === '/_error' ? `res.statusCode = 404` : ''}
-        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, Object.assign(
-          {
-            Component,
-            dataOnly: req.headers && (req.headers.accept || '').indexOf('application/amp.bind+json') !== -1,
-          },
-          options,
-        ))
+        const result = await renderToHTML(req, res, "${page}", parsedUrl.query, renderOpts)
+
+        if (fromExport) return { html: result, renderOpts }
         return result
       } catch (err) {
         if (err.code === 'ENOENT') {
