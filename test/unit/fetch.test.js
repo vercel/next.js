@@ -112,7 +112,7 @@ describe('fetch', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2)
   })
 
-  describe.only('retry', () => {
+  describe('retry', () => {
     const opts = {
       minTimeout: 10,
       retries: 3,
