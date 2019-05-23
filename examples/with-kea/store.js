@@ -10,6 +10,6 @@ const reduxDevTools =
     ? window.__REDUX_DEVTOOLS_EXTENSION__()
     : f => f
 
-export const initStore = (initialState) => {
+export const initStore = initialState => {
   return createStore(reducers, initialState, compose(reduxDevTools))
 }
