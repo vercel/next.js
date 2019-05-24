@@ -200,8 +200,14 @@ export async function loadGetInitialProps<
   // if page component doesn't have getInitialProps
   // set cache-control header to stale-while-revalidate
   if (ctx.Component && !ctx.Component.getInitialProps) {
-    if (res && res.setHeader) {
-      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate')
+    const customAppGetInitialProps = (Component as any).origGetInitialProps && (
+      (Component as any).origGetInitialProps !== Component.getInitialProps
+    )
+
+    if (!customAppGetInitialProps && res && res.setHeader) {
+      res.setHeader(
+        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
+      )
     }
   }
 

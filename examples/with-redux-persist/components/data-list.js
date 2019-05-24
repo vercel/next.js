@@ -1,4 +1,3 @@
-
 import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux'
@@ -14,22 +13,22 @@ class DataList extends Component {
     const self = this
 
     this.setState({ isDataLoading: true })
-    window.fetch('https://jsonplaceholder.typicode.com/users')
-      .then(
-        function (response) {
-          if (response.status !== 200) {
-            console.log('Looks like there was a problem. Status Code: ' +
-          response.status)
-            loadingExampleDataFailure()
-            self.setState({ isDataLoading: false })
-            return
-          }
-          response.json().then(function (data) {
-            loadExampleData(data)
-            self.setState({ isDataLoading: false })
-          })
+    window
+      .fetch('https://jsonplaceholder.typicode.com/users')
+      .then(function (response) {
+        if (response.status !== 200) {
+          console.log(
+            'Looks like there was a problem. Status Code: ' + response.status
+          )
+          loadingExampleDataFailure()
+          self.setState({ isDataLoading: false })
+          return
         }
-      )
+        response.json().then(function (data) {
+          loadExampleData(data)
+          self.setState({ isDataLoading: false })
+        })
+      })
       .catch(function (err) {
         console.log('Fetch Error :-S', err)
         loadingExampleDataFailure()
@@ -43,14 +42,14 @@ class DataList extends Component {
 
     return (
       <div>
-        <h1>
-          API DATA:
-        </h1>
+        <h1>API DATA:</h1>
         {exampleData && !isDataLoading ? (
           <pre>
             <code>{JSON.stringify(exampleData, null, 2)}</code>
           </pre>
-        ) : (<p style={{ color: 'blue' }}>Loading...</p>) }
+        ) : (
+          <p style={{ color: 'blue' }}>Loading...</p>
+        )}
         {error && <p style={{ color: 'red' }}>Error fetching data.</p>}
       </div>
     )

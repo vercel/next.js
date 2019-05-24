@@ -16,7 +16,10 @@ class MyApp extends App {
     return (
       <Container>
         <Provider store={reduxStore}>
-          <PersistGate loading={<Component {...pageProps} />} persistor={this.persistor}>
+          <PersistGate
+            loading={<Component {...pageProps} />}
+            persistor={this.persistor}
+          >
             <Component {...pageProps} />
           </PersistGate>
         </Provider>
