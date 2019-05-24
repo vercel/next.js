@@ -24,8 +24,8 @@ import * as envConfig from '../lib/runtime-config'
 import { loadComponents, interopDefault } from './load-components'
 import { getPagePath } from './require'
 import { NextApiRequest, NextApiResponse } from '../lib/utils'
+import { parse as parseCookies } from 'cookie'
 import {
-  parseCookies,
   parseQuery,
   sendJson,
   sendData,
@@ -268,10 +268,10 @@ export default class Server {
 
     try {
       // Parsing of cookies
-      req.cookies = parseCookies(req.headers)
+      req.cookies = parseCookies(req.headers.cookie || '')
       // Parsing query string
       req.query = parseQuery(req)
-      // Parsing of body
+      // // Parsing of body
       req.body = await parseBody(req)
       res.send = (statusCode, data) => sendData(res, statusCode, data)
       res.json = (statusCode, data) => sendJson(res, statusCode, data)

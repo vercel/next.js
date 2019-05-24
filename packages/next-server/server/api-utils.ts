@@ -1,8 +1,8 @@
-import { IncomingMessage, IncomingHttpHeaders } from 'http'
-import { parse as parseCookie } from 'cookie'
+import { IncomingMessage } from 'http'
 import { NextApiResponse, NextApiRequest } from '../lib/utils'
 import { Stream } from 'stream'
 import getRawBody from 'raw-body'
+import { URL } from 'url'
 
 /**
  * Parse incoming message like `json` or `urlencoded`
@@ -39,28 +39,15 @@ function parseJson(str: string) {
 }
 
 /**
- * Parse cookies from request header
- * @param cookie from headers
- */
-export function parseCookies({ cookie }: IncomingHttpHeaders) {
-  // If there is no cookie return empty object
-  if (!cookie) {
-    return {}
-  }
-
-  return parseCookie(cookie)
-}
-
-/**
  * Parsing query arguments from request `url` string
  * @param url of request
  * @returns Object with key name of query argument and its value
  */
 export function parseQuery({ url, headers }: IncomingMessage) {
   if (url) {
-    const params = new URL(`${headers.host}${url}`).searchParams
+      const params = new URL(`${headers.host}${url}`).searchParams
 
-    return reduceParams(params.entries())
+      return reduceParams(params.entries())
   } else {
     return {}
   }
@@ -157,7 +144,7 @@ function getCharset(contentType: string) {
  * Custom error class
  */
 export class ApiError extends Error {
-  public statusCode: number
+  readonly statusCode: number
 
   constructor(statusCode: number, message: string) {
     super(message)
