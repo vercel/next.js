@@ -31,12 +31,12 @@ function noRouter() {
 class ServerRouter implements BaseRouter {
   route: string
   pathname: string
-  query: string
+  query: ParsedUrlQuery
   asPath: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: any, as: string) {
+  constructor(pathname: string, query: ParsedUrlQuery, as: string) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
@@ -109,6 +109,7 @@ function render(
 }
 
 type RenderOpts = {
+  autoExport: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
@@ -221,6 +222,7 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
+    autoExport = false,
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
@@ -253,6 +255,18 @@ export async function renderToHTML(
       throw new Error(
         `The default export is not a React Component in page: "/_document"`,
       )
+    }
+
+    if (autoExport) {
+      const isStaticPage = typeof (Component as any).getInitialProps !== 'function'
+      const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
+
+      if (isStaticPage && defaultAppGetInitialProps) {
+        // remove query values except ones that will be set during export
+        query = {
+          amp: query.amp,
+        }
+      }
     }
   }
 
@@ -301,7 +315,7 @@ export async function renderToHTML(
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`,
       )
     }
   }
@@ -310,7 +324,7 @@ export async function renderToHTML(
 
   const ampMode = {
     enabled: false,
-    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
+    hasQuery: Boolean(query.amp),
   }
 
   if (ampBindInitData) {

@@ -1,11 +1,11 @@
 import { init } from '@rematch/core'
 import { counter, github } from './models'
 
-const initialState = {
+const exampleInitialState = {
   counter: 5
 }
 
-export const store = init({
+export const initializeStore = (initialState = exampleInitialState) => init({
   models: {
     counter,
     github

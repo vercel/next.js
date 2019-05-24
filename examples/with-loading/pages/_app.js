@@ -40,9 +40,7 @@ export default class MyApp extends App {
           <Link href='/forever'>
             <a style={linkStyle}>Forever</a>
           </Link>
-          <Link href='/non-existing'>
-            <a style={linkStyle}>Non Existing Page</a>
-          </Link>
+          <a href='/non-existing' style={linkStyle}>Non Existing Page</a>
         </div>
 
         <Component {...pageProps} />

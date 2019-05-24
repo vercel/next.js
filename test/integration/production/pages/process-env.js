@@ -7,6 +7,10 @@ if (!process.browser) {
   global.__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__ = true
 }
 
-export default () => (
+const ProcessEnv = () => (
   <div id='node-env'>{process.env.NODE_ENV}</div>
 )
+
+ProcessEnv.getInitialProps = () => ({})
+
+export default ProcessEnv

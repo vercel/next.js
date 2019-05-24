@@ -21,7 +21,8 @@ import {
   PAGES_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
-import { loadComponents } from './load-components'
+import { loadComponents, interopDefault } from './load-components'
+import { getPagePath } from './require';
 
 type NextConfig = any
 
@@ -47,6 +48,8 @@ export default class Server {
     generateEtags: boolean
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
+    autoExport: boolean,
+    dev?: boolean,
   }
   router: Router
 
@@ -71,18 +74,13 @@ export default class Server {
       publicRuntimeConfig,
       assetPrefix,
       generateEtags,
-      target,
     } = this.nextConfig
-
-    if (process.env.NODE_ENV === 'production' && target !== 'server')
-      throw new Error(
-        'Cannot start server when target is not server. https://err.sh/zeit/next.js/next-start-serverless',
-      )
 
     this.buildId = this.readBuildId()
     this.renderOpts = {
       ampBindInitData: this.nextConfig.experimental.ampBindInitData,
       poweredByHeader: this.nextConfig.poweredByHeader,
+      autoExport: this.nextConfig.experimental.autoExport,
       staticMarkup,
       buildId: this.buildId,
       generateEtags,
@@ -199,6 +197,13 @@ export default class Server {
           await this.serveStatic(req, res, p, parsedUrl)
         },
       },
+      {
+        match: route('/api/:path*'),
+        fn: async (req, res, params, parsedUrl) => {
+          const { pathname } = parsedUrl
+          await this.handleApiRequest(req, res, pathname!)
+        },
+      },
     ]
 
     if (fs.existsSync(this.publicDir)) {
@@ -224,6 +229,32 @@ export default class Server {
     }
 
     return routes
+  }
+
+  /**
+   * Resolves `API` request, in development builds on demand
+   * @param req http request
+   * @param res http response
+   * @param pathname path of request
+   */
+  private async handleApiRequest(req: IncomingMessage, res: ServerResponse, pathname: string) {
+    const resolverFunction = await this.resolveApiRequest(pathname)
+    if (resolverFunction === null) {
+      res.statusCode = 404
+      res.end('Not Found')
+      return
+    }
+
+    const resolver = interopDefault(require(resolverFunction))
+    resolver(req, res)
+  }
+
+  /**
+   * Resolves path to resolver function
+   * @param pathname path of request
+   */
+  private resolveApiRequest(pathname: string) {
+    return getPagePath(pathname, this.distDir, this.nextConfig.target === 'serverless')
   }
 
   private generatePublicRoutes(): Route[] {
@@ -319,7 +350,25 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const result = await loadComponents(this.distDir, this.buildId, pathname)
+    const serverless = !this.renderOpts.dev && this.nextConfig.target === 'serverless'
+    // try serving a static AMP version first
+    if (query.amp) {
+      try {
+        const result = await loadComponents(this.distDir, this.buildId, (pathname === '/' ? '/index' : pathname) + '.amp', serverless)
+        if (typeof result.Component === 'string') return result.Component
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err
+      }
+    }
+    const result = await loadComponents(this.distDir, this.buildId, pathname, serverless)
+    // handle static page
+    if (typeof result.Component === 'string') return result.Component
+    // handle serverless
+    if (typeof result.Component === 'object' &&
+      typeof result.Component.renderReqToHTML === 'function'
+    ) {
+      return result.Component.renderReqToHTML(req, res)
+    }
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 

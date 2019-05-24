@@ -1,5 +1,5 @@
 import { format, UrlObject, URLFormatOptions } from 'url'
-import { ServerResponse, IncomingMessage } from 'http';
+import { ServerResponse, IncomingMessage } from 'http'
 import { ComponentType } from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { ManifestItem } from '../server/get-dynamic-import-bundles'
@@ -8,23 +8,44 @@ import { BaseRouter } from './router/router'
 /**
  * Types used by both next and next-server
  */
-export type NextComponentType<C extends BaseContext = NextPageContext, IP = {}, P = {}> = ComponentType<P> & {
+export type NextComponentType<
+  C extends BaseContext = NextPageContext,
+  IP = {},
+  P = {}
+> = ComponentType<P> & {
   getInitialProps?(context: C): Promise<IP>,
 }
 
-export type DocumentType = NextComponentType<DocumentContext, DocumentInitialProps, DocumentProps>
+export type DocumentType = NextComponentType<
+  DocumentContext,
+  DocumentInitialProps,
+  DocumentProps
+>
 
-export type AppType = NextComponentType<AppContextType, AppInitialProps, AppPropsType>
+export type AppType = NextComponentType<
+  AppContextType,
+  AppInitialProps,
+  AppPropsType
+>
 
 export type Enhancer<C> = (Component: C) => C
 
 export type ComponentsEnhancer =
-  | { enhanceApp?: Enhancer<AppType>; enhanceComponent?: Enhancer<NextComponentType> }
+  | {
+      enhanceApp?: Enhancer<AppType>
+      enhanceComponent?: Enhancer<NextComponentType>,
+    }
   | Enhancer<NextComponentType>
 
-export type RenderPageResult = { html: string, head?: Array<JSX.Element | null>, dataOnly?: true }
+export type RenderPageResult = {
+  html: string
+  head?: Array<JSX.Element | null>
+  dataOnly?: true,
+}
 
-export type RenderPage = (options?: ComponentsEnhancer) => RenderPageResult | Promise<RenderPageResult>
+export type RenderPage = (
+  options?: ComponentsEnhancer,
+) => RenderPageResult | Promise<RenderPageResult>
 
 export type BaseContext = {
   res?: ServerResponse
@@ -45,13 +66,34 @@ export type NEXT_DATA = {
   err?: Error & { statusCode?: number },
 }
 
+/**
+ * `Next` context
+ */
 // tslint:disable-next-line interface-name
 export interface NextPageContext {
+  /**
+   * Error object if encountered during rendering
+   */
   err?: Error & { statusCode?: number } | null
+  /**
+   * `HTTP` request object.
+   */
   req?: IncomingMessage
+  /**
+   * `HTTP` response object.
+   */
   res?: ServerResponse
+  /**
+   * Path section of `URL`.
+   */
   pathname: string
+  /**
+   * Query string section of `URL` parsed as an object.
+   */
   query: ParsedUrlQuery
+  /**
+   * `String` of the actual path including query.
+   */
   asPath?: string
 }
 
@@ -65,7 +107,10 @@ export type AppInitialProps = {
   pageProps: any,
 }
 
-export type AppPropsType<R extends BaseRouter = BaseRouter, P = {}> = AppInitialProps & {
+export type AppPropsType<
+  R extends BaseRouter = BaseRouter,
+  P = {}
+> = AppInitialProps & {
   Component: NextComponentType<NextPageContext, any, P>
   router: R,
 }
@@ -117,17 +162,25 @@ export function getURL() {
 }
 
 export function getDisplayName(Component: ComponentType<any>) {
-  return typeof Component === 'string' ? Component : (Component.displayName || Component.name || 'Unknown')
+  return typeof Component === 'string'
+    ? Component
+    : Component.displayName || Component.name || 'Unknown'
 }
 
 export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
-export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}>(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP | null> {
+export async function loadGetInitialProps<
+  C extends BaseContext,
+  IP = {},
+  P = {}
+>(Component: NextComponentType<C, IP, P>, ctx: C): Promise<IP | null> {
   if (process.env.NODE_ENV !== 'production') {
     if (Component.prototype && Component.prototype.getInitialProps) {
-      const message = `"${getDisplayName(Component)}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
+      const message = `"${getDisplayName(
+        Component,
+      )}.getInitialProps()" is defined as an instance method - visit https://err.sh/zeit/next.js/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
   }
@@ -148,28 +201,46 @@ export async function loadGetInitialProps<C extends BaseContext, IP = {}, P = {}
   // set cache-control header to stale-while-revalidate
   if (ctx.Component && !ctx.Component.getInitialProps) {
     if (res && res.setHeader) {
-      res.setHeader(
-        'Cache-Control', 's-maxage=86400, stale-while-revalidate',
-      )
+      res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate')
     }
   }
 
   if (!props) {
-    const message = `"${getDisplayName(Component)}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
+    const message = `"${getDisplayName(
+      Component,
+    )}.getInitialProps()" should resolve to an object. But found "${props}" instead.`
     throw new Error(message)
   }
 
   return props
 }
 
-export const urlObjectKeys = ['auth', 'hash', 'host', 'hostname', 'href', 'path', 'pathname', 'port', 'protocol', 'query', 'search', 'slashes']
+export const urlObjectKeys = [
+  'auth',
+  'hash',
+  'host',
+  'hostname',
+  'href',
+  'path',
+  'pathname',
+  'port',
+  'protocol',
+  'query',
+  'search',
+  'slashes',
+]
 
-export function formatWithValidation(url: UrlObject, options?: URLFormatOptions) {
+export function formatWithValidation(
+  url: UrlObject,
+  options?: URLFormatOptions,
+) {
   if (process.env.NODE_ENV === 'development') {
     if (url !== null && typeof url === 'object') {
       Object.keys(url).forEach((key) => {
         if (urlObjectKeys.indexOf(key) === -1) {
-          console.warn(`Unknown key passed via urlObject into url.format: ${key}`)
+          console.warn(
+            `Unknown key passed via urlObject into url.format: ${key}`,
+          )
         }
       })
     }

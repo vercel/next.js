@@ -1,7 +1,7 @@
 /* eslint-env jest */
 /* global jasmine, browserName */
 import webdriver from 'next-webdriver'
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import {
   nextServer,
@@ -18,6 +18,7 @@ import security from './security'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST, PAGES_MANIFEST } from 'next-server/constants'
 import cheerio from 'cheerio'
 const appDir = join(__dirname, '../')
+let serverDir
 let appPort
 let server
 let app
@@ -37,6 +38,9 @@ describe('Production Usage', () => {
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
+
+    const buildId = readFileSync(join(appDir, '.next/BUILD_ID'), 'utf8')
+    serverDir = join(appDir, '.next/server/static/', buildId, 'pages')
   })
   afterAll(() => stopApp(server))
 
@@ -62,13 +66,6 @@ describe('Production Usage', () => {
       expect(header).toBe('Next.js')
     })
 
-    it('should set correct cache-control header when no GIP', async () => {
-      const url = `http://localhost:${appPort}/`
-      const header = (await fetch(url)).headers.get('Cache-Control')
-
-      expect(header).toBe('s-maxage=86400, stale-while-revalidate')
-    })
-
     it('should render 404 for routes that do not exist', async () => {
       const url = `http://localhost:${appPort}/abcdefghijklmno`
       const res = await fetch(url)
@@ -89,15 +86,6 @@ describe('Production Usage', () => {
       const url = `http://localhost:${appPort}/static/.env`
       const res = await fetch(url)
       expect(res.status).toBe(404)
-    })
-
-    it('should render 501 if the HTTP method is not GET or HEAD', async () => {
-      const url = `http://localhost:${appPort}/_next/abcdef`
-      const methods = ['POST', 'PUT', 'DELETE']
-      for (const method of methods) {
-        const res = await fetch(url, { method })
-        expect(res.status).toBe(501)
-      }
     })
 
     it('should set Content-Length header', async () => {
@@ -151,6 +139,22 @@ describe('Production Usage', () => {
         const html = await renderViaHTTP(appPort, url)
         expect(html).toMatch(/404/)
       }
+    })
+  })
+
+  describe('API routes', () => {
+    it('should work with pages/api/index.js', async () => {
+      const url = `http://localhost:${appPort}/api`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API index works')
+    })
+
+    it('should work with pages/api/hello.js', async () => {
+      const url = `http://localhost:${appPort}/api/hello`
+      const res = await fetch(url)
+      const body = await res.text()
+      expect(body).toEqual('API hello works')
     })
   })
 
@@ -406,6 +410,22 @@ describe('Production Usage', () => {
     const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
     expect(html).toMatch(/400/)
     expect(html).toMatch(/Bad Request/)
+  })
+
+  it('should replace static pages with HTML files', async () => {
+    const staticFiles = ['about', 'another', 'counter', 'dynamic', 'prefetch']
+    for (const file of staticFiles) {
+      expect(existsSync(join(serverDir, file + '.html'))).toBe(true)
+      expect(existsSync(join(serverDir, file + '.js'))).toBe(false)
+    }
+  })
+
+  it('should not replace non-static pages with HTML files', async () => {
+    const nonStaticFiles = ['api', 'external-and-back', 'finish-response']
+    for (const file of nonStaticFiles) {
+      expect(existsSync(join(serverDir, file + '.js'))).toBe(true)
+      expect(existsSync(join(serverDir, file + '.html'))).toBe(false)
+    }
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))

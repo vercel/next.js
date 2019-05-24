@@ -67,6 +67,7 @@ export default async function getBaseWebpackConfig(
         isServer,
         distDir,
         cwd: dir,
+        cache: !selectivePageBuilding,
         asyncToPromises: config.experimental.asyncToPromises,
       },
     },
@@ -500,7 +501,7 @@ export default async function getBaseWebpackConfig(
       target === 'serverless' &&
         (isServer || selectivePageBuilding) &&
         new ServerlessPlugin(buildId, { isServer }),
-      target !== 'serverless' && isServer && new PagesManifestPlugin(),
+      isServer && new PagesManifestPlugin(target === 'serverless'),
       target !== 'serverless' &&
         isServer &&
         new NextJsSSRModuleCachePlugin({ outputPath }),
