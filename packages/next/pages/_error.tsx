@@ -13,6 +13,9 @@ export type ErrorProps = {
   statusCode: number,
 }
 
+/**
+ * `Error` component used for handling errors.
+ */
 export default class Error<P = {}> extends React.Component<P & ErrorProps> {
   static displayName = 'ErrorPage'
 
