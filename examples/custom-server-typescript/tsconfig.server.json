@@ -1,11 +1,11 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": false,
     "module": "commonjs",
+    "outDir": "dist",
     "target": "es2017",
-    "lib": ["es2017"]
+    "isolatedModules": false,
+    "noEmit": false
   },
-  "include": ["server/**/*.ts"],
-  "exclude": [".next"]
+  "include": ["server/**/*.ts"]
 }

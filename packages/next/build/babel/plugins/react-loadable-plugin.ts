@@ -81,6 +81,8 @@ export default function ({ types: t }: {types: typeof BabelTypes}): PluginObj {
               callExpression.node.arguments.push(t.objectExpression([]))
             }
             // This is needed as the code is modified above
+            // TODO: remove ignore statement
+            // @ts-ignore
             args = callExpression.get('arguments')
             loader = args[0]
             options = args[1]
