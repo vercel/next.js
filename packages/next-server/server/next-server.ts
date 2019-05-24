@@ -51,6 +51,7 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
     autoExport: boolean,
+    dev?: boolean,
   }
   buildManifest: string
   router: Router
@@ -448,7 +449,7 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const serverless = this.nextConfig.target === 'serverless'
+    const serverless = !this.renderOpts.dev && this.nextConfig.target === 'serverless'
     // try serving a static AMP version first
     if (query.amp) {
       try {
