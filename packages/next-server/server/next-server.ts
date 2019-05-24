@@ -51,7 +51,6 @@ export default class Server {
     runtimeConfig?: { [key: string]: any }
     assetPrefix?: string,
     autoExport: boolean,
-    dev?: boolean,
   }
   buildManifest: string
   router: Router
