@@ -4,7 +4,7 @@ import React from 'react'
 import { renderToString, renderToStaticMarkup } from 'react-dom/server'
 import { BaseRouter } from '../lib/router/router'
 import mitt, { MittEmitter } from '../lib/mitt';
-import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType } from '../lib/utils'
+import { loadGetInitialProps, isResSent, getDisplayName, ComponentsEnhancer, RenderPage, DocumentInitialProps, NextComponentType, DocumentType, AppType, NextPageContext } from '../lib/utils'
 import Head, { defaultHead } from '../lib/head'
 // @ts-ignore types will be added later as it's an internal module
 import Loadable from '../lib/loadable'
@@ -31,12 +31,12 @@ function noRouter() {
 class ServerRouter implements BaseRouter {
   route: string
   pathname: string
-  query: string
+  query: ParsedUrlQuery
   asPath: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
-  constructor(pathname: string, query: any, as: string) {
+  constructor(pathname: string, query: ParsedUrlQuery, as: string) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
     this.query = query
@@ -109,6 +109,7 @@ function render(
 }
 
 type RenderOpts = {
+  autoExport: boolean
   ampBindInitData: boolean
   staticMarkup: boolean
   buildId: string
@@ -128,6 +129,7 @@ type RenderOpts = {
   reactLoadableManifest: ReactLoadableManifest
   Component: React.ComponentType
   Document: DocumentType
+  DocumentMiddleware: (ctx: NextPageContext) => void
   App: AppType
   ErrorDebug?: React.ComponentType<{ error: Error }>,
   ampValidator?: (html: string, pathname: string) => Promise<void>,
@@ -220,11 +222,13 @@ export async function renderToHTML(
   const {
     err,
     dev = false,
+    autoExport = false,
     ampBindInitData = false,
     staticMarkup = false,
     ampPath = '',
     App,
     Document,
+    DocumentMiddleware,
     Component,
     buildManifest,
     reactLoadableManifest,
@@ -252,6 +256,18 @@ export async function renderToHTML(
         `The default export is not a React Component in page: "/_document"`,
       )
     }
+
+    if (autoExport) {
+      const isStaticPage = typeof (Component as any).getInitialProps !== 'function'
+      const defaultAppGetInitialProps = App.getInitialProps === (App as any).origGetInitialProps
+
+      if (isStaticPage && defaultAppGetInitialProps) {
+        // remove query values except ones that will be set during export
+        query = {
+          amp: query.amp,
+        }
+      }
+    }
   }
 
   // @ts-ignore url will always be set
@@ -259,6 +275,10 @@ export async function renderToHTML(
   const ctx = { err, req, res, pathname, query, asPath }
   const router = new ServerRouter(pathname, query, asPath)
   let props: any
+
+  if (typeof DocumentMiddleware === 'function') {
+    await DocumentMiddleware(ctx)
+  }
 
   try {
     props = await loadGetInitialProps(App, { Component, router, ctx })
@@ -295,7 +315,7 @@ export async function renderToHTML(
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props.md`,
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/zeit/next.js/cant-override-next-props`,
       )
     }
   }
@@ -304,7 +324,7 @@ export async function renderToHTML(
 
   const ampMode = {
     enabled: false,
-    hasQuery: Boolean(query.amp && /^(y|yes|true|1)/i.test(query.amp.toString())),
+    hasQuery: Boolean(query.amp),
   }
 
   if (ampBindInitData) {
