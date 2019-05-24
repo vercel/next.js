@@ -1,4 +1,4 @@
-import { parse } from 'url'
+import { URL } from 'url'
 import { Headers } from 'node-fetch'
 import { getAgent, NodeFetch } from './utils'
 
@@ -19,6 +19,7 @@ export default function setupFollowRedirect(fetch: NodeFetch) {
     }
 
     const redirectOpts = { ...opts, headers: new Headers(opts.headers) }
+    const locationUrl = new URL(location)
 
     // per fetch spec, for POST request with 301/302 response, or any request with 303 response,
     // use GET when following redirect
@@ -31,7 +32,7 @@ export default function setupFollowRedirect(fetch: NodeFetch) {
       redirectOpts.headers.delete('content-length')
     }
 
-    redirectOpts.headers.set('Host', parse(location).host || '')
+    redirectOpts.headers.set('Host', locationUrl.host || '')
     redirectOpts.agent = getAgent(location)
 
     return followRedirect(location, redirectOpts)
