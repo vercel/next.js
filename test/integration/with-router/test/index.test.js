@@ -84,7 +84,7 @@ describe('withRouter', () => {
   })
 })
 
-describe('withRouter SSR', async () => {
+describe('withRouter SSR', () => {
   let server
   let port
 
