@@ -26,7 +26,7 @@ import {
 } from './load-components'
 import { renderToHTML } from './render'
 import { getPagePath } from './require'
-import Router, { route, Route } from './router'
+import Router, { route, Route, RouteMatch } from './router'
 import { sendHTML } from './send-html'
 import { serveStatic } from './serve-static'
 import { isBlockedPage, isInternalUrl } from './utils'
@@ -60,6 +60,7 @@ export default class Server {
     dev?: boolean,
   }
   router: Router
+  private dynamicRoutes?: Array<{ page: string; match: RouteMatch }>
 
   public constructor({
     dir = '.',
@@ -220,7 +221,7 @@ export default class Server {
     }
 
     if (this.nextConfig.useFileSystemPublicRoutes) {
-      routes.push(...this.generateDynamicRoutes())
+      this.dynamicRoutes = this.getDynamicRoutes()
 
       // It's very important to keep this route's param optional.
       // (but it should support as many params as needed, separated by '/')
@@ -299,28 +300,15 @@ export default class Server {
     return routes
   }
 
-  private generateDynamicRoutes(): Route[] {
-    const routes: Route[] = []
-
+  private getDynamicRoutes() {
     const manifest = require(this.buildManifest)
     const dynamicRoutedPages = Object.keys(manifest.pages).filter((p) =>
       p.includes('/$'),
     )
-
-    for (const page of dynamicRoutedPages) {
-      routes.push({
-        match: getRouteMatch(page),
-        fn: async (req, res, params, parsedUrl) => {
-          const { pathname, query } = parsedUrl
-          if (!pathname) {
-            throw new Error('pathname is undefined')
-          }
-          await this.render(req, res, page, { ...query, ...params }, parsedUrl)
-        },
-      })
-    }
-
-    return routes
+    return dynamicRoutedPages.map((page) => ({
+      page,
+      match: getRouteMatch(page),
+    }))
   }
 
   private async run(
@@ -441,7 +429,7 @@ export default class Server {
     return renderToHTML(req, res, pathname, query, { ...result, ...opts })
   }
 
-  public async renderToHTML(
+  public renderToHTML(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
@@ -456,28 +444,55 @@ export default class Server {
       dataOnly?: boolean,
     } = {},
   ): Promise<string | null> {
-    try {
-      // To make sure the try/catch is executed
-      const result = await this.findPageComponents(pathname, query)
-      const html = await this.renderToHTMLWithComponents(
-        req,
-        res,
-        pathname,
-        query,
-        result,
-        { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+    return this.findPageComponents(pathname, query)
+      .then(
+        (result) => {
+          return this.renderToHTMLWithComponents(
+            req,
+            res,
+            pathname,
+            query,
+            result,
+            { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+          )
+        },
+        (err) => {
+          if (err.code !== 'ENOENT' || !this.dynamicRoutes) {
+            return Promise.reject(err)
+          }
+
+          for (const dynamicRoute of this.dynamicRoutes) {
+            const params = dynamicRoute.match(pathname)
+            if (!params) {
+              continue
+            }
+
+            return this.findPageComponents(dynamicRoute.page, query).then(
+              (result) =>
+                this.renderToHTMLWithComponents(
+                  req,
+                  res,
+                  dynamicRoute.page,
+                  { ...query, ...params },
+                  result,
+                  { ...this.renderOpts, amphtml, hasAmp, dataOnly },
+                ),
+            )
+          }
+
+          return Promise.reject(err)
+        },
       )
-      return html
-    } catch (err) {
-      if (err && err.code === 'ENOENT') {
-        res.statusCode = 404
-        return this.renderErrorToHTML(null, req, res, pathname, query)
-      } else {
-        this.logError(err)
-        res.statusCode = 500
-        return this.renderErrorToHTML(err, req, res, pathname, query)
-      }
-    }
+      .catch((err) => {
+        if (err && err.code === 'ENOENT') {
+          res.statusCode = 404
+          return this.renderErrorToHTML(null, req, res, pathname, query)
+        } else {
+          this.logError(err)
+          res.statusCode = 500
+          return this.renderErrorToHTML(err, req, res, pathname, query)
+        }
+      })
   }
 
   public async renderError(
