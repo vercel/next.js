@@ -21,7 +21,11 @@ import {
   PAGES_MANIFEST,
 } from '../lib/constants'
 import * as envConfig from '../lib/runtime-config'
-import { loadComponents, interopDefault } from './load-components'
+import {
+  loadComponents,
+  interopDefault,
+  LoadComponentsReturnType,
+} from './load-components'
 import { getPagePath } from './require'
 
 type NextConfig = any
@@ -387,10 +391,9 @@ export default class Server {
     res: ServerResponse,
     pathname: string,
     query: ParsedUrlQuery = {},
+    result: LoadComponentsReturnType,
     opts: any,
   ) {
-    const result = await this.findPageComponents(pathname, query)
-
     // handle static page
     if (typeof result.Component === 'string') {
       return result.Component
@@ -424,11 +427,13 @@ export default class Server {
   ): Promise<string | null> {
     try {
       // To make sure the try/catch is executed
+      const result = await this.findPageComponents(pathname, query)
       const html = await this.renderToHTMLWithComponents(
         req,
         res,
         pathname,
         query,
+        result,
         { ...this.renderOpts, amphtml, hasAmp, dataOnly },
       )
       return html
@@ -469,7 +474,8 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {},
   ) {
-    return this.renderToHTMLWithComponents(req, res, '/_error', query, {
+    const result = await this.findPageComponents('/_error', query)
+    return this.renderToHTMLWithComponents(req, res, '/_error', query, result, {
       ...this.renderOpts,
       err,
     })
