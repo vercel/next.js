@@ -1,14 +1,20 @@
+import chalk from 'chalk'
 import crypto from 'crypto'
 import findUp from 'find-up'
 import fs from 'fs'
+import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
+import stripAnsi from 'strip-ansi'
 import { promisify } from 'util'
+
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
+import { getPageChunks } from './webpack/plugins/chunk-graph-plugin'
 
 const fsStat = promisify(fs.stat)
 const fsExists = promisify(fs.exists)
 const fsReadFile = promisify(fs.readFile)
+const nextEnvConfig = require('next-server/config')
 
 export function collectPages(
   directory: string,
@@ -20,78 +26,72 @@ export function collectPages(
   )
 }
 
-interface ChunksItem {
-  external: Set<string>,
-  internal: Set<string>
+export interface PageInfo {
+  isAmp?: boolean
+  size: number
+  chunks?: ReturnType<typeof getPageChunks>
+  static?: boolean
+  serverBundle: string
 }
 
-interface PageInfo {
-  ampOnly: boolean,
-  serverSize: number,
-  clientSize: number,
-  chunks: ChunksItem
-}
-
-export function printTreeView(list: string[], pageInfos: Map<string, PageInfo>) {
-  /*
-    red for >250kb
-    yellow for >100kb
-    green for <100kb
-  */
-  const getSizeColor = (size: number): string => {
-    if (size < 100 * 1000) return '\x1b[32m'
-    if (size < 250 * 1000) return '\x1b[33m'
-    return '\x1b[31m'
+export function printTreeView(
+  list: string[],
+  pageInfos: Map<string, PageInfo>
+) {
+  const getPrettySize = (_size: number): string => {
+    const size = prettyBytes(_size)
+    // green for 0-100kb
+    if (_size < 100 * 1000) return chalk.green(size)
+    // yellow for 100-250kb
+    if (_size < 250 * 1000) return chalk.yellow(size)
+    // red for >= 250kb
+    return chalk.red.bold(size)
   }
 
+  const messages: string[][] = [
+    ['Page', 'Size', 'Files', 'Packages'].map(entry => chalk.underline(entry)),
+  ]
+
   list
-    .sort((a, b) => (a > b ? 1 : -1))
+    .sort((a, b) => a.localeCompare(b))
     .forEach((item, i) => {
-      const info = pageInfos.get(item)
-      let numExternal
-      let numInternal
-      let serverSize
-      let clientSize
-      let isAmp
-
-      if (info) {
-        isAmp = info.ampOnly
-        serverSize = info.serverSize
-        clientSize = info.clientSize
-
-        if (info.chunks) {
-          const { chunks } = info
-          numExternal = chunks.external.size
-          numInternal = chunks.internal.size
-        }
-      }
-
-      const corner =
+      const symbol =
         i === 0
           ? list.length === 1
             ? '─'
             : '┌'
+          : i === list.length - 1
+          ? '└'
           : '├'
 
-      console.log(` \x1b[90m${corner}\x1b[39m ${item}${isAmp ? ' (AMP)' : ''}`)
+      const pageInfo = pageInfos.get(item)
 
-      if (typeof numExternal === 'number') {
-        console.log(` \x1b[90m| \x1b[39mPackages: ${numExternal} Local modules: ${numInternal}`);
-      }
-      let sizes = ' \x1b[90m|'
-
-      if (typeof serverSize === 'number') {
-        sizes += getSizeColor(serverSize) +
-          ` Server size: ${prettyBytes(serverSize)}`
-      }
-      if (typeof clientSize === 'number') {
-        sizes += getSizeColor(clientSize) +
-          ` Client size: ${prettyBytes(clientSize)}`
-      }
-
-      if (sizes) console.log(sizes)
-      console.log(` \x1b[90m${i === list.length - 1 ? '└' : '|'}`);
+      messages.push([
+        `${symbol} ${item}`,
+        ...(pageInfo
+          ? [
+              pageInfo.isAmp
+                ? chalk.cyan('AMP')
+                : pageInfo.size >= 0
+                ? getPrettySize(pageInfo.size)
+                : 'N/A',
+              pageInfo.chunks
+                ? pageInfo.chunks.internal.size.toString()
+                : 'N/A',
+              pageInfo.chunks
+                ? pageInfo.chunks.external.size.toString()
+                : 'N/A',
+            ]
+          : ['', '', '']),
+      ])
     })
+
+  console.log(
+    textTable(messages, {
+      align: ['l', 'l', 'r', 'r'],
+      stringLength: str => stripAnsi(str).length,
+    })
+  )
 
   console.log()
 }
@@ -209,35 +209,57 @@ export async function getCacheIdentifier({
     .digest('hex')
 }
 
-export async function getPageInfo(
+export async function getPageSizeInKb(
   page: string,
   distPath: string,
-  buildId: string,
-  dev: boolean,
-  serverless?: boolean,
-) {
-  const info: any = {}
-  const staticPath = dev ? 'development' : buildId
+  buildId: string
+): Promise<number> {
   const clientBundle = path.join(
-    distPath, `static/${staticPath}/pages/`, `${page}.js`
+    distPath,
+    `static/${buildId}/pages/`,
+    `${page}.js`
   )
-  const serverPath = serverless
-    ? path.join(distPath, 'serverless/pages')
-    : path.join(distPath, 'server/static', staticPath, 'pages')
+  try {
+    return (await fsStat(clientBundle)).size
+  } catch (_) {}
+  return -1
+}
 
-  const serverBundle = path.join(serverPath, `${page}.js`)
-  info.clientBundle = clientBundle
-
-  if (!dev) {
-    try {
-      info.serverSize = (await fsStat(serverBundle)).size
-    } catch (_) {}
-    try {
-      info.clientSize = (await fsStat(clientBundle)).size
-    } catch (_) {}
+export function isPageStatic(
+  serverBundle: string,
+  runtimeEnvConfig: any,
+): boolean {
+  try {
+    nextEnvConfig.setConfig(runtimeEnvConfig)
+    const Comp = require(serverBundle).default
+    if (!Comp) {
+      const pageStartIdx = serverBundle.indexOf('pages/') + 5
+      console.log(
+        'not exporting invalid page',
+        serverBundle.substr(pageStartIdx),
+        '(no default export)'
+      )
+      return false
+    }
+    return typeof Comp.getInitialProps !== 'function'
+  } catch (err) {
+    if (err.code === 'MODULE_NOT_FOUND') return false
+    throw err
   }
+}
 
-  if (page.match(/(_app|_error|_document)/)) return info
+export function hasCustomAppGetInitialProps(
+  _appBundle: string,
+  runtimeEnvConfig: any,
+): boolean {
+  nextEnvConfig.setConfig(runtimeEnvConfig)
+  let mod = require(_appBundle)
 
-  return info
+  if (_appBundle.endsWith('_app.js')) {
+    mod = mod.default
+  } else {
+    // since we don't output _app in serverless mode get it from a page
+    mod = mod._app
+  }
+  return mod.getInitialProps !== mod.origGetInitialProps
 }

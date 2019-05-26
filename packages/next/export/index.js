@@ -26,7 +26,7 @@ export default async function (dir, options, configuration) {
   const distDir = join(dir, nextConfig.distDir)
   const subFolders = nextConfig.experimental.exportTrailingSlash
 
-  if (nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
+  if (!options.buildExport && nextConfig.target !== 'server') throw new Error('Cannot export when target is not server. https://err.sh/zeit/next.js/next-export-serverless')
 
   log(`> using build directory: ${distDir}`)
 
@@ -35,9 +35,9 @@ export default async function (dir, options, configuration) {
   }
 
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
-  const pagesManifest = require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
+  const pagesManifest = !options.pages && require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST))
 
-  const pages = Object.keys(pagesManifest)
+  const pages = options.pages || Object.keys(pagesManifest)
   const defaultPathMap = {}
 
   for (const page of pages) {
@@ -141,6 +141,7 @@ export default async function (dir, options, configuration) {
       }
     )
   }
+  const workers = new Set()
 
   await Promise.all(
     chunks.map(
@@ -149,6 +150,7 @@ export default async function (dir, options, configuration) {
           const worker = fork(require.resolve('./worker'), [], {
             env: process.env
           })
+          workers.add(worker)
           worker.send({
             distDir,
             buildId,
@@ -158,7 +160,8 @@ export default async function (dir, options, configuration) {
             renderOpts,
             serverRuntimeConfig,
             concurrency,
-            subFolders
+            subFolders,
+            serverless: nextConfig.target === 'serverless'
           })
           worker.on('message', ({ type, payload }) => {
             if (type === 'progress' && progress) {
@@ -175,6 +178,8 @@ export default async function (dir, options, configuration) {
         })
     )
   )
+
+  workers.forEach(worker => worker.kill())
 
   if (Object.keys(ampValidations).length) {
     console.log(formatAmpMessages(ampValidations))
