@@ -355,6 +355,30 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
+  private async findPageComponents(pathname: string, query: ParsedUrlQuery = {}) {
+    const serverless =
+      !this.renderOpts.dev && this.nextConfig.target === 'serverless'
+    // try serving a static AMP version first
+    if (query.amp) {
+      try {
+        return await loadComponents(
+          this.distDir,
+          this.buildId,
+          (pathname === '/' ? '/index' : pathname) + '.amp',
+          serverless,
+        )
+      } catch (err) {
+        if (err.code !== 'ENOENT') throw err
+      }
+    }
+    return await loadComponents(
+      this.distDir,
+      this.buildId,
+      pathname,
+      serverless,
+    )
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
@@ -362,28 +386,7 @@ export default class Server {
     query: ParsedUrlQuery = {},
     opts: any,
   ) {
-    const serverless =
-      !this.renderOpts.dev && this.nextConfig.target === 'serverless'
-    // try serving a static AMP version first
-    if (query.amp) {
-      try {
-        const result = await loadComponents(
-          this.distDir,
-          this.buildId,
-          (pathname === '/' ? '/index' : pathname) + '.amp',
-          serverless,
-        )
-        if (typeof result.Component === 'string') return result.Component
-      } catch (err) {
-        if (err.code !== 'ENOENT') throw err
-      }
-    }
-    const result = await loadComponents(
-      this.distDir,
-      this.buildId,
-      pathname,
-      serverless,
-    )
+    const result = await this.findPageComponents(pathname, query)
     // handle static page
     if (typeof result.Component === 'string') return result.Component
     // handle serverless
