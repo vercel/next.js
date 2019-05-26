@@ -80,8 +80,7 @@ export default function connect (options) {
     })
   }
 
-  const eventSourceWrapper = getEventSourceWrapper(options)
-  eventSourceWrapper.addMessageListener((event) => {
+  getEventSourceWrapper(options).addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -96,9 +95,6 @@ export default function connect (options) {
   return {
     subscribeToHmrEvent (handler) {
       customHmrEventHandler = handler
-    },
-    addMessageListenerToEventSourceWrapper (fn) {
-      eventSourceWrapper.addMessageListener(fn)
     },
     reportRuntimeError (err) {
       ErrorOverlay.reportRuntimeError(err)

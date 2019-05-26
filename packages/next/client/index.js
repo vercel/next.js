@@ -76,11 +76,11 @@ export const emitter = mitt()
 export default async ({
   webpackHMR: passedWebpackHMR
 } = {}) => {
-  // This makes sure this specific line is removed in production
+  // This makes sure these specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = passedWebpackHMR
     const initializeBuildWatcher = require('./dev-build-watcher').default
-    initializeBuildWatcher(webpackHMR)
+    initializeBuildWatcher()
   }
   App = await pageLoader.loadPage('/_app')
 

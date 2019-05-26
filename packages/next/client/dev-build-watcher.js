@@ -1,4 +1,6 @@
-export default function initializeBuildWatcher (webpackHMR) {
+import { getEventSourceWrapper } from './dev-error-overlay/eventsource'
+
+export default function initializeBuildWatcher () {
   const shadowHost = document.getElementById('__next-build-watcher')
   if (!shadowHost) return
   let shadowRoot
@@ -31,7 +33,8 @@ export default function initializeBuildWatcher (webpackHMR) {
   let timeoutId = null
 
   // Handle events
-  webpackHMR.addMessageListenerToEventSourceWrapper((event) => {
+  const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr', ondemand: 1 })
+  evtSource.addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
