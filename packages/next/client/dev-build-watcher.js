@@ -137,7 +137,7 @@ function createCss (style, prefix) {
 
       padding: 8px 10px;
       align-items: center;
-      box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.38), 0 2px 10px 0 rgba(0, 0, 0, 0.48);
+      box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.25), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
 
       display: none;
       opacity: 0;
