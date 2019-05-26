@@ -126,8 +126,16 @@ function createCss (style, prefix) {
       bottom: 10px;
       right: 30px;
 
+      background: #fff;
+      color: #000;
+      font: initial;
+      cursor: initial;
+      letter-spacing: initial;
+      text-shadow: initial;
+      text-transform: initial;
+      visibility: initial;
+
       padding: 8px 10px;
-      background: white;
       align-items: center;
       box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.38), 0 2px 10px 0 rgba(0, 0, 0, 0.48);
 
